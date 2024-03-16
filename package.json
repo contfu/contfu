@@ -1,5 +1,5 @@
 {
-  "name": "lean-cms",
+  "name": "@lean-cms/proxy",
   "module": "index.ts",
   "type": "module",
   "devDependencies": {
@@ -7,5 +7,9 @@
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "kysely": "^0.27.3",
+    "kysely-bun-sqlite": "^0.3.2"
   }
 }
