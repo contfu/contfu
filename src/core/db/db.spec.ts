@@ -3,6 +3,6 @@ import { getDb } from "./db";
 
 describe("tables", () => {
   it("should be present", async () => {
-    await getDb().selectFrom("sync").selectAll().execute();
+    await getDb().selectFrom("connection").selectAll().execute();
   });
 });

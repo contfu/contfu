@@ -1,16 +1,13 @@
-import { Kysely, sql } from "kysely";
+import { Kysely } from "kysely";
 
 export async function up(db: Kysely<any>): Promise<void> {
   await db.schema
     .createTable("connection")
-    .addColumn("id", "integer", (col) => col.primaryKey())
     .addColumn("name", "text", (col) => col.notNull())
     .addColumn("key", "text", (col) => col.notNull())
     .addColumn("target", "text", (col) => col.notNull())
     .addColumn("type", "text", (col) => col.notNull())
-    .addColumn("createdAt", "integer", (col) =>
-      col.defaultTo(sql`CURRENT_TIMESTAMP`).notNull()
-    )
+    .addPrimaryKeyConstraint("connectionPrimaryKey", ["key", "target"])
     .execute();
 
   await db.schema
@@ -28,13 +25,9 @@ export async function up(db: Kysely<any>): Promise<void> {
       col.references("connection.id").notNull()
     )
     .addColumn("publishedAt", "integer", (col) => col.notNull())
-    .addColumn("createdAt", "integer", (col) =>
-      col.defaultTo(sql`CURRENT_TIMESTAMP`).notNull()
-    )
+    .addColumn("createdAt", "integer", (col) => col.notNull())
     .addColumn("updatedAt", "integer")
-    .addColumn("changedAt", "integer", (col) =>
-      col.defaultTo(sql`CURRENT_TIMESTAMP`).notNull()
-    )
+    .addColumn("changedAt", "integer", (col) => col.notNull())
     .execute();
 
   await db.schema
@@ -47,6 +40,12 @@ export async function up(db: Kysely<any>): Promise<void> {
     .createIndex("page_published_at_idx")
     .on("page")
     .column("publishedAt")
+    .execute();
+
+  await db.schema
+    .createIndex("page_changed_at_idx")
+    .on("page")
+    .column("changedAt")
     .execute();
 
   await db.schema
@@ -63,12 +62,8 @@ export async function up(db: Kysely<any>): Promise<void> {
     .addColumn("name", "text", (col) => col.notNull())
     .addColumn("props", "text", (col) => col.notNull())
     .addColumn("content", "text", (col) => col.notNull())
-    .addColumn("changedAt", "integer", (col) =>
-      col.defaultTo(sql`CURRENT_TIMESTAMP`).notNull()
-    )
-    .addColumn("createdAt", "integer", (col) =>
-      col.defaultTo(sql`CURRENT_TIMESTAMP`).notNull()
-    )
+    .addColumn("changedAt", "integer", (col) => col.notNull())
+    .addColumn("createdAt", "integer", (col) => col.notNull())
     .execute();
 
   await db.schema
@@ -103,16 +98,6 @@ export async function up(db: Kysely<any>): Promise<void> {
       "parentId",
       "childId",
     ])
-    .execute();
-
-  await db.schema
-    .createTable("sync")
-    .addColumn("connection", "integer", (col) =>
-      col.references("connection.id").notNull()
-    )
-    .addColumn("full", "integer")
-    .addColumn("changes", "integer")
-    .addColumn("orphans", "integer")
     .execute();
 }
 

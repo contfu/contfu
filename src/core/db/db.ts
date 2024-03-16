@@ -1,8 +1,8 @@
 import { Database } from "bun:sqlite";
 import { Kysely, Migrator } from "kysely";
 import { BunSqliteDialect } from "kysely-bun-sqlite";
-import type { Schema } from "../types.ts";
 import { migrations } from "./migrations/index.ts";
+import type { Schema } from "./schema.ts";
 
 let db: Kysely<Schema>;
 
@@ -44,7 +44,6 @@ async function migrate() {
 }
 
 export async function truncate() {
-  await getDb().deleteFrom("sync").execute();
   await getDb().deleteFrom("componentRelation").execute();
   await getDb().deleteFrom("pageComponent").execute();
   await getDb().deleteFrom("component").execute();
