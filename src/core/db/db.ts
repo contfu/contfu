@@ -1,13 +1,21 @@
 import { Database } from "bun:sqlite";
-import { Kysely, Migrator } from "kysely";
+import { Kysely, Migrator, Transaction } from "kysely";
 import { BunSqliteDialect } from "kysely-bun-sqlite";
 import { migrations } from "./migrations/index.ts";
 import type { Schema } from "./schema.ts";
 
-let db: Kysely<Schema>;
+export type DbCtx = Kysely<Schema>;
+
+let db: DbCtx;
 
 export function getDb() {
   return db;
+}
+
+export function runTransaction<T>(
+  callback: (trx: Transaction<Schema>) => Promise<T>
+) {
+  return getDb().transaction().execute(callback);
 }
 
 export async function setupDb(path?: string | null) {

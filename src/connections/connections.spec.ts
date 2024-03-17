@@ -3,6 +3,19 @@ import { setConnections, type Connection } from "./connections";
 import { createConnection, getConnections } from "./data/connection-datasource";
 
 describe("setConnections()", () => {
+  it("should throw an error, if key and target are the same", async () => {
+    expect(
+      setConnections([connection, { ...connection, name: "test2" }])
+    ).rejects.toThrow(/constraint/i);
+  });
+
+  it("should rollback transaction, if something goes wrong", async () => {
+    try {
+      await setConnections([connection, connection]);
+    } catch (e) {}
+
+    expect(await getConnections()).toEqual([]);
+  });
   describe("with no stored connections", () => {
     it("should add a connection", async () => {
       await setConnections([connection]);
@@ -17,14 +30,6 @@ describe("setConnections()", () => {
 
       expect(await getConnections()).toEqual([connection, connection2]);
     });
-  });
-
-  it("should throw an error, if key and target are the same", async () => {
-    await createConnection(connection);
-
-    expect(
-      setConnections([connection, { ...connection, name: "test2" }])
-    ).rejects.toThrow(/duplicate/i);
   });
 
   describe("with stored connections", () => {

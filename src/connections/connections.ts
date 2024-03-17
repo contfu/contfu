@@ -1,3 +1,4 @@
+import { runTransaction } from "../core/db/db";
 import {
   createConnection,
   deleteConnection,
@@ -6,25 +7,20 @@ import {
 } from "./data/connection-datasource";
 
 export async function setConnections(connections: Connection[]): Promise<void> {
-  for (const c1 of connections) {
-    for (const c2 of connections) {
-      if (c1 !== c2 && connectionEquals(c1, c2)) {
-        throw new Error(`Duplicate connection: ${c1.name}, ${c2.name}`);
+  await runTransaction(async (trx) => {
+    const storedConnections = await getConnections(trx);
+
+    for (const conn of connections) {
+      const stored = storedConnections.find((c) => connectionEquals(conn, c));
+      if (stored) await updateConnection(conn, trx);
+      else await createConnection(conn, trx);
+    }
+    for (const stored of storedConnections) {
+      if (!connections.find((c) => connectionEquals(c, stored))) {
+        await deleteConnection(stored, trx);
       }
     }
-  }
-  const storedConnections = await getConnections();
-
-  for (const conn of connections) {
-    const stored = storedConnections.find((c) => connectionEquals(conn, c));
-    if (stored) await updateConnection(conn);
-    else await createConnection(conn);
-  }
-  for (const stored of storedConnections) {
-    if (!connections.find((c) => connectionEquals(c, stored))) {
-      await deleteConnection(stored);
-    }
-  }
+  });
 }
 
 export type Connection = {
