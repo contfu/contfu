@@ -4,6 +4,7 @@ import {
   MigrationProvider,
   Migrator,
   Transaction,
+  sql,
 } from "kysely";
 import type { Schema } from "./schema";
 
@@ -54,6 +55,12 @@ async function migrate(provider: MigrationProvider) {
     console.error(error);
     throw error;
   }
+}
+
+export async function getInsertId(ctx: DbCtx = getDb()) {
+  return (
+    await sql<{ id: number }>`SELECT last_insert_rowid() as id`.execute(ctx)
+  ).rows[0].id;
 }
 
 export async function truncate() {

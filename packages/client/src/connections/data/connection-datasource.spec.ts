@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { getDb } from "../../core/db/db";
-import type { DbConnection } from "../../core/db/schema";
+import { getDb, getInsertId } from "../../core/db/db";
+import type { NewConnection } from "../../core/db/schema";
 import {
   createConnection,
   deleteConnection,
@@ -10,55 +10,55 @@ import {
 
 describe("getConnections()", () => {
   it("should return an array of connections", async () => {
-    await getDb().insertInto("connection").values(connection).execute();
+    const id = await insertConnection();
 
     const connections = await getConnections();
 
-    expect(connections).toEqual([connection]);
+    expect(connections).toEqual([{ ...connection, id }]);
   });
 });
 
 describe("createConnection()", () => {
   it("should insert a new connection", async () => {
-    await createConnection(connection);
+    const { id } = await createConnection(connection);
 
-    const connections = await getDb()
-      .selectFrom("connection")
-      .selectAll()
-      .execute();
-    expect(connections).toEqual([connection]);
+    expect(await selectAllConnections()).toEqual([{ ...connection, id }]);
   });
 });
 
 describe("updateConnection()", () => {
   it("should update a connection", async () => {
-    await getDb().insertInto("connection").values(connection).execute();
-    const updatedConnection = { ...connection, name: "test2" };
+    const id = await insertConnection();
+    const updatedConnection = { ...connection, id, name: "test2" };
 
     await updateConnection(updatedConnection);
 
-    const stored = await getDb()
-      .selectFrom("connection")
-      .selectAll()
-      .executeTakeFirst();
-    expect(stored).toEqual(updatedConnection);
+    expect(await selectAllConnections()).toEqual([updatedConnection]);
   });
 });
 
 describe("deleteConnection()", () => {
   it("should delete a connection", async () => {
-    await getDb().insertInto("connection").values(connection).execute();
+    const id = await insertConnection();
 
     await deleteConnection(connection);
 
-    const stored = await getDb().selectFrom("connection").selectAll().execute();
-    expect(stored).toEqual([]);
+    expect(await selectAllConnections()).toEqual([]);
   });
 });
 
-const connection: DbConnection = {
+const connection: NewConnection = {
   name: "test",
   key: "test",
   target: "foo",
   type: "abc",
 };
+
+async function insertConnection(c: NewConnection = connection) {
+  await getDb().insertInto("connection").values(c).execute();
+  return await getInsertId();
+}
+
+async function selectAllConnections() {
+  return await getDb().selectFrom("connection").selectAll().execute();
+}

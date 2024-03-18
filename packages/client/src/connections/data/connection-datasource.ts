@@ -1,4 +1,4 @@
-import { getDb, type DbCtx } from "../../core/db/db";
+import { getDb, getInsertId, type DbCtx } from "../../core/db/db";
 import type { DbConnection, NewConnection } from "../../core/db/schema";
 
 export function getConnections(ctx?: DbCtx): Promise<DbConnection[]> {
@@ -7,9 +7,13 @@ export function getConnections(ctx?: DbCtx): Promise<DbConnection[]> {
 
 export async function createConnection(
   connection: NewConnection,
-  ctx?: DbCtx
-): Promise<void> {
-  await (ctx ?? getDb()).insertInto("connection").values(connection).execute();
+  ctx: DbCtx = getDb()
+): Promise<DbConnection> {
+  await ctx.insertInto("connection").values(connection).execute();
+  return {
+    ...connection,
+    id: await getInsertId(ctx),
+  };
 }
 
 export async function updateConnection(

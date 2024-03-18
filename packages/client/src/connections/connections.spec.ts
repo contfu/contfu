@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { setConnections, type Connection } from "./connections";
+import { NewConnection } from "../core/db/schema";
+import { setConnections } from "./connections";
 import { createConnection, getConnections } from "./data/connection-datasource";
 
 describe("setConnections()", () => {
@@ -20,37 +21,37 @@ describe("setConnections()", () => {
     it("should add a connection", async () => {
       await setConnections([connection]);
 
-      expect(await getConnections()).toEqual([connection]);
+      expect(await getConnections()).toEqual([
+        { ...connection, id: expect.any(Number) },
+      ]);
     });
 
     it("should add another connection, if key or target differ", async () => {
       const connection2 = { ...connection, key: "test2" };
 
-      await setConnections([connection, connection2]);
+      const connections = await setConnections([connection, connection2]);
 
-      expect(await getConnections()).toEqual([connection, connection2]);
+      expect(await getConnections()).toEqual(connections);
     });
   });
 
   describe("with stored connections", () => {
     it("should add another connection, if key or target differ", async () => {
       await createConnection(connection);
-
       const connection2 = { ...connection, key: "test2" };
 
-      await setConnections([connection, connection2]);
+      const connections = await setConnections([connection, connection2]);
 
-      expect(await getConnections()).toEqual([connection, connection2]);
+      expect(await getConnections()).toEqual(connections);
     });
 
     it("should update a connection, if key and target equal", async () => {
       await createConnection(connection);
-
       const connection2 = { ...connection, name: "test2" };
 
-      await setConnections([connection2]);
+      const connections = await setConnections([connection2]);
 
-      expect(await getConnections()).toEqual([connection2]);
+      expect(await getConnections()).toEqual(connections);
     });
 
     it("should delete a connection, if it is not in the passed connections", async () => {
@@ -63,7 +64,7 @@ describe("setConnections()", () => {
   });
 });
 
-const connection: Connection = {
+const connection: NewConnection = {
   name: "test",
   key: "test",
   target: "foo",

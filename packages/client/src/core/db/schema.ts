@@ -10,6 +10,7 @@ export interface Schema {
 }
 
 export interface ConnectionTable {
+  id: Generated<number>;
   name: string;
   key: string;
   target: string;
