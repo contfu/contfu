@@ -1,0 +1,19 @@
+{
+  "name": "@contfu/client",
+  "module": "index.ts",
+  "type": "module",
+  "scripts": {
+    "build:types": "tsc",
+    "build:bundle": "bun build ./index.ts --outdir dist --target bun --sourcemap=external --minify --external kysely --external kysely-bun-sqlite"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "kysely": "^0.27.3",
+    "kysely-bun-sqlite": "^0.3.2"
+  }
+}

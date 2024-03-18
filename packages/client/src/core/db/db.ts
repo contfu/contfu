@@ -1,8 +1,8 @@
 import { Database } from "bun:sqlite";
 import { Kysely, Migrator, Transaction } from "kysely";
 import { BunSqliteDialect } from "kysely-bun-sqlite";
-import { migrations } from "./migrations/index.ts";
-import type { Schema } from "./schema.ts";
+import { migrations } from "./migrations";
+import type { Schema } from "./schema";
 
 export type DbCtx = Kysely<Schema>;
 
