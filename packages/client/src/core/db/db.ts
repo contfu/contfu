@@ -1,7 +1,10 @@
-import { Database } from "bun:sqlite";
-import { Kysely, Migrator, Transaction } from "kysely";
-import { BunSqliteDialect } from "kysely-bun-sqlite";
-import { migrations } from "./migrations";
+import {
+  Dialect,
+  Kysely,
+  MigrationProvider,
+  Migrator,
+  Transaction,
+} from "kysely";
 import type { Schema } from "./schema";
 
 export type DbCtx = Kysely<Schema>;
@@ -9,6 +12,9 @@ export type DbCtx = Kysely<Schema>;
 let db: DbCtx;
 
 export function getDb() {
+  if (!db) {
+    throw new Error("db not initialized");
+  }
   return db;
 }
 
@@ -18,22 +24,21 @@ export function runTransaction<T>(
   return getDb().transaction().execute(callback);
 }
 
-export async function setupDb(path?: string | null) {
-  const dialect = new BunSqliteDialect({
-    database: new Database(path ?? ":memory:"),
-  });
+export async function setupDb({
+  dialect,
+  migratonProvider,
+}: {
+  dialect: Dialect;
+  migratonProvider: MigrationProvider;
+}) {
   db = new Kysely<Schema>({ dialect });
-  await migrate();
+  await migrate(migratonProvider);
 }
 
-async function migrate() {
+async function migrate(provider: MigrationProvider) {
   const migrator = new Migrator({
     db: getDb(),
-    provider: {
-      async getMigrations() {
-        return migrations;
-      },
-    },
+    provider,
   });
   const { error, results } = await migrator.migrateToLatest();
   results?.forEach((it) => {
@@ -59,3 +64,5 @@ export async function truncate() {
   await getDb().deleteFrom("page").execute();
   await getDb().deleteFrom("connection").execute();
 }
+
+export { sqliteMigrationProvider } from "./migrations/sqlite";
