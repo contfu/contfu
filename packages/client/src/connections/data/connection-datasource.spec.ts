@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { getDb, getInsertId } from "../../core/db/db";
+import { getDb, insertReturningId } from "../../core/db/db";
 import type { NewConnection } from "../../core/db/schema";
 import {
   createConnection,
@@ -55,8 +55,7 @@ const connection: NewConnection = {
 };
 
 async function insertConnection(c: NewConnection = connection) {
-  await getDb().insertInto("connection").values(c).execute();
-  return await getInsertId();
+  return await insertReturningId("connection", c);
 }
 
 async function selectAllConnections() {
