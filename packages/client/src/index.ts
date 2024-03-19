@@ -1,2 +1,2 @@
 export * from "./connections/connections";
-export { getDb, setupDb, sqliteMigrationProvider } from "./core/db/db";
+export { getDb, migrationProvider, setupDb } from "./core/db/db";

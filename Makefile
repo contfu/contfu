@@ -1,7 +1,8 @@
 test: test.client
 
 test.client:
-	cd packages/client && bun test
+	cd packages/client; bun test:sqlite
+	cd packages/client; bun test:pg
 
 build: build.client
 

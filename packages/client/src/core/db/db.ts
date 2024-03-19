@@ -2,11 +2,12 @@ import {
   Dialect,
   Insertable,
   Kysely,
-  MigrationProvider,
   Migrator,
+  NO_MIGRATIONS,
   Transaction,
   sql,
 } from "kysely";
+import { migrationProvider } from "./migrations";
 import type { Schema } from "./schema";
 
 export type DbCtx = Kysely<Schema>;
@@ -28,13 +29,13 @@ export function runTransaction<T>(
 
 export async function setupDb({
   dialect,
-  migratonProvider,
+  erase = false,
 }: {
   dialect: Dialect;
-  migratonProvider: MigrationProvider;
+  erase?: boolean;
 }) {
   db = new Kysely<Schema>({ dialect });
-  await migrate(migratonProvider);
+  await migrate(erase);
 }
 
 export async function insertReturningId<T extends keyof Schema>(
@@ -67,13 +68,21 @@ export async function truncate() {
   await getDb().deleteFrom("connection").execute();
 }
 
-export { sqliteMigrationProvider } from "./migrations/sqlite";
+export { migrationProvider } from "./migrations";
 
-async function migrate(provider: MigrationProvider) {
+async function migrate(erase: boolean) {
   const migrator = new Migrator({
     db: getDb(),
-    provider,
+    provider: migrationProvider,
   });
+  if (erase) {
+    const { error } = await migrator.migrateTo(NO_MIGRATIONS);
+    if (error) {
+      console.error("failed to erase database");
+      console.error(error);
+      throw error;
+    }
+  }
   const { error, results } = await migrator.migrateToLatest();
   results?.forEach((it) => {
     if (it.status === "Success") {

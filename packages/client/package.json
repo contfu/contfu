@@ -4,11 +4,15 @@
   "type": "module",
   "scripts": {
     "build:types": "tsc",
-    "build:bundle": "bun build ./src/index.ts --outdir dist --target node --sourcemap=external --minify --external kysely"
+    "build:bundle": "bun build ./src/index.ts --outdir dist --target node --sourcemap=external --minify --external kysely",
+    "test:sqlite": "bun test --preload ./test/setup-sqlite.ts",
+    "test:pg": "bun test --preload ./test/setup-pg.ts"
   },
   "devDependencies": {
     "@types/bun": "latest",
-    "kysely-bun-sqlite": "^0.3.2"
+    "@types/pg": "^8.11.2",
+    "kysely-bun-sqlite": "^0.3.2",
+    "pg": "^8.11.3"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
