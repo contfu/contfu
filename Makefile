@@ -1,6 +1,7 @@
 test: test.client
 
 test.client:
+	cd packages/client; bun test:sqlite-worker
 	cd packages/client; bun test:sqlite
 	cd packages/client; bun test:pg
 
