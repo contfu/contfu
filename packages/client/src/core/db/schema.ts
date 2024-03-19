@@ -55,6 +55,7 @@ export interface ComponentTable {
   name: string;
   props: string;
   content: string;
+  connection: number;
   changedAt: number;
   createdAt: number;
 }

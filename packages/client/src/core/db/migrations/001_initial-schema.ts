@@ -68,14 +68,11 @@ export async function up(db: Kysely<any>): Promise<void> {
     .addColumn("name", "text", (col) => col.notNull())
     .addColumn("props", "text", (col) => col.notNull())
     .addColumn("content", "text", (col) => col.notNull())
+    .addColumn("connection", "integer", (col) =>
+      col.references("connection.id")
+    )
     .addColumn("changedAt", "integer", (col) => col.notNull())
     .addColumn("createdAt", "integer", (col) => col.notNull())
-    .execute();
-
-  await db.schema
-    .createIndex("component_name_idx")
-    .on("component")
-    .column("name")
     .execute();
 
   await db.schema
