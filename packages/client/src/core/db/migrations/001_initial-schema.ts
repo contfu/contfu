@@ -21,11 +21,11 @@ export async function up(db: Kysely<any>): Promise<void> {
     .addColumn("id", serial, (col) => col.primaryKey())
     .addColumn("ref", "text", (col) => col.unique().notNull())
     .addColumn("slug", "text", (col) => col.unique().notNull())
-    .addColumn("type", "text")
+    .addColumn("collection", "text")
     .addColumn("title", "text", (col) => col.notNull())
     .addColumn("description", "text", (col) => col.notNull())
-    .addColumn("content", "text", (col) => col.notNull())
-    .addColumn("attributes", "text", (col) => col.notNull())
+    .addColumn("content", "text")
+    .addColumn("attributes", "text")
     .addColumn("author", "text")
     .addColumn("connection", "integer", (col) =>
       col.references("connection.id").notNull()
@@ -60,54 +60,9 @@ export async function up(db: Kysely<any>): Promise<void> {
     .addColumn("from", "integer", (col) => col.references("page.id").notNull())
     .addColumn("to", "integer", (col) => col.references("page.id").notNull())
     .execute();
-
-  await db.schema
-    .createTable("component")
-    .addColumn("id", serial, (col) => col.primaryKey())
-    .addColumn("ref", "text", (col) => col.unique().notNull())
-    .addColumn("name", "text", (col) => col.notNull())
-    .addColumn("props", "text", (col) => col.notNull())
-    .addColumn("content", "text", (col) => col.notNull())
-    .addColumn("connection", "integer", (col) =>
-      col.references("connection.id")
-    )
-    .addColumn("changedAt", "integer", (col) => col.notNull())
-    .addColumn("createdAt", "integer", (col) => col.notNull())
-    .execute();
-
-  await db.schema
-    .createTable("pageComponent")
-    .addColumn("pageId", "integer", (col) =>
-      col.notNull().references("page.id")
-    )
-    .addColumn("componentId", "integer", (col) =>
-      col.notNull().references("component.id")
-    )
-    .addPrimaryKeyConstraint("pageComponentPrimaryKey", [
-      "pageId",
-      "componentId",
-    ])
-    .execute();
-
-  await db.schema
-    .createTable("componentRelation")
-    .addColumn("parentId", "integer", (col) =>
-      col.notNull().references("component.id")
-    )
-    .addColumn("childId", "integer", (col) =>
-      col.notNull().references("component.id")
-    )
-    .addPrimaryKeyConstraint("componentRelationPrimaryKey", [
-      "parentId",
-      "childId",
-    ])
-    .execute();
 }
 
 export async function down(db: Kysely<any>): Promise<void> {
-  await db.schema.dropTable("componentRelation").execute();
-  await db.schema.dropTable("pageComponent").execute();
-  await db.schema.dropTable("component").execute();
   await db.schema.dropTable("pageLink").execute();
   await db.schema.dropTable("page").execute();
   await db.schema.dropTable("connection").execute();

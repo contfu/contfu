@@ -60,9 +60,6 @@ export async function insertReturningId<T extends keyof Schema>(
 }
 
 export async function truncate() {
-  await getDb().deleteFrom("componentRelation").execute();
-  await getDb().deleteFrom("pageComponent").execute();
-  await getDb().deleteFrom("component").execute();
   await getDb().deleteFrom("pageLink").execute();
   await getDb().deleteFrom("page").execute();
   await getDb().deleteFrom("connection").execute();

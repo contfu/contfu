@@ -4,9 +4,6 @@ export interface Schema {
   connection: ConnectionTable;
   page: PageTable;
   pageLink: PageLinkTable;
-  component: ComponentTable;
-  pageComponent: PageComponentTable;
-  componentRelation: ComponentRelationTable;
 }
 
 export interface ConnectionTable {
@@ -24,11 +21,11 @@ export interface PageTable {
   id: Generated<number>;
   ref: string;
   slug: string;
-  type: string | null;
+  collection: string | null;
   title: string;
   description: string;
-  content: string;
-  attributes: string;
+  content: string | null;
+  attributes: string | null;
   author: string | null;
   connection: number;
   publishedAt: number;
@@ -48,33 +45,3 @@ export interface PageLinkTable {
 export type DbPageLink = Selectable<PageLinkTable>;
 export type NewPageLink = Insertable<PageLinkTable>;
 export type PageLinkUpdate = Updateable<PageLinkTable>;
-
-export interface ComponentTable {
-  id: Generated<number>;
-  ref: string;
-  name: string;
-  props: string;
-  content: string;
-  connection: number;
-  changedAt: number;
-  createdAt: number;
-}
-export type DbComponent = Selectable<ComponentTable>;
-export type NewComponent = Insertable<ComponentTable>;
-export type ComponentUpdate = Updateable<ComponentTable>;
-
-export interface PageComponentTable {
-  pageId: number;
-  componentId: number;
-}
-export type DbPageComponent = Selectable<PageComponentTable>;
-export type NewPageComponent = Insertable<PageComponentTable>;
-export type PageComponentUpdate = Updateable<PageComponentTable>;
-
-export interface ComponentRelationTable {
-  parentId: number;
-  childId: number;
-}
-export type DbComponentRelation = Selectable<ComponentRelationTable>;
-export type NewComponentRelation = Insertable<ComponentRelationTable>;
-export type ComponentRelationUpdate = Updateable<ComponentRelationTable>;
