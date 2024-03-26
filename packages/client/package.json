@@ -1,20 +1,24 @@
 {
   "name": "@contfu/client",
-  "module": "index.ts",
+  "module": "dist/index.js",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "type": "module",
   "scripts": {
     "build:types": "tsc",
     "build:bundle": "bun build ./src/index.ts --outdir dist --target node --sourcemap=external --minify --external kysely",
     "test:sqlite": "bun test --preload ./test/setup-sqlite.ts",
     "test:sqlite-worker": "bun test --preload ./test/setup-sqlite-worker.ts",
-    "test:pg": "bun test --preload ./test/setup-pg.ts"
+    "test:pg": "bun test --preload ./test/setup-pg.ts",
+    "clean": "rm -rf dist"
   },
   "devDependencies": {
     "@types/bun": "latest",
     "@types/pg": "^8.11.2",
     "kysely-bun-sqlite": "^0.3.2",
     "kysely-bun-worker": "^0.5.7",
-    "pg": "^8.11.3"
+    "pg": "^8.11.3",
+    "ts-essentials": "^9.4.1"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
