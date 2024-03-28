@@ -1,11 +1,12 @@
 import { describe, expect, it } from "bun:test";
 import { getDb, insertReturningId } from "../../core/db/db";
 import type { NewConnection } from "../../core/db/schema";
+import { ConnectionData } from "./connection-data";
 import {
   createConnection,
   deleteConnection,
   getConnections,
-  updateConnection,
+  patchConnection,
 } from "./connection-datasource";
 
 describe("getConnections()", () => {
@@ -26,12 +27,12 @@ describe("createConnection()", () => {
   });
 });
 
-describe("updateConnection()", () => {
+describe("patchConnection()", () => {
   it("should update a connection", async () => {
     const id = await insertConnection();
     const updatedConnection = { ...connection, id, name: "test2" };
 
-    await updateConnection(updatedConnection);
+    await patchConnection(updatedConnection);
 
     expect(await selectAllConnections()).toEqual([updatedConnection]);
   });
@@ -39,7 +40,7 @@ describe("updateConnection()", () => {
 
 describe("deleteConnection()", () => {
   it("should delete a connection", async () => {
-    const id = await insertConnection();
+    await insertConnection();
 
     await deleteConnection(connection);
 
@@ -47,14 +48,18 @@ describe("deleteConnection()", () => {
   });
 });
 
-const connection: NewConnection = {
+const connection = {
   name: "test",
   key: "test",
   target: "foo",
   type: "abc",
-};
+} satisfies Omit<ConnectionData, "id">;
 
-async function insertConnection(c: NewConnection = connection) {
+const newConnection = {
+  ...connection,
+} satisfies NewConnection as any;
+
+async function insertConnection(c: NewConnection = newConnection) {
   return await insertReturningId("connection", c);
 }
 

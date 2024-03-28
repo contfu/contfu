@@ -1,5 +1,6 @@
 import { getDb, insertReturningId } from "../../core/db/db";
 import type { DbPage, NewPage, PageUpdate } from "../../core/db/schema";
+import { deleteNulls } from "../../util/object-helpers";
 import { PageData } from "./page-data";
 
 export async function getPages(ctx = getDb()): Promise<PageData[]> {
@@ -56,13 +57,4 @@ function pageFromDb(dbo: DbPage): PageData {
     attributes: dbo.attributes && JSON.parse(dbo.attributes),
     author: dbo.author && JSON.parse(dbo.author),
   });
-}
-
-function deleteNulls<T>(obj: T): { [K in keyof T]: Exclude<T[K], null> } {
-  for (const key in obj) {
-    if (obj[key] === null) {
-      delete obj[key];
-    }
-  }
-  return obj as any;
 }

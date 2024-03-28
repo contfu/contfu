@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { NewConnection } from "../core/db/schema";
-import { setConnections } from "./connections";
-import { createConnection, getConnections } from "./data/connection-datasource";
+import { Connection, setConnections } from "../connections";
+import { ConnectionData } from "./connection-data";
+import { createConnection, getConnections } from "./connection-datasource";
 
-describe("setConnections()", () => {
+describe("updateConnections()", () => {
   it("should throw an error, if key and target are the same", async () => {
     expect(
       setConnections([connection, { ...connection, name: "test2" }])
@@ -29,9 +29,19 @@ describe("setConnections()", () => {
     it("should add another connection, if key or target differ", async () => {
       const connection2 = { ...connection, key: "test2" };
 
-      const connections = await setConnections([connection, connection2]);
+      await setConnections([connection, connection2]);
 
-      expect(await getConnections()).toEqual(connections);
+      expect(await getConnections()).toEqual([
+        expect.objectContaining({
+          ...newConnection,
+          id: expect.any(Number),
+        }),
+        expect.objectContaining({
+          ...newConnection,
+          key: "test2",
+          id: expect.any(Number),
+        }),
+      ]);
     });
   });
 
@@ -40,18 +50,34 @@ describe("setConnections()", () => {
       await createConnection(connection);
       const connection2 = { ...connection, key: "test2" };
 
-      const connections = await setConnections([connection, connection2]);
+      await setConnections([connection, connection2]);
 
-      expect(await getConnections()).toEqual(connections);
+      expect(await getConnections()).toEqual([
+        expect.objectContaining({
+          ...newConnection,
+          id: expect.any(Number),
+        }),
+        expect.objectContaining({
+          ...newConnection,
+          key: "test2",
+          id: expect.any(Number),
+        }),
+      ]);
     });
 
     it("should update a connection, if key and target equal", async () => {
       await createConnection(connection);
       const connection2 = { ...connection, name: "test2" };
 
-      const connections = await setConnections([connection2]);
+      await setConnections([connection2]);
 
-      expect(await getConnections()).toEqual(connections);
+      expect(await getConnections()).toEqual([
+        expect.objectContaining({
+          ...newConnection,
+          key: "test2",
+          id: expect.any(Number),
+        }),
+      ]);
     });
 
     it("should delete a connection, if it is not in the passed connections", async () => {
@@ -64,9 +90,16 @@ describe("setConnections()", () => {
   });
 });
 
-const connection: NewConnection = {
+const newConnection: Omit<ConnectionData, "id"> = {
   name: "test",
   key: "test",
   target: "foo",
   type: "abc",
+};
+
+const connection: Connection = {
+  ...newConnection,
+  getCollectionRefs: async () => {},
+  pull: async () => {},
+  pullRecent: async () => {},
 };
