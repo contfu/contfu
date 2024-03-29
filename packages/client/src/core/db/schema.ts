@@ -9,8 +9,8 @@ export interface Schema {
 export interface ConnectionTable {
   id: Generated<number>;
   name: string;
-  key: string;
-  target: string;
+  key: string | null;
+  target: string | null;
   type: string;
 }
 export type DbConnection = Selectable<ConnectionTable>;

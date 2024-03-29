@@ -4,16 +4,18 @@ import type {
   DbConnection,
   NewConnection,
 } from "../../core/db/schema";
+import { deleteNulls } from "../../util/object-helpers";
 import { ConnectionData } from "./connection-data";
 
-export function getConnections(ctx = getDb()): Promise<ConnectionData[]> {
-  return ctx.selectFrom("connection").selectAll().execute();
+export async function getConnections(ctx = getDb()): Promise<ConnectionData[]> {
+  const dbos = await ctx.selectFrom("connection").selectAll().execute();
+  return dbos.map(connectionFromDb);
 }
 
 export async function createConnection(
   connection: Omit<ConnectionData, "id">,
   ctx = getDb()
-): Promise<DbConnection> {
+): Promise<ConnectionData> {
   const id = await insertReturningId(
     "connection",
     connectionToDb(connection),
@@ -35,12 +37,12 @@ export async function patchConnection(
 }
 
 export async function deleteConnection(
-  { key, target }: Pick<ConnectionData, "key" | "target">,
+  { name, id }: Partial<Pick<ConnectionData, "name" | "id">>,
   ctx = getDb()
 ): Promise<void> {
   await ctx
     .deleteFrom("connection")
-    .where((eb) => eb.and({ key, target }))
+    .where((eb) => eb.or({ name, id }))
     .execute();
 }
 
@@ -50,6 +52,6 @@ function connectionToDb<T extends NewConnection | Omit<NewConnection, "id">>(
   return connection satisfies NewConnection | ConnectionUpdate as any;
 }
 
-function connectionFromDb(dbo: DbConnection): NewConnection {
-  return dbo;
+function connectionFromDb(dbo: DbConnection): ConnectionData {
+  return deleteNulls(dbo);
 }

@@ -1,5 +1,6 @@
 import { runTransaction } from "../../core/db/db";
 import { Connection } from "../connections";
+import { connectionToData } from "./connection-data";
 import {
   createConnection,
   deleteConnection,
@@ -14,9 +15,12 @@ export async function updateConnections(connections: Connection[]) {
     for (const conn of connections) {
       const stored = storedConnections.find((c) => connectionEquals(conn, c));
       if (stored) {
-        await patchConnection({ ...conn, id: stored.id }, trx);
+        await patchConnection(
+          { ...connectionToData(conn), id: stored.id },
+          trx
+        );
       } else {
-        const c = await createConnection(conn, trx);
+        const c = await createConnection(connectionToData(conn), trx);
       }
     }
     for (const stored of storedConnections) {
@@ -28,11 +32,11 @@ export async function updateConnections(connections: Connection[]) {
   });
 }
 
-type ConnectionEqualsFields = Pick<Connection, "key" | "target">;
+type ConnectionEqualsFields = Pick<Connection, "name">;
 
 function connectionEquals(
   c1: ConnectionEqualsFields,
   c2: ConnectionEqualsFields
 ): boolean {
-  return c1.key === c2.key && c1.target === c2.target;
+  return c1.name === c2.name;
 }
