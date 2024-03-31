@@ -23,15 +23,15 @@ export interface PageTable {
   slug: string;
   collection: string | null;
   title: string;
-  description: string;
+  description: string | null;
   content: string | null;
   attributes: string | null;
-  author: string | null;
   connection: number;
-  publishedAt: number;
   createdAt: number;
-  updatedAt: number | null;
   changedAt: number;
+  updatedAt: number | null;
+  publishedAt: number;
+  author: string | null;
 }
 export type DbPage = Selectable<PageTable>;
 export type NewPage = Insertable<PageTable>;

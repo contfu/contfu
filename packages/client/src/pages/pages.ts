@@ -5,6 +5,7 @@ export type PageProps = {
   content?: object;
   attributes?: Record<string, any>;
   author?: object | string;
+  linkType?: string;
 };
 
 export type Page<C extends PageProps = PageProps> = {
@@ -24,6 +25,17 @@ export type Page<C extends PageProps = PageProps> = {
       ? C["attributes"]
       : never;
     author: C["author"] extends object ? C["author"] : never;
+    links: Record<
+      (C["linkType"] extends string ? C["linkType"] : never) | "content",
+      PageLink[]
+    >;
   },
   never
 >;
+
+export type PageLink = {
+  slug: string;
+  title: string;
+  description?: string;
+  attributes?: Record<string, any>;
+};
