@@ -1,3 +1,4 @@
+import { PageData } from "../pages/data/page-data";
 import { updateConnections } from "./data/connection-repository";
 
 export async function setConnections(connections: Connection[]): Promise<void> {
@@ -5,6 +6,11 @@ export async function setConnections(connections: Connection[]): Promise<void> {
 }
 
 export type Connection = {
+  /**
+   * The id of the connection. It is unique and auto-incremented. It is used to
+   * reference the connection in the database.
+   */
+  id: number;
   /**
    * The name of the connection. It identies the connection and if it changes,
    * all related content will be removed and re-synchronized.
@@ -42,13 +48,9 @@ export type Connection = {
    *
    * @param collection The collection to get references for.
    */
-  getCollectionRefs(collection: string): Promise<void>;
+  pullAllRefs(): AsyncGenerator<string[]>;
   /**
-   * Pulls all content from the connection target.
+   * Pulls content from the connection target.
    */
-  pull(): Promise<void>;
-  /**
-   * Pulls only recently changed content from the connection target.
-   */
-  pullRecent(): Promise<void>;
+  pull(): AsyncGenerator<Omit<PageData, "id">>;
 };

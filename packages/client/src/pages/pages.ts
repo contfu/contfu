@@ -1,7 +1,7 @@
 import { OmitProperties } from "ts-essentials";
 
 export type PageProps = {
-  collection?: string;
+  collection: string;
   content?: object;
   attributes?: Record<string, any>;
   author?: object | string;
@@ -17,9 +17,9 @@ export type Page<C extends PageProps = PageProps> = {
   createdAt: number;
   updatedAt?: number;
   changedAt: number;
+  collection: C["collection"];
 } & OmitProperties<
   {
-    collection: C["collection"] extends string ? C["collection"] : never;
     content: C["content"] extends object ? C["content"] : never;
     attributes: C["attributes"] extends Record<string, any>
       ? C["attributes"]

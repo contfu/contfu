@@ -1,8 +1,6 @@
 {
   "name": "@contfu/client",
-  "module": "dist/index.js",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "src/index.ts",
   "type": "module",
   "scripts": {
     "build:types": "tsc",

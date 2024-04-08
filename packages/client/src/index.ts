@@ -4,7 +4,7 @@ import { setupDb } from "./core/db/db";
 
 export * from "./blocks/blocks";
 export * from "./connections/connections";
-export { getDb, migrationProvider, setupDb } from "./core/db/db";
+export { getDb, migrationProvider, setupDb, truncate } from "./core/db/db";
 export * from "./pages/pages";
 
 type ContfuSetupOpts = {
@@ -21,8 +21,9 @@ type ContfuSetupOpts = {
    * The connections to set up.
    * If connections change their key or target, the old connection and all linked data
    * will be removed and a new one created.
+   * Can also be set later with `setConnections`.
    */
-  connections: Connection[];
+  connections?: Connection[];
 };
 
 export async function setup({
@@ -30,6 +31,6 @@ export async function setup({
   kyselyDialect,
   eraseDb,
 }: ContfuSetupOpts) {
-  setupDb({ dialect: kyselyDialect, erase: eraseDb });
-  await setConnections(connections);
+  await setupDb({ dialect: kyselyDialect, erase: eraseDb });
+  if (connections) await setConnections(connections);
 }
