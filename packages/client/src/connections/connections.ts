@@ -5,7 +5,7 @@ export async function setConnections(connections: Connection[]): Promise<void> {
   await updateConnections(connections);
 }
 
-export type Connection = {
+export type Connection<Collection extends string = string> = {
   /**
    * The id of the connection. It is unique and auto-incremented. It is used to
    * reference the connection in the database.
@@ -44,11 +44,15 @@ export type Connection = {
    */
   pullRecentInterval?: number;
   /**
+   * The collections to synchronize with the connection.
+   */
+  collectionNames: Collection[];
+  /**
    * Loads all ids of the collection from the connection target.
    *
    * @param collection The collection to get references for.
    */
-  pullAllRefs(): AsyncGenerator<string[]>;
+  pullCollectionRefs(collection: string): AsyncGenerator<string[]>;
   /**
    * Pulls content from the connection target.
    */

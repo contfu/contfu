@@ -9,7 +9,7 @@ import {
   deletePage,
   deletePagesByRefs,
   getPage,
-  getPageIdsByCollection,
+  getPageRefsByCollection,
   getPages,
   setLinks,
   updatePage,
@@ -114,19 +114,19 @@ describe("deletePagesByRefs()", () => {
     const id = await insertPage(page2);
     await insertPage({ ...newPage, ref: "test3", slug: "test3" });
 
-    await deletePagesByRefs(["test1", "test3"]);
+    await deletePagesByRefs(1, ["test1", "test3"]);
 
     expect(await selectAllPages()).toEqual([{ ...page2, id }]);
   });
 });
 
-describe("getPageIdsByCollection", () => {
+describe("getPageRefsByCollection", () => {
   it("should return an array of page ids by collection", async () => {
-    const id = await insertPage();
+    await insertPage();
 
-    const ids = await getPageIdsByCollection("foo");
+    const ids = await getPageRefsByCollection(1, "foo");
 
-    expect(ids).toEqual([id]);
+    expect(ids).toEqual(["test"]);
   });
 });
 

@@ -20,7 +20,7 @@ type PageCollector<P extends Page> = (
 ) => Omit<PageData<P>, "id"> | Promise<Omit<PageData<P>, "id>">>;
 
 export class NotionConnection<C extends Record<string, Page>>
-  implements Connection
+  implements Connection<keyof C & string>
 {
   id: number;
   readonly name: string;
@@ -30,6 +30,10 @@ export class NotionConnection<C extends Record<string, Page>>
   readonly pullInterval?: number;
   readonly collections: CollectionDefs<C>;
 
+  get collectionNames() {
+    return Object.keys(this.collections);
+  }
+
   constructor(options: NotionConnectionOptions<C>) {
     this.name = options.name;
     this.key = options.key;
@@ -38,7 +42,7 @@ export class NotionConnection<C extends Record<string, Page>>
     this.collections = options.collections;
   }
 
-  async *pullAllRefs() {
+  async *pullCollectionRefs() {
     if (!this.pruneInterval) return;
     while (true) {
       const ids: string[] = [];

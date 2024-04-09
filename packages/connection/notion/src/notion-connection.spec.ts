@@ -51,10 +51,10 @@ const connection = new NotionConnection<{ pages: Page1 }>({
 });
 
 describe("NotionConnection", () => {
-  describe("pullAllRefs()", () => {
+  describe("pullConnectionRefs()", () => {
     it("should get all refs from all collections from notion", async () => {
       mockClient.databases.query.mockResolvedValueOnce(dbQueryPage1);
-      const { value } = await connection.pullAllRefs().next();
+      const { value } = await connection.pullCollectionRefs().next();
 
       expect(value).toEqual([
         "1c943524-6b15-431d-9a3b-0f91f9ce34d2",

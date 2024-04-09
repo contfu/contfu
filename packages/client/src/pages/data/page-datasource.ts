@@ -83,20 +83,30 @@ export async function deletePage(
 }
 
 export async function deletePagesByRefs(
+  connection: number,
   refs: string[],
   ctx = getDb()
 ): Promise<void> {
-  await ctx.deleteFrom("page").where("ref", "in", refs).execute();
+  await ctx
+    .deleteFrom("page")
+    .where((eb) =>
+      eb.and([eb("connection", "=", connection), eb("ref", "in", refs)])
+    )
+    .execute();
 }
 
-export async function getPageIdsByCollection(
+export async function getPageRefsByCollection(
+  connection: number,
   collection: string,
   ctx = getDb()
 ) {
-  const db = getDb();
-  const dbos = await db.selectFrom("page").select("id").execute();
-  const ids = dbos.map((dbo) => dbo.id);
-  return ids;
+  const dbos = await ctx
+    .selectFrom("page")
+    .select("ref")
+    .where((eb) => eb.and({ connection, collection }))
+    .execute();
+  const refs = dbos.map((dbo) => dbo.ref);
+  return refs;
 }
 
 export function setLinks(

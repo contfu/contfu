@@ -10,7 +10,8 @@ const conn = {
   id: 1,
   name: "foo",
   type: "foo",
-  pullAllRefs: mock(async function* () {
+  collectionNames: ["foo"],
+  pullCollectionRefs: mock(async function* () {
     yield ["test"];
   }),
   pull: mock(async function* () {
@@ -58,9 +59,10 @@ describe("sync()", () => {
   });
 
   it("should remove orphans", async () => {
-    await createPage({ ...page, ref: "test2", slug: "test2" });
+    await createPage(page);
+    const { id } = await createPage({ ...page, ref: "test2", slug: "test2" });
     const connections = [conn];
-    conn.pullAllRefs.mockImplementationOnce(async function* () {
+    conn.pullCollectionRefs.mockImplementationOnce(async function* () {
       yield ["test2"];
     });
 
@@ -69,8 +71,10 @@ describe("sync()", () => {
 
     expect(await getPages()).toEqual([
       {
-        id: expect.any(Number),
         ...page,
+        id,
+        ref: "test2",
+        slug: "test2",
       },
     ]);
   });
