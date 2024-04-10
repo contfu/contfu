@@ -12,7 +12,12 @@ type NotionConnectionOptions<C extends Record<string, Page>> = Required<
   };
 
 type CollectionDefs<C extends Record<string, Page>> = {
-  [k in keyof C]: { dbId: string; collect: PageCollector<C[k]> };
+  [k in keyof C]: {
+    dbId: string;
+    pullInterval?: number;
+    pruneInterval?: number;
+    collect: PageCollector<C[k]>;
+  };
 };
 
 type PageCollector<P extends Page> = (
@@ -42,47 +47,55 @@ export class NotionConnection<C extends Record<string, Page>>
     this.collections = options.collections;
   }
 
-  async *pullCollectionRefs() {
-    if (!this.pruneInterval) return;
+  async *pullCollectionRefs(collection: keyof C) {
+    const pruneInterval =
+      this.collections[collection].pruneInterval ?? this.pruneInterval;
+    if (!pruneInterval) return;
     while (true) {
       const ids: string[] = [];
-      for (const collection in this.collections) {
-        for await (const { id } of iterateDb(
-          this.key,
-          this.collections[collection].dbId,
-          { filter_properties: ["title"] }
-        )) {
-          ids.push(id);
-        }
+      for await (const { id } of iterateDb(
+        this.key,
+        this.collections[collection].dbId,
+        { filter_properties: ["title"] }
+      )) {
+        ids.push(id);
       }
       yield ids;
-      await Bun.sleep(this.pruneInterval);
+      await Bun.sleep(pruneInterval);
     }
   }
 
-  async *pull() {
+  async *pull(collection: keyof C & string) {
+    const pullInterval =
+      this.collections[collection].pullInterval ?? this.pullInterval;
     do {
-      const since = await getSince();
-      if (!since) return yield* this._pull();
-      yield* this._pull(createdFilter(since));
-      yield* this._pull(updatedFilter(since));
-      if (this.pullInterval) await Bun.sleep(this.pullInterval * 1000);
-    } while (this.pullInterval);
+      const since = await this.getSince(collection);
+      if (!since) return yield* this._pull(collection);
+      yield* this._pull(collection, createdFilter(since));
+      yield* this._pull(collection, updatedFilter(since));
+      if (pullInterval) await Bun.sleep(pullInterval * 1000);
+    } while (pullInterval);
   }
 
-  private async *_pull(filter?: DbQuery["filter"]) {
-    for (const collection in this.collections) {
-      const { dbId, collect } = this.collections[collection];
-      for await (const parsed of iteratePages(this.key, dbId, {
-        connection: this.id,
-        collection,
-        fetchContent: true,
-        filter,
-      })) {
-        const page = await collect(parsed as any);
-        yield page;
-      }
+  private async *_pull(
+    collection: keyof C & string,
+    filter?: DbQuery["filter"]
+  ) {
+    const { dbId, collect } = this.collections[collection];
+    for await (const parsed of iteratePages(this.key, dbId, {
+      connection: this.id,
+      collection,
+      fetchContent: true,
+      filter,
+    })) {
+      const page = await collect(parsed as any);
+      yield page;
     }
+  }
+
+  private async getSince(collection: string): Promise<number | null> {
+    const page = await getLastChangedPage(this.id, collection);
+    return page?.changedAt ?? null;
   }
 }
 
@@ -106,9 +119,4 @@ function updatedFilter(since: number): DbQuery["filter"] {
       },
     ],
   };
-}
-
-async function getSince(): Promise<number | null> {
-  const page = await getLastChangedPage();
-  return page?.changedAt ?? null;
 }

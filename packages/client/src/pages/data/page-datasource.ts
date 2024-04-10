@@ -23,11 +23,14 @@ export async function getPage(
 }
 
 export async function getLastChangedPage(
+  connection: number,
+  collection: string,
   ctx = getDb()
 ): Promise<Omit<PageData, "links"> | null> {
   const dbo = await ctx
     .selectFrom("page")
     .selectAll()
+    .where((eb) => eb.and({ connection, collection }))
     .orderBy("changedAt", "desc")
     .limit(1)
     .executeTakeFirst();

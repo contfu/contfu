@@ -13,9 +13,11 @@ export function sync(connections: Connection[]) {
 }
 
 async function pull(connection: Connection) {
-  for await (const page of connection.pull()) {
-    await createOrUpdatePage(page);
-    // TODO: Take care of links and assets
+  for (const collection of connection.collectionNames) {
+    for await (const page of connection.pull(collection)) {
+      await createOrUpdatePage(page);
+      // TODO: Take care of links and assets
+    }
   }
 }
 

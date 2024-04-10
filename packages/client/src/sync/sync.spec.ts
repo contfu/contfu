@@ -10,12 +10,12 @@ const conn = {
   id: 1,
   name: "foo",
   type: "foo",
-  collectionNames: ["foo"],
-  pullCollectionRefs: mock(async function* () {
-    yield ["test"];
+  collectionNames: ["foo", "bar"],
+  pullCollectionRefs: mock(async function* (collection: "foo" | "bar") {
+    if (collection === "foo") yield ["test"];
   }),
-  pull: mock(async function* () {
-    yield page;
+  pull: mock(async function* (collection: "foo" | "bar") {
+    if (collection === "foo") yield page;
   }),
 } satisfies Connection;
 
@@ -32,9 +32,11 @@ describe("sync()", () => {
   it("should continuously pull from a connection", async () => {
     const conn2 = {
       ...conn,
-      pull: mock(async function* () {
-        yield page;
-        yield { ...page, ref: "test2", slug: "test2" };
+      pull: mock(async function* (collection: "foo" | "bar") {
+        if (collection === "foo") {
+          yield page;
+          yield { ...page, ref: "test2", slug: "test2" };
+        }
       }),
     } satisfies Connection;
     const connections = [conn2];
@@ -62,8 +64,10 @@ describe("sync()", () => {
     await createPage(page);
     const { id } = await createPage({ ...page, ref: "test2", slug: "test2" });
     const connections = [conn];
-    conn.pullCollectionRefs.mockImplementationOnce(async function* () {
-      yield ["test2"];
+    conn.pullCollectionRefs.mockImplementationOnce(async function* (
+      collection: "foo" | "bar"
+    ) {
+      if (collection === "foo") yield ["test2"];
     });
 
     sync(connections);

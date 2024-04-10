@@ -52,9 +52,9 @@ export type Connection<Collection extends string = string> = {
    *
    * @param collection The collection to get references for.
    */
-  pullCollectionRefs(collection: string): AsyncGenerator<string[]>;
+  pullCollectionRefs(collection: Collection): AsyncGenerator<string[]>;
   /**
    * Pulls content from the connection target.
    */
-  pull(): AsyncGenerator<Omit<PageData, "id">>;
+  pull(collection: Collection): AsyncGenerator<Omit<PageData, "id">>;
 };
