@@ -6,12 +6,15 @@ import { PageData } from "./page-data";
 import {
   createOrUpdatePage,
   createPage,
+  createPageLink,
+  deleteOutgoingPageLinks,
   deletePage,
+  deletePageLinksByRef,
   deletePagesByRefs,
   getPage,
+  getPageLinks,
   getPageRefsByCollection,
   getPages,
-  setLinks,
   updatePage,
 } from "./page-datasource";
 
@@ -130,29 +133,93 @@ describe("getPageRefsByCollection", () => {
   });
 });
 
-describe("setLinks()", () => {
-  let from: number;
-  let to: number;
+describe("createPageLink()", () => {
+  it("should create a page link", async () => {
+    const page1Id = await insertPage({ ...newPage });
+    const page2Id = await insertPage({
+      ...newPage,
+      ref: "test2",
+      slug: "test2",
+    });
+    const link = { type: "foo", from: page1Id, to: page2Id };
 
+    await createPageLink(link);
+
+    expect(await selectAllPageLinks()).toEqual([link]);
+  });
+});
+
+describe("getPageLinks()", () => {
+  let page1Id: number;
+  let page2Id: number;
+  let page3Id: number;
   beforeEach(async () => {
-    from = await insertPage();
-    to = await insertPage({ ...newPage, ref: "test2", slug: "test2" });
+    page1Id = await insertPage({ ...newPage });
+    page2Id = await insertPage({ ...newPage, ref: "test2", slug: "test2" });
+    page3Id = await insertPage({ ...newPage, ref: "test3", slug: "test3" });
   });
 
-  it("should replace all outgoing links of a page by ids", async () => {
-    await insertPageLink("foo", from, to);
+  it("should get all outgoing links to a page", async () => {
+    await insertPageLink("foo", page1Id, page2Id);
+    await insertPageLink("foo", page1Id, page3Id);
+    await insertPageLink("foo", page2Id, page1Id);
 
-    await setLinks(from, { bar: [to] });
-
-    expect(await selectAllPageLinks()).toEqual([{ type: "bar", from, to }]);
+    expect(await getPageLinks({ from: page1Id })).toEqual({
+      content: [],
+      foo: [page2Id, page3Id],
+    });
   });
 
-  it("should replace all outgoing links of a page by refs", async () => {
-    await insertPageLink("foo", from, to);
+  it("should get all incoming links to a page", async () => {
+    await insertPageLink("foo", page1Id, page2Id);
+    await insertPageLink("foo", page1Id, page3Id);
+    await insertPageLink("foo", page2Id, page1Id);
 
-    await setLinks(from, { bar: ["test2"] });
+    expect(await getPageLinks({ to: page1Id })).toEqual({
+      content: [],
+      foo: [page2Id],
+    });
+  });
+});
 
-    expect(await selectAllPageLinks()).toEqual([{ type: "bar", from, to }]);
+describe("deleteOutgoingPageLinks()", () => {
+  it("should delete all outgoing links of a page", async () => {
+    const page1Id = await insertPage({ ...newPage });
+    const page2Id = await insertPage({
+      ...newPage,
+      ref: "test2",
+      slug: "test2",
+    });
+    await insertPageLink("foo", page1Id, page2Id);
+
+    await deleteOutgoingPageLinks(page1Id);
+
+    expect(await selectAllPageLinks()).toEqual([]);
+  });
+});
+
+describe("deletePageLinksByRef()", () => {
+  it("should delete all links of a page", async () => {
+    const page1Id = await insertPage({ ...newPage });
+    const page2Id = await insertPage({
+      ...newPage,
+      ref: "test2",
+      slug: "test2",
+    });
+    const page3Id = await insertPage({
+      ...newPage,
+      ref: "test3",
+      slug: "test3",
+    });
+    await insertPageLink("foo", page1Id, page2Id);
+    await insertPageLink("foo", page1Id, page3Id);
+    await insertPageLink("bar", page2Id, page1Id);
+
+    await deletePageLinksByRef("test2");
+
+    expect(await selectAllPageLinks()).toEqual([
+      { type: "foo", from: page1Id, to: page3Id },
+    ]);
   });
 });
 

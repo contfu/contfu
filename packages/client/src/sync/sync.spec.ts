@@ -2,7 +2,13 @@ import { describe, expect, it, mock } from "bun:test";
 import { Connection } from "../connections/connections";
 import { NewPage } from "../core/db/schema";
 import { PageData } from "../pages/data/page-data";
-import { createPage, getPage, getPages } from "../pages/data/page-datasource";
+import {
+  createPage,
+  createPageLink,
+  getPage,
+  getPageLinks,
+  getPages,
+} from "../pages/data/page-datasource";
 import { Page } from "../pages/pages";
 import { sync } from "./sync";
 
@@ -17,7 +23,7 @@ const conn = {
   pull: mock(async function* (collection: "foo" | "bar") {
     if (collection === "foo") yield page;
   }),
-} satisfies Connection;
+} satisfies Connection<"foo" | "bar">;
 
 describe("sync()", () => {
   it("should initially pull from a connection", async () => {
@@ -60,10 +66,56 @@ describe("sync()", () => {
     });
   });
 
-  it("should remove orphans", async () => {
-    await createPage(page);
-    const { id } = await createPage({ ...page, ref: "test2", slug: "test2" });
+  it("should create new links in the database", async () => {
     const connections = [conn];
+    conn.pull.mockImplementationOnce(async function* (
+      collection: "foo" | "bar"
+    ) {
+      if (collection === "foo") {
+        yield { ...page, links: { content: ["test2"] } };
+        yield { ...page, collection: "bar", ref: "test2", slug: "test2" };
+      }
+    });
+
+    sync(connections);
+    await Bun.sleep(0);
+
+    const page1 = await getPage({ ref: "test" });
+    const page2 = await getPage({ ref: "test2" });
+    expect(await getPageLinks({ from: page1!.id })).toEqual({
+      content: [page2!.id],
+    });
+  });
+
+  it("should create new links in the database", async () => {
+    const connections = [conn];
+    conn.pull.mockImplementationOnce(async function* (
+      collection: "foo" | "bar"
+    ) {
+      if (collection === "foo") {
+        yield { ...page, links: { content: ["test2"] } };
+        yield { ...page, collection: "bar", ref: "test2", slug: "test2" };
+        yield { ...page, links: { content: [], foo: ["test2"] } };
+      }
+    });
+
+    sync(connections);
+    await Bun.sleep(0);
+
+    const page1 = await getPage({ ref: "test" });
+    const page2 = await getPage({ ref: "test2" });
+    expect(await getPageLinks({ from: page1!.id })).toEqual({
+      content: [],
+      foo: [page2!.id],
+    });
+  });
+
+  it("should remove orphans with links", async () => {
+    const page1 = await createPage(page);
+    const page2 = await createPage({ ...page, ref: "test2", slug: "test2" });
+    await createPageLink({ type: "foo", from: page1.id, to: page2.id });
+    const connections = [conn];
+    conn.pull.mockImplementationOnce(async function* () {});
     conn.pullCollectionRefs.mockImplementationOnce(async function* (
       collection: "foo" | "bar"
     ) {
@@ -76,15 +128,16 @@ describe("sync()", () => {
     expect(await getPages()).toEqual([
       {
         ...page,
-        id,
+        id: page2.id,
         ref: "test2",
         slug: "test2",
       },
     ]);
+    expect(await getPageLinks({ from: page1.id })).toEqual({ content: [] });
   });
 });
 
-const page = {
+const page: Omit<PageData<Page<{ collection: "foo" | "bar" }>>, "id"> = {
   ref: "test",
   slug: "test",
   collection: "foo",
@@ -96,8 +149,8 @@ const page = {
   publishedAt: 0,
   createdAt: 0,
   changedAt: 0,
-  links: { content: [] },
-} satisfies Omit<PageData<Page<{ collection: "foo" }>>, "id">;
+  links: { content: [] as string[] },
+};
 
 const {
   links: {},

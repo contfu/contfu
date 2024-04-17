@@ -1,7 +1,11 @@
-import { Transaction } from "kysely";
 import { MarkOptional } from "ts-essentials";
 import { getDb, insertReturningId } from "../../core/db/db";
-import type { DbPage, NewPage, PageUpdate, Schema } from "../../core/db/schema";
+import type {
+  DbPage,
+  DbPageLink,
+  NewPage,
+  PageUpdate,
+} from "../../core/db/schema";
 import { deleteNulls } from "../../util/object-helpers";
 import { PageData } from "./page-data";
 
@@ -112,52 +116,41 @@ export async function getPageRefsByCollection(
   return refs;
 }
 
-export function setLinks(
-  from: number,
-  links: Record<string, (number | string)[]>,
+export async function getPageLinks(opts: Partial<DbPageLink>, ctx = getDb()) {
+  const dbos = await ctx
+    .selectFrom("pageLink")
+    .selectAll()
+    .where((eb) => eb.and(opts))
+    .execute();
+  const links = { content: [] } as Record<string, number[]>;
+  for (const { type, from, to } of dbos) {
+    if (!links[type]) links[type] = [];
+    links[type].push("to" in opts ? from : to);
+  }
+  return links;
+}
+
+export async function createPageLink(
+  link: DbPageLink,
   ctx = getDb()
-) {
-  return ctx instanceof Transaction
-    ? doSetLinks(ctx)
-    : ctx.transaction().execute(doSetLinks);
+): Promise<void> {
+  await ctx.insertInto("pageLink").values(link).execute();
+}
 
-  async function doSetLinks(ctx: Transaction<Schema>) {
-    await ctx.deleteFrom("pageLink").where("from", "=", from).execute();
-    const resolved = await resolveSlugs(ctx);
-    await ctx
-      .insertInto("pageLink")
-      .values(
-        Object.entries(resolved).flatMap(([type, tos]) =>
-          tos.map((to) => ({ from, type, to }))
-        )
-      )
-      .execute();
-  }
+export async function deleteOutgoingPageLinks(
+  from: number,
+  ctx = getDb()
+): Promise<void> {
+  await ctx.deleteFrom("pageLink").where("from", "=", from).execute();
+}
 
-  async function resolveSlugs(ctx: Transaction<Schema>) {
-    const linkLists = Object.values(links);
-    const slugs = linkLists.flatMap((tos) =>
-      tos.filter((to): to is string => typeof to === "string")
-    );
-    if (slugs.length > 0) {
-      const deduped = Array.from(new Set(slugs));
-      const slugIds = await ctx
-        .selectFrom("page")
-        .select(["id", "slug"])
-        .where("slug", "in", deduped)
-        .execute();
-      for (const list of linkLists) {
-        for (let i = 0; i < list.length; i++) {
-          if (typeof list[i] === "string") {
-            const slug = list[i];
-            const id = slugIds.find((s) => s.slug === slug)?.id;
-            if (id) list[i] = id;
-          }
-        }
-      }
-    }
-    return links as Record<string, number[]>;
-  }
+export async function deletePageLinksByRef(ref: string, ctx = getDb()) {
+  const page = await getPage({ ref }, ctx);
+  if (!page) return;
+  await ctx
+    .deleteFrom("pageLink")
+    .where((eb) => eb.or([eb("from", "=", page.id), eb("to", "=", page.id)]))
+    .execute();
 }
 
 function pageToDb<T extends PageData | MarkOptional<PageData, "id" | "links">>({
