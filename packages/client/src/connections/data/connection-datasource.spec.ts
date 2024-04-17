@@ -6,7 +6,6 @@ import {
   createConnection,
   deleteConnection,
   getConnections,
-  patchConnection,
 } from "./connection-datasource";
 
 describe("getConnections()", () => {
@@ -27,17 +26,6 @@ describe("createConnection()", () => {
   });
 });
 
-describe("patchConnection()", () => {
-  it("should update a connection", async () => {
-    const id = await insertConnection();
-    const updatedConnection = { ...connection, id, name: "test2" };
-
-    await patchConnection(updatedConnection);
-
-    expect(await selectAllConnections()).toEqual([updatedConnection]);
-  });
-});
-
 describe("deleteConnection()", () => {
   it("should delete a connection", async () => {
     await insertConnection();
@@ -50,9 +38,6 @@ describe("deleteConnection()", () => {
 
 const connection = {
   name: "test",
-  key: "test",
-  target: "foo",
-  type: "abc",
 } satisfies Omit<ConnectionData, "id">;
 
 const newConnection = {

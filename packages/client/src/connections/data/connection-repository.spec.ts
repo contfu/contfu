@@ -7,20 +7,20 @@ import { updateConnections } from "./connection-repository";
 describe("updateConnections()", () => {
   it("should throw an error, name is the same", async () => {
     expect(
-      updateConnections([connection, { ...connection, target: "bar" }])
+      updateConnections([{ ...connection }, { ...connection }])
     ).rejects.toThrow(/constraint/i);
   });
 
   it("should rollback transaction, if something goes wrong", async () => {
     try {
-      await updateConnections([connection, connection]);
+      await updateConnections([{ ...connection }, { ...connection }]);
     } catch (e) {}
 
     expect(await getConnections()).toEqual([]);
   });
   describe("with no stored connections", () => {
     it("should add a connection", async () => {
-      await updateConnections([connection]);
+      await updateConnections([{ ...connection }]);
 
       expect(await getConnections()).toEqual([
         { ...newConnection, id: expect.any(Number) },
@@ -30,7 +30,7 @@ describe("updateConnections()", () => {
     it("should add another connection, if name differs", async () => {
       const connection2 = { ...connection, name: "test2" };
 
-      await updateConnections([connection, connection2]);
+      await updateConnections([{ ...connection }, connection2]);
 
       expect(await getConnections()).toEqual([
         expect.objectContaining({
@@ -51,7 +51,7 @@ describe("updateConnections()", () => {
       await createConnection(newConnection);
       const connection2 = { ...connection, name: "test2" };
 
-      await updateConnections([connection, connection2]);
+      await updateConnections([{ ...connection }, connection2]);
 
       expect(await getConnections()).toEqual([
         expect.objectContaining({
@@ -70,7 +70,7 @@ describe("updateConnections()", () => {
       await createConnection(newConnection);
       const connection2 = { ...connection, name: "test2" };
 
-      await updateConnections([connection2]);
+      await updateConnections([{ ...connection2 }]);
 
       expect(await getConnections()).toEqual([
         expect.objectContaining({
@@ -93,14 +93,11 @@ describe("updateConnections()", () => {
 
 const newConnection: Omit<ConnectionData, "id"> = {
   name: "test",
-  key: "test",
-  target: "foo",
-  type: "abc",
 };
 
-const connection: Connection = {
+const connection = {
   ...newConnection,
-  getCollectionRefs: async () => {},
-  pull: async () => {},
-  pullRecent: async () => {},
-};
+  collectionNames: ["foo"],
+  async *pull() {},
+  async *pullCollectionRefs() {},
+} as Omit<Connection, "id"> as Connection;

@@ -24,18 +24,6 @@ export async function createConnection(
   return { ...connection, id };
 }
 
-export async function patchConnection(
-  connection: ConnectionData | Omit<ConnectionData, "id">,
-  ctx = getDb()
-): Promise<void> {
-  const { key, target, id, ...conn } = connectionToDb(connection);
-  await ctx
-    .updateTable("connection")
-    .set(conn)
-    .where((eb) => eb.and({ key, target }))
-    .execute();
-}
-
 export async function deleteConnection(
   { name, id }: Partial<Pick<ConnectionData, "name" | "id">>,
   ctx = getDb()

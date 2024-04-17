@@ -5,7 +5,6 @@ import {
   createConnection,
   deleteConnection,
   getConnections,
-  patchConnection,
 } from "./connection-datasource";
 
 export async function updateConnections(connections: Connection[]) {
@@ -13,15 +12,9 @@ export async function updateConnections(connections: Connection[]) {
     const storedConnections = await getConnections(trx);
 
     for (const conn of connections) {
-      const stored = storedConnections.find((c) => connectionEquals(conn, c));
-      if (stored) {
-        await patchConnection(
-          { ...connectionToData(conn), id: stored.id },
-          trx
-        );
-      } else {
-        const c = await createConnection(connectionToData(conn), trx);
-      }
+      let stored = storedConnections.find((c) => connectionEquals(conn, c));
+      if (!stored) stored = await createConnection(connectionToData(conn), trx);
+      conn.id = stored.id;
     }
     for (const stored of storedConnections) {
       if (!connections.find((c) => connectionEquals(c, stored))) {

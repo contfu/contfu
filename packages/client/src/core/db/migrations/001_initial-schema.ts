@@ -10,9 +10,6 @@ export async function up(db: Kysely<any>): Promise<void> {
     .createTable("connection")
     .addColumn("id", serial, (col) => col.primaryKey())
     .addColumn("name", "text", (col) => col.unique().notNull())
-    .addColumn("key", "text")
-    .addColumn("target", "text")
-    .addColumn("type", "text", (col) => col.notNull())
     .execute();
 
   await db.schema

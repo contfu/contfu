@@ -17,33 +17,6 @@ export type Connection<Collection extends string = string> = {
    */
   name: string;
   /**
-   * The API key to use for the connection.
-   */
-  key?: string;
-  /**
-   * The target of the connection. It is a URL.
-   */
-  target?: string;
-  /**
-   * The type of the connection. It is determined by the concrete connection implementation.
-   */
-  type: string;
-  /**
-   * The interval in seconds in which content shall be removed, if they don't exist
-   * on the target anymore.
-   */
-  pruneInterval?: number;
-  /**
-   * The interval in minutes in which all content shall be synchronized with the
-   * target.
-   */
-  pullInterval?: number;
-  /**
-   * The interval in minutes in which only recently changed content shall be
-   * synchronized with the target.
-   */
-  pullRecentInterval?: number;
-  /**
    * The collections to synchronize with the connection.
    */
   collectionNames: Collection[];
