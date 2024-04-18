@@ -90,9 +90,13 @@ describe("updateConnections()", () => {
     });
 
     it("should delete a connection with related pages and links, if it is not in the passed connections", async () => {
-      await createConnection(newConnection);
-      const { id: pageId } = await createPage({ ...page, collection: "test" });
-      await createPageLink({ type: "foo", from: 1, to: 1 });
+      const c = await createConnection(newConnection);
+      const { id: pageId } = await createPage({
+        ...page,
+        connection: c.id,
+        collection: "test",
+      });
+      await createPageLink({ type: "foo", from: pageId, to: pageId });
 
       await updateConnections([]);
 

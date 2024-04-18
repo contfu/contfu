@@ -22,6 +22,8 @@ let connection: number;
 
 beforeEach(async () => {
   connection = await insertConnection();
+  page.connection = connection;
+  newPage.connection = connection;
 });
 
 describe("getPages()", () => {
@@ -114,6 +116,17 @@ describe("deletePage()", () => {
 
     expect(await selectAllPages()).toEqual([]);
   });
+
+  it("should delete all links of a page", async () => {
+    const id1 = await insertPage();
+    const id2 = await insertPage({ ...newPage, ref: "test2", slug: "test2" });
+    await insertPageLink("foo", id1, id2);
+    await insertPageLink("foo", id2, id1);
+
+    await deletePage({ id: id1 });
+
+    expect(await selectAllPageLinks()).toEqual([]);
+  });
 });
 
 describe("deletePagesByRefs()", () => {
@@ -123,17 +136,17 @@ describe("deletePagesByRefs()", () => {
     const id = await insertPage(page2);
     await insertPage({ ...newPage, ref: "test3", slug: "test3" });
 
-    await deletePagesByRefs(1, ["test1", "test3"]);
+    await deletePagesByRefs(connection, ["test1", "test3"]);
 
     expect(await selectAllPages()).toEqual([{ ...page2, id }]);
   });
 });
 
-describe("getPageRefsByCollection", () => {
+describe("getPageRefsByCollection()", () => {
   it("should return an array of page ids by collection", async () => {
     await insertPage();
 
-    const ids = await getPageRefsByCollection(1, "foo");
+    const ids = await getPageRefsByCollection(connection, "foo");
 
     expect(ids).toEqual(["test"]);
   });
@@ -266,7 +279,7 @@ async function insertConnection() {
 }
 
 async function insertPage(c: NewPage = newPage) {
-  return await insertReturningId("page", { ...c, connection });
+  return await insertReturningId("page", { ...c });
 }
 
 async function selectAllPages() {

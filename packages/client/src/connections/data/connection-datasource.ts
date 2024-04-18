@@ -37,9 +37,10 @@ export async function deleteConnection(
 function connectionToDb<T extends NewConnection | Omit<NewConnection, "id">>(
   connection: T
 ): T extends NewConnection ? NewConnection : ConnectionUpdate {
-  return { id: (connection as any).id, name: connection.name } satisfies
-    | NewConnection
-    | ConnectionUpdate as any;
+  return {
+    ...("id" in connection ? { id: (connection as any).id } : {}),
+    name: connection.name,
+  } satisfies NewConnection | ConnectionUpdate as any;
 }
 
 function connectionFromDb(dbo: DbConnection): ConnectionData {

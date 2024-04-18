@@ -35,7 +35,9 @@ export async function setupDb({
   erase?: boolean;
 }) {
   db = new Kysely<Schema>({ dialect });
-  await sql`PRAGMA foreign_keys = ON`.execute(db);
+  try {
+    await sql`PRAGMA foreign_keys = ON`.execute(db);
+  } catch {}
   await migrate(erase);
 }
 
