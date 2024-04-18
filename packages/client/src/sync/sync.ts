@@ -11,10 +11,7 @@ import {
 } from "../pages/data/page-datasource";
 
 export function sync(connections: Connection[]) {
-  for (const connection of connections) {
-    pull(connection);
-    removeOrphans(connection);
-  }
+  return Promise.all(connections.flatMap((c) => [pull(c), removeOrphans(c)]));
 }
 
 async function pull(connection: Connection) {

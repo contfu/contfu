@@ -21,8 +21,7 @@ beforeEach(async () => {
 
 describe("sync()", () => {
   it("should initially pull from a connection", async () => {
-    sync([c]);
-    await Bun.sleep(0);
+    await sync([c]);
 
     expect(conn.pull).toHaveBeenCalled();
   });
@@ -37,15 +36,13 @@ describe("sync()", () => {
       }
     });
 
-    sync([c]);
-    await Bun.sleep(0);
+    await sync([c]);
 
     expect(conn.pull).toHaveBeenCalled();
   });
 
   it("should create pages in the database", async () => {
-    sync([c]);
-    await Bun.sleep(0);
+    await sync([c]);
 
     expect(conn.pull).toHaveBeenCalled();
     expect(await getPage({ ref: "test" })).toEqual({
@@ -64,8 +61,7 @@ describe("sync()", () => {
       }
     });
 
-    sync([c]);
-    await Bun.sleep(0);
+    await sync([c]);
 
     const page1 = await getPage({ ref: "test" });
     const page2 = await getPage({ ref: "test2" });
@@ -85,8 +81,7 @@ describe("sync()", () => {
       }
     });
 
-    sync([c]);
-    await Bun.sleep(0);
+    await sync([c]);
 
     const page1 = await getPage({ ref: "test" });
     const page2 = await getPage({ ref: "test2" });
@@ -107,8 +102,7 @@ describe("sync()", () => {
       if (collection === "foo") yield ["test2"];
     });
 
-    sync([c]);
-    await Bun.sleep(0);
+    await sync([c]);
 
     expect(await getPages()).toEqual([
       {
