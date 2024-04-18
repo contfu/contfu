@@ -1,4 +1,12 @@
 import { describe, expect, it } from "bun:test";
+import { PageData } from "../../pages/data/page-data";
+import {
+  createPage,
+  createPageLink,
+  getPageLinks,
+  getPages,
+} from "../../pages/data/page-datasource";
+import { Page } from "../../pages/pages";
 import { Connection } from "../connections";
 import { ConnectionData } from "./connection-data";
 import { createConnection, getConnections } from "./connection-datasource";
@@ -81,12 +89,16 @@ describe("updateConnections()", () => {
       ]);
     });
 
-    it("should delete a connection, if it is not in the passed connections", async () => {
+    it("should delete a connection with related pages and links, if it is not in the passed connections", async () => {
       await createConnection(newConnection);
+      const { id: pageId } = await createPage({ ...page, collection: "test" });
+      await createPageLink({ type: "foo", from: 1, to: 1 });
 
       await updateConnections([]);
 
       expect(await getConnections()).toEqual([]);
+      expect(await getPages()).toEqual([]);
+      expect(await getPageLinks({ from: pageId })).toEqual({ content: [] });
     });
   });
 });
@@ -101,3 +113,18 @@ const connection = {
   async *pull() {},
   async *pullCollectionRefs() {},
 } as Omit<Connection, "id"> as Connection;
+
+const page = {
+  ref: "test",
+  slug: "test",
+  collection: "foo",
+  title: "abc",
+  description: "test",
+  content: [],
+  attributes: {},
+  connection: 1,
+  publishedAt: 0,
+  createdAt: 0,
+  changedAt: 0,
+  links: { content: [] },
+} satisfies Omit<PageData<Page<{ collection: "foo" }>>, "id">;

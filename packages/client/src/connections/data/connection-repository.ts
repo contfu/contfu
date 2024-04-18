@@ -18,7 +18,7 @@ export async function updateConnections(connections: Connection[]) {
     }
     for (const stored of storedConnections) {
       if (!connections.find((c) => connectionEquals(c, stored))) {
-        // TODO: Cleanup all related pages, components and files
+        // TODO: Cleanup all related files
         await deleteConnection(stored, trx);
       }
     }

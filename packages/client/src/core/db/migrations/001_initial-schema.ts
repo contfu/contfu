@@ -24,7 +24,7 @@ export async function up(db: Kysely<any>): Promise<void> {
     .addColumn("attributes", "text")
     .addColumn("author", "text")
     .addColumn("connection", "integer", (col) =>
-      col.references("connection.id").notNull()
+      col.references("connection.id").onDelete("cascade").notNull()
     )
     .addColumn("publishedAt", "integer", (col) => col.notNull())
     .addColumn("createdAt", "integer", (col) => col.notNull())
@@ -53,8 +53,12 @@ export async function up(db: Kysely<any>): Promise<void> {
   await db.schema
     .createTable("pageLink")
     .addColumn("type", "text", (col) => col.notNull())
-    .addColumn("from", "integer", (col) => col.references("page.id").notNull())
-    .addColumn("to", "integer", (col) => col.references("page.id").notNull())
+    .addColumn("from", "integer", (col) =>
+      col.references("page.id").onDelete("cascade").notNull()
+    )
+    .addColumn("to", "integer", (col) =>
+      col.references("page.id").onDelete("cascade").notNull()
+    )
     .execute();
 }
 

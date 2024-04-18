@@ -1,6 +1,6 @@
-import { describe, expect, it, mock } from "bun:test";
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { Connection } from "../connections/connections";
-import { NewPage } from "../core/db/schema";
+import { createConnection } from "../connections/data/connection-datasource";
 import { PageData } from "../pages/data/page-data";
 import {
   createPage,
@@ -12,51 +12,39 @@ import {
 import { Page } from "../pages/pages";
 import { sync } from "./sync";
 
-const conn = {
-  id: 1,
-  name: "foo",
-  type: "foo",
-  collectionNames: ["foo", "bar"],
-  pullCollectionRefs: mock(async function* (collection: "foo" | "bar") {
-    if (collection === "foo") yield ["test"];
-  }),
-  pull: mock(async function* (collection: "foo" | "bar") {
-    if (collection === "foo") yield page;
-  }),
-} satisfies Connection<"foo" | "bar">;
+let c: Connection<"foo" | "bar">;
+
+beforeEach(async () => {
+  c = await createConnection(conn);
+  page.connection = c.id;
+});
 
 describe("sync()", () => {
   it("should initially pull from a connection", async () => {
-    const connections = [conn];
-
-    sync(connections);
+    sync([c]);
     await Bun.sleep(0);
 
     expect(conn.pull).toHaveBeenCalled();
   });
 
   it("should continuously pull from a connection", async () => {
-    const conn2 = {
-      ...conn,
-      pull: mock(async function* (collection: "foo" | "bar") {
-        if (collection === "foo") {
-          yield page;
-          yield { ...page, ref: "test2", slug: "test2" };
-        }
-      }),
-    } satisfies Connection;
-    const connections = [conn2];
+    conn.pull.mockImplementationOnce(async function* (
+      collection: "foo" | "bar"
+    ) {
+      if (collection === "foo") {
+        yield page;
+        yield { ...page, ref: "test2", slug: "test2" };
+      }
+    });
 
-    sync(connections);
+    sync([c]);
     await Bun.sleep(0);
 
     expect(conn.pull).toHaveBeenCalled();
   });
 
   it("should create pages in the database", async () => {
-    const connections = [conn];
-
-    sync(connections);
+    sync([c]);
     await Bun.sleep(0);
 
     expect(conn.pull).toHaveBeenCalled();
@@ -67,7 +55,6 @@ describe("sync()", () => {
   });
 
   it("should create new links in the database", async () => {
-    const connections = [conn];
     conn.pull.mockImplementationOnce(async function* (
       collection: "foo" | "bar"
     ) {
@@ -77,7 +64,7 @@ describe("sync()", () => {
       }
     });
 
-    sync(connections);
+    sync([c]);
     await Bun.sleep(0);
 
     const page1 = await getPage({ ref: "test" });
@@ -88,7 +75,6 @@ describe("sync()", () => {
   });
 
   it("should create new links in the database", async () => {
-    const connections = [conn];
     conn.pull.mockImplementationOnce(async function* (
       collection: "foo" | "bar"
     ) {
@@ -99,7 +85,7 @@ describe("sync()", () => {
       }
     });
 
-    sync(connections);
+    sync([c]);
     await Bun.sleep(0);
 
     const page1 = await getPage({ ref: "test" });
@@ -111,10 +97,9 @@ describe("sync()", () => {
   });
 
   it("should remove orphans with links", async () => {
-    const page1 = await createPage(page);
+    const page1 = await createPage({ ...page });
     const page2 = await createPage({ ...page, ref: "test2", slug: "test2" });
     await createPageLink({ type: "foo", from: page1.id, to: page2.id });
-    const connections = [conn];
     conn.pull.mockImplementationOnce(async function* () {});
     conn.pullCollectionRefs.mockImplementationOnce(async function* (
       collection: "foo" | "bar"
@@ -122,7 +107,7 @@ describe("sync()", () => {
       if (collection === "foo") yield ["test2"];
     });
 
-    sync(connections);
+    sync([c]);
     await Bun.sleep(0);
 
     expect(await getPages()).toEqual([
@@ -136,6 +121,17 @@ describe("sync()", () => {
     expect(await getPageLinks({ from: page1.id })).toEqual({ content: [] });
   });
 });
+
+const conn = {
+  name: "foo",
+  collectionNames: ["foo", "bar"],
+  pullCollectionRefs: mock(async function* (collection: "foo" | "bar") {
+    if (collection === "foo") yield ["test"];
+  }),
+  pull: mock(async function* (collection: "foo" | "bar") {
+    if (collection === "foo") yield page;
+  }),
+} satisfies Omit<Connection<"foo" | "bar">, "id">;
 
 const page: Omit<PageData<Page<{ collection: "foo" | "bar" }>>, "id"> = {
   ref: "test",
@@ -151,20 +147,3 @@ const page: Omit<PageData<Page<{ collection: "foo" | "bar" }>>, "id"> = {
   changedAt: 0,
   links: { content: [] as string[] },
 };
-
-const {
-  links: {},
-  ...pageWithoutLinks
-} = page;
-
-const newPage = {
-  ...pageWithoutLinks,
-  content: "[]",
-  attributes: "{}",
-  author: null,
-  connection: 1,
-  publishedAt: 0,
-  createdAt: 0,
-  updatedAt: null,
-  changedAt: 0,
-} satisfies NewPage;

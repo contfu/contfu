@@ -12,10 +12,10 @@ export async function getConnections(ctx = getDb()): Promise<ConnectionData[]> {
   return dbos.map(connectionFromDb);
 }
 
-export async function createConnection(
-  connection: Omit<ConnectionData, "id">,
+export async function createConnection<T extends Omit<ConnectionData, "id">>(
+  connection: T,
   ctx = getDb()
-): Promise<ConnectionData> {
+): Promise<T & { id: number }> {
   const id = await insertReturningId(
     "connection",
     connectionToDb(connection),
@@ -37,7 +37,9 @@ export async function deleteConnection(
 function connectionToDb<T extends NewConnection | Omit<NewConnection, "id">>(
   connection: T
 ): T extends NewConnection ? NewConnection : ConnectionUpdate {
-  return connection satisfies NewConnection | ConnectionUpdate as any;
+  return { id: (connection as any).id, name: connection.name } satisfies
+    | NewConnection
+    | ConnectionUpdate as any;
 }
 
 function connectionFromDb(dbo: DbConnection): ConnectionData {

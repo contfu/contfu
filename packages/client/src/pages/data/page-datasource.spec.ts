@@ -18,6 +18,12 @@ import {
   updatePage,
 } from "./page-datasource";
 
+let connection: number;
+
+beforeEach(async () => {
+  connection = await insertConnection();
+});
+
 describe("getPages()", () => {
   it("should return an array of pages", async () => {
     const id = await insertPage();
@@ -255,8 +261,12 @@ const newPage = {
   changedAt: 0,
 } satisfies NewPage;
 
+async function insertConnection() {
+  return await insertReturningId("connection", { name: "test" });
+}
+
 async function insertPage(c: NewPage = newPage) {
-  return await insertReturningId("page", c);
+  return await insertReturningId("page", { ...c, connection });
 }
 
 async function selectAllPages() {

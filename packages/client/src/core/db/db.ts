@@ -35,6 +35,7 @@ export async function setupDb({
   erase?: boolean;
 }) {
   db = new Kysely<Schema>({ dialect });
+  await sql`PRAGMA foreign_keys = ON`.execute(db);
   await migrate(erase);
 }
 
@@ -60,8 +61,6 @@ export async function insertReturningId<T extends keyof Schema>(
 }
 
 export async function truncate() {
-  await getDb().deleteFrom("pageLink").execute();
-  await getDb().deleteFrom("page").execute();
   await getDb().deleteFrom("connection").execute();
 }
 
