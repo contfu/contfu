@@ -1,4 +1,7 @@
+import { extname } from "path";
+import { ImageBlock } from "../blocks/blocks";
 import { Connection } from "../connections/connections";
+import { hashId } from "../core/crypto";
 import { PageData } from "../pages/data/page-data";
 import {
   createOrUpdatePage,
@@ -17,11 +20,11 @@ export function sync(connections: Connection[]) {
 async function pull(connection: Connection) {
   const transientLinks = new Map<string, Set<[string, number]>>();
   for (const collection of connection.collectionNames) {
-    for await (const page of connection.pull(collection)) {
+    for await (const { page, assets } of connection.pull(collection)) {
       const { id } = await createOrUpdatePage(page);
       await deleteOutgoingPageLinks(id);
       await createLinks(page, id, transientLinks);
-      // TODO: Take care of assets
+      await processAssets(connection, assets);
     }
   }
 }
@@ -69,3 +72,34 @@ async function createLinks(
     transientLinks.delete(page.ref);
   }
 }
+
+async function processAssets(
+  connection: Connection,
+  assets: { block: ImageBlock; ref: string }[]
+) {
+  assets.map(async ({ block, ref }) => {
+    const hash = hashId(`${connection.id}|${ref}`);
+    const ext = extname(ref);
+    const url = block[1];
+    const canonical = `${hash}${ext}`;
+    block[1] = canonical;
+    if (
+      await connection.mediaStore.exists(
+        hasMulpitleOutputs(ext) ? hash : canonical
+      )
+    )
+      return;
+    const asset = await connection.fetchAsset(url);
+    await connection.mediaOptimizer.optimizeImage(
+      canonical,
+      asset,
+      connection.mediaStore
+    );
+  });
+}
+
+function hasMulpitleOutputs(ext: string) {
+  return optimizedImageExtensions.includes(ext);
+}
+
+const optimizedImageExtensions = [".jpg", ".jpeg", ".png", ".webp", ".avif"];

@@ -1,4 +1,4 @@
-import { Block, Page } from "@contfu/client";
+import { Block, ImageBlock, Page } from "@contfu/client";
 import { PageObjectResponse } from "@notionhq/client/build/src/api-endpoints";
 import { getContentBlocks } from "./blocks";
 import { DbQuery, iterateDb, parseImageUrl } from "./notion";
@@ -37,9 +37,8 @@ export type ParsedPage<P extends Page> = {
   changedAt: number;
   links: { content: string[] };
   content: Block[];
-  props: Props & {
-    icon?: string;
-    cover?: string;
+  props: {
+    [key in string]: string | number | boolean | string[] | Block;
   };
 };
 
@@ -67,8 +66,12 @@ function parsePage<P extends Page>(
     links: { content: [] },
     props: {
       ...parseProps(properties),
-      ...(icon && icon.type !== "emoji" ? { icon: parseImageUrl(icon) } : {}),
-      ...(cover ? { cover: parseImageUrl(cover) } : {}),
+      ...(icon && icon.type !== "emoji"
+        ? { icon: ["i", parseImageUrl(icon), "Icon"] as ImageBlock }
+        : {}),
+      ...(cover
+        ? { cover: ["i", parseImageUrl(cover), "Cover"] as ImageBlock }
+        : {}),
     },
     content,
   };

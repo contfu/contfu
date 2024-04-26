@@ -1,13 +1,20 @@
-import { Connection, Page } from "@contfu/client";
+import { Block, Connection, Page, isImg } from "@contfu/client";
+import { FileStore } from "@contfu/client/src/media/file-store";
+import { MediaOptimizer, MediaStore } from "@contfu/client/src/media/media";
+import { SharpOptimizer } from "@contfu/client/src/media/sharp-optimizer";
 import { PageData } from "@contfu/client/src/pages/data/page-data";
 import { getLastChangedPage } from "@contfu/client/src/pages/data/page-datasource";
 import { DbQuery, iterateDb } from "./notion";
 import { ParsedPage, iteratePages } from "./pages";
 
-type NotionConnectionOptions<C extends Record<string, Page>> = Required<
-  Pick<Connection, "name" | "key">
+type NotionConnectionOptions<C extends Record<string, Page>> = Pick<
+  Connection,
+  "name"
 > &
-  Pick<Connection, "pruneInterval" | "pullInterval"> & {
+  Partial<Pick<Connection, "mediaStore" | "mediaOptimizer">> & {
+    key: string;
+    pruneInterval?: number;
+    pullInterval?: number;
     collections: CollectionDefs<C>;
   };
 
@@ -30,6 +37,8 @@ export class NotionConnection<C extends Record<string, Page>>
   id: number;
   readonly name: string;
   readonly key: string;
+  readonly mediaStore: MediaStore;
+  readonly mediaOptimizer: MediaOptimizer;
   readonly type: "notion";
   readonly pruneInterval?: number;
   readonly pullInterval?: number;
@@ -41,6 +50,8 @@ export class NotionConnection<C extends Record<string, Page>>
 
   constructor(options: NotionConnectionOptions<C>) {
     this.name = options.name;
+    this.mediaStore = options.mediaStore ?? new FileStore("./media");
+    this.mediaOptimizer = options.mediaOptimizer ?? new SharpOptimizer();
     this.key = options.key;
     this.pruneInterval = options.pruneInterval;
     this.pullInterval = options.pullInterval;
@@ -77,6 +88,11 @@ export class NotionConnection<C extends Record<string, Page>>
     } while (pullInterval);
   }
 
+  async fetchAsset(url: string) {
+    const res = await fetch(url);
+    return res.blob();
+  }
+
   private async *_pull(
     collection: keyof C & string,
     filter?: DbQuery["filter"]
@@ -89,7 +105,17 @@ export class NotionConnection<C extends Record<string, Page>>
       filter,
     })) {
       const page = await collect(parsed as any);
-      yield page;
+      const assets = [
+        parsed.props.icon as Block,
+        parsed.props.icon as Block,
+        ...parsed.content,
+      ]
+        .filter(isImg)
+        .map((block) => {
+          const url = block[1];
+          return { block, ref: parseS3AssetUrlToCanonical(url), url };
+        });
+      yield { page, assets: [] as any[] };
     }
   }
 
@@ -119,4 +145,11 @@ function updatedFilter(since: number): DbQuery["filter"] {
       },
     ],
   };
+}
+
+function parseS3AssetUrlToCanonical(url: string) {
+  const match = url.match(/\/([\w-]{36})\/[^\/]+\.(.+)\?/);
+  if (!match) throw new Error(`Invalid S3 asset URL: ${url}`);
+  const [, id, ext] = match;
+  return `${id.replace(/-/g, "")}.${ext}`;
 }
