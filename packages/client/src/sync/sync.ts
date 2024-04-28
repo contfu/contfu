@@ -1,8 +1,8 @@
 import { extname } from "path";
-import { ImageBlock } from "../blocks/blocks";
-import { Connection } from "../connections/connections";
+import type { ImageBlock } from "../blocks/blocks";
+import type { Connection } from "../connections/connections";
 import { hashId } from "../core/crypto";
-import { PageData } from "../pages/data/page-data";
+import type { PageData } from "../pages/data/page-data";
 import {
   createOrUpdatePage,
   createPageLink,
@@ -90,11 +90,13 @@ async function processAssets(
     )
       return;
     const asset = await connection.fetchAsset(url);
-    await connection.mediaOptimizer.optimizeImage(
-      canonical,
-      asset,
-      connection.mediaStore
-    );
+
+    if (!connection.mediaOptimizer) {
+      await connection.mediaStore.write(canonical, asset);
+      return;
+    }
+
+    await connection.mediaOptimizer.optimizeImage(canonical, asset);
   });
 }
 

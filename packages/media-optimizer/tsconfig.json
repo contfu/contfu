@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "emitDeclarationOnly": true,
+    "verbatimModuleSyntax": false,
+    "module": "ESNext",
+    // "outFile": "dist/index.js", // Single file types do not work. There is an index module.
+    "outDir": "dist",
+    "declaration": true,
+    "skipLibCheck": true,
+    "rootDir": "src"
+  },
+  "files": ["./src/index.ts"]
+}

@@ -5,6 +5,7 @@ import { setupDb } from "./core/db/db";
 export * from "./blocks/blocks";
 export * from "./connections/connections";
 export { getDb, migrationProvider, setupDb, truncate } from "./core/db/db";
+export * from "./media/media";
 export * from "./pages/pages";
 
 type ContfuSetupOpts = {

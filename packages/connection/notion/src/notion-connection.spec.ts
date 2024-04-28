@@ -1,4 +1,4 @@
-import { Page } from "@contfu/client";
+import type { Page } from "@contfu/client";
 import { Type } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
 import { describe, expect, it } from "bun:test";

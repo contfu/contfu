@@ -1,11 +1,10 @@
-import { Block, Connection, Page, isImg } from "@contfu/client";
+import type { MediaOptimizer, MediaStore } from "@contfu/client";
+import { isImg, type Block, type Connection, type Page } from "@contfu/client";
 import { FileStore } from "@contfu/client/src/media/file-store";
-import { MediaOptimizer, MediaStore } from "@contfu/client/src/media/media";
-import { SharpOptimizer } from "@contfu/client/src/media/sharp-optimizer";
-import { PageData } from "@contfu/client/src/pages/data/page-data";
+import type { PageData } from "@contfu/client/src/pages/data/page-data";
 import { getLastChangedPage } from "@contfu/client/src/pages/data/page-datasource";
-import { DbQuery, iterateDb } from "./notion";
-import { ParsedPage, iteratePages } from "./pages";
+import { iterateDb, type DbQuery } from "./notion";
+import { iteratePages, type ParsedPage } from "./pages";
 
 type NotionConnectionOptions<C extends Record<string, Page>> = Pick<
   Connection,
@@ -34,12 +33,11 @@ type PageCollector<P extends Page> = (
 export class NotionConnection<C extends Record<string, Page>>
   implements Connection<keyof C & string>
 {
-  id: number;
+  id!: number;
   readonly name: string;
   readonly key: string;
   readonly mediaStore: MediaStore;
-  readonly mediaOptimizer: MediaOptimizer;
-  readonly type: "notion";
+  readonly mediaOptimizer?: MediaOptimizer;
   readonly pruneInterval?: number;
   readonly pullInterval?: number;
   readonly collections: CollectionDefs<C>;
@@ -51,7 +49,7 @@ export class NotionConnection<C extends Record<string, Page>>
   constructor(options: NotionConnectionOptions<C>) {
     this.name = options.name;
     this.mediaStore = options.mediaStore ?? new FileStore("./media");
-    this.mediaOptimizer = options.mediaOptimizer ?? new SharpOptimizer();
+    this.mediaOptimizer = options.mediaOptimizer;
     this.key = options.key;
     this.pruneInterval = options.pruneInterval;
     this.pullInterval = options.pullInterval;
@@ -88,9 +86,9 @@ export class NotionConnection<C extends Record<string, Page>>
     } while (pullInterval);
   }
 
-  async fetchAsset(url: string) {
+  async fetchAsset(url: string): Promise<ReadableStream> {
     const res = await fetch(url);
-    return res.blob();
+    return res.body!;
   }
 
   private async *_pull(

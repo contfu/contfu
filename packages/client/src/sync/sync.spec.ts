@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
-import { ImageBlock } from "../blocks/blocks";
-import { Connection } from "../connections/connections";
+import type { ImageBlock } from "../blocks/blocks";
+import type { Connection } from "../connections/connections";
 import { createConnection } from "../connections/data/connection-datasource";
 import { hashId } from "../core/crypto";
-import { MediaStore } from "../media/media";
-import { PageData } from "../pages/data/page-data";
+import type { MediaStore } from "../media/media";
+import type { PageData } from "../pages/data/page-data";
 import {
   createPage,
   createPageLink,
@@ -12,7 +12,7 @@ import {
   getPageLinks,
   getPages,
 } from "../pages/data/page-datasource";
-import { Page } from "../pages/pages";
+import type { Page } from "../pages/pages";
 import { sync } from "./sync";
 
 let c: Connection<"foo" | "bar">;
@@ -124,8 +124,7 @@ describe("sync()", () => {
     expect(conn.fetchAsset).toHaveBeenCalledWith("/test.jpg");
     expect(conn.mediaOptimizer.optimizeImage).toHaveBeenCalledWith(
       `${hash}.jpg`,
-      conn.fetchAsset.mock.results[0].value,
-      conn.mediaStore
+      conn.fetchAsset.mock.results[0].value
     );
     expect(block).toEqual(["i", `${hash}.jpg`, "test"]);
   });
@@ -160,7 +159,7 @@ const conn = {
   collectionNames: ["foo", "bar"],
   mediaStore: {
     write: mock(async () => {}),
-    read: mock(async () => new Blob()),
+    read: mock(async () => Buffer.from("")),
     exists: mock(async () => false),
   } satisfies MediaStore,
   mediaOptimizer: {
@@ -176,7 +175,7 @@ const conn = {
         assets: [] as { block: ImageBlock; ref: string }[],
       };
   }),
-  fetchAsset: mock(async () => new Blob()),
+  fetchAsset: mock(async () => new ReadableStream()),
 } satisfies Omit<Connection<"foo" | "bar">, "id">;
 
 const page: Omit<PageData<Page<{ collection: "foo" | "bar" }>>, "id"> = {

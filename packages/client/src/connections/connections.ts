@@ -29,7 +29,7 @@ export type Connection<Collection extends string = string> = {
   /**
    * The processor to optimize media.
    */
-  mediaOptimizer: MediaOptimizer;
+  mediaOptimizer?: MediaOptimizer;
   /**
    * Loads all ids of the collection from the connection target.
    *
@@ -48,5 +48,5 @@ export type Connection<Collection extends string = string> = {
    *
    * @param ref The reference to the asset.
    */
-  fetchAsset(ref: string): Promise<Blob>;
+  fetchAsset(ref: string): Promise<ReadableStream>;
 };

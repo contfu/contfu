@@ -2,6 +2,10 @@
   "name": "@contfu/notion",
   "module": "index.ts",
   "type": "module",
+  "version": "1.0.0",
+  "scripts": {
+    "test": "bun test"
+  },
   "devDependencies": {
     "@contfu/client": "workspace:*",
     "@sinclair/typebox": "^0.32.20",

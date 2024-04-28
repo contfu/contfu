@@ -2,9 +2,11 @@
   "name": "@contfu/client",
   "main": "src/index.ts",
   "type": "module",
+  "version": "1.0.0",
   "scripts": {
     "build:types": "tsc",
     "build:bundle": "bun build ./src/index.ts --outdir dist --target node --sourcemap=external --minify --external kysely",
+    "test": "bun test --preload ./test/setup-sqlite.ts",
     "test:sqlite": "bun test --preload ./test/setup-sqlite.ts",
     "test:sqlite-worker": "bun test --preload ./test/setup-sqlite-worker.ts",
     "test:pg": "bun test --preload ./test/setup-pg.ts",

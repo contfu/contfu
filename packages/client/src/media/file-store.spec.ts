@@ -25,7 +25,7 @@ describe("FileStore", () => {
 
   describe("write()", () => {
     it("should create a file", async () => {
-      await store.write("test", new Blob(["test"]));
+      await store.write("test", Buffer.from("test"));
 
       const content = await Bun.file("/tmp/contfu-test/test").text();
 
@@ -35,7 +35,7 @@ describe("FileStore", () => {
     it("should overwrite content", async () => {
       await Bun.write("/tmp/contfu-test/test", "test");
 
-      await store.write("test", new Blob(["test2"]));
+      await store.write("test", Buffer.from("test2"));
 
       const content = await Bun.file("/tmp/contfu-test/test").text();
       expect(content).toEqual("test2");
@@ -48,7 +48,7 @@ describe("FileStore", () => {
 
       const content = await store.read("test");
 
-      expect(content).toEqual(new Blob(["test"]));
+      expect(content).toEqual(Buffer.from("test"));
     });
 
     it("should return null, if file does not exist", async () => {
