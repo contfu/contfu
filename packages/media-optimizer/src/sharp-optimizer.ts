@@ -1,4 +1,9 @@
-import type { ImageFormat, MediaOptimizer, MediaStore } from "@contfu/client";
+import type {
+  ImageFormat,
+  MediaOptimizer,
+  MediaStore,
+  OptimizeImageOpts,
+} from "@contfu/client";
 import { basename, extname } from "path";
 import sharp from "sharp";
 import { Readable } from "stream";
@@ -11,41 +16,33 @@ export class SharpOptimizer implements MediaOptimizer {
   async optimizeImage(
     canonical: string,
     input: Buffer | ReadableStream,
-    {
-      widths,
-      formats = ["avif"],
-    }: { widths?: number[]; formats?: ImageFormat[] } = {}
+    opts: OptimizeImageOpts = { avif: [[]] }
   ) {
     const base = basename(canonical, extname(canonical));
     const s =
       input instanceof Buffer ? sharp(input) : sharp({ failOnError: false });
-    const { width } =
-      input instanceof Buffer ? await s.metadata() : ({} as { width?: number });
     const promises: Promise<void>[] = [];
-    for (const format of formats) {
-      if (widths) {
-        for (const w of widths) {
-          if (!width || w < width) {
-            promises.push(
-              s
-                .clone()
-                .resize(w)
-                .toFormat(format)
-                .toBuffer()
-                .then((buffer) =>
-                  this.store.write(`${base}/${w}.${format}`, buffer)
-                )
-            );
-          }
-        }
-      } else
+    for (const [format, entries] of Object.entries(opts)) {
+      for (const entry of entries) {
+        const [width, height, quality] = (
+          typeof entry === "number" ? [entry] : entry
+        ).map((v) => v ?? undefined);
+        const w = width ? `w${width}` : "";
+        const h = height ? `h${height}` : "";
         promises.push(
           s
             .clone()
-            .toFormat(format)
+            .resize({ width, height })
+            .toFormat(format as ImageFormat, { quality })
             .toBuffer()
-            .then((buffer) => this.store.write(`${base}.${format}`, buffer))
+            .then((buffer) =>
+              this.store.write(
+                `${base}${w || h ? "/" : ""}${w}${h}.${format}`,
+                buffer
+              )
+            )
         );
+      }
     }
     if (!(input instanceof Buffer)) {
       Readable.fromWeb(input).pipe(s);

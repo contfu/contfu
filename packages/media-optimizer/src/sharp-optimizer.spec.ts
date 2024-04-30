@@ -30,26 +30,30 @@ describe("optimizeImage()", () => {
     await optimizer.optimizeImage(
       "test.png",
       await readFile(`${__dirname}/__fixtures__/test-image.png`),
-      { formats: ["avif", "webp"] }
+      { avif: [[]], webp: [[]] }
     );
 
     expect(store.write).toHaveBeenCalledWith("test.avif", expect.any(Buffer));
     expect(store.write).toHaveBeenCalledWith("test.webp", expect.any(Buffer));
   });
 
-  it("should optimize the image into specified widths, without upscaling", async () => {
+  it("should optimize the image into specified widths", async () => {
     await optimizer.optimizeImage(
       "test.png",
       await readFile(`${__dirname}/__fixtures__/test-image.png`),
-      { widths: [200, 400, 600] } // original is 433px
+      { avif: [200, 400, 600] } // original is 433px
     );
 
     expect(store.write).toHaveBeenCalledWith(
-      "test/400.avif",
+      "test/w200.avif",
       expect.any(Buffer)
     );
     expect(store.write).toHaveBeenCalledWith(
-      "test/200.avif",
+      "test/w400.avif",
+      expect.any(Buffer)
+    );
+    expect(store.write).toHaveBeenCalledWith(
+      "test/w600.avif",
       expect.any(Buffer)
     );
   });
@@ -60,14 +64,14 @@ describe("optimizeImage()", () => {
       (
         await open(`${__dirname}/__fixtures__/test-image.png`)
       ).readableWebStream(),
-      { formats: ["avif", "webp"] }
+      { avif: [[]], webp: [[]] }
     );
 
     expect(store.write).toHaveBeenCalledWith("test.avif", expect.any(Buffer));
     expect(store.write).toHaveBeenCalledWith("test.webp", expect.any(Buffer));
   });
 
-  it.skip("should output files", async () => {
+  it("should output files", async () => {
     optimizer = new SharpOptimizer({ store: new FileStore("./.tmp/test-out") });
 
     await optimizer.optimizeImage(
@@ -75,7 +79,7 @@ describe("optimizeImage()", () => {
       (
         await open(`${__dirname}/__fixtures__/test-image.png`)
       ).readableWebStream(),
-      { formats: ["avif", "webp"], widths: [200, 400, 600] }
+      { avif: [[200, , 5], 400, 600], webp: [200, 400, 600] }
     );
 
     expect(store.write).toHaveBeenCalledWith("test.avif", expect.any(Buffer));

@@ -6,10 +6,18 @@ export interface MediaStore {
 
 export type ImageFormat = "avif" | "webp" | "jpeg" | "png";
 
+type ImageTransformOpts =
+  | number
+  | [width?: number | null, height?: number | null, quality?: number | null];
+
+export type OptimizeImageOpts = Partial<
+  Record<ImageFormat, [ImageTransformOpts, ...ImageTransformOpts[]]>
+>;
+
 export interface MediaOptimizer {
   optimizeImage(
     canonical: string,
     input: Buffer | ReadableStream,
-    opts?: { widths?: number[]; formats?: ImageFormat[] }
+    opts?: OptimizeImageOpts
   ): Promise<void>;
 }
