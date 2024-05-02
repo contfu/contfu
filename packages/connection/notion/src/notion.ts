@@ -1,5 +1,5 @@
 import { Client, isFullPage, iteratePaginatedAPI } from "@notionhq/client";
-import { QueryDatabaseParameters } from "@notionhq/client/build/src/api-endpoints";
+import type { QueryDatabaseParameters } from "@notionhq/client/build/src/api-endpoints";
 
 export const notion = new Client({});
 

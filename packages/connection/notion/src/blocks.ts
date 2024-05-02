@@ -16,7 +16,7 @@ import {
   toPlainText,
 } from "@contfu/client";
 import { isFullBlock, iteratePaginatedAPI } from "@notionhq/client";
-import {
+import type {
   BlockObjectResponse,
   RichTextItemResponse,
 } from "@notionhq/client/build/src/api-endpoints";

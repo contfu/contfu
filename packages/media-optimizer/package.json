@@ -1,14 +1,17 @@
 {
   "name": "@contfu/media-optimizer",
-  "main": "src/index.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "type": "module",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "scripts": {
+    "build": "tsc",
+    "prepare": "npm run build",
     "test": "bun test",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist .tmp"
   },
   "devDependencies": {
-    "@contfu/client": "workspace:*",
+    "@contfu/client": "^0.1.0",
     "@types/bun": "latest"
   },
   "peerDependencies": {
@@ -16,5 +19,8 @@
   },
   "dependencies": {
     "sharp": "^0.33.3"
-  }
+  },
+  "files": [
+    "dist"
+  ]
 }

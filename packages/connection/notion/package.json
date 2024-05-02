@@ -1,13 +1,18 @@
 {
   "name": "@contfu/notion",
-  "module": "index.ts",
+  "module": "dist/index.js",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "type": "module",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "scripts": {
+    "build": "tsc",
+    "prepare": "npm run build",
+    "clean": "rm -rf dist",
     "test": "bun test"
   },
   "devDependencies": {
-    "@contfu/client": "workspace:*",
+    "@contfu/client": "^0.1.0",
     "@sinclair/typebox": "^0.32.20",
     "@types/bun": "latest",
     "kysely-bun-worker": "^0.5.7",
@@ -18,5 +23,8 @@
   },
   "dependencies": {
     "@notionhq/client": "^2.2.14"
-  }
+  },
+  "files": [
+    "dist"
+  ]
 }
