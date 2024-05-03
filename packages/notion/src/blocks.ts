@@ -15,11 +15,11 @@ import {
   isUl,
   toPlainText,
 } from "@contfu/client";
-import { isFullBlock, iteratePaginatedAPI } from "@notionhq/client";
+import { isFullBlock, iteratePaginatedAPI } from "notion-client-web-fetch";
 import type {
   BlockObjectResponse,
   RichTextItemResponse,
-} from "@notionhq/client/build/src/api-endpoints";
+} from "notion-client-web-fetch/build/src/api-endpoints";
 import { notion, parseImageUrl } from "./notion";
 
 const MY_ORIGIN = "https://js2brain.com";

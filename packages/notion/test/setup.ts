@@ -1,10 +1,10 @@
 import { setup, truncate } from "@contfu/client";
-import { iteratePaginatedAPI } from "@notionhq/client";
 import { beforeAll, beforeEach, mock } from "bun:test";
 import { BunWorkerDialect } from "kysely-bun-worker";
+import { iteratePaginatedAPI } from "notion-client-web-fetch";
 import { mockClient } from "./mocks/notion";
 
-mock.module("@notionhq/client", () => ({
+mock.module("notion-client-web-fetch", () => ({
   iteratePaginatedAPI,
   Client: mock(() => mockClient),
 }));

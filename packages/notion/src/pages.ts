@@ -1,5 +1,5 @@
 import { Block, ImageBlock, Page } from "@contfu/client";
-import { PageObjectResponse } from "@notionhq/client/build/src/api-endpoints";
+import { PageObjectResponse } from "notion-client-web-fetch/build/src/api-endpoints";
 import { getContentBlocks } from "./blocks";
 import { DbQuery, iterateDb, parseImageUrl } from "./notion";
 

@@ -22,7 +22,7 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
-    "@notionhq/client": "^2.2.14"
+    "notion-client-web-fetch": "^2.2.15"
   },
   "files": [
     "dist"
