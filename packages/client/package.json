@@ -1,12 +1,12 @@
 {
   "name": "@contfu/client",
-  "main": "dis/index.js",
+  "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
   "version": "0.1.0",
   "scripts": {
     "build": "tsc",
-    "prepare": "npm run build",
+    "prepublishOnly": "npm run build",
     "test": "bun test --preload ./test/setup-sqlite.ts",
     "test:sqlite": "bun test --preload ./test/setup-sqlite.ts",
     "test:sqlite-worker": "bun test --preload ./test/setup-sqlite-worker.ts",
