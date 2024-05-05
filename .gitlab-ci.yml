@@ -1,0 +1,32 @@
+image: oven/bun:1.1.7-slim
+
+cache:
+  paths:
+    - node_modules/
+
+stages:
+  - check
+  - publish
+
+check:
+  stage: check
+  except:
+    - main
+  script:
+    - rm bun.lockb
+    - bun install
+    - bun install sharp @img/sharp-linux-x64 @img/sharp-libvips-linux-x64
+    - ls -la node_modules/@img
+    - bun -b --filter "@contfu/client" build
+    - bun -b --filter "@contfu/*" build
+    - bun -b --filter "@contfu/*" test
+
+publish-npm:
+  stage: publish
+  only:
+    - web
+  script:
+    - npm install
+    - echo "@contfu:registry=https://${CI_SERVER_HOST}/api/v4/projects/${CI_PROJECT_ID}/packages/npm/" > .npmrc
+    - echo "//${CI_SERVER_HOST}/api/v4/projects/${CI_PROJECT_ID}/packages/npm/:_authToken=${CI_JOB_TOKEN}" >> .npmrc
+    - npm publish --workspaces
