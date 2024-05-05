@@ -23,6 +23,7 @@ check:
 
 publish-npm:
   stage: publish
+  image: node:alpine
   only:
     - web
   script:
