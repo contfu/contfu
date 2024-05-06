@@ -123,6 +123,7 @@ describe("sync()", () => {
     expect(conn.mediaStore.exists).toHaveBeenCalledWith(hash);
     expect(conn.fetchAsset).toHaveBeenCalledWith("/test.jpg");
     expect(conn.mediaOptimizer.optimizeImage).toHaveBeenCalledWith(
+      conn.mediaStore,
       `${hash}.jpg`,
       conn.fetchAsset.mock.results[0].value
     );

@@ -16,6 +16,7 @@ export type OptimizeImageOpts = Partial<
 
 export interface MediaOptimizer {
   optimizeImage(
+    store: MediaStore,
     canonical: string,
     input: Buffer | ReadableStream,
     opts?: OptimizeImageOpts

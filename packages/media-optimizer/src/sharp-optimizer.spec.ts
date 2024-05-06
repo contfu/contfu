@@ -13,12 +13,13 @@ const store = {
 let optimizer: SharpOptimizer;
 
 beforeEach(() => {
-  optimizer = new SharpOptimizer({ store });
+  optimizer = new SharpOptimizer();
 });
 
 describe("optimizeImage()", () => {
   it("should optimize the image into avif by default", async () => {
     await optimizer.optimizeImage(
+      store,
       "test.png",
       await readFile(`${__dirname}/__fixtures__/test-image.png`)
     );
@@ -28,6 +29,7 @@ describe("optimizeImage()", () => {
 
   it("should optimize the image into specified formats", async () => {
     await optimizer.optimizeImage(
+      store,
       "test.png",
       await readFile(`${__dirname}/__fixtures__/test-image.png`),
       { avif: [[]], webp: [[]] }
@@ -39,6 +41,7 @@ describe("optimizeImage()", () => {
 
   it("should optimize the image into specified widths", async () => {
     await optimizer.optimizeImage(
+      store,
       "test.png",
       await readFile(`${__dirname}/__fixtures__/test-image.png`),
       { avif: [200, 400, 600] } // original is 433px
@@ -60,6 +63,7 @@ describe("optimizeImage()", () => {
 
   it("should work with input stream", async () => {
     await optimizer.optimizeImage(
+      store,
       "test.png",
       (
         await open(`${__dirname}/__fixtures__/test-image.png`)
@@ -72,17 +76,23 @@ describe("optimizeImage()", () => {
   });
 
   it("should output files", async () => {
-    optimizer = new SharpOptimizer({ store: new FileStore("./.tmp/test-out") });
+    const store = new FileStore("./.tmp/test-out");
+    optimizer = new SharpOptimizer();
 
     await optimizer.optimizeImage(
+      store,
       "test.png",
       (
         await open(`${__dirname}/__fixtures__/test-image.png`)
       ).readableWebStream(),
-      { avif: [[200, , 5], 400, 600], webp: [200, 400, 600] }
+      { avif: [[200, , 5], [400, 100], 600], webp: [200, 400, 600] }
     );
 
-    expect(store.write).toHaveBeenCalledWith("test.avif", expect.any(Buffer));
-    expect(store.write).toHaveBeenCalledWith("test.webp", expect.any(Buffer));
+    expect(await store.exists("test/w200.avif")).toBe(true);
+    expect(await store.exists("test/w400h100.avif")).toBe(true);
+    expect(await store.exists("test/w600.avif")).toBe(true);
+    expect(await store.exists("test/w200.webp")).toBe(true);
+    expect(await store.exists("test/w400.webp")).toBe(true);
+    expect(await store.exists("test/w600.webp")).toBe(true);
   });
 });

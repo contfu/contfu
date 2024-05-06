@@ -96,7 +96,11 @@ async function processAssets(
       return;
     }
 
-    await connection.mediaOptimizer.optimizeImage(canonical, asset);
+    await connection.mediaOptimizer.optimizeImage(
+      connection.mediaStore,
+      canonical,
+      asset
+    );
   });
 }
 

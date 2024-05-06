@@ -9,11 +9,8 @@ import sharp from "sharp";
 import { Readable } from "stream";
 
 export class SharpOptimizer implements MediaOptimizer {
-  private store: MediaStore;
-  constructor({ store }: { store: MediaStore }) {
-    this.store = store;
-  }
   async optimizeImage(
+    store: MediaStore,
     canonical: string,
     input: Buffer | ReadableStream,
     opts: OptimizeImageOpts = { avif: [[]] }
@@ -36,7 +33,7 @@ export class SharpOptimizer implements MediaOptimizer {
             .toFormat(format as ImageFormat, { quality })
             .toBuffer()
             .then((buffer) =>
-              this.store.write(
+              store.write(
                 `${base}${w || h ? "/" : ""}${w}${h}.${format}`,
                 buffer
               )
