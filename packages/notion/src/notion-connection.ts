@@ -1,5 +1,5 @@
 import type { MediaOptimizer, MediaStore } from "@contfu/client";
-import { isImg, type Block, type Connection, type Page } from "@contfu/client";
+import { isImg, type Connection, type Page } from "@contfu/client";
 import { FileStore } from "@contfu/client/src/media/file-store";
 import type { PageData } from "@contfu/client/src/pages/data/page-data";
 import { getLastChangedPage } from "@contfu/client/src/pages/data/page-datasource";
@@ -103,17 +103,13 @@ export class NotionConnection<C extends Record<string, Page>>
       filter,
     })) {
       const page = await collect(parsed as any);
-      const assets = [
-        parsed.props.icon as Block,
-        parsed.props.icon as Block,
-        ...parsed.content,
-      ]
+      const assets = [parsed.props.icon, parsed.props.cover, ...parsed.content]
         .filter(isImg)
         .map((block) => {
           const url = block[1];
           return { block, ref: parseS3AssetUrlToCanonical(url), url };
         });
-      yield { page, assets: [] as any[] };
+      yield { page, assets: assets };
     }
   }
 
