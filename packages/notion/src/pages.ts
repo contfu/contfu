@@ -39,7 +39,7 @@ export type ParsedPage<P extends Page> = {
   content: Block[];
   props: {
     [key in string]: string | number | boolean | string[] | Block;
-  };
+  } & { icon?: ImageBlock; cover?: ImageBlock };
 };
 
 function parsePage<P extends Page>(
