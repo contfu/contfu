@@ -48,5 +48,7 @@ export type Connection<Collection extends string = string> = {
    *
    * @param ref The reference to the asset.
    */
-  fetchAsset(ref: string): Promise<ReadableStream>;
+  fetchAsset(
+    ref: string
+  ): Promise<ReadableStream | Buffer> | ReadableStream | Buffer;
 };
