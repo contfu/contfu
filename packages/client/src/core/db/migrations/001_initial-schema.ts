@@ -1,20 +1,17 @@
-import { Kysely, PostgresAdapter } from "kysely";
+import { Kysely } from "kysely";
 
-// Supported engines: postgres, sqlite
+// Supported engines: sqlite
 
 export async function up(db: Kysely<any>): Promise<void> {
-  const useSerial = db.getExecutor().adapter instanceof PostgresAdapter;
-  const serial = useSerial ? "serial" : "integer";
-
   await db.schema
     .createTable("connection")
-    .addColumn("id", serial, (col) => col.primaryKey())
+    .addColumn("id", "integer", (col) => col.primaryKey())
     .addColumn("name", "text", (col) => col.unique().notNull())
     .execute();
 
   await db.schema
     .createTable("page")
-    .addColumn("id", serial, (col) => col.primaryKey())
+    .addColumn("id", "integer", (col) => col.primaryKey())
     .addColumn("ref", "text", (col) => col.unique().notNull())
     .addColumn("slug", "text", (col) => col.unique().notNull())
     .addColumn("collection", "text")
