@@ -20,8 +20,6 @@ import type {
 } from "notion-client-web-fetch/build/src/api-endpoints";
 import { notion, parseImageUrl } from "./notion";
 
-const MY_ORIGIN = "https://js2brain.com";
-
 export async function getContentBlocks(key: string, id: string) {
   const blocks = [] as Block[];
   for await (const res of paginatedChildren(key, id)) {
@@ -128,11 +126,7 @@ function extractRichTextContent(items: RichTextItemResponse[]): Text[] {
   return items.map(({ annotations, href, plain_text: text }) => {
     text = text.trim();
     return href
-      ? [
-          "a",
-          text,
-          href.startsWith(MY_ORIGIN) ? href.slice(MY_ORIGIN.length) : href,
-        ]
+      ? ["a", text, href]
       : annotations.code
       ? ["c", text]
       : annotations.bold
