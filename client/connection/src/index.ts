@@ -1,24 +1,49 @@
-import { ConnectionConfig } from "@contfu/core";
-import { Dialect } from "kysely";
-import { setupDb } from "./core/db/db";
+import { ConnectionConfig, PageData, PageValidationError } from "@contfu/core";
 
-export { getDb, migrationProvider, setupDb, truncate } from "./core/db/db";
+export async function* connect(
+  connections: ConnectionConfig<string>[],
+  { ws = true, since = undefined }: { ws?: boolean; since?: number } = {}
+) {
+  yield* ws ? connectWs(connections, since) : connectPoll(connections, since);
+}
 
-type ContfuSetupOpts = {
-  /**
-   * The kysely dialect to use for the database connection.
-   */
-  kyselyDialect: Dialect;
-  /**
-   * The connections to set up.
-   * If connections change their key or target, the old connection and all linked data
-   * will be removed and a new one created.
-   * Can also be set later with `setConnections`.
-   */
-  connections?: ConnectionConfig<any>[];
-};
+async function* connectWs(
+  connections: ConnectionConfig<string>[],
+  since?: number
+) {
+  const socket = new WebSocket("ws://localhost:8080/pages");
+  let resolve: (value: any) => void, reject: (reason?: any) => void;
 
-export async function setup({ connections, kyselyDialect }: ContfuSetupOpts) {
-  await setupDb({ dialect: kyselyDialect });
-  if (connections) await setConnections(connections);
+  socket.onopen = () => {
+    socket.send(JSON.stringify({ connections, since }));
+  };
+
+  socket.onmessage = (event) => {
+    const data = JSON.parse(event.data.toString());
+    resolve(data);
+  };
+
+  while (socket.readyState === WebSocket.OPEN || WebSocket.CONNECTING) {
+    yield new Promise<PageData | PageValidationError>((res, rej) => {
+      resolve = res;
+      reject = rej;
+    });
+  }
+}
+
+async function* connectPoll(
+  connections: ConnectionConfig<string>[],
+  since?: number
+) {
+  while (true) {
+    const res = await fetch("http://localhost:8080/pages", {
+      method: "POST",
+      body: JSON.stringify({
+        connections,
+        since,
+      }),
+      headers: { "Content-Type": "application/json" },
+    });
+    yield (await res.json()) as PageData | PageValidationError;
+  }
 }
