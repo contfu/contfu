@@ -1,0 +1,24 @@
+{
+  "name": "@contfu/media-optimizer",
+  "main": "src/index.ts",
+  "type": "module",
+  "version": "0.1.0",
+  "scripts": {
+    "test": "bun test",
+    "clean": "rm -rf dist .tmp"
+  },
+  "devDependencies": {
+    "@contfu/client": "^0.1.0",
+    "@contfu/bun-file-store": "^0.1.0",
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "sharp": "^0.33.3"
+  },
+  "files": [
+    "src"
+  ]
+}

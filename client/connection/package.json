@@ -1,0 +1,21 @@
+{
+  "name": "@contfu/connection",
+  "main": "src/index.ts",
+  "type": "module",
+  "version": "0.1.1",
+  "scripts": {
+    "test": "bun test",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@contfu/core": "^0.1.1",
+    "@types/bun": "latest",
+    "ts-essentials": "^9.4.1"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "files": [
+    "src"
+  ]
+}

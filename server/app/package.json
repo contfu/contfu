@@ -1,0 +1,31 @@
+{
+  "name": "@contfu/server",
+  "main": "src/index.ts",
+  "type": "module",
+  "version": "0.1.1",
+  "private": true,
+  "scripts": {
+    "test": "bun test",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@contfu/connections": "^0.1.1",
+    "@contfu/notion": "^0.1.1",
+    "@types/bun": "latest",
+    "kysely-bun-worker": "^0.5.7",
+    "ts-essentials": "^9.4.1"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@contfu/core": "^0.1.1",
+    "@sinclair/typebox": "^0.32.30",
+    "elysia": "^1.0.25",
+    "kysely": "^0.27.3",
+    "rxjs": "^7.8.1"
+  },
+  "files": [
+    "dist"
+  ]
+}

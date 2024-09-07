@@ -1,0 +1,24 @@
+{
+  "name": "@contfu/core",
+  "main": "src/index.ts",
+  "type": "module",
+  "version": "0.1.1",
+  "scripts": {
+    "test": "bun test",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "kysely-bun-worker": "^0.5.7",
+    "ts-essentials": "^9.4.1"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "kysely": "^0.27.3"
+  },
+  "files": [
+    "src"
+  ]
+}
