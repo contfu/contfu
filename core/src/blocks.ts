@@ -1,15 +1,15 @@
-export type QuoteBlock = [type: "q", text: (Text | Block)[]];
-export type ParagraphBlock = [type: "p", text: Text[]];
+export type QuoteBlock = [type: "q", text: (Inline | Block)[]];
+export type ParagraphBlock = [type: "p", text: Inline[]];
 export type CodeBlock = [type: "c", lang: string, text: string];
-export type Heading1Block = [type: "1", text: Text[]];
-export type Heading2Block = [type: "2", text: Text[]];
-export type Heading3Block = [type: "3", text: Text[]];
-export type UnorderedListBlock = [type: "u", items: (Text | Block)[]];
-export type OrderedListBlock = [type: "o", items: (Text | Block)[]];
+export type Heading1Block = [type: "1", text: Inline[]];
+export type Heading2Block = [type: "2", text: Inline[]];
+export type Heading3Block = [type: "3", text: Inline[]];
+export type UnorderedListBlock = [type: "u", items: (Inline | Block)[]];
+export type OrderedListBlock = [type: "o", items: (Inline | Block)[]];
 export type TableBlock = [
   type: "t",
   hasHeader: boolean,
-  cells: (Block | Text)[][][]
+  cells: (Block | Inline)[][][]
 ];
 export type ImageBlock = [
   type: "i",
@@ -42,7 +42,7 @@ export type Code = [type: "c", text: string];
 export type Bold = [type: "b", text: string];
 export type Italic = [type: "i", text: string];
 
-export type Text = Anchor | Code | Bold | Italic | string;
+export type Inline = Anchor | Code | Bold | Italic | string;
 
 export function isQuote(block?: Block | null): block is QuoteBlock {
   return block?.[0] === "q";
@@ -78,38 +78,41 @@ export function isCustom(block?: Block | null): block is CustomBlock {
   return block?.[0] === "x";
 }
 
-export function isA(text?: Text | null): text is Anchor {
+export function isAnchor(text?: Inline | null): text is Anchor {
   return text?.[0] === "a";
 }
-export function isC(text?: Text | null): text is Code {
-  return text?.[0] === "c";
+export function isMonospace(text?: Inline | null): text is Code {
+  return text?.[0] === "m";
 }
-export function isB(text?: Text | null): text is Bold {
+export function isBold(text?: Inline | null): text is Bold {
   return text?.[0] === "b";
 }
-export function isI(text?: Text | null): text is Italic {
+export function isItalic(text?: Inline | null): text is Italic {
   return text?.[0] === "i";
 }
-export function isString(text?: Text | null): text is string {
+export function isInline(x?: Inline | Block | null): x is Inline {
+  const text = x as Inline;
+  return (
+    isString(text) ||
+    isAnchor(text) ||
+    isMonospace(text) ||
+    isBold(text) ||
+    isItalic(text)
+  );
+}
+export function isString(text?: Inline | null): text is string {
   return typeof text === "string";
 }
 
-export function toPlainText(texts: Text[]) {
-  return texts.map((t) => (isString(t) ? t : t[1])).join(" ");
+export function toPlainText(inlines: Inline[]) {
+  return inlines.map((t) => (isString(t) ? t : t[1])).join(" ");
 }
 
-export function getText(block: Block): Text[] {
+export function getText(block: Block): Inline[] {
   if (isCustom(block)) {
     return (block.slice(3) as Block[]).flatMap(getText);
   }
-  if (
-    isQuote(block) ||
-    isP(block) ||
-    isH1(block) ||
-    isH2(block) ||
-    isH3(block)
-  ) {
-    return block[1].flat();
-  }
+  if (isP(block) || isH1(block) || isH2(block) || isH3(block)) return block[1];
+  if (isQuote(block)) return block[1].filter(isInline);
   return [];
 }

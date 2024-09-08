@@ -4,13 +4,13 @@ import {
   Heading2Block,
   Heading3Block,
   ImageBlock,
-  ParagraphBlock,
-  QuoteBlock,
-  Text,
+  Inline,
   isOl,
   isQuote,
   isTable,
   isUl,
+  ParagraphBlock,
+  QuoteBlock,
   toPlainText,
 } from "@contfu/core";
 import { isFullBlock, iteratePaginatedAPI } from "notion-client-web-fetch";
@@ -122,7 +122,7 @@ export function parseBlock(block: BlockObjectResponse): Block | null {
   return null;
 }
 
-function extractRichTextContent(items: RichTextItemResponse[]): Text[] {
+function extractRichTextContent(items: RichTextItemResponse[]): Inline[] {
   return items.map(({ annotations, href, plain_text: text }) => {
     text = text.trim();
     return href

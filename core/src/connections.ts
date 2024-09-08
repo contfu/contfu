@@ -18,17 +18,3 @@ export interface NotionCollectionConfig {
 
 export type ConnectionConfig<C extends string = string> =
   NotionConnectionConfig<C>;
-
-export function createConnection<C extends string>(
-  connection: ConnectionConfig<C>
-) {
-  return connection;
-}
-
-const conn = createConnection({
-  id: "id",
-  key: "key",
-  type: "notion",
-  notionKey: "notionKey",
-  collections: { collection1: { dbId: "dbId" } },
-});
