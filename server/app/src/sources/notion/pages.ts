@@ -1,12 +1,5 @@
-import {
-  Block,
-  ImageBlock,
-  PageData,
-  PageProps,
-  PageValidationError,
-} from "@contfu/core";
+import { Block, ImageBlock, Item, PageProps } from "@contfu/core";
 import { PageObjectResponse } from "notion-client-web-fetch/build/src/api-endpoints";
-import { PageDataValidator } from "../../pages/page-schema";
 import { getContentBlocks } from "./blocks";
 import { DbQuery, iterateDb, parseImageUrl } from "./notion";
 
@@ -15,12 +8,12 @@ export async function* iteratePages(
   id: string,
   {
     fetchContent = false,
-    connection,
+    src: src,
     collection,
     ...params
   }: DbQuery & {
     fetchContent?: boolean;
-    connection: string;
+    src: string;
     collection: string;
   }
 ) {
@@ -28,7 +21,7 @@ export async function* iteratePages(
     const content: Block[] = fetchContent
       ? (await getContentBlocks(key, page.id)) ?? []
       : [];
-    const parsed = parsePage(page, content, connection, collection);
+    const parsed = parsePage(page, content, src, collection);
     yield parsed;
   }
 }
@@ -43,54 +36,36 @@ function parsePage(
     cover,
   }: PageObjectResponse,
   content: Block[],
-  connection: string,
+  src: string,
   collection: string
-): PageData | PageValidationError {
+): Item {
   const createdAt = new Date(created_time).getTime();
-  const { props, title, path, description } = parseProps(properties);
+  const props = parseProps(properties);
 
-  id = id.replace(/-/g, "");
-  const page = {
-    id,
-    title,
-    path: path || `/${collection}/${title.replace(/\s+/, "-").toLowerCase()}`,
-    description,
-    publishedAt: createdAt,
+  const item: Item<{
+    icon?: ImageBlock;
+    cover?: ImageBlock;
+    content: Block[];
+  }> = {
+    id: id.replace(/-/g, ""),
+    src,
+    collection,
     createdAt,
     changedAt: new Date(last_edited_time).getTime(),
-    props: {
-      ...props,
-      ...(icon && icon.type !== "emoji"
-        ? { icon: ["i", parseImageUrl(icon), "Icon", []] as ImageBlock }
-        : {}),
-      ...(cover
-        ? { cover: ["i", parseImageUrl(cover), "Cover", []] as ImageBlock }
-        : {}),
-    },
+    ...props,
+    ...(icon && icon.type !== "emoji"
+      ? { icon: ["i", parseImageUrl(icon), "Icon", []] as ImageBlock }
+      : {}),
+    ...(cover
+      ? { cover: ["i", parseImageUrl(cover), "Cover", []] as ImageBlock }
+      : {}),
     content,
-    connection,
-    collection,
   };
-  const valid = PageDataValidator.Check(page);
-  if (valid) return page;
-  else {
-    const { message, path } = PageDataValidator.Errors(page).First()!;
-    return {
-      id,
-      path,
-      message,
-    };
-  }
+  return item;
 }
 
 function parseProps(pageProps: PageObjectResponse["properties"]) {
   const props = {} as PageProps;
-  const res: {
-    props: PageProps;
-    title: string;
-    path: string;
-    description?: string;
-  } = { props, title: "", path: "" };
   for (const key in pageProps) {
     const prop = pageProps[key];
     switch (prop.type) {
@@ -152,30 +127,6 @@ function parseProps(pageProps: PageObjectResponse["properties"]) {
         props[key] = prop.title.map((x) => x.plain_text).join(" ");
         break;
     }
-
-    if (typeof props[key] === "string") {
-      const str = props[key] as string;
-      const lk = key.toLowerCase();
-      if (descriptionKeys.has(lk)) {
-        res.description = str;
-        delete props[key];
-      } else if (pathKeys.has(lk)) {
-        res.path = str;
-        delete props[key];
-      } else if (titleKeys.has(lk)) {
-        res.title = str;
-        delete props[key];
-      }
-    }
   }
-  return res;
+  return props;
 }
-
-const descriptionKeys = new Set([
-  "description",
-  "summary",
-  "excerpt",
-  "abstract",
-]);
-const pathKeys = new Set(["path", "url", "path", "href", "link", "slug"]);
-const titleKeys = new Set(["title", "name", "heading", "header"]);

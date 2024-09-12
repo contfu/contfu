@@ -1,21 +1,19 @@
-import { ConnectionConfig, PageData, PageValidationError } from "@contfu/core";
+import { Item, SourceConfig } from "@contfu/core";
 
 type Opts = {
   WS?: typeof WebSocket | false;
   since?: number;
 };
 
-export async function* connect(
-  connections: ConnectionConfig<string>[],
+export async function* connectTo(
+  sources: SourceConfig<string>[],
   { WS = global.WebSocket, since = undefined }: Opts = {}
 ) {
-  yield* WS
-    ? connectWs(connections, since, WS)
-    : connectPoll(connections, since);
+  yield* WS ? connectWs(sources, since, WS) : connectPoll(sources, since);
 }
 
 async function* connectWs(
-  connections: ConnectionConfig<string>[],
+  sources: SourceConfig<string>[],
   since?: number,
   ws = WebSocket
 ) {
@@ -23,7 +21,7 @@ async function* connectWs(
   let socket = new ws("ws://localhost:8080/pages");
 
   socket.onopen = () => {
-    socket.send(JSON.stringify({ connections, since }));
+    socket.send(JSON.stringify({ sources, since }));
   };
 
   socket.onmessage = (event) => {
@@ -32,32 +30,25 @@ async function* connectWs(
   };
 
   while (socket.readyState === WebSocket.OPEN || WebSocket.CONNECTING) {
-    yield new Promise<PageData | PageValidationError>((res, rej) => {
+    yield new Promise<Item[]>((res, rej) => {
       resolve = res;
       reject = rej;
     });
   }
 }
 
-async function* connectPoll(
-  connections: ConnectionConfig<string>[],
-  since?: number
-) {
+async function* connectPoll(sources: SourceConfig<string>[], since?: number) {
   while (true) {
     const res = await fetch("http://localhost:8080/pages", {
       method: "POST",
-      body: JSON.stringify({
-        connections,
-        since,
-      }),
+      body: JSON.stringify({ sources, since }),
       headers: { "Content-Type": "application/json" },
     });
-    yield (await res.json()) as PageData | PageValidationError;
+
+    yield (await res.json()) as Item[];
   }
 }
 
-export function createConnection<C extends string>(
-  connection: ConnectionConfig<C>
-) {
-  return connection;
+export function createSource<C extends string>(source: SourceConfig<C>) {
+  return source;
 }

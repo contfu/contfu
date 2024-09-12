@@ -3,7 +3,7 @@ import type {
   MediaOptimizer,
   MediaStore,
   OptimizeImageOpts,
-} from "@contfu/core";
+} from "@contfu/client-core";
 import { basename, extname } from "path";
 import sharp from "sharp";
 import { Readable } from "stream";

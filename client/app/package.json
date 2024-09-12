@@ -1,5 +1,5 @@
 {
-  "name": "@contfu/client",
+  "name": "contfu",
   "main": "src/index.ts",
   "type": "module",
   "version": "0.1.1",

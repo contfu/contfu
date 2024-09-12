@@ -1,24 +1,23 @@
 import {
+  Item,
   NotionCollectionConfig,
-  PageData,
-  PageValidationError,
   isPageData,
-  type NotionConnectionConfig,
+  type NotionConfig,
 } from "@contfu/core";
 import { Observable, defer, from, merge, reduce, repeat, tap } from "rxjs";
-import { Connection } from "../connection";
+import { Source } from "../source";
 import { iterateDb, type DbQuery } from "./notion";
 import { iteratePages } from "./pages";
 
 const PRUNE_INTERVAL = 60 * 60 * 1000;
 const PULL_INTERVAL = 5 * 60 * 1000;
 
-export class NotionConnection<C extends string> implements Connection<C> {
+export class NotionSource<C extends string> implements Source<C> {
   readonly id: string;
   readonly key: string;
   readonly collections: Record<C, NotionCollectionConfig>;
 
-  constructor({ id, key, collections }: NotionConnectionConfig<C>) {
+  constructor({ id, key, collections }: NotionConfig<C>) {
     this.id = id;
     this.key = key;
     this.collections = collections;
@@ -37,10 +36,7 @@ export class NotionConnection<C extends string> implements Connection<C> {
     );
   }
 
-  pull(
-    collection: C,
-    since?: number
-  ): Observable<PageData | PageValidationError> {
+  pull(collection: C, since?: number): Observable<Item> {
     return defer(() => {
       return since
         ? merge(
@@ -68,7 +64,7 @@ export class NotionConnection<C extends string> implements Connection<C> {
       iteratePages(this.key, dbId, {
         fetchContent: true,
         filter,
-        connection: this.id,
+        src: this.id,
         collection,
       })
     );

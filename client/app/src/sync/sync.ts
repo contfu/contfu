@@ -1,6 +1,6 @@
 import type { ImageBlock } from "@contfu/core";
 import { extname } from "path";
-import type { Connection } from "../connections/connections";
+import type { Source } from "../connections/connections";
 import { hashId } from "../core/crypto";
 import type { PageData } from "../pages/data/page-data";
 import {
@@ -13,36 +13,31 @@ import {
   getPageRefsByCollection,
 } from "../pages/data/page-datasource";
 
-export function sync(connections: Connection[]) {
-  return Promise.all(connections.flatMap((c) => [pull(c), removeOrphans(c)]));
+export function sync(sources: Source[]) {
+  return Promise.all(sources.flatMap((c) => [pull(c), removeOrphans(c)]));
 }
 
-async function pull(connection: Connection) {
+async function pull(source: Source) {
   const transientLinks = new Map<string, Set<[string, number]>>();
-  for (const collection of connection.collectionNames) {
-    for await (const { page, assets } of connection.pull(collection)) {
+  for (const collection of source.collectionNames) {
+    for await (const { page, assets } of source.pull(collection)) {
       const { id } = await createOrUpdatePage(page);
       await deleteOutgoingPageLinks(id);
       await createLinks(page, id, transientLinks);
-      await processAssets(connection, assets);
+      await processAssets(source, assets);
     }
   }
 }
 
-async function removeOrphans(connection: Connection) {
-  for (const collection of connection.collectionNames) {
-    for await (const upstreamRefs of connection.pullCollectionRefs(
-      collection
-    )) {
-      const existingRefs = await getPageRefsByCollection(
-        connection.id,
-        collection
-      );
+async function removeOrphans(source: Source) {
+  for (const collection of source.collectionNames) {
+    for await (const upstreamRefs of source.pullCollectionRefs(collection)) {
+      const existingRefs = await getPageRefsByCollection(source.id, collection);
       const refsToDelete = new Set(existingRefs);
       for (const ref of upstreamRefs) refsToDelete.delete(ref);
       if (refsToDelete.size === 0) continue;
       for (const ref of refsToDelete) await deletePageLinksByRef(ref);
-      await deletePagesByRefs(connection.id, [...refsToDelete]);
+      await deletePagesByRefs(source.id, [...refsToDelete]);
       // TODO: Take care of assets
     }
   }
@@ -74,30 +69,28 @@ async function createLinks(
 }
 
 async function processAssets(
-  connection: Connection,
+  source: Source,
   assets: { block: ImageBlock; ref: string }[]
 ) {
   assets.map(async ({ block, ref }) => {
-    const hash = hashId(`${connection.id}|${ref}`);
+    const hash = hashId(`${source.id}|${ref}`);
     const ext = extname(ref);
     const url = block[1];
     const canonical = `${hash}${ext}`;
     block[1] = canonical;
     if (
-      await connection.mediaStore.exists(
-        hasMulpitleOutputs(ext) ? hash : canonical
-      )
+      await source.mediaStore.exists(hasMulpitleOutputs(ext) ? hash : canonical)
     )
       return;
-    const asset = await connection.fetchAsset(url);
+    const asset = await source.fetchAsset(url);
 
-    if (!connection.mediaOptimizer) {
-      await connection.mediaStore.write(canonical, asset);
+    if (!source.mediaOptimizer) {
+      await source.mediaStore.write(canonical, asset);
       return;
     }
 
-    await connection.mediaOptimizer.optimizeImage(
-      connection.mediaStore,
+    await source.mediaOptimizer.optimizeImage(
+      source.mediaStore,
       canonical,
       asset
     );

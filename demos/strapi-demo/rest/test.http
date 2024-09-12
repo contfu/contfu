@@ -1,11 +1,16 @@
 @baseUrl = http://localhost:1337
 
 ### List authors with articles
-GET {{baseUrl}}/api/authors?populate=articles
+GET {{baseUrl}}/api/authors?populate=*
+
+### List all published articles
+GET {{baseUrl}}/api/articles
+
+### List all draft articles
+GET {{baseUrl}}/api/articles?status=draft&populate=*
 
 ### Get author
 GET {{baseUrl}}/api/authors/d7ghvm73eogxx7wxyrj8beyg
 
-
 ### List about
-GET {{baseUrl}}/api/about‰
+GET {{baseUrl}}/api/about?populate

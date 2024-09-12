@@ -5,20 +5,14 @@ export type PageProps = Record<
   string | number | boolean | string[] | number[] | boolean[] | Block
 >;
 
-export type PageData = {
+export type Item<T extends Record<string, any> = Record<never, never>> = {
   id: string;
-  connection: string;
-  path?: string;
-  title?: string;
-  description?: string;
-  publishedAt: number;
-  createdAt: number;
-  updatedAt?: number;
-  changedAt: number;
+  src: string;
   collection: string;
-  content: Block[];
-  props: PageProps;
-};
+  publishedAt?: number;
+  createdAt: number;
+  changedAt: number;
+} & T;
 
 export type PageValidationError = {
   id: string;
@@ -27,13 +21,11 @@ export type PageValidationError = {
 };
 
 export function isPageValidationError(
-  data: PageData | PageValidationError
+  data: Item | PageValidationError
 ): data is PageValidationError {
   return "message" in data;
 }
 
-export function isPageData(
-  data: PageData | PageValidationError
-): data is PageData {
+export function isPageData(data: Item | PageValidationError): data is Item {
   return !isPageValidationError(data);
 }

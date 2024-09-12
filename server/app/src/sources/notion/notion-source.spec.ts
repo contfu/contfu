@@ -1,10 +1,10 @@
-import type { Block, Page, PageData } from "@contfu/core";
+import type { Block, Item } from "@contfu/core";
 import { Type } from "@sinclair/typebox";
 import { describe, expect, it } from "bun:test";
 import { firstValueFrom, take, toArray } from "rxjs";
 import { mockClient } from "../../../test/mocks/notion";
 import { dbQueryPage1 } from "./__fixtures__/notion-query-results";
-import { NotionConnection } from "./notion-connection";
+import { NotionSource } from "./notion-source";
 
 const schema1 = Type.Object({
   Title: Type.String(),
@@ -13,12 +13,12 @@ const schema1 = Type.Object({
   "Other Reference": Type.String(),
 });
 
-type Page1 = Page<{
+type Page1 = Item<{
   content: Block[];
   collection: "pages";
-  props: { Color: string };
+  Color: string;
 }>;
-const connection = new NotionConnection<{ pages: Page1 }>({
+const source = new NotionSource<"pages">({
   id: "11111111111111111111111111111111",
   type: "notion",
   key: process.env.CONN_KEY!,
@@ -34,9 +34,7 @@ describe("NotionConnection", () => {
   describe("pullConnectionRefs()", () => {
     it("should get all refs from all collections from notion", async () => {
       mockClient.databases.query.mockResolvedValueOnce(dbQueryPage1);
-      const value = await firstValueFrom(
-        connection.pullCollectionRefs("pages")
-      );
+      const value = await firstValueFrom(source.pullCollectionRefs("pages"));
 
       expect(value).toEqual([
         "1c943524-6b15-431d-9a3b-0f91f9ce34d2",
@@ -52,44 +50,37 @@ describe("NotionConnection", () => {
         results: [],
       });
       const value = await firstValueFrom(
-        connection.pull("pages").pipe(take(2), toArray())
+        source.pull("pages").pipe(take(2), toArray())
       );
 
       expect(value).toEqual([
         {
-          title: "Foo",
-          description: "A",
-          path: "/pages/foo",
-          createdAt: 1711864560000,
-          changedAt: 1716353760000,
-          publishedAt: 1711864560000,
-          collection: "pages",
-          content: [],
-          props: {
-            Color: "red",
-            "Self Reference": ["c5d5e80b289646e0a28ee13fd48d1e5d"],
-            "Other Reference": ["684c87fed1a24c21a3de8c55dace39cd"],
-          },
           id: "1c9435246b15431d9a3b0f91f9ce34d2",
-          connection: "11111111111111111111111111111111",
-        } as PageData,
-        {
-          changedAt: 1716353820000,
+          src: "11111111111111111111111111111111",
           collection: "pages",
-          content: [],
+          changedAt: 1716353760000,
           createdAt: 1711864560000,
-          description: "B",
-          props: {
-            Color: "blue",
-            "Self Reference": ["1c9435246b15431d9a3b0f91f9ce34d2"],
-            "Other Reference": [],
-          },
-          publishedAt: 1711864560000,
+          Title: "Foo",
+          Description: "A",
+          content: [],
+          Color: "red",
+          "Self Reference": ["c5d5e80b289646e0a28ee13fd48d1e5d"],
+          "Other Reference": ["684c87fed1a24c21a3de8c55dace39cd"],
+        } as Page1,
+        {
           id: "c5d5e80b289646e0a28ee13fd48d1e5d",
-          connection: "11111111111111111111111111111111",
-          path: "/bar",
-          title: "Bar",
-        } as PageData,
+          src: "11111111111111111111111111111111",
+          collection: "pages",
+          changedAt: 1716353820000,
+          createdAt: 1711864560000,
+          Title: "Bar",
+          Slug: "/bar",
+          Description: "B",
+          content: [],
+          Color: "blue",
+          "Self Reference": ["1c9435246b15431d9a3b0f91f9ce34d2"],
+          "Other Reference": [],
+        } as Page1,
       ]);
     });
   });

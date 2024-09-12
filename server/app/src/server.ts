@@ -1,15 +1,12 @@
 import Elysia, { t } from "elysia";
 import { Subscription, map, merge } from "rxjs";
 import { authenticate } from "./access/access-store";
-import {
-  ConnectionSchema,
-  buildConnection,
-} from "./connection/connection-schema";
+import { SourceSchema, buildConnection } from "./sources/source-schema";
 
 const app = new Elysia()
   .ws("/pages", {
     body: t.Object({
-      connections: t.Array(ConnectionSchema),
+      connections: t.Array(SourceSchema),
       since: t.Optional(t.Number()),
     }),
     message(ws, { connections, since }) {
