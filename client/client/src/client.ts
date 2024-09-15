@@ -18,7 +18,7 @@ async function* connectWs(
   ws = WebSocket
 ) {
   let resolve: (value: any) => void, reject: (reason?: any) => void;
-  let socket = new ws("ws://localhost:8080/pages");
+  let socket = new ws("ws://localhost:3000/pages");
 
   socket.onopen = () => {
     socket.send(JSON.stringify({ sources, since }));
@@ -29,12 +29,12 @@ async function* connectWs(
     resolve(data);
   };
 
-  while (socket.readyState === WebSocket.OPEN || WebSocket.CONNECTING) {
+  do {
     yield new Promise<Item[]>((res, rej) => {
       resolve = res;
       reject = rej;
     });
-  }
+  } while (socket.readyState === WebSocket.OPEN);
 }
 
 async function* connectPoll(sources: SourceConfig<string>[], since?: number) {

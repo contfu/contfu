@@ -21,8 +21,7 @@ export async function* iteratePages(
     const content: Block[] = fetchContent
       ? (await getContentBlocks(key, page.id)) ?? []
       : [];
-    const parsed = parsePage(page, content, src, collection);
-    yield parsed;
+    yield parsePage(page, content, src, collection);
   }
 }
 

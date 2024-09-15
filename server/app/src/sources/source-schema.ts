@@ -37,7 +37,7 @@ const NotionSourceSchema = buildSourceSchema({
 
 export const SourceSchema = Type.Union([NotionSourceSchema]);
 
-export function buildConnection(settings: SourceConfig<any>) {
+export function buildSource(settings: SourceConfig<any>) {
   switch (settings.type) {
     case "notion":
       return new NotionSource(settings);

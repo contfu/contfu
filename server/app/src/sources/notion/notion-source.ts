@@ -9,7 +9,7 @@ import { Source } from "../source";
 import { iterateDb, type DbQuery } from "./notion";
 import { iteratePages } from "./pages";
 
-const PRUNE_INTERVAL = 60 * 60 * 1000;
+const PRUNE_INTERVAL = 24 * 60 * 60 * 1000;
 const PULL_INTERVAL = 5 * 60 * 1000;
 
 export class NotionSource<C extends string> implements Source<C> {
@@ -60,14 +60,12 @@ export class NotionSource<C extends string> implements Source<C> {
 
   private _pull(collection: C, filter?: DbQuery["filter"]) {
     const { dbId } = this.collections[collection];
-    return from(
-      iteratePages(this.key, dbId, {
-        fetchContent: true,
-        filter,
-        src: this.id,
-        collection,
-      })
-    );
+    return iteratePages(this.key, dbId, {
+      fetchContent: true,
+      filter,
+      src: this.id,
+      collection,
+    });
   }
 }
 
