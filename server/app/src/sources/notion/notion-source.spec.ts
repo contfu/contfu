@@ -1,23 +1,16 @@
-import type { Block, Item } from "@contfu/core";
-import { Type } from "@sinclair/typebox";
+import type { Item } from "@contfu/core";
 import { describe, expect, it } from "bun:test";
 import { firstValueFrom, take, toArray } from "rxjs";
 import { mockClient } from "../../../test/mocks/notion";
 import { dbQueryPage1 } from "./__fixtures__/notion-query-results";
 import { NotionSource } from "./notion-source";
 
-const schema1 = Type.Object({
-  Title: Type.String(),
-  Description: Type.String(),
-  "Self Reference": Type.String(),
-  "Other Reference": Type.String(),
-});
-
-type Page1 = Item<{
-  content: Block[];
-  collection: "pages";
-  Color: string;
-}>;
+type Page1 = Item<
+  "pages",
+  {
+    Color: string;
+  }
+>;
 const source = new NotionSource<"pages">({
   id: "11111111111111111111111111111111",
   type: "notion",
@@ -60,12 +53,13 @@ describe("NotionConnection", () => {
           collection: "pages",
           changedAt: 1716353760000,
           createdAt: 1711864560000,
-          Title: "Foo",
-          Description: "A",
-          content: [],
-          Color: "red",
-          "Self Reference": ["c5d5e80b289646e0a28ee13fd48d1e5d"],
-          "Other Reference": ["684c87fed1a24c21a3de8c55dace39cd"],
+          props: {
+            Title: "Foo",
+            Description: "A",
+            Color: "red",
+            "Self Reference": ["c5d5e80b289646e0a28ee13fd48d1e5d"],
+            "Other Reference": ["684c87fed1a24c21a3de8c55dace39cd"],
+          },
         } as Page1,
         {
           id: "c5d5e80b289646e0a28ee13fd48d1e5d",
@@ -73,13 +67,14 @@ describe("NotionConnection", () => {
           collection: "pages",
           changedAt: 1716353820000,
           createdAt: 1711864560000,
-          Title: "Bar",
-          Slug: "/bar",
-          Description: "B",
-          content: [],
-          Color: "blue",
-          "Self Reference": ["1c9435246b15431d9a3b0f91f9ce34d2"],
-          "Other Reference": [],
+          props: {
+            Title: "Bar",
+            Slug: "/bar",
+            Description: "B",
+            Color: "blue",
+            "Self Reference": ["1c9435246b15431d9a3b0f91f9ce34d2"],
+            "Other Reference": [],
+          },
         } as Page1,
       ]);
     });

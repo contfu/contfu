@@ -15,7 +15,8 @@ export type Item<
   publishedAt?: number;
   createdAt: number;
   changedAt: number;
-} & T;
+  props: T;
+};
 
 export type PageValidationError = {
   id: string;

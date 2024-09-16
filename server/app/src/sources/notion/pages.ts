@@ -61,14 +61,16 @@ function parsePage(
     collection,
     createdAt,
     changedAt: new Date(last_edited_time).getTime(),
-    ...props,
-    ...(icon && icon.type !== "emoji"
-      ? { icon: ["i", parseImageUrl(icon), "Icon", []] as ImageBlock }
-      : {}),
-    ...(cover
-      ? { cover: ["i", parseImageUrl(cover), "Cover", []] as ImageBlock }
-      : {}),
-    ...content,
+    props: {
+      ...(icon && icon.type !== "emoji"
+        ? { icon: ["i", parseImageUrl(icon), "Icon", []] as ImageBlock }
+        : {}),
+      ...(cover
+        ? { cover: ["i", parseImageUrl(cover), "Cover", []] as ImageBlock }
+        : {}),
+      ...props,
+      ...content,
+    },
   };
   return item;
 }

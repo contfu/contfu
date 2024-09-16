@@ -71,22 +71,24 @@ describe("connect via WS", () => {
     expect((await item2).value).toEqual({
       id: "123",
       item: {
-        Color: "red",
-        Description: "A",
-        "Other Reference": ["684c87fed1a24c21a3de8c55dace39cd"],
-        "Self Reference": ["c5d5e80b289646e0a28ee13fd48d1e5d"],
-        Title: "Foo",
         changedAt: 1716353760000,
         collection: "pages",
-        Content: [
-          ["t", true, []],
-          ["u", ["Test"], [], ["nsdrtaei"]],
-          ["q", ["Test", ["b", "tsrf\nBlubb"]]],
-          ["q", ["foo\nneih"]],
-        ],
         createdAt: 1711864560000,
         id: "1c9435246b15431d9a3b0f91f9ce34d2",
         src: "123",
+        props: {
+          Color: "red",
+          Description: "A",
+          "Other Reference": ["684c87fed1a24c21a3de8c55dace39cd"],
+          "Self Reference": ["c5d5e80b289646e0a28ee13fd48d1e5d"],
+          Title: "Foo",
+          Content: [
+            ["t", true, []],
+            ["u", ["Test"], [], ["nsdrtaei"]],
+            ["q", ["Test", ["b", "tsrf\nBlubb"]]],
+            ["q", ["foo\nneih"]],
+          ],
+        },
       },
     });
     expect((await item3).value).toEqual({
@@ -97,13 +99,15 @@ describe("connect via WS", () => {
         collection: "pages",
         createdAt: 1711864560000,
         changedAt: 1716353820000,
-        Description: "B",
-        Slug: "/bar",
-        "Self Reference": ["1c9435246b15431d9a3b0f91f9ce34d2"],
-        "Other Reference": [],
-        Color: "blue",
-        Title: "Bar",
-        Content: [],
+        props: {
+          Description: "B",
+          Slug: "/bar",
+          "Self Reference": ["1c9435246b15431d9a3b0f91f9ce34d2"],
+          "Other Reference": [],
+          Color: "blue",
+          Title: "Bar",
+          Content: [],
+        },
       },
     });
   });
