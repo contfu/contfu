@@ -60,8 +60,7 @@ export class NotionSource<C extends string> implements Source<C> {
 
   private _pull(collection: C, filter?: DbQuery["filter"]) {
     const { dbId } = this.collections[collection];
-    return iteratePages(this.key, dbId, {
-      fetchContent: true,
+    return iteratePages(this.key, this.collections[collection], {
       filter,
       src: this.id,
       collection,

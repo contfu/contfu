@@ -32,6 +32,7 @@ const NotionSourceSchema = buildSourceSchema({
   }),
   collections: Type.Object({
     dbId: Type.String(),
+    content: Type.Optional(Type.String()),
   }),
 });
 

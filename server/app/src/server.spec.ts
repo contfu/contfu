@@ -39,7 +39,7 @@ describe("connect via WS", () => {
         "Other Reference": string[];
         "Self Reference": string[];
         Title: string;
-        content: Block[];
+        Content: Block[];
         Slug?: string;
       };
     }>([
@@ -50,7 +50,10 @@ describe("connect via WS", () => {
           "5B1060C74333C08D5721554550AAE735D7B8928274C0218877B01BBC53D53B9C",
         key: "5B1060C74333C08D5721554550AAE735D7B8928274C0218877B01BBC53D53B9C",
         collections: {
-          pages: { dbId: "5b1060c7-4333-c08d-5721-554550aae735" },
+          pages: {
+            dbId: "5b1060c7-4333-c08d-5721-554550aae735",
+            content: "Content",
+          },
         },
       },
     ]);
@@ -75,7 +78,7 @@ describe("connect via WS", () => {
         Title: "Foo",
         changedAt: 1716353760000,
         collection: "pages",
-        content: [
+        Content: [
           ["t", true, []],
           ["u", ["Test"], [], ["nsdrtaei"]],
           ["q", ["Test", ["b", "tsrf\nBlubb"]]],
@@ -100,7 +103,7 @@ describe("connect via WS", () => {
         "Other Reference": [],
         Color: "blue",
         Title: "Bar",
-        content: [],
+        Content: [],
       },
     });
   });

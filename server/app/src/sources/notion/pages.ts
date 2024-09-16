@@ -1,27 +1,35 @@
-import { Block, ImageBlock, Item, PageProps } from "@contfu/core";
+import {
+  Block,
+  ImageBlock,
+  Item,
+  NotionCollectionConfig,
+  PageProps,
+} from "@contfu/core";
 import { PageObjectResponse } from "notion-client-web-fetch/build/src/api-endpoints";
 import { getContentBlocks } from "./blocks";
 import { DbQuery, iterateDb, parseImageUrl } from "./notion";
 
 export async function* iteratePages(
   key: string,
-  id: string,
+  { dbId, content }: NotionCollectionConfig,
   {
-    fetchContent = false,
-    src: src,
+    src,
     collection,
     ...params
   }: DbQuery & {
-    fetchContent?: boolean;
     src: string;
     collection: string;
   }
 ) {
-  for await (const page of iterateDb(key, id, params)) {
-    const content: Block[] = fetchContent
-      ? (await getContentBlocks(key, page.id)) ?? []
-      : [];
-    yield parsePage(page, content, src, collection);
+  for await (const page of iterateDb(key, dbId, params)) {
+    yield parsePage(
+      page,
+      src,
+      collection,
+      content != null
+        ? { [content]: (await getContentBlocks(key, page.id)) ?? [] }
+        : undefined
+    );
   }
 }
 
@@ -34,9 +42,9 @@ function parsePage(
     icon,
     cover,
   }: PageObjectResponse,
-  content: Block[],
   src: string,
-  collection: string
+  collection: string,
+  content?: Record<string, Block[]>
 ): Item {
   const createdAt = new Date(created_time).getTime();
   const props = parseProps(properties);
@@ -60,7 +68,7 @@ function parsePage(
     ...(cover
       ? { cover: ["i", parseImageUrl(cover), "Cover", []] as ImageBlock }
       : {}),
-    content,
+    ...content,
   };
   return item;
 }

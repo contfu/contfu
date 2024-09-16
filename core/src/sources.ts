@@ -14,6 +14,7 @@ export interface NotionConfig<Collections extends string>
 
 export interface NotionCollectionConfig {
   dbId: string;
+  content?: string;
 }
 
 export type SourceConfig<C extends string = string> = NotionConfig<C>;
