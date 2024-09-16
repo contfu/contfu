@@ -1,24 +1,18 @@
 import { Item, SourceConfig } from "@contfu/core";
 
 type Opts = {
-  WS?: typeof WebSocket | false;
+  WS?: typeof WebSocket;
   since?: number;
 };
 
-export async function* connectTo(
-  sources: SourceConfig<string>[],
+export async function* connectTo<
+  Props extends Record<string, Record<string, any>>
+>(
+  sources: SourceConfig<keyof Props & string>[],
   { WS = global.WebSocket, since = undefined }: Opts = {}
 ) {
-  yield* WS ? connectWs(sources, since, WS) : connectPoll(sources, since);
-}
-
-async function* connectWs(
-  sources: SourceConfig<string>[],
-  since?: number,
-  ws = WebSocket
-) {
   let resolve: (value: any) => void, reject: (reason?: any) => void;
-  let socket = new ws("ws://localhost:3000/pages");
+  let socket = new WS("ws://localhost:3000/pages");
 
   socket.onopen = () => {
     socket.send(JSON.stringify({ sources, since }));
@@ -30,23 +24,16 @@ async function* connectWs(
   };
 
   do {
-    yield new Promise<Item[]>((res, rej) => {
+    yield new Promise<{
+      id: string;
+      item: {
+        [K in keyof Props & string]: Item<K, Props[K]>;
+      }[keyof Props & string];
+    }>((res, rej) => {
       resolve = res;
       reject = rej;
     });
   } while (socket.readyState === WebSocket.OPEN);
-}
-
-async function* connectPoll(sources: SourceConfig<string>[], since?: number) {
-  while (true) {
-    const res = await fetch("http://localhost:8080/pages", {
-      method: "POST",
-      body: JSON.stringify({ sources, since }),
-      headers: { "Content-Type": "application/json" },
-    });
-
-    yield (await res.json()) as Item[];
-  }
 }
 
 export function createSource<C extends string>(source: SourceConfig<C>) {

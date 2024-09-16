@@ -1,5 +1,7 @@
 import { connectTo } from "@contfu/client";
-import { beforeAll, describe, expect, it } from "bun:test";
+import { Block } from "@contfu/core";
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import Elysia from "elysia";
 import { mockClient } from "../test/mocks/notion";
 import { app } from "./server";
 import {
@@ -8,8 +10,13 @@ import {
 } from "./sources/notion/__fixtures__/notion-query-results";
 
 describe("connect via WS", () => {
+  let instance: Elysia;
   beforeAll(() => {
-    app.listen(3000);
+    instance = app.listen(3000);
+  });
+
+  afterAll(async () => {
+    await instance.stop();
   });
 
   it("should receive items", async () => {
@@ -25,7 +32,17 @@ describe("connect via WS", () => {
         block: {},
         request_id: "9053bda1-915f-48aa-a461-b4fc552bc78a",
       });
-    const conn = connectTo([
+    const conn = connectTo<{
+      pages: {
+        Color: string;
+        Description?: string;
+        "Other Reference": string[];
+        "Self Reference": string[];
+        Title: string;
+        content: Block[];
+        Slug?: string;
+      };
+    }>([
       {
         id: "123",
         type: "notion",

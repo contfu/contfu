@@ -41,11 +41,13 @@ function parsePage(
   const createdAt = new Date(created_time).getTime();
   const props = parseProps(properties);
 
-  const item: Item<{
-    icon?: ImageBlock;
-    cover?: ImageBlock;
-    content: Block[];
-  }> = {
+  const item: Item<
+    string,
+    {
+      icon?: ImageBlock;
+      cover?: ImageBlock;
+    }
+  > = {
     id: id.replace(/-/g, ""),
     src,
     collection,
