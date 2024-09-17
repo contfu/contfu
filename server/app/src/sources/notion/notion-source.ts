@@ -23,7 +23,7 @@ export class NotionSource<C extends string> implements Source<C> {
     this.collections = collections;
   }
 
-  pullCollectionRefs(collection: C) {
+  pullCollectionIds(collection: C) {
     return defer(() =>
       from(
         iterateDb(this.key, this.collections[collection].dbId, {

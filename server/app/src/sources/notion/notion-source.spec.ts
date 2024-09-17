@@ -27,7 +27,7 @@ describe("NotionConnection", () => {
   describe("pullConnectionRefs()", () => {
     it("should get all refs from all collections from notion", async () => {
       mockClient.databases.query.mockResolvedValueOnce(dbQueryPage1);
-      const value = await firstValueFrom(source.pullCollectionRefs("pages"));
+      const value = await firstValueFrom(source.pullCollectionIds("pages"));
 
       expect(value).toEqual([
         "1c943524-6b15-431d-9a3b-0f91f9ce34d2",

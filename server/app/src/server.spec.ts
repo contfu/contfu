@@ -1,5 +1,5 @@
 import { connectTo } from "@contfu/client";
-import { Block } from "@contfu/core";
+import { Block, EventType } from "@contfu/core";
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import Elysia from "elysia";
 import { mockClient } from "../test/mocks/notion";
@@ -62,13 +62,16 @@ describe("connect via WS", () => {
     const item3 = conn.next();
 
     expect((await item1).value).toEqual({
+      type: EventType.LIST_IDS,
       id: "123",
-      refs: [
+      collection: "pages",
+      itemIds: [
         "1c943524-6b15-431d-9a3b-0f91f9ce34d2",
         "c5d5e80b-2896-46e0-a28e-e13fd48d1e5d",
       ],
     });
     expect((await item2).value).toEqual({
+      type: EventType.CHANGED,
       id: "123",
       item: {
         changedAt: 1716353760000,
@@ -92,6 +95,7 @@ describe("connect via WS", () => {
       },
     });
     expect((await item3).value).toEqual({
+      type: EventType.CHANGED,
       id: "123",
       item: {
         id: "c5d5e80b289646e0a28ee13fd48d1e5d",

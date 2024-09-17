@@ -8,7 +8,7 @@ export type Source<Collection extends string = string> = {
    *
    * @param collection The collection to get references for.
    */
-  pullCollectionRefs(collection: Collection): Observable<string[]>;
+  pullCollectionIds(collection: Collection): Observable<string[]>;
   /**
    * Pulls content from the connection target.
    */

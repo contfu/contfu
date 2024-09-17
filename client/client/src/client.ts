@@ -1,4 +1,4 @@
-import { Item, SourceConfig } from "@contfu/core";
+import { Item, ItemEvent, SourceConfig } from "@contfu/core";
 
 type Opts = {
   WS?: typeof WebSocket;
@@ -24,12 +24,13 @@ export async function* connectTo<
   };
 
   do {
-    yield new Promise<{
-      id: string;
-      item: {
-        [K in keyof Props & string]: Item<K, Props[K]>;
-      }[keyof Props & string];
-    }>((res, rej) => {
+    yield new Promise<
+      ItemEvent<
+        {
+          [K in keyof Props & string]: Item<K, Props[K]>;
+        }[keyof Props & string]
+      >
+    >((res, rej) => {
       resolve = res;
       reject = rej;
     });

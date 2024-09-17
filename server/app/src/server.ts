@@ -1,3 +1,4 @@
+import { ChangedEvent, EventType, ListIdsEvent } from "@contfu/core";
 import Elysia, { t } from "elysia";
 import { Subscription, map, merge } from "rxjs";
 import { authenticate } from "./access/access-store";
@@ -29,12 +30,29 @@ export const app = new Elysia().ws("/pages", {
           const source = buildSource(c);
           return merge(
             ...Object.keys(c.collections).map((col) =>
-              source.pull(col, since).pipe(map((item) => ({ id: c.id, item })))
+              source.pull(col, since).pipe(
+                map(
+                  (item) =>
+                    ({
+                      id: c.id,
+                      type: EventType.CHANGED,
+                      item,
+                    } satisfies ChangedEvent)
+                )
+              )
             ),
             ...Object.keys(c.collections).map((col) =>
-              source
-                .pullCollectionRefs(col)
-                .pipe(map((refs) => ({ id: c.id, refs })))
+              source.pullCollectionIds(col).pipe(
+                map(
+                  (ids) =>
+                    ({
+                      id: c.id,
+                      type: EventType.LIST_IDS,
+                      collection: col,
+                      itemIds: ids,
+                    } satisfies ListIdsEvent)
+                )
+              )
             )
           );
         })
