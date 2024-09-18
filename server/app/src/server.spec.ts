@@ -12,7 +12,7 @@ import {
 describe("connect via WS", () => {
   let instance: Elysia;
   beforeAll(() => {
-    instance = app.listen(3000);
+    instance = app.listen(9999);
   });
 
   afterAll(async () => {
@@ -44,7 +44,7 @@ describe("connect via WS", () => {
       };
     }>([
       {
-        id: "123",
+        id: "1234567890abcdef1234567890abcdef",
         type: "notion",
         notionKey:
           "5B1060C74333C08D5721554550AAE735D7B8928274C0218877B01BBC53D53B9C",
@@ -63,22 +63,19 @@ describe("connect via WS", () => {
 
     expect((await item1).value).toEqual({
       type: EventType.LIST_IDS,
-      id: "123",
+      id: "EjRWeJCrze8SNFZ4kKvN7w",
       collection: "pages",
-      itemIds: [
-        "1c943524-6b15-431d-9a3b-0f91f9ce34d2",
-        "c5d5e80b-2896-46e0-a28e-e13fd48d1e5d",
-      ],
+      itemIds: ["HJQ1JGsVQx2aOw-R-c400g", "xdXoCyiWRuCijuE_1I0eXQ"],
     });
     expect((await item2).value).toEqual({
       type: EventType.CHANGED,
-      id: "123",
+      id: "EjRWeJCrze8SNFZ4kKvN7w",
       item: {
         changedAt: 1716353760000,
         collection: "pages",
         createdAt: 1711864560000,
-        id: "1c9435246b15431d9a3b0f91f9ce34d2",
-        src: "123",
+        id: "HJQ1JGsVQx2aOw-R-c400g",
+        src: "EjRWeJCrze8SNFZ4kKvN7w",
         props: {
           Color: "red",
           Description: "A",
@@ -96,10 +93,10 @@ describe("connect via WS", () => {
     });
     expect((await item3).value).toEqual({
       type: EventType.CHANGED,
-      id: "123",
+      id: "EjRWeJCrze8SNFZ4kKvN7w",
       item: {
-        id: "c5d5e80b289646e0a28ee13fd48d1e5d",
-        src: "123",
+        id: "xdXoCyiWRuCijuE_1I0eXQ",
+        src: "EjRWeJCrze8SNFZ4kKvN7w",
         collection: "pages",
         createdAt: 1711864560000,
         changedAt: 1716353820000,

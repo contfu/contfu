@@ -15,8 +15,8 @@ export type ChangedEvent<T extends Item = Item> = {
 export type DeletedEvent = {
   type: EventType.DELETED;
   id: string;
-  collection: string;
   itemId: string;
+  collection: string;
 };
 
 export type ListIdsEvent = {

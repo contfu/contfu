@@ -1,4 +1,4 @@
-import { ChangedEvent, EventType, ListIdsEvent } from "@contfu/core";
+import { ChangedEvent, EventType, ItemEvent, ListIdsEvent } from "@contfu/core";
 import Elysia, { t } from "elysia";
 import { Subscription, map, merge } from "rxjs";
 import { authenticate } from "./access/access-store";
@@ -34,7 +34,6 @@ export const app = new Elysia().ws("/pages", {
                 map(
                   (item) =>
                     ({
-                      id: c.id,
                       type: EventType.CHANGED,
                       item,
                     } satisfies ChangedEvent)
@@ -56,17 +55,48 @@ export const app = new Elysia().ws("/pages", {
             )
           );
         })
-      ).subscribe((data) => {
-        ws.send(JSON.stringify(data));
+      ).subscribe((data: ItemEvent) => {
+        const type = Buffer.from([data.type]);
+
+        if (data.type === EventType.CHANGED) {
+          const { item } = data;
+          const dynamicData = Buffer.from(
+            `${item.collection}\u001C${JSON.stringify(item.props)}`
+          );
+          const buf = Buffer.alloc(49 + dynamicData.length);
+          buf.writeUInt8(data.type, 0);
+          buf.write(item.src, 1, "hex");
+          buf.write(item.id, 17, "hex");
+          buf.writeBigInt64BE(BigInt(item.createdAt), 33);
+          buf.writeBigInt64BE(BigInt(item.changedAt), 41);
+          dynamicData.copy(buf, 49);
+          return ws.send(buf);
+        }
+        const collection = data.collection;
+        if (data.type === EventType.LIST_IDS) {
+          const ids = data.itemIds;
+          const buf = Buffer.alloc(19 + collection.length + ids.length * 16);
+          buf.writeUInt8(data.type, 0);
+          buf.write(data.id, 1, "hex");
+          buf.writeUInt16BE(collection.length, 17);
+          buf.write(collection, 19);
+          for (let i = 0; i < ids.length; i++)
+            buf.write(ids[i], 19 + collection.length + i * 16, "hex");
+          return ws.send(buf);
+        }
+        if (data.type === EventType.DELETED) {
+          const buf = Buffer.alloc(33 + collection.length);
+          buf.writeUInt8(data.type);
+          buf.write(data.id, 1, "hex");
+          buf.write(data.itemId, 17, "hex");
+          buf.write(collection, 19);
+          return ws.send(buf);
+        }
       })
     );
     state.set(ws.id, { conns: sources.map((c) => c.key), sub });
   },
-  open(ws) {
-    console.log("New connection", ws.id);
-  },
   close(ws) {
-    console.log("Connection closed", ws.id);
     const s = state.get(ws.id);
     if (!s) return;
     s.sub.unsubscribe();

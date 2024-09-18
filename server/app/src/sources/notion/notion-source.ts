@@ -31,7 +31,10 @@ export class NotionSource<C extends string> implements Source<C> {
         })
       )
     ).pipe(
-      reduce((ids, { id }) => [...ids, id], [] as string[]),
+      reduce(
+        (ids, { id }) => [...ids, id.replaceAll(/-/g, "")],
+        [] as string[]
+      ),
       repeat({ delay: PRUNE_INTERVAL })
     );
   }
