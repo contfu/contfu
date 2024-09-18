@@ -5,8 +5,12 @@ import Elysia from "elysia";
 import { mockClient } from "../test/mocks/notion";
 import { app } from "./server";
 import {
+  callout,
+  childList,
   dbQueryPage1,
-  pagesQuery1,
+  emptyList,
+  page1,
+  tableContent,
 } from "./sources/notion/__fixtures__/notion-query-results";
 
 describe("connect via WS", () => {
@@ -21,17 +25,17 @@ describe("connect via WS", () => {
 
   it("should receive items", async () => {
     mockClient.databases.query.mockResolvedValue(dbQueryPage1);
-    mockClient.blocks.children.list
-      .mockResolvedValueOnce(pagesQuery1)
-      .mockResolvedValue({
-        object: "list",
-        results: [],
-        next_cursor: null,
-        has_more: false,
-        type: "block",
-        block: {},
-        request_id: "9053bda1-915f-48aa-a461-b4fc552bc78a",
-      });
+    mockClient.blocks.children.list.mockImplementation(async ({ block_id }) =>
+      block_id === "1c943524-6b15-431d-9a3b-0f91f9ce34d2"
+        ? page1
+        : block_id === "8f19d366-a373-4461-8129-090ba83e204a"
+        ? tableContent
+        : block_id === "15e26736-4959-4e51-86fe-1f3bcafc6321"
+        ? childList
+        : block_id === "95592c8d-35ff-4915-ab0f-73444448706a"
+        ? callout
+        : emptyList
+    );
     const conn = connectTo<{
       pages: {
         Color: string;
@@ -83,8 +87,24 @@ describe("connect via WS", () => {
           "Self Reference": ["c5d5e80b289646e0a28ee13fd48d1e5d"],
           Title: "Foo",
           Content: [
-            ["t", true, []],
-            ["u", ["Test"], [], ["nsdrtaei"]],
+            [
+              "t",
+              true,
+              [
+                [["a"], ["b"]],
+                [["x", ["c", "foo"]], ["y"]],
+                [[], []],
+              ],
+            ],
+            [
+              "u",
+              ["Test"],
+              [
+                ["u", ["tmsreia"], ["tsrenia"]],
+                ["o", ["bar"]],
+              ],
+              ["nsdrtaei"],
+            ],
             ["q", ["Test", ["b", "tsrf\nBlubb"]]],
             ["q", ["foo\nneih"]],
           ],
@@ -113,3 +133,11 @@ describe("connect via WS", () => {
     });
   });
 });
+`
+- Test
+- nsdrtaei
+> Test **tsrf
+> Blubb**
+
+> foo neih
+`;
