@@ -1,6 +1,6 @@
 {
-  "name": "@contfu/connection",
-  "main": "lib/index.js",
+  "name": "@contfu/client",
+  "main": "src/index.ts",
   "type": "module",
   "version": "0.1.1",
   "scripts": {

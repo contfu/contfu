@@ -1,4 +1,4 @@
-import { type MediaStore } from "@contfu/core";
+import { type MediaStore } from "@contfu/client-core";
 import { resolve } from "path";
 
 export class FileStore implements MediaStore {

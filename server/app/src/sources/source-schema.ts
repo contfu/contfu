@@ -1,24 +1,16 @@
-import { ConnectionConfig } from "@contfu/core";
+import { SourceConfig } from "@contfu/core";
 import { TObject, Type } from "@sinclair/typebox";
-import { NotionConnection } from "./notion/notion-connection";
+import { NotionSource } from "./notion/notion-source";
 
 const CollectionBaseSchema = Type.Object({
   lastUpdate: Type.Optional(Type.String()),
 });
 
-function buildConnectionSchema<
+function buildSourceSchema<
   T extends string,
   Con extends TObject,
   Col extends TObject
->({
-  type,
-  connection,
-  collections,
-}: {
-  type: T;
-  connection: Con;
-  collections: Col;
-}) {
+>({ type, source, collections }: { type: T; source: Con; collections: Col }) {
   return Type.Composite([
     Type.Object({
       id: Type.String(),
@@ -29,25 +21,26 @@ function buildConnectionSchema<
         Type.Composite([CollectionBaseSchema, collections])
       ),
     }),
-    connection,
+    source,
   ]);
 }
 
-const NotionConnectionSchema = buildConnectionSchema({
+const NotionSourceSchema = buildSourceSchema({
   type: "notion",
-  connection: Type.Object({
+  source: Type.Object({
     notionKey: Type.String(),
   }),
   collections: Type.Object({
     dbId: Type.String(),
+    content: Type.Optional(Type.String()),
   }),
 });
 
-export const ConnectionSchema = Type.Union([NotionConnectionSchema]);
+export const SourceSchema = Type.Union([NotionSourceSchema]);
 
-export function buildConnection(settings: ConnectionConfig<any>) {
+export function buildSource(settings: SourceConfig<any>) {
   switch (settings.type) {
     case "notion":
-      return new NotionConnection(settings);
+      return new NotionSource(settings);
   }
 }
