@@ -6,6 +6,7 @@ import {
   PageProps,
 } from "@contfu/core";
 import { PageObjectResponse } from "notion-client-web-fetch/build/src/api-endpoints";
+import { idFromUuid } from "../mappings";
 import { getContentBlocks } from "./blocks";
 import { DbQuery, iterateDb, parseImageUrl } from "./notion";
 
@@ -17,12 +18,12 @@ export async function* iteratePages(
     collection,
     ...params
   }: DbQuery & {
-    src: string;
-    collection: string;
+    src: number;
+    collection: number;
   }
 ) {
   for await (const page of iterateDb(key, dbId, params)) {
-    yield parsePage(
+    yield parseItem(
       page,
       src,
       collection,
@@ -33,7 +34,7 @@ export async function* iteratePages(
   }
 }
 
-function parsePage(
+function parseItem(
   {
     id,
     properties,
@@ -42,21 +43,17 @@ function parsePage(
     icon,
     cover,
   }: PageObjectResponse,
-  src: string,
-  collection: string,
+  src: number,
+  collection: number,
   content?: Record<string, Block[]>
 ): Item {
   const createdAt = new Date(created_time).getTime();
   const props = parseProps(properties);
-
-  const item: Item<
-    string,
-    {
-      icon?: ImageBlock;
-      cover?: ImageBlock;
-    }
-  > = {
-    id: id.replace(/-/g, ""),
+  const item: Item<{
+    icon?: ImageBlock;
+    cover?: ImageBlock;
+  }> = {
+    id: idFromUuid(id),
     src,
     collection,
     createdAt,
@@ -97,7 +94,7 @@ function parseProps(pageProps: PageObjectResponse["properties"]) {
         props[key] = prop.multi_select.map((s) => s.name);
         break;
       case "relation":
-        props[key] = prop.relation.map((r) => r.id.replace(/-/g, ""));
+        props[key] = prop.relation.map((r) => idFromUuid(r.id));
         break;
       case "rollup":
         // Skip rollups

@@ -4,7 +4,6 @@ import {
   iteratePaginatedAPI,
 } from "notion-client-web-fetch";
 import type { QueryDatabaseParameters } from "notion-client-web-fetch/build/src/api-endpoints";
-
 export const notion = new Client({});
 
 export type DbQuery = Partial<

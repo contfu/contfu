@@ -5,13 +5,10 @@ export type PageProps = Record<
   string | number | boolean | string[] | number[] | boolean[] | Block
 >;
 
-export type Item<
-  C extends string = string,
-  T extends Record<string, any> = Record<never, never>
-> = {
+export type Item<T extends Record<string, any> = Record<never, never>> = {
   id: string;
-  src: string;
-  collection: C;
+  src: number;
+  collection: number;
   publishedAt?: number;
   createdAt: number;
   changedAt: number;

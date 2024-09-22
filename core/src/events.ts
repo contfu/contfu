@@ -6,24 +6,23 @@ export enum EventType {
   LIST_IDS,
 }
 
-export type ChangedEvent<T extends Item = Item> = {
-  type: EventType.CHANGED;
-  id: string;
-  item: T;
+type EventBase<T extends EventType> = {
+  type: T;
+  src: number;
+  collection: number;
 };
 
-export type DeletedEvent = {
-  type: EventType.DELETED;
-  id: string;
-  itemId: string;
-  collection: string;
+export type ChangedEvent<T extends Item = Item> =
+  EventBase<EventType.CHANGED> & {
+    item: T;
+  };
+
+export type DeletedEvent = EventBase<EventType.DELETED> & {
+  item: string;
 };
 
-export type ListIdsEvent = {
-  type: EventType.LIST_IDS;
-  id: string;
-  collection: string;
-  itemIds: string[];
+export type ListIdsEvent = EventBase<EventType.LIST_IDS> & {
+  items: string[];
 };
 
 export type ItemEvent<T extends Item = Item> =

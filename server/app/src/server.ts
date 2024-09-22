@@ -25,30 +25,32 @@ export const app = new Elysia().ws("/pages", {
     const sub = new Subscription();
     sub.add(
       merge(
-        ...sources.map((c) => {
-          activeSources.add(c.key);
-          const source = buildSource(c);
+        ...sources.map((src) => {
+          activeSources.add(src.key);
+          const source = buildSource(src);
           return merge(
-            ...Object.keys(c.collections).map((col) =>
+            ...src.collections.map((col) =>
               source.pull(col, since).pipe(
                 map(
                   (item) =>
                     ({
                       type: EventType.CHANGED,
+                      src: src.id,
+                      collection: col.id,
                       item,
                     } satisfies ChangedEvent)
                 )
               )
             ),
-            ...Object.keys(c.collections).map((col) =>
+            ...src.collections.map((col) =>
               source.pullCollectionIds(col).pipe(
                 map(
                   (ids) =>
                     ({
-                      id: c.id,
+                      src: src.id,
                       type: EventType.LIST_IDS,
-                      collection: col,
-                      itemIds: ids,
+                      collection: col.id,
+                      items: ids,
                     } satisfies ListIdsEvent)
                 )
               )
@@ -56,41 +58,39 @@ export const app = new Elysia().ws("/pages", {
           );
         })
       ).subscribe((data: ItemEvent) => {
-        const type = Buffer.from([data.type]);
-
-        if (data.type === EventType.CHANGED) {
-          const { item } = data;
-          const dynamicData = Buffer.from(
-            `${item.collection}\u001C${JSON.stringify(item.props)}`
-          );
-          const buf = Buffer.alloc(49 + dynamicData.length);
-          buf.writeUInt8(data.type, 0);
-          buf.write(item.src, 1, "hex");
-          buf.write(item.id, 17, "hex");
-          buf.writeBigInt64BE(BigInt(item.createdAt), 33);
-          buf.writeBigInt64BE(BigInt(item.changedAt), 41);
-          dynamicData.copy(buf, 49);
-          return ws.send(buf);
-        }
-        const collection = data.collection;
-        if (data.type === EventType.LIST_IDS) {
-          const ids = data.itemIds;
-          const buf = Buffer.alloc(19 + collection.length + ids.length * 16);
-          buf.writeUInt8(data.type, 0);
-          buf.write(data.id, 1, "hex");
-          buf.writeUInt16BE(collection.length, 17);
-          buf.write(collection, 19);
-          for (let i = 0; i < ids.length; i++)
-            buf.write(ids[i], 19 + collection.length + i * 16, "hex");
-          return ws.send(buf);
-        }
-        if (data.type === EventType.DELETED) {
-          const buf = Buffer.alloc(33 + collection.length);
-          buf.writeUInt8(data.type);
-          buf.write(data.id, 1, "hex");
-          buf.write(data.itemId, 17, "hex");
-          buf.write(collection, 19);
-          return ws.send(buf);
+        switch (data.type) {
+          case EventType.CHANGED: {
+            const { item } = data;
+            const dynamicData = Buffer.from(JSON.stringify(item.props));
+            const buf = Buffer.alloc(36 + dynamicData.length);
+            buf.writeUInt8(data.type, 0);
+            buf.writeUInt8(item.src, 1);
+            buf.writeUInt16LE(item.collection, 2);
+            buf.write(item.id, 4, "base64url");
+            buf.writeBigInt64LE(BigInt(item.createdAt), 20);
+            buf.writeBigInt64LE(BigInt(item.changedAt), 28);
+            dynamicData.copy(buf, 36);
+            return ws.send(buf);
+          }
+          case EventType.LIST_IDS: {
+            const ids = data.items;
+            const buf = Buffer.alloc(4 + ids.length * 16);
+            buf.writeUInt8(data.type, 0);
+            buf.writeUInt8(data.src, 1);
+            buf.writeUInt16LE(data.collection, 2);
+            for (let i = 0; i < ids.length; i++)
+              buf.write(ids[i], 4 + i * 16, "base64url");
+            return ws.send(buf);
+          }
+          case EventType.DELETED: {
+            const bufferLength = 4 + data.item.length;
+            const buf = Buffer.alloc(bufferLength);
+            buf.writeUInt8(data.type, 0);
+            buf.writeUInt8(data.src, 1);
+            buf.writeUInt16LE(data.collection, 2);
+            buf.write(data.item, 4, "base64url");
+            return ws.send(buf);
+          }
         }
       })
     );

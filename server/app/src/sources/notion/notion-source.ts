@@ -5,41 +5,39 @@ import {
   type NotionConfig,
 } from "@contfu/core";
 import { Observable, defer, from, merge, reduce, repeat, tap } from "rxjs";
+import { idFromUuid } from "../mappings";
 import { Source } from "../source";
+import { iteratePages } from "./items";
 import { iterateDb, type DbQuery } from "./notion";
-import { iteratePages } from "./pages";
 
 const PRUNE_INTERVAL = 24 * 60 * 60 * 1000;
 const PULL_INTERVAL = 5 * 60 * 1000;
 
-export class NotionSource<C extends string> implements Source<C> {
-  readonly id: string;
+export class NotionSource implements Source<NotionCollectionConfig> {
+  readonly id: number;
   readonly key: string;
-  readonly collections: Record<C, NotionCollectionConfig>;
+  readonly collections: NotionCollectionConfig[];
 
-  constructor({ id, key, collections }: NotionConfig<C>) {
+  constructor({ id, key, collections }: NotionConfig) {
     this.id = id;
     this.key = key;
     this.collections = collections;
   }
 
-  pullCollectionIds(collection: C) {
+  pullCollectionIds(collection: NotionCollectionConfig) {
     return defer(() =>
       from(
-        iterateDb(this.key, this.collections[collection].dbId, {
+        iterateDb(this.key, collection.dbId, {
           filter_properties: ["title"],
         })
       )
     ).pipe(
-      reduce(
-        (ids, { id }) => [...ids, id.replaceAll(/-/g, "")],
-        [] as string[]
-      ),
+      reduce((ids, { id }) => [...ids, idFromUuid(id)], [] as string[]),
       repeat({ delay: PRUNE_INTERVAL })
     );
   }
 
-  pull(collection: C, since?: number): Observable<Item> {
+  pull(collection: NotionCollectionConfig, since?: number): Observable<Item> {
     return defer(() => {
       return since
         ? merge(
@@ -61,12 +59,14 @@ export class NotionSource<C extends string> implements Source<C> {
     return res.body!;
   }
 
-  private _pull(collection: C, filter?: DbQuery["filter"]) {
-    const { dbId } = this.collections[collection];
-    return iteratePages(this.key, this.collections[collection], {
+  private _pull(
+    collection: NotionCollectionConfig,
+    filter?: DbQuery["filter"]
+  ) {
+    return iteratePages(this.key, collection, {
       filter,
       src: this.id,
-      collection,
+      collection: collection.id,
     });
   }
 }

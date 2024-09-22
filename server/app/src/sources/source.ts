@@ -1,21 +1,18 @@
-import { Item, PageValidationError } from "@contfu/core";
+import { CollectionConfig, Item, PageValidationError } from "@contfu/core";
 import { Observable } from "rxjs";
 
-export type Source<Collection extends string = string> = {
-  id: string;
+export type Source<C extends CollectionConfig> = {
+  id: number;
   /**
    * Loads all ids of the collection from the connection target.
    *
    * @param collection The collection to get references for.
    */
-  pullCollectionIds(collection: Collection): Observable<string[]>;
+  pullCollectionIds(collection: C): Observable<string[]>;
   /**
    * Pulls content from the connection target.
    */
-  pull(
-    collection: Collection,
-    since?: number
-  ): Observable<Item | PageValidationError>;
+  pull(collection: C, since?: number): Observable<Item | PageValidationError>;
   // TODO: Move to client
   /**
    * Fetches an asset from the connection target.

@@ -1,20 +1,21 @@
-interface BaseSourceConfig<Collections extends string> {
-  id: string;
+interface BaseSourceConfig<Collection extends CollectionConfig> {
+  id: number;
   key: string;
   type: string;
-  collections: Record<Collections, {}>;
+  collections: Collection[];
 }
 
-export interface NotionConfig<Collections extends string>
-  extends BaseSourceConfig<Collections> {
+export interface NotionConfig extends BaseSourceConfig<NotionCollectionConfig> {
   type: "notion";
   notionKey: string;
-  collections: Record<Collections, NotionCollectionConfig>;
 }
 
 export interface NotionCollectionConfig {
+  id: number;
   dbId: string;
   content?: string;
 }
 
-export type SourceConfig<C extends string = string> = NotionConfig<C>;
+export type CollectionConfig = NotionCollectionConfig;
+
+export type SourceConfig = NotionConfig;

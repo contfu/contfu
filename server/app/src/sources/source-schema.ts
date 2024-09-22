@@ -3,6 +3,7 @@ import { TObject, Type } from "@sinclair/typebox";
 import { NotionSource } from "./notion/notion-source";
 
 const CollectionBaseSchema = Type.Object({
+  id: Type.Number(),
   lastUpdate: Type.Optional(Type.String()),
 });
 
@@ -13,11 +14,10 @@ function buildSourceSchema<
 >({ type, source, collections }: { type: T; source: Con; collections: Col }) {
   return Type.Composite([
     Type.Object({
-      id: Type.String(),
+      id: Type.Number(),
       key: Type.String(),
       type: Type.Literal(type),
-      collections: Type.Record(
-        Type.String(),
+      collections: Type.Array(
         Type.Composite([CollectionBaseSchema, collections])
       ),
     }),
@@ -38,7 +38,7 @@ const NotionSourceSchema = buildSourceSchema({
 
 export const SourceSchema = Type.Union([NotionSourceSchema]);
 
-export function buildSource(settings: SourceConfig<any>) {
+export function buildSource(settings: SourceConfig) {
   switch (settings.type) {
     case "notion":
       return new NotionSource(settings);

@@ -4,6 +4,7 @@ import {
   EventType,
   Item,
   ItemEvent,
+  ListIdsEvent,
   SourceConfig,
 } from "@contfu/core";
 
@@ -34,7 +35,7 @@ export async function* connectTo<
     yield new Promise<
       ItemEvent<
         {
-          [K in keyof Props & string]: Item<K, Props[K]>;
+          [K in keyof Props & string]: Item<Props[K]>;
         }[keyof Props & string]
       >
     >((res, rej) => {
@@ -44,51 +45,48 @@ export async function* connectTo<
   } while (socket.readyState === WebSocket.OPEN);
 }
 
-export function createSource<C extends string>(source: SourceConfig<C>) {
+export function createSource(source: SourceConfig) {
   return source;
 }
 
 function parseEvent(buf: Buffer) {
-  const type = buf[0] as EventType;
-  const id = buf.subarray(1, 17).toString("base64url");
-  if (type === EventType.CHANGED) {
-    const itemId = buf.subarray(17, 33).toString("base64url");
-    const createdAt = Number(buf.readBigInt64BE(33));
-    const changedAt = Number(buf.readBigInt64BE(41));
-    const [collection, propsJson] = buf
-      .subarray(49)
-      .toString("utf8")
-      .split("\u001C");
-    const props = JSON.parse(propsJson);
-    return {
-      type,
-      id,
-      item: { id: itemId, src: id, createdAt, changedAt, collection, props },
-    } as ChangedEvent;
-  }
-  if (type === EventType.LIST_IDS) {
-    const collectionLength = buf.readUInt16BE(17);
-    const collectionEnd = 19 + collectionLength;
-    const collection = buf.subarray(19, collectionEnd).toString("utf8");
-    const itemIds = [];
-    for (let i = collectionEnd; i < buf.length; i += 16) {
-      itemIds.push(buf.subarray(i, i + 16).toString("base64url"));
+  const type = buf.readUInt8(0) as EventType;
+  const src = buf.readUInt8(1);
+  const collection = buf.readUInt16LE(2);
+  switch (type) {
+    case EventType.CHANGED: {
+      const id = buf.subarray(4, 20).toString("base64url");
+      const createdAt = Number(buf.readBigInt64LE(20));
+      const changedAt = Number(buf.readBigInt64LE(28));
+      const propsJson = buf.subarray(36).toString("utf8");
+      const props = JSON.parse(propsJson);
+      return {
+        type,
+        src,
+        collection,
+        item: { id, src, createdAt, changedAt, collection, props },
+      } satisfies ChangedEvent;
     }
-    return {
-      type,
-      id,
-      collection,
-      itemIds,
-    };
-  }
-  if (type === EventType.DELETED) {
-    const itemId = buf.subarray(17, 33).toString("base64url");
-    const collection = buf.subarray(33).toString("utf8");
-    return {
-      type,
-      id,
-      itemId,
-      collection,
-    } satisfies DeletedEvent;
+    case EventType.LIST_IDS: {
+      const items = [];
+      for (let i = 4; i < buf.length; i += 16) {
+        items.push(buf.subarray(i, i + 16).toString("base64url"));
+      }
+      return {
+        type,
+        src,
+        collection,
+        items,
+      } satisfies ListIdsEvent;
+    }
+    case EventType.DELETED: {
+      const item = buf.subarray(4).toString("base64url");
+      return {
+        type,
+        src,
+        collection,
+        item,
+      } satisfies DeletedEvent;
+    }
   }
 }

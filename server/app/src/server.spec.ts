@@ -48,17 +48,18 @@ describe("connect via WS", () => {
       };
     }>([
       {
-        id: "1234567890abcdef1234567890abcdef",
+        id: 1,
         type: "notion",
         notionKey:
           "5B1060C74333C08D5721554550AAE735D7B8928274C0218877B01BBC53D53B9C",
         key: "5B1060C74333C08D5721554550AAE735D7B8928274C0218877B01BBC53D53B9C",
-        collections: {
-          pages: {
+        collections: [
+          {
+            id: 1,
             dbId: "5b1060c7-4333-c08d-5721-554550aae735",
             content: "Content",
           },
-        },
+        ],
       },
     ]);
     const item1 = conn.next();
@@ -67,24 +68,25 @@ describe("connect via WS", () => {
 
     expect((await item1).value).toEqual({
       type: EventType.LIST_IDS,
-      id: "EjRWeJCrze8SNFZ4kKvN7w",
-      collection: "pages",
-      itemIds: ["HJQ1JGsVQx2aOw-R-c400g", "xdXoCyiWRuCijuE_1I0eXQ"],
+      src: 1,
+      collection: 1,
+      items: ["HJQ1JGsVQx2aOw-R-c400g", "xdXoCyiWRuCijuE_1I0eXQ"],
     });
     expect((await item2).value).toEqual({
       type: EventType.CHANGED,
-      id: "EjRWeJCrze8SNFZ4kKvN7w",
+      src: 1,
+      collection: 1,
       item: {
-        changedAt: 1716353760000,
-        collection: "pages",
-        createdAt: 1711864560000,
         id: "HJQ1JGsVQx2aOw-R-c400g",
-        src: "EjRWeJCrze8SNFZ4kKvN7w",
+        src: 1,
+        collection: 1,
+        changedAt: 1716353760000,
+        createdAt: 1711864560000,
         props: {
           Color: "red",
           Description: "A",
-          "Other Reference": ["684c87fed1a24c21a3de8c55dace39cd"],
-          "Self Reference": ["c5d5e80b289646e0a28ee13fd48d1e5d"],
+          "Other Reference": ["aEyH_tGiTCGj3oxV2s45zQ"],
+          "Self Reference": ["xdXoCyiWRuCijuE_1I0eXQ"],
           Title: "Foo",
           Content: [
             [
@@ -113,17 +115,18 @@ describe("connect via WS", () => {
     });
     expect((await item3).value).toEqual({
       type: EventType.CHANGED,
-      id: "EjRWeJCrze8SNFZ4kKvN7w",
+      src: 1,
+      collection: 1,
       item: {
         id: "xdXoCyiWRuCijuE_1I0eXQ",
-        src: "EjRWeJCrze8SNFZ4kKvN7w",
-        collection: "pages",
+        src: 1,
+        collection: 1,
         createdAt: 1711864560000,
         changedAt: 1716353820000,
         props: {
           Description: "B",
           Slug: "/bar",
-          "Self Reference": ["1c9435246b15431d9a3b0f91f9ce34d2"],
+          "Self Reference": ["HJQ1JGsVQx2aOw-R-c400g"],
           "Other Reference": [],
           Color: "blue",
           Title: "Bar",
