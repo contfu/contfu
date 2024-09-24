@@ -9,13 +9,13 @@
   },
   "devDependencies": {
     "@contfu/client-core": "workspace:*",
-    "@types/bun": "latest"
+    "@types/bun": "^1.1.10"
   },
   "peerDependencies": {
-    "typescript": "^5.0.0"
+    "typescript": "^5.6.2"
   },
   "dependencies": {
-    "sharp": "^0.33.3"
+    "sharp": "^0.33.5"
   },
   "files": [
     "src"
