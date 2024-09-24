@@ -5,33 +5,32 @@ import { mockClient } from "../../../test/mocks/notion";
 import { dbQueryPage1 } from "./__fixtures__/notion-query-results";
 import { NotionSource } from "./notion-source";
 
-type Page1 = Item<
-  "pages",
-  {
-    Color: string;
-  }
->;
-const source = new NotionSource<"pages">({
-  id: "11111111111111111111111111111111",
+type Page1 = Item<{
+  Color: string;
+}>;
+const collection = {
+  id: 1,
+  dbId: process.env.NOTION_DB_ID_1!,
+};
+const source = new NotionSource({
+  id: 1,
   type: "notion",
   key: process.env.CONN_KEY!,
   notionKey: process.env.API_TOKEN!,
-  collections: {
-    pages: {
-      dbId: process.env.NOTION_DB_ID_1!,
-    },
-  },
+  collections: [collection],
 });
 
 describe("NotionConnection", () => {
   describe("pullConnectionRefs()", () => {
     it("should get all refs from all collections from notion", async () => {
       mockClient.databases.query.mockResolvedValueOnce(dbQueryPage1);
-      const value = await firstValueFrom(source.pullCollectionIds("pages"));
+      const value = await firstValueFrom(
+        source.pullCollectionIds(source.collections[0])
+      );
 
       expect(value).toEqual([
-        "1c943524-6b15-431d-9a3b-0f91f9ce34d2",
-        "c5d5e80b-2896-46e0-a28e-e13fd48d1e5d",
+        "HJQ1JGsVQx2aOw-R-c400g",
+        "xdXoCyiWRuCijuE_1I0eXQ",
       ]);
     });
   });
@@ -43,39 +42,39 @@ describe("NotionConnection", () => {
         results: [],
       });
       const value = await firstValueFrom(
-        source.pull("pages").pipe(take(2), toArray())
+        source.pull(collection).pipe(take(2), toArray())
       );
 
       expect(value).toEqual([
         {
-          id: "1c9435246b15431d9a3b0f91f9ce34d2",
-          src: "11111111111111111111111111111111",
-          collection: "pages",
+          collection: 1,
+          id: "HJQ1JGsVQx2aOw-R-c400g",
           changedAt: 1716353760000,
           createdAt: 1711864560000,
           props: {
-            Title: "Foo",
-            Description: "A",
             Color: "red",
-            "Self Reference": ["c5d5e80b289646e0a28ee13fd48d1e5d"],
-            "Other Reference": ["684c87fed1a24c21a3de8c55dace39cd"],
+            Description: "A",
+            "Other Reference": ["aEyH_tGiTCGj3oxV2s45zQ"],
+            "Self Reference": ["xdXoCyiWRuCijuE_1I0eXQ"],
+            Title: "Foo",
           },
-        } as Page1,
+          src: 1,
+        },
         {
-          id: "c5d5e80b289646e0a28ee13fd48d1e5d",
-          src: "11111111111111111111111111111111",
-          collection: "pages",
+          collection: 1,
+          id: "xdXoCyiWRuCijuE_1I0eXQ",
           changedAt: 1716353820000,
           createdAt: 1711864560000,
           props: {
-            Title: "Bar",
-            Slug: "/bar",
-            Description: "B",
             Color: "blue",
-            "Self Reference": ["1c9435246b15431d9a3b0f91f9ce34d2"],
+            Description: "B",
             "Other Reference": [],
+            "Self Reference": ["HJQ1JGsVQx2aOw-R-c400g"],
+            Slug: "/bar",
+            Title: "Bar",
           },
-        } as Page1,
+          src: 1,
+        },
       ]);
     });
   });
