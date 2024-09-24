@@ -22,7 +22,7 @@ export type DeletedEvent = EventBase<EventType.DELETED> & {
 };
 
 export type ListIdsEvent = EventBase<EventType.LIST_IDS> & {
-  items: string[];
+  ids: string[];
 };
 
 export type ItemEvent<T extends Item = Item> =

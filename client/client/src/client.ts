@@ -16,7 +16,7 @@ type Opts = {
 export async function* connectTo<
   Props extends Record<string, Record<string, any>>
 >(
-  sources: SourceConfig<keyof Props & string>[],
+  sources: SourceConfig[],
   { WS = global.WebSocket, since = undefined }: Opts = {}
 ) {
   let resolve: (value: any) => void, reject: (reason?: any) => void;
@@ -68,15 +68,17 @@ function parseEvent(buf: Buffer) {
       } satisfies ChangedEvent;
     }
     case EventType.LIST_IDS: {
-      const items = [];
-      for (let i = 4; i < buf.length; i += 16) {
-        items.push(buf.subarray(i, i + 16).toString("base64url"));
+      const count = (buf.length - 4) / 16;
+      const ids = new Array(count);
+      for (let i = 0; i < count; i++) {
+        const idx = i * 16 + 4;
+        ids[i] = buf.subarray(idx, idx + 16).toString("base64url");
       }
       return {
         type,
         src,
         collection,
-        items,
+        ids,
       } satisfies ListIdsEvent;
     }
     case EventType.DELETED: {

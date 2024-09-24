@@ -70,7 +70,7 @@ describe("connect via WS", () => {
       type: EventType.LIST_IDS,
       src: 1,
       collection: 1,
-      items: ["HJQ1JGsVQx2aOw-R-c400g", "xdXoCyiWRuCijuE_1I0eXQ"],
+      ids: ["HJQ1JGsVQx2aOw-R-c400g", "xdXoCyiWRuCijuE_1I0eXQ"],
     });
     expect((await item2).value).toEqual({
       type: EventType.CHANGED,
@@ -136,11 +136,3 @@ describe("connect via WS", () => {
     });
   });
 });
-`
-- Test
-- nsdrtaei
-> Test **tsrf
-> Blubb**
-
-> foo neih
-`;
