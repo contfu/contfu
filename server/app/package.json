@@ -9,7 +9,7 @@
     "clean": "rm -rf dist"
   },
   "devDependencies": {
-    "@contfu/client": "^0.1.1",
+    "@contfu/client": "workspace:*",
     "@types/bun": "latest",
     "ts-essentials": "^9.4.1"
   },
@@ -17,7 +17,7 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
-    "@contfu/core": "^0.1.1",
+    "@contfu/core": "workspace:*",
     "@sinclair/typebox": "^0.32.30",
     "elysia": "^1.0.25",
     "notion-client-web-fetch": "^2.2.15",

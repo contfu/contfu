@@ -8,8 +8,8 @@
     "clean": "rm -rf dist .tmp"
   },
   "devDependencies": {
-    "@contfu/client-core": "^0.1.0",
-    "@contfu/bun-file-store": "^0.1.0",
+    "@contfu/client-core": "workspace:*",
+    "@contfu/bun-file-store": "workspace:*",
     "@types/bun": "latest"
   },
   "peerDependencies": {

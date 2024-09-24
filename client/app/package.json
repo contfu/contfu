@@ -8,7 +8,7 @@
     "clean": "rm -rf dist"
   },
   "devDependencies": {
-    "@contfu/core": "^0.1.1",
+    "@contfu/core": "workspace:*",
     "@types/bun": "latest",
     "kysely-bun-worker": "^0.5.7",
     "ts-essentials": "^9.4.1"
