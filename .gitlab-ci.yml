@@ -5,13 +5,14 @@ cache:
     - node_modules/
 
 stages:
+  - check
   - build
   - prepare
   - publish
   - deploy
 
-build:
-  stage: build
+check:
+  stage: check
   except:
     - main
   script:
@@ -22,7 +23,18 @@ build:
     paths:
       - server/app/dist
 
-dockerize:
+build:
+  stage: build
+  only:
+    - main
+  script:
+    - bun install
+    - bun run build
+  artifacts:
+    paths:
+      - server/app/dist
+
+dockerize-check:
   image: docker:24.0.5
   stage: prepare
   except:
