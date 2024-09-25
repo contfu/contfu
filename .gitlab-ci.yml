@@ -1,33 +1,60 @@
-image: oven/bun:1.1.7-slim
+image: oven/bun:1.1.29-slim
 
 cache:
   paths:
     - node_modules/
 
 stages:
-  - check
+  - build
+  - prepare
   - publish
+  - deploy
 
-check:
-  stage: check
+build:
+  stage: build
   except:
     - main
   script:
-    - rm bun.lockb
     - bun install
-    - bun install sharp @img/sharp-linux-x64 @img/sharp-libvips-linux-x64
-    - ls -la node_modules/@img
-    - bun -b --filter "@contfu/client" build
-    - bun -b --filter "@contfu/*" build
-    - bun -b --filter "@contfu/*" test
+    - bun run test
+    - bun run build
+  artifacts:
+    paths:
+      - server/app/dist
 
-publish-npm:
-  stage: publish
-  image: node:alpine
-  only:
-    - web
+dockerize:
+  image: docker:24.0.5
+  stage: prepare
+  services:
+    - docker:24.0.5-dind
+  dependencies:
+    - build
+  variables:
+    IMAGE_TAG_SERVER: $CI_REGISTRY_IMAGE:server-$CI_COMMIT_REF_SLUG
   script:
-    - npm install
-    - echo "@contfu:registry=https://${CI_SERVER_HOST}/api/v4/projects/${CI_PROJECT_ID}/packages/npm/" > .npmrc
-    - echo "//${CI_SERVER_HOST}/api/v4/projects/${CI_PROJECT_ID}/packages/npm/:_authToken=${CI_JOB_TOKEN}" >> .npmrc
-    - npm publish --workspaces
+    - docker build -t $IMAGE_TAG_SERVER server/app
+
+push:
+  image: docker:24.0.5
+  stage: publish
+  only:
+    - main
+  services:
+    - docker:24.0.5-dind
+  dependencies:
+    - build
+  variables:
+    IMAGE_TAG_SERVER: $CI_REGISTRY_IMAGE:server-$CI_COMMIT_REF_SLUG
+  script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u $CI_REGISTRY_USER $CI_REGISTRY --password-stdin
+    - docker build -t $IMAGE_TAG_SERVER server/app
+    - docker push $IMAGE_TAG_SERVER
+
+deploy:
+  image: kroniak/ssh-client:latest
+  stage: deploy
+  only:
+    - main
+  script:
+    - chmod og= $ID_RSA
+    - ssh -i $ID_RSA -o StrictHostKeyChecking=no $SERVER_USER@$SERVER_IP "cd docker; docker-compose pull; docker-compose up -d"
