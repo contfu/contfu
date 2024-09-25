@@ -4,72 +4,76 @@ import { Subscription, map, merge } from "rxjs";
 import { authenticate } from "./access/access-store";
 import { SourceSchema, buildSource } from "./sources/source-schema";
 
-export const app = new Elysia().ws("/pages", {
-  body: t.Object({
-    sources: t.Array(SourceSchema),
-    since: t.Optional(t.Number()),
-  }),
-  message(ws, { sources, since }) {
-    for (const src of sources) {
-      if (!authenticate(src.key)) {
-        ws.send(JSON.stringify({ error: "E_AUTH", idx: sources.indexOf(src) }));
-        continue;
-      }
-      if (subs.has(src.key)) {
-        ws.send(
-          JSON.stringify({ error: "E_CONFLICT", idx: sources.indexOf(src) })
+export const app = new Elysia()
+  .get("/", () => "This will be awesome!")
+  .ws("/pages", {
+    body: t.Object({
+      sources: t.Array(SourceSchema),
+      since: t.Optional(t.Number()),
+    }),
+    message(ws, { sources, since }) {
+      for (const src of sources) {
+        if (!authenticate(src.key)) {
+          ws.send(
+            JSON.stringify({ error: "E_AUTH", idx: sources.indexOf(src) })
+          );
+          continue;
+        }
+        if (subs.has(src.key)) {
+          ws.send(
+            JSON.stringify({ error: "E_CONFLICT", idx: sources.indexOf(src) })
+          );
+          continue;
+        }
+        const keys = socketKeys.get(ws.id) ?? [];
+        keys.push(src.key);
+        socketKeys.set(ws.id, keys);
+        const source = buildSource(src);
+        subs.set(
+          src.key,
+          merge(
+            ...src.collections.map((col) =>
+              source.pull(col, since).pipe(
+                map(
+                  (item) =>
+                    ({
+                      type: EventType.CHANGED,
+                      src: src.id,
+                      collection: col.id,
+                      item,
+                    } satisfies ChangedEvent)
+                )
+              )
+            ),
+            ...src.collections.map((col) =>
+              source.pullCollectionIds(col).pipe(
+                map(
+                  (ids) =>
+                    ({
+                      type: EventType.LIST_IDS,
+                      src: src.id,
+                      collection: col.id,
+                      ids,
+                    } satisfies ListIdsEvent)
+                )
+              )
+            )
+          ).subscribe((data: ItemEvent) => {
+            ws.send(serializeEvent(data));
+          })
         );
-        continue;
       }
-      const keys = socketKeys.get(ws.id) ?? [];
-      keys.push(src.key);
-      socketKeys.set(ws.id, keys);
-      const source = buildSource(src);
-      subs.set(
-        src.key,
-        merge(
-          ...src.collections.map((col) =>
-            source.pull(col, since).pipe(
-              map(
-                (item) =>
-                  ({
-                    type: EventType.CHANGED,
-                    src: src.id,
-                    collection: col.id,
-                    item,
-                  } satisfies ChangedEvent)
-              )
-            )
-          ),
-          ...src.collections.map((col) =>
-            source.pullCollectionIds(col).pipe(
-              map(
-                (ids) =>
-                  ({
-                    type: EventType.LIST_IDS,
-                    src: src.id,
-                    collection: col.id,
-                    ids,
-                  } satisfies ListIdsEvent)
-              )
-            )
-          )
-        ).subscribe((data: ItemEvent) => {
-          ws.send(serializeEvent(data));
-        })
-      );
-    }
-  },
-  close(ws) {
-    const keys = socketKeys.get(ws.id);
-    if (!keys) return;
-    for (const key of keys) {
-      subs.get(key)!.unsubscribe();
-      subs.delete(key);
-    }
-    socketKeys.delete(ws.id);
-  },
-});
+    },
+    close(ws) {
+      const keys = socketKeys.get(ws.id);
+      if (!keys) return;
+      for (const key of keys) {
+        subs.get(key)!.unsubscribe();
+        subs.delete(key);
+      }
+      socketKeys.delete(ws.id);
+    },
+  });
 
 const subs = new Map<string, Subscription>();
 const socketKeys = new Map<string, string[]>();
