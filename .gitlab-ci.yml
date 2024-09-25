@@ -25,10 +25,10 @@ build:
 dockerize:
   image: docker:24.0.5
   stage: prepare
+  except:
+    - main
   services:
     - docker:24.0.5-dind
-  dependencies:
-    - build
   variables:
     IMAGE_TAG_SERVER: $CI_REGISTRY_IMAGE:server-$CI_COMMIT_REF_SLUG
   script:
@@ -41,8 +41,6 @@ push:
     - main
   services:
     - docker:24.0.5-dind
-  dependencies:
-    - build
   variables:
     IMAGE_TAG_SERVER: $CI_REGISTRY_IMAGE:server-$CI_COMMIT_REF_SLUG
   script:
