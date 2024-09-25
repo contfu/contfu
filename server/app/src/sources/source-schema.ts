@@ -1,25 +1,23 @@
 import { SourceConfig } from "@contfu/core";
-import { TObject, Type } from "@sinclair/typebox";
+import { t, TSchema } from "elysia";
 import { NotionSource } from "./notion/notion-source";
 
-const CollectionBaseSchema = Type.Object({
-  id: Type.Number(),
-  lastUpdate: Type.Optional(Type.String()),
+const CollectionBaseSchema = t.Object({
+  id: t.Number(),
+  lastUpdate: t.Optional(t.String()),
 });
 
 function buildSourceSchema<
   T extends string,
-  Con extends TObject,
-  Col extends TObject
+  Con extends TSchema,
+  Col extends TSchema
 >({ type, source, collections }: { type: T; source: Con; collections: Col }) {
-  return Type.Composite([
-    Type.Object({
-      id: Type.Number(),
-      key: Type.String(),
-      type: Type.Literal(type),
-      collections: Type.Array(
-        Type.Composite([CollectionBaseSchema, collections])
-      ),
+  return t.Composite([
+    t.Object({
+      id: t.Number(),
+      key: t.String(),
+      type: t.Literal(type),
+      collections: t.Array(t.Composite([CollectionBaseSchema, collections])),
     }),
     source,
   ]);
@@ -27,16 +25,16 @@ function buildSourceSchema<
 
 const NotionSourceSchema = buildSourceSchema({
   type: "notion",
-  source: Type.Object({
-    notionKey: Type.String(),
+  source: t.Object({
+    notionKey: t.String(),
   }),
-  collections: Type.Object({
-    dbId: Type.String(),
-    content: Type.Optional(Type.String()),
+  collections: t.Object({
+    dbId: t.String(),
+    content: t.Optional(t.String()),
   }),
 });
 
-export const SourceSchema = Type.Union([NotionSourceSchema]);
+export const SourceSchema = t.Union([NotionSourceSchema]);
 
 export function buildSource(settings: SourceConfig) {
   switch (settings.type) {
