@@ -7,7 +7,7 @@
   "scripts": {
     "test": "bun test",
     "clean": "rm -rf dist",
-    "build": "bun build --compile --minify --sourcemap src/index.ts --outfile dist/server.bun"
+    "build": "bun build --minify --sourcemap --target=bun src/index.ts --outfile dist/server.js"
   },
   "devDependencies": {
     "@contfu/client": "workspace:*",
