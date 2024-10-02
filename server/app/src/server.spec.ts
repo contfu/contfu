@@ -1,8 +1,17 @@
 import { connectTo } from "@contfu/client";
 import { Block, EventType } from "@contfu/core";
-import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from "bun:test";
 import Elysia from "elysia";
 import { mockClient } from "../test/mocks/notion";
+import { Account, account } from "./access/access-db";
+import { db } from "./core/db";
 import { app } from "./server";
 import {
   callout,
@@ -13,14 +22,28 @@ import {
   tableContent,
 } from "./sources/notion/__fixtures__/notion-query-results";
 
+const key = "testkey";
+
 describe("connect via WS", () => {
   let instance: Elysia;
+  let acc: Account;
+
   beforeAll(() => {
     instance = app.listen(9999);
   });
 
   afterAll(async () => {
     await instance.stop();
+  });
+
+  beforeEach(async () => {
+    [acc] = await db
+      .insert(account)
+      .values({
+        key: Buffer.from(key, "base64url"),
+        email: "test@test.com",
+      })
+      .returning();
   });
 
   it("should receive items", async () => {
@@ -52,7 +75,7 @@ describe("connect via WS", () => {
         type: "notion",
         notionKey:
           "5B1060C74333C08D5721554550AAE735D7B8928274C0218877B01BBC53D53B9C",
-        key: "5B1060C74333C08D5721554550AAE735D7B8928274C0218877B01BBC53D53B9C",
+        key,
         collections: [
           {
             id: 1,
