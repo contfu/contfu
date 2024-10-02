@@ -7,3 +7,11 @@ services:
       dockerfile: server/app/Dockerfile
     ports:
       - "3000:3000"
+  db-server:
+    image: postgres:17
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=contfu
+      - POSTGRES_USER=contfu
+      - POSTGRES_PASSWORD=contfu
