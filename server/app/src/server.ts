@@ -1,7 +1,7 @@
 import { ChangedEvent, EventType, ItemEvent, ListIdsEvent } from "@contfu/core";
 import Elysia, { t } from "elysia";
 import { Subscription, map, merge } from "rxjs";
-import { authenticate } from "./access/access-store";
+import { authenticate } from "./access/access-repository";
 import { SourceSchema, buildSource } from "./sources/source-schema";
 
 export const app = new Elysia()
@@ -11,9 +11,9 @@ export const app = new Elysia()
       sources: t.Array(SourceSchema),
       since: t.Optional(t.Number()),
     }),
-    message(ws, { sources, since }) {
+    async message(ws, { sources, since }) {
       for (const src of sources) {
-        if (!authenticate(src.key)) {
+        if (!(await authenticate(Buffer.from(src.key, "base64url")))) {
           ws.send(
             JSON.stringify({ error: "E_AUTH", idx: sources.indexOf(src) })
           );
