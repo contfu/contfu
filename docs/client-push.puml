@@ -1,0 +1,66 @@
+@startuml client-push
+!pragma teoz true
+participant CMS #lightgreen
+participant Server as S #hotpink
+database SDB #hotpink
+participant Client as C #lightblue
+database CDB #lightblue
+skinparam style strictuml
+skinparam responseMessageBelowArrow true
+skinparam ParticipantPadding 50
+' skinparam handwritten true
+
+== Client Connection ==
+C -> S++: Connect (key: wrong)
+S -> SDB
+S <-- SDB
+C <-- S--: Nack
+C -> S++: Connect (key: right)
+S -> SDB
+S <-- SDB
+C <-- S--: Ack (id: 1)
+C -> CDB: Put Client ID
+C -> S: Disconnect
+S -> S: Stop polling
+C -> CDB: Get Client ID
+C <-- CDB: ID: 1
+C -> S++: Connect (key: right, id: 1)
+S -> SDB
+S <-- SDB
+C <-- S: Ack
+C -> CDB
+== Pull after connect ==
+S -> SDB: Get last modified\nfor client
+S <-- SDB
+S -> CMS++: Pull all items\nsince last modified
+S <-- CMS--: Items
+loop Push Item events (parallel)
+S -> C: ItemX created
+C -> CDB
+S <-- C: Ack ID
+S -> SDB: Put ID + last modified
+end
+S--
+== Webhooks push ==
+CMS -> S: Item1 added
+S -> C: Item1 added
+C -> CDB
+CMS -> S: Item1 changed
+S -> C: Item1 changed
+C -> CDB
+CMS -> S: Item1 deleted
+S -> C: Item1 deleted
+C -> CDB
+== Polling ==
+loop Consistency check
+    S -> CMS: Pull IDs
+    CMS --> S: IDs
+    S -> SDB: Get IDs
+    SDB --> S: IDs
+    S -> S: Diff IDs?
+    loop Push Item events (parallel)
+    S -> C: Delete item
+    C -> CDB
+    S <-- C: Ack ID
+    end
+end
