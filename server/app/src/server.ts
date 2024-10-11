@@ -1,8 +1,8 @@
 import { ChangedEvent, EventType, ItemEvent, ListIdsEvent } from "@contfu/core";
 import Elysia, { t } from "elysia";
 import { Subscription, map, merge } from "rxjs";
-import { authenticate } from "./access/access-repository";
-import { SourceSchema, buildSource } from "./sources/source-schema";
+import { authenticate } from "./access/db/access-datasource";
+import { SourceSchema, buildSource } from "./sources/source";
 
 export const app = new Elysia()
   .get("/", () => "This will be awesome!")

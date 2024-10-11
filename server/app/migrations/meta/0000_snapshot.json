@@ -1,5 +1,5 @@
 {
-  "id": "e55437a6-c063-43e9-bb75-e40b1d336efd",
+  "id": "8d00a2de-b482-40b2-bcd5-c853143ef6e2",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -14,27 +14,27 @@
           "primaryKey": true,
           "notNull": true
         },
-        "key": {
-          "name": "key",
-          "type": "bytea",
-          "primaryKey": false,
-          "notNull": true
-        },
         "email": {
           "name": "email",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "created_at": {
-          "name": "created_at",
+        "activeUntil": {
+          "name": "activeUntil",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createdAt": {
+          "name": "createdAt",
           "type": "timestamp",
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
         },
-        "updated_at": {
-          "name": "updated_at",
+        "updatedAt": {
+          "name": "updatedAt",
           "type": "timestamp",
           "primaryKey": false,
           "notNull": false
@@ -44,13 +44,6 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "account_key_unique": {
-          "name": "account_key_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "key"
-          ]
-        },
         "account_email_unique": {
           "name": "account_email_unique",
           "nullsNotDistinct": false,
@@ -60,8 +53,87 @@
         }
       }
     },
-    "access.quotas": {
-      "name": "quotas",
+    "access.client": {
+      "name": "client",
+      "schema": "access",
+      "columns": {
+        "accountId": {
+          "name": "accountId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "name": "id",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "key": {
+          "name": "key",
+          "type": "bytea",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "connected": {
+          "name": "connected",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "client_accountId_account_id_fk": {
+          "name": "client_accountId_account_id_fk",
+          "tableFrom": "client",
+          "tableTo": "account",
+          "schemaTo": "access",
+          "columnsFrom": [
+            "accountId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "client_accountId_id_pk": {
+          "name": "client_accountId_id_pk",
+          "columns": [
+            "accountId",
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {
+        "client_key_unique": {
+          "name": "client_key_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "key"
+          ]
+        }
+      }
+    },
+    "access.quota": {
+      "name": "quota",
       "schema": "access",
       "columns": {
         "id": {
@@ -76,8 +148,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "max_sources": {
-          "name": "max_sources",
+        "maxSources": {
+          "name": "maxSources",
           "type": "integer",
           "primaryKey": false,
           "notNull": true
@@ -88,8 +160,32 @@
           "primaryKey": false,
           "notNull": true
         },
-        "max_collections": {
-          "name": "max_collections",
+        "maxCollections": {
+          "name": "maxCollections",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "items": {
+          "name": "items",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "maxItems": {
+          "name": "maxItems",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "clients": {
+          "name": "clients",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "maxClients": {
+          "name": "maxClients",
           "type": "integer",
           "primaryKey": false,
           "notNull": true
@@ -97,9 +193,9 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "quotas_id_account_id_fk": {
-          "name": "quotas_id_account_id_fk",
-          "tableFrom": "quotas",
+        "quota_id_account_id_fk": {
+          "name": "quota_id_account_id_fk",
+          "tableFrom": "quota",
           "tableTo": "account",
           "schemaTo": "access",
           "columnsFrom": [
@@ -108,17 +204,392 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
+    },
+    "data.client_collection_connection": {
+      "name": "client_collection_connection",
+      "schema": "data",
+      "columns": {
+        "accountId": {
+          "name": "accountId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "clientId": {
+          "name": "clientId",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "collectionId": {
+          "name": "collectionId",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "lastItemChanged": {
+          "name": "lastItemChanged",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "lastFetch": {
+          "name": "lastFetch",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "lastConsistencyCheck": {
+          "name": "lastConsistencyCheck",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ids": {
+          "name": "ids",
+          "type": "bytea",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "client_collection_connection_accountId_account_id_fk": {
+          "name": "client_collection_connection_accountId_account_id_fk",
+          "tableFrom": "client_collection_connection",
+          "tableTo": "account",
+          "schemaTo": "access",
+          "columnsFrom": [
+            "accountId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "client_collection_connection_accountId_clientId_client_accountId_id_fk": {
+          "name": "client_collection_connection_accountId_clientId_client_accountId_id_fk",
+          "tableFrom": "client_collection_connection",
+          "tableTo": "client",
+          "schemaTo": "access",
+          "columnsFrom": [
+            "accountId",
+            "clientId"
+          ],
+          "columnsTo": [
+            "accountId",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "client_collection_connection_accountId_collectionId_collection_accountId_id_fk": {
+          "name": "client_collection_connection_accountId_collectionId_collection_accountId_id_fk",
+          "tableFrom": "client_collection_connection",
+          "tableTo": "collection",
+          "schemaTo": "data",
+          "columnsFrom": [
+            "accountId",
+            "collectionId"
+          ],
+          "columnsTo": [
+            "accountId",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "client_collection_connection_accountId_clientId_collectionId_pk": {
+          "name": "client_collection_connection_accountId_clientId_collectionId_pk",
+          "columns": [
+            "accountId",
+            "clientId",
+            "collectionId"
+          ]
+        }
+      },
+      "uniqueConstraints": {}
+    },
+    "data.collection": {
+      "name": "collection",
+      "schema": "data",
+      "columns": {
+        "accountId": {
+          "name": "accountId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sourceId": {
+          "name": "sourceId",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "name": "id",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "opts": {
+          "name": "opts",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "collection_accountId_account_id_fk": {
+          "name": "collection_accountId_account_id_fk",
+          "tableFrom": "collection",
+          "tableTo": "account",
+          "schemaTo": "access",
+          "columnsFrom": [
+            "accountId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "collection_accountId_sourceId_source_accountId_id_fk": {
+          "name": "collection_accountId_sourceId_source_accountId_id_fk",
+          "tableFrom": "collection",
+          "tableTo": "source",
+          "schemaTo": "data",
+          "columnsFrom": [
+            "accountId",
+            "sourceId"
+          ],
+          "columnsTo": [
+            "accountId",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "collection_accountId_id_pk": {
+          "name": "collection_accountId_id_pk",
+          "columns": [
+            "accountId",
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {}
+    },
+    "data.item_id_conflict_resolution": {
+      "name": "item_id_conflict_resolution",
+      "schema": "data",
+      "columns": {
+        "accountId": {
+          "name": "accountId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "collectionId": {
+          "name": "collectionId",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sourceItemId": {
+          "name": "sourceItemId",
+          "type": "bytea",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "item_id_conflict_resolution_accountId_account_id_fk": {
+          "name": "item_id_conflict_resolution_accountId_account_id_fk",
+          "tableFrom": "item_id_conflict_resolution",
+          "tableTo": "account",
+          "schemaTo": "access",
+          "columnsFrom": [
+            "accountId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "item_id_conflict_resolution_accountId_collectionId_collection_accountId_id_fk": {
+          "name": "item_id_conflict_resolution_accountId_collectionId_collection_accountId_id_fk",
+          "tableFrom": "item_id_conflict_resolution",
+          "tableTo": "collection",
+          "schemaTo": "data",
+          "columnsFrom": [
+            "accountId",
+            "collectionId"
+          ],
+          "columnsTo": [
+            "accountId",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "item_id_conflict_resolution_accountId_collectionId_sourceItemId_pk": {
+          "name": "item_id_conflict_resolution_accountId_collectionId_sourceItemId_pk",
+          "columns": [
+            "accountId",
+            "collectionId",
+            "sourceItemId"
+          ]
+        }
+      },
+      "uniqueConstraints": {}
+    },
+    "data.source": {
+      "name": "source",
+      "schema": "data",
+      "columns": {
+        "accountId": {
+          "name": "accountId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "name": "id",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "key": {
+          "name": "key",
+          "type": "bytea",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "opts": {
+          "name": "opts",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "type": {
+          "name": "type",
+          "type": "source_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "source_accountId_account_id_fk": {
+          "name": "source_accountId_account_id_fk",
+          "tableFrom": "source",
+          "tableTo": "account",
+          "schemaTo": "access",
+          "columnsFrom": [
+            "accountId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "source_accountId_id_pk": {
+          "name": "source_accountId_id_pk",
+          "columns": [
+            "accountId",
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {
+        "source_key_type_unique": {
+          "name": "source_key_type_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "key",
+            "type"
+          ]
+        }
+      }
     }
   },
-  "enums": {},
+  "enums": {
+    "public.source_type": {
+      "name": "source_type",
+      "schema": "public",
+      "values": [
+        "notion"
+      ]
+    }
+  },
   "schemas": {
-    "access": "access"
+    "access": "access",
+    "data": "data"
   },
   "sequences": {},
   "_meta": {

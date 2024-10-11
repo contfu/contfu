@@ -30,15 +30,15 @@ S <-- SDB
 C <-- S: Ack
 C -> CDB
 == Pull after connect ==
-S -> SDB: Get last modified\nfor client
+S -> SDB: Get last changed\nfor client
 S <-- SDB
-S -> CMS++: Pull all items\nsince last modified
+S -> CMS++: Pull all items\nsince last changed
 S <-- CMS--: Items
 loop Push Item events (parallel)
 S -> C: ItemX created
 C -> CDB
 S <-- C: Ack ID
-S -> SDB: Put ID + last modified
+S -> SDB: Put ID + last changed
 end
 S--
 == Webhooks push ==

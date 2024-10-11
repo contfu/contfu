@@ -1,13 +1,11 @@
 interface BaseSourceConfig<Collection extends CollectionConfig> {
-  id: number;
-  key: string;
   type: string;
   collections: Collection[];
 }
 
 export interface NotionConfig extends BaseSourceConfig<NotionCollectionConfig> {
   type: "notion";
-  notionKey: string;
+  key: string;
 }
 
 export interface NotionCollectionConfig {
