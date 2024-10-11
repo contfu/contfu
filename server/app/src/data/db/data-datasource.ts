@@ -8,7 +8,7 @@ import {
   collectionRelations,
   itemIdConflictResolution,
   source,
-} from "./data-db";
+} from "./data-schema";
 const db = withSchema({
   source,
   collection,

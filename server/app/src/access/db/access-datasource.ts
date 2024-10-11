@@ -1,6 +1,6 @@
 import { and, eq, sql } from "drizzle-orm";
 import { withSchema } from "../../core/db";
-import { account, Client, client, Quota, quota } from "./access-db";
+import { account, Client, client, Quota, quota } from "./access-schema";
 
 const db = withSchema({ account, client, quota });
 

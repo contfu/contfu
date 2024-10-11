@@ -11,7 +11,7 @@ import {
   timestamp,
   unique,
 } from "drizzle-orm/pg-core";
-import { account, client } from "../../access/db/access-db";
+import { account, client } from "../../access/db/access-schema";
 import { bytea } from "../../core/db/db-types";
 
 export const dataSchema = pgSchema("data");

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { and, eq } from "drizzle-orm";
 import { createAccount, createClient } from "../../access/db/access-datasource";
-import { Account } from "../../access/db/access-db";
+import { Account } from "../../access/db/access-schema";
 import { withSchema } from "../../core/db";
 import {
   createClientCollectionConnection,
@@ -16,7 +16,7 @@ import {
   collection,
   itemIdConflictResolution,
   source,
-} from "./data-db";
+} from "./data-schema";
 
 const db = withSchema({
   source,
