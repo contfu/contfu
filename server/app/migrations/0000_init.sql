@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS "access"."client" (
 	"id" smallint NOT NULL,
 	"key" "bytea" NOT NULL,
 	"name" text,
-	"connected" boolean DEFAULT false NOT NULL,
+	"connectedTo" smallint,
 	"createdAt" timestamp DEFAULT now() NOT NULL,
 	CONSTRAINT "client_accountId_id_pk" PRIMARY KEY("accountId","id"),
 	CONSTRAINT "client_key_unique" UNIQUE("key")

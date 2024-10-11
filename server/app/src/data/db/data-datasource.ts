@@ -3,20 +3,26 @@ import { and, eq, sql } from "drizzle-orm";
 import { withSchema } from "../../core/db";
 import {
   clientCollectionConnection,
-  ClientCollectionState,
-  Collection,
+  clientCollectionConnectionRelations,
   collection,
+  collectionRelations,
   itemIdConflictResolution,
-  Source,
   source,
 } from "./data-db";
-const db = withSchema({ source, collection, itemIdConflictResolution });
+const db = withSchema({
+  source,
+  collection,
+  clientCollectionConnection,
+  itemIdConflictResolution,
+  collectionRelations,
+  clientCollectionConnectionRelations,
+});
 
 export async function createSource(
   accountId: number,
   name: string,
   config: SourceConfig
-): Promise<Source> {
+) {
   const nextId = sql`(
     SELECT COALESCE(MAX(${source.id}), 0) + 1
     FROM ${source}
@@ -42,7 +48,7 @@ export async function createCollection(
   sourceId: number,
   name: string,
   opts?: Record<string, any>
-): Promise<Collection> {
+) {
   const nextId = sql`(
     SELECT COALESCE(MAX(${collection.id}), 0) + 1
     FROM ${collection}
@@ -60,7 +66,7 @@ export async function createClientCollectionConnection(
   accountId: number,
   clientId: number,
   collectionId: number
-): Promise<ClientCollectionState> {
+) {
   return (
     await db
       .insert(clientCollectionConnection)
@@ -74,12 +80,27 @@ export async function createClientCollectionConnection(
   )[0];
 }
 
+export async function getCollectionsForClient(
+  accountId: number,
+  clientId: number
+) {
+  return db.query.clientCollectionConnection.findMany({
+    where: and(
+      eq(clientCollectionConnection.accountId, accountId),
+      eq(clientCollectionConnection.clientId, clientId)
+    ),
+    with: {
+      collection: true,
+    },
+  });
+}
+
 export async function createItemIdConflictResolution(
   accountId: number,
   collectionId: number,
   sourceItemId: Buffer,
   id: number
-): Promise<void> {
+) {
   await db.insert(itemIdConflictResolution).values({
     accountId,
     collectionId,
@@ -92,7 +113,7 @@ export async function getItemId(
   accountId: number,
   collectionId: number,
   sourceItemId: Buffer
-): Promise<number> {
+) {
   const result = await db.query.itemIdConflictResolution.findFirst({
     where: and(
       eq(itemIdConflictResolution.accountId, accountId),

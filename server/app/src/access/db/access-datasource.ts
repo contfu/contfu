@@ -1,6 +1,6 @@
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { withSchema } from "../../core/db";
-import { account, client, Quota, quota } from "./access-db";
+import { account, Client, client, Quota, quota } from "./access-db";
 
 const db = withSchema({ account, client, quota });
 
@@ -9,7 +9,7 @@ export type QuotaLimits = Pick<
   "maxSources" | "maxCollections" | "maxItems" | "maxClients"
 >;
 
-export async function authenticate(key: Buffer) {
+export async function authenticateClient(key: Buffer) {
   const c = await db.query.client.findFirst({ where: eq(client.key, key) });
   return c ?? null;
 }
@@ -42,11 +42,7 @@ export async function createQuota(accountId: number, limits: QuotaLimits) {
   )[0];
 }
 
-export async function createClient(
-  accountId: number,
-  name?: string,
-  connected = false
-) {
+export async function createClient(accountId: number, name?: string) {
   const nextId = sql`(
     SELECT COALESCE(MAX(${client.id}), 0) + 1
     FROM ${client}
@@ -62,15 +58,21 @@ export async function createClient(
   return (
     await db
       .insert(client)
-      .values({
-        accountId,
-        name,
-        id: nextId,
-        connected,
-        key,
-      })
+      .values({ accountId, name, id: nextId, key })
       .returning()
   )[0];
+}
+
+export async function updateClient({
+  accountId,
+  id,
+  ...c
+}: Pick<Client, "id" | "accountId"> &
+  Partial<Pick<Client, "key" | "name" | "connectedTo">>) {
+  await db
+    .update(client)
+    .set(c)
+    .where(and(eq(client.id, id), eq(client.accountId, accountId)));
 }
 
 async function generateAccessKey(

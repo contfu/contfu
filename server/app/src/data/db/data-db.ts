@@ -1,3 +1,4 @@
+import { relations } from "drizzle-orm";
 import {
   foreignKey,
   integer,
@@ -60,7 +61,7 @@ export const collection = dataSchema.table(
     id: smallint().notNull(),
     /** The name of the collection. */
     name: text().notNull(),
-    /** Options for the collection. This can be used to configure the collection, depending on the source type. */
+    /** The options for the collection. Can contain collection specific options. */
     opts: jsonb(),
     /** The date the collection was created. */
     createdAt: timestamp().defaultNow().notNull(),
@@ -114,8 +115,26 @@ export const clientCollectionConnection = dataSchema.table(
   })
 );
 
-export type ClientCollectionState =
+export type ClientCollectionConnection =
   typeof clientCollectionConnection.$inferSelect;
+
+// Define relations
+export const collectionRelations = relations(collection, ({ many }) => ({
+  clientCollectionConnections: many(clientCollectionConnection),
+}));
+
+export const clientCollectionConnectionRelations = relations(
+  clientCollectionConnection,
+  ({ one }) => ({
+    collection: one(collection, {
+      fields: [
+        clientCollectionConnection.accountId,
+        clientCollectionConnection.collectionId,
+      ],
+      references: [collection.accountId, collection.id],
+    }),
+  })
+);
 
 /** Mappings of ids from the source to the collection. This is used in case that there are collisions in the integer id space. */
 export const itemIdConflictResolution = dataSchema.table(

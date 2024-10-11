@@ -1,5 +1,5 @@
 {
-  "id": "8d00a2de-b482-40b2-bcd5-c853143ef6e2",
+  "id": "40cd88b3-060e-4f2e-aa95-1e29f0a26b61",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -81,12 +81,11 @@
           "primaryKey": false,
           "notNull": false
         },
-        "connected": {
-          "name": "connected",
-          "type": "boolean",
+        "connectedTo": {
+          "name": "connectedTo",
+          "type": "smallint",
           "primaryKey": false,
-          "notNull": true,
-          "default": false
+          "notNull": false
         },
         "createdAt": {
           "name": "createdAt",

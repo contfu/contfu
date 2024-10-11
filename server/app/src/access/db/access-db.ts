@@ -1,5 +1,4 @@
 import {
-  boolean,
   integer,
   pgSchema,
   primaryKey,
@@ -49,7 +48,7 @@ export const client = accessSchema.table(
     id: smallint().notNull(),
     key: bytea().notNull().unique(),
     name: text(),
-    connected: boolean().default(false).notNull(),
+    connectedTo: smallint(),
     createdAt: timestamp().defaultNow().notNull(),
   },
   (t) => ({

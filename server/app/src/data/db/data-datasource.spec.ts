@@ -1,12 +1,14 @@
-import { describe, expect, it } from "bun:test";
+import { beforeEach, describe, expect, it } from "bun:test";
 import { and, eq } from "drizzle-orm";
 import { createAccount, createClient } from "../../access/db/access-datasource";
+import { Account } from "../../access/db/access-db";
 import { withSchema } from "../../core/db";
 import {
   createClientCollectionConnection,
   createCollection,
   createItemIdConflictResolution,
   createSource,
+  getCollectionsForClient,
   getItemId,
 } from "./data-datasource";
 import {
@@ -23,10 +25,23 @@ const db = withSchema({
   itemIdConflictResolution,
 });
 
+let a: Account;
+
+beforeEach(async () => {
+  a = await createAccount(
+    "test@test.com",
+    {
+      maxSources: 10,
+      maxCollections: 10,
+      maxItems: 1000,
+      maxClients: 10,
+    },
+    new Date(Date.now() + 1000 * 60 * 60 * 24 * 365 * 10)
+  );
+});
+
 describe("createSource()", () => {
   it("should create a source in the database and return it", async () => {
-    const a = await createAccount("test@test.com");
-
     const s = await createSource(a.id, "test", {
       type: "notion",
       key: "test",
@@ -52,7 +67,6 @@ describe("createSource()", () => {
 
 describe("createCollection()", () => {
   it("should create a collection in the database and return it", async () => {
-    const a = await createAccount("test@test.com");
     const s = await createSource(a.id, "test", {
       type: "notion",
       key: "test",
@@ -79,7 +93,6 @@ describe("createCollection()", () => {
 
 describe("createClientCollectionConnection()", () => {
   it("should create a client collection connection in the database", async () => {
-    const a = await createAccount("test@test.com");
     const s = await createSource(a.id, "test", {
       type: "notion",
       key: "test",
@@ -109,9 +122,26 @@ describe("createClientCollectionConnection()", () => {
     expect(stored).toEqual(cc);
   });
 });
+
+describe("getCollectionsForClient()", async () => {
+  it("should return the collections for a client", async () => {
+    const s = await createSource(a.id, "test", {
+      type: "notion",
+      key: "test",
+      collections: [],
+    });
+    const c = await createCollection(a.id, s.id, "test");
+    const cl = await createClient(a.id, "test");
+    const cc = await createClientCollectionConnection(a.id, cl.id, c.id);
+
+    const collections = await getCollectionsForClient(a.id, cl.id);
+
+    expect(collections).toEqual([{ ...cc, collection: c }]);
+  });
+});
+
 describe("createItemIdConflictResolution()", () => {
   it("should create a item id conflict resolution in the database", async () => {
-    const a = await createAccount("test@test.com");
     const s = await createSource(a.id, "test", {
       type: "notion",
       key: "test",
@@ -135,7 +165,6 @@ describe("createItemIdConflictResolution()", () => {
 
 describe("getItemId()", () => {
   it("should return the item id if it is in the conflict resolution table", async () => {
-    const a = await createAccount("test@test.com");
     const s = await createSource(a.id, "test", {
       type: "notion",
       key: "test",
@@ -150,7 +179,6 @@ describe("getItemId()", () => {
   });
 
   it("should return the item id derived from the last 4 bytes of the source item id if it is not in the conflict resolution table", async () => {
-    const a = await createAccount("test@test.com");
     const s = await createSource(a.id, "test", {
       type: "notion",
       key: "test",
