@@ -1,5 +1,5 @@
 import { SourceConfig } from "@contfu/core";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { withSchema } from "../../core/db";
 import {
   clientCollectionConnection,
@@ -21,7 +21,7 @@ const db = withSchema({
 export async function createSource(
   accountId: number,
   name: string,
-  config: SourceConfig
+  config: Omit<SourceConfig, "collections">
 ) {
   const nextId = sql`(
     SELECT COALESCE(MAX(${source.id}), 0) + 1
@@ -36,11 +36,17 @@ export async function createSource(
         name,
         type: config.type,
         id: nextId,
-        key: Buffer.from(config.key, "base64url"),
+        key: config.key,
         opts: {},
       })
       .returning()
   )[0];
+}
+
+export async function getSourcesByIds(accountId: number, ids: number[]) {
+  return db.query.source.findMany({
+    where: and(eq(source.accountId, accountId), inArray(source.id, ids)),
+  });
 }
 
 export async function createCollection(

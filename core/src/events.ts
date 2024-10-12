@@ -1,9 +1,9 @@
 import { Item } from "./items";
 
 export enum EventType {
-  CHANGED,
-  DELETED,
-  LIST_IDS,
+  CHANGED = 1,
+  DELETED = 2,
+  LIST_IDS = 3,
 }
 
 type EventBase<T extends EventType> = {

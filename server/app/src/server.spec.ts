@@ -10,8 +10,13 @@ import {
 } from "bun:test";
 import Elysia from "elysia";
 import { mockClient } from "../test/mocks/notion";
-import { Account, account } from "./access/access-db";
-import { db } from "./core/db";
+import { createAccount, createClient } from "./access/access-repository";
+import { Account, Client } from "./access/db/access-schema";
+import {
+  connectClientToCollection,
+  createCollection,
+  createSource,
+} from "./data/data-repository";
 import { app } from "./server";
 import {
   callout,
@@ -25,25 +30,30 @@ import {
 const key = "testkey";
 
 describe("connect via WS", () => {
-  let instance: Elysia;
+  let server: Elysia;
   let acc: Account;
+  let cl: Client;
 
-  beforeAll(() => {
-    instance = app.listen(9999);
-  });
-
-  afterAll(async () => {
-    await instance.stop();
+  beforeAll(async () => {
+    server = app.listen(9999);
   });
 
   beforeEach(async () => {
-    [acc] = await db
-      .insert(account)
-      .values({
-        key: Buffer.from(key, "base64url"),
-        email: "test@test.com",
-      })
-      .returning();
+    acc = await createAccount("test@test.com");
+    cl = await createClient(acc.id, "test");
+    const src = await createSource(acc.id, "notion-test", {
+      key: Buffer.from("abc", "base64url"),
+      type: "notion",
+    });
+    const coll = await createCollection(acc.id, src.id, "test", {
+      dbId: Buffer.from("5b1060c74333c08d5721554550aae735", "hex"),
+      content: "Content",
+    });
+    await connectClientToCollection(acc.id, cl.id, coll.id);
+  });
+
+  afterAll(async () => {
+    await server.stop();
   });
 
   it("should receive items", async () => {
@@ -69,22 +79,7 @@ describe("connect via WS", () => {
         Content: Block[];
         Slug?: string;
       };
-    }>([
-      {
-        id: 1,
-        type: "notion",
-        notionKey:
-          "5B1060C74333C08D5721554550AAE735D7B8928274C0218877B01BBC53D53B9C",
-        key,
-        collections: [
-          {
-            id: 1,
-            dbId: "5b1060c7-4333-c08d-5721-554550aae735",
-            content: "Content",
-          },
-        ],
-      },
-    ]);
+    }>(cl.key);
     const item1 = conn.next();
     const item2 = conn.next();
     const item3 = conn.next();

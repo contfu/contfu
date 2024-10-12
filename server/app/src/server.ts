@@ -1,82 +1,74 @@
-import { ChangedEvent, EventType, ItemEvent, ListIdsEvent } from "@contfu/core";
-import Elysia, { t } from "elysia";
-import { Subscription, map, merge } from "rxjs";
-import { authenticate } from "./access/db/access-datasource";
-import { SourceSchema, buildSource } from "./sources/source";
+import { Command, CommandType, EventType, ItemEvent } from "@contfu/core";
+import Elysia from "elysia";
+import { Subscription, isObservable } from "rxjs";
+import { authenticateClient } from "./access/access-repository";
+import { subscribeClientToCollections } from "./data/data-service";
+
+class CommandError extends Error {
+  constructor(readonly code: "E_AUTH" | "E_CONFLICT", message?: string) {
+    super(message);
+  }
+}
 
 export const app = new Elysia()
   .get("/", () => "This will be awesome!")
-  .ws("/pages", {
-    body: t.Object({
-      sources: t.Array(SourceSchema),
-      since: t.Optional(t.Number()),
-    }),
-    async message(ws, { sources, since }) {
-      for (const src of sources) {
-        if (!(await authenticate(Buffer.from(src.key, "base64url")))) {
-          ws.send(
-            JSON.stringify({ error: "E_AUTH", idx: sources.indexOf(src) })
-          );
-          continue;
-        }
-        if (subs.has(src.key)) {
-          ws.send(
-            JSON.stringify({ error: "E_CONFLICT", idx: sources.indexOf(src) })
-          );
-          continue;
-        }
-        const keys = socketKeys.get(ws.id) ?? [];
-        keys.push(src.key);
-        socketKeys.set(ws.id, keys);
-        const source = buildSource(src);
-        subs.set(
-          src.key,
-          merge(
-            ...src.collections.map((col) =>
-              source.pull(col, since).pipe(
-                map(
-                  (item) =>
-                    ({
-                      type: EventType.CHANGED,
-                      src: src.id,
-                      collection: col.id,
-                      item,
-                    } satisfies ChangedEvent)
-                )
-              )
-            ),
-            ...src.collections.map((col) =>
-              source.pullCollectionIds(col).pipe(
-                map(
-                  (ids) =>
-                    ({
-                      type: EventType.LIST_IDS,
-                      src: src.id,
-                      collection: col.id,
-                      ids,
-                    } satisfies ListIdsEvent)
-                )
-              )
-            )
-          ).subscribe((data: ItemEvent) => {
-            ws.send(serializeEvent(data));
+  .ws("/", {
+    async message(ws, body) {
+      const cmd = deserializeCommand(body as Buffer);
+      const res = await handleWsMessage(cmd, ws.id);
+      if (res instanceof CommandError) {
+        ws.send(
+          JSON.stringify({
+            type: "error",
+            code: res.code,
+            message: res.message,
           })
         );
       }
+      if (isObservable(res)) {
+        const sub = res.subscribe((data) =>
+          ws.send(serializeEvent(data as any))
+        );
+        subs.set(ws.id, sub);
+      }
     },
     close(ws) {
-      const keys = socketKeys.get(ws.id);
-      if (!keys) return;
-      for (const key of keys) {
-        subs.get(key)!.unsubscribe();
-        subs.delete(key);
-      }
-      socketKeys.delete(ws.id);
+      const ids = socketClients.get(ws.id);
+      if (!ids) return;
+      subs.get(ws.id)!.unsubscribe();
+      subs.delete(ws.id);
+      socketClients.delete(ws.id);
     },
   });
 
+function handleWsMessage(cmd: Command, wsId: string) {
+  switch (cmd.type) {
+    case CommandType.CONNECT:
+      return connect(cmd.key, wsId);
+  }
+}
+
+async function connect(key: Buffer, wsId: string) {
+  const client = await authenticateClient(key);
+  if (!client) return new CommandError("E_AUTH");
+  if (client.connectedTo != null || subs.has(wsId))
+    return new CommandError("E_CONFLICT");
+  console.debug("client connected", client.accountId, client.id);
+
+  return subscribeClientToCollections(client);
+}
+
 const subs = new Map<string, Subscription>();
-const socketKeys = new Map<string, string[]>();
+const socketClients = new Map<string, number[]>();
+
+function deserializeCommand(buf: Buffer) {
+  const type = buf.readUInt8(0) as CommandType;
+  switch (type) {
+    case CommandType.CONNECT: {
+      return { type, key: buf.subarray(1) };
+    }
+  }
+}
 
 function serializeEvent(data: ItemEvent) {
   switch (data.type) {

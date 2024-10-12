@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { and, eq } from "drizzle-orm";
-import { createAccount, createClient } from "../../access/db/access-datasource";
-import { Account } from "../../access/db/access-schema";
+import { createAccount, createClient } from "../../access/access-repository";
+import { Account, Client } from "../../access/db/access-schema";
 import { withSchema } from "../../core/db";
 import {
   createClientCollectionConnection,
@@ -26,26 +26,18 @@ const db = withSchema({
 });
 
 let a: Account;
+let cl: Client;
 
 beforeEach(async () => {
-  a = await createAccount(
-    "test@test.com",
-    {
-      maxSources: 10,
-      maxCollections: 10,
-      maxItems: 1000,
-      maxClients: 10,
-    },
-    new Date(Date.now() + 1000 * 60 * 60 * 24 * 365 * 10)
-  );
+  a = await createAccount("test@test.com");
+  cl = await createClient(a.id, "test");
 });
 
 describe("createSource()", () => {
   it("should create a source in the database and return it", async () => {
     const s = await createSource(a.id, "test", {
       type: "notion",
-      key: "test",
-      collections: [],
+      key: Buffer.from("test", "base64url"),
     });
 
     const stored = await db.query.source.findFirst({
@@ -69,8 +61,7 @@ describe("createCollection()", () => {
   it("should create a collection in the database and return it", async () => {
     const s = await createSource(a.id, "test", {
       type: "notion",
-      key: "test",
-      collections: [],
+      key: Buffer.from("test", "base64url"),
     });
 
     const c = await createCollection(a.id, s.id, "test");
@@ -95,8 +86,7 @@ describe("createClientCollectionConnection()", () => {
   it("should create a client collection connection in the database", async () => {
     const s = await createSource(a.id, "test", {
       type: "notion",
-      key: "test",
-      collections: [],
+      key: Buffer.from("test", "base64url"),
     });
     const c = await createCollection(a.id, s.id, "test");
     const cl = await createClient(a.id, "test");
@@ -106,13 +96,13 @@ describe("createClientCollectionConnection()", () => {
     const stored = await db.query.clientCollectionConnection.findFirst({
       where: and(
         eq(clientCollectionConnection.accountId, a.id),
-        eq(clientCollectionConnection.clientId, c.id),
+        eq(clientCollectionConnection.clientId, cl.id),
         eq(clientCollectionConnection.collectionId, c.id)
       ),
     });
     expect(cc).toEqual({
       accountId: a.id,
-      clientId: 1,
+      clientId: cl.id,
       collectionId: c.id,
       lastItemChanged: null,
       lastFetch: null,
@@ -127,8 +117,7 @@ describe("getCollectionsForClient()", async () => {
   it("should return the collections for a client", async () => {
     const s = await createSource(a.id, "test", {
       type: "notion",
-      key: "test",
-      collections: [],
+      key: Buffer.from("test", "base64url"),
     });
     const c = await createCollection(a.id, s.id, "test");
     const cl = await createClient(a.id, "test");
@@ -144,8 +133,7 @@ describe("createItemIdConflictResolution()", () => {
   it("should create a item id conflict resolution in the database", async () => {
     const s = await createSource(a.id, "test", {
       type: "notion",
-      key: "test",
-      collections: [],
+      key: Buffer.from("test", "base64url"),
     });
     const c = await createCollection(a.id, s.id, "test");
 
@@ -167,8 +155,7 @@ describe("getItemId()", () => {
   it("should return the item id if it is in the conflict resolution table", async () => {
     const s = await createSource(a.id, "test", {
       type: "notion",
-      key: "test",
-      collections: [],
+      key: Buffer.from("test", "base64url"),
     });
     const c = await createCollection(a.id, s.id, "test");
 
@@ -181,8 +168,7 @@ describe("getItemId()", () => {
   it("should return the item id derived from the last 4 bytes of the source item id if it is not in the conflict resolution table", async () => {
     const s = await createSource(a.id, "test", {
       type: "notion",
-      key: "test",
-      collections: [],
+      key: Buffer.from("test", "base64url"),
     });
     const c = await createCollection(a.id, s.id, "test");
 

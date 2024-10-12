@@ -1,5 +1,7 @@
 import {
   ChangedEvent,
+  Command,
+  CommandType,
   DeletedEvent,
   EventType,
   Item,
@@ -15,19 +17,16 @@ type Opts = {
 
 export async function* connectTo<
   Props extends Record<string, Record<string, any>>
->(
-  sources: SourceConfig[],
-  { WS = global.WebSocket, since = undefined }: Opts = {}
-) {
+>(key: Buffer, { WS = global.WebSocket }: Opts = {}) {
   let resolve: (value: any) => void, reject: (reason?: any) => void;
-  let socket = new WS("ws://localhost:9999/pages");
+  let socket = new WS("ws://localhost:9999");
 
   socket.onopen = () => {
-    socket.send(JSON.stringify({ sources, since }));
+    socket.send(serializeCommand({ type: CommandType.CONNECT, key }));
   };
 
   socket.onmessage = (event) => {
-    const data = parseEvent(event.data as Buffer);
+    const data = deserializeEvent(event.data as Buffer);
     resolve(data);
   };
 
@@ -49,7 +48,18 @@ export function createSource(source: SourceConfig) {
   return source;
 }
 
-function parseEvent(buf: Buffer) {
+function serializeCommand(cmd: Command) {
+  switch (cmd.type) {
+    case CommandType.CONNECT: {
+      const buf = Buffer.alloc(1 + cmd.key.length);
+      buf.writeUInt8(cmd.type, 0);
+      cmd.key.copy(buf, 1);
+      return buf;
+    }
+  }
+}
+
+function deserializeEvent(buf: Buffer) {
   const type = buf.readUInt8(0) as EventType;
   const src = buf.readUInt8(1);
   const collection = buf.readUInt16LE(2);

@@ -5,13 +5,14 @@ interface BaseSourceConfig<Collection extends CollectionConfig> {
 
 export interface NotionConfig extends BaseSourceConfig<NotionCollectionConfig> {
   type: "notion";
-  key: string;
+  key: Buffer;
 }
 
 export interface NotionCollectionConfig {
   id: number;
-  dbId: string;
+  dbId: Buffer;
   content?: string;
+  lastFetch?: number;
 }
 
 export type CollectionConfig = NotionCollectionConfig;
