@@ -5,6 +5,7 @@
   "version": "0.1.1",
   "private": true,
   "scripts": {
+    "start": "bun src/index.ts",
     "test": "bun test",
     "clean": "rm -rf dist",
     "build": "bun build --minify --sourcemap --target=bun src/index.ts --outfile dist/server.js"
