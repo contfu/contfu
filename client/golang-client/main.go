@@ -3,12 +3,27 @@ package main
 import (
 	"log"
 	"net/url"
+	"os"
 
 	"github.com/gorilla/websocket"
+	"github.com/joho/godotenv"
+
+	"contfu_client/events"
 )
 
 func main() {
-	u := url.URL{Scheme: "ws", Host: "localhost:3000", Path: "/"}
+	err := godotenv.Load(".env")
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+	host := getEnvOrDefault("UPSTREAM_HOST", "localhost")
+	port := getEnvOrDefault("UPSTREAM_PORT", "3000")
+	key := getEnvOrDefault("KEY", "")
+	if key == "" {
+		log.Fatal("KEY environment variable not set. Please set it before running the client.")
+	}
+
+	u := url.URL{Scheme: "ws", Host: host + ":" + port, Path: "/"}
 	log.Printf("connecting to %s", u.String())
 
 	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
@@ -17,9 +32,9 @@ func main() {
 	}
 	defer c.Close()
 
-	key := []byte{0x01}
-	key = append(key, []byte("123")...)
-	err = c.WriteMessage(websocket.BinaryMessage, key)
+	keyBytes := []byte{0x01}
+	keyBytes = append(keyBytes, []byte(key)...)
+	err = c.WriteMessage(websocket.BinaryMessage, keyBytes)
 	if err != nil {
 		log.Fatal("write:", err)
 	}
@@ -30,6 +45,14 @@ func main() {
 			log.Println("read:", err)
 			break
 		}
-		log.Printf("recv: %s", message)
+		event := events.DeserializeEvent(message)
+		log.Printf("Received event: %+v", event)
 	}
+}
+
+func getEnvOrDefault(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
 }
