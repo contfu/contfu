@@ -3,6 +3,7 @@ import {
   Command,
   CommandType,
   DeletedEvent,
+  ErrorEvent,
   EventType,
   Item,
   ItemEvent,
@@ -64,6 +65,10 @@ function deserializeEvent(buf: Buffer) {
   const src = buf.readUInt8(1);
   const collection = buf.readUInt16LE(2);
   switch (type) {
+    case EventType.ERROR: {
+      const code = buf.subarray(4).toString("ascii");
+      return { type, code } satisfies ErrorEvent;
+    }
     case EventType.CHANGED: {
       const id = buf.subarray(4, 20).toString("base64url");
       const createdAt = Number(buf.readBigInt64LE(20));
@@ -84,21 +89,11 @@ function deserializeEvent(buf: Buffer) {
         const idx = i * 16 + 4;
         ids[i] = buf.subarray(idx, idx + 16).toString("base64url");
       }
-      return {
-        type,
-        src,
-        collection,
-        ids,
-      } satisfies ListIdsEvent;
+      return { type, src, collection, ids } satisfies ListIdsEvent;
     }
     case EventType.DELETED: {
       const item = buf.subarray(4).toString("base64url");
-      return {
-        type,
-        src,
-        collection,
-        item,
-      } satisfies DeletedEvent;
+      return { type, src, collection, item } satisfies DeletedEvent;
     }
   }
 }

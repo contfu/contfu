@@ -1,4 +1,10 @@
-import { Command, CommandType, EventType, ItemEvent } from "@contfu/core";
+import {
+  Command,
+  CommandType,
+  ErrorEvent,
+  EventType,
+  ItemEvent,
+} from "@contfu/core";
 import Elysia from "elysia";
 import { Subscription, isObservable } from "rxjs";
 import { authenticateClient } from "./access/access-repository";
@@ -17,13 +23,7 @@ export const app = new Elysia()
       const cmd = deserializeCommand(body as Buffer);
       const res = await handleWsMessage(cmd, ws.id);
       if (res instanceof CommandError) {
-        ws.send(
-          JSON.stringify({
-            type: "error",
-            code: res.code,
-            message: res.message,
-          })
-        );
+        ws.send(serializeEvent({ type: EventType.ERROR, code: res.code }));
       }
       if (isObservable(res)) {
         const sub = res.subscribe((data) =>
@@ -70,7 +70,8 @@ function deserializeCommand(buf: Buffer) {
   }
 }
 
-function serializeEvent(data: ItemEvent) {
+function serializeEvent(data: ItemEvent | ErrorEvent) {
+  console.log("serializeEvent", data);
   switch (data.type) {
     case EventType.CHANGED: {
       const { item } = data;
@@ -102,6 +103,14 @@ function serializeEvent(data: ItemEvent) {
       buf.writeUInt8(data.src, 1);
       buf.writeUInt16LE(data.collection, 2);
       buf.write(data.item, 4, "base64url");
+      return buf;
+    }
+    case EventType.ERROR: {
+      const buf = Buffer.alloc(1 + data.code.length);
+      buf.writeUInt8(data.type, 0);
+      buf.write(data.code, 1, "ascii");
+      console.log("error", data.code);
+
       return buf;
     }
   }
