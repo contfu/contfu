@@ -17,15 +17,15 @@ CREATE TABLE IF NOT EXISTS "access"."account" (
 	CONSTRAINT "account_email_unique" UNIQUE("email")
 );
 --> statement-breakpoint
-CREATE TABLE IF NOT EXISTS "access"."client" (
+CREATE TABLE IF NOT EXISTS "access"."consumer" (
 	"accountId" integer NOT NULL,
 	"id" smallint NOT NULL,
-	"key" "bytea" NOT NULL,
-	"name" text,
+	"key" "bytea",
+	"name" text NOT NULL,
 	"connectedTo" smallint,
 	"createdAt" timestamp DEFAULT now() NOT NULL,
-	CONSTRAINT "client_accountId_id_pk" PRIMARY KEY("accountId","id"),
-	CONSTRAINT "client_key_unique" UNIQUE("key")
+	CONSTRAINT "consumer_accountId_id_pk" PRIMARY KEY("accountId","id"),
+	CONSTRAINT "consumer_key_unique" UNIQUE("key")
 );
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "access"."quota" (
@@ -40,17 +40,6 @@ CREATE TABLE IF NOT EXISTS "access"."quota" (
 	"maxClients" integer NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE IF NOT EXISTS "data"."client_collection_connection" (
-	"accountId" integer NOT NULL,
-	"clientId" smallint NOT NULL,
-	"collectionId" smallint NOT NULL,
-	"lastItemChanged" timestamp,
-	"lastFetch" timestamp,
-	"lastConsistencyCheck" timestamp,
-	"ids" "bytea",
-	CONSTRAINT "client_collection_connection_accountId_clientId_collectionId_pk" PRIMARY KEY("accountId","clientId","collectionId")
-);
---> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "data"."collection" (
 	"accountId" integer NOT NULL,
 	"sourceId" smallint NOT NULL,
@@ -60,6 +49,17 @@ CREATE TABLE IF NOT EXISTS "data"."collection" (
 	"createdAt" timestamp DEFAULT now() NOT NULL,
 	"updatedAt" timestamp,
 	CONSTRAINT "collection_accountId_id_pk" PRIMARY KEY("accountId","id")
+);
+--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS "data"."consumer_collection_connection" (
+	"accountId" integer NOT NULL,
+	"consumerId" smallint NOT NULL,
+	"collectionId" smallint NOT NULL,
+	"lastItemChanged" timestamp,
+	"lastFetch" timestamp,
+	"lastConsistencyCheck" timestamp,
+	"ids" "bytea",
+	CONSTRAINT "consumer_collection_connection_accountId_consumerId_collectionId_pk" PRIMARY KEY("accountId","consumerId","collectionId")
 );
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "data"."item_id_conflict_resolution" (
@@ -84,31 +84,13 @@ CREATE TABLE IF NOT EXISTS "data"."source" (
 );
 --> statement-breakpoint
 DO $$ BEGIN
- ALTER TABLE "access"."client" ADD CONSTRAINT "client_accountId_account_id_fk" FOREIGN KEY ("accountId") REFERENCES "access"."account"("id") ON DELETE cascade ON UPDATE no action;
+ ALTER TABLE "access"."consumer" ADD CONSTRAINT "consumer_accountId_account_id_fk" FOREIGN KEY ("accountId") REFERENCES "access"."account"("id") ON DELETE cascade ON UPDATE no action;
 EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;
 --> statement-breakpoint
 DO $$ BEGIN
  ALTER TABLE "access"."quota" ADD CONSTRAINT "quota_id_account_id_fk" FOREIGN KEY ("id") REFERENCES "access"."account"("id") ON DELETE cascade ON UPDATE no action;
-EXCEPTION
- WHEN duplicate_object THEN null;
-END $$;
---> statement-breakpoint
-DO $$ BEGIN
- ALTER TABLE "data"."client_collection_connection" ADD CONSTRAINT "client_collection_connection_accountId_account_id_fk" FOREIGN KEY ("accountId") REFERENCES "access"."account"("id") ON DELETE cascade ON UPDATE no action;
-EXCEPTION
- WHEN duplicate_object THEN null;
-END $$;
---> statement-breakpoint
-DO $$ BEGIN
- ALTER TABLE "data"."client_collection_connection" ADD CONSTRAINT "client_collection_connection_accountId_clientId_client_accountId_id_fk" FOREIGN KEY ("accountId","clientId") REFERENCES "access"."client"("accountId","id") ON DELETE cascade ON UPDATE no action;
-EXCEPTION
- WHEN duplicate_object THEN null;
-END $$;
---> statement-breakpoint
-DO $$ BEGIN
- ALTER TABLE "data"."client_collection_connection" ADD CONSTRAINT "client_collection_connection_accountId_collectionId_collection_accountId_id_fk" FOREIGN KEY ("accountId","collectionId") REFERENCES "data"."collection"("accountId","id") ON DELETE cascade ON UPDATE no action;
 EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;
@@ -121,6 +103,24 @@ END $$;
 --> statement-breakpoint
 DO $$ BEGIN
  ALTER TABLE "data"."collection" ADD CONSTRAINT "collection_accountId_sourceId_source_accountId_id_fk" FOREIGN KEY ("accountId","sourceId") REFERENCES "data"."source"("accountId","id") ON DELETE cascade ON UPDATE no action;
+EXCEPTION
+ WHEN duplicate_object THEN null;
+END $$;
+--> statement-breakpoint
+DO $$ BEGIN
+ ALTER TABLE "data"."consumer_collection_connection" ADD CONSTRAINT "consumer_collection_connection_accountId_account_id_fk" FOREIGN KEY ("accountId") REFERENCES "access"."account"("id") ON DELETE cascade ON UPDATE no action;
+EXCEPTION
+ WHEN duplicate_object THEN null;
+END $$;
+--> statement-breakpoint
+DO $$ BEGIN
+ ALTER TABLE "data"."consumer_collection_connection" ADD CONSTRAINT "consumer_collection_connection_accountId_consumerId_consumer_accountId_id_fk" FOREIGN KEY ("accountId","consumerId") REFERENCES "access"."consumer"("accountId","id") ON DELETE cascade ON UPDATE no action;
+EXCEPTION
+ WHEN duplicate_object THEN null;
+END $$;
+--> statement-breakpoint
+DO $$ BEGIN
+ ALTER TABLE "data"."consumer_collection_connection" ADD CONSTRAINT "consumer_collection_connection_accountId_collectionId_collection_accountId_id_fk" FOREIGN KEY ("accountId","collectionId") REFERENCES "data"."collection"("accountId","id") ON DELETE cascade ON UPDATE no action;
 EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;

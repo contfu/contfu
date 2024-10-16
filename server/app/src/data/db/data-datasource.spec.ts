@@ -1,36 +1,36 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { and, eq } from "drizzle-orm";
-import { createAccount, createClient } from "../../access/access-repository";
-import { Account, Client } from "../../access/db/access-schema";
+import { createAccount, createConsumer } from "../../access/access-repository";
+import { DbAccount, DbConsumer } from "../../access/db/access-schema";
 import { withSchema } from "../../core/db";
 import {
-  createClientCollectionConnection,
   createCollection,
+  createConsumerCollectionConnection,
   createItemIdConflictResolution,
   createSource,
-  getCollectionsForClient,
+  getCollectionsForConsumer,
   getItemId,
 } from "./data-datasource";
 import {
-  clientCollectionConnection,
   collection,
+  consumerCollectionConnection,
   itemIdConflictResolution,
   source,
 } from "./data-schema";
 
 const db = withSchema({
   source,
-  clientCollectionConnection,
+  consumerCollectionConnection,
   collection,
   itemIdConflictResolution,
 });
 
-let a: Account;
-let cl: Client;
+let a: DbAccount;
+let cl: DbConsumer;
 
 beforeEach(async () => {
   a = await createAccount("test@test.com");
-  cl = await createClient(a.id, "test");
+  cl = await createConsumer(a.id, "test");
 });
 
 describe("createSource()", () => {
@@ -82,27 +82,27 @@ describe("createCollection()", () => {
   });
 });
 
-describe("createClientCollectionConnection()", () => {
-  it("should create a client collection connection in the database", async () => {
+describe("createConsumerCollectionConnection()", () => {
+  it("should create a consumer collection connection in the database", async () => {
     const s = await createSource(a.id, "test", {
       type: "notion",
       key: Buffer.from("test", "base64url"),
     });
     const c = await createCollection(a.id, s.id, "test");
-    const cl = await createClient(a.id, "test");
+    const cl = await createConsumer(a.id, "test");
 
-    const cc = await createClientCollectionConnection(a.id, cl.id, c.id);
+    const cc = await createConsumerCollectionConnection(a.id, cl.id, c.id);
 
-    const stored = await db.query.clientCollectionConnection.findFirst({
+    const stored = await db.query.consumerCollectionConnection.findFirst({
       where: and(
-        eq(clientCollectionConnection.accountId, a.id),
-        eq(clientCollectionConnection.clientId, cl.id),
-        eq(clientCollectionConnection.collectionId, c.id)
+        eq(consumerCollectionConnection.accountId, a.id),
+        eq(consumerCollectionConnection.consumerId, cl.id),
+        eq(consumerCollectionConnection.collectionId, c.id)
       ),
     });
     expect(cc).toEqual({
       accountId: a.id,
-      clientId: cl.id,
+      consumerId: cl.id,
       collectionId: c.id,
       lastItemChanged: null,
       lastFetch: null,
@@ -113,17 +113,17 @@ describe("createClientCollectionConnection()", () => {
   });
 });
 
-describe("getCollectionsForClient()", async () => {
-  it("should return the collections for a client", async () => {
+describe("getCollectionsForConsumer()", async () => {
+  it("should return the collections for a consumer", async () => {
     const s = await createSource(a.id, "test", {
       type: "notion",
       key: Buffer.from("test", "base64url"),
     });
     const c = await createCollection(a.id, s.id, "test");
-    const cl = await createClient(a.id, "test");
-    const cc = await createClientCollectionConnection(a.id, cl.id, c.id);
+    const cl = await createConsumer(a.id, "test");
+    const cc = await createConsumerCollectionConnection(a.id, cl.id, c.id);
 
-    const collections = await getCollectionsForClient(a.id, cl.id);
+    const collections = await getCollectionsForConsumer(a.id, cl.id);
 
     expect(collections).toEqual([{ ...cc, collection: c }]);
   });

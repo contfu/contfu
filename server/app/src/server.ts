@@ -7,8 +7,8 @@ import {
 } from "@contfu/core";
 import Elysia from "elysia";
 import { Subscription, isObservable } from "rxjs";
-import { authenticateClient } from "./access/access-repository";
-import { subscribeClientToCollections } from "./data/data-service";
+import { authenticateConsumer } from "./access/access-repository";
+import { subscribeConsumerToCollections } from "./data/data-service";
 
 class CommandError extends Error {
   constructor(readonly code: "E_AUTH" | "E_CONFLICT", message?: string) {
@@ -49,13 +49,13 @@ function handleWsMessage(cmd: Command, wsId: string) {
 }
 
 async function connect(key: Buffer, wsId: string) {
-  const client = await authenticateClient(key);
+  const client = await authenticateConsumer(key);
   if (!client) return new CommandError("E_AUTH");
   if (client.connectedTo != null || subs.has(wsId))
     return new CommandError("E_CONFLICT");
   console.debug("client connected", client.accountId, client.id);
 
-  return subscribeClientToCollections(client);
+  return subscribeConsumerToCollections(client);
 }
 
 const subs = new Map<string, Subscription>();

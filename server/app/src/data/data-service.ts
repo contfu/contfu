@@ -5,12 +5,15 @@ import {
   NotionCollectionConfig,
 } from "@contfu/core";
 import { map, merge } from "rxjs";
-import { Client } from "../access/db/access-schema";
-import { buildSource } from "../sources/source";
-import { connectClient, getSourcesByIds } from "./data-repository";
+import { DbConsumer } from "../access/db/access-schema";
+import { buildSource } from "../sync/source";
+import { connectConsumer, getSourcesByIds } from "./data-repository";
 
-export async function subscribeClientToCollections({ id, accountId }: Client) {
-  const connections = await connectClient({ id, accountId });
+export async function subscribeConsumerToCollections({
+  id,
+  accountId,
+}: DbConsumer) {
+  const connections = await connectConsumer({ id, accountId });
   const collections = connections.map((c) => c.collection);
   const sourceList = await getSourcesByIds(accountId, [
     ...new Set(collections.map((c) => c.sourceId)),

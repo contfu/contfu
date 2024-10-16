@@ -11,7 +11,7 @@ import {
   timestamp,
   unique,
 } from "drizzle-orm/pg-core";
-import { account, client } from "../../access/db/access-schema";
+import { account, consumer } from "../../access/db/access-schema";
 import { bytea } from "../../core/db/db-types";
 
 export const dataSchema = pgSchema("data");
@@ -79,34 +79,34 @@ export const collection = dataSchema.table(
 
 export type Collection = typeof collection.$inferSelect;
 
-/** The connection of the client to the collection. */
-export const clientCollectionConnection = dataSchema.table(
-  "client_collection_connection",
+/** The connection of the consumer to the collection. */
+export const consumerCollectionConnection = dataSchema.table(
+  "consumer_collection_connection",
   {
-    /** The account which owns the collection and client. */
+    /** The account which owns the collection and consumer. */
     accountId: integer()
       .references(() => account.id, { onDelete: "cascade" })
       .notNull(),
-    /** The client. */
-    clientId: smallint().notNull(),
-    /** The collection which the client is connected to. */
+    /** The consumer id. */
+    consumerId: smallint().notNull(),
+    /** The collection which the consumer is connected to. */
     collectionId: smallint().notNull(),
-    /** The most recent item change that was received by the client. */
+    /** The most recent item change that was received by the consumer. */
     lastItemChanged: timestamp(),
     /** The date the collection was last fetched. */
     lastFetch: timestamp(),
     /** The date the collection was last checked for deleted or changed items. */
     lastConsistencyCheck: timestamp(),
-    /** The item ids of the collection that are expected to have been stored in the client. The ids are 4 bytes long. */
+    /** The item ids of the collection that are expected to have been stored in the consumer. The ids are 4 bytes long. */
     ids: bytea(),
   },
   (table) => ({
     pk: primaryKey({
-      columns: [table.accountId, table.clientId, table.collectionId],
+      columns: [table.accountId, table.consumerId, table.collectionId],
     }),
-    clientFk: foreignKey({
-      columns: [table.accountId, table.clientId],
-      foreignColumns: [client.accountId, client.id],
+    consumerFk: foreignKey({
+      columns: [table.accountId, table.consumerId],
+      foreignColumns: [consumer.accountId, consumer.id],
     }).onDelete("cascade"),
     collectionFk: foreignKey({
       columns: [table.accountId, table.collectionId],
@@ -115,21 +115,21 @@ export const clientCollectionConnection = dataSchema.table(
   })
 );
 
-export type ClientCollectionConnection =
-  typeof clientCollectionConnection.$inferSelect;
+export type ConsumerCollectionConnection =
+  typeof consumerCollectionConnection.$inferSelect;
 
 // Define relations
 export const collectionRelations = relations(collection, ({ many }) => ({
-  clientCollectionConnections: many(clientCollectionConnection),
+  consumerCollectionConnections: many(consumerCollectionConnection),
 }));
 
-export const clientCollectionConnectionRelations = relations(
-  clientCollectionConnection,
+export const consumerCollectionConnectionRelations = relations(
+  consumerCollectionConnection,
   ({ one }) => ({
     collection: one(collection, {
       fields: [
-        clientCollectionConnection.accountId,
-        clientCollectionConnection.collectionId,
+        consumerCollectionConnection.accountId,
+        consumerCollectionConnection.collectionId,
       ],
       references: [collection.accountId, collection.id],
     }),

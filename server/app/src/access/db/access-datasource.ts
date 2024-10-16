@@ -1,16 +1,17 @@
 import { and, eq, sql } from "drizzle-orm";
 import { withSchema } from "../../core/db";
-import { account, Client, client, Quota, quota } from "./access-schema";
+import { account, consumer, DbConsumer, DbQuota, quota } from "./access-schema";
 
-const db = withSchema({ account, client, quota });
+const db = withSchema({ account, consumer, quota });
 
 export type QuotaLimits = Pick<
-  Quota,
+  DbQuota,
   "maxSources" | "maxCollections" | "maxItems" | "maxClients"
 >;
 
-export async function authenticateClient(key: Buffer) {
-  const c = await db.query.client.findFirst({ where: eq(client.key, key) });
+export async function authenticateConsumer(key: Buffer) {
+  if (key.length !== 24) return null;
+  const c = await db.query.consumer.findFirst({ where: eq(consumer.key, key) });
   return c ?? null;
 }
 
@@ -42,37 +43,40 @@ export async function createQuota(accountId: number, limits: QuotaLimits) {
   )[0];
 }
 
-export async function createClient(accountId: number, name?: string) {
-  const nextId = sql`(
-    SELECT COALESCE(MAX(${client.id}), 0) + 1
-    FROM ${client}
-    WHERE ${client.accountId} = ${accountId}
+export async function createConsumer(
+  accountId: number,
+  name: string,
+  internal?: boolean
+) {
+  const id = sql`(
+    SELECT COALESCE(MAX(${consumer.id}), 0) + 1
+    FROM ${consumer}
+    WHERE ${consumer.accountId} = ${accountId}
   )`;
-  const key = await generateAccessKey(
-    24,
-    async (key) =>
-      !!(await db.query.client.findFirst({
-        where: eq(client.key, key),
-      }))
-  );
+  const key = internal
+    ? null
+    : await generateAccessKey(
+        24,
+        async (key) =>
+          !!(await db.query.consumer.findFirst({
+            where: eq(consumer.key, key),
+          }))
+      );
   return (
-    await db
-      .insert(client)
-      .values({ accountId, name, id: nextId, key })
-      .returning()
+    await db.insert(consumer).values({ accountId, name, id, key }).returning()
   )[0];
 }
 
-export async function updateClient({
+export async function updateConsumer({
   accountId,
   id,
   ...c
-}: Pick<Client, "id" | "accountId"> &
-  Partial<Pick<Client, "key" | "name" | "connectedTo">>) {
+}: Pick<DbConsumer, "id" | "accountId"> &
+  Partial<Pick<DbConsumer, "key" | "name" | "connectedTo">>) {
   await db
-    .update(client)
+    .update(consumer)
     .set(c)
-    .where(and(eq(client.id, id), eq(client.accountId, accountId)));
+    .where(and(eq(consumer.id, id), eq(consumer.accountId, accountId)));
 }
 
 async function generateAccessKey(

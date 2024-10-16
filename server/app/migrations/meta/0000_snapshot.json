@@ -1,5 +1,5 @@
 {
-  "id": "40cd88b3-060e-4f2e-aa95-1e29f0a26b61",
+  "id": "9cfd2626-8b6b-4433-be90-1a703a10ac55",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -53,8 +53,8 @@
         }
       }
     },
-    "access.client": {
-      "name": "client",
+    "access.consumer": {
+      "name": "consumer",
       "schema": "access",
       "columns": {
         "accountId": {
@@ -73,13 +73,13 @@
           "name": "key",
           "type": "bytea",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "name": {
           "name": "name",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "connectedTo": {
           "name": "connectedTo",
@@ -97,9 +97,9 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "client_accountId_account_id_fk": {
-          "name": "client_accountId_account_id_fk",
-          "tableFrom": "client",
+        "consumer_accountId_account_id_fk": {
+          "name": "consumer_accountId_account_id_fk",
+          "tableFrom": "consumer",
           "tableTo": "account",
           "schemaTo": "access",
           "columnsFrom": [
@@ -113,8 +113,8 @@
         }
       },
       "compositePrimaryKeys": {
-        "client_accountId_id_pk": {
-          "name": "client_accountId_id_pk",
+        "consumer_accountId_id_pk": {
+          "name": "consumer_accountId_id_pk",
           "columns": [
             "accountId",
             "id"
@@ -122,8 +122,8 @@
         }
       },
       "uniqueConstraints": {
-        "client_key_unique": {
-          "name": "client_key_unique",
+        "consumer_key_unique": {
+          "name": "consumer_key_unique",
           "nullsNotDistinct": false,
           "columns": [
             "key"
@@ -208,114 +208,6 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
-    },
-    "data.client_collection_connection": {
-      "name": "client_collection_connection",
-      "schema": "data",
-      "columns": {
-        "accountId": {
-          "name": "accountId",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "clientId": {
-          "name": "clientId",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "collectionId": {
-          "name": "collectionId",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "lastItemChanged": {
-          "name": "lastItemChanged",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "lastFetch": {
-          "name": "lastFetch",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "lastConsistencyCheck": {
-          "name": "lastConsistencyCheck",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "ids": {
-          "name": "ids",
-          "type": "bytea",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "client_collection_connection_accountId_account_id_fk": {
-          "name": "client_collection_connection_accountId_account_id_fk",
-          "tableFrom": "client_collection_connection",
-          "tableTo": "account",
-          "schemaTo": "access",
-          "columnsFrom": [
-            "accountId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "client_collection_connection_accountId_clientId_client_accountId_id_fk": {
-          "name": "client_collection_connection_accountId_clientId_client_accountId_id_fk",
-          "tableFrom": "client_collection_connection",
-          "tableTo": "client",
-          "schemaTo": "access",
-          "columnsFrom": [
-            "accountId",
-            "clientId"
-          ],
-          "columnsTo": [
-            "accountId",
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "client_collection_connection_accountId_collectionId_collection_accountId_id_fk": {
-          "name": "client_collection_connection_accountId_collectionId_collection_accountId_id_fk",
-          "tableFrom": "client_collection_connection",
-          "tableTo": "collection",
-          "schemaTo": "data",
-          "columnsFrom": [
-            "accountId",
-            "collectionId"
-          ],
-          "columnsTo": [
-            "accountId",
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "client_collection_connection_accountId_clientId_collectionId_pk": {
-          "name": "client_collection_connection_accountId_clientId_collectionId_pk",
-          "columns": [
-            "accountId",
-            "clientId",
-            "collectionId"
-          ]
-        }
-      },
       "uniqueConstraints": {}
     },
     "data.collection": {
@@ -405,6 +297,114 @@
           "columns": [
             "accountId",
             "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {}
+    },
+    "data.consumer_collection_connection": {
+      "name": "consumer_collection_connection",
+      "schema": "data",
+      "columns": {
+        "accountId": {
+          "name": "accountId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "consumerId": {
+          "name": "consumerId",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "collectionId": {
+          "name": "collectionId",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "lastItemChanged": {
+          "name": "lastItemChanged",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "lastFetch": {
+          "name": "lastFetch",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "lastConsistencyCheck": {
+          "name": "lastConsistencyCheck",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ids": {
+          "name": "ids",
+          "type": "bytea",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "consumer_collection_connection_accountId_account_id_fk": {
+          "name": "consumer_collection_connection_accountId_account_id_fk",
+          "tableFrom": "consumer_collection_connection",
+          "tableTo": "account",
+          "schemaTo": "access",
+          "columnsFrom": [
+            "accountId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "consumer_collection_connection_accountId_consumerId_consumer_accountId_id_fk": {
+          "name": "consumer_collection_connection_accountId_consumerId_consumer_accountId_id_fk",
+          "tableFrom": "consumer_collection_connection",
+          "tableTo": "consumer",
+          "schemaTo": "access",
+          "columnsFrom": [
+            "accountId",
+            "consumerId"
+          ],
+          "columnsTo": [
+            "accountId",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "consumer_collection_connection_accountId_collectionId_collection_accountId_id_fk": {
+          "name": "consumer_collection_connection_accountId_collectionId_collection_accountId_id_fk",
+          "tableFrom": "consumer_collection_connection",
+          "tableTo": "collection",
+          "schemaTo": "data",
+          "columnsFrom": [
+            "accountId",
+            "collectionId"
+          ],
+          "columnsTo": [
+            "accountId",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "consumer_collection_connection_accountId_consumerId_collectionId_pk": {
+          "name": "consumer_collection_connection_accountId_consumerId_collectionId_pk",
+          "columns": [
+            "accountId",
+            "consumerId",
+            "collectionId"
           ]
         }
       },

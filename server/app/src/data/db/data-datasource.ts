@@ -2,20 +2,20 @@ import { SourceConfig } from "@contfu/core";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { withSchema } from "../../core/db";
 import {
-  clientCollectionConnection,
-  clientCollectionConnectionRelations,
   collection,
   collectionRelations,
+  consumerCollectionConnection,
+  consumerCollectionConnectionRelations,
   itemIdConflictResolution,
   source,
 } from "./data-schema";
 const db = withSchema({
   source,
   collection,
-  clientCollectionConnection,
+  consumerCollectionConnection,
   itemIdConflictResolution,
   collectionRelations,
-  clientCollectionConnectionRelations,
+  consumerCollectionConnectionRelations,
 });
 
 export async function createSource(
@@ -68,17 +68,17 @@ export async function createCollection(
   )[0];
 }
 
-export async function createClientCollectionConnection(
+export async function createConsumerCollectionConnection(
   accountId: number,
-  clientId: number,
+  consumerId: number,
   collectionId: number
 ) {
   return (
     await db
-      .insert(clientCollectionConnection)
+      .insert(consumerCollectionConnection)
       .values({
         accountId,
-        clientId,
+        consumerId,
         collectionId,
         ids: Buffer.from([]),
       })
@@ -86,14 +86,14 @@ export async function createClientCollectionConnection(
   )[0];
 }
 
-export async function getCollectionsForClient(
+export async function getCollectionsForConsumer(
   accountId: number,
-  clientId: number
+  consumerId: number
 ) {
-  return db.query.clientCollectionConnection.findMany({
+  return db.query.consumerCollectionConnection.findMany({
     where: and(
-      eq(clientCollectionConnection.accountId, accountId),
-      eq(clientCollectionConnection.clientId, clientId)
+      eq(consumerCollectionConnection.accountId, accountId),
+      eq(consumerCollectionConnection.consumerId, consumerId)
     ),
     with: {
       collection: true,

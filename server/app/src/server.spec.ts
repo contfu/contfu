@@ -10,10 +10,10 @@ import {
 } from "bun:test";
 import Elysia from "elysia";
 import { mockClient } from "../test/mocks/notion";
-import { createAccount, createClient } from "./access/access-repository";
-import { Account, Client } from "./access/db/access-schema";
+import { createAccount, createConsumer } from "./access/access-repository";
+import { DbAccount, DbConsumer } from "./access/db/access-schema";
 import {
-  connectClientToCollection,
+  connectConsumerToCollection,
   createCollection,
   createSource,
 } from "./data/data-repository";
@@ -31,8 +31,8 @@ const key = "testkey";
 
 describe("connect via WS", () => {
   let server: Elysia;
-  let acc: Account;
-  let cl: Client;
+  let acc: DbAccount;
+  let cl: DbConsumer;
 
   beforeAll(async () => {
     server = app.listen(9999);
@@ -40,7 +40,7 @@ describe("connect via WS", () => {
 
   beforeEach(async () => {
     acc = await createAccount("test@test.com");
-    cl = await createClient(acc.id, "test");
+    cl = await createConsumer(acc.id, "test");
     const src = await createSource(acc.id, "notion-test", {
       key: Buffer.from("abc", "base64url"),
       type: "notion",
@@ -49,7 +49,7 @@ describe("connect via WS", () => {
       dbId: Buffer.from("5b1060c74333c08d5721554550aae735", "hex"),
       content: "Content",
     });
-    await connectClientToCollection(acc.id, cl.id, coll.id);
+    await connectConsumerToCollection(acc.id, cl.id, coll.id);
   });
 
   afterAll(async () => {

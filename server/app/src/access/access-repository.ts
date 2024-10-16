@@ -1,6 +1,6 @@
 import * as ds from "./db/access-datasource";
 
-export { authenticateClient } from "./db/access-datasource";
+export { authenticateConsumer, createConsumer } from "./db/access-datasource";
 
 export async function createAccount(email: string) {
   return ds.createAccount(
@@ -13,8 +13,4 @@ export async function createAccount(email: string) {
     },
     new Date(Date.now() + 1000 * 60 * 60 * 24 * 365 * 10)
   );
-}
-
-export async function createClient(accountId: number, name?: string) {
-  return ds.createClient(accountId, name);
 }
