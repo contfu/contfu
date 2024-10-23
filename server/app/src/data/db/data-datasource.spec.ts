@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it } from "bun:test";
 import { and, eq } from "drizzle-orm";
 import { createAccount, createConsumer } from "../../access/access-repository";
 import { consumer, DbAccount, DbConsumer } from "../../access/db/access-schema";
-import { withSchema } from "../../core/db";
+import { withSchema } from "../../core/db/db";
+import { SourceType } from "../data";
 import {
   countConnectionsForConsumer,
   createCollection,
@@ -37,7 +38,7 @@ beforeEach(async () => {
 describe("createSource()", () => {
   it("should create a source in the database and return it", async () => {
     const s = await createSource(a.id, {
-      type: "notion",
+      type: SourceType.NOTION,
       name: "test",
       credentials: Buffer.from("test", "base64url"),
     });
@@ -49,7 +50,7 @@ describe("createSource()", () => {
       id: s.id,
       accountId: a.id,
       name: "test",
-      type: "notion",
+      type: SourceType.NOTION,
       credentials: Buffer.from("test", "base64url"),
       url: null,
       createdAt: expect.any(Date),
@@ -62,7 +63,7 @@ describe("createSource()", () => {
 describe("createCollection()", () => {
   it("should create a collection in the database and return it", async () => {
     const s = await createSource(a.id, {
-      type: "notion",
+      type: SourceType.NOTION,
       name: "test",
       credentials: Buffer.from("test", "base64url"),
     });
@@ -89,7 +90,7 @@ describe("createCollection()", () => {
 describe("createConnection()", () => {
   it("should create a consumer collection connection in the database", async () => {
     const s = await createSource(a.id, {
-      type: "notion",
+      type: SourceType.NOTION,
       name: "test",
       credentials: Buffer.from("test", "base64url"),
     });
@@ -119,7 +120,7 @@ describe("createConnection()", () => {
 describe("countConnectionsForConsumer()", async () => {
   it("should return the count of connections for a consumer", async () => {
     const s = await createSource(a.id, {
-      type: "notion",
+      type: SourceType.NOTION,
       name: "test",
       credentials: Buffer.from("test", "base64url"),
     });
@@ -140,7 +141,7 @@ describe("countConnectionsForConsumer()", async () => {
 describe("createItemIdConflictResolution()", () => {
   it("should create a item id conflict resolution in the database", async () => {
     const s = await createSource(a.id, {
-      type: "notion",
+      type: SourceType.NOTION,
       name: "test",
       credentials: Buffer.from("test", "base64url"),
     });
@@ -163,7 +164,7 @@ describe("createItemIdConflictResolution()", () => {
 describe("getItemId()", () => {
   it("should return the item id if it is in the conflict resolution table", async () => {
     const s = await createSource(a.id, {
-      type: "notion",
+      type: SourceType.NOTION,
       name: "test",
       credentials: Buffer.from("test", "base64url"),
     });
@@ -177,7 +178,7 @@ describe("getItemId()", () => {
 
   it("should return the item id derived from the last 4 bytes of the source item id if it is not in the conflict resolution table", async () => {
     const s = await createSource(a.id, {
-      type: "notion",
+      type: SourceType.NOTION,
       name: "test",
       credentials: Buffer.from("test", "base64url"),
     });

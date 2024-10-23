@@ -1,37 +1,35 @@
+import { sql } from "drizzle-orm";
 import {
   integer,
-  pgSchema,
   primaryKey,
-  serial,
-  smallint,
+  sqliteTable,
   text,
-  timestamp,
-} from "drizzle-orm/pg-core";
-import { bytea } from "../../core/db/db-types";
+} from "drizzle-orm/sqlite-core";
+import { buffer } from "../../core/db/custom-types";
 
-export const accessSchema = pgSchema("access");
-
-export const account = accessSchema.table("account", {
+export const account = sqliteTable("account", {
   /** The id of the account. */
-  id: serial().primaryKey(),
+  id: integer().primaryKey({ autoIncrement: true }),
   /** The email of the account. */
   email: text().unique().notNull(),
   /**
    * The time the account is active. If it is in the past, the account is inactive.
    * If it is null, the account is active forever.
    */
-  activeUntil: timestamp(),
+  activeUntil: integer({ mode: "timestamp" }),
   /** The time the account was created. */
-  createdAt: timestamp().defaultNow().notNull(),
+  createdAt: integer({ mode: "timestamp" })
+    .default(sql`(unixepoch())`)
+    .notNull(),
   /** The time the account was updated. */
-  updatedAt: timestamp(),
+  updatedAt: integer({ mode: "timestamp" }),
 });
 
 export type DbAccount = typeof account.$inferSelect;
 
-export const quota = accessSchema.table("quota", {
+export const quota = sqliteTable("quota", {
   /** The account id that the quota belongs to. */
-  id: serial()
+  id: integer()
     .primaryKey()
     .references(() => account.id, { onDelete: "cascade" }),
   /** The number of sources. */
@@ -54,7 +52,7 @@ export const quota = accessSchema.table("quota", {
 
 export type DbQuota = typeof quota.$inferSelect;
 
-export const consumer = accessSchema.table(
+export const consumer = sqliteTable(
   "consumer",
   {
     /** The account id that the consumer belongs to. */
@@ -62,15 +60,17 @@ export const consumer = accessSchema.table(
       .notNull()
       .references(() => account.id, { onDelete: "cascade" }),
     /** The id of the consumer. */
-    id: smallint().notNull(),
+    id: integer().notNull(),
     /** The key of the consumer. If null, the consumer is internal. */
-    key: bytea().unique(),
+    key: buffer().unique(),
     /** The name of the consumer. */
     name: text().notNull(),
     /** The server id that the consumer is connected to. */
-    connectedTo: smallint(),
+    connectedTo: integer(),
     /** The time the consumer was created. */
-    createdAt: timestamp().defaultNow().notNull(),
+    createdAt: integer({ mode: "timestamp" })
+      .default(sql`(unixepoch())`)
+      .notNull(),
   },
   (t) => ({
     pk: primaryKey({ columns: [t.accountId, t.id] }),

@@ -1,24 +1,15 @@
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
   foreignKey,
   integer,
-  pgEnum,
-  pgSchema,
   primaryKey,
-  smallint,
+  sqliteTable,
   text,
-  timestamp,
-} from "drizzle-orm/pg-core";
+} from "drizzle-orm/sqlite-core";
 import { account, consumer } from "../../access/db/access-schema";
-import { bytea } from "../../core/db/db-types";
+import { buffer } from "../../core/db/custom-types";
 
-export const dataSchema = pgSchema("data");
-
-export const sourceType = pgEnum("source_type", ["notion"]);
-
-export type DbSourceType = (typeof sourceType.enumValues)[number];
-
-export const source = dataSchema.table(
+export const source = sqliteTable(
   "source",
   {
     /** The account which owns the source. */
@@ -26,26 +17,28 @@ export const source = dataSchema.table(
       .references(() => account.id, { onDelete: "cascade" })
       .notNull(),
     /** The id which is unique within the account. */
-    id: smallint().notNull(),
+    id: integer().notNull(),
     /** The name of the source. */
     name: text(),
     /** The url of the upstream source. Can be empty, if it is a centralized SaaS source. */
     url: text(),
     /** An api key or other credentials for the source. Used to fetch data from the upstream source. */
-    credentials: bytea(),
+    credentials: buffer(),
     /** The type of the source. */
-    type: sourceType().notNull(),
+    type: integer().notNull(),
     /** The date the source was created. */
-    createdAt: timestamp().defaultNow().notNull(),
+    createdAt: integer({ mode: "timestamp" })
+      .default(sql`(unixepoch())`)
+      .notNull(),
     /** The date the source was updated. */
-    updatedAt: timestamp(),
+    updatedAt: integer({ mode: "timestamp" }),
   },
   (table) => ({ pk: primaryKey({ columns: [table.accountId, table.id] }) })
 );
 
 export type DbSource = typeof source.$inferSelect;
 
-export const collection = dataSchema.table(
+export const collection = sqliteTable(
   "collection",
   {
     /** The account which owns the collection. */
@@ -53,22 +46,24 @@ export const collection = dataSchema.table(
       .references(() => account.id, { onDelete: "cascade" })
       .notNull(),
     /** The source which the collection is connected to. */
-    sourceId: smallint().notNull(),
+    sourceId: integer().notNull(),
     /** The id which is unique within the account. */
-    id: smallint().notNull(),
+    id: integer().notNull(),
     /** The name of the collection. */
     name: text().notNull(),
     /** The reference to the upstream collection within the source. */
-    ref: bytea(),
+    ref: buffer(),
     /**
      * The item ids that are expected to have been received for this collection.
      * The ids are 4 bytes long.
      **/
-    itemIds: bytea(),
+    itemIds: buffer(),
     /** The date the collection was created. */
-    createdAt: timestamp().defaultNow().notNull(),
+    createdAt: integer({ mode: "timestamp" })
+      .default(sql`(unixepoch())`)
+      .notNull(),
     /** The date the collection was updated. */
-    updatedAt: timestamp(),
+    updatedAt: integer({ mode: "timestamp" }),
   },
   (table) => ({
     pk: primaryKey({ columns: [table.accountId, table.id] }),
@@ -82,7 +77,7 @@ export const collection = dataSchema.table(
 export type DbCollection = typeof collection.$inferSelect;
 
 /** The connection of the consumer to the collection. */
-export const connection = dataSchema.table(
+export const connection = sqliteTable(
   "connection",
   {
     /** The account which owns the collection and consumer. */
@@ -90,13 +85,13 @@ export const connection = dataSchema.table(
       .references(() => account.id, { onDelete: "cascade" })
       .notNull(),
     /** The consumer id. */
-    consumerId: smallint().notNull(),
+    consumerId: integer().notNull(),
     /** The collection which the consumer is connected to. */
-    collectionId: smallint().notNull(),
+    collectionId: integer().notNull(),
     /** The most recent item change that was received by the consumer. */
-    lastItemChanged: timestamp(),
+    lastItemChanged: integer({ mode: "timestamp" }),
     /** The date the collection was last checked for deleted items. */
-    lastConsistencyCheck: timestamp(),
+    lastConsistencyCheck: integer({ mode: "timestamp" }),
   },
   (table) => ({
     pk: primaryKey({
@@ -135,7 +130,7 @@ export const consumerCollectionConnectionRelations = relations(
 );
 
 /** Mappings of ids from the source to the collection. This is used in case that there are collisions in the integer id space. */
-export const itemIdConflictResolution = dataSchema.table(
+export const itemIdConflictResolution = sqliteTable(
   "item_id_conflict_resolution",
   {
     /** The account which owns the id mapping. */
@@ -143,9 +138,9 @@ export const itemIdConflictResolution = dataSchema.table(
       .references(() => account.id, { onDelete: "cascade" })
       .notNull(),
     /** The collection which the id mapping is connected to. */
-    collectionId: smallint().notNull(),
+    collectionId: integer().notNull(),
     /** The id which is unique within the source collection. */
-    sourceItemId: bytea().notNull(),
+    sourceItemId: buffer().notNull(),
     /** The 4 byte id which is unique within the collection. */
     id: integer().notNull(),
   },

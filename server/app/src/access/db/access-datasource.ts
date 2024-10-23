@@ -1,5 +1,5 @@
 import { and, eq, sql } from "drizzle-orm";
-import { withSchema } from "../../core/db";
+import { withSchema } from "../../core/db/db";
 import { account, consumer, DbConsumer, DbQuota, quota } from "./access-schema";
 
 const db = withSchema({ account, consumer, quota });

@@ -1,5 +1,5 @@
+import { SourceType } from "../data/data";
 import { ItemEventExtended } from "./events";
-import { SourceType } from "./sync";
 
 export interface CollectionFetchOpts {
   type: SourceType;

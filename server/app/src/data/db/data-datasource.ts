@@ -1,11 +1,11 @@
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
-import { withSchema } from "../../core/db";
+import { withSchema } from "../../core/db/db";
+import { SourceType } from "../data";
 import {
   collection,
   collectionRelations,
   connection,
   consumerCollectionConnectionRelations,
-  DbSourceType,
   itemIdConflictResolution,
   source,
 } from "./data-schema";
@@ -27,7 +27,7 @@ export async function createSource(
     credentials,
   }: {
     name?: string;
-    type: DbSourceType;
+    type: SourceType;
     url?: string;
     credentials?: Buffer;
   }

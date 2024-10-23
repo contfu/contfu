@@ -1,107 +1,123 @@
 {
-  "id": "9230b158-31a0-4079-9887-ad771384f1cc",
+  "version": "6",
+  "dialect": "sqlite",
+  "id": "75883a35-665c-4d8d-b217-7fccdf91522b",
   "prevId": "00000000-0000-0000-0000-000000000000",
-  "version": "7",
-  "dialect": "postgresql",
   "tables": {
-    "access.account": {
+    "account": {
       "name": "account",
-      "schema": "access",
       "columns": {
         "id": {
           "name": "id",
-          "type": "serial",
+          "type": "integer",
           "primaryKey": true,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": true
         },
         "email": {
           "name": "email",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "activeUntil": {
           "name": "activeUntil",
-          "type": "timestamp",
+          "type": "integer",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "createdAt": {
           "name": "createdAt",
-          "type": "timestamp",
+          "type": "integer",
           "primaryKey": false,
           "notNull": true,
-          "default": "now()"
+          "autoincrement": false,
+          "default": "(unixepoch())"
         },
         "updatedAt": {
           "name": "updatedAt",
-          "type": "timestamp",
+          "type": "integer",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         }
       },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
+      "indexes": {
         "account_email_unique": {
           "name": "account_email_unique",
-          "nullsNotDistinct": false,
           "columns": [
             "email"
-          ]
+          ],
+          "isUnique": true
         }
-      }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
     },
-    "access.consumer": {
+    "consumer": {
       "name": "consumer",
-      "schema": "access",
       "columns": {
         "accountId": {
           "name": "accountId",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "id": {
           "name": "id",
-          "type": "smallint",
+          "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "key": {
           "name": "key",
-          "type": "bytea",
+          "type": "blob",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "name": {
           "name": "name",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "connectedTo": {
           "name": "connectedTo",
-          "type": "smallint",
+          "type": "integer",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "createdAt": {
           "name": "createdAt",
-          "type": "timestamp",
+          "type": "integer",
           "primaryKey": false,
           "notNull": true,
-          "default": "now()"
+          "autoincrement": false,
+          "default": "(unixepoch())"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "consumer_key_unique": {
+          "name": "consumer_key_unique",
+          "columns": [
+            "key"
+          ],
+          "isUnique": true
+        }
+      },
       "foreignKeys": {
         "consumer_accountId_account_id_fk": {
           "name": "consumer_accountId_account_id_fk",
           "tableFrom": "consumer",
           "tableTo": "account",
-          "schemaTo": "access",
           "columnsFrom": [
             "accountId"
           ],
@@ -114,80 +130,80 @@
       },
       "compositePrimaryKeys": {
         "consumer_accountId_id_pk": {
-          "name": "consumer_accountId_id_pk",
           "columns": [
             "accountId",
             "id"
-          ]
+          ],
+          "name": "consumer_accountId_id_pk"
         }
       },
-      "uniqueConstraints": {
-        "consumer_key_unique": {
-          "name": "consumer_key_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "key"
-          ]
-        }
-      }
+      "uniqueConstraints": {}
     },
-    "access.quota": {
+    "quota": {
       "name": "quota",
-      "schema": "access",
       "columns": {
         "id": {
           "name": "id",
-          "type": "serial",
+          "type": "integer",
           "primaryKey": true,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "sources": {
           "name": "sources",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "maxSources": {
           "name": "maxSources",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "collections": {
           "name": "collections",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "maxCollections": {
           "name": "maxCollections",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "items": {
           "name": "items",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "maxItems": {
           "name": "maxItems",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "clients": {
           "name": "clients",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "maxClients": {
           "name": "maxClients",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         }
       },
       "indexes": {},
@@ -196,7 +212,6 @@
           "name": "quota_id_account_id_fk",
           "tableFrom": "quota",
           "tableTo": "account",
-          "schemaTo": "access",
           "columnsFrom": [
             "id"
           ],
@@ -210,58 +225,65 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     },
-    "data.collection": {
+    "collection": {
       "name": "collection",
-      "schema": "data",
       "columns": {
         "accountId": {
           "name": "accountId",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "sourceId": {
           "name": "sourceId",
-          "type": "smallint",
+          "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "id": {
           "name": "id",
-          "type": "smallint",
+          "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "name": {
           "name": "name",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "ref": {
           "name": "ref",
-          "type": "bytea",
+          "type": "blob",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "itemIds": {
           "name": "itemIds",
-          "type": "bytea",
+          "type": "blob",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "createdAt": {
           "name": "createdAt",
-          "type": "timestamp",
+          "type": "integer",
           "primaryKey": false,
           "notNull": true,
-          "default": "now()"
+          "autoincrement": false,
+          "default": "(unixepoch())"
         },
         "updatedAt": {
           "name": "updatedAt",
-          "type": "timestamp",
+          "type": "integer",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         }
       },
       "indexes": {},
@@ -270,7 +292,6 @@
           "name": "collection_accountId_account_id_fk",
           "tableFrom": "collection",
           "tableTo": "account",
-          "schemaTo": "access",
           "columnsFrom": [
             "accountId"
           ],
@@ -284,7 +305,6 @@
           "name": "collection_accountId_sourceId_source_accountId_id_fk",
           "tableFrom": "collection",
           "tableTo": "source",
-          "schemaTo": "data",
           "columnsFrom": [
             "accountId",
             "sourceId"
@@ -299,48 +319,52 @@
       },
       "compositePrimaryKeys": {
         "collection_accountId_id_pk": {
-          "name": "collection_accountId_id_pk",
           "columns": [
             "accountId",
             "id"
-          ]
+          ],
+          "name": "collection_accountId_id_pk"
         }
       },
       "uniqueConstraints": {}
     },
-    "data.connection": {
+    "connection": {
       "name": "connection",
-      "schema": "data",
       "columns": {
         "accountId": {
           "name": "accountId",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "consumerId": {
           "name": "consumerId",
-          "type": "smallint",
+          "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "collectionId": {
           "name": "collectionId",
-          "type": "smallint",
+          "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "lastItemChanged": {
           "name": "lastItemChanged",
-          "type": "timestamp",
+          "type": "integer",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "lastConsistencyCheck": {
           "name": "lastConsistencyCheck",
-          "type": "timestamp",
+          "type": "integer",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         }
       },
       "indexes": {},
@@ -349,7 +373,6 @@
           "name": "connection_accountId_account_id_fk",
           "tableFrom": "connection",
           "tableTo": "account",
-          "schemaTo": "access",
           "columnsFrom": [
             "accountId"
           ],
@@ -363,7 +386,6 @@
           "name": "connection_accountId_consumerId_consumer_accountId_id_fk",
           "tableFrom": "connection",
           "tableTo": "consumer",
-          "schemaTo": "access",
           "columnsFrom": [
             "accountId",
             "consumerId"
@@ -379,7 +401,6 @@
           "name": "connection_accountId_collectionId_collection_accountId_id_fk",
           "tableFrom": "connection",
           "tableTo": "collection",
-          "schemaTo": "data",
           "columnsFrom": [
             "accountId",
             "collectionId"
@@ -394,43 +415,46 @@
       },
       "compositePrimaryKeys": {
         "connection_accountId_consumerId_collectionId_pk": {
-          "name": "connection_accountId_consumerId_collectionId_pk",
           "columns": [
             "accountId",
             "consumerId",
             "collectionId"
-          ]
+          ],
+          "name": "connection_accountId_consumerId_collectionId_pk"
         }
       },
       "uniqueConstraints": {}
     },
-    "data.item_id_conflict_resolution": {
+    "item_id_conflict_resolution": {
       "name": "item_id_conflict_resolution",
-      "schema": "data",
       "columns": {
         "accountId": {
           "name": "accountId",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "collectionId": {
           "name": "collectionId",
-          "type": "smallint",
+          "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "sourceItemId": {
           "name": "sourceItemId",
-          "type": "bytea",
+          "type": "blob",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "id": {
           "name": "id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         }
       },
       "indexes": {},
@@ -439,7 +463,6 @@
           "name": "item_id_conflict_resolution_accountId_account_id_fk",
           "tableFrom": "item_id_conflict_resolution",
           "tableTo": "account",
-          "schemaTo": "access",
           "columnsFrom": [
             "accountId"
           ],
@@ -453,7 +476,6 @@
           "name": "item_id_conflict_resolution_accountId_collectionId_collection_accountId_id_fk",
           "tableFrom": "item_id_conflict_resolution",
           "tableTo": "collection",
-          "schemaTo": "data",
           "columnsFrom": [
             "accountId",
             "collectionId"
@@ -468,69 +490,75 @@
       },
       "compositePrimaryKeys": {
         "item_id_conflict_resolution_accountId_collectionId_sourceItemId_pk": {
-          "name": "item_id_conflict_resolution_accountId_collectionId_sourceItemId_pk",
           "columns": [
             "accountId",
             "collectionId",
             "sourceItemId"
-          ]
+          ],
+          "name": "item_id_conflict_resolution_accountId_collectionId_sourceItemId_pk"
         }
       },
       "uniqueConstraints": {}
     },
-    "data.source": {
+    "source": {
       "name": "source",
-      "schema": "data",
       "columns": {
         "accountId": {
           "name": "accountId",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "id": {
           "name": "id",
-          "type": "smallint",
+          "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "name": {
           "name": "name",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "url": {
           "name": "url",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "credentials": {
           "name": "credentials",
-          "type": "bytea",
+          "type": "blob",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "type": {
           "name": "type",
-          "type": "source_type",
-          "typeSchema": "public",
+          "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "createdAt": {
           "name": "createdAt",
-          "type": "timestamp",
+          "type": "integer",
           "primaryKey": false,
           "notNull": true,
-          "default": "now()"
+          "autoincrement": false,
+          "default": "(unixepoch())"
         },
         "updatedAt": {
           "name": "updatedAt",
-          "type": "timestamp",
+          "type": "integer",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         }
       },
       "indexes": {},
@@ -539,7 +567,6 @@
           "name": "source_accountId_account_id_fk",
           "tableFrom": "source",
           "tableTo": "account",
-          "schemaTo": "access",
           "columnsFrom": [
             "accountId"
           ],
@@ -552,33 +579,23 @@
       },
       "compositePrimaryKeys": {
         "source_accountId_id_pk": {
-          "name": "source_accountId_id_pk",
           "columns": [
             "accountId",
             "id"
-          ]
+          ],
+          "name": "source_accountId_id_pk"
         }
       },
       "uniqueConstraints": {}
     }
   },
-  "enums": {
-    "public.source_type": {
-      "name": "source_type",
-      "schema": "public",
-      "values": [
-        "notion"
-      ]
-    }
-  },
-  "schemas": {
-    "access": "access",
-    "data": "data"
-  },
-  "sequences": {},
+  "enums": {},
   "_meta": {
-    "columns": {},
     "schemas": {},
-    "tables": {}
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
+    "indexes": {}
   }
 }

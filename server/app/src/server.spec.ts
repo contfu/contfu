@@ -12,6 +12,7 @@ import Elysia from "elysia";
 import { mockClient } from "../test/mocks/notion";
 import { createAccount, createConsumer } from "./access/access-repository";
 import { DbAccount, DbConsumer } from "./access/db/access-schema";
+import { SourceType } from "./data/data";
 import {
   connectConsumerToCollection,
   createCollection,
@@ -44,7 +45,7 @@ describe("connect via WS", () => {
     const src = await createSource(acc.id, {
       name: "notion-test",
       credentials: Buffer.from("abc", "base64url"),
-      type: "notion",
+      type: SourceType.NOTION,
     });
     const coll = await createCollection(
       acc.id,
