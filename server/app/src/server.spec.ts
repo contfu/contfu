@@ -25,7 +25,7 @@ import {
   emptyList,
   page1,
   tableContent,
-} from "./sources/notion/__fixtures__/notion-query-results";
+} from "./sync/notion/__fixtures__/notion-query-results";
 
 const key = "testkey";
 
@@ -41,14 +41,17 @@ describe("connect via WS", () => {
   beforeEach(async () => {
     acc = await createAccount("test@test.com");
     cl = await createConsumer(acc.id, "test");
-    const src = await createSource(acc.id, "notion-test", {
-      key: Buffer.from("abc", "base64url"),
+    const src = await createSource(acc.id, {
+      name: "notion-test",
+      credentials: Buffer.from("abc", "base64url"),
       type: "notion",
     });
-    const coll = await createCollection(acc.id, src.id, "test", {
-      dbId: Buffer.from("5b1060c74333c08d5721554550aae735", "hex"),
-      content: "Content",
-    });
+    const coll = await createCollection(
+      acc.id,
+      src.id,
+      "test",
+      Buffer.alloc(0)
+    );
     await connectConsumerToCollection(acc.id, cl.id, coll.id);
   });
 
@@ -79,18 +82,17 @@ describe("connect via WS", () => {
         Content: Block[];
         Slug?: string;
       };
-    }>(cl.key);
+    }>(cl.key!);
     const item1 = conn.next();
     const item2 = conn.next();
-    const item3 = conn.next();
 
+    // expect((await item1).value).toEqual({
+    //   type: EventType.LIST_IDS,
+    //   src: 1,
+    //   collection: 1,
+    //   ids: ["HJQ1JGsVQx2aOw-R-c400g", "xdXoCyiWRuCijuE_1I0eXQ"],
+    // });
     expect((await item1).value).toEqual({
-      type: EventType.LIST_IDS,
-      src: 1,
-      collection: 1,
-      ids: ["HJQ1JGsVQx2aOw-R-c400g", "xdXoCyiWRuCijuE_1I0eXQ"],
-    });
-    expect((await item2).value).toEqual({
       type: EventType.CHANGED,
       src: 1,
       collection: 1,
@@ -131,7 +133,7 @@ describe("connect via WS", () => {
         },
       },
     });
-    expect((await item3).value).toEqual({
+    expect((await item2).value).toEqual({
       type: EventType.CHANGED,
       src: 1,
       collection: 1,

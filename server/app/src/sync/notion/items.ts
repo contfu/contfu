@@ -1,35 +1,25 @@
-import {
-  Block,
-  ImageBlock,
-  Item,
-  NotionCollectionConfig,
-  PageProps,
-} from "@contfu/core";
+import { Block, ImageBlock, Item, PageProps } from "@contfu/core";
 import { PageObjectResponse } from "notion-client-web-fetch/build/src/api-endpoints";
 import { idFromUuid } from "../mappings";
 import { getContentBlocks } from "./blocks";
-import { DbQuery, iterateDb, parseImageUrl } from "./notion";
+import { DbQuery, iterateDb, parseImageUrl } from "./notion-helpers";
+import { NotionPullOpts } from "./notion-source";
 
 export async function* iteratePages(
-  key: string,
-  { dbId, content }: NotionCollectionConfig,
   {
-    src,
-    collection,
-    ...params
-  }: DbQuery & {
-    src: number;
-    collection: number;
-  }
+    credentials,
+    ref: dbId,
+    sourceId: source,
+    collectionId: collection,
+  }: NotionPullOpts,
+  params: DbQuery & {}
 ) {
-  for await (const page of iterateDb(key, dbId, params)) {
+  for await (const page of iterateDb(credentials, dbId, params)) {
     yield parseItem(
       page,
-      src,
+      source,
       collection,
-      content != null
-        ? { [content]: (await getContentBlocks(key, page.id)) ?? [] }
-        : undefined
+      (await getContentBlocks(credentials, page.id)) ?? []
     );
   }
 }
@@ -45,7 +35,7 @@ function parseItem(
   }: PageObjectResponse,
   src: number,
   collection: number,
-  content?: Record<string, Block[]>
+  content?: Block[]
 ): Item {
   const createdAt = new Date(created_time).getTime();
   const props = parseProps(properties);

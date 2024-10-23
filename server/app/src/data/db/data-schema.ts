@@ -2,14 +2,12 @@ import { relations } from "drizzle-orm";
 import {
   foreignKey,
   integer,
-  jsonb,
   pgEnum,
   pgSchema,
   primaryKey,
   smallint,
   text,
   timestamp,
-  unique,
 } from "drizzle-orm/pg-core";
 import { account, consumer } from "../../access/db/access-schema";
 import { bytea } from "../../core/db/db-types";
@@ -17,6 +15,8 @@ import { bytea } from "../../core/db/db-types";
 export const dataSchema = pgSchema("data");
 
 export const sourceType = pgEnum("source_type", ["notion"]);
+
+export type DbSourceType = (typeof sourceType.enumValues)[number];
 
 export const source = dataSchema.table(
   "source",
@@ -27,12 +27,12 @@ export const source = dataSchema.table(
       .notNull(),
     /** The id which is unique within the account. */
     id: smallint().notNull(),
-    /** An api key for the source. Not necessary for all source types. */
-    key: bytea(),
     /** The name of the source. */
-    name: text().notNull(),
-    /** The options for the source. Can contain source specific options. */
-    opts: jsonb(),
+    name: text(),
+    /** The url of the upstream source. Can be empty, if it is a centralized SaaS source. */
+    url: text(),
+    /** An api key or other credentials for the source. Used to fetch data from the upstream source. */
+    credentials: bytea(),
     /** The type of the source. */
     type: sourceType().notNull(),
     /** The date the source was created. */
@@ -40,13 +40,10 @@ export const source = dataSchema.table(
     /** The date the source was updated. */
     updatedAt: timestamp(),
   },
-  (table) => ({
-    pk: primaryKey({ columns: [table.accountId, table.id] }),
-    uniqueKeyWithType: unique().on(table.key, table.type),
-  })
+  (table) => ({ pk: primaryKey({ columns: [table.accountId, table.id] }) })
 );
 
-export type Source = typeof source.$inferSelect;
+export type DbSource = typeof source.$inferSelect;
 
 export const collection = dataSchema.table(
   "collection",
@@ -61,8 +58,13 @@ export const collection = dataSchema.table(
     id: smallint().notNull(),
     /** The name of the collection. */
     name: text().notNull(),
-    /** The options for the collection. Can contain collection specific options. */
-    opts: jsonb(),
+    /** The reference to the upstream collection within the source. */
+    ref: bytea(),
+    /**
+     * The item ids that are expected to have been received for this collection.
+     * The ids are 4 bytes long.
+     **/
+    itemIds: bytea(),
     /** The date the collection was created. */
     createdAt: timestamp().defaultNow().notNull(),
     /** The date the collection was updated. */
@@ -77,11 +79,11 @@ export const collection = dataSchema.table(
   })
 );
 
-export type Collection = typeof collection.$inferSelect;
+export type DbCollection = typeof collection.$inferSelect;
 
 /** The connection of the consumer to the collection. */
-export const consumerCollectionConnection = dataSchema.table(
-  "consumer_collection_connection",
+export const connection = dataSchema.table(
+  "connection",
   {
     /** The account which owns the collection and consumer. */
     accountId: integer()
@@ -93,12 +95,8 @@ export const consumerCollectionConnection = dataSchema.table(
     collectionId: smallint().notNull(),
     /** The most recent item change that was received by the consumer. */
     lastItemChanged: timestamp(),
-    /** The date the collection was last fetched. */
-    lastFetch: timestamp(),
-    /** The date the collection was last checked for deleted or changed items. */
+    /** The date the collection was last checked for deleted items. */
     lastConsistencyCheck: timestamp(),
-    /** The item ids of the collection that are expected to have been stored in the consumer. The ids are 4 bytes long. */
-    ids: bytea(),
   },
   (table) => ({
     pk: primaryKey({
@@ -115,22 +113,22 @@ export const consumerCollectionConnection = dataSchema.table(
   })
 );
 
-export type ConsumerCollectionConnection =
-  typeof consumerCollectionConnection.$inferSelect;
+export type DbConnection = typeof connection.$inferSelect;
 
 // Define relations
-export const collectionRelations = relations(collection, ({ many }) => ({
-  consumerCollectionConnections: many(consumerCollectionConnection),
+export const collectionRelations = relations(collection, ({ many, one }) => ({
+  consumerCollectionConnections: many(connection),
+  source: one(source, {
+    fields: [collection.accountId, collection.sourceId],
+    references: [source.accountId, source.id],
+  }),
 }));
 
 export const consumerCollectionConnectionRelations = relations(
-  consumerCollectionConnection,
+  connection,
   ({ one }) => ({
     collection: one(collection, {
-      fields: [
-        consumerCollectionConnection.accountId,
-        consumerCollectionConnection.collectionId,
-      ],
+      fields: [connection.accountId, connection.collectionId],
       references: [collection.accountId, collection.id],
     }),
   })

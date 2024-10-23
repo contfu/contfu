@@ -14,19 +14,3 @@ export type Item<T extends Record<string, any> = Record<never, never>> = {
   changedAt: number;
   props: T;
 };
-
-export type PageValidationError = {
-  id: string;
-  path: string;
-  message: string;
-};
-
-export function isPageValidationError(
-  data: Item | PageValidationError
-): data is PageValidationError {
-  return "message" in data;
-}
-
-export function isPageData(data: Item | PageValidationError): data is Item {
-  return !isPageValidationError(data);
-}

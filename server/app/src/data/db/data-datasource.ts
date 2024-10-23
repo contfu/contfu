@@ -1,18 +1,18 @@
-import { SourceConfig } from "@contfu/core";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { withSchema } from "../../core/db";
 import {
   collection,
   collectionRelations,
-  consumerCollectionConnection,
+  connection,
   consumerCollectionConnectionRelations,
+  DbSourceType,
   itemIdConflictResolution,
   source,
 } from "./data-schema";
 const db = withSchema({
   source,
   collection,
-  consumerCollectionConnection,
+  connection,
   itemIdConflictResolution,
   collectionRelations,
   consumerCollectionConnectionRelations,
@@ -20,10 +20,19 @@ const db = withSchema({
 
 export async function createSource(
   accountId: number,
-  name: string,
-  config: Omit<SourceConfig, "collections">
+  {
+    name,
+    type,
+    url,
+    credentials,
+  }: {
+    name?: string;
+    type: DbSourceType;
+    url?: string;
+    credentials?: Buffer;
+  }
 ) {
-  const nextId = sql`(
+  const id = sql`(
     SELECT COALESCE(MAX(${source.id}), 0) + 1
     FROM ${source}
     WHERE ${source.accountId} = ${accountId}
@@ -31,14 +40,7 @@ export async function createSource(
   return (
     await db
       .insert(source)
-      .values({
-        accountId,
-        name,
-        type: config.type,
-        id: nextId,
-        key: config.key,
-        opts: {},
-      })
+      .values({ accountId, id, name, url, type, credentials })
       .returning()
   )[0];
 }
@@ -53,7 +55,7 @@ export async function createCollection(
   accountId: number,
   sourceId: number,
   name: string,
-  opts?: Record<string, any>
+  ref: Buffer
 ) {
   const nextId = sql`(
     SELECT COALESCE(MAX(${collection.id}), 0) + 1
@@ -63,25 +65,20 @@ export async function createCollection(
   return (
     await db
       .insert(collection)
-      .values({ accountId, sourceId, name, id: nextId, opts })
+      .values({ accountId, sourceId, name, id: nextId, ref })
       .returning()
   )[0];
 }
 
-export async function createConsumerCollectionConnection(
+export async function createConnection(
   accountId: number,
   consumerId: number,
   collectionId: number
 ) {
   return (
     await db
-      .insert(consumerCollectionConnection)
-      .values({
-        accountId,
-        consumerId,
-        collectionId,
-        ids: Buffer.from([]),
-      })
+      .insert(connection)
+      .values({ accountId, consumerId, collectionId })
       .returning()
   )[0];
 }
@@ -90,15 +87,94 @@ export async function getCollectionsForConsumer(
   accountId: number,
   consumerId: number
 ) {
-  return db.query.consumerCollectionConnection.findMany({
+  return db.query.connection.findMany({
     where: and(
-      eq(consumerCollectionConnection.accountId, accountId),
-      eq(consumerCollectionConnection.consumerId, consumerId)
+      eq(connection.accountId, accountId),
+      eq(connection.consumerId, consumerId)
     ),
     with: {
       collection: true,
     },
   });
+}
+
+export async function countConnectionsForConsumer(
+  accountId: number,
+  consumerId: number
+) {
+  return db.$count(
+    connection,
+    and(
+      eq(connection.accountId, accountId),
+      eq(connection.consumerId, consumerId)
+    )
+  );
+}
+
+export async function getConnectionsWithCollectionSyncInfo(
+  ids: [accountId: number, collectionId: number][]
+) {
+  return db
+    .select({
+      accountId: connection.accountId,
+      consumerId: connection.consumerId,
+      collectionId: connection.collectionId,
+      sourceId: collection.sourceId,
+      type: source.type,
+      lastItemChanged: connection.lastItemChanged,
+      url: source.url,
+      ref: collection.ref,
+      credentials: source.credentials,
+    })
+    .from(connection)
+    .innerJoin(
+      collection,
+      and(
+        eq(connection.accountId, collection.accountId),
+        eq(connection.collectionId, collection.id)
+      )
+    )
+    .innerJoin(
+      source,
+      and(
+        eq(collection.accountId, source.accountId),
+        eq(collection.sourceId, source.id)
+      )
+    )
+    .where(
+      inArray(sql`(${connection.accountId}, ${connection.collectionId})`, ids)
+    )
+    .orderBy(asc(connection.accountId), asc(connection.collectionId));
+}
+
+export async function getConsumerConnections(
+  accountId: number,
+  collectionId: number
+) {
+  return db
+    .select({
+      accountId: connection.accountId,
+      consumerId: connection.consumerId,
+      collectionId: connection.collectionId,
+      sourceId: collection.sourceId,
+      lastItemChanged: connection.lastItemChanged,
+      itemIds: collection.itemIds,
+    })
+    .from(connection)
+    .innerJoin(
+      collection,
+      and(
+        eq(connection.accountId, collection.accountId),
+        eq(connection.collectionId, collection.id)
+      )
+    )
+    .where(
+      and(
+        eq(connection.accountId, accountId),
+        eq(connection.collectionId, collectionId)
+      )
+    )
+    .orderBy(asc(connection.accountId), asc(connection.collectionId));
 }
 
 export async function createItemIdConflictResolution(
@@ -107,12 +183,9 @@ export async function createItemIdConflictResolution(
   sourceItemId: Buffer,
   id: number
 ) {
-  await db.insert(itemIdConflictResolution).values({
-    accountId,
-    collectionId,
-    sourceItemId,
-    id,
-  });
+  await db
+    .insert(itemIdConflictResolution)
+    .values({ accountId, collectionId, sourceItemId, id });
 }
 
 export async function getItemId(

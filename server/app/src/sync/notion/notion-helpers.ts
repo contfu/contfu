@@ -10,10 +10,10 @@ export type DbQuery = Partial<
   Omit<QueryDatabaseParameters, "database_id" | "auth">
 >;
 
-export async function* iterateDb(key: string, id: string, params?: DbQuery) {
+export async function* iterateDb(key: Buffer, id: Buffer, params?: DbQuery) {
   for await (const pageObj of iteratePaginatedAPI(notion.databases.query, {
-    auth: key,
-    database_id: id,
+    auth: key.toString("hex"),
+    database_id: id.toString("hex"),
     ...params,
   })) {
     if (pageObj.object === "page" && isFullPage(pageObj)) yield pageObj;

@@ -5,9 +5,7 @@ import {
   DeletedEvent,
   ErrorEvent,
   EventType,
-  Item,
   ItemEvent,
-  ListIdsEvent,
   SourceConfig,
 } from "@contfu/core";
 
@@ -32,13 +30,7 @@ export async function* connectTo<
   };
 
   do {
-    yield new Promise<
-      ItemEvent<
-        {
-          [K in keyof Props & string]: Item<Props[K]>;
-        }[keyof Props & string]
-      >
-    >((res, rej) => {
+    yield new Promise<ItemEvent>((res, rej) => {
       resolve = res;
       reject = rej;
     });
@@ -82,17 +74,8 @@ function deserializeEvent(buf: Buffer) {
         item: { id, src, createdAt, changedAt, collection, props },
       } satisfies ChangedEvent;
     }
-    case EventType.LIST_IDS: {
-      const count = (buf.length - 4) / 16;
-      const ids = new Array(count);
-      for (let i = 0; i < count; i++) {
-        const idx = i * 16 + 4;
-        ids[i] = buf.subarray(idx, idx + 16).toString("base64url");
-      }
-      return { type, src, collection, ids } satisfies ListIdsEvent;
-    }
     case EventType.DELETED: {
-      const item = buf.subarray(4).toString("base64url");
+      const item = buf.readUInt16LE(4);
       return { type, src, collection, item } satisfies DeletedEvent;
     }
   }

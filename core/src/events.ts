@@ -4,7 +4,6 @@ export enum EventType {
   ERROR = 0,
   CHANGED = 1,
   DELETED = 2,
-  LIST_IDS = 3, // TODO: should be removed. Only used for detecting deletions.
 }
 
 type EventBase<T extends EventType> = {
@@ -18,20 +17,12 @@ export type ErrorEvent = {
   code: string;
 };
 
-export type ChangedEvent<T extends Item = Item> =
-  EventBase<EventType.CHANGED> & {
-    item: T;
-  };
+export type ChangedEvent = EventBase<EventType.CHANGED> & {
+  item: Item;
+};
 
 export type DeletedEvent = EventBase<EventType.DELETED> & {
-  item: string;
+  item: number;
 };
 
-export type ListIdsEvent = EventBase<EventType.LIST_IDS> & {
-  ids: string[];
-};
-
-export type ItemEvent<T extends Item = Item> =
-  | ChangedEvent<T>
-  | DeletedEvent
-  | ListIdsEvent;
+export type ItemEvent = ChangedEvent | DeletedEvent;

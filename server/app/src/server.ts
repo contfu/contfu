@@ -86,23 +86,13 @@ function serializeEvent(data: ItemEvent | ErrorEvent) {
       dynamicData.copy(buf, 36);
       return buf;
     }
-    case EventType.LIST_IDS: {
-      const ids = data.ids;
-      const buf = Buffer.alloc(4 + ids.length * 16);
-      buf.writeUInt8(data.type, 0);
-      buf.writeUInt8(data.src, 1);
-      buf.writeUInt16LE(data.collection, 2);
-      for (let i = 0; i < ids.length; i++)
-        buf.write(ids[i], 4 + i * 16, "base64url");
-      return buf;
-    }
     case EventType.DELETED: {
-      const bufferLength = 4 + data.item.length;
+      const bufferLength = 4 + 16;
       const buf = Buffer.alloc(bufferLength);
       buf.writeUInt8(data.type, 0);
       buf.writeUInt8(data.src, 1);
       buf.writeUInt16LE(data.collection, 2);
-      buf.write(data.item, 4, "base64url");
+      buf.writeUInt16LE(data.item, 4);
       return buf;
     }
     case EventType.ERROR: {

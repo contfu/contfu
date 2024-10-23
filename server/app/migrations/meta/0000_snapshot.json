@@ -1,5 +1,5 @@
 {
-  "id": "9cfd2626-8b6b-4433-be90-1a703a10ac55",
+  "id": "9230b158-31a0-4079-9887-ad771384f1cc",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -238,9 +238,15 @@
           "primaryKey": false,
           "notNull": true
         },
-        "opts": {
-          "name": "opts",
-          "type": "jsonb",
+        "ref": {
+          "name": "ref",
+          "type": "bytea",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "itemIds": {
+          "name": "itemIds",
+          "type": "bytea",
           "primaryKey": false,
           "notNull": false
         },
@@ -302,8 +308,8 @@
       },
       "uniqueConstraints": {}
     },
-    "data.consumer_collection_connection": {
-      "name": "consumer_collection_connection",
+    "data.connection": {
+      "name": "connection",
       "schema": "data",
       "columns": {
         "accountId": {
@@ -330,30 +336,18 @@
           "primaryKey": false,
           "notNull": false
         },
-        "lastFetch": {
-          "name": "lastFetch",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false
-        },
         "lastConsistencyCheck": {
           "name": "lastConsistencyCheck",
           "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "ids": {
-          "name": "ids",
-          "type": "bytea",
           "primaryKey": false,
           "notNull": false
         }
       },
       "indexes": {},
       "foreignKeys": {
-        "consumer_collection_connection_accountId_account_id_fk": {
-          "name": "consumer_collection_connection_accountId_account_id_fk",
-          "tableFrom": "consumer_collection_connection",
+        "connection_accountId_account_id_fk": {
+          "name": "connection_accountId_account_id_fk",
+          "tableFrom": "connection",
           "tableTo": "account",
           "schemaTo": "access",
           "columnsFrom": [
@@ -365,9 +359,9 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "consumer_collection_connection_accountId_consumerId_consumer_accountId_id_fk": {
-          "name": "consumer_collection_connection_accountId_consumerId_consumer_accountId_id_fk",
-          "tableFrom": "consumer_collection_connection",
+        "connection_accountId_consumerId_consumer_accountId_id_fk": {
+          "name": "connection_accountId_consumerId_consumer_accountId_id_fk",
+          "tableFrom": "connection",
           "tableTo": "consumer",
           "schemaTo": "access",
           "columnsFrom": [
@@ -381,9 +375,9 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "consumer_collection_connection_accountId_collectionId_collection_accountId_id_fk": {
-          "name": "consumer_collection_connection_accountId_collectionId_collection_accountId_id_fk",
-          "tableFrom": "consumer_collection_connection",
+        "connection_accountId_collectionId_collection_accountId_id_fk": {
+          "name": "connection_accountId_collectionId_collection_accountId_id_fk",
+          "tableFrom": "connection",
           "tableTo": "collection",
           "schemaTo": "data",
           "columnsFrom": [
@@ -399,8 +393,8 @@
         }
       },
       "compositePrimaryKeys": {
-        "consumer_collection_connection_accountId_consumerId_collectionId_pk": {
-          "name": "consumer_collection_connection_accountId_consumerId_collectionId_pk",
+        "connection_accountId_consumerId_collectionId_pk": {
+          "name": "connection_accountId_consumerId_collectionId_pk",
           "columns": [
             "accountId",
             "consumerId",
@@ -500,21 +494,21 @@
           "primaryKey": false,
           "notNull": true
         },
-        "key": {
-          "name": "key",
-          "type": "bytea",
-          "primaryKey": false,
-          "notNull": false
-        },
         "name": {
           "name": "name",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
-        "opts": {
-          "name": "opts",
-          "type": "jsonb",
+        "url": {
+          "name": "url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "credentials": {
+          "name": "credentials",
+          "type": "bytea",
           "primaryKey": false,
           "notNull": false
         },
@@ -565,16 +559,7 @@
           ]
         }
       },
-      "uniqueConstraints": {
-        "source_key_type_unique": {
-          "name": "source_key_type_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "key",
-            "type"
-          ]
-        }
-      }
+      "uniqueConstraints": {}
     }
   },
   "enums": {

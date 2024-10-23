@@ -1,27 +1,28 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { and, eq } from "drizzle-orm";
 import { createAccount, createConsumer } from "../../access/access-repository";
-import { DbAccount, DbConsumer } from "../../access/db/access-schema";
+import { consumer, DbAccount, DbConsumer } from "../../access/db/access-schema";
 import { withSchema } from "../../core/db";
 import {
+  countConnectionsForConsumer,
   createCollection,
-  createConsumerCollectionConnection,
+  createConnection,
   createItemIdConflictResolution,
   createSource,
-  getCollectionsForConsumer,
   getItemId,
 } from "./data-datasource";
 import {
   collection,
-  consumerCollectionConnection,
+  connection,
   itemIdConflictResolution,
   source,
 } from "./data-schema";
 
 const db = withSchema({
   source,
-  consumerCollectionConnection,
+  consumer,
   collection,
+  connection,
   itemIdConflictResolution,
 });
 
@@ -35,9 +36,10 @@ beforeEach(async () => {
 
 describe("createSource()", () => {
   it("should create a source in the database and return it", async () => {
-    const s = await createSource(a.id, "test", {
+    const s = await createSource(a.id, {
       type: "notion",
-      key: Buffer.from("test", "base64url"),
+      name: "test",
+      credentials: Buffer.from("test", "base64url"),
     });
 
     const stored = await db.query.source.findFirst({
@@ -48,8 +50,8 @@ describe("createSource()", () => {
       accountId: a.id,
       name: "test",
       type: "notion",
-      key: Buffer.from("test", "base64url"),
-      opts: {},
+      credentials: Buffer.from("test", "base64url"),
+      url: null,
       createdAt: expect.any(Date),
       updatedAt: null,
     });
@@ -59,12 +61,13 @@ describe("createSource()", () => {
 
 describe("createCollection()", () => {
   it("should create a collection in the database and return it", async () => {
-    const s = await createSource(a.id, "test", {
+    const s = await createSource(a.id, {
       type: "notion",
-      key: Buffer.from("test", "base64url"),
+      name: "test",
+      credentials: Buffer.from("test", "base64url"),
     });
 
-    const c = await createCollection(a.id, s.id, "test");
+    const c = await createCollection(a.id, s.id, "test", Buffer.alloc(0));
 
     const stored = await db.query.collection.findFirst({
       where: eq(collection.id, c.id),
@@ -74,30 +77,32 @@ describe("createCollection()", () => {
       accountId: a.id,
       sourceId: s.id,
       name: "test",
-      opts: null,
+      ref: Buffer.alloc(0),
       createdAt: expect.any(Date),
       updatedAt: null,
+      itemIds: null,
     });
     expect(c).toEqual(stored!);
   });
 });
 
-describe("createConsumerCollectionConnection()", () => {
+describe("createConnection()", () => {
   it("should create a consumer collection connection in the database", async () => {
-    const s = await createSource(a.id, "test", {
+    const s = await createSource(a.id, {
       type: "notion",
-      key: Buffer.from("test", "base64url"),
+      name: "test",
+      credentials: Buffer.from("test", "base64url"),
     });
-    const c = await createCollection(a.id, s.id, "test");
+    const c = await createCollection(a.id, s.id, "test", Buffer.alloc(0));
     const cl = await createConsumer(a.id, "test");
 
-    const cc = await createConsumerCollectionConnection(a.id, cl.id, c.id);
+    const cc = await createConnection(a.id, cl.id, c.id);
 
-    const stored = await db.query.consumerCollectionConnection.findFirst({
+    const stored = await db.query.connection.findFirst({
       where: and(
-        eq(consumerCollectionConnection.accountId, a.id),
-        eq(consumerCollectionConnection.consumerId, cl.id),
-        eq(consumerCollectionConnection.collectionId, c.id)
+        eq(connection.accountId, a.id),
+        eq(connection.consumerId, cl.id),
+        eq(connection.collectionId, c.id)
       ),
     });
     expect(cc).toEqual({
@@ -105,37 +110,41 @@ describe("createConsumerCollectionConnection()", () => {
       consumerId: cl.id,
       collectionId: c.id,
       lastItemChanged: null,
-      lastFetch: null,
       lastConsistencyCheck: null,
-      ids: Buffer.alloc(0),
     });
     expect(stored).toEqual(cc);
   });
 });
 
-describe("getCollectionsForConsumer()", async () => {
-  it("should return the collections for a consumer", async () => {
-    const s = await createSource(a.id, "test", {
+describe("countConnectionsForConsumer()", async () => {
+  it("should return the count of connections for a consumer", async () => {
+    const s = await createSource(a.id, {
       type: "notion",
-      key: Buffer.from("test", "base64url"),
+      name: "test",
+      credentials: Buffer.from("test", "base64url"),
     });
-    const c = await createCollection(a.id, s.id, "test");
+    const c1 = await createCollection(a.id, s.id, "test", Buffer.alloc(0));
+    const c2 = await createCollection(a.id, s.id, "test", Buffer.alloc(0));
+    const c3 = await createCollection(a.id, s.id, "test", Buffer.alloc(0));
     const cl = await createConsumer(a.id, "test");
-    const cc = await createConsumerCollectionConnection(a.id, cl.id, c.id);
+    await createConnection(a.id, cl.id, c1.id);
+    await createConnection(a.id, cl.id, c2.id);
+    await createConnection(a.id, cl.id, c3.id);
 
-    const collections = await getCollectionsForConsumer(a.id, cl.id);
+    const count = await countConnectionsForConsumer(a.id, cl.id);
 
-    expect(collections).toEqual([{ ...cc, collection: c }]);
+    expect(count).toBe(3);
   });
 });
 
 describe("createItemIdConflictResolution()", () => {
   it("should create a item id conflict resolution in the database", async () => {
-    const s = await createSource(a.id, "test", {
+    const s = await createSource(a.id, {
       type: "notion",
-      key: Buffer.from("test", "base64url"),
+      name: "test",
+      credentials: Buffer.from("test", "base64url"),
     });
-    const c = await createCollection(a.id, s.id, "test");
+    const c = await createCollection(a.id, s.id, "test", Buffer.alloc(0));
 
     await createItemIdConflictResolution(a.id, c.id, Buffer.from([1]), 1);
 
@@ -153,11 +162,12 @@ describe("createItemIdConflictResolution()", () => {
 
 describe("getItemId()", () => {
   it("should return the item id if it is in the conflict resolution table", async () => {
-    const s = await createSource(a.id, "test", {
+    const s = await createSource(a.id, {
       type: "notion",
-      key: Buffer.from("test", "base64url"),
+      name: "test",
+      credentials: Buffer.from("test", "base64url"),
     });
-    const c = await createCollection(a.id, s.id, "test");
+    const c = await createCollection(a.id, s.id, "test", Buffer.alloc(0));
 
     await createItemIdConflictResolution(a.id, c.id, Buffer.from([1]), 1);
 
@@ -166,11 +176,12 @@ describe("getItemId()", () => {
   });
 
   it("should return the item id derived from the last 4 bytes of the source item id if it is not in the conflict resolution table", async () => {
-    const s = await createSource(a.id, "test", {
+    const s = await createSource(a.id, {
       type: "notion",
-      key: Buffer.from("test", "base64url"),
+      name: "test",
+      credentials: Buffer.from("test", "base64url"),
     });
-    const c = await createCollection(a.id, s.id, "test");
+    const c = await createCollection(a.id, s.id, "test", Buffer.alloc(0));
 
     const id = await getItemId(a.id, c.id, Buffer.from([1, 2, 3, 4, 5]));
     expect(id).toEqual(0x05040302);

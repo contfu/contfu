@@ -1,20 +1,15 @@
-interface BaseSourceConfig<Collection extends CollectionConfig> {
+interface BaseSourcePullConfig {
   type: string;
-  collections: Collection[];
+  accountId: number;
+  sourceId: number;
+  collectionId: number;
+  since?: number;
 }
 
-export interface NotionConfig extends BaseSourceConfig<NotionCollectionConfig> {
+export interface NotionPullConfig extends BaseSourcePullConfig {
   type: "notion";
-  key: Buffer;
-}
-
-export interface NotionCollectionConfig {
-  id: number;
+  apiKey: Buffer;
   dbId: Buffer;
-  content?: string;
-  lastFetch?: number;
 }
 
-export type CollectionConfig = NotionCollectionConfig;
-
-export type SourceConfig = NotionConfig;
+export type PullConfig = NotionPullConfig;
