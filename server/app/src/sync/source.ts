@@ -1,5 +1,6 @@
 import { SourceType } from "../data/data";
-import { ItemEventExtended } from "./events";
+import { AsyncQueue } from "../util/async/async-queue";
+import { ItemEvent } from "./events";
 
 export interface CollectionFetchOpts {
   type: SourceType;
@@ -16,9 +17,12 @@ export interface CollectionFetchOpts {
   since?: Date;
 }
 
-export type Source = {
-  /** Pulls events from the connection target. */
-  fetch(conf: CollectionFetchOpts): AsyncIterable<ItemEventExtended>;
+export abstract class Source {
+  protected queue = new AsyncQueue<ItemEvent>();
+
   /** Provides events from the source. */
-  events: AsyncIterable<ItemEventExtended>;
-};
+  events = this.queue.createGenerator();
+
+  /** Pulls events from the connection target. */
+  abstract fetch(conf: CollectionFetchOpts): AsyncGenerator<ItemEvent>;
+}
