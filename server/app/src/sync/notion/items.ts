@@ -2,8 +2,8 @@ import { Block, ImageBlock, Item, PageProps } from "@contfu/core";
 import { PageObjectResponse } from "notion-client-web-fetch/build/src/api-endpoints";
 import { idFromUuid } from "../mappings";
 import { getContentBlocks } from "./blocks";
+import type { NotionPullOpts } from "./notion";
 import { DbQuery, iterateDb, parseImageUrl } from "./notion-helpers";
-import { NotionPullOpts } from "./notion-source";
 
 export async function* iteratePages(
   {

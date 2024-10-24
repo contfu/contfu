@@ -18,7 +18,7 @@ export async function authenticateConsumer(key: Buffer) {
 export async function createAccount(
   email: string,
   limits: QuotaLimits,
-  activeUntil: Date
+  activeUntil: number
 ) {
   const acc = (
     await db.insert(account).values({ email, activeUntil }).returning()

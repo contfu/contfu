@@ -4,9 +4,10 @@ export class SortedSet<T> extends Array<T> {
   constructor({
     key = ((x) => x as unknown as number) as (x: T) => number,
     seed = [] as T[],
+    isSorted = false,
   } = {}) {
-    super(...(seed ?? []));
-    this.sort((a, b) => key(a) - key(b));
+    super(...seed);
+    if (!isSorted) this.sort((a, b) => key(a) - key(b));
     this.key = key;
   }
 

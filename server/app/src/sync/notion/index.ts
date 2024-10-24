@@ -1,1 +1,2 @@
-export { NotionPullOpts, notionSource } from "./notion-source";
+export type { NotionPullOpts } from "./notion";
+export { notionSource } from "./notion-source";

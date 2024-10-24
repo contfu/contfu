@@ -1,9 +1,8 @@
-import { EventType } from "@contfu/core";
-import { MarkRequired } from "ts-essentials";
 import { mergeGenerators } from "../../util/async/async-generators";
-import { ItemEvent } from "../events";
-import { CollectionFetchOpts, Source } from "../source";
+import { EventType, ItemEvent } from "../events";
+import { Source } from "../source";
 import { iteratePages } from "./items";
+import { NotionPullOpts } from "./notion";
 import { DbQuery } from "./notion-helpers";
 
 export class NotionSource extends Source {
@@ -30,31 +29,27 @@ function pull(opts: NotionPullOpts, filter?: DbQuery["filter"]) {
   return iteratePages(opts, { filter });
 }
 
-function createdAfter(since: Date): DbQuery["filter"] {
+function createdAfter(since: number): DbQuery["filter"] {
   return {
     timestamp: "created_time",
-    created_time: { after: since.toISOString() },
+    created_time: { after: new Date(since).toISOString() },
   };
 }
 
-function updatedAfter(since: Date): DbQuery["filter"] {
+function updatedAfter(since: number): DbQuery["filter"] {
+  const isoSince = new Date(since).toISOString();
   return {
     and: [
       {
         timestamp: "created_time",
-        created_time: { on_or_before: since.toISOString() },
+        created_time: { on_or_before: isoSince },
       },
       {
         timestamp: "last_edited_time",
-        last_edited_time: { after: since.toISOString() },
+        last_edited_time: { after: isoSince },
       },
     ],
   };
 }
 
 export const notionSource = new NotionSource();
-
-export type NotionPullOpts = MarkRequired<
-  CollectionFetchOpts,
-  "ref" | "credentials"
->;

@@ -11,6 +11,6 @@ export async function createAccount(email: string) {
       maxItems: 1000,
       maxClients: 10,
     },
-    new Date(Date.now() + 1000 * 60 * 60 * 24 * 365 * 10)
+    Date.now() + 1000 * 60 * 60 * 24 * 365 * 10
   );
 }

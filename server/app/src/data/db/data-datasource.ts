@@ -83,21 +83,6 @@ export async function createConnection(
   )[0];
 }
 
-export async function getCollectionsForConsumer(
-  accountId: number,
-  consumerId: number
-) {
-  return db.query.connection.findMany({
-    where: and(
-      eq(connection.accountId, accountId),
-      eq(connection.consumerId, consumerId)
-    ),
-    with: {
-      collection: true,
-    },
-  });
-}
-
 export async function countConnectionsForConsumer(
   accountId: number,
   consumerId: number
@@ -147,34 +132,16 @@ export async function getConnectionsWithCollectionSyncInfo(
     .orderBy(asc(connection.accountId), asc(connection.collectionId));
 }
 
-export async function getConsumerConnections(
-  accountId: number,
-  collectionId: number
+export async function getConnectionsToCollections(
+  refs: (readonly [accountId: number, collectionId: number])[]
 ) {
-  return db
-    .select({
-      accountId: connection.accountId,
-      consumerId: connection.consumerId,
-      collectionId: connection.collectionId,
-      sourceId: collection.sourceId,
-      lastItemChanged: connection.lastItemChanged,
-      itemIds: collection.itemIds,
-    })
-    .from(connection)
-    .innerJoin(
-      collection,
-      and(
-        eq(connection.accountId, collection.accountId),
-        eq(connection.collectionId, collection.id)
-      )
-    )
-    .where(
-      and(
-        eq(connection.accountId, accountId),
-        eq(connection.collectionId, collectionId)
-      )
-    )
-    .orderBy(asc(connection.accountId), asc(connection.collectionId));
+  return db.query.connection.findMany({
+    where: inArray(
+      sql`(${connection.accountId}, ${connection.collectionId})`,
+      refs
+    ),
+    orderBy: [asc(connection.accountId), asc(connection.collectionId)],
+  });
 }
 
 export async function createItemIdConflictResolution(

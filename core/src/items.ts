@@ -6,7 +6,7 @@ export type PageProps = Record<
 >;
 
 export type Item<T extends Record<string, any> = Record<never, never>> = {
-  id: string;
+  id: number;
   src: number;
   collection: number;
   publishedAt?: number;

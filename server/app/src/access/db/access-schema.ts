@@ -16,13 +16,13 @@ export const account = sqliteTable("account", {
    * The time the account is active. If it is in the past, the account is inactive.
    * If it is null, the account is active forever.
    */
-  activeUntil: integer({ mode: "timestamp" }),
+  activeUntil: integer(),
   /** The time the account was created. */
-  createdAt: integer({ mode: "timestamp" })
+  createdAt: integer()
     .default(sql`(unixepoch())`)
     .notNull(),
   /** The time the account was updated. */
-  updatedAt: integer({ mode: "timestamp" }),
+  updatedAt: integer(),
 });
 
 export type DbAccount = typeof account.$inferSelect;
@@ -66,7 +66,7 @@ export const consumer = sqliteTable(
     /** The name of the consumer. */
     name: text().notNull(),
     /** The time the consumer was created. */
-    createdAt: integer({ mode: "timestamp" })
+    createdAt: integer()
       .default(sql`(unixepoch())`)
       .notNull(),
   },

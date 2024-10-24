@@ -14,7 +14,7 @@ export interface CollectionFetchOpts {
   /** Can be an API key or other credentials. */
   credentials?: Buffer;
   /** Since when (exclusive) to pull events. The default is all time. */
-  since?: Date;
+  since?: number;
 }
 
 export abstract class Source {
@@ -23,6 +23,9 @@ export abstract class Source {
   /** Provides events from the source. */
   events = this.queue.createGenerator();
 
-  /** Pulls events from the connection target. */
+  /**
+   * Pulls events from the connection target.
+   * Note: Change events need to be sorted by `item.changedAt`.
+   **/
   abstract fetch(conf: CollectionFetchOpts): AsyncGenerator<ItemEvent>;
 }

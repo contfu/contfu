@@ -10,12 +10,21 @@ import {
 
 type Opts = {
   WS?: typeof WebSocket;
-  since?: number;
+  handle?: (e: ItemEvent) => Promise<void>;
 };
 
-export async function* connectTo<
-  Props extends Record<string, Record<string, any>>
->(key: Buffer, { WS = global.WebSocket }: Opts = {}) {
+export function connectTo<Props extends Record<string, Record<string, any>>>(
+  key: Buffer,
+  opts: Opts & { handle: (e: ItemEvent) => Promise<void> }
+): void;
+export function connectTo<Props extends Record<string, Record<string, any>>>(
+  key: Buffer,
+  opts?: Omit<Opts, "handle">
+): AsyncGenerator<ItemEvent>;
+export function connectTo(
+  key: Buffer,
+  { WS = global.WebSocket, handle }: Opts = {}
+) {
   let resolve: (value: any) => void, reject: (reason?: any) => void;
   let socket = new WS("ws://localhost:9999");
 
@@ -27,13 +36,38 @@ export async function* connectTo<
     const data = deserializeEvent(event.data as Buffer);
     resolve(data);
   };
-
-  do {
-    yield new Promise<ItemEvent>((res, rej) => {
-      resolve = res;
-      reject = rej;
-    });
-  } while (socket.readyState === WebSocket.OPEN);
+  if (handle) {
+    return (async () => {
+      do {
+        const event = await new Promise<ItemEvent>((res, rej) => {
+          resolve = res;
+          reject = rej;
+        });
+        if (
+          event.type === EventType.CHANGED ||
+          event.type === EventType.DELETED
+        ) {
+          await handle(event);
+          socket.send(
+            serializeCommand({
+              type: CommandType.ACK,
+              itemId:
+                typeof event.item === "number" ? event.item : event.item.id,
+              collectionId: event.collection,
+            })
+          );
+        }
+      } while (socket.readyState === WebSocket.OPEN);
+    })();
+  }
+  return (async function* () {
+    do {
+      yield await new Promise<ItemEvent>((res, rej) => {
+        resolve = res;
+        reject = rej;
+      });
+    } while (socket.readyState === WebSocket.OPEN);
+  })();
 }
 
 function serializeCommand(cmd: Command) {
@@ -42,6 +76,13 @@ function serializeCommand(cmd: Command) {
       const buf = Buffer.alloc(1 + cmd.key.length);
       buf.writeUInt8(cmd.type, 0);
       cmd.key.copy(buf, 1);
+      return buf;
+    }
+    case CommandType.ACK: {
+      const buf = Buffer.alloc(7);
+      buf.writeUInt8(cmd.type, 0);
+      buf.writeUInt16LE(cmd.collectionId, 1);
+      buf.writeUInt32LE(cmd.itemId, 3);
       return buf;
     }
   }
@@ -57,10 +98,10 @@ function deserializeEvent(buf: Buffer) {
     case EventType.CHANGED: {
       const src = buf.readUInt8(1);
       const collection = buf.readUInt16LE(2);
-      const id = buf.subarray(4, 20).toString("base64url");
-      const createdAt = Number(buf.readBigInt64LE(20));
-      const changedAt = Number(buf.readBigInt64LE(28));
-      const propsJson = buf.subarray(36).toString("utf8");
+      const id = buf.readUInt32LE(4);
+      const createdAt = Number(buf.readBigInt64LE(8));
+      const changedAt = Number(buf.readBigInt64LE(16));
+      const propsJson = buf.subarray(24).toString("utf8");
       const props = JSON.parse(propsJson);
       return {
         type,

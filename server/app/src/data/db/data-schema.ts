@@ -27,11 +27,11 @@ export const source = sqliteTable(
     /** The type of the source. */
     type: integer().notNull(),
     /** The date the source was created. */
-    createdAt: integer({ mode: "timestamp" })
+    createdAt: integer()
       .default(sql`(unixepoch())`)
       .notNull(),
     /** The date the source was updated. */
-    updatedAt: integer({ mode: "timestamp" }),
+    updatedAt: integer(),
   },
   (table) => ({ pk: primaryKey({ columns: [table.accountId, table.id] }) })
 );
@@ -59,11 +59,11 @@ export const collection = sqliteTable(
      **/
     itemIds: buffer(),
     /** The date the collection was created. */
-    createdAt: integer({ mode: "timestamp" })
+    createdAt: integer()
       .default(sql`(unixepoch())`)
       .notNull(),
     /** The date the collection was updated. */
-    updatedAt: integer({ mode: "timestamp" }),
+    updatedAt: integer(),
   },
   (table) => ({
     pk: primaryKey({ columns: [table.accountId, table.id] }),
@@ -89,9 +89,9 @@ export const connection = sqliteTable(
     /** The collection which the consumer is connected to. */
     collectionId: integer().notNull(),
     /** The most recent item change that was received by the consumer. */
-    lastItemChanged: integer({ mode: "timestamp" }),
+    lastItemChanged: integer(),
     /** The date the collection was last checked for deleted items. */
-    lastConsistencyCheck: integer({ mode: "timestamp" }),
+    lastConsistencyCheck: integer(),
   },
   (table) => ({
     pk: primaryKey({

@@ -1,5 +1,3 @@
-import * as accessDs from "../access/db/access-datasource";
-import { DbConsumer } from "../access/db/access-schema";
 import { CollectionFetchOpts } from "../sync/source";
 import * as ds from "./db/data-datasource";
 
@@ -9,19 +7,9 @@ export {
   createConnection as connectConsumerToCollection,
   createCollection,
   createSource,
+  getConnectionsToCollections,
   getSourcesByIds,
 } from "./db/data-datasource";
-
-export async function connectConsumer({
-  id,
-  accountId,
-}: Pick<DbConsumer, "id" | "accountId">) {
-  const [, connections] = await Promise.all([
-    accessDs.updateConsumer({ id, accountId, connectedTo: ID }),
-    ds.getConsumerConnections(accountId, id),
-  ]);
-  return connections;
-}
 
 export async function getNextCollectionFetchOpts(
   pairs: [accountId: number, collectionId: number][]

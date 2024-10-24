@@ -53,7 +53,7 @@ describe("createSource()", () => {
       type: SourceType.NOTION,
       credentials: Buffer.from("test", "base64url"),
       url: null,
-      createdAt: expect.any(Date),
+      createdAt: expect.any(Number),
       updatedAt: null,
     });
     expect(s).toEqual(stored!);
@@ -79,7 +79,7 @@ describe("createCollection()", () => {
       sourceId: s.id,
       name: "test",
       ref: Buffer.alloc(0),
-      createdAt: expect.any(Date),
+      createdAt: expect.any(Number),
       updatedAt: null,
       itemIds: null,
     });

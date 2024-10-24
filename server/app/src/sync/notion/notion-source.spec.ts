@@ -3,8 +3,8 @@ import { describe, expect, it } from "bun:test";
 import { mockClient } from "../../../test/mocks/notion";
 import { SourceType } from "../../data/data";
 import { dbQueryPage1 } from "./__fixtures__/notion-query-results";
-import { NotionPullOpts, NotionSource } from "./notion-source";
-
+import type { NotionPullOpts } from "./notion";
+import { NotionSource } from "./notion-source";
 const pullOpts: NotionPullOpts = {
   accountId: 1,
   sourceId: 1,
@@ -42,7 +42,7 @@ describe("NotionConnection", () => {
           type: EventType.CHANGED,
           collection: 1,
           item: {
-            id: "HJQ1JGsVQx2aOw-R-c400g",
+            id: 1,
             collection: 1,
             src: 1,
             changedAt: 1716353760000,
@@ -50,17 +50,18 @@ describe("NotionConnection", () => {
             props: {
               Color: "red",
               Description: "A",
-              "Other Reference": ["aEyH_tGiTCGj3oxV2s45zQ"],
-              "Self Reference": ["xdXoCyiWRuCijuE_1I0eXQ"],
+              "Other Reference": [3],
+              "Self Reference": [2],
               Title: "Foo",
             },
           },
+          account: 1,
         },
         {
           type: EventType.CHANGED,
           collection: 1,
           item: {
-            id: "xdXoCyiWRuCijuE_1I0eXQ",
+            id: 2,
             collection: 1,
             src: 1,
             changedAt: 1716353820000,
@@ -69,11 +70,12 @@ describe("NotionConnection", () => {
               Color: "blue",
               Description: "B",
               "Other Reference": [],
-              "Self Reference": ["HJQ1JGsVQx2aOw-R-c400g"],
+              "Self Reference": [1],
               Slug: "/bar",
               Title: "Bar",
             },
           },
+          account: 1,
         },
       ]);
     });
