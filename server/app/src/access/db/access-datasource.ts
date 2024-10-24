@@ -72,7 +72,7 @@ export async function updateConsumer({
   id,
   ...c
 }: Pick<DbConsumer, "id" | "accountId"> &
-  Partial<Pick<DbConsumer, "key" | "name" | "connectedTo">>) {
+  Partial<Pick<DbConsumer, "key" | "name">>) {
   await db
     .update(consumer)
     .set(c)

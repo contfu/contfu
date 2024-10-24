@@ -51,8 +51,7 @@ function handleWsMessage(cmd: Command, wsId: string) {
 async function connect(key: Buffer, wsId: string) {
   const client = await authenticateConsumer(key);
   if (!client) return new CommandError("E_AUTH");
-  if (client.connectedTo != null || subs.has(wsId))
-    return new CommandError("E_CONFLICT");
+  if (subs.has(wsId)) return new CommandError("E_CONFLICT");
   console.debug("client connected", client.accountId, client.id);
 
   return subscribeConsumerToCollections(client);

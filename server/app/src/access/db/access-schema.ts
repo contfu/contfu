@@ -65,8 +65,6 @@ export const consumer = sqliteTable(
     key: buffer().unique(),
     /** The name of the consumer. */
     name: text().notNull(),
-    /** The server id that the consumer is connected to. */
-    connectedTo: integer(),
     /** The time the consumer was created. */
     createdAt: integer({ mode: "timestamp" })
       .default(sql`(unixepoch())`)

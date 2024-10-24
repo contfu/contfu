@@ -6,7 +6,6 @@ import {
   ErrorEvent,
   EventType,
   ItemEvent,
-  SourceConfig,
 } from "@contfu/core";
 
 type Opts = {
@@ -35,10 +34,6 @@ export async function* connectTo<
       reject = rej;
     });
   } while (socket.readyState === WebSocket.OPEN);
-}
-
-export function createSource(source: SourceConfig) {
-  return source;
 }
 
 function serializeCommand(cmd: Command) {
