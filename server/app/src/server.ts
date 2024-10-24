@@ -89,17 +89,14 @@ function serializeEvent(data: ItemEvent | ErrorEvent) {
       const bufferLength = 4 + 16;
       const buf = Buffer.alloc(bufferLength);
       buf.writeUInt8(data.type, 0);
-      buf.writeUInt8(data.src, 1);
-      buf.writeUInt16LE(data.collection, 2);
-      buf.writeUInt16LE(data.item, 4);
+      buf.writeUInt16LE(data.collection, 1);
+      buf.writeUInt16LE(data.item, 3);
       return buf;
     }
     case EventType.ERROR: {
       const buf = Buffer.alloc(1 + data.code.length);
       buf.writeUInt8(data.type, 0);
       buf.write(data.code, 1, "ascii");
-      console.log("error", data.code);
-
       return buf;
     }
   }

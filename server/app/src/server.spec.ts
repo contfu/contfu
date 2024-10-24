@@ -95,7 +95,6 @@ describe("connect via WS", () => {
     // });
     expect((await item1).value).toEqual({
       type: EventType.CHANGED,
-      src: 1,
       collection: 1,
       item: {
         id: "HJQ1JGsVQx2aOw-R-c400g",
@@ -136,7 +135,6 @@ describe("connect via WS", () => {
     });
     expect((await item2).value).toEqual({
       type: EventType.CHANGED,
-      src: 1,
       collection: 1,
       item: {
         id: "xdXoCyiWRuCijuE_1I0eXQ",

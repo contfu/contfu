@@ -1,18 +1,16 @@
-import { EventType, type Item } from "@contfu/core";
+import { EventType } from "@contfu/core";
 import { describe, expect, it } from "bun:test";
 import { mockClient } from "../../../test/mocks/notion";
+import { SourceType } from "../../data/data";
 import { dbQueryPage1 } from "./__fixtures__/notion-query-results";
 import { NotionPullOpts, NotionSource } from "./notion-source";
 
-type Page1 = Item<{
-  Color: string;
-}>;
 const pullOpts: NotionPullOpts = {
   accountId: 1,
   sourceId: 1,
   collectionId: 1,
   ref: Buffer.alloc(0),
-  type: "notion",
+  type: SourceType.NOTION,
   credentials: Buffer.alloc(0),
 };
 const source = new NotionSource();
@@ -57,7 +55,6 @@ describe("NotionConnection", () => {
               Title: "Foo",
             },
           },
-          src: 1,
         },
         {
           type: EventType.CHANGED,
@@ -77,7 +74,6 @@ describe("NotionConnection", () => {
               Title: "Bar",
             },
           },
-          src: 1,
         },
       ]);
     });

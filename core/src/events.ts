@@ -8,7 +8,6 @@ export enum EventType {
 
 type EventBase<T extends EventType> = {
   type: T;
-  src: number;
   collection: number;
 };
 

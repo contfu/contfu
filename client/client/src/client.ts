@@ -49,14 +49,14 @@ function serializeCommand(cmd: Command) {
 
 function deserializeEvent(buf: Buffer) {
   const type = buf.readUInt8(0) as EventType;
-  const src = buf.readUInt8(1);
-  const collection = buf.readUInt16LE(2);
   switch (type) {
     case EventType.ERROR: {
       const code = buf.subarray(4).toString("ascii");
       return { type, code } satisfies ErrorEvent;
     }
     case EventType.CHANGED: {
+      const src = buf.readUInt8(1);
+      const collection = buf.readUInt16LE(2);
       const id = buf.subarray(4, 20).toString("base64url");
       const createdAt = Number(buf.readBigInt64LE(20));
       const changedAt = Number(buf.readBigInt64LE(28));
@@ -64,14 +64,14 @@ function deserializeEvent(buf: Buffer) {
       const props = JSON.parse(propsJson);
       return {
         type,
-        src,
         collection,
         item: { id, src, createdAt, changedAt, collection, props },
       } satisfies ChangedEvent;
     }
     case EventType.DELETED: {
-      const item = buf.readUInt16LE(4);
-      return { type, src, collection, item } satisfies DeletedEvent;
+      const collection = buf.readUInt16LE(1);
+      const item = buf.readUInt16LE(3);
+      return { type, collection, item } satisfies DeletedEvent;
     }
   }
 }
