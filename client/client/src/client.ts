@@ -96,7 +96,6 @@ function deserializeEvent(buf: Buffer) {
       return { type, code } satisfies ErrorEvent;
     }
     case EventType.CHANGED: {
-      const src = buf.readUInt8(1);
       const collection = buf.readUInt16LE(2);
       const id = buf.readUInt32LE(4);
       const createdAt = Number(buf.readBigInt64LE(8));
@@ -106,7 +105,7 @@ function deserializeEvent(buf: Buffer) {
       return {
         type,
         collection,
-        item: { id, src, createdAt, changedAt, collection, props },
+        item: { id, createdAt, changedAt, collection, props },
       } satisfies ChangedEvent;
     }
     case EventType.DELETED: {

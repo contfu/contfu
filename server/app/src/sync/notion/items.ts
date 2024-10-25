@@ -1,24 +1,19 @@
-import { Block, ImageBlock, Item, PageProps } from "@contfu/core";
+import { Block, ImageBlock } from "@contfu/core";
 import { PageObjectResponse } from "notion-client-web-fetch/build/src/api-endpoints";
-import { idFromUuid } from "../mappings";
+import { ServerPageProps, SyncItem } from "../../data/data";
+import { idFromRef, refFromUuid } from "../mappings";
 import { getContentBlocks } from "./blocks";
 import type { NotionPullOpts } from "./notion";
 import { DbQuery, iterateDb, parseImageUrl } from "./notion-helpers";
 
 export async function* iteratePages(
-  {
-    credentials,
-    ref: dbId,
-    sourceId: source,
-    collectionId: collection,
-  }: NotionPullOpts,
+  { credentials, ref, collectionId }: NotionPullOpts,
   params: DbQuery & {}
 ) {
-  for await (const page of iterateDb(credentials, dbId, params)) {
+  for await (const page of iterateDb(credentials, ref, params)) {
     yield parseItem(
       page,
-      source,
-      collection,
+      collectionId,
       (await getContentBlocks(credentials, page.id)) ?? []
     );
   }
@@ -33,18 +28,15 @@ function parseItem(
     icon,
     cover,
   }: PageObjectResponse,
-  src: number,
   collection: number,
   content?: Block[]
-): Item {
+): SyncItem {
   const createdAt = new Date(created_time).getTime();
   const props = parseProps(properties);
-  const item: Item<{
-    icon?: ImageBlock;
-    cover?: ImageBlock;
-  }> = {
-    id: idFromUuid(id),
-    src,
+  const ref = refFromUuid(id);
+  const item: SyncItem = {
+    id: idFromRef(ref),
+    ref,
     collection,
     createdAt,
     changedAt: new Date(last_edited_time).getTime(),
@@ -63,7 +55,7 @@ function parseItem(
 }
 
 function parseProps(pageProps: PageObjectResponse["properties"]) {
-  const props = {} as PageProps;
+  const props = {} as ServerPageProps;
   for (const key in pageProps) {
     const prop = pageProps[key];
     switch (prop.type) {
@@ -84,7 +76,7 @@ function parseProps(pageProps: PageObjectResponse["properties"]) {
         props[key] = prop.multi_select.map((s) => s.name);
         break;
       case "relation":
-        props[key] = prop.relation.map((r) => idFromUuid(r.id));
+        props[key] = prop.relation.map((r) => refFromUuid(r.id));
         break;
       case "rollup":
         // Skip rollups

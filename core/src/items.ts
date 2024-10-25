@@ -5,9 +5,8 @@ export type PageProps = Record<
   string | number | boolean | string[] | number[] | boolean[] | Block
 >;
 
-export type Item<T extends Record<string, any> = Record<never, never>> = {
+export type Item<T extends PageProps = Record<never, never>> = {
   id: number;
-  src: number;
   collection: number;
   publishedAt?: number;
   createdAt: number;

@@ -35,8 +35,6 @@ const activeConsumers = new SortedSet<number>({
 });
 
 async function sync() {
-  console.log("sync");
-
   const nextSyncScheduler = Bun.sleep(MIN_SYNC_INTERVAL);
   if (activeConsumers.length > 0) await syncAllActiveConsumers();
   await nextSyncScheduler;

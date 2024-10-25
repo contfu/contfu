@@ -1,4 +1,4 @@
-import { Item } from "@contfu/core";
+import { SyncItem } from "../data/data";
 
 export enum EventType {
   ERROR = 0,
@@ -20,7 +20,7 @@ export type ErrorEvent = {
 };
 
 export type ChangedEvent = EventBase<EventType.CHANGED> & {
-  item: Item;
+  item: SyncItem;
 };
 
 export type DeletedEvent = EventBase<EventType.DELETED> & {

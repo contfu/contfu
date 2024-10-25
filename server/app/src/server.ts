@@ -104,12 +104,11 @@ function serializeEvent(data: ItemEvent | ErrorEvent) {
       const dynamicData = Buffer.from(JSON.stringify(item.props));
       const buf = Buffer.alloc(36 + dynamicData.length);
       buf.writeUInt8(data.type, 0);
-      buf.writeUInt8(item.src, 1);
-      buf.writeUInt16LE(item.collection, 2);
-      buf.writeUInt32LE(item.id, 4);
-      buf.writeBigInt64LE(BigInt(item.createdAt), 8);
-      buf.writeBigInt64LE(BigInt(item.changedAt), 16);
-      dynamicData.copy(buf, 24);
+      buf.writeUInt16LE(item.collection, 1);
+      buf.writeUInt32LE(item.id, 3);
+      buf.writeBigInt64LE(BigInt(item.createdAt), 7);
+      buf.writeBigInt64LE(BigInt(item.changedAt), 15);
+      dynamicData.copy(buf, 23);
       return buf;
     }
     case EventType.DELETED: {

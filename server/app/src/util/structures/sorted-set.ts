@@ -57,7 +57,6 @@ export class SortedSet<T> extends Array<T> {
     const newSet = new SortedSet<T>({ key: this.key, seed: this });
 
     for (const item of items) newSet.add(item);
-    console.log(newSet);
     return newSet;
   }
 }

@@ -89,7 +89,6 @@ describe("connect via WS", () => {
 
     // expect((await item1).value).toEqual({
     //   type: EventType.LIST_IDS,
-    //   src: 1,
     //   collection: 1,
     //   ids: ["HJQ1JGsVQx2aOw-R-c400g", "xdXoCyiWRuCijuE_1I0eXQ"],
     // });
@@ -98,7 +97,6 @@ describe("connect via WS", () => {
       collection: 1,
       item: {
         id: "HJQ1JGsVQx2aOw-R-c400g",
-        src: 1,
         collection: 1,
         changedAt: 1716353760000,
         createdAt: 1711864560000,
@@ -138,7 +136,6 @@ describe("connect via WS", () => {
       collection: 1,
       item: {
         id: "xdXoCyiWRuCijuE_1I0eXQ",
-        src: 1,
         collection: 1,
         createdAt: 1711864560000,
         changedAt: 1716353820000,

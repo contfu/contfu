@@ -2,6 +2,7 @@ import { EventType } from "@contfu/core";
 import { describe, expect, it } from "bun:test";
 import { mockClient } from "../../../test/mocks/notion";
 import { SourceType } from "../../data/data";
+import { idFromRef, refFromUuid } from "../mappings";
 import { dbQueryPage1 } from "./__fixtures__/notion-query-results";
 import type { NotionPullOpts } from "./notion";
 import { NotionSource } from "./notion-source";
@@ -37,21 +38,26 @@ describe("NotionConnection", () => {
 
       const events = Array.fromAsync(source.fetch(pullOpts));
 
+      const ref1 = refFromUuid(dbQueryPage1.results[0].id);
+      const ref2 = refFromUuid(dbQueryPage1.results[1].id);
+      const otherRef = refFromUuid(
+        dbQueryPage1.results[0].properties["Other Reference"].relation[0].id
+      );
       expect(await events).toEqual([
         {
           type: EventType.CHANGED,
           collection: 1,
           item: {
-            id: 1,
+            id: idFromRef(ref1),
+            ref: ref1,
             collection: 1,
-            src: 1,
             changedAt: 1716353760000,
             createdAt: 1711864560000,
             props: {
               Color: "red",
               Description: "A",
-              "Other Reference": [3],
-              "Self Reference": [2],
+              "Other Reference": [otherRef],
+              "Self Reference": [ref2],
               Title: "Foo",
             },
           },
@@ -61,16 +67,16 @@ describe("NotionConnection", () => {
           type: EventType.CHANGED,
           collection: 1,
           item: {
-            id: 2,
+            id: idFromRef(ref2),
+            ref: ref2,
             collection: 1,
-            src: 1,
             changedAt: 1716353820000,
             createdAt: 1711864560000,
             props: {
               Color: "blue",
               Description: "B",
               "Other Reference": [],
-              "Self Reference": [1],
+              "Self Reference": [ref1],
               Slug: "/bar",
               Title: "Bar",
             },
