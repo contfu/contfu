@@ -1,7 +1,7 @@
 import { Block, ImageBlock } from "@contfu/core";
 import { PageObjectResponse } from "notion-client-web-fetch/build/src/api-endpoints";
 import { ServerPageProps, SyncItem } from "../../data/data";
-import { idFromRef, refFromUuid } from "../mappings";
+import { camelCase, idFromRef, refFromUuid } from "../mappings";
 import { getContentBlocks } from "./blocks";
 import type { NotionPullOpts } from "./notion";
 import { DbQuery, iterateDb, parseImageUrl } from "./notion-helpers";
@@ -58,63 +58,64 @@ function parseProps(pageProps: PageObjectResponse["properties"]) {
   const props = {} as ServerPageProps;
   for (const key in pageProps) {
     const prop = pageProps[key];
+    const k = camelCase(key);
     switch (prop.type) {
       case "rich_text":
         if (prop.rich_text.length > 0)
-          props[key] = prop.rich_text.map((t) => t.plain_text).join(" ");
+          props[k] = prop.rich_text.map((t) => t.plain_text).join(" ");
         break;
       case "number":
-        if (prop.number != null) props[key] = prop.number;
+        if (prop.number != null) props[k] = prop.number;
         break;
       case "date":
-        if (prop.date) props[key] = new Date(prop.date.start).getTime();
+        if (prop.date) props[k] = new Date(prop.date.start).getTime();
         break;
       case "select":
-        if (prop.select) props[key] = prop.select.name;
+        if (prop.select) props[k] = prop.select.name;
         break;
       case "multi_select":
-        props[key] = prop.multi_select.map((s) => s.name);
+        props[k] = prop.multi_select.map((s) => s.name);
         break;
       case "relation":
-        props[key] = prop.relation.map((r) => refFromUuid(r.id));
+        props[k] = prop.relation.map((r) => refFromUuid(r.id));
         break;
       case "rollup":
         // Skip rollups
         break;
       case "checkbox":
-        props[key] = prop.checkbox;
+        props[k] = prop.checkbox;
         break;
       case "url":
-        if (prop.url) props[key] = prop.url;
+        if (prop.url) props[k] = prop.url;
         break;
       case "formula":
         switch (prop.formula.type) {
           case "string":
-            if (prop.formula.string) props[key] = prop.formula.string;
+            if (prop.formula.string) props[k] = prop.formula.string;
 
             break;
           case "boolean":
-            if (prop.formula.boolean) props[key] = prop.formula.boolean;
+            if (prop.formula.boolean) props[k] = prop.formula.boolean;
             break;
           case "date":
             if (prop.formula.date)
-              props[key] = new Date(prop.formula.date.start).getTime();
+              props[k] = new Date(prop.formula.date.start).getTime();
             break;
           case "number":
-            if (prop.formula.number) props[key] = prop.formula.number;
+            if (prop.formula.number) props[k] = prop.formula.number;
             break;
         }
         break;
       case "files":
-        props[key] = prop.files
+        props[k] = prop.files
           .filter((f) => f.type)
           .map((f) => parseImageUrl(f)!);
         break;
       case "people":
-        props[key] = prop.people.map((p) => p.id);
+        props[k] = prop.people.map((p) => p.id);
         break;
       case "title":
-        props[key] = prop.title.map((x) => x.plain_text).join(" ");
+        props[k] = prop.title.map((x) => x.plain_text).join(" ");
         break;
     }
   }
