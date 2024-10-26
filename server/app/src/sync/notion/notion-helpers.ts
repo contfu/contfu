@@ -24,9 +24,9 @@ type Image =
   | { type?: "file"; file: { url: string } }
   | { type?: "external"; external: { url: string } };
 
-export function parseImageUrl(img: Required<Image>): string;
-export function parseImageUrl(img: Image): string | undefined;
-export function parseImageUrl(img: Image): string | undefined {
+export function getImageUrl(img: Required<Image>): string;
+export function getImageUrl(img: Image): string | undefined;
+export function getImageUrl(img: Image): string | undefined {
   if (img.type === "file") return img.file.url;
   if (img.type === "external") img.external.url;
   return undefined;

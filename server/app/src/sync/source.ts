@@ -1,3 +1,4 @@
+import { CollectionSchema } from "@contfu/core";
 import { SourceType } from "../data/data";
 import { AsyncQueue } from "../util/async/async-queue";
 import { ItemEvent } from "./events";
@@ -28,4 +29,11 @@ export abstract class Source {
    * Note: Change events need to be sorted by `item.changedAt`.
    **/
   abstract fetch(opts: CollectionFetchOpts): AsyncGenerator<ItemEvent>;
+
+  /**
+   * Returns the schema of the collection.
+   */
+  abstract getCollectionSchema(
+    opts: CollectionFetchOpts
+  ): Promise<CollectionSchema>;
 }

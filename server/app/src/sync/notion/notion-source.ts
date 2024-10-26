@@ -1,10 +1,11 @@
+import { CollectionSchema } from "@contfu/core";
 import { mergeGenerators } from "../../util/async/async-generators";
 import { EventType, ItemEvent } from "../events";
 import { Source } from "../source";
-import { iteratePages } from "./items";
 import { NotionPullOpts } from "./notion";
+import { getCollectionSchema } from "./notion-collections";
 import { DbQuery } from "./notion-helpers";
-
+import { iteratePages } from "./notion-items";
 export class NotionSource extends Source {
   async *fetch(opts: NotionPullOpts): AsyncGenerator<ItemEvent> {
     const items = opts.since
@@ -22,6 +23,10 @@ export class NotionSource extends Source {
         collection: opts.collectionId,
       };
     }
+  }
+
+  async getCollectionSchema(opts: NotionPullOpts): Promise<CollectionSchema> {
+    return getCollectionSchema(opts.credentials, opts.ref);
   }
 }
 

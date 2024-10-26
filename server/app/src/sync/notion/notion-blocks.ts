@@ -18,7 +18,7 @@ import type {
   BlockObjectResponse,
   RichTextItemResponse,
 } from "notion-client-web-fetch/build/src/api-endpoints";
-import { notion, parseImageUrl } from "./notion-helpers";
+import { getImageUrl, notion } from "./notion-helpers";
 
 export async function getContentBlocks(key: Buffer, id: string) {
   const blocks = [] as Block[];
@@ -106,7 +106,7 @@ export function parseBlock(block: BlockObjectResponse): Block | null {
       const caption = extractRichTextContent(block.image.caption);
       return [
         "i",
-        parseImageUrl(block.image),
+        getImageUrl(block.image),
         toPlainText(caption),
         [],
       ] satisfies ImageBlock;

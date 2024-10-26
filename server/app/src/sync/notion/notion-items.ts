@@ -1,10 +1,10 @@
-import { Block, ImageBlock, Item, PageProps } from "@contfu/core";
+import { Block, Item, PageProps } from "@contfu/core";
 import { PageObjectResponse } from "notion-client-web-fetch/build/src/api-endpoints";
 import { MarkOptional } from "ts-essentials";
 import { idFromRef, refFromUuid } from "../mappings";
-import { getContentBlocks } from "./blocks";
 import type { NotionPullOpts } from "./notion";
-import { DbQuery, iterateDb, parseImageUrl } from "./notion-helpers";
+import { getContentBlocks } from "./notion-blocks";
+import { DbQuery, getImageUrl, iterateDb } from "./notion-helpers";
 
 export async function* iteratePages(
   { credentials, ref, collectionId }: NotionPullOpts,
@@ -34,18 +34,14 @@ function parseItem(
   const createdAt = new Date(created_time).getTime();
   const props = parseProps(properties);
   const ref = refFromUuid(id);
+  if (icon && icon.type !== "emoji") props.icon = getImageUrl(icon);
+  if (cover) props.cover = getImageUrl(cover);
   const item: Item = {
     id: idFromRef(ref),
     collection,
     createdAt,
     changedAt: new Date(last_edited_time).getTime(),
     props: {
-      ...(icon && icon.type !== "emoji"
-        ? { icon: ["i", parseImageUrl(icon), "Icon", []] as ImageBlock }
-        : {}),
-      ...(cover
-        ? { cover: ["i", parseImageUrl(cover), "Cover", []] as ImageBlock }
-        : {}),
       ...props,
       ...content,
     },
@@ -75,6 +71,10 @@ function parseValue(
   | null
   | undefined {
   switch (value.type) {
+    case "title":
+      return value.title.length > 0
+        ? value.title.map((x) => x.plain_text).join(" ")
+        : null;
     case "rich_text":
       return value.rich_text.length > 0
         ? value.rich_text.map((t) => t.plain_text).join(" ")
@@ -98,36 +98,32 @@ function parseValue(
     case "multi_select":
       return value.multi_select.map((s) => s.name);
     case "relation":
-      return value.relation.map((r) =>
-        idFromRef(refFromUuid(r.id)).toString("base64url")
-      );
+      return value.relation.map(parseRef);
     case "created_time":
       return new Date(value.created_time).getTime();
     case "last_edited_time":
       return new Date(value.last_edited_time).getTime();
     case "status":
       return value.status?.name;
-    case "rollup":
-      return value.rollup.type === "number" || value.rollup.type === "date"
-        ? parseValue(value.rollup)
-        : (value.rollup.array.map((x) => parseValue(x)) as number[] | string[]);
     case "checkbox":
       return value.checkbox;
     case "url":
       return value.url;
-    case "formula":
-      return parseValue(
-        value.formula as PageObjectResponse["properties"]["formula"]
-      );
     case "files":
-      return value.files.filter((f) => f.type).map((f) => parseImageUrl(f)!);
+      return value.files.filter((f) => f.type).map((f) => getImageUrl(f)!);
     case "people":
-      return value.people.map((p) => p.id);
-    case "title":
-      return value.title.map((x) => x.plain_text).join(" ");
+      return value.people.map(parseRef);
     case "created_by":
+      return parseRef(value.created_by);
     case "last_edited_by":
+      return parseRef(value.last_edited_by);
+    case "formula":
+    case "rollup":
     case "button":
       return null;
   }
+}
+
+function parseRef({ id }: { id: string }) {
+  return idFromRef(refFromUuid(id)).toString("base64url");
 }
