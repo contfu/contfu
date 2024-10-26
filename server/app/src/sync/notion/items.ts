@@ -1,7 +1,7 @@
 import { Block, ImageBlock, Item, PageProps } from "@contfu/core";
 import { PageObjectResponse } from "notion-client-web-fetch/build/src/api-endpoints";
 import { MarkOptional } from "ts-essentials";
-import { camelCase, idFromRef, refFromUuid } from "../mappings";
+import { idFromRef, refFromUuid } from "../mappings";
 import { getContentBlocks } from "./blocks";
 import type { NotionPullOpts } from "./notion";
 import { DbQuery, iterateDb, parseImageUrl } from "./notion-helpers";
@@ -57,9 +57,8 @@ function parseProps(pageProps: PageObjectResponse["properties"]) {
   const props = {} as PageProps;
   for (const key in pageProps) {
     const prop = pageProps[key];
-    const k = camelCase(key);
     const value = parseValue(prop);
-    if (value != null) props[k] = value;
+    if (value != null) props[key] = value;
   }
   return props;
 }

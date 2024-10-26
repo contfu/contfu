@@ -101,12 +101,12 @@ describe("connect via WS", () => {
         changedAt: 1716353760000,
         createdAt: 1711864560000,
         props: {
-          color: "red",
-          description: "A",
-          otherReference: ["aEyH_tGiTCGj3oxV2s45zQ"],
-          selfReference: ["xdXoCyiWRuCijuE_1I0eXQ"],
-          title: "Foo",
-          content: [
+          Color: "red",
+          Description: "A",
+          "Other Reference": ["aEyH_tGiTCGj3oxV2s45zQ"],
+          "Self Reference": ["xdXoCyiWRuCijuE_1I0eXQ"],
+          Title: "Foo",
+          Content: [
             [
               "t",
               true,
@@ -140,13 +140,13 @@ describe("connect via WS", () => {
         createdAt: 1711864560000,
         changedAt: 1716353820000,
         props: {
-          description: "B",
-          slug: "/bar",
-          selfReference: ["HJQ1JGsVQx2aOw-R-c400g"],
-          otherReference: [],
-          color: "blue",
-          title: "Bar",
-          content: [],
+          Description: "B",
+          Slug: "/bar",
+          "Self Reference": ["HJQ1JGsVQx2aOw-R-c400g"],
+          "Other Reference": [],
+          Color: "blue",
+          Title: "Bar",
+          Content: [],
         },
       },
     });

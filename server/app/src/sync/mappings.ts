@@ -22,25 +22,3 @@ export function refFromUuid(uuid: string) {
 export function idFromRef(ref: Buffer) {
   return hash("blake2b256", ref, "buffer").subarray(0, 12);
 }
-
-export function camelCase(str: string) {
-  let result = "";
-  let capitalizeNext = false;
-
-  for (let i = 0; i < str.length; i++) {
-    const char = str[i];
-    if (/[-_\s]/.test(char)) {
-      capitalizeNext = true;
-    } else {
-      if (capitalizeNext) {
-        result += char.toUpperCase();
-        capitalizeNext = false;
-      } else if (i === 0) {
-        result += char.toLowerCase();
-      } else {
-        result += char;
-      }
-    }
-  }
-  return result;
-}

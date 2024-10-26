@@ -1,12 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { camelCase } from "./mappings";
+import { idFromRef, refFromUuid } from "./mappings";
 
-describe("camelCase()", () => {
-  it("should convert kebab-case to camelCase", () => {
-    expect(camelCase("foo-bar_baz")).toBe("fooBarBaz");
-    expect(camelCase("Some Text")).toBe("someText");
-    expect(camelCase("already-camelCase")).toBe("alreadyCamelCase");
-    expect(camelCase("multiple   spaces   here")).toBe("multipleSpacesHere");
-    expect(camelCase("mixed-CASE_string")).toBe("mixedCASEString");
+describe("idFromRef()", () => {
+  it("should convert a reference to an id", () => {
+    expect(
+      idFromRef(refFromUuid("123e4567-e89b-12d3-a456-426614174000"))
+    ).toEqual(Buffer.from("3UjmkC_aOByUkLno", "base64url"));
   });
 });
