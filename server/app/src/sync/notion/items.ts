@@ -1,5 +1,6 @@
 import { Block, ImageBlock } from "@contfu/core";
 import { PageObjectResponse } from "notion-client-web-fetch/build/src/api-endpoints";
+import { MarkOptional } from "ts-essentials";
 import { ServerPageProps, SyncItem } from "../../data/data";
 import { camelCase, idFromRef, refFromUuid } from "../mappings";
 import { getContentBlocks } from "./blocks";
@@ -59,65 +60,75 @@ function parseProps(pageProps: PageObjectResponse["properties"]) {
   for (const key in pageProps) {
     const prop = pageProps[key];
     const k = camelCase(key);
-    switch (prop.type) {
-      case "rich_text":
-        if (prop.rich_text.length > 0)
-          props[k] = prop.rich_text.map((t) => t.plain_text).join(" ");
-        break;
-      case "number":
-        if (prop.number != null) props[k] = prop.number;
-        break;
-      case "date":
-        if (prop.date) props[k] = new Date(prop.date.start).getTime();
-        break;
-      case "select":
-        if (prop.select) props[k] = prop.select.name;
-        break;
-      case "multi_select":
-        props[k] = prop.multi_select.map((s) => s.name);
-        break;
-      case "relation":
-        props[k] = prop.relation.map((r) => refFromUuid(r.id));
-        break;
-      case "rollup":
-        // Skip rollups
-        break;
-      case "checkbox":
-        props[k] = prop.checkbox;
-        break;
-      case "url":
-        if (prop.url) props[k] = prop.url;
-        break;
-      case "formula":
-        switch (prop.formula.type) {
-          case "string":
-            if (prop.formula.string) props[k] = prop.formula.string;
-
-            break;
-          case "boolean":
-            if (prop.formula.boolean) props[k] = prop.formula.boolean;
-            break;
-          case "date":
-            if (prop.formula.date)
-              props[k] = new Date(prop.formula.date.start).getTime();
-            break;
-          case "number":
-            if (prop.formula.number) props[k] = prop.formula.number;
-            break;
-        }
-        break;
-      case "files":
-        props[k] = prop.files
-          .filter((f) => f.type)
-          .map((f) => parseImageUrl(f)!);
-        break;
-      case "people":
-        props[k] = prop.people.map((p) => p.id);
-        break;
-      case "title":
-        props[k] = prop.title.map((x) => x.plain_text).join(" ");
-        break;
-    }
+    const value = parseValue(prop);
+    if (value != null) props[k] = value;
   }
   return props;
+}
+
+function parseValue(
+  value: MarkOptional<PageObjectResponse["properties"][string], "id">
+):
+  | number
+  | string
+  | boolean
+  | number[]
+  | string[]
+  | Buffer[]
+  | null
+  | undefined {
+  switch (value.type) {
+    case "rich_text":
+      return value.rich_text.length > 0
+        ? value.rich_text.map((t) => t.plain_text).join(" ")
+        : null;
+    case "number":
+      return value.number;
+    case "date":
+      return value.date ? new Date(value.date.start).getTime() : null;
+    case "select":
+      return value.select?.name;
+    case "email":
+      return value.email;
+    case "unique_id":
+      return value.unique_id.prefix == null
+        ? value.unique_id.number
+        : `${value.unique_id.prefix}-${value.unique_id.number}`;
+    case "verification":
+      return value.verification?.state;
+    case "phone_number":
+      return value.phone_number;
+    case "multi_select":
+      return value.multi_select.map((s) => s.name);
+    case "relation":
+      return value.relation.map((r) => refFromUuid(r.id));
+    case "created_time":
+      return new Date(value.created_time).getTime();
+    case "last_edited_time":
+      return new Date(value.last_edited_time).getTime();
+    case "status":
+      return value.status?.name;
+    case "rollup":
+      return value.rollup.type === "number" || value.rollup.type === "date"
+        ? parseValue(value.rollup)
+        : (value.rollup.array.map((x) => parseValue(x)) as number[] | string[]);
+    case "checkbox":
+      return value.checkbox;
+    case "url":
+      return value.url;
+    case "formula":
+      return parseValue(
+        value.formula as PageObjectResponse["properties"]["formula"]
+      );
+    case "files":
+      return value.files.filter((f) => f.type).map((f) => parseImageUrl(f)!);
+    case "people":
+      return value.people.map((p) => p.id);
+    case "title":
+      return value.title.map((x) => x.plain_text).join(" ");
+    case "created_by":
+    case "last_edited_by":
+    case "button":
+      return null;
+  }
 }
