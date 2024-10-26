@@ -21,7 +21,7 @@ export type ChangedEvent = EventBase<EventType.CHANGED> & {
 };
 
 export type DeletedEvent = EventBase<EventType.DELETED> & {
-  item: number;
+  item: Buffer;
 };
 
 export type ItemEvent = ChangedEvent | DeletedEvent;

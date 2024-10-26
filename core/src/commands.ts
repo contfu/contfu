@@ -10,7 +10,7 @@ export type ConnectCommand = {
 
 export type AckCommand = {
   type: CommandType.ACK;
-  itemId: number;
+  itemId: Buffer;
   collectionId: number;
 };
 

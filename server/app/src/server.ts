@@ -70,7 +70,7 @@ async function connect(key: Buffer, ws: ElysiaWS<any, any>) {
   socketToConsumer.set(ws.id, consumerId);
 }
 
-async function ack(itemId: number, collectionId: number) {
+async function ack(itemId: Buffer, collectionId: number) {
   console.log("ack", itemId, collectionId);
 }
 
@@ -89,8 +89,8 @@ function deserializeCommand(buf: Buffer) {
     case CommandType.ACK: {
       return {
         type,
-        itemId: buf.readUInt32LE(1),
-        collectionId: buf.readUInt16LE(5),
+        itemId: buf.subarray(1, 13),
+        collectionId: buf.readUInt16LE(13),
       } as AckCommand;
     }
   }
@@ -105,10 +105,10 @@ function serializeEvent(data: ItemEvent | ErrorEvent) {
       const buf = Buffer.alloc(36 + dynamicData.length);
       buf.writeUInt8(data.type, 0);
       buf.writeUInt16LE(item.collection, 1);
-      buf.writeUInt32LE(item.id, 3);
-      buf.writeBigInt64LE(BigInt(item.createdAt), 7);
-      buf.writeBigInt64LE(BigInt(item.changedAt), 15);
-      dynamicData.copy(buf, 23);
+      item.id.copy(buf, 3);
+      buf.writeBigInt64LE(BigInt(item.createdAt), 15);
+      buf.writeBigInt64LE(BigInt(item.changedAt), 23);
+      dynamicData.copy(buf, 31);
       return buf;
     }
     case EventType.DELETED: {
@@ -116,7 +116,7 @@ function serializeEvent(data: ItemEvent | ErrorEvent) {
       const buf = Buffer.alloc(bufferLength);
       buf.writeUInt8(data.type, 0);
       buf.writeUInt16LE(data.collection, 1);
-      buf.writeUInt16LE(data.item, 3);
+      data.item.copy(buf, 3);
       return buf;
     }
     case EventType.ERROR: {

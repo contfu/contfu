@@ -27,5 +27,5 @@ export abstract class Source {
    * Pulls events from the connection target.
    * Note: Change events need to be sorted by `item.changedAt`.
    **/
-  abstract fetch(conf: CollectionFetchOpts): AsyncGenerator<ItemEvent>;
+  abstract fetch(opts: CollectionFetchOpts): AsyncGenerator<ItemEvent>;
 }

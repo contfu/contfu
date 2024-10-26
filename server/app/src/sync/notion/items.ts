@@ -1,7 +1,6 @@
-import { Block, ImageBlock } from "@contfu/core";
+import { Block, ImageBlock, Item, PageProps } from "@contfu/core";
 import { PageObjectResponse } from "notion-client-web-fetch/build/src/api-endpoints";
 import { MarkOptional } from "ts-essentials";
-import { ServerPageProps, SyncItem } from "../../data/data";
 import { camelCase, idFromRef, refFromUuid } from "../mappings";
 import { getContentBlocks } from "./blocks";
 import type { NotionPullOpts } from "./notion";
@@ -31,13 +30,12 @@ function parseItem(
   }: PageObjectResponse,
   collection: number,
   content?: Block[]
-): SyncItem {
+): Item {
   const createdAt = new Date(created_time).getTime();
   const props = parseProps(properties);
   const ref = refFromUuid(id);
-  const item: SyncItem = {
+  const item: Item = {
     id: idFromRef(ref),
-    ref,
     collection,
     createdAt,
     changedAt: new Date(last_edited_time).getTime(),
@@ -56,7 +54,7 @@ function parseItem(
 }
 
 function parseProps(pageProps: PageObjectResponse["properties"]) {
-  const props = {} as ServerPageProps;
+  const props = {} as PageProps;
   for (const key in pageProps) {
     const prop = pageProps[key];
     const k = camelCase(key);
@@ -101,7 +99,9 @@ function parseValue(
     case "multi_select":
       return value.multi_select.map((s) => s.name);
     case "relation":
-      return value.relation.map((r) => refFromUuid(r.id));
+      return value.relation.map((r) =>
+        idFromRef(refFromUuid(r.id)).toString("base64url")
+      );
     case "created_time":
       return new Date(value.created_time).getTime();
     case "last_edited_time":

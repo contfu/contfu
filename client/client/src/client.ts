@@ -51,8 +51,7 @@ export function connectTo(
           socket.send(
             serializeCommand({
               type: CommandType.ACK,
-              itemId:
-                typeof event.item === "number" ? event.item : event.item.id,
+              itemId: event.item instanceof Buffer ? event.item : event.item.id,
               collectionId: event.collection,
             })
           );
@@ -79,10 +78,10 @@ function serializeCommand(cmd: Command) {
       return buf;
     }
     case CommandType.ACK: {
-      const buf = Buffer.alloc(7);
+      const buf = Buffer.alloc(11);
       buf.writeUInt8(cmd.type, 0);
       buf.writeUInt16LE(cmd.collectionId, 1);
-      buf.writeUInt32LE(cmd.itemId, 3);
+      cmd.itemId.copy(buf, 3);
       return buf;
     }
   }
@@ -96,11 +95,11 @@ function deserializeEvent(buf: Buffer) {
       return { type, code } satisfies ErrorEvent;
     }
     case EventType.CHANGED: {
-      const collection = buf.readUInt16LE(2);
-      const id = buf.readUInt32LE(4);
-      const createdAt = Number(buf.readBigInt64LE(8));
-      const changedAt = Number(buf.readBigInt64LE(16));
-      const propsJson = buf.subarray(24).toString("utf8");
+      const collection = buf.readUInt16LE(1);
+      const id = buf.subarray(3, 15);
+      const createdAt = Number(buf.readBigInt64LE(15));
+      const changedAt = Number(buf.readBigInt64LE(23));
+      const propsJson = buf.subarray(31).toString("utf8");
       const props = JSON.parse(propsJson);
       return {
         type,
@@ -110,7 +109,7 @@ function deserializeEvent(buf: Buffer) {
     }
     case EventType.DELETED: {
       const collection = buf.readUInt16LE(1);
-      const item = buf.readUInt16LE(3);
+      const item = buf.subarray(3);
       return { type, collection, item } satisfies DeletedEvent;
     }
   }

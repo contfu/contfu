@@ -1,4 +1,4 @@
-import { Block, Item } from "@contfu/core";
+import { Block } from "@contfu/core";
 
 export enum SourceType {
   NOTION = 1,
@@ -16,7 +16,3 @@ export type ServerPageProps = Record<
   | Buffer // Many-to-one relation
   | Buffer[] // Many-to-many relation
 >;
-
-export type SyncItem = Item<any> & {
-  ref: Buffer;
-};

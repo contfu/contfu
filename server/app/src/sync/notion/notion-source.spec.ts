@@ -38,26 +38,27 @@ describe("NotionConnection", () => {
 
       const events = Array.fromAsync(source.fetch(pullOpts));
 
-      const ref1 = refFromUuid(dbQueryPage1.results[0].id);
-      const ref2 = refFromUuid(dbQueryPage1.results[1].id);
-      const otherRef = refFromUuid(
-        dbQueryPage1.results[0].properties["Other Reference"].relation[0].id
+      const id1 = idFromRef(refFromUuid(dbQueryPage1.results[0].id));
+      const id2 = idFromRef(refFromUuid(dbQueryPage1.results[1].id));
+      const otherId = idFromRef(
+        refFromUuid(
+          dbQueryPage1.results[0].properties["Other Reference"].relation[0].id
+        )
       );
       expect(await events).toEqual([
         {
           type: EventType.CHANGED,
           collection: 1,
           item: {
-            id: idFromRef(ref1),
-            ref: ref1,
+            id: id1,
             collection: 1,
             changedAt: 1716353760000,
             createdAt: 1711864560000,
             props: {
               color: "red",
               description: "A",
-              otherReference: [otherRef],
-              selfReference: [ref2],
+              otherReference: [otherId.toString("base64url")],
+              selfReference: [id2.toString("base64url")],
               title: "Foo",
             },
           },
@@ -67,8 +68,7 @@ describe("NotionConnection", () => {
           type: EventType.CHANGED,
           collection: 1,
           item: {
-            id: idFromRef(ref2),
-            ref: ref2,
+            id: id2,
             collection: 1,
             changedAt: 1716353820000,
             createdAt: 1711864560000,
@@ -76,7 +76,7 @@ describe("NotionConnection", () => {
               color: "blue",
               description: "B",
               otherReference: [],
-              selfReference: [ref1],
+              selfReference: [id1.toString("base64url")],
               slug: "/bar",
               title: "Bar",
             },
