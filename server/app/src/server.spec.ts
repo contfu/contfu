@@ -116,29 +116,29 @@ describe("connect via WS", () => {
           "Other Reference": ["Uqf_AYLTfb4pdBDh"],
           "Self Reference": ["fMSi1vKEuSZ-r3_7"],
           Title: "Foo",
-          content: [
-            [
-              "t",
-              true,
-              [
-                [["a"], ["b"]],
-                [["x", ["c", "foo"]], ["y"]],
-                [[], []],
-              ],
-            ],
-            [
-              "u",
-              ["Test"],
-              [
-                ["u", ["tmsreia"], ["tsrenia"]],
-                ["o", ["bar"]],
-              ],
-              ["nsdrtaei"],
-            ],
-            ["q", ["Test", ["b", "tsrf\nBlubb"]]],
-            ["q", ["foo\nneih"]],
-          ],
         },
+        content: [
+          [
+            "t",
+            true,
+            [
+              [["a"], ["b"]],
+              [["x", ["c", "foo"]], ["y"]],
+              [[], []],
+            ],
+          ],
+          [
+            "u",
+            ["Test"],
+            [
+              ["u", ["tmsreia"], ["tsrenia"]],
+              ["o", ["bar"]],
+            ],
+            ["nsdrtaei"],
+          ],
+          ["q", ["Test", ["b", "tsrf\nBlubb"]]],
+          ["q", ["foo\nneih"]],
+        ],
       },
     });
     expect((await item2).value).toEqual({
@@ -156,7 +156,6 @@ describe("connect via WS", () => {
           "Other Reference": [],
           Color: "blue",
           Title: "Bar",
-          content: [],
         },
       },
     });

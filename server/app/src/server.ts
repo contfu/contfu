@@ -108,7 +108,14 @@ function serializeEvent(data: ItemEvent | ErrorEvent | ConnectedEvent) {
     }
     case EventType.CHANGED: {
       const { item } = data;
-      const dynamicData = Buffer.from(JSON.stringify(item.props), "utf8");
+      const dynamicData = Buffer.from(
+        JSON.stringify(
+          item.content && item.content.length > 0
+            ? [item.props, item.content]
+            : item.props
+        ),
+        "utf8"
+      );
       const buf = Buffer.alloc(31 + dynamicData.length);
       buf.writeUInt8(data.type, 0);
       buf.writeUInt16LE(item.collection, 1);

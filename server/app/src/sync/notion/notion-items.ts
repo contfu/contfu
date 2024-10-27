@@ -41,11 +41,9 @@ function parseItem(
     collection,
     createdAt,
     changedAt: new Date(last_edited_time).getTime(),
-    props: {
-      ...props,
-      content,
-    },
+    props,
   };
+  if (content && content.length > 0) item.content = content;
   return item;
 }
 

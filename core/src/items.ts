@@ -12,4 +12,5 @@ export type Item<T extends PageProps = Record<never, never>> = {
   createdAt: number;
   changedAt: number;
   props: T;
+  content?: Block[];
 };

@@ -6,6 +6,7 @@ import {
   DeletedEvent,
   ErrorEvent,
   EventType,
+  Item,
   ItemEvent,
 } from "@contfu/core";
 
@@ -109,11 +110,15 @@ function deserializeEvent(buf: Buffer) {
       const createdAt = Number(buf.readBigInt64LE(15));
       const changedAt = Number(buf.readBigInt64LE(23));
       const propsJson = buf.subarray(31).toString("utf8");
-      const props = JSON.parse(propsJson.trim());
+      const parsed = JSON.parse(propsJson.trim());
+      const [props, content] = Array.isArray(parsed) ? parsed : [parsed];
+
+      const item = { id, createdAt, changedAt, collection, props } as Item;
+      if (content) item.content = content;
       return {
         type,
         collection,
-        item: { id, createdAt, changedAt, collection, props },
+        item,
       } satisfies ChangedEvent;
     }
     case EventType.DELETED: {
