@@ -2,6 +2,7 @@ import {
   ChangedEvent,
   Command,
   CommandType,
+  ConnectedEvent,
   DeletedEvent,
   ErrorEvent,
   EventType,
@@ -16,12 +17,12 @@ type Opts = {
 export function connectTo<Props extends Record<string, Record<string, any>>>(
   key: Buffer,
   opts: Opts & { handle: (e: ItemEvent) => Promise<void> }
-): void;
+): Promise<void>;
 export function connectTo<Props extends Record<string, Record<string, any>>>(
   key: Buffer,
   opts?: Omit<Opts, "handle">
-): AsyncGenerator<ItemEvent>;
-export function connectTo(
+): Promise<AsyncGenerator<ItemEvent>>;
+export async function connectTo(
   key: Buffer,
   { WS = global.WebSocket, handle }: Opts = {}
 ) {
@@ -36,6 +37,11 @@ export function connectTo(
     const data = deserializeEvent(event.data as Buffer);
     resolve(data);
   };
+  await new Promise((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+
   if (handle) {
     return (async () => {
       do {
@@ -90,6 +96,9 @@ function serializeCommand(cmd: Command) {
 function deserializeEvent(buf: Buffer) {
   const type = buf.readUInt8(0) as EventType;
   switch (type) {
+    case EventType.CONNECTED: {
+      return { type } satisfies ConnectedEvent;
+    }
     case EventType.ERROR: {
       const code = buf.subarray(4).toString("ascii");
       return { type, code } satisfies ErrorEvent;
@@ -100,7 +109,7 @@ function deserializeEvent(buf: Buffer) {
       const createdAt = Number(buf.readBigInt64LE(15));
       const changedAt = Number(buf.readBigInt64LE(23));
       const propsJson = buf.subarray(31).toString("utf8");
-      const props = JSON.parse(propsJson);
+      const props = JSON.parse(propsJson.trim());
       return {
         type,
         collection,

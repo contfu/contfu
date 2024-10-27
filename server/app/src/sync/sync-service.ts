@@ -1,8 +1,8 @@
+import { combineLatest, defer, repeat, Subject, timer } from "rxjs";
 import { getNextCollectionFetchOpts } from "../data/data-repository";
 import { countConnectionsForConsumer } from "../data/db/data-datasource";
 import { mergeGenerators } from "../util/async/async-generators";
-import { AsyncQueue } from "../util/async/async-queue";
-import { combine3ints } from "../util/numbers";
+import { combine3ints } from "../util/numbers/numbers";
 import { SortedSet } from "../util/structures/sorted-set";
 import { ItemEvent } from "./events";
 import { type NotionPullOpts, notionSource } from "./notion";
@@ -18,9 +18,8 @@ export async function activateConsumer(accountId: number, consumerId: number) {
   );
 }
 
-const queue = new AsyncQueue<ItemEvent>();
-
-export const events = queue.createGenerator();
+const eventsSubject = new Subject<ItemEvent>();
+export const events$ = eventsSubject.asObservable();
 
 /**
  * Active consumers are stored in binary format to save memory.
@@ -34,14 +33,14 @@ const activeConsumers = new SortedSet<number>({
   },
 });
 
-async function sync() {
-  const nextSyncScheduler = Bun.sleep(MIN_SYNC_INTERVAL);
-  if (activeConsumers.length > 0) await syncAllActiveConsumers();
-  await nextSyncScheduler;
-  void sync();
+export function sync() {
+  return defer(() =>
+    combineLatest([timer(MIN_SYNC_INTERVAL), syncAllActiveConsumers()])
+  ).pipe(repeat());
 }
 
 async function syncAllActiveConsumers() {
+  if (activeConsumers.length === 0) return;
   const consumers = [...activeConsumers];
   let partition: [number, number][] = [];
   let connectedCollections = 0;
@@ -66,7 +65,7 @@ async function syncConsumers(
   for await (const event of mergeGenerators(
     ...opts.map((o) => notionSource.fetch(o as NotionPullOpts))
   ))
-    queue.push(event);
+    eventsSubject.next(event);
 }
 
 const [compressConsumerIdWithCount, expandConsumerIdWithCount] = combine3ints(
@@ -74,5 +73,3 @@ const [compressConsumerIdWithCount, expandConsumerIdWithCount] = combine3ints(
   10,
   10
 );
-
-sync();

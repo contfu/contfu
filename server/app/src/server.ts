@@ -1,9 +1,15 @@
 import { AckCommand, Command, CommandType, ConnectCommand } from "@contfu/core";
 import Elysia from "elysia";
 import { ElysiaWS } from "elysia/ws";
-import { Subscription, bufferTime, filter, from, tap } from "rxjs";
+import { Subscription, bufferTime, concatMap, filter } from "rxjs";
 import { authenticateConsumer } from "./access/access-repository";
-import { ErrorEvent, EventType, ItemEvent, ListIdsEvent } from "./sync/events";
+import {
+  ConnectedEvent,
+  ErrorEvent,
+  EventType,
+  ItemEvent,
+  ListIdsEvent,
+} from "./sync/events";
 import {
   compressCollectionId,
   compressConsumerId,
@@ -12,7 +18,7 @@ import {
 } from "./sync/sync";
 import {
   activateConsumer,
-  events,
+  events$,
   getConnectionsToCollections,
 } from "./sync/sync-service";
 
@@ -44,8 +50,6 @@ export const app = new Elysia()
     },
   });
 
-processEvents();
-
 async function handleWsMessage(cmd: Command, ws: ElysiaWS<any, any>) {
   if (cmd.type === CommandType.CONNECT) {
     return connect(cmd.key, ws);
@@ -62,12 +66,11 @@ async function connect(key: Buffer, ws: ElysiaWS<any, any>) {
   const client = await authenticateConsumer(key);
   if (!client) return new CommandError("E_AUTH");
   if (subs.has(ws.id)) return new CommandError("E_CONFLICT");
-  console.debug("client connected", client.accountId, client.id);
-
   await activateConsumer(client.accountId, client.id);
   const consumerId = compressConsumerId(client.accountId, client.id);
   consumerToSocket.set(consumerId, ws);
   socketToConsumer.set(ws.id, consumerId);
+  ws.send(serializeEvent({ type: EventType.CONNECTED }));
 }
 
 async function ack(itemId: Buffer, collectionId: number) {
@@ -96,13 +99,17 @@ function deserializeCommand(buf: Buffer) {
   }
 }
 
-function serializeEvent(data: ItemEvent | ErrorEvent) {
-  console.log("serializeEvent", data);
+function serializeEvent(data: ItemEvent | ErrorEvent | ConnectedEvent) {
   switch (data.type) {
+    case EventType.CONNECTED: {
+      const buf = Buffer.alloc(1);
+      buf.writeUInt8(data.type, 0);
+      return buf;
+    }
     case EventType.CHANGED: {
       const { item } = data;
-      const dynamicData = Buffer.from(JSON.stringify(item.props));
-      const buf = Buffer.alloc(36 + dynamicData.length);
+      const dynamicData = Buffer.from(JSON.stringify(item.props), "utf8");
+      const buf = Buffer.alloc(31 + dynamicData.length);
       buf.writeUInt8(data.type, 0);
       buf.writeUInt16LE(item.collection, 1);
       item.id.copy(buf, 3);
@@ -128,17 +135,12 @@ function serializeEvent(data: ItemEvent | ErrorEvent) {
   }
 }
 
-function processEvents() {
-  return from(events)
-    .pipe(
-      filter((event) => event.type !== EventType.LIST_IDS),
-      tap(console.log),
-      bufferTime(1500, undefined, 1000),
-      filter((events) => events.length > 0)
-    )
-    .subscribe(async (events) => {
-      console.log("processEvents", events);
-
+export function processEvents() {
+  return events$.pipe(
+    filter((event) => event.type !== EventType.LIST_IDS),
+    bufferTime(1000, undefined, 1000),
+    filter((events) => events.length > 0),
+    concatMap(async (events) => {
       const collectionIds = new Set<number>();
       const collectionEvents = new Map<
         number,
@@ -173,7 +175,6 @@ function processEvents() {
           socket.send(serializeEvent(event));
         }
       }
-    });
+    })
+  );
 }
-
-processEvents();

@@ -18,7 +18,7 @@ export function combine2ints(size1: number, size2: number) {
   const shift = 2 ** size2;
   const mask = shift - 1;
   return [
-    (a: number, b: number) => a * shift + b * mask,
+    (a: number, b: number) => a * shift + (b & mask),
     (combined: number) =>
       [Math.floor(combined / shift), combined & mask] as const,
   ] as const;

@@ -1,9 +1,10 @@
 import { Item } from "@contfu/core";
 
 export enum EventType {
-  ERROR = 0,
-  CHANGED = 1,
-  DELETED = 2,
+  CONNECTED = 0,
+  ERROR = 1,
+  CHANGED = 2,
+  DELETED = 3,
   // Internal event type values are larger than the 1 byte public event type.
   LIST_IDS = 256,
 }
@@ -13,6 +14,8 @@ type EventBase<T extends EventType> = {
   account: number;
   collection: number;
 };
+
+export type ConnectedEvent = { type: EventType.CONNECTED };
 
 export type ErrorEvent = {
   type: EventType.ERROR;

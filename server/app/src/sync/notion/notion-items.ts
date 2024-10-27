@@ -43,7 +43,7 @@ function parseItem(
     changedAt: new Date(last_edited_time).getTime(),
     props: {
       ...props,
-      ...content,
+      content,
     },
   };
   return item;

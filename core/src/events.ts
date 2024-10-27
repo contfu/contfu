@@ -1,15 +1,18 @@
 import { Item } from "./items";
 
 export enum EventType {
-  ERROR = 0,
-  CHANGED = 1,
-  DELETED = 2,
+  CONNECTED = 0,
+  ERROR = 1,
+  CHANGED = 2,
+  DELETED = 3,
 }
 
 type EventBase<T extends EventType> = {
   type: T;
   collection: number;
 };
+
+export type ConnectedEvent = { type: EventType.CONNECTED };
 
 export type ErrorEvent = {
   type: EventType.ERROR;

@@ -2,6 +2,7 @@ import { connectTo } from "@contfu/client";
 import { Block, EventType } from "@contfu/core";
 import {
   afterAll,
+  afterEach,
   beforeAll,
   beforeEach,
   describe,
@@ -9,7 +10,9 @@ import {
   it,
 } from "bun:test";
 import Elysia from "elysia";
+import { Subscription } from "rxjs";
 import { mockClient } from "../test/mocks/notion";
+import { fakeTimers } from "../test/timers";
 import { createAccount, createConsumer } from "./access/access-repository";
 import { DbAccount, DbConsumer } from "./access/db/access-schema";
 import { SourceType } from "./data/data";
@@ -18,7 +21,7 @@ import {
   createCollection,
   createSource,
 } from "./data/data-repository";
-import { app } from "./server";
+import { app, processEvents } from "./server";
 import {
   callout,
   childList,
@@ -27,19 +30,25 @@ import {
   page1,
   tableContent,
 } from "./sync/notion/__fixtures__/notion-query-results";
+import { MIN_SYNC_INTERVAL } from "./sync/sync-constants";
+import { sync } from "./sync/sync-service";
 
-const key = "testkey";
+const clock = fakeTimers();
 
 describe("connect via WS", () => {
   let server: Elysia;
   let acc: DbAccount;
   let cl: DbConsumer;
+  let sub: Subscription;
 
   beforeAll(async () => {
     server = app.listen(9999);
   });
 
   beforeEach(async () => {
+    sub = processEvents().subscribe();
+    sub.add(sync().subscribe());
+    await clock.tickAsync(1500);
     acc = await createAccount("test@test.com");
     cl = await createConsumer(acc.id, "test");
     const src = await createSource(acc.id, {
@@ -54,6 +63,10 @@ describe("connect via WS", () => {
       Buffer.alloc(0)
     );
     await connectConsumerToCollection(acc.id, cl.id, coll.id);
+  });
+
+  afterEach(() => {
+    sub.unsubscribe();
   });
 
   afterAll(async () => {
@@ -73,7 +86,7 @@ describe("connect via WS", () => {
         ? callout
         : emptyList
     );
-    const conn = connectTo<{
+    const conn = await connectTo<{
       pages: {
         color: string;
         description?: string;
@@ -84,29 +97,26 @@ describe("connect via WS", () => {
         slug?: string;
       };
     }>(cl.key!);
+
     const item1 = conn.next();
     const item2 = conn.next();
+    await clock.tickAsync(MIN_SYNC_INTERVAL);
 
-    // expect((await item1).value).toEqual({
-    //   type: EventType.LIST_IDS,
-    //   collection: 1,
-    //   ids: ["HJQ1JGsVQx2aOw-R-c400g", "xdXoCyiWRuCijuE_1I0eXQ"],
-    // });
     expect((await item1).value).toEqual({
       type: EventType.CHANGED,
       collection: 1,
       item: {
-        id: "HJQ1JGsVQx2aOw-R-c400g",
+        id: Buffer.from("mdGrrv5dvahdwf5F", "base64url"),
         collection: 1,
         changedAt: 1716353760000,
         createdAt: 1711864560000,
         props: {
           Color: "red",
           Description: "A",
-          "Other Reference": ["aEyH_tGiTCGj3oxV2s45zQ"],
-          "Self Reference": ["xdXoCyiWRuCijuE_1I0eXQ"],
+          "Other Reference": ["Uqf_AYLTfb4pdBDh"],
+          "Self Reference": ["fMSi1vKEuSZ-r3_7"],
           Title: "Foo",
-          Content: [
+          content: [
             [
               "t",
               true,
@@ -135,18 +145,18 @@ describe("connect via WS", () => {
       type: EventType.CHANGED,
       collection: 1,
       item: {
-        id: "xdXoCyiWRuCijuE_1I0eXQ",
+        id: Buffer.from("fMSi1vKEuSZ-r3_7", "base64url"),
         collection: 1,
         createdAt: 1711864560000,
         changedAt: 1716353820000,
         props: {
           Description: "B",
           Slug: "/bar",
-          "Self Reference": ["HJQ1JGsVQx2aOw-R-c400g"],
+          "Self Reference": ["mdGrrv5dvahdwf5F"],
           "Other Reference": [],
           Color: "blue",
           Title: "Bar",
-          Content: [],
+          content: [],
         },
       },
     });
