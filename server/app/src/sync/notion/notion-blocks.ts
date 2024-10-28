@@ -18,9 +18,9 @@ import type {
   BlockObjectResponse,
   RichTextItemResponse,
 } from "notion-client-web-fetch/build/src/api-endpoints";
-import { notion, parseImageUrl } from "./notion";
+import { getImageUrl, notion } from "./notion-helpers";
 
-export async function getContentBlocks(key: string, id: string) {
+export async function getContentBlocks(key: Buffer, id: string) {
   const blocks = [] as Block[];
   for await (const res of paginatedChildren(key, id)) {
     let b = parseBlock(res);
@@ -53,9 +53,9 @@ export async function getContentBlocks(key: string, id: string) {
   return blocks;
 }
 
-async function* paginatedChildren(key: string, id: string) {
+async function* paginatedChildren(key: Buffer, id: string) {
   for await (const result of iteratePaginatedAPI(notion.blocks.children.list, {
-    auth: key,
+    auth: key.toString("hex"),
     block_id: id,
   })) {
     if (isFullBlock(result)) yield result;
@@ -106,7 +106,7 @@ export function parseBlock(block: BlockObjectResponse): Block | null {
       const caption = extractRichTextContent(block.image.caption);
       return [
         "i",
-        parseImageUrl(block.image),
+        getImageUrl(block.image),
         toPlainText(caption),
         [],
       ] satisfies ImageBlock;

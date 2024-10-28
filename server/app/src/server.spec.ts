@@ -2,6 +2,7 @@ import { connectTo } from "@contfu/client";
 import { Block, EventType } from "@contfu/core";
 import {
   afterAll,
+  afterEach,
   beforeAll,
   beforeEach,
   describe,
@@ -9,10 +10,18 @@ import {
   it,
 } from "bun:test";
 import Elysia from "elysia";
+import { Subscription } from "rxjs";
 import { mockClient } from "../test/mocks/notion";
-import { Account, account } from "./access/access-db";
-import { db } from "./core/db";
-import { app } from "./server";
+import { fakeTimers } from "../test/timers";
+import { createAccount, createConsumer } from "./access/access-repository";
+import { DbAccount, DbConsumer } from "./access/db/access-schema";
+import { SourceType } from "./data/data";
+import {
+  connectConsumerToCollection,
+  createCollection,
+  createSource,
+} from "./data/data-repository";
+import { app, processEvents } from "./server";
 import {
   callout,
   childList,
@@ -20,30 +29,48 @@ import {
   emptyList,
   page1,
   tableContent,
-} from "./sources/notion/__fixtures__/notion-query-results";
+} from "./sync/notion/__fixtures__/notion-query-results";
+import { MIN_SYNC_INTERVAL } from "./sync/sync-constants";
+import { sync } from "./sync/sync-service";
 
-const key = "testkey";
+const clock = fakeTimers();
 
 describe("connect via WS", () => {
-  let instance: Elysia;
-  let acc: Account;
+  let server: Elysia;
+  let acc: DbAccount;
+  let cl: DbConsumer;
+  let sub: Subscription;
 
-  beforeAll(() => {
-    instance = app.listen(9999);
-  });
-
-  afterAll(async () => {
-    await instance.stop();
+  beforeAll(async () => {
+    server = app.listen(9999);
   });
 
   beforeEach(async () => {
-    [acc] = await db
-      .insert(account)
-      .values({
-        key: Buffer.from(key, "base64url"),
-        email: "test@test.com",
-      })
-      .returning();
+    sub = processEvents().subscribe();
+    sub.add(sync().subscribe());
+    await clock.tickAsync(1500);
+    acc = await createAccount("test@test.com");
+    cl = await createConsumer(acc.id, "test");
+    const src = await createSource(acc.id, {
+      name: "notion-test",
+      credentials: Buffer.from("abc", "base64url"),
+      type: SourceType.NOTION,
+    });
+    const coll = await createCollection(
+      acc.id,
+      src.id,
+      "test",
+      Buffer.alloc(0)
+    );
+    await connectConsumerToCollection(acc.id, cl.id, coll.id);
+  });
+
+  afterEach(() => {
+    sub.unsubscribe();
+  });
+
+  afterAll(async () => {
+    await server.stop();
   });
 
   it("should receive items", async () => {
@@ -59,101 +86,76 @@ describe("connect via WS", () => {
         ? callout
         : emptyList
     );
-    const conn = connectTo<{
+    const conn = await connectTo<{
       pages: {
-        Color: string;
-        Description?: string;
-        "Other Reference": string[];
-        "Self Reference": string[];
-        Title: string;
-        Content: Block[];
-        Slug?: string;
+        color: string;
+        description?: string;
+        otherReference: string[];
+        selfReference: string[];
+        title: string;
+        content: Block[];
+        slug?: string;
       };
-    }>([
-      {
-        id: 1,
-        type: "notion",
-        notionKey:
-          "5B1060C74333C08D5721554550AAE735D7B8928274C0218877B01BBC53D53B9C",
-        key,
-        collections: [
-          {
-            id: 1,
-            dbId: "5b1060c7-4333-c08d-5721-554550aae735",
-            content: "Content",
-          },
-        ],
-      },
-    ]);
+    }>(cl.key!);
+
     const item1 = conn.next();
     const item2 = conn.next();
-    const item3 = conn.next();
+    await clock.tickAsync(MIN_SYNC_INTERVAL);
 
     expect((await item1).value).toEqual({
-      type: EventType.LIST_IDS,
-      src: 1,
-      collection: 1,
-      ids: ["HJQ1JGsVQx2aOw-R-c400g", "xdXoCyiWRuCijuE_1I0eXQ"],
-    });
-    expect((await item2).value).toEqual({
       type: EventType.CHANGED,
-      src: 1,
       collection: 1,
       item: {
-        id: "HJQ1JGsVQx2aOw-R-c400g",
-        src: 1,
+        id: Buffer.from("mdGrrv5dvahdwf5F", "base64url"),
         collection: 1,
         changedAt: 1716353760000,
         createdAt: 1711864560000,
         props: {
           Color: "red",
           Description: "A",
-          "Other Reference": ["aEyH_tGiTCGj3oxV2s45zQ"],
-          "Self Reference": ["xdXoCyiWRuCijuE_1I0eXQ"],
+          "Other Reference": ["Uqf_AYLTfb4pdBDh"],
+          "Self Reference": ["fMSi1vKEuSZ-r3_7"],
           Title: "Foo",
-          Content: [
-            [
-              "t",
-              true,
-              [
-                [["a"], ["b"]],
-                [["x", ["c", "foo"]], ["y"]],
-                [[], []],
-              ],
-            ],
-            [
-              "u",
-              ["Test"],
-              [
-                ["u", ["tmsreia"], ["tsrenia"]],
-                ["o", ["bar"]],
-              ],
-              ["nsdrtaei"],
-            ],
-            ["q", ["Test", ["b", "tsrf\nBlubb"]]],
-            ["q", ["foo\nneih"]],
-          ],
         },
+        content: [
+          [
+            "t",
+            true,
+            [
+              [["a"], ["b"]],
+              [["x", ["c", "foo"]], ["y"]],
+              [[], []],
+            ],
+          ],
+          [
+            "u",
+            ["Test"],
+            [
+              ["u", ["tmsreia"], ["tsrenia"]],
+              ["o", ["bar"]],
+            ],
+            ["nsdrtaei"],
+          ],
+          ["q", ["Test", ["b", "tsrf\nBlubb"]]],
+          ["q", ["foo\nneih"]],
+        ],
       },
     });
-    expect((await item3).value).toEqual({
+    expect((await item2).value).toEqual({
       type: EventType.CHANGED,
-      src: 1,
       collection: 1,
       item: {
-        id: "xdXoCyiWRuCijuE_1I0eXQ",
-        src: 1,
+        id: Buffer.from("fMSi1vKEuSZ-r3_7", "base64url"),
         collection: 1,
         createdAt: 1711864560000,
         changedAt: 1716353820000,
         props: {
           Description: "B",
           Slug: "/bar",
-          "Self Reference": ["HJQ1JGsVQx2aOw-R-c400g"],
+          "Self Reference": ["mdGrrv5dvahdwf5F"],
           "Other Reference": [],
           Color: "blue",
           Title: "Bar",
-          Content: [],
         },
       },
     });

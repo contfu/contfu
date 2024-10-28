@@ -2,31 +2,15 @@ import { Block } from "./blocks";
 
 export type PageProps = Record<
   string,
-  string | number | boolean | string[] | number[] | boolean[] | Block
+  string | number | boolean | string[] | number[] | boolean[] | Block | Buffer[]
 >;
 
-export type Item<T extends Record<string, any> = Record<never, never>> = {
-  id: string;
-  src: number;
+export type Item<T extends PageProps = Record<never, never>> = {
+  id: Buffer;
   collection: number;
   publishedAt?: number;
   createdAt: number;
   changedAt: number;
   props: T;
+  content?: Block[];
 };
-
-export type PageValidationError = {
-  id: string;
-  path: string;
-  message: string;
-};
-
-export function isPageValidationError(
-  data: Item | PageValidationError
-): data is PageValidationError {
-  return "message" in data;
-}
-
-export function isPageData(data: Item | PageValidationError): data is Item {
-  return !isPageValidationError(data);
-}

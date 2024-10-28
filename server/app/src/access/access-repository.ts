@@ -1,10 +1,16 @@
-import { eq } from "drizzle-orm";
-import { withSchema } from "../core/db";
-import { account } from "./access-db";
+import * as ds from "./db/access-datasource";
 
-const db = withSchema({ account });
+export { authenticateConsumer, createConsumer } from "./db/access-datasource";
 
-export async function authenticate(key: Buffer) {
-  const acc = await db.query.account.findFirst({ where: eq(account.key, key) });
-  return !!acc;
+export async function createAccount(email: string) {
+  return ds.createAccount(
+    email,
+    {
+      maxSources: 10,
+      maxCollections: 10,
+      maxItems: 1000,
+      maxClients: 10,
+    },
+    Date.now() + 1000 * 60 * 60 * 24 * 365 * 10
+  );
 }
