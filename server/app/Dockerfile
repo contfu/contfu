@@ -1,11 +1,11 @@
-FROM oven/bun:1.1.30-slim AS build
+FROM oven/bun:1.1.33-slim AS build
 ADD ./ /build
 WORKDIR /build
 RUN bun install &&\
     cd server/app &&\
     bun run build
 
-FROM oven/bun:1.1.30-alpine
+FROM oven/bun:1.1.33-alpine
 ENV PORT=3000
 WORKDIR /app
 COPY --from=build /build/server/app/dist/server.js /app/
