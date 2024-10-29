@@ -1,6 +1,6 @@
 import { CollectionSchema } from "@contfu/core";
+import { Observable } from "rxjs";
 import { SourceType } from "../data/data";
-import { AsyncQueue } from "../util/async/async-queue";
 import { ItemEvent } from "./events";
 
 export interface CollectionFetchOpts {
@@ -18,22 +18,15 @@ export interface CollectionFetchOpts {
   since?: number;
 }
 
-export abstract class Source {
-  protected queue = new AsyncQueue<ItemEvent>();
-
-  /** Provides events from the source. */
-  events = this.queue.createGenerator();
-
+export interface Source {
   /**
    * Pulls events from the connection target.
    * Note: Change events need to be sorted by `item.changedAt`.
    **/
-  abstract fetch(opts: CollectionFetchOpts): AsyncGenerator<ItemEvent>;
+  fetch(opts: CollectionFetchOpts): Observable<ItemEvent>;
 
   /**
    * Returns the schema of the collection.
    */
-  abstract getCollectionSchema(
-    opts: CollectionFetchOpts
-  ): Promise<CollectionSchema>;
+  getCollectionSchema(opts: CollectionFetchOpts): Promise<CollectionSchema>;
 }

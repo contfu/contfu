@@ -1,5 +1,6 @@
 import { EventType } from "@contfu/core";
 import { describe, expect, it } from "bun:test";
+import { firstValueFrom, toArray } from "rxjs";
 import { mockClient } from "../../../test/mocks/notion";
 import { SourceType } from "../../data/data";
 import { idFromRef, refFromUuid } from "../mappings";
@@ -36,7 +37,7 @@ describe("NotionConnection", () => {
         results: [],
       });
 
-      const events = Array.fromAsync(source.fetch(pullOpts));
+      const events = firstValueFrom(source.fetch(pullOpts).pipe(toArray()));
 
       const id1 = idFromRef(refFromUuid(dbQueryPage1.results[0].id));
       const id2 = idFromRef(refFromUuid(dbQueryPage1.results[1].id));

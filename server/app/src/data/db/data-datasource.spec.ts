@@ -5,7 +5,7 @@ import { consumer, DbAccount, DbConsumer } from "../../access/db/access-schema";
 import { withSchema } from "../../core/db/db";
 import { SourceType } from "../data";
 import {
-  countConnectionsForConsumer,
+  countCollectionsForConsumer,
   createCollection,
   createConnection,
   createItemIdConflictResolution,
@@ -117,8 +117,8 @@ describe("createConnection()", () => {
   });
 });
 
-describe("countConnectionsForConsumer()", async () => {
-  it("should return the count of connections for a consumer", async () => {
+describe("countCollectionsForConsumer()", async () => {
+  it("should return the distinct count of collections for a consumer", async () => {
     const s = await createSource(a.id, {
       type: SourceType.NOTION,
       name: "test",
@@ -128,11 +128,13 @@ describe("countConnectionsForConsumer()", async () => {
     const c2 = await createCollection(a.id, s.id, "test", Buffer.alloc(0));
     const c3 = await createCollection(a.id, s.id, "test", Buffer.alloc(0));
     const cl = await createConsumer(a.id, "test");
+    const cl2 = await createConsumer(a.id, "test2");
     await createConnection(a.id, cl.id, c1.id);
     await createConnection(a.id, cl.id, c2.id);
     await createConnection(a.id, cl.id, c3.id);
+    await createConnection(a.id, cl2.id, c3.id);
 
-    const count = await countConnectionsForConsumer(a.id, cl.id);
+    const count = await countCollectionsForConsumer(a.id, cl.id);
 
     expect(count).toBe(3);
   });

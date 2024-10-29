@@ -142,46 +142,44 @@ function serializeEvent(data: ItemEvent | ErrorEvent | ConnectedEvent) {
   }
 }
 
-export function processEvents() {
-  return events$.pipe(
-    filter((event) => event.type !== EventType.LIST_IDS),
-    bufferTime(1000, undefined, 1000),
-    filter((events) => events.length > 0),
-    concatMap(async (events) => {
-      const collectionIds = new Set<number>();
-      const collectionEvents = new Map<
-        number,
-        Exclude<ItemEvent, ListIdsEvent>[]
-      >();
-      for (const e of events) {
-        const collectionId = compressCollectionId(e.account, e.collection);
-        collectionIds.add(collectionId);
-        const ces = collectionEvents.get(collectionId) ?? [];
-        if (ces.length === 0) collectionEvents.set(collectionId, ces);
-        ces.push(e);
+export const processEvents$ = events$.pipe(
+  filter((event) => event.type !== EventType.LIST_IDS),
+  bufferTime(1000, undefined, 1000),
+  filter((events) => events.length > 0),
+  concatMap(async (events) => {
+    const collectionIds = new Set<number>();
+    const collectionEvents = new Map<
+      number,
+      Exclude<ItemEvent, ListIdsEvent>[]
+    >();
+    for (const e of events) {
+      const collectionId = compressCollectionId(e.account, e.collection);
+      collectionIds.add(collectionId);
+      const ces = collectionEvents.get(collectionId) ?? [];
+      if (ces.length === 0) collectionEvents.set(collectionId, ces);
+      ces.push(e);
+    }
+    for (const conn of await getConnectionsToCollections(
+      [...collectionIds].map((id) => expandCollectionId(id))
+    )) {
+      const socket = consumerToSocket.get(
+        compressConsumerId(conn.accountId, conn.consumerId)
+      );
+      if (!socket) continue;
+      const collectionId = compressCollectionId(
+        conn.accountId,
+        conn.collectionId
+      );
+      const ces = collectionEvents.get(collectionId)!;
+      for (const event of ces) {
+        if (
+          event.type === EventType.CHANGED &&
+          conn.lastItemChanged != null &&
+          event.item.changedAt < conn.lastItemChanged
+        )
+          continue;
+        socket.send(serializeEvent(event));
       }
-      for (const conn of await getConnectionsToCollections(
-        [...collectionIds].map((id) => expandCollectionId(id))
-      )) {
-        const socket = consumerToSocket.get(
-          compressConsumerId(conn.accountId, conn.consumerId)
-        );
-        if (!socket) continue;
-        const collectionId = compressCollectionId(
-          conn.accountId,
-          conn.collectionId
-        );
-        const ces = collectionEvents.get(collectionId)!;
-        for (const event of ces) {
-          if (
-            event.type === EventType.CHANGED &&
-            conn.lastItemChanged != null &&
-            event.item.changedAt < conn.lastItemChanged
-          )
-            continue;
-          socket.send(serializeEvent(event));
-        }
-      }
-    })
-  );
-}
+    }
+  })
+);

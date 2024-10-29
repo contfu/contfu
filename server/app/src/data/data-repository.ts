@@ -5,6 +5,7 @@ const ID = Number(Bun.env.ID ?? 1);
 
 export {
   createConnection as connectConsumerToCollection,
+  countCollectionsForConsumer,
   createCollection,
   createSource,
   getConnectionsToCollections,

@@ -9,6 +9,9 @@ import {
   itemIdConflictResolution,
   source,
 } from "./data-schema";
+
+const NO_ITEM_IDS = Buffer.alloc(0);
+
 const db = withSchema({
   source,
   collection,
@@ -57,7 +60,7 @@ export async function createCollection(
   name: string,
   ref: Buffer
 ) {
-  const nextId = sql`(
+  const id = sql`(
     SELECT COALESCE(MAX(${collection.id}), 0) + 1
     FROM ${collection}
     WHERE ${collection.accountId} = ${accountId}
@@ -65,9 +68,34 @@ export async function createCollection(
   return (
     await db
       .insert(collection)
-      .values({ accountId, sourceId, name, id: nextId, ref })
+      .values({ accountId, sourceId, name, id, ref })
       .returning()
   )[0];
+}
+
+export async function addItemIds(
+  accountId: number,
+  collectionId: number,
+  itemIds: Buffer
+) {
+  const existing = await getItemIds(accountId, collectionId);
+  const newItemIds = Buffer.concat([existing, itemIds]);
+  await db
+    .update(collection)
+    .set({ itemIds: newItemIds })
+    .where(
+      and(eq(collection.accountId, accountId), eq(collection.id, collectionId))
+    );
+}
+
+export async function getItemIds(accountId: number, collectionId: number) {
+  const result = await db
+    .select({ itemIds: collection.itemIds })
+    .from(collection)
+    .where(
+      and(eq(collection.accountId, accountId), eq(collection.id, collectionId))
+    );
+  return result[0]?.itemIds ?? NO_ITEM_IDS;
 }
 
 export async function createConnection(
@@ -83,16 +111,21 @@ export async function createConnection(
   )[0];
 }
 
-export async function countConnectionsForConsumer(
+export async function countCollectionsForConsumer(
   accountId: number,
   consumerId: number
 ) {
   return db.$count(
-    connection,
-    and(
-      eq(connection.accountId, accountId),
-      eq(connection.consumerId, consumerId)
-    )
+    db
+      .select({ collectionId: connection.collectionId })
+      .from(connection)
+      .where(
+        and(
+          eq(connection.accountId, accountId),
+          eq(connection.consumerId, consumerId)
+        )
+      )
+      .groupBy(connection.collectionId)
   );
 }
 

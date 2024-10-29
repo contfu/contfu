@@ -53,10 +53,7 @@ export const collection = sqliteTable(
     name: text().notNull(),
     /** The reference to the upstream collection within the source. */
     ref: buffer(),
-    /**
-     * The item ids that are expected to have been received for this collection.
-     * The ids are 4 bytes long.
-     **/
+    /** The item ids that have been received for this collection. **/
     itemIds: buffer(),
     /** The date the collection was created. */
     createdAt: integer()
@@ -129,6 +126,7 @@ export const consumerCollectionConnectionRelations = relations(
   })
 );
 
+// TODO: Move this to client
 /** Mappings of ids from the source to the collection. This is used in case that there are collisions in the integer id space. */
 export const itemIdConflictResolution = sqliteTable(
   "item_id_conflict_resolution",

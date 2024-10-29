@@ -1,10 +1,22 @@
-import { combineLatest, defer, repeat, Subject, timer } from "rxjs";
-import { getNextCollectionFetchOpts } from "../data/data-repository";
-import { countConnectionsForConsumer } from "../data/db/data-datasource";
-import { mergeGenerators } from "../util/async/async-generators";
+import {
+  combineLatest,
+  defer,
+  endWith,
+  lastValueFrom,
+  merge,
+  repeat,
+  Subject,
+  tap,
+  timer,
+} from "rxjs";
+import {
+  countCollectionsForConsumer,
+  getNextCollectionFetchOpts,
+} from "../data/data-repository";
+import { addItemIds } from "../data/db/data-datasource";
 import { combine3ints } from "../util/numbers/numbers";
 import { SortedSet } from "../util/structures/sorted-set";
-import { ItemEvent } from "./events";
+import { EventType, ItemEvent } from "./events";
 import { type NotionPullOpts, notionSource } from "./notion";
 import { compressConsumerId } from "./sync";
 import { MAX_COLLECTION_PULL_SIZE, MIN_SYNC_INTERVAL } from "./sync-constants";
@@ -12,7 +24,7 @@ import { MAX_COLLECTION_PULL_SIZE, MIN_SYNC_INTERVAL } from "./sync-constants";
 export { getConnectionsToCollections } from "../data/data-repository";
 
 export async function activateConsumer(accountId: number, consumerId: number) {
-  const connCount = await countConnectionsForConsumer(accountId, consumerId);
+  const connCount = await countCollectionsForConsumer(accountId, consumerId);
   activeConsumers.add(
     compressConsumerIdWithCount(accountId, consumerId, connCount)
   );
@@ -33,11 +45,9 @@ const activeConsumers = new SortedSet<number>({
   },
 });
 
-export function sync() {
-  return defer(() =>
-    combineLatest([timer(MIN_SYNC_INTERVAL), syncAllActiveConsumers()])
-  ).pipe(repeat());
-}
+export const sync$ = defer(() =>
+  combineLatest([timer(MIN_SYNC_INTERVAL), syncAllActiveConsumers()])
+).pipe(repeat());
 
 async function syncAllActiveConsumers() {
   if (activeConsumers.length === 0) return;
@@ -62,10 +72,24 @@ async function syncConsumers(
   consumerIds: [accountId: number, consumerId: number][]
 ) {
   const opts = await getNextCollectionFetchOpts(consumerIds);
-  for await (const event of mergeGenerators(
-    ...opts.map((o) => notionSource.fetch(o as NotionPullOpts))
-  ))
-    eventsSubject.next(event);
+  const idsToAdd = new Map<number, Buffer>();
+  await lastValueFrom(
+    merge(...opts.map((o) => notionSource.fetch(o as NotionPullOpts)))
+      .pipe(
+        tap((event) => {
+          eventsSubject.next(event);
+          if (event.type === EventType.CHANGED) {
+            const ids = idsToAdd.get(event.collection) ?? Buffer.alloc(0);
+            idsToAdd.set(event.collection, Buffer.concat([ids, event.item.id]));
+          }
+        })
+      )
+      .pipe(endWith(null))
+  );
+  for (const [collectionId, itemIds] of idsToAdd.entries()) {
+    const [[accountId]] = consumerIds;
+    await addItemIds(accountId, collectionId, itemIds);
+  }
 }
 
 const [compressConsumerIdWithCount, expandConsumerIdWithCount] = combine3ints(

@@ -1,28 +1,27 @@
 import { CollectionSchema } from "@contfu/core";
-import { mergeGenerators } from "../../util/async/async-generators";
+import { from, map, merge, Observable } from "rxjs";
 import { EventType, ItemEvent } from "../events";
 import { Source } from "../source";
 import { NotionPullOpts } from "./notion";
 import { getCollectionSchema } from "./notion-collections";
 import { DbQuery } from "./notion-helpers";
 import { iteratePages } from "./notion-items";
-export class NotionSource extends Source {
-  async *fetch(opts: NotionPullOpts): AsyncGenerator<ItemEvent> {
-    const items = opts.since
-      ? mergeGenerators(
+export class NotionSource implements Source {
+  fetch(opts: NotionPullOpts): Observable<ItemEvent> {
+    const items$ = opts.since
+      ? merge(
           pull(opts, createdAfter(opts.since)),
           pull(opts, updatedAfter(opts.since))
         )
       : pull(opts);
-
-    for await (const item of items) {
-      yield {
+    return items$.pipe(
+      map((item) => ({
         type: EventType.CHANGED,
         item,
         account: opts.accountId,
         collection: opts.collectionId,
-      };
-    }
+      }))
+    );
   }
 
   async getCollectionSchema(opts: NotionPullOpts): Promise<CollectionSchema> {
@@ -31,7 +30,7 @@ export class NotionSource extends Source {
 }
 
 function pull(opts: NotionPullOpts, filter?: DbQuery["filter"]) {
-  return iteratePages(opts, { filter });
+  return from(iteratePages(opts, { filter }));
 }
 
 function createdAfter(since: number): DbQuery["filter"] {
