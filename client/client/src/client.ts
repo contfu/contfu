@@ -104,6 +104,7 @@ function deserializeEvent(buf: Buffer) {
       const code = buf.subarray(4).toString("ascii");
       return { type, code } satisfies ErrorEvent;
     }
+    case EventType.CREATED:
     case EventType.CHANGED: {
       const collection = buf.readUInt16LE(1);
       const id = buf.subarray(3, 15);
@@ -119,7 +120,7 @@ function deserializeEvent(buf: Buffer) {
         type,
         collection,
         item,
-      } satisfies ChangedEvent;
+      } as ChangedEvent | ChangedEvent;
     }
     case EventType.DELETED: {
       const collection = buf.readUInt16LE(1);

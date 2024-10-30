@@ -1,6 +1,6 @@
-import { CollectionSchema } from "@contfu/core";
+import { CollectionSchema, Item } from "@contfu/core";
 import { from, map, merge, Observable } from "rxjs";
-import { EventType, ItemEvent } from "../events";
+import { changedEvent, createdEvent, ItemEvent } from "../events";
 import { Source } from "../source";
 import { NotionPullOpts } from "./notion";
 import { getCollectionSchema } from "./notion-collections";
@@ -8,20 +8,12 @@ import { DbQuery } from "./notion-helpers";
 import { iteratePages } from "./notion-items";
 export class NotionSource implements Source {
   fetch(opts: NotionPullOpts): Observable<ItemEvent> {
-    const items$ = opts.since
+    return opts.since
       ? merge(
-          pull(opts, createdAfter(opts.since)),
-          pull(opts, updatedAfter(opts.since))
+          pull(opts, createdEvent, createdAfter(opts.since)),
+          pull(opts, changedEvent, updatedAfter(opts.since))
         )
-      : pull(opts);
-    return items$.pipe(
-      map((item) => ({
-        type: EventType.CHANGED,
-        item,
-        account: opts.accountId,
-        collection: opts.collectionId,
-      }))
-    );
+      : pull(opts, createdEvent);
   }
 
   async getCollectionSchema(opts: NotionPullOpts): Promise<CollectionSchema> {
@@ -29,8 +21,14 @@ export class NotionSource implements Source {
   }
 }
 
-function pull(opts: NotionPullOpts, filter?: DbQuery["filter"]) {
-  return from(iteratePages(opts, { filter }));
+function pull(
+  opts: NotionPullOpts,
+  eventFactory: (opts: NotionPullOpts, item: Item) => ItemEvent,
+  filter?: DbQuery["filter"]
+) {
+  return from(iteratePages(opts, { filter })).pipe(
+    map((item) => eventFactory(opts, item))
+  );
 }
 
 function createdAfter(since: number): DbQuery["filter"] {

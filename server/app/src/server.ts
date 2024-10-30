@@ -106,6 +106,7 @@ function serializeEvent(data: ItemEvent | ErrorEvent | ConnectedEvent) {
       buf.writeUInt8(data.type, 0);
       return buf;
     }
+    case EventType.CREATED:
     case EventType.CHANGED: {
       const { item } = data;
       const dynamicData = Buffer.from(
@@ -173,7 +174,8 @@ export const processEvents$ = events$.pipe(
       const ces = collectionEvents.get(collectionId)!;
       for (const event of ces) {
         if (
-          event.type === EventType.CHANGED &&
+          (event.type === EventType.CREATED ||
+            event.type === EventType.CHANGED) &&
           conn.lastItemChanged != null &&
           event.item.changedAt < conn.lastItemChanged
         )

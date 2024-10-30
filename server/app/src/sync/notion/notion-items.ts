@@ -7,13 +7,13 @@ import { getContentBlocks } from "./notion-blocks";
 import { DbQuery, getImageUrl, iterateDb } from "./notion-helpers";
 
 export async function* iteratePages(
-  { credentials, ref, collectionId }: NotionPullOpts,
+  { credentials, ref, collection }: NotionPullOpts,
   params: DbQuery & {}
 ) {
   for await (const page of iterateDb(credentials, ref, params)) {
     yield parseItem(
       page,
-      collectionId,
+      collection,
       (await getContentBlocks(credentials, page.id)) ?? []
     );
   }

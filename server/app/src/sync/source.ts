@@ -5,9 +5,9 @@ import { ItemEvent } from "./events";
 
 export interface CollectionFetchOpts {
   type: SourceType;
-  accountId: number;
-  sourceId: number;
-  collectionId: number;
+  account: number;
+  source: number;
+  collection: number;
   /** Reference to the upstream collection within the source. */
   ref?: Buffer;
   /** Optional URL for the source. SaaS sources don't have a configurable URL. */
@@ -20,8 +20,8 @@ export interface CollectionFetchOpts {
 
 export interface Source {
   /**
-   * Pulls events from the connection target.
-   * Note: Change events need to be sorted by `item.changedAt`.
+   * Pulls events from the remote source.
+   * Note: Change events need to be sorted ascending by `item.createdAt`.
    **/
   fetch(opts: CollectionFetchOpts): Observable<ItemEvent>;
 

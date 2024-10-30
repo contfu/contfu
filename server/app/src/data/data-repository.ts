@@ -19,10 +19,10 @@ export async function getNextCollectionFetchOpts(
 
   const collectionFetchopts = new Array<CollectionFetchOpts>();
   let current: CollectionFetchOpts | null = null;
-  for (const { consumerId, lastItemChanged, ...s } of state) {
+  for (const { consumer, lastItemChanged, ...s } of state) {
     // state is sorted by accountId, collectionId, so we can safely assume that we
     // create only one fetchOpts per accountId
-    if (current == null || current.accountId !== s.accountId)
+    if (current == null || current.account !== s.account)
       collectionFetchopts.push((current = s as CollectionFetchOpts));
     if (lastItemChanged != null) {
       current.since =

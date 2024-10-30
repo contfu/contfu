@@ -134,10 +134,10 @@ export async function getConnectionsWithCollectionSyncInfo(
 ) {
   return db
     .select({
-      accountId: connection.accountId,
-      consumerId: connection.consumerId,
-      collectionId: connection.collectionId,
-      sourceId: collection.sourceId,
+      account: connection.accountId,
+      consumer: connection.consumerId,
+      collection: connection.collectionId,
+      source: collection.sourceId,
       type: source.type,
       lastItemChanged: connection.lastItemChanged,
       url: source.url,

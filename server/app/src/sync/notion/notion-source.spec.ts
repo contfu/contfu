@@ -8,9 +8,9 @@ import { dbQueryPage1 } from "./__fixtures__/notion-query-results";
 import type { NotionPullOpts } from "./notion";
 import { NotionSource } from "./notion-source";
 const pullOpts: NotionPullOpts = {
-  accountId: 1,
-  sourceId: 1,
-  collectionId: 1,
+  account: 1,
+  source: 1,
+  collection: 1,
   ref: Buffer.alloc(0),
   type: SourceType.NOTION,
   credentials: Buffer.alloc(0),
@@ -48,7 +48,7 @@ describe("NotionConnection", () => {
       );
       expect(await events).toEqual([
         {
-          type: EventType.CHANGED,
+          type: EventType.CREATED,
           collection: 1,
           item: {
             id: id1,
@@ -66,7 +66,7 @@ describe("NotionConnection", () => {
           account: 1,
         },
         {
-          type: EventType.CHANGED,
+          type: EventType.CREATED,
           collection: 1,
           item: {
             id: id2,

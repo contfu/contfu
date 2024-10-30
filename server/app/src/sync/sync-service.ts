@@ -19,7 +19,7 @@ import { SortedSet } from "../util/structures/sorted-set";
 import { EventType, ItemEvent } from "./events";
 import { type NotionPullOpts, notionSource } from "./notion";
 import { compressConsumerId } from "./sync";
-import { MAX_COLLECTION_PULL_SIZE, MIN_SYNC_INTERVAL } from "./sync-constants";
+import { MAX_COLLECTION_PULL_SIZE, MIN_FETCH_INTERVAL } from "./sync-constants";
 
 export { getConnectionsToCollections } from "../data/data-repository";
 
@@ -46,7 +46,7 @@ const activeConsumers = new SortedSet<number>({
 });
 
 export const sync$ = defer(() =>
-  combineLatest([timer(MIN_SYNC_INTERVAL), syncAllActiveConsumers()])
+  combineLatest([timer(MIN_FETCH_INTERVAL), syncAllActiveConsumers()])
 ).pipe(repeat());
 
 async function syncAllActiveConsumers() {
@@ -78,7 +78,7 @@ async function syncConsumers(
       .pipe(
         tap((event) => {
           eventsSubject.next(event);
-          if (event.type === EventType.CHANGED) {
+          if (event.type === EventType.CREATED) {
             const ids = idsToAdd.get(event.collection) ?? Buffer.alloc(0);
             idsToAdd.set(event.collection, Buffer.concat([ids, event.item.id]));
           }
@@ -86,6 +86,7 @@ async function syncConsumers(
       )
       .pipe(endWith(null))
   );
+
   for (const [collectionId, itemIds] of idsToAdd.entries()) {
     const [[accountId]] = consumerIds;
     await addItemIds(accountId, collectionId, itemIds);

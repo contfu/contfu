@@ -33,7 +33,7 @@ import {
   page1,
   tableContent,
 } from "./sync/notion/__fixtures__/notion-query-results";
-import { MIN_SYNC_INTERVAL } from "./sync/sync-constants";
+import { MIN_FETCH_INTERVAL } from "./sync/sync-constants";
 import { sync$ } from "./sync/sync-service";
 
 const clock = fakeTimers();
@@ -92,10 +92,10 @@ describe("connect via WS", () => {
 
     const item1 = conn.next();
     const item2 = conn.next();
-    await clock.tickAsync(MIN_SYNC_INTERVAL);
+    await clock.tickAsync(MIN_FETCH_INTERVAL);
 
     expect((await item1).value).toEqual({
-      type: EventType.CHANGED,
+      type: EventType.CREATED,
       collection: 1,
       item: {
         id: id1,
@@ -112,7 +112,7 @@ describe("connect via WS", () => {
       },
     });
     expect((await item2).value).toEqual({
-      type: EventType.CHANGED,
+      type: EventType.CREATED,
       collection: 1,
       item: {
         id: id2,
@@ -166,10 +166,10 @@ describe("connect via WS", () => {
     const id1 = Buffer.from(id1Str, "base64url");
 
     const item1 = conn.next();
-    await clock.tickAsync(MIN_SYNC_INTERVAL);
+    await clock.tickAsync(MIN_FETCH_INTERVAL);
 
     expect((await item1).value).toEqual({
-      type: EventType.CHANGED,
+      type: EventType.CREATED,
       collection: 1,
       item: {
         id: id1,
