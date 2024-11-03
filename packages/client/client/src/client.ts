@@ -103,13 +103,20 @@ function deserializeEvent(buf: Buffer) {
     }
     case EventType.CHANGED: {
       const collection = buf.readUInt16LE(1);
-      const uid = buf.subarray(3, 3 + ITEM_ID_SIZE);
+      const id = buf.subarray(3, 3 + ITEM_ID_SIZE);
       const createdAt = Number(buf.readBigInt64LE(3 + ITEM_ID_SIZE));
       const changedAt = Number(buf.readBigInt64LE(11 + ITEM_ID_SIZE));
       const json = buf.subarray(19 + ITEM_ID_SIZE).toString("utf8");
       const parsed = JSON.parse(json.trim());
-      const [props, content] = Array.isArray(parsed) ? parsed : [parsed];
-      const item = { id: uid, createdAt, changedAt, collection, props } as Item;
+      const [ref, props, content] = Array.isArray(parsed) ? parsed : [parsed];
+      const item = {
+        id,
+        ref: Buffer.from(ref, "base64url"),
+        createdAt,
+        changedAt,
+        collection,
+        props,
+      } as Item;
       if (content) item.content = content;
       return { type, item } as ChangedEvent;
     }

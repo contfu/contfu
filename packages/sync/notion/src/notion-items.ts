@@ -38,6 +38,7 @@ function parseItem(
   if (cover) props.cover = getImageUrl(cover);
   const item: Item = {
     id: genUid(ref),
+    ref,
     collection,
     createdAt,
     changedAt: new Date(last_edited_time).getTime(),

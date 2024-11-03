@@ -83,6 +83,7 @@ describe("connect via WS", () => {
       return (async function* () {
         yield {
           id: id1,
+          ref: id1,
           collection: 1,
           changedAt: 1716353760000,
           createdAt: 1711864560000,
@@ -90,6 +91,7 @@ describe("connect via WS", () => {
         } satisfies Item;
         yield {
           id: id2,
+          ref: id2,
           collection: 1,
           createdAt: 1711864560000,
           changedAt: 1716353820000,
@@ -117,6 +119,7 @@ describe("connect via WS", () => {
       type: EventType.CHANGED,
       item: {
         id: id1,
+        ref: id1,
         collection: 1,
         changedAt: 1716353760000,
         createdAt: 1711864560000,
@@ -127,6 +130,7 @@ describe("connect via WS", () => {
       type: EventType.CHANGED,
       item: {
         id: id2,
+        ref: id2,
         collection: 1,
         createdAt: 1711864560000,
         changedAt: 1716353820000,

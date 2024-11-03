@@ -116,8 +116,8 @@ function serializeEvent(data: ItemEvent | ErrorEvent | ConnectedEvent) {
       const jsonBuf = Buffer.from(
         JSON.stringify(
           item.content && item.content.length > 0
-            ? [item.props, item.content]
-            : item.props
+            ? [item.ref, item.props, item.content]
+            : [item.ref, item.props]
         ),
         "utf8"
       );
