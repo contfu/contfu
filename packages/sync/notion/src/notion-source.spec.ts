@@ -49,8 +49,10 @@ describe("NotionConnection", () => {
 
       const events = await Array.fromAsync(source.fetch(pullOpts));
 
-      const id1 = genUid(uuidToBuffer(dbQueryPage1.results[0].id));
-      const id2 = genUid(uuidToBuffer(dbQueryPage1.results[1].id));
+      const ref1 = uuidToBuffer(dbQueryPage1.results[0].id);
+      const ref2 = uuidToBuffer(dbQueryPage1.results[1].id);
+      const id1 = genUid(ref1);
+      const id2 = genUid(ref2);
       const otherId = genUid(
         uuidToBuffer(
           dbQueryPage1.results[0].properties["Other Reference"].relation[0].id
@@ -59,6 +61,7 @@ describe("NotionConnection", () => {
       expect(events).toEqual([
         {
           id: id1,
+          ref: ref1,
           collection: 1,
           changedAt: 1716353760000,
           createdAt: 1711864560000,
@@ -72,6 +75,7 @@ describe("NotionConnection", () => {
         },
         {
           id: id2,
+          ref: ref2,
           collection: 1,
           changedAt: 1716353820000,
           createdAt: 1711864560000,
