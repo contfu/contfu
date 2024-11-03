@@ -6,17 +6,17 @@ import {
   sqliteTable,
   text,
 } from "drizzle-orm/sqlite-core";
-import { account, consumer } from "../../access/db/access-schema";
+import { consumer, user } from "../../access/db/access-schema";
 import { buffer } from "../../core/db/custom-types";
 
 export const source = sqliteTable(
   "source",
   {
-    /** The account which owns the source. */
-    accountId: integer()
-      .references(() => account.id, { onDelete: "cascade" })
+    /** The user which owns the source. */
+    userId: integer()
+      .references(() => user.id, { onDelete: "cascade" })
       .notNull(),
-    /** The id which is unique within the account. */
+    /** The id which is unique within the user. */
     id: integer().notNull(),
     /** The name of the source. */
     name: text(),
@@ -33,7 +33,7 @@ export const source = sqliteTable(
     /** The date the source was updated. */
     updatedAt: integer(),
   },
-  (table) => ({ pk: primaryKey({ columns: [table.accountId, table.id] }) })
+  (table) => ({ pk: primaryKey({ columns: [table.userId, table.id] }) }),
 );
 
 export type DbSource = typeof source.$inferSelect;
@@ -41,13 +41,13 @@ export type DbSource = typeof source.$inferSelect;
 export const collection = sqliteTable(
   "collection",
   {
-    /** The account which owns the collection. */
-    accountId: integer()
-      .references(() => account.id, { onDelete: "cascade" })
+    /** The user which owns the collection. */
+    userId: integer()
+      .references(() => user.id, { onDelete: "cascade" })
       .notNull(),
     /** The source which the collection is connected to. */
     sourceId: integer().notNull(),
-    /** The id which is unique within the account. */
+    /** The id which is unique within the user. */
     id: integer().notNull(),
     /** The name of the collection. */
     name: text().notNull(),
@@ -63,12 +63,12 @@ export const collection = sqliteTable(
     updatedAt: integer(),
   },
   (table) => ({
-    pk: primaryKey({ columns: [table.accountId, table.id] }),
+    pk: primaryKey({ columns: [table.userId, table.id] }),
     sourceFk: foreignKey({
-      columns: [table.accountId, table.sourceId],
-      foreignColumns: [source.accountId, source.id],
+      columns: [table.userId, table.sourceId],
+      foreignColumns: [source.userId, source.id],
     }).onDelete("cascade"),
-  })
+  }),
 );
 
 export type DbCollection = typeof collection.$inferSelect;
@@ -77,9 +77,9 @@ export type DbCollection = typeof collection.$inferSelect;
 export const connection = sqliteTable(
   "connection",
   {
-    /** The account which owns the collection and consumer. */
-    accountId: integer()
-      .references(() => account.id, { onDelete: "cascade" })
+    /** The user which owns the collection and consumer. */
+    userId: integer()
+      .references(() => user.id, { onDelete: "cascade" })
       .notNull(),
     /** The consumer id. */
     consumerId: integer().notNull(),
@@ -92,17 +92,17 @@ export const connection = sqliteTable(
   },
   (table) => ({
     pk: primaryKey({
-      columns: [table.accountId, table.consumerId, table.collectionId],
+      columns: [table.userId, table.consumerId, table.collectionId],
     }),
     consumerFk: foreignKey({
-      columns: [table.accountId, table.consumerId],
-      foreignColumns: [consumer.accountId, consumer.id],
+      columns: [table.userId, table.consumerId],
+      foreignColumns: [consumer.userId, consumer.id],
     }).onDelete("cascade"),
     collectionFk: foreignKey({
-      columns: [table.accountId, table.collectionId],
-      foreignColumns: [collection.accountId, collection.id],
+      columns: [table.userId, table.collectionId],
+      foreignColumns: [collection.userId, collection.id],
     }).onDelete("cascade"),
-  })
+  }),
 );
 
 export type DbConnection = typeof connection.$inferSelect;
@@ -111,8 +111,8 @@ export type DbConnection = typeof connection.$inferSelect;
 export const collectionRelations = relations(collection, ({ many, one }) => ({
   consumerCollectionConnections: many(connection),
   source: one(source, {
-    fields: [collection.accountId, collection.sourceId],
-    references: [source.accountId, source.id],
+    fields: [collection.userId, collection.sourceId],
+    references: [source.userId, source.id],
   }),
 }));
 
@@ -120,10 +120,10 @@ export const consumerCollectionConnectionRelations = relations(
   connection,
   ({ one }) => ({
     collection: one(collection, {
-      fields: [connection.accountId, connection.collectionId],
-      references: [collection.accountId, collection.id],
+      fields: [connection.userId, connection.collectionId],
+      references: [collection.userId, collection.id],
     }),
-  })
+  }),
 );
 
 // TODO: Move this to client
@@ -131,9 +131,9 @@ export const consumerCollectionConnectionRelations = relations(
 export const itemIdConflictResolution = sqliteTable(
   "item_id_conflict_resolution",
   {
-    /** The account which owns the id mapping. */
-    accountId: integer()
-      .references(() => account.id, { onDelete: "cascade" })
+    /** The user which owns the id mapping. */
+    userId: integer()
+      .references(() => user.id, { onDelete: "cascade" })
       .notNull(),
     /** The collection which the id mapping is connected to. */
     collectionId: integer().notNull(),
@@ -144,13 +144,13 @@ export const itemIdConflictResolution = sqliteTable(
   },
   (table) => ({
     pk: primaryKey({
-      columns: [table.accountId, table.collectionId, table.sourceItemId],
+      columns: [table.userId, table.collectionId, table.sourceItemId],
     }),
     collectionFk: foreignKey({
-      columns: [table.accountId, table.collectionId],
-      foreignColumns: [collection.accountId, collection.id],
+      columns: [table.userId, table.collectionId],
+      foreignColumns: [collection.userId, collection.id],
     }).onDelete("cascade"),
-  })
+  }),
 );
 
 export type ItemIdConflictResolution =

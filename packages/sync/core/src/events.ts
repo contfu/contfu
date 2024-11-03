@@ -12,7 +12,7 @@ export enum EventType {
 
 type EventBase<T extends EventType> = {
   type: T;
-  account: number;
+  user: number;
   collection: number;
 };
 
@@ -46,37 +46,37 @@ export type ItemEvent =
   | ListIdsEvent;
 
 export function createdEvent(
-  { account, collection }: { account: number; collection: number },
-  item: Item
+  { user, collection }: { user: number; collection: number },
+  item: Item,
 ): CreatedEvent {
   return {
     type: EventType.CREATED,
     item,
-    account,
+    user,
     collection,
   };
 }
 
 export function changedEvent(
-  { account, collection }: { account: number; collection: number },
-  item: Item
+  { user, collection }: { user: number; collection: number },
+  item: Item,
 ): ChangedEvent {
   return {
     type: EventType.CHANGED,
     item,
-    account,
+    user,
     collection,
   };
 }
 
 export function deletedEvent(
-  { account, collection }: { account: number; collection: number },
-  item: Buffer
+  { user, collection }: { user: number; collection: number },
+  item: Buffer,
 ): DeletedEvent {
   return {
     type: EventType.DELETED,
     item,
-    account,
+    user,
     collection,
   };
 }

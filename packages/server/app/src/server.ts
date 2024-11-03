@@ -30,7 +30,7 @@ import {
 class CommandError extends Error {
   constructor(
     readonly code: "E_AUTH" | "E_CONFLICT" | "E_ACCESS",
-    message?: string
+    message?: string,
   ) {
     super(message);
   }
@@ -62,7 +62,7 @@ async function handleWsMessage(cmd: Command, ws: ElysiaWS<any, any>) {
   const consumerId = socketToConsumer.get(ws.id);
   if (!consumerId) return new CommandError("E_ACCESS");
   if (cmd.type === CommandType.ACK) {
-    const [accountId, id] = expandConsumerId(consumerId);
+    const [userId, id] = expandConsumerId(consumerId);
     return ack(cmd.itemId);
   }
 }
@@ -71,8 +71,8 @@ async function connect(key: Buffer, ws: ElysiaWS<any, any>) {
   const client = await authenticateConsumer(key);
   if (!client) return new CommandError("E_AUTH");
   if (subs.has(ws.id)) return new CommandError("E_CONFLICT");
-  await activateConsumer(client.accountId, client.id);
-  const consumerId = compressConsumerId(client.accountId, client.id);
+  await activateConsumer(client.userId, client.id);
+  const consumerId = compressConsumerId(client.userId, client.id);
   consumerToSocket.set(consumerId, ws);
   socketToConsumer.set(ws.id, consumerId);
   ws.send(serializeEvent({ type: EventType.CONNECTED }));
@@ -117,9 +117,9 @@ function serializeEvent(data: ItemEvent | ErrorEvent | ConnectedEvent) {
         JSON.stringify(
           item.content && item.content.length > 0
             ? [item.ref, item.props, item.content]
-            : [item.ref, item.props]
+            : [item.ref, item.props],
         ),
-        "utf8"
+        "utf8",
       );
       const buf = Buffer.alloc(19 + ITEM_ID_SIZE + jsonBuf.length);
       buf.writeUInt8(data.type, 0);
@@ -171,23 +171,20 @@ export const processItems$ = items$.pipe(
       Exclude<ItemEvent, ListIdsEvent>[]
     >();
     for (const item of items) {
-      const collectionId = compressCollectionId(item.account, item.collection);
+      const collectionId = compressCollectionId(item.user, item.collection);
       collectionIds.add(collectionId);
       const events = collectionEvents.get(collectionId) ?? [];
       if (events.length === 0) collectionEvents.set(collectionId, events);
       events.push(changedEvent(item));
     }
     for (const conn of await getConnectionsToCollections(
-      [...collectionIds].map((id) => expandCollectionId(id))
+      [...collectionIds].map((id) => expandCollectionId(id)),
     )) {
       const socket = consumerToSocket.get(
-        compressConsumerId(conn.accountId, conn.consumerId)
+        compressConsumerId(conn.userId, conn.consumerId),
       );
       if (!socket) continue;
-      const collectionId = compressCollectionId(
-        conn.accountId,
-        conn.collectionId
-      );
+      const collectionId = compressCollectionId(conn.userId, conn.collectionId);
       const events = collectionEvents.get(collectionId)!;
       for (const event of events) {
         if (
@@ -199,5 +196,5 @@ export const processItems$ = items$.pipe(
         socket.send(serializeEvent(event));
       }
     }
-  })
+  }),
 );

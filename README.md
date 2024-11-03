@@ -11,7 +11,7 @@ A user can decide where the source of truth is stored:
 
 ## On their own infrastructure
 
-In this case, there can be only one client per account, which is connected to all collections.
+In this case, there can be only one client per user, which is connected to all collections.
 
 The features included:
 

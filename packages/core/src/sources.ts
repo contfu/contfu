@@ -1,6 +1,6 @@
 interface BaseSourcePullConfig {
   type: string;
-  accountId: number;
+  userId: number;
   sourceId: number;
   collectionId: number;
   since?: number;

@@ -24,7 +24,7 @@ const db = withSchema({
 });
 
 export async function createSource(
-  accountId: number,
+  userId: number,
   {
     name,
     type,
@@ -35,69 +35,65 @@ export async function createSource(
     type: SourceType;
     url?: string;
     credentials?: Buffer;
-  }
+  },
 ) {
   const id = sql`(
     SELECT COALESCE(MAX(${source.id}), 0) + 1
     FROM ${source}
-    WHERE ${source.accountId} = ${accountId}
+    WHERE ${source.userId} = ${userId}
   )`;
   return (
     await db
       .insert(source)
-      .values({ accountId, id, name, url, type, credentials })
+      .values({ userId, id, name, url, type, credentials })
       .returning()
   )[0];
 }
 
-export async function getSourcesByIds(accountId: number, ids: number[]) {
+export async function getSourcesByIds(userId: number, ids: number[]) {
   return db.query.source.findMany({
-    where: and(eq(source.accountId, accountId), inArray(source.id, ids)),
+    where: and(eq(source.userId, userId), inArray(source.id, ids)),
   });
 }
 
 export async function createCollection(
-  accountId: number,
+  userId: number,
   sourceId: number,
   name: string,
-  ref: Buffer
+  ref: Buffer,
 ) {
   const id = sql`(
     SELECT COALESCE(MAX(${collection.id}), 0) + 1
     FROM ${collection}
-    WHERE ${collection.accountId} = ${accountId}
+    WHERE ${collection.userId} = ${userId}
   )`;
   return (
     await db
       .insert(collection)
-      .values({ accountId, sourceId, name, id, ref })
+      .values({ userId, sourceId, name, id, ref })
       .returning()
   )[0];
 }
 
 export async function addItemIds(
-  accountId: number,
+  userId: number,
   collectionId: number,
-  toAdd: Buffer[]
+  toAdd: Buffer[],
 ) {
-  const ids = await getItemIds(accountId, collectionId);
+  const ids = await getItemIds(userId, collectionId);
 
   for (const id of toAdd) ids.add(id);
   await db
     .update(collection)
     .set({ itemIds: serializeIds(ids) })
-    .where(
-      and(eq(collection.accountId, accountId), eq(collection.id, collectionId))
-    );
+    .where(and(eq(collection.userId, userId), eq(collection.id, collectionId)));
 }
 
-export async function getItemIds(accountId: number, collectionId: number) {
+export async function getItemIds(userId: number, collectionId: number) {
   const result = await db
     .select({ itemIds: collection.itemIds })
     .from(collection)
-    .where(
-      and(eq(collection.accountId, accountId), eq(collection.id, collectionId))
-    );
+    .where(and(eq(collection.userId, userId), eq(collection.id, collectionId)));
   return new SortedSet<Buffer>({
     seed: deserializeIds(result[0]?.itemIds ?? NO_ITEM_IDS),
     isSorted: true,
@@ -106,21 +102,21 @@ export async function getItemIds(accountId: number, collectionId: number) {
 }
 
 export async function createConnection(
-  accountId: number,
+  userId: number,
   consumerId: number,
-  collectionId: number
+  collectionId: number,
 ) {
   return (
     await db
       .insert(connection)
-      .values({ accountId, consumerId, collectionId })
+      .values({ userId, consumerId, collectionId })
       .returning()
   )[0];
 }
 
 export async function countCollectionsForConsumer(
-  accountId: number,
-  consumerId: number
+  userId: number,
+  consumerId: number,
 ) {
   return db.$count(
     db
@@ -128,20 +124,20 @@ export async function countCollectionsForConsumer(
       .from(connection)
       .where(
         and(
-          eq(connection.accountId, accountId),
-          eq(connection.consumerId, consumerId)
-        )
+          eq(connection.userId, userId),
+          eq(connection.consumerId, consumerId),
+        ),
       )
-      .groupBy(connection.collectionId)
+      .groupBy(connection.collectionId),
   );
 }
 
 export async function getConnectionsWithCollectionSyncInfo(
-  ids: [accountId: number, collectionId: number][]
+  ids: [userId: number, collectionId: number][],
 ) {
   return db
     .select({
-      account: connection.accountId,
+      user: connection.userId,
       consumer: connection.consumerId,
       collection: connection.collectionId,
       source: collection.sourceId,
@@ -155,56 +151,56 @@ export async function getConnectionsWithCollectionSyncInfo(
     .innerJoin(
       collection,
       and(
-        eq(connection.accountId, collection.accountId),
-        eq(connection.collectionId, collection.id)
-      )
+        eq(connection.userId, collection.userId),
+        eq(connection.collectionId, collection.id),
+      ),
     )
     .innerJoin(
       source,
       and(
-        eq(collection.accountId, source.accountId),
-        eq(collection.sourceId, source.id)
-      )
+        eq(collection.userId, source.userId),
+        eq(collection.sourceId, source.id),
+      ),
     )
     .where(
-      inArray(sql`(${connection.accountId}, ${connection.collectionId})`, ids)
+      inArray(sql`(${connection.userId}, ${connection.collectionId})`, ids),
     )
-    .orderBy(asc(connection.accountId), asc(connection.collectionId));
+    .orderBy(asc(connection.userId), asc(connection.collectionId));
 }
 
 export async function getConnectionsToCollections(
-  refs: (readonly [accountId: number, collectionId: number])[]
+  refs: (readonly [userId: number, collectionId: number])[],
 ) {
   return db.query.connection.findMany({
     where: inArray(
-      sql`(${connection.accountId}, ${connection.collectionId})`,
-      refs
+      sql`(${connection.userId}, ${connection.collectionId})`,
+      refs,
     ),
-    orderBy: [asc(connection.accountId), asc(connection.collectionId)],
+    orderBy: [asc(connection.userId), asc(connection.collectionId)],
   });
 }
 
 export async function createItemIdConflictResolution(
-  accountId: number,
+  userId: number,
   collectionId: number,
   sourceItemId: Buffer,
-  id: number
+  id: number,
 ) {
   await db
     .insert(itemIdConflictResolution)
-    .values({ accountId, collectionId, sourceItemId, id });
+    .values({ userId, collectionId, sourceItemId, id });
 }
 
 export async function getItemId(
-  accountId: number,
+  userId: number,
   collectionId: number,
-  sourceItemId: Buffer
+  sourceItemId: Buffer,
 ) {
   const result = await db.query.itemIdConflictResolution.findFirst({
     where: and(
-      eq(itemIdConflictResolution.accountId, accountId),
+      eq(itemIdConflictResolution.userId, userId),
       eq(itemIdConflictResolution.collectionId, collectionId),
-      eq(itemIdConflictResolution.sourceItemId, sourceItemId)
+      eq(itemIdConflictResolution.sourceItemId, sourceItemId),
     ),
   });
   if (result) return result.id;

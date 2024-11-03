@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { and, eq } from "drizzle-orm";
-import { createAccount, createConsumer } from "../../access/access-repository";
-import { consumer, DbAccount, DbConsumer } from "../../access/db/access-schema";
+import { createConsumer, createUser } from "../../access/access-repository";
+import { consumer, DbConsumer, DbUser } from "../../access/db/access-schema";
 import { withSchema } from "../../core/db/db";
 import { SourceType } from "../data";
 import {
@@ -27,11 +27,11 @@ const db = withSchema({
   itemIdConflictResolution,
 });
 
-let a: DbAccount;
+let a: DbUser;
 let cl: DbConsumer;
 
 beforeEach(async () => {
-  a = await createAccount("test@test.com");
+  a = await createUser("test@test.com");
   cl = await createConsumer(a.id, "test");
 });
 
@@ -48,7 +48,7 @@ describe("createSource()", () => {
     });
     expect(s).toEqual({
       id: s.id,
-      accountId: a.id,
+      userId: a.id,
       name: "test",
       type: SourceType.NOTION,
       credentials: Buffer.from("test", "base64url"),
@@ -75,7 +75,7 @@ describe("createCollection()", () => {
     });
     expect(c).toEqual({
       id: c.id,
-      accountId: a.id,
+      userId: a.id,
       sourceId: s.id,
       name: "test",
       ref: Buffer.alloc(0),
@@ -101,13 +101,13 @@ describe("createConnection()", () => {
 
     const stored = await db.query.connection.findFirst({
       where: and(
-        eq(connection.accountId, a.id),
+        eq(connection.userId, a.id),
         eq(connection.consumerId, cl.id),
-        eq(connection.collectionId, c.id)
+        eq(connection.collectionId, c.id),
       ),
     });
     expect(cc).toEqual({
-      accountId: a.id,
+      userId: a.id,
       consumerId: cl.id,
       collectionId: c.id,
       lastItemChanged: null,
@@ -155,7 +155,7 @@ describe("createItemIdConflictResolution()", () => {
       where: eq(itemIdConflictResolution.id, 1),
     });
     expect(stored).toEqual({
-      accountId: a.id,
+      userId: a.id,
       collectionId: c.id,
       sourceItemId: Buffer.from([1]),
       id: 1,

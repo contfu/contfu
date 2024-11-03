@@ -7,31 +7,31 @@ import {
 } from "drizzle-orm/sqlite-core";
 import { buffer } from "../../core/db/custom-types";
 
-export const account = sqliteTable("account", {
-  /** The id of the account. */
+export const user = sqliteTable("user", {
+  /** The id of the user. */
   id: integer().primaryKey({ autoIncrement: true }),
-  /** The email of the account. */
+  /** The email of the user. */
   email: text().unique().notNull(),
   /**
-   * The time the account is active. If it is in the past, the account is inactive.
-   * If it is null, the account is active forever.
+   * The time the user is active. If it is in the past, the user is inactive.
+   * If it is null, the user is active forever.
    */
   activeUntil: integer(),
-  /** The time the account was created. */
+  /** The time the user was created. */
   createdAt: integer()
     .default(sql`(unixepoch())`)
     .notNull(),
-  /** The time the account was updated. */
+  /** The time the user was updated. */
   updatedAt: integer(),
 });
 
-export type DbAccount = typeof account.$inferSelect;
+export type DbUser = typeof user.$inferSelect;
 
 export const quota = sqliteTable("quota", {
-  /** The account id that the quota belongs to. */
+  /** The user id that the quota belongs to. */
   id: integer()
     .primaryKey()
-    .references(() => account.id, { onDelete: "cascade" }),
+    .references(() => user.id, { onDelete: "cascade" }),
   /** The number of sources. */
   sources: integer().notNull(),
   /** The maximum number of sources. */
@@ -55,10 +55,10 @@ export type DbQuota = typeof quota.$inferSelect;
 export const consumer = sqliteTable(
   "consumer",
   {
-    /** The account id that the consumer belongs to. */
-    accountId: integer()
+    /** The user id that the consumer belongs to. */
+    userId: integer()
       .notNull()
-      .references(() => account.id, { onDelete: "cascade" }),
+      .references(() => user.id, { onDelete: "cascade" }),
     /** The id of the consumer. */
     id: integer().notNull(),
     /** The key of the consumer. If null, the consumer is internal. */
@@ -71,8 +71,8 @@ export const consumer = sqliteTable(
       .notNull(),
   },
   (t) => ({
-    pk: primaryKey({ columns: [t.accountId, t.id] }),
-  })
+    pk: primaryKey({ columns: [t.userId, t.id] }),
+  }),
 );
 
 export type DbConsumer = typeof consumer.$inferSelect;

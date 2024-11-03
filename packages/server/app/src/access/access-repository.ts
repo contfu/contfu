@@ -2,8 +2,8 @@ import * as ds from "./db/access-datasource";
 
 export { authenticateConsumer, createConsumer } from "./db/access-datasource";
 
-export async function createAccount(email: string) {
-  return ds.createAccount(
+export async function createUser(email: string) {
+  return ds.createUser(
     email,
     {
       maxSources: 10,
@@ -11,6 +11,6 @@ export async function createAccount(email: string) {
       maxItems: 1000,
       maxClients: 10,
     },
-    Date.now() + 1000 * 60 * 60 * 24 * 365 * 10
+    Date.now() + 1000 * 60 * 60 * 24 * 365 * 10,
   );
 }

@@ -14,8 +14,8 @@ import {
 import Elysia from "elysia";
 import { Subscription } from "rxjs";
 import { fakeTimers } from "../test/timers";
-import { createAccount, createConsumer } from "./access/access-repository";
-import { DbAccount, DbConsumer } from "./access/db/access-schema";
+import { createConsumer, createUser } from "./access/access-repository";
+import { DbConsumer, DbUser } from "./access/db/access-schema";
 import { SourceType } from "./data/data";
 import {
   connectConsumerToCollection,
@@ -43,7 +43,7 @@ const clock = fakeTimers();
 
 describe("connect via WS", () => {
   let server: Elysia;
-  let acc: DbAccount;
+  let acc: DbUser;
   let cons: DbConsumer;
   let sub: Subscription;
   let coll: DbCollection;
@@ -55,7 +55,7 @@ describe("connect via WS", () => {
   beforeEach(async () => {
     sub = processItems$.subscribe();
     sub.add(sync$.subscribe());
-    acc = await createAccount("test@test.com");
+    acc = await createUser("test@test.com");
     cons = await createConsumer(acc.id, "test");
     const src = await createSource(acc.id, {
       name: "notion-test",

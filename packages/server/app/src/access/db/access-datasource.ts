@@ -1,8 +1,8 @@
 import { and, eq, sql } from "drizzle-orm";
 import { withSchema } from "../../core/db/db";
-import { account, consumer, DbConsumer, DbQuota, quota } from "./access-schema";
+import { consumer, DbConsumer, DbQuota, quota, user } from "./access-schema";
 
-const db = withSchema({ account, consumer, quota });
+const db = withSchema({ user, consumer, quota });
 
 export type QuotaLimits = Pick<
   DbQuota,
@@ -15,24 +15,24 @@ export async function authenticateConsumer(key: Buffer) {
   return c ?? null;
 }
 
-export async function createAccount(
+export async function createUser(
   email: string,
   limits: QuotaLimits,
-  activeUntil: number
+  activeUntil: number,
 ) {
   const acc = (
-    await db.insert(account).values({ email, activeUntil }).returning()
+    await db.insert(user).values({ email, activeUntil }).returning()
   )[0];
   await createQuota(acc.id, limits);
   return acc;
 }
 
-export async function createQuota(accountId: number, limits: QuotaLimits) {
+export async function createQuota(userId: number, limits: QuotaLimits) {
   return (
     await db
       .insert(quota)
       .values({
-        id: accountId,
+        id: userId,
         ...limits,
         sources: 0,
         collections: 0,
@@ -44,14 +44,14 @@ export async function createQuota(accountId: number, limits: QuotaLimits) {
 }
 
 export async function createConsumer(
-  accountId: number,
+  userId: number,
   name: string,
-  internal?: boolean
+  internal?: boolean,
 ) {
   const id = sql`(
     SELECT COALESCE(MAX(${consumer.id}), 0) + 1
     FROM ${consumer}
-    WHERE ${consumer.accountId} = ${accountId}
+    WHERE ${consumer.userId} = ${userId}
   )`;
   const key = internal
     ? null
@@ -60,28 +60,28 @@ export async function createConsumer(
         async (key) =>
           !!(await db.query.consumer.findFirst({
             where: eq(consumer.key, key),
-          }))
+          })),
       );
   return (
-    await db.insert(consumer).values({ accountId, name, id, key }).returning()
+    await db.insert(consumer).values({ userId, name, id, key }).returning()
   )[0];
 }
 
 export async function updateConsumer({
-  accountId,
+  userId,
   id,
   ...c
-}: Pick<DbConsumer, "id" | "accountId"> &
+}: Pick<DbConsumer, "id" | "userId"> &
   Partial<Pick<DbConsumer, "key" | "name">>) {
   await db
     .update(consumer)
     .set(c)
-    .where(and(eq(consumer.id, id), eq(consumer.accountId, accountId)));
+    .where(and(eq(consumer.id, id), eq(consumer.userId, userId)));
 }
 
 async function generateAccessKey(
   length: number,
-  isCollision: (key: Buffer) => Promise<boolean>
+  isCollision: (key: Buffer) => Promise<boolean>,
 ) {
   do {
     const key = generateRandomKey(length);

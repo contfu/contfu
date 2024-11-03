@@ -1,67 +1,14 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "75883a35-665c-4d8d-b217-7fccdf91522b",
+  "id": "b947bdf1-71e3-4692-b43f-cda505f8ca4f",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
-    "account": {
-      "name": "account",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": true
-        },
-        "email": {
-          "name": "email",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "activeUntil": {
-          "name": "activeUntil",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "createdAt": {
-          "name": "createdAt",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(unixepoch())"
-        },
-        "updatedAt": {
-          "name": "updatedAt",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "account_email_unique": {
-          "name": "account_email_unique",
-          "columns": [
-            "email"
-          ],
-          "isUnique": true
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
-    },
     "consumer": {
       "name": "consumer",
       "columns": {
-        "accountId": {
-          "name": "accountId",
+        "userId": {
+          "name": "userId",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
@@ -76,7 +23,7 @@
         },
         "key": {
           "name": "key",
-          "type": "blob",
+          "type": "BLOB",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -86,13 +33,6 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false
-        },
-        "connectedTo": {
-          "name": "connectedTo",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
           "autoincrement": false
         },
         "createdAt": {
@@ -114,12 +54,12 @@
         }
       },
       "foreignKeys": {
-        "consumer_accountId_account_id_fk": {
-          "name": "consumer_accountId_account_id_fk",
+        "consumer_userId_user_id_fk": {
+          "name": "consumer_userId_user_id_fk",
           "tableFrom": "consumer",
-          "tableTo": "account",
+          "tableTo": "user",
           "columnsFrom": [
-            "accountId"
+            "userId"
           ],
           "columnsTo": [
             "id"
@@ -129,12 +69,12 @@
         }
       },
       "compositePrimaryKeys": {
-        "consumer_accountId_id_pk": {
+        "consumer_userId_id_pk": {
           "columns": [
-            "accountId",
+            "userId",
             "id"
           ],
-          "name": "consumer_accountId_id_pk"
+          "name": "consumer_userId_id_pk"
         }
       },
       "uniqueConstraints": {}
@@ -208,10 +148,10 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "quota_id_account_id_fk": {
-          "name": "quota_id_account_id_fk",
+        "quota_id_user_id_fk": {
+          "name": "quota_id_user_id_fk",
           "tableFrom": "quota",
-          "tableTo": "account",
+          "tableTo": "user",
           "columnsFrom": [
             "id"
           ],
@@ -225,11 +165,64 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     },
+    "user": {
+      "name": "user",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "activeUntil": {
+          "name": "activeUntil",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch())"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "user_email_unique": {
+          "name": "user_email_unique",
+          "columns": [
+            "email"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
     "collection": {
       "name": "collection",
       "columns": {
-        "accountId": {
-          "name": "accountId",
+        "userId": {
+          "name": "userId",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
@@ -258,14 +251,14 @@
         },
         "ref": {
           "name": "ref",
-          "type": "blob",
+          "type": "BLOB",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
         },
         "itemIds": {
           "name": "itemIds",
-          "type": "blob",
+          "type": "BLOB",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -288,12 +281,12 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "collection_accountId_account_id_fk": {
-          "name": "collection_accountId_account_id_fk",
+        "collection_userId_user_id_fk": {
+          "name": "collection_userId_user_id_fk",
           "tableFrom": "collection",
-          "tableTo": "account",
+          "tableTo": "user",
           "columnsFrom": [
-            "accountId"
+            "userId"
           ],
           "columnsTo": [
             "id"
@@ -301,16 +294,16 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "collection_accountId_sourceId_source_accountId_id_fk": {
-          "name": "collection_accountId_sourceId_source_accountId_id_fk",
+        "collection_userId_sourceId_source_userId_id_fk": {
+          "name": "collection_userId_sourceId_source_userId_id_fk",
           "tableFrom": "collection",
           "tableTo": "source",
           "columnsFrom": [
-            "accountId",
+            "userId",
             "sourceId"
           ],
           "columnsTo": [
-            "accountId",
+            "userId",
             "id"
           ],
           "onDelete": "cascade",
@@ -318,12 +311,12 @@
         }
       },
       "compositePrimaryKeys": {
-        "collection_accountId_id_pk": {
+        "collection_userId_id_pk": {
           "columns": [
-            "accountId",
+            "userId",
             "id"
           ],
-          "name": "collection_accountId_id_pk"
+          "name": "collection_userId_id_pk"
         }
       },
       "uniqueConstraints": {}
@@ -331,8 +324,8 @@
     "connection": {
       "name": "connection",
       "columns": {
-        "accountId": {
-          "name": "accountId",
+        "userId": {
+          "name": "userId",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
@@ -369,12 +362,12 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "connection_accountId_account_id_fk": {
-          "name": "connection_accountId_account_id_fk",
+        "connection_userId_user_id_fk": {
+          "name": "connection_userId_user_id_fk",
           "tableFrom": "connection",
-          "tableTo": "account",
+          "tableTo": "user",
           "columnsFrom": [
-            "accountId"
+            "userId"
           ],
           "columnsTo": [
             "id"
@@ -382,31 +375,31 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "connection_accountId_consumerId_consumer_accountId_id_fk": {
-          "name": "connection_accountId_consumerId_consumer_accountId_id_fk",
+        "connection_userId_consumerId_consumer_userId_id_fk": {
+          "name": "connection_userId_consumerId_consumer_userId_id_fk",
           "tableFrom": "connection",
           "tableTo": "consumer",
           "columnsFrom": [
-            "accountId",
+            "userId",
             "consumerId"
           ],
           "columnsTo": [
-            "accountId",
+            "userId",
             "id"
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "connection_accountId_collectionId_collection_accountId_id_fk": {
-          "name": "connection_accountId_collectionId_collection_accountId_id_fk",
+        "connection_userId_collectionId_collection_userId_id_fk": {
+          "name": "connection_userId_collectionId_collection_userId_id_fk",
           "tableFrom": "connection",
           "tableTo": "collection",
           "columnsFrom": [
-            "accountId",
+            "userId",
             "collectionId"
           ],
           "columnsTo": [
-            "accountId",
+            "userId",
             "id"
           ],
           "onDelete": "cascade",
@@ -414,13 +407,13 @@
         }
       },
       "compositePrimaryKeys": {
-        "connection_accountId_consumerId_collectionId_pk": {
+        "connection_userId_consumerId_collectionId_pk": {
           "columns": [
-            "accountId",
+            "userId",
             "consumerId",
             "collectionId"
           ],
-          "name": "connection_accountId_consumerId_collectionId_pk"
+          "name": "connection_userId_consumerId_collectionId_pk"
         }
       },
       "uniqueConstraints": {}
@@ -428,8 +421,8 @@
     "item_id_conflict_resolution": {
       "name": "item_id_conflict_resolution",
       "columns": {
-        "accountId": {
-          "name": "accountId",
+        "userId": {
+          "name": "userId",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
@@ -444,7 +437,7 @@
         },
         "sourceItemId": {
           "name": "sourceItemId",
-          "type": "blob",
+          "type": "BLOB",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
@@ -459,12 +452,12 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "item_id_conflict_resolution_accountId_account_id_fk": {
-          "name": "item_id_conflict_resolution_accountId_account_id_fk",
+        "item_id_conflict_resolution_userId_user_id_fk": {
+          "name": "item_id_conflict_resolution_userId_user_id_fk",
           "tableFrom": "item_id_conflict_resolution",
-          "tableTo": "account",
+          "tableTo": "user",
           "columnsFrom": [
-            "accountId"
+            "userId"
           ],
           "columnsTo": [
             "id"
@@ -472,16 +465,16 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "item_id_conflict_resolution_accountId_collectionId_collection_accountId_id_fk": {
-          "name": "item_id_conflict_resolution_accountId_collectionId_collection_accountId_id_fk",
+        "item_id_conflict_resolution_userId_collectionId_collection_userId_id_fk": {
+          "name": "item_id_conflict_resolution_userId_collectionId_collection_userId_id_fk",
           "tableFrom": "item_id_conflict_resolution",
           "tableTo": "collection",
           "columnsFrom": [
-            "accountId",
+            "userId",
             "collectionId"
           ],
           "columnsTo": [
-            "accountId",
+            "userId",
             "id"
           ],
           "onDelete": "cascade",
@@ -489,13 +482,13 @@
         }
       },
       "compositePrimaryKeys": {
-        "item_id_conflict_resolution_accountId_collectionId_sourceItemId_pk": {
+        "item_id_conflict_resolution_userId_collectionId_sourceItemId_pk": {
           "columns": [
-            "accountId",
+            "userId",
             "collectionId",
             "sourceItemId"
           ],
-          "name": "item_id_conflict_resolution_accountId_collectionId_sourceItemId_pk"
+          "name": "item_id_conflict_resolution_userId_collectionId_sourceItemId_pk"
         }
       },
       "uniqueConstraints": {}
@@ -503,8 +496,8 @@
     "source": {
       "name": "source",
       "columns": {
-        "accountId": {
-          "name": "accountId",
+        "userId": {
+          "name": "userId",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
@@ -533,7 +526,7 @@
         },
         "credentials": {
           "name": "credentials",
-          "type": "blob",
+          "type": "BLOB",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -563,12 +556,12 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "source_accountId_account_id_fk": {
-          "name": "source_accountId_account_id_fk",
+        "source_userId_user_id_fk": {
+          "name": "source_userId_user_id_fk",
           "tableFrom": "source",
-          "tableTo": "account",
+          "tableTo": "user",
           "columnsFrom": [
-            "accountId"
+            "userId"
           ],
           "columnsTo": [
             "id"
@@ -578,12 +571,12 @@
         }
       },
       "compositePrimaryKeys": {
-        "source_accountId_id_pk": {
+        "source_userId_id_pk": {
           "columns": [
-            "accountId",
+            "userId",
             "id"
           ],
-          "name": "source_accountId_id_pk"
+          "name": "source_userId_id_pk"
         }
       },
       "uniqueConstraints": {}
