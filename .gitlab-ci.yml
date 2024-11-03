@@ -1,4 +1,4 @@
-image: oven/bun:1.1.33-slim
+image: oven/bun:1.1.34-slim
 
 cache:
   paths:
@@ -28,7 +28,7 @@ dockerize-check:
   variables:
     IMAGE_TAG_SERVER: $CI_REGISTRY_IMAGE:server-$CI_COMMIT_REF_SLUG
   script:
-    - docker build -t $IMAGE_TAG_SERVER . -f server/app/Dockerfile
+    - docker build -t $IMAGE_TAG_SERVER . -f packages/server/app/Dockerfile
 
 push:
   image: docker:24.0.5
@@ -41,7 +41,7 @@ push:
     IMAGE_TAG_SERVER: $CI_REGISTRY_IMAGE:server-$CI_COMMIT_REF_SLUG
   script:
     - echo "$CI_REGISTRY_PASSWORD" | docker login -u $CI_REGISTRY_USER $CI_REGISTRY --password-stdin
-    - docker build -t $IMAGE_TAG_SERVER . -f server/app/Dockerfile
+    - docker build -t $IMAGE_TAG_SERVER . -f packages/server/app/Dockerfile
     - docker push $IMAGE_TAG_SERVER
 
 deploy:
