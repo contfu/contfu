@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  blob,
   integer,
   primaryKey,
   sqliteTable,
@@ -17,6 +18,8 @@ export const user = sqliteTable("user", {
    * If it is null, the user is active forever.
    */
   activeUntil: integer(),
+  /** The password hash of the user. */
+  password: text(),
   /** The time the user was created. */
   createdAt: integer()
     .default(sql`(unixepoch())`)
@@ -26,6 +29,19 @@ export const user = sqliteTable("user", {
 });
 
 export type DbUser = typeof user.$inferSelect;
+
+export const session = sqliteTable("session", {
+  /** The id of the session. */
+  id: blob().primaryKey(),
+  /** The user id that the session belongs to. */
+  userId: integer()
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  /** The time the session expires. */
+  expiresAt: integer().notNull(),
+});
+
+export type DbSession = typeof session.$inferSelect;
 
 export const quota = sqliteTable("quota", {
   /** The user id that the quota belongs to. */
