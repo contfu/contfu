@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "b947bdf1-71e3-4692-b43f-cda505f8ca4f",
+  "id": "b0a86b7f-e32f-4e8b-a019-a1f327ad53af",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "consumer": {
@@ -77,7 +77,8 @@
           "name": "consumer_userId_id_pk"
         }
       },
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "checkConstraints": {}
     },
     "quota": {
       "name": "quota",
@@ -163,7 +164,8 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "checkConstraints": {}
     },
     "user": {
       "name": "user",
@@ -185,6 +187,13 @@
         "activeUntil": {
           "name": "activeUntil",
           "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "password": {
+          "name": "password",
+          "type": "text",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -216,7 +225,8 @@
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "checkConstraints": {}
     },
     "collection": {
       "name": "collection",
@@ -319,7 +329,8 @@
           "name": "collection_userId_id_pk"
         }
       },
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "checkConstraints": {}
     },
     "connection": {
       "name": "connection",
@@ -416,7 +427,8 @@
           "name": "connection_userId_consumerId_collectionId_pk"
         }
       },
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "checkConstraints": {}
     },
     "item_id_conflict_resolution": {
       "name": "item_id_conflict_resolution",
@@ -491,7 +503,8 @@
           "name": "item_id_conflict_resolution_userId_collectionId_sourceItemId_pk"
         }
       },
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "checkConstraints": {}
     },
     "source": {
       "name": "source",
@@ -579,9 +592,11 @@
           "name": "source_userId_id_pk"
         }
       },
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "checkConstraints": {}
     }
   },
+  "views": {},
   "enums": {},
   "_meta": {
     "schemas": {},

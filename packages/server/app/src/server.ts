@@ -13,6 +13,7 @@ import {
 import Elysia from "elysia";
 import { ElysiaWS } from "elysia/ws";
 import { bufferTime, concatMap, filter, Subscription } from "rxjs";
+import { accessPlugin } from "./access/access-plugin";
 import { authenticateConsumer } from "./access/access-repository";
 import { changedEvent } from "./sync/events";
 import {
@@ -26,7 +27,6 @@ import {
   getConnectionsToCollections,
   items$,
 } from "./sync/sync-service";
-
 class CommandError extends Error {
   constructor(
     readonly code: "E_AUTH" | "E_CONFLICT" | "E_ACCESS",
@@ -37,6 +37,7 @@ class CommandError extends Error {
 }
 
 export const app = new Elysia()
+  .use(accessPlugin({ prefix: "/api/access" }))
   .get("/", () => "This will be awesome!")
   .ws("/", {
     async message(ws, body) {

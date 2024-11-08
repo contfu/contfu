@@ -1,6 +1,10 @@
 import * as ds from "./db/access-datasource";
 
-export { authenticateConsumer, createConsumer } from "./db/access-datasource";
+export {
+  authenticateConsumer,
+  createConsumer,
+  verifyUserCredentials,
+} from "./db/access-datasource";
 
 export async function createUser(email: string) {
   return ds.createUser(

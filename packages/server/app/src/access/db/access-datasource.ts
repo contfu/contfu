@@ -9,6 +9,13 @@ export type QuotaLimits = Pick<
   "maxSources" | "maxCollections" | "maxItems" | "maxClients"
 >;
 
+export async function verifyUserCredentials(email: string, password: string) {
+  const u = await db.query.user.findFirst({ where: eq(user.email, email) });
+  if (!u || !u.password || !(await Bun.password.verify(password, u.password)))
+    return null;
+  return u.activeUntil ?? Infinity;
+}
+
 export async function authenticateConsumer(key: Buffer) {
   if (key.length !== 24) return null;
   const c = await db.query.consumer.findFirst({ where: eq(consumer.key, key) });
