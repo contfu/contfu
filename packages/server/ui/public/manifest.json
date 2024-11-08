@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json.schemastore.org/web-manifest-combined.json",
+  "name": "contfu.com",
+  "short_name": "contfu",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#ccc",
+  "description": "Power-up your CMS."
+}
