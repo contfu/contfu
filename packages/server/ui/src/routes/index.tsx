@@ -73,7 +73,7 @@ export default component$(() => {
   return (
     <main class="dark:bg-gray-900">
       {/* Hero Section */}
-      <section class="bg-gradient-to-b from-white to-gray-50 py-20 dark:from-gray-900 dark:to-gray-800">
+      <section class="bg-gradient-to-b from-white to-gray-50 py-40 dark:from-gray-900 dark:to-gray-800">
         <div class="container mx-auto px-4">
           <div class="mx-auto max-w-4xl text-center">
             <h1 class="mb-6 text-5xl font-bold tracking-tight text-gray-900 dark:text-white">
