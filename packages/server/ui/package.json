@@ -29,6 +29,7 @@
   "devDependencies": {
     "@builder.io/qwik": "^1.9.1",
     "@builder.io/qwik-city": "^1.9.1",
+    "@contfu/db": "workspace:*",
     "@modular-forms/qwik": "^0.28.2",
     "@types/eslint": "8.56.10",
     "@types/node": "20.14.11",
@@ -36,6 +37,7 @@
     "@typescript-eslint/parser": "7.16.1",
     "autoprefixer": "^10.4.19",
     "cssnano": "^7.0.6",
+    "drizzle-orm": "^0.36.1",
     "eslint": "8.57.0",
     "eslint-plugin-qwik": "^1.9.1",
     "postcss": "^8.4.39",

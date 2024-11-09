@@ -27,7 +27,7 @@
     "@contfu/sync": "workspace:*",
     "@sinclair/typebox": "^0.33.15",
     "@sinonjs/fake-timers": "^13.0.4",
-    "drizzle-orm": "^0.36.0",
+    "drizzle-orm": "^0.36.1",
     "elysia": "^1.1.19",
     "notion-client-web-fetch": "^2.2.15",
     "postgres": "^3.4.4",
