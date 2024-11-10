@@ -1,4 +1,5 @@
 import { db } from "@contfu/db";
+import type { DisplayUser } from "./auth";
 import { createSession, generateSessionToken } from "./session";
 
 export async function login(email: string, password: string) {
@@ -15,5 +16,5 @@ export async function login(email: string, password: string) {
 
   const token = generateSessionToken();
   await createSession(token, user.id);
-  return { token, user: { email: user.email } };
+  return { token, user: { email: user.email, name: user.name } as DisplayUser };
 }

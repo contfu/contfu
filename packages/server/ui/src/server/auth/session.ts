@@ -70,7 +70,7 @@ function getSessionId(token: string) {
   return hash("sha256", token, "buffer");
 }
 
-type SessionUser = Omit<User, "password">;
+export type SessionUser = Omit<User, "password">;
 
 export type SessionValidationResult = {
   session: Session;

@@ -1,4 +1,5 @@
 import { component$, useTask$ } from "@builder.io/qwik";
+import type { RequestHandler } from "@builder.io/qwik-city";
 import { routeLoader$, useNavigate } from "@builder.io/qwik-city";
 import { isBrowser } from "@builder.io/qwik/build";
 import type { InitialValues } from "@modular-forms/qwik";
@@ -9,6 +10,17 @@ import {
   valiForm$,
 } from "@modular-forms/qwik";
 import * as v from "valibot";
+import type { DisplayUser } from "~/server/auth/auth";
+import { guardLoggedOut, SESSION_COOKIE_NAME } from "~/server/auth/auth";
+import { login } from "~/server/auth/local";
+
+export const onRequest: RequestHandler = async ({
+  sharedMap,
+  redirect,
+  method,
+}) => {
+  guardLoggedOut({ sharedMap, redirect, method });
+};
 
 const LoginSchema = v.object({
   email: v.pipe(v.string(), v.nonEmpty("Please enter your email.")),
@@ -22,46 +34,44 @@ export const useFormLoader = routeLoader$<InitialValues<LoginForm>>(() => ({
   password: "",
 }));
 
-export const useFormAction = formAction$<LoginForm, { username: string }>(
-  async (values) => {
-    console.log(values);
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    const x = Math.random();
-    console.log(x);
-
-    if (x > 0.5) {
-      throw new FormError<LoginForm>("Wrong username or password", {
-        email: "Wrong email",
-        password: "Wrong password",
-      });
+export const useFormAction = formAction$<LoginForm, DisplayUser>(
+  async (values, { cookie }) => {
+    const minDuration = new Promise((resolve) => setTimeout(resolve, 500));
+    const result = await login(values.email, values.password);
+    if (!result) {
+      await minDuration;
+      throw new FormError<LoginForm>("Wrong username or password");
     }
+
+    cookie.set(SESSION_COOKIE_NAME, result.token, {
+      httpOnly: true,
+      path: "/",
+      sameSite: "lax",
+      secure: true,
+    });
 
     return {
       message: "Logged in",
       status: "success",
-      data: { username: "desrint" },
+      data: result.user,
     };
-    // Runs on server
   },
   valiForm$(LoginSchema),
 );
 
 export default component$(() => {
   const nav = useNavigate();
-  const [loginForm, { Form, Field }] = useForm<LoginForm, { username: string }>(
-    {
-      loader: useFormLoader(),
-      action: useFormAction(),
-      validate: valiForm$(LoginSchema),
-    },
-  );
+  const [loginForm, { Form, Field }] = useForm<LoginForm, DisplayUser>({
+    loader: useFormLoader(),
+    action: useFormAction(),
+    validate: valiForm$(LoginSchema),
+  });
 
   useTask$(({ track }) => {
     track(() => loginForm.response.status);
     if (isBrowser) {
       if (loginForm.response.status === "success") {
-        nav("/app");
+        nav("/dashboard");
       }
     }
   });
