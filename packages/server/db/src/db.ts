@@ -1,13 +1,16 @@
-import { Database } from "bun:sqlite";
-import { drizzle } from "drizzle-orm/bun-sqlite";
-import { migrate } from "drizzle-orm/bun-sqlite/migrator";
+import { createClient } from "@libsql/client";
+import { drizzle } from "drizzle-orm/libsql";
+import { migrate } from "drizzle-orm/libsql/migrator";
 import { schema } from "./schema";
 
-export const client = new Database(process.env.DATABASE_PATH ?? ":memory:");
+const client = createClient({
+  url: process.env.DATABASE_URL ?? ":memory:",
+  authToken: process.env.DATABASE_AUTH_TOKEN,
+});
 
-client.run("PRAGMA foreign_keys = ON");
-client.run("PRAGMA journal_mode = WAL");
+client.execute("PRAGMA foreign_keys = ON");
+client.execute("PRAGMA journal_mode = WAL");
 
 export const db = drizzle(client, { schema });
 
-migrate(db, { migrationsFolder: "./migrations" });
+migrate(db, { migrationsFolder: "../db/migrations" });

@@ -18,6 +18,7 @@
     "typescript": "^5.6.3"
   },
   "dependencies": {
+    "@libsql/client": "^0.14.0",
     "drizzle-orm": "^0.36.1"
   },
   "files": [
