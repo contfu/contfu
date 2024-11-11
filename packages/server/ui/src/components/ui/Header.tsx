@@ -1,4 +1,4 @@
-import { component$ } from "@builder.io/qwik";
+import { component$, useSignal } from "@builder.io/qwik";
 import type { ActionStore } from "@builder.io/qwik-city";
 import { Form, Link } from "@builder.io/qwik-city";
 import type { DisplayUser } from "~/server/auth/auth";
@@ -11,6 +11,7 @@ export default component$(
     user: DisplayUser | null;
     logout: ActionStore<never, Record<string, unknown>, true>;
   }) => {
+    const isOpen = useSignal(false);
     return (
       <header class="bg-white shadow-sm dark:bg-gray-800">
         <div class="container mx-auto px-4">
@@ -27,10 +28,13 @@ export default component$(
               {user ? (
                 <div class="relative">
                   <button
-                    class="flex items-center space-x-2 rounded-lg px-4 py-2 text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
-                    onClick$={() => {
-                      const menu = document.getElementById("userMenu");
-                      menu?.classList.toggle("hidden");
+                    class="peer flex items-center space-x-2 rounded-lg px-4 py-2 text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                    onClick$={(_, b) => {
+                      if (isOpen.value) b.blur();
+                      else isOpen.value = true;
+                    }}
+                    onBlur$={() => {
+                      isOpen.value = false;
                     }}
                   >
                     <div class="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-indigo-600 dark:bg-indigo-900 dark:text-indigo-400">
@@ -38,8 +42,8 @@ export default component$(
                     </div>
                   </button>
                   <div
-                    id="userMenu"
-                    class="absolute right-0 mt-2 hidden w-48 bg-white py-2 shadow-lg dark:bg-gray-800"
+                    class="absolute right-0 mt-2 hidden w-48 bg-white py-2 shadow-lg peer-focus:block dark:bg-gray-800"
+                    preventdefault:mousedown
                   >
                     <span class="block w-full px-4 py-2 text-gray-400 dark:text-gray-500">
                       {user.name}
