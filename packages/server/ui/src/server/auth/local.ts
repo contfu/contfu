@@ -21,7 +21,7 @@ export async function login(email: string, password: string) {
   if (!user || !user.password || !(await verify(user.password, password)))
     return null;
 
-  const token = generateSessionToken();
+  const token = await generateSessionToken();
   await createSession(token, user.id);
   return { token, user: { email: user.email, name: user.name } as DisplayUser };
 }

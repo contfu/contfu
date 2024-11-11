@@ -1,12 +1,12 @@
 import type { Session as DbSession, User } from "@contfu/db";
 import { db, sessionTable, userTable } from "@contfu/db";
 import { eq } from "drizzle-orm";
-import { hash, randomBytes } from "node:crypto";
 
 const SESSION_DURATION = 1000 * 60 * 60 * 24 * 30; // 30 days
 const SESSION_TOKEN_LENGTH = 24;
 
-export function generateSessionToken(): string {
+export async function generateSessionToken(): Promise<string> {
+  const { randomBytes } = await import("node:crypto");
   return randomBytes(SESSION_TOKEN_LENGTH).toString("base64url");
 }
 
@@ -14,7 +14,7 @@ export async function createSession(
   token: string,
   userId: number,
 ): Promise<DbSession> {
-  const sessionId = getSessionId(token);
+  const sessionId = await getSessionId(token);
   const s: DbSession = {
     id: sessionId,
     userId,
@@ -27,7 +27,7 @@ export async function createSession(
 export async function validateSessionToken(
   token: string,
 ): Promise<Session | null> {
-  const sessionId = getSessionId(token);
+  const sessionId = await getSessionId(token);
   const [result] = await db
     .select({
       user: {
@@ -68,7 +68,8 @@ async function refreshSession(session: DbSession) {
     .where(eq(sessionTable.id, session.id));
 }
 
-function getSessionId(token: string) {
+async function getSessionId(token: string) {
+  const { hash } = await import("node:crypto");
   return hash("sha256", token, "buffer");
 }
 
