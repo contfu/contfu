@@ -29,26 +29,26 @@ dockerize-check:
     IMAGE_TAG_SERVER: $CI_REGISTRY_IMAGE:server-$CI_COMMIT_REF_SLUG
   script:
     - docker build -t $IMAGE_TAG_SERVER . -f packages/server/app/Dockerfile
+# don't deploy yet
+# push:
+#   image: docker:24.0.5
+#   stage: publish
+#   only:
+#     - main
+#   services:
+#     - docker:24.0.5-dind
+#   variables:
+#     IMAGE_TAG_SERVER: $CI_REGISTRY_IMAGE:server-$CI_COMMIT_REF_SLUG
+#   script:
+#     - echo "$CI_REGISTRY_PASSWORD" | docker login -u $CI_REGISTRY_USER $CI_REGISTRY --password-stdin
+#     - docker build -t $IMAGE_TAG_SERVER . -f packages/server/app/Dockerfile
+#     - docker push $IMAGE_TAG_SERVER
 
-push:
-  image: docker:24.0.5
-  stage: publish
-  only:
-    - main
-  services:
-    - docker:24.0.5-dind
-  variables:
-    IMAGE_TAG_SERVER: $CI_REGISTRY_IMAGE:server-$CI_COMMIT_REF_SLUG
-  script:
-    - echo "$CI_REGISTRY_PASSWORD" | docker login -u $CI_REGISTRY_USER $CI_REGISTRY --password-stdin
-    - docker build -t $IMAGE_TAG_SERVER . -f packages/server/app/Dockerfile
-    - docker push $IMAGE_TAG_SERVER
-
-deploy:
-  image: kroniak/ssh-client:latest
-  stage: deploy
-  only:
-    - main
-  script:
-    - chmod og= $ID_RSA
-    - ssh -i $ID_RSA -o StrictHostKeyChecking=no $SERVER_USER@$SERVER_IP "cd docker; docker-compose pull; docker-compose up -d"
+# deploy:
+#   image: kroniak/ssh-client:latest
+#   stage: deploy
+#   only:
+#     - main
+#   script:
+#     - chmod og= $ID_RSA
+#     - ssh -i $ID_RSA -o StrictHostKeyChecking=no $SERVER_USER@$SERVER_IP "cd docker; docker-compose pull; docker-compose up -d"
