@@ -16,8 +16,6 @@ export const userTable = sqliteTable("user", {
   email: text().unique().notNull(),
   /** The name of the user. */
   name: text().notNull(),
-  /** The avatar of the user. */
-  avatar: blob({ mode: "buffer" }),
   /**
    * The time the user is active. If it is in the past, the user is inactive.
    * If it is null, the user is active forever.

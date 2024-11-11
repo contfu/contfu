@@ -1,6 +1,6 @@
 import type { Session as DbSession, User } from "@contfu/db";
 import { db, sessionTable, userTable } from "@contfu/db";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { hash, randomBytes } from "node:crypto";
 
 const SESSION_DURATION = 1000 * 60 * 60 * 24 * 30; // 30 days
@@ -34,7 +34,6 @@ export async function validateSessionToken(
         id: userTable.id,
         email: userTable.email,
         name: userTable.name,
-        avatar: sql<boolean>`${userTable.avatar} is not null`.mapWith(Boolean),
       },
       session: sessionTable,
     })
@@ -73,9 +72,7 @@ function getSessionId(token: string) {
   return hash("sha256", token, "buffer");
 }
 
-export type SessionUser = Pick<User, "id" | "email" | "name"> & {
-  avatar: boolean;
-};
+export type SessionUser = Pick<User, "id" | "email" | "name">;
 
 export type Session = {
   id: Buffer;

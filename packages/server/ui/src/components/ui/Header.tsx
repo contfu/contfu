@@ -33,27 +33,17 @@ export default component$(
                       menu?.classList.toggle("hidden");
                     }}
                   >
-                    <div class="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900">
-                      <svg
-                        class="h-5 w-5 text-indigo-600 dark:text-indigo-400"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width={2}
-                          d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                        />
-                      </svg>
+                    <div class="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-indigo-600 dark:bg-indigo-900 dark:text-indigo-400">
+                      {user.name[0].toUpperCase()}
                     </div>
-                    <span>{user.name}</span>
                   </button>
                   <div
                     id="userMenu"
-                    class="absolute right-0 mt-2 hidden w-48 rounded-lg bg-white py-2 shadow-lg dark:bg-gray-800"
+                    class="absolute right-0 mt-2 hidden w-48 bg-white py-2 shadow-lg dark:bg-gray-800"
                   >
+                    <span class="block w-full px-4 py-2 text-gray-400 dark:text-gray-500">
+                      {user.name}
+                    </span>
                     <Form action={logout}>
                       <button
                         type="submit"
