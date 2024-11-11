@@ -1,6 +1,6 @@
-import type { Session, User } from "@contfu/db";
+import type { Session as DbSession, User } from "@contfu/db";
 import { db, sessionTable, userTable } from "@contfu/db";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { hash, randomBytes } from "node:crypto";
 
 const SESSION_DURATION = 1000 * 60 * 60 * 24 * 30; // 30 days
@@ -13,9 +13,9 @@ export function generateSessionToken(): string {
 export async function createSession(
   token: string,
   userId: number,
-): Promise<Session> {
+): Promise<DbSession> {
   const sessionId = getSessionId(token);
-  const s: Session = {
+  const s: DbSession = {
     id: sessionId,
     userId,
     expiresAt: Date.now() + SESSION_DURATION,
@@ -26,10 +26,18 @@ export async function createSession(
 
 export async function validateSessionToken(
   token: string,
-): Promise<SessionValidationResult> {
+): Promise<Session | null> {
   const sessionId = getSessionId(token);
   const [result] = await db
-    .select({ user: userTable, session: sessionTable })
+    .select({
+      user: {
+        id: userTable.id,
+        email: userTable.email,
+        name: userTable.name,
+        avatar: sql<boolean>`${userTable.avatar} is not null`.mapWith(Boolean),
+      },
+      session: sessionTable,
+    })
     .from(sessionTable)
     .innerJoin(userTable, eq(sessionTable.userId, userTable.id))
     .where(eq(sessionTable.id, sessionId));
@@ -42,11 +50,10 @@ export async function validateSessionToken(
   if (Date.now() >= session.expiresAt - SESSION_DURATION / 2) {
     await refreshSession(session);
   }
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { password, ...sessionUser } = user;
   return {
-    session,
-    user: sessionUser,
+    id: session.id,
+    expiresAt: session.expiresAt,
+    user,
   };
 }
 
@@ -54,11 +61,7 @@ export async function invalidateSession(sessionId: Buffer) {
   await db.delete(sessionTable).where(eq(sessionTable.id, sessionId));
 }
 
-async function refreshSession(session: {
-  id: unknown;
-  userId: number;
-  expiresAt: number;
-}) {
+async function refreshSession(session: DbSession) {
   session.expiresAt = Date.now() + SESSION_DURATION;
   await db
     .update(sessionTable)
@@ -70,9 +73,12 @@ function getSessionId(token: string) {
   return hash("sha256", token, "buffer");
 }
 
-export type SessionUser = Omit<User, "password">;
+export type SessionUser = Pick<User, "id" | "email" | "name"> & {
+  avatar: boolean;
+};
 
-export type SessionValidationResult = {
-  session: Session;
+export type Session = {
+  id: Buffer;
+  expiresAt: number;
   user: SessionUser;
-} | null;
+};

@@ -37,7 +37,7 @@ export type User = typeof userTable.$inferSelect;
 
 export const sessionTable = sqliteTable("session", {
   /** The id of the session. */
-  id: blob().primaryKey(),
+  id: blob({ mode: "buffer" }).primaryKey(),
   /** The user id that the session belongs to. */
   userId: integer()
     .notNull()

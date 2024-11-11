@@ -14,12 +14,8 @@ import type { DisplayUser } from "~/server/auth/auth";
 import { guardLoggedOut, SESSION_COOKIE_NAME } from "~/server/auth/auth";
 import { login } from "~/server/auth/local";
 
-export const onRequest: RequestHandler = async ({
-  sharedMap,
-  redirect,
-  method,
-}) => {
-  guardLoggedOut({ sharedMap, redirect, method });
+export const onRequest: RequestHandler = async (event) => {
+  guardLoggedOut(event);
 };
 
 const LoginSchema = v.object({
@@ -36,7 +32,7 @@ export const useFormLoader = routeLoader$<InitialValues<LoginForm>>(() => ({
 
 export const useFormAction = formAction$<LoginForm, DisplayUser>(
   async (values, { cookie }) => {
-    const minDuration = new Promise((resolve) => setTimeout(resolve, 500));
+    const minDuration = new Promise((resolve) => setTimeout(resolve, 200));
     const result = await login(values.email, values.password);
     if (!result) {
       await minDuration;

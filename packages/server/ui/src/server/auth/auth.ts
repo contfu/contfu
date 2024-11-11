@@ -1,31 +1,30 @@
 import type { RequestEvent } from "@builder.io/qwik-city";
-import { error } from "node:console";
+import type { Session } from "./session";
 
 export type DisplayUser = { email: string; name: string };
 
 export const SESSION_COOKIE_NAME = "s";
 
-export function getUser({
+export function getSession({
   sharedMap,
-}: Pick<RequestEvent, "sharedMap">): DisplayUser | null {
-  return sharedMap.get("user") ?? null;
+}: Pick<RequestEvent, "sharedMap">): Session | null {
+  return sharedMap.get("session") ?? null;
 }
 
 export function guardLoggedIn({
   sharedMap,
   redirect,
 }: Pick<RequestEvent, "sharedMap" | "redirect">) {
-  const user = sharedMap.get("user");
-  if (!user) throw redirect(302, "/login");
+  if (!getSession({ sharedMap })) throw redirect(302, "/login");
 }
 
 export function guardLoggedOut({
   sharedMap,
   redirect,
   method,
-}: Pick<RequestEvent, "sharedMap" | "redirect" | "method">) {
-  const user = sharedMap.get("user");
-  if (user) {
+  error,
+}: Pick<RequestEvent, "sharedMap" | "redirect" | "method" | "error">) {
+  if (getSession({ sharedMap })) {
     if (method === "GET") throw redirect(302, "/dashboard");
     else throw error(403, "Forbidden");
   }
