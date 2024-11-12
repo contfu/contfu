@@ -1,4 +1,4 @@
-import { component$ } from "@builder.io/qwik";
+import { component$, useSignal } from "@builder.io/qwik";
 
 const features = [
   {
@@ -44,32 +44,34 @@ const features = [
 
 const plans = [
   {
+    id: "prod_RCcC7Za6GSGKyG",
     name: "Starter",
-    price: 5,
+    monthlyPrice: 6,
+    yearlyPrice: 60,
     features: ["1 source", "10 collections", "1,000 items"],
     recommended: false,
   },
   {
-    name: "Scaler",
-    price: 20,
-    features: ["3 sources", "30 collections", "50,000 items"],
+    id: "prod_RCeKY8tFXtqv1U",
+    name: "Business",
+    monthlyPrice: 24,
+    yearlyPrice: 240,
+    features: ["5 sources", "50 collections", "100,000 items"],
     recommended: true,
   },
   {
-    name: "Business",
-    price: 60,
-    features: ["10 sources", "100 collections", "300,000 items"],
-    recommended: false,
-  },
-  {
+    id: "prod_RCeRR6vNdK8nUf",
     name: "Enterprise",
-    price: 200,
+    monthlyPrice: 240,
+    yearlyPrice: 2400,
     features: ["50 sources", "1,000 collections", "1,000,000 items"],
     recommended: false,
   },
 ];
 
 export default component$(() => {
+  const isYearly = useSignal(true);
+
   return (
     <main class="dark:bg-gray-900">
       {/* Hero Section */}
@@ -141,7 +143,35 @@ export default component$(() => {
           <h2 class="mb-12 text-center text-3xl font-bold text-gray-900 dark:text-white">
             Simple, transparent pricing
           </h2>
-          <div class="grid grid-cols-1 gap-8 md:grid-cols-4">
+          <div class="mb-8 flex justify-center">
+            <div class="flex items-center gap-3">
+              <span
+                class={`text-sm ${!isYearly.value ? "font-bold text-indigo-600 dark:text-indigo-400" : "text-gray-600 dark:text-gray-400"}`}
+              >
+                Monthly
+              </span>
+              <button
+                onClick$={() => (isYearly.value = !isYearly.value)}
+                class={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  isYearly.value
+                    ? "bg-indigo-600 dark:bg-indigo-500"
+                    : "bg-gray-300 dark:bg-gray-600"
+                }`}
+              >
+                <span
+                  class={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    isYearly.value ? "translate-x-6" : "translate-x-1"
+                  }`}
+                />
+              </button>
+              <span
+                class={`text-sm ${isYearly.value ? "font-bold text-indigo-600 dark:text-indigo-400" : "text-gray-600 dark:text-gray-400"}`}
+              >
+                Yearly <span class="text-xs text-green-500">(Save 20%)</span>
+              </span>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 gap-8 md:grid-cols-3">
             {plans.map((plan) => (
               <div
                 key={plan.name}
@@ -157,9 +187,17 @@ export default component$(() => {
                 </h3>
                 <div class="mb-4">
                   <span class="text-4xl font-bold text-gray-900 dark:text-white">
-                    ${plan.price}
+                    €
+                    {isYearly.value
+                      ? Math.round(plan.yearlyPrice / 12)
+                      : plan.monthlyPrice}
                   </span>
                   <span class="text-gray-600 dark:text-gray-400">/month</span>
+                  {isYearly.value && (
+                    <div class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                      Billed €{plan.yearlyPrice}/year
+                    </div>
+                  )}
                 </div>
                 <ul class="mb-8 space-y-3 text-gray-600 dark:text-gray-300">
                   {plan.features.map((feature) => (
