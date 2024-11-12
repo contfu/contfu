@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "4759678e-69f6-4df7-b84a-2658ebf83026",
+  "id": "5000782f-4e5b-40f8-afb0-6f052378c01f",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "collection": {
@@ -373,7 +373,8 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false
+          "autoincrement": false,
+          "default": 0
         },
         "maxSources": {
           "name": "maxSources",
@@ -387,7 +388,8 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false
+          "autoincrement": false,
+          "default": 0
         },
         "maxCollections": {
           "name": "maxCollections",
@@ -401,7 +403,8 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false
+          "autoincrement": false,
+          "default": 0
         },
         "maxItems": {
           "name": "maxItems",
@@ -410,15 +413,16 @@
           "notNull": true,
           "autoincrement": false
         },
-        "clients": {
-          "name": "clients",
+        "consumers": {
+          "name": "consumers",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false
+          "autoincrement": false,
+          "default": 0
         },
-        "maxClients": {
-          "name": "maxClients",
+        "maxConsumers": {
+          "name": "maxConsumers",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
@@ -601,13 +605,6 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false
-        },
-        "avatar": {
-          "name": "avatar",
-          "type": "blob",
-          "primaryKey": false,
-          "notNull": false,
           "autoincrement": false
         },
         "activeUntil": {

@@ -1,0 +1,42 @@
+import type { RequestHandler } from "@builder.io/qwik-city";
+import { buffer } from "stream/consumers";
+import { setCustomerSubscription } from "~/server/stripe/customers";
+import {
+  refreshProducts,
+  upsertCachedPlan,
+  upsertCachedProduct,
+} from "~/server/stripe/products";
+import { stripe } from "~/server/stripe/stripe";
+
+export const onPost: RequestHandler = async ({ request, send, error, env }) => {
+  const sig = request.headers.get("stripe-signature");
+  if (!sig) throw error(400, "No signature");
+  if (!request.body) throw error(400, "No body");
+  const body = await buffer(request.body as any);
+
+  const event = stripe.webhooks.constructEvent(
+    body,
+    sig,
+    env.get("STRIPE_WEBHOOK_SECRET")!,
+  );
+
+  switch (event.type) {
+    case "product.created":
+    case "product.updated":
+      upsertCachedProduct(event.data.object);
+      break;
+    case "price.created":
+    case "price.updated":
+    case "price.deleted":
+      upsertCachedPlan(event.data.object);
+      break;
+    case "payment_link.created":
+    case "payment_link.updated":
+      refreshProducts();
+      break;
+    case "checkout.session.completed":
+      setCustomerSubscription(event.data.object);
+      break;
+  }
+  send(200, "OK");
+};

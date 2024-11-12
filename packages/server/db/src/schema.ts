@@ -52,21 +52,21 @@ export const quotaTable = sqliteTable("quota", {
     .primaryKey()
     .references(() => userTable.id, { onDelete: "cascade" }),
   /** The number of sources. */
-  sources: integer().notNull(),
+  sources: integer().notNull().default(0),
   /** The maximum number of sources. */
   maxSources: integer().notNull(),
   /** The number of collections. */
-  collections: integer().notNull(),
+  collections: integer().notNull().default(0),
   /** The maximum number of collections. */
   maxCollections: integer().notNull(),
   /** The number of items. */
-  items: integer().notNull(),
+  items: integer().notNull().default(0),
   /** The maximum number of items. */
   maxItems: integer().notNull(),
-  /** The number of clients. */
-  clients: integer().notNull(),
-  /** The maximum number of clients. */
-  maxClients: integer().notNull(),
+  /** The number of consumers. */
+  consumers: integer().notNull().default(0),
+  /** The maximum number of consumers. */
+  maxConsumers: integer().notNull(),
 });
 
 export type Quota = typeof quotaTable.$inferSelect;

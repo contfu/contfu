@@ -1,4 +1,6 @@
 import { component$, useSignal } from "@builder.io/qwik";
+import { routeLoader$ } from "@builder.io/qwik-city";
+import { stripeProducts } from "~/server/stripe/products";
 
 const features = [
   {
@@ -42,35 +44,11 @@ const features = [
   },
 ];
 
-const plans = [
-  {
-    id: "prod_RCcC7Za6GSGKyG",
-    name: "Starter",
-    monthlyPrice: 6,
-    yearlyPrice: 60,
-    features: ["1 source", "10 collections", "1,000 items"],
-    recommended: false,
-  },
-  {
-    id: "prod_RCeKY8tFXtqv1U",
-    name: "Business",
-    monthlyPrice: 24,
-    yearlyPrice: 240,
-    features: ["5 sources", "50 collections", "100,000 items"],
-    recommended: true,
-  },
-  {
-    id: "prod_RCeRR6vNdK8nUf",
-    name: "Enterprise",
-    monthlyPrice: 240,
-    yearlyPrice: 2400,
-    features: ["50 sources", "1,000 collections", "1,000,000 items"],
-    recommended: false,
-  },
-];
+export const useProducts = routeLoader$(() => stripeProducts);
 
 export default component$(() => {
   const isYearly = useSignal(true);
+  const products = useProducts();
 
   return (
     <main class="dark:bg-gray-900">
@@ -143,6 +121,9 @@ export default component$(() => {
           <h2 class="mb-12 text-center text-3xl font-bold text-gray-900 dark:text-white">
             Simple, transparent pricing
           </h2>
+          <p class="mb-8 text-center text-gray-600 dark:text-gray-300">
+            All plans come with a 7-day free trial.
+          </p>
           <div class="mb-8 flex justify-center">
             <div class="flex items-center gap-3">
               <span
@@ -172,50 +153,62 @@ export default component$(() => {
             </div>
           </div>
           <div class="grid grid-cols-1 gap-8 md:grid-cols-3">
-            {plans.map((plan) => (
-              <div
-                key={plan.name}
-                class={`relative rounded-lg bg-white p-8 ${plan.recommended ? "shadow-lg" : "shadow-sm"} dark:bg-gray-900`}
-              >
-                {plan.recommended && (
-                  <div class="absolute -top-4 left-0 right-0 mx-auto w-32 rounded-full bg-indigo-600 py-1 text-center text-sm font-semibold text-white dark:bg-indigo-500">
-                    Recommended
-                  </div>
-                )}
-                <h3 class="mb-4 text-xl font-bold text-gray-900 dark:text-white">
-                  {plan.name}
-                </h3>
-                <div class="mb-4">
-                  <span class="text-4xl font-bold text-gray-900 dark:text-white">
-                    €
-                    {isYearly.value
-                      ? Math.round(plan.yearlyPrice / 12)
-                      : plan.monthlyPrice}
-                  </span>
-                  <span class="text-gray-600 dark:text-gray-400">/month</span>
-                  {isYearly.value && (
-                    <div class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                      Billed €{plan.yearlyPrice}/year
+            {products.value.map((product) => {
+              const plan = product.plans[isYearly.value ? "yearly" : "monthly"];
+              return (
+                plan && (
+                  <div
+                    key={product.name}
+                    class={`relative rounded-lg bg-white p-8 ${product.recommended ? "shadow-lg" : "shadow-sm"} dark:bg-gray-900`}
+                  >
+                    {product.recommended && (
+                      <div class="absolute -top-4 left-0 right-0 mx-auto w-32 rounded-full bg-indigo-600 py-1 text-center text-sm font-semibold text-white dark:bg-indigo-500">
+                        Recommended
+                      </div>
+                    )}
+                    <h3 class="mb-4 text-xl font-bold text-gray-900 dark:text-white">
+                      {product.name}
+                    </h3>
+                    <div class="mb-4">
+                      <span class="text-4xl font-bold text-gray-900 dark:text-white">
+                        €
+                        {isYearly.value
+                          ? Math.round(plan.amount / 12)
+                          : plan.amount}
+                      </span>
+                      <span class="text-gray-600 dark:text-gray-400">
+                        /month
+                      </span>
+                      {isYearly.value && (
+                        <div class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                          Billed €{plan.amount}/year
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-                <ul class="mb-8 space-y-3 text-gray-600 dark:text-gray-300">
-                  {plan.features.map((feature) => (
-                    <li key={feature}>{feature}</li>
-                  ))}
-                </ul>
-                <a
-                  href="#pricing"
-                  class={`block w-full rounded-lg px-4 py-2 text-center font-semibold ${
-                    plan.recommended
-                      ? "bg-indigo-600 text-white hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600"
-                      : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
-                  }`}
-                >
-                  Get Started
-                </a>
-              </div>
-            ))}
+                    {product.description && (
+                      <div class="text-sm text-gray-500 dark:text-gray-400">
+                        {product.description}
+                      </div>
+                    )}
+                    <ul class="my-2 mb-8 space-y-3 text-gray-600 dark:text-gray-300">
+                      {product.features.map((feature) => (
+                        <li key={feature}>{feature}</li>
+                      ))}
+                    </ul>
+                    <a
+                      href={plan.url}
+                      class={`block w-full rounded-lg px-4 py-2 text-center font-semibold ${
+                        product.recommended
+                          ? "bg-indigo-600 text-white hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600"
+                          : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+                      }`}
+                    >
+                      Get Started
+                    </a>
+                  </div>
+                )
+              );
+            })}
           </div>
         </div>
       </section>

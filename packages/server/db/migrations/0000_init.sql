@@ -47,14 +47,14 @@ CREATE TABLE `item_id_conflict_resolution` (
 --> statement-breakpoint
 CREATE TABLE `quota` (
 	`id` integer PRIMARY KEY NOT NULL,
-	`sources` integer NOT NULL,
+	`sources` integer DEFAULT 0 NOT NULL,
 	`maxSources` integer NOT NULL,
-	`collections` integer NOT NULL,
+	`collections` integer DEFAULT 0 NOT NULL,
 	`maxCollections` integer NOT NULL,
-	`items` integer NOT NULL,
+	`items` integer DEFAULT 0 NOT NULL,
 	`maxItems` integer NOT NULL,
-	`clients` integer NOT NULL,
-	`maxClients` integer NOT NULL,
+	`consumers` integer DEFAULT 0 NOT NULL,
+	`maxConsumers` integer NOT NULL,
 	FOREIGN KEY (`id`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
@@ -82,7 +82,6 @@ CREATE TABLE `user` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`email` text NOT NULL,
 	`name` text NOT NULL,
-	`avatar` blob,
 	`activeUntil` integer,
 	`password` text,
 	`createdAt` integer DEFAULT (unixepoch()) NOT NULL,
