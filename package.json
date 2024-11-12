@@ -8,10 +8,10 @@
     "build": "bun --filter '@contfu/*' build"
   },
   "devDependencies": {
-    "@types/bun": "^1.1.10"
+    "@types/bun": "*"
   },
   "peerDependencies": {
-    "typescript": "^5.6.2"
+    "typescript": "^5.6.3"
   },
   "workspaces": [
     "packages/client/*",

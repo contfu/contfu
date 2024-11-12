@@ -13,7 +13,7 @@
   "devDependencies": {
     "@contfu/client": "workspace:*",
     "@electric-sql/pglite": "^0.2.11",
-    "@types/bun": "^1.1.11",
+    "@types/bun": "*",
     "@types/sinonjs__fake-timers": "^8.1.5",
     "drizzle-kit": "^0.27.2",
     "ts-essentials": "^10.0.2"

@@ -11,7 +11,7 @@
     "build": "bun build --minify --sourcemap --target=bun src/index.ts --outfile dist/server.js"
   },
   "devDependencies": {
-    "@types/bun": "^1.1.11",
+    "@types/bun": "*",
     "drizzle-kit": "^0.27.2"
   },
   "peerDependencies": {
