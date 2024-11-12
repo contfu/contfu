@@ -15,7 +15,6 @@
     "@electric-sql/pglite": "^0.2.11",
     "@types/bun": "*",
     "@types/sinonjs__fake-timers": "^8.1.5",
-    "drizzle-kit": "^0.27.2",
     "ts-essentials": "^10.0.2"
   },
   "peerDependencies": {
@@ -27,7 +26,6 @@
     "@contfu/sync": "workspace:*",
     "@sinclair/typebox": "^0.33.15",
     "@sinonjs/fake-timers": "^13.0.4",
-    "drizzle-orm": "^0.36.1",
     "elysia": "^1.1.19",
     "notion-client-web-fetch": "^2.2.15",
     "postgres": "^3.4.4",

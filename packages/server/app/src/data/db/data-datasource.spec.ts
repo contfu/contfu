@@ -1,8 +1,15 @@
+import {
+  collectionTable,
+  connectionTable,
+  Consumer,
+  db,
+  itemIdConflictResolutionTable,
+  sourceTable,
+  User,
+} from "@contfu/db";
 import { beforeEach, describe, expect, it } from "bun:test";
 import { and, eq } from "drizzle-orm";
 import { createConsumer, createUser } from "../../access/access-repository";
-import { consumer, DbConsumer, DbUser } from "../../access/db/access-schema";
-import { withSchema } from "../../core/db/db";
 import { SourceType } from "../data";
 import {
   countCollectionsForConsumer,
@@ -12,26 +19,12 @@ import {
   createSource,
   getItemId,
 } from "./data-datasource";
-import {
-  collection,
-  connection,
-  itemIdConflictResolution,
-  source,
-} from "./data-schema";
 
-const db = withSchema({
-  source,
-  consumer,
-  collection,
-  connection,
-  itemIdConflictResolution,
-});
-
-let a: DbUser;
-let cl: DbConsumer;
+let a: User;
+let cl: Consumer;
 
 beforeEach(async () => {
-  a = await createUser("test@test.com");
+  a = await createUser("test@test.com", "test");
   cl = await createConsumer(a.id, "test");
 });
 
@@ -44,7 +37,7 @@ describe("createSource()", () => {
     });
 
     const stored = await db.query.source.findFirst({
-      where: eq(source.id, s.id),
+      where: eq(sourceTable.id, s.id),
     });
     expect(s).toEqual({
       id: s.id,
@@ -71,7 +64,7 @@ describe("createCollection()", () => {
     const c = await createCollection(a.id, s.id, "test", Buffer.alloc(0));
 
     const stored = await db.query.collection.findFirst({
-      where: eq(collection.id, c.id),
+      where: eq(collectionTable.id, c.id),
     });
     expect(c).toEqual({
       id: c.id,
@@ -101,9 +94,9 @@ describe("createConnection()", () => {
 
     const stored = await db.query.connection.findFirst({
       where: and(
-        eq(connection.userId, a.id),
-        eq(connection.consumerId, cl.id),
-        eq(connection.collectionId, c.id),
+        eq(connectionTable.userId, a.id),
+        eq(connectionTable.consumerId, cl.id),
+        eq(connectionTable.collectionId, c.id),
       ),
     });
     expect(cc).toEqual({
@@ -152,7 +145,7 @@ describe("createItemIdConflictResolution()", () => {
     await createItemIdConflictResolution(a.id, c.id, Buffer.from([1]), 1);
 
     const stored = await db.query.itemIdConflictResolution.findFirst({
-      where: eq(itemIdConflictResolution.id, 1),
+      where: eq(itemIdConflictResolutionTable.id, 1),
     });
     expect(stored).toEqual({
       userId: a.id,

@@ -1,5 +1,6 @@
 import { connectTo } from "@contfu/client";
 import { Block, EventType, Item } from "@contfu/core";
+import { Collection, Consumer, User } from "@contfu/db";
 import { NotionSource } from "@contfu/notion";
 import {
   afterAll,
@@ -15,7 +16,6 @@ import Elysia from "elysia";
 import { Subscription } from "rxjs";
 import { fakeTimers } from "../test/timers";
 import { createConsumer, createUser } from "./access/access-repository";
-import { DbConsumer, DbUser } from "./access/db/access-schema";
 import { SourceType } from "./data/data";
 import {
   connectConsumerToCollection,
@@ -23,7 +23,6 @@ import {
   createSource,
 } from "./data/data-repository";
 import { getItemIds } from "./data/db/data-datasource";
-import { DbCollection } from "./data/db/data-schema";
 import { MIN_FETCH_INTERVAL } from "./sync/sync-constants";
 
 const mockNotionSource = {
@@ -43,10 +42,10 @@ const clock = fakeTimers();
 
 describe("connect via WS", () => {
   let server: Elysia;
-  let acc: DbUser;
-  let cons: DbConsumer;
+  let acc: User;
+  let cons: Consumer;
   let sub: Subscription;
-  let coll: DbCollection;
+  let coll: Collection;
 
   beforeAll(async () => {
     server = app.listen(9999);
@@ -55,7 +54,7 @@ describe("connect via WS", () => {
   beforeEach(async () => {
     sub = processItems$.subscribe();
     sub.add(sync$.subscribe());
-    acc = await createUser("test@test.com");
+    acc = await createUser("test@test.com", "test");
     cons = await createConsumer(acc.id, "test");
     const src = await createSource(acc.id, {
       name: "notion-test",

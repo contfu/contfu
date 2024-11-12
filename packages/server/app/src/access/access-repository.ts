@@ -6,9 +6,10 @@ export {
   verifyUserCredentials,
 } from "./db/access-datasource";
 
-export async function createUser(email: string) {
+export async function createUser(email: string, name: string) {
   return ds.createUser(
     email,
+    name,
     {
       maxSources: 10,
       maxCollections: 10,
