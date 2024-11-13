@@ -14,6 +14,7 @@ type Product = {
   description: string;
   recommended: boolean;
   features: string[];
+  hidden: boolean;
   quota: {
     maxSources: number;
     maxCollections: number;
@@ -87,6 +88,7 @@ function mapProduct(product: Stripe.Product) {
     description: product.description!,
     recommended: product.metadata.recommended === "true",
     features: product.marketing_features.map((f) => f.name!).filter(Boolean),
+    hidden: product.metadata.hidden === "true",
     quota: {
       maxSources: Number(product.metadata.maxSources),
       maxCollections: Number(product.metadata.maxCollections),

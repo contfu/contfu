@@ -44,7 +44,9 @@ const features = [
   },
 ];
 
-export const useProducts = routeLoader$(() => stripeProducts);
+export const useProducts = routeLoader$(async () => {
+  return (await stripeProducts).filter((p) => !p.hidden);
+});
 
 export default component$(() => {
   const isYearly = useSignal(true);
