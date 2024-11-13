@@ -2,8 +2,10 @@ import type { RequestHandler } from "@builder.io/qwik-city";
 import { buffer } from "stream/consumers";
 import { setCustomerSubscription } from "~/server/stripe/customers";
 import {
+  deleteCachedPrice,
+  deleteCachedProduct,
   refreshProducts,
-  upsertCachedPlan,
+  upsertCachedPrice,
   upsertCachedProduct,
 } from "~/server/stripe/products";
 import { stripe } from "~/server/stripe/stripe";
@@ -25,10 +27,15 @@ export const onPost: RequestHandler = async ({ request, send, error, env }) => {
     case "product.updated":
       upsertCachedProduct(event.data.object);
       break;
+    case "product.deleted":
+      deleteCachedProduct(event.data.object.id);
+      break;
     case "price.created":
     case "price.updated":
+      upsertCachedPrice(event.data.object);
+      break;
     case "price.deleted":
-      upsertCachedPlan(event.data.object);
+      deleteCachedPrice(event.data.object.id);
       break;
     case "payment_link.created":
     case "payment_link.updated":

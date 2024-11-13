@@ -1,7 +1,7 @@
 import type Stripe from "stripe";
 import { stripe } from "./stripe";
 
-type Plan = {
+type Price = {
   id: string;
   url: string;
   amount: number;
@@ -21,7 +21,7 @@ type Product = {
     maxItems: number;
     maxConsumers: number;
   };
-  plans: { yearly?: Plan; monthly?: Plan };
+  prices: { yearly?: Price; monthly?: Price };
 };
 
 export let stripeProducts: Promise<Product[]> = getProducts();
@@ -32,18 +32,35 @@ export async function upsertCachedProduct(product: Stripe.Product) {
   Object.assign(cachedProduct, mapProduct(product));
 }
 
-export async function upsertCachedPlan(plan: Stripe.Price) {
+export async function deleteCachedProduct(productId: string) {
+  const index = (await stripeProducts).findIndex((p) => p.id === productId);
+  if (index === -1) return;
+  (await stripeProducts).splice(index, 1);
+}
+
+export async function upsertCachedPrice(plan: Stripe.Price) {
   const cachedProduct = (await stripeProducts).find(
     (p) => p.id === plan.product,
   );
   if (!cachedProduct) return (stripeProducts = getProducts());
   const cachedPlan =
-    cachedProduct.plans[
+    cachedProduct.prices[
       plan.recurring?.interval === "year" ? "yearly" : "monthly"
     ];
   if (!cachedPlan) return (stripeProducts = getProducts());
   cachedPlan.amount = plan.unit_amount! / 100;
   cachedPlan.currency = plan.currency;
+}
+
+export async function deleteCachedPrice(priceId: string) {
+  const cachedProduct = (await stripeProducts).find(
+    (p) => p.prices.yearly?.id === priceId || p.prices.monthly?.id === priceId,
+  );
+  if (!cachedProduct) return;
+  if (cachedProduct.prices.yearly?.id === priceId)
+    delete cachedProduct.prices.yearly;
+  if (cachedProduct.prices.monthly?.id === priceId)
+    delete cachedProduct.prices.monthly;
 }
 
 export function refreshProducts() {
@@ -56,28 +73,29 @@ async function getProducts() {
     stripe.paymentLinks.list({ active: true, expand: ["data.line_items"] }),
   ]);
   const products = prods.map(
-    (p) => ({ ...mapProduct(p), plans: {} }) as Product,
+    (p) => ({ ...mapProduct(p), prices: {} }) as Product,
   );
 
   for (const link of links) {
     const price = link.line_items!.data[0].price!;
     const product = products.find((p) => p.id === price.product);
     if (!product) continue;
-    product.plans[price.recurring?.interval === "year" ? "yearly" : "monthly"] =
-      {
-        id: price.id,
-        url: link.url,
-        amount: price.unit_amount! / 100,
-        currency: price.currency,
-      };
+    product.prices[
+      price.recurring?.interval === "year" ? "yearly" : "monthly"
+    ] = {
+      id: price.id,
+      url: link.url,
+      amount: price.unit_amount! / 100,
+      currency: price.currency,
+    };
   }
 
   return products
-    .filter((p) => p.plans.yearly || p.plans.monthly)
+    .filter((p) => p.prices.yearly || p.prices.monthly)
     .sort(
       (a, b) =>
-        (a.plans.yearly?.amount ?? a.plans.monthly!.amount * 12) -
-        (b.plans.yearly?.amount ?? b.plans.monthly!.amount * 12),
+        (a.prices.yearly?.amount ?? a.prices.monthly!.amount * 12) -
+        (b.prices.yearly?.amount ?? b.prices.monthly!.amount * 12),
     );
 }
 

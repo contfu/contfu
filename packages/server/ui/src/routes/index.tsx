@@ -156,9 +156,10 @@ export default component$(() => {
           </div>
           <div class="grid grid-cols-1 gap-8 md:grid-cols-3">
             {products.value.map((product) => {
-              const plan = product.plans[isYearly.value ? "yearly" : "monthly"];
+              const price =
+                product.prices[isYearly.value ? "yearly" : "monthly"];
               return (
-                plan && (
+                price && (
                   <div
                     key={product.name}
                     class={`relative rounded-lg bg-white p-8 ${product.recommended ? "shadow-lg" : "shadow-sm"} dark:bg-gray-900`}
@@ -175,15 +176,15 @@ export default component$(() => {
                       <span class="text-4xl font-bold text-gray-900 dark:text-white">
                         €
                         {isYearly.value
-                          ? Math.round(plan.amount / 12)
-                          : plan.amount}
+                          ? Math.round(price.amount / 12)
+                          : price.amount}
                       </span>
                       <span class="text-gray-600 dark:text-gray-400">
                         /month
                       </span>
                       {isYearly.value && (
                         <div class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                          Billed €{plan.amount}/year
+                          Billed €{price.amount}/year
                         </div>
                       )}
                     </div>
@@ -198,7 +199,7 @@ export default component$(() => {
                       ))}
                     </ul>
                     <a
-                      href={plan.url}
+                      href={price.url}
                       class={`block w-full rounded-lg px-4 py-2 text-center font-semibold ${
                         product.recommended
                           ? "bg-indigo-600 text-white hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600"
