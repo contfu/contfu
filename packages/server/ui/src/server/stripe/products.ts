@@ -52,7 +52,7 @@ export function refreshProducts() {
 
 async function getProducts() {
   const [{ data: prods }, { data: links }] = await Promise.all([
-    stripe.products.list(),
+    stripe.products.list({ active: true }),
     stripe.paymentLinks.list({ active: true, expand: ["data.line_items"] }),
   ]);
   const products = prods.map(
