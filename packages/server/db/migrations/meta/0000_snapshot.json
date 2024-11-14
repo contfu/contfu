@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "5000782f-4e5b-40f8-afb0-6f052378c01f",
+  "id": "52cd1b05-2438-46a7-b1a0-e532b0f88fdd",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "collection": {
@@ -37,14 +37,14 @@
         },
         "ref": {
           "name": "ref",
-          "type": "BLOB",
+          "type": "blob",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
         },
         "itemIds": {
           "name": "itemIds",
-          "type": "BLOB",
+          "type": "blob",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -225,7 +225,7 @@
         },
         "key": {
           "name": "key",
-          "type": "BLOB",
+          "type": "blob",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -301,7 +301,7 @@
         },
         "sourceItemId": {
           "name": "sourceItemId",
-          "type": "BLOB",
+          "type": "blob",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
@@ -527,7 +527,7 @@
         },
         "credentials": {
           "name": "credentials",
-          "type": "BLOB",
+          "type": "blob",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -605,6 +605,13 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false
+        },
+        "activationToken": {
+          "name": "activationToken",
+          "type": "blob",
+          "primaryKey": false,
+          "notNull": false,
           "autoincrement": false
         },
         "activeUntil": {

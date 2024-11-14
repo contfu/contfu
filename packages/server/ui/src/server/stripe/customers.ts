@@ -1,5 +1,6 @@
 import { db, quotaTable, userTable } from "@contfu/db";
 import { eq } from "drizzle-orm";
+import { hash } from "node:crypto";
 import type Stripe from "stripe";
 import { getStripeProducts } from "./products";
 import { stripe } from "./stripe";
@@ -15,11 +16,13 @@ export async function setCustomerSubscription(
     where: eq(userTable.email, customer.email!),
   });
   if (!user) {
+    const activationToken = hash("sha256", session.id, "buffer");
     [user] = await db
       .insert(userTable)
       .values({
         email: customer.email!,
         name: customer.name!,
+        activationToken: activationToken,
         activeUntil: sub.current_period_end,
       })
       .returning();

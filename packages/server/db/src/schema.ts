@@ -7,7 +7,6 @@ import {
   sqliteTable,
   text,
 } from "drizzle-orm/sqlite-core";
-import { buffer } from "./custom-types";
 
 export const userTable = sqliteTable("user", {
   /** The id of the user. */
@@ -16,6 +15,8 @@ export const userTable = sqliteTable("user", {
   email: text().unique().notNull(),
   /** The name of the user. */
   name: text().notNull(),
+  /** The activation token of the user. */
+  activationToken: blob({ mode: "buffer" }),
   /**
    * The time the user is active. If it is in the past, the user is inactive.
    * If it is null, the user is active forever.
@@ -81,7 +82,7 @@ export const consumerTable = sqliteTable(
     /** The id of the consumer. */
     id: integer().notNull(),
     /** The key of the consumer. If null, the consumer is internal. */
-    key: buffer().unique(),
+    key: blob({ mode: "buffer" }).unique(),
     /** The name of the consumer. */
     name: text().notNull(),
     /** The time the consumer was created. */
@@ -110,7 +111,7 @@ export const sourceTable = sqliteTable(
     /** The url of the upstream source. Can be empty, if it is a centralized SaaS source. */
     url: text(),
     /** An api key or other credentials for the source. Used to fetch data from the upstream source. */
-    credentials: buffer(),
+    credentials: blob({ mode: "buffer" }),
     /** The type of the source. */
     type: integer().notNull(),
     /** The date the source was created. */
@@ -139,9 +140,9 @@ export const collectionTable = sqliteTable(
     /** The name of the collection. */
     name: text().notNull(),
     /** The reference to the upstream collection within the source. */
-    ref: buffer(),
+    ref: blob({ mode: "buffer" }),
     /** The item ids that have been received for this collection. **/
-    itemIds: buffer(),
+    itemIds: blob({ mode: "buffer" }),
     /** The date the collection was created. */
     createdAt: integer()
       .default(sql`(unixepoch())`)
@@ -213,7 +214,6 @@ const consumerCollectionConnectionRelations = relations(
   }),
 );
 
-// TODO: Move this to client
 /** Mappings of ids from the source to the collection. This is used in case that there are collisions in the integer id space. */
 export const itemIdConflictResolutionTable = sqliteTable(
   "item_id_conflict_resolution",
@@ -225,7 +225,7 @@ export const itemIdConflictResolutionTable = sqliteTable(
     /** The collection which the id mapping is connected to. */
     collectionId: integer().notNull(),
     /** The id which is unique within the source collection. */
-    sourceItemId: buffer().notNull(),
+    sourceItemId: blob({ mode: "buffer" }).notNull(),
     /** The 4 byte id which is unique within the collection. */
     id: integer().notNull(),
   },
@@ -246,6 +246,7 @@ export type ItemIdConflictResolution =
 export const schema = {
   user: userTable,
   session: sessionTable,
+  quota: quotaTable,
   collection: collectionTable,
   consumer: consumerTable,
   source: sourceTable,
