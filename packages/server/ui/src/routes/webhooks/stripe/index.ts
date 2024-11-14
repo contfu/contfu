@@ -39,7 +39,7 @@ export const onPost: RequestHandler = async ({ request, send, error, env }) => {
       break;
     case "payment_link.created":
     case "payment_link.updated":
-      refreshProducts();
+      void refreshProducts();
       break;
     case "checkout.session.completed":
       setCustomerSubscription(event.data.object);

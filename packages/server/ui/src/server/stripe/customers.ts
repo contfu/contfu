@@ -1,7 +1,7 @@
 import { db, quotaTable, userTable } from "@contfu/db";
 import { eq } from "drizzle-orm";
 import type Stripe from "stripe";
-import { stripeProducts } from "./products";
+import { getStripeProducts } from "./products";
 import { stripe } from "./stripe";
 
 export async function setCustomerSubscription(
@@ -25,7 +25,7 @@ export async function setCustomerSubscription(
       .returning();
   }
   const productId = sub.items.data[0].price.product as string;
-  const product = (await stripeProducts).find((p) => p.id === productId)!;
+  const product = (await getStripeProducts()).find((p) => p.id === productId)!;
   await db
     .insert(quotaTable)
     .values({

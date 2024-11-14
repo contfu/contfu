@@ -24,11 +24,15 @@ type Product = {
   prices: { yearly?: Price; monthly?: Price };
 };
 
-export let stripeProducts: Promise<Product[]> = getProducts();
+let stripeProducts: Promise<Product[]> = reloadProducts();
+
+export function getStripeProducts() {
+  return stripeProducts;
+}
 
 export async function upsertCachedProduct(product: Stripe.Product) {
   const cachedProduct = (await stripeProducts).find((p) => p.id === product.id);
-  if (!cachedProduct) return (stripeProducts = getProducts());
+  if (!cachedProduct) return (stripeProducts = reloadProducts());
   Object.assign(cachedProduct, mapProduct(product));
 }
 
@@ -38,18 +42,31 @@ export async function deleteCachedProduct(productId: string) {
   (await stripeProducts).splice(index, 1);
 }
 
-export async function upsertCachedPrice(plan: Stripe.Price) {
-  const cachedProduct = (await stripeProducts).find(
-    (p) => p.id === plan.product,
-  );
-  if (!cachedProduct) return (stripeProducts = getProducts());
-  const cachedPlan =
+export async function upsertCachedPrice(price: Stripe.Price) {
+  const cachedProduct = (await stripeProducts).find((p) => {
+    return p.id === price.product;
+  });
+  if (!cachedProduct) return refreshProducts();
+  const cachedPrice =
     cachedProduct.prices[
-      plan.recurring?.interval === "year" ? "yearly" : "monthly"
+      price.recurring?.interval === "year" ? "yearly" : "monthly"
     ];
-  if (!cachedPlan) return (stripeProducts = getProducts());
-  cachedPlan.amount = plan.unit_amount! / 100;
-  cachedPlan.currency = plan.currency;
+  if (!cachedPrice) {
+    const { data: links } = await stripe.paymentLinks.list({
+      active: true,
+      expand: ["data.line_items"],
+    });
+    const link = links.find((l) =>
+      l.line_items!.data.some((li) => li.price?.id === price.id),
+    );
+    if (!link) return;
+    cachedProduct.prices[
+      price.recurring?.interval === "year" ? "yearly" : "monthly"
+    ] = mapPrice(price, link);
+    return;
+  }
+  cachedPrice.amount = price.unit_amount! / 100;
+  cachedPrice.currency = price.currency;
 }
 
 export async function deleteCachedPrice(priceId: string) {
@@ -63,11 +80,12 @@ export async function deleteCachedPrice(priceId: string) {
     delete cachedProduct.prices.monthly;
 }
 
-export function refreshProducts() {
-  stripeProducts = getProducts();
+export async function refreshProducts() {
+  stripeProducts = reloadProducts();
+  await stripeProducts;
 }
 
-async function getProducts() {
+async function reloadProducts() {
   const [{ data: prods }, { data: links }] = await Promise.all([
     stripe.products.list({ active: true }),
     stripe.paymentLinks.list({ active: true, expand: ["data.line_items"] }),
@@ -82,12 +100,7 @@ async function getProducts() {
     if (!product) continue;
     product.prices[
       price.recurring?.interval === "year" ? "yearly" : "monthly"
-    ] = {
-      id: price.id,
-      url: link.url,
-      amount: price.unit_amount! / 100,
-      currency: price.currency,
-    };
+    ] = mapPrice(price, link);
   }
 
   return products
@@ -113,5 +126,14 @@ function mapProduct(product: Stripe.Product) {
       maxItems: Number(product.metadata.maxItems),
       maxConsumers: Number(product.metadata.maxConsumers),
     },
+  };
+}
+
+function mapPrice(price: Stripe.Price, link: Stripe.PaymentLink) {
+  return {
+    id: price.id,
+    url: link.url,
+    amount: price.unit_amount! / 100,
+    currency: price.currency,
   };
 }

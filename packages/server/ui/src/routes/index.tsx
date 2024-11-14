@@ -1,6 +1,6 @@
 import { component$, useSignal } from "@builder.io/qwik";
 import { routeLoader$ } from "@builder.io/qwik-city";
-import { stripeProducts } from "~/server/stripe/products";
+import { getStripeProducts } from "~/server/stripe/products";
 
 const features = [
   {
@@ -45,7 +45,7 @@ const features = [
 ];
 
 export const useProducts = routeLoader$(async () => {
-  return (await stripeProducts).filter((p) => !p.hidden);
+  return (await getStripeProducts()).filter((p) => !p.hidden);
 });
 
 export default component$(() => {
