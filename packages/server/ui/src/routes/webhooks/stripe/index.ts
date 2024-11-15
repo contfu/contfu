@@ -8,7 +8,7 @@ import {
   upsertCachedPrice,
   upsertCachedProduct,
 } from "~/server/stripe/products";
-import { stripe } from "~/server/stripe/stripe";
+import { getStripe } from "~/server/stripe/stripe";
 
 export const onPost: RequestHandler = async ({ request, send, error, env }) => {
   const sig = request.headers.get("stripe-signature");
@@ -16,7 +16,7 @@ export const onPost: RequestHandler = async ({ request, send, error, env }) => {
   if (!request.body) throw error(400, "No body");
   const body = await buffer(request.body as any);
 
-  const event = stripe.webhooks.constructEvent(
+  const event = (await getStripe()).webhooks.constructEvent(
     body,
     sig,
     env.get("STRIPE_WEBHOOK_SECRET")!,

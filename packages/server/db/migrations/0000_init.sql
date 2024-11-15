@@ -82,11 +82,12 @@ CREATE TABLE `user` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`email` text NOT NULL,
 	`name` text NOT NULL,
-	`activationToken` blob,
+	`registrationToken` blob,
 	`activeUntil` integer,
 	`password` text,
 	`createdAt` integer DEFAULT (unixepoch()) NOT NULL,
 	`updatedAt` integer
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `user_email_unique` ON `user` (`email`);
+CREATE UNIQUE INDEX `user_email_unique` ON `user` (`email`);--> statement-breakpoint
+CREATE UNIQUE INDEX `user_registrationToken_unique` ON `user` (`registrationToken`);

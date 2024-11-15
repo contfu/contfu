@@ -1,13 +1,14 @@
-import { db, quotaTable, userTable } from "@contfu/db";
-import { eq } from "drizzle-orm";
-import { hash } from "node:crypto";
 import type Stripe from "stripe";
 import { getStripeProducts } from "./products";
-import { stripe } from "./stripe";
+import { getStripe } from "./stripe";
 
 export async function setCustomerSubscription(
   session: Stripe.Checkout.Session,
 ) {
+  const { db, quotaTable, userTable } = await import("@contfu/db");
+  const { eq } = await import("drizzle-orm");
+  const stripe = await getStripe();
+
   const sub = await stripe.subscriptions.retrieve(
     session.subscription as string,
   );
@@ -16,13 +17,13 @@ export async function setCustomerSubscription(
     where: eq(userTable.email, customer.email!),
   });
   if (!user) {
-    const activationToken = hash("sha256", session.id, "buffer");
+    const registrationToken = await sessionIdToToken(session.id);
     [user] = await db
       .insert(userTable)
       .values({
         email: customer.email!,
         name: customer.name!,
-        activationToken: activationToken,
+        registrationToken,
         activeUntil: sub.current_period_end,
       })
       .returning();
@@ -47,4 +48,24 @@ export async function setCustomerSubscription(
         maxConsumers: product.quota.maxConsumers,
       },
     });
+}
+
+export async function sessionIdToToken(sessionId: string) {
+  const { hash } = await import("node:crypto");
+  return hash("sha256", sessionId, "buffer").subarray(0, 18);
+}
+
+export async function getUserByRegistrationToken(token: Buffer) {
+  const { db, userTable } = await import("@contfu/db");
+  const { eq } = await import("drizzle-orm");
+  const user = await db.query.user.findFirst({
+    where: eq(userTable.registrationToken, token),
+    columns: {
+      id: true,
+      name: true,
+      email: true,
+    },
+  });
+
+  return user;
 }

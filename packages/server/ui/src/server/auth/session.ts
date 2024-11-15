@@ -1,6 +1,4 @@
 import type { Session as DbSession, User } from "@contfu/db";
-import { db, sessionTable, userTable } from "@contfu/db";
-import { eq } from "drizzle-orm";
 
 const SESSION_DURATION = 1000 * 60 * 60 * 24 * 30; // 30 days
 const SESSION_TOKEN_LENGTH = 24;
@@ -14,6 +12,7 @@ export async function createSession(
   token: string,
   userId: number,
 ): Promise<DbSession> {
+  const { db, sessionTable } = await import("@contfu/db");
   const sessionId = await getSessionId(token);
   const s: DbSession = {
     id: sessionId,
@@ -27,6 +26,8 @@ export async function createSession(
 export async function validateSessionToken(
   token: string,
 ): Promise<Session | null> {
+  const { db, sessionTable, userTable } = await import("@contfu/db");
+  const { eq } = await import("drizzle-orm");
   const sessionId = await getSessionId(token);
   const [result] = await db
     .select({
@@ -57,10 +58,14 @@ export async function validateSessionToken(
 }
 
 export async function invalidateSession(sessionId: Buffer) {
+  const { db, sessionTable } = await import("@contfu/db");
+  const { eq } = await import("drizzle-orm");
   await db.delete(sessionTable).where(eq(sessionTable.id, sessionId));
 }
 
 async function refreshSession(session: DbSession) {
+  const { db, sessionTable } = await import("@contfu/db");
+  const { eq } = await import("drizzle-orm");
   session.expiresAt = Date.now() + SESSION_DURATION;
   await db
     .update(sessionTable)

@@ -1,9 +1,10 @@
-import { db, userTable } from "@contfu/db";
-import { hash, verify } from "argon2";
+import { getUserByRegistrationToken } from "../stripe/customers";
 import type { DisplayUser } from "./auth";
 import { createSession, generateSessionToken } from "./session";
 
 export async function login(email: string, password: string) {
+  const { db, userTable } = await import("@contfu/db");
+  const { hash, verify } = await import("argon2");
   let user = await db.query.user.findFirst({
     where: (user, { eq }) => eq(user.email, email),
   });
@@ -24,4 +25,39 @@ export async function login(email: string, password: string) {
   const token = await generateSessionToken();
   await createSession(token, user.id);
   return { token, user: { email: user.email, name: user.name } as DisplayUser };
+}
+
+export async function activateUser(
+  registrationToken: Buffer,
+  password: string,
+) {
+  const { db, userTable } = await import("@contfu/db");
+  const { eq } = await import("drizzle-orm");
+  const { hash } = await import("argon2");
+  const user = await getUserByRegistrationToken(registrationToken);
+
+  if (!user) {
+    return null;
+  }
+
+  const hashedPassword = await hash(password);
+
+  await db
+    .update(userTable)
+    .set({
+      password: hashedPassword,
+      registrationToken: null,
+    })
+    .where(eq(userTable.id, user.id));
+
+  const token = await generateSessionToken();
+  await createSession(token, user.id);
+
+  return {
+    token,
+    user: {
+      email: user.email,
+      name: user.name,
+    } as DisplayUser,
+  };
 }

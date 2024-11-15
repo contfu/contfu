@@ -1,7 +1,7 @@
 import { component$, useTask$ } from "@builder.io/qwik";
 import type { RequestHandler } from "@builder.io/qwik-city";
 import { routeLoader$, useNavigate } from "@builder.io/qwik-city";
-import { isBrowser } from "@builder.io/qwik/build";
+import { isBrowser, isServer } from "@builder.io/qwik/build";
 import type { InitialValues } from "@modular-forms/qwik";
 import {
   formAction$,
@@ -12,31 +12,55 @@ import {
 import * as v from "valibot";
 import type { DisplayUser } from "~/server/auth/auth";
 import { guardLoggedOut, SESSION_COOKIE_NAME } from "~/server/auth/auth";
-import { login } from "~/server/auth/local";
+import { activateUser } from "~/server/auth/local";
+import {
+  getUserByRegistrationToken,
+  sessionIdToToken,
+} from "~/server/stripe/customers";
 
 export const onRequest: RequestHandler = async (event) => {
   guardLoggedOut(event);
 };
 
-const LoginSchema = v.object({
-  email: v.pipe(v.string(), v.nonEmpty("Please enter your email.")),
-  password: v.pipe(v.string(), v.nonEmpty("Please enter your password.")),
+const RegisterSchema = v.object({
+  password: v.pipe(
+    v.string(),
+    v.minLength(8, "Password must be at least 8 characters long"),
+  ),
 });
 
-type LoginForm = v.InferInput<typeof LoginSchema>;
+type RegisterForm = v.InferInput<typeof RegisterSchema>;
 
-export const useFormLoader = routeLoader$<InitialValues<LoginForm>>(() => ({
-  email: "",
+export const useUserLoader = routeLoader$(async ({ params, redirect }) => {
+  const token = await tokenFromParams(params.token);
+  const user = await getUserByRegistrationToken(token);
+
+  if (!user) {
+    throw redirect(302, "/");
+  }
+
+  return {
+    name: user.name,
+    email: user.email,
+  };
+});
+
+export const useFormLoader = routeLoader$<InitialValues<RegisterForm>>(() => ({
   password: "",
 }));
 
-export const useFormAction = formAction$<LoginForm, DisplayUser>(
-  async (values, { cookie }) => {
-    const minDuration = new Promise((resolve) => setTimeout(resolve, 200));
-    const result = await login(values.email, values.password);
+export const useFormAction = formAction$<RegisterForm, DisplayUser>(
+  async (values, { params, cookie }) => {
+    console.log({ isServer });
+
+    if (!params.token) {
+      throw new FormError("Invalid registration attempt");
+    }
+    const token = await tokenFromParams(params.token);
+
+    const result = await activateUser(token, values.password);
     if (!result) {
-      await minDuration;
-      throw new FormError<LoginForm>("Wrong username or password");
+      throw new FormError("Failed to activate account");
     }
 
     cookie.set(SESSION_COOKIE_NAME, result.token, {
@@ -51,20 +75,22 @@ export const useFormAction = formAction$<LoginForm, DisplayUser>(
       data: result.user,
     };
   },
-  valiForm$(LoginSchema),
+  valiForm$(RegisterSchema),
 );
 
 export default component$(() => {
   const nav = useNavigate();
-  const [loginForm, { Form, Field }] = useForm<LoginForm, DisplayUser>({
+  const userData = useUserLoader();
+
+  const [registerForm, { Form, Field }] = useForm<RegisterForm, DisplayUser>({
     loader: useFormLoader(),
     action: useFormAction(),
-    validate: valiForm$(LoginSchema),
+    validate: valiForm$(RegisterSchema),
   });
 
   useTask$(({ track }) => {
-    track(() => loginForm.response.status);
-    if (isBrowser && loginForm.response.status === "success") {
+    track(() => registerForm.response.status);
+    if (isBrowser && registerForm.response.status === "success") {
       nav("/dashboard");
     }
   });
@@ -74,34 +100,14 @@ export default component$(() => {
       <div class="container mx-auto px-4">
         <div class="mx-auto max-w-md">
           <div class="rounded-lg bg-white p-8 shadow-md dark:bg-gray-800">
-            <h2 class="mb-6 text-center text-3xl font-bold text-gray-900 dark:text-white">
-              Login to your account
+            <h2 class="mb-2 text-center text-3xl font-bold text-gray-900 dark:text-white">
+              Welcome, {userData.value.name}!
             </h2>
+            <p class="mb-6 text-center text-gray-600 dark:text-gray-400">
+              Please complete your registration
+            </p>
 
             <Form class="space-y-6">
-              <Field name="email">
-                {(field, props) => (
-                  <div>
-                    <label
-                      for={props.name}
-                      class="block text-sm font-medium text-gray-700 dark:text-gray-300"
-                    >
-                      Email address
-                    </label>
-                    <input
-                      {...props}
-                      type="email"
-                      class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                    />
-                    {field.error && (
-                      <div class="mt-1 text-sm text-red-600 dark:text-red-400">
-                        {field.error}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </Field>
-
               <Field name="password">
                 {(field, props) => (
                   <div>
@@ -128,21 +134,24 @@ export default component$(() => {
               <div>
                 <button
                   type="submit"
-                  disabled={loginForm.submitting}
+                  disabled={registerForm.submitting}
                   class={`w-full rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:bg-indigo-500 dark:hover:bg-indigo-600 ${
-                    loginForm.submitting ? "cursor-not-allowed opacity-75" : ""
+                    registerForm.submitting
+                      ? "cursor-not-allowed opacity-75"
+                      : ""
                   }`}
                 >
-                  {loginForm.submitting ? "Signing in..." : "Sign in"}
+                  {registerForm.submitting
+                    ? "Creating account..."
+                    : "Create account"}
                 </button>
               </div>
 
-              {loginForm.response.status === "error" &&
-                loginForm.response.message && (
-                  <div class="mb-4 rounded-md bg-red-50 p-4 text-sm text-red-700 dark:bg-red-900/50 dark:text-red-400">
-                    {loginForm.response.message}
-                  </div>
-                )}
+              {registerForm.response.status === "error" && (
+                <div class="mb-4 rounded-md bg-red-50 p-4 text-sm text-red-700 dark:bg-red-900/50 dark:text-red-400">
+                  {registerForm.response.message}
+                </div>
+              )}
             </Form>
 
             <div class="mt-6">
@@ -190,3 +199,9 @@ export default component$(() => {
     </div>
   );
 });
+
+function tokenFromParams(token: string) {
+  return token.length === 24
+    ? Buffer.from(token, "base64url")
+    : sessionIdToToken(token);
+}

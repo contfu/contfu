@@ -1,5 +1,5 @@
 import type Stripe from "stripe";
-import { stripe } from "./stripe";
+import { getStripe } from "./stripe";
 
 type Price = {
   id: string;
@@ -24,26 +24,31 @@ type Product = {
   prices: { yearly?: Price; monthly?: Price };
 };
 
-let stripeProducts: Promise<Product[]> = reloadProducts();
+let stripeProducts: Promise<Product[]> | undefined;
 
 export function getStripeProducts() {
-  return stripeProducts;
+  return (stripeProducts ??= reloadProducts());
 }
 
 export async function upsertCachedProduct(product: Stripe.Product) {
-  const cachedProduct = (await stripeProducts).find((p) => p.id === product.id);
+  const cachedProduct = (await getStripeProducts()).find(
+    (p) => p.id === product.id,
+  );
   if (!cachedProduct) return (stripeProducts = reloadProducts());
   Object.assign(cachedProduct, mapProduct(product));
 }
 
 export async function deleteCachedProduct(productId: string) {
-  const index = (await stripeProducts).findIndex((p) => p.id === productId);
+  const index = (await getStripeProducts()).findIndex(
+    (p) => p.id === productId,
+  );
   if (index === -1) return;
-  (await stripeProducts).splice(index, 1);
+  (await getStripeProducts()).splice(index, 1);
 }
 
 export async function upsertCachedPrice(price: Stripe.Price) {
-  const cachedProduct = (await stripeProducts).find((p) => {
+  const stripe = await getStripe();
+  const cachedProduct = (await getStripeProducts()).find((p) => {
     return p.id === price.product;
   });
   if (!cachedProduct) return refreshProducts();
@@ -70,7 +75,7 @@ export async function upsertCachedPrice(price: Stripe.Price) {
 }
 
 export async function deleteCachedPrice(priceId: string) {
-  const cachedProduct = (await stripeProducts).find(
+  const cachedProduct = (await getStripeProducts()).find(
     (p) => p.prices.yearly?.id === priceId || p.prices.monthly?.id === priceId,
   );
   if (!cachedProduct) return;
@@ -86,6 +91,7 @@ export async function refreshProducts() {
 }
 
 async function reloadProducts() {
+  const stripe = await getStripe();
   const [{ data: prods }, { data: links }] = await Promise.all([
     stripe.products.list({ active: true }),
     stripe.paymentLinks.list({ active: true, expand: ["data.line_items"] }),

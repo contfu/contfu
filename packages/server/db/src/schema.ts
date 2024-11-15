@@ -16,7 +16,7 @@ export const userTable = sqliteTable("user", {
   /** The name of the user. */
   name: text().notNull(),
   /** The activation token of the user. */
-  activationToken: blob({ mode: "buffer" }),
+  registrationToken: blob({ mode: "buffer" }).unique(),
   /**
    * The time the user is active. If it is in the past, the user is inactive.
    * If it is null, the user is active forever.

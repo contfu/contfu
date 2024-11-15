@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "52cd1b05-2438-46a7-b1a0-e532b0f88fdd",
+  "id": "f6214a8c-479c-42c7-8d66-2f79d16f21e6",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "collection": {
@@ -607,8 +607,8 @@
           "notNull": true,
           "autoincrement": false
         },
-        "activationToken": {
-          "name": "activationToken",
+        "registrationToken": {
+          "name": "registrationToken",
           "type": "blob",
           "primaryKey": false,
           "notNull": false,
@@ -649,6 +649,13 @@
           "name": "user_email_unique",
           "columns": [
             "email"
+          ],
+          "isUnique": true
+        },
+        "user_registrationToken_unique": {
+          "name": "user_registrationToken_unique",
+          "columns": [
+            "registrationToken"
           ],
           "isUnique": true
         }
