@@ -1,7 +1,7 @@
 import { component$, useTask$ } from "@builder.io/qwik";
 import type { RequestHandler } from "@builder.io/qwik-city";
 import { routeLoader$, useNavigate } from "@builder.io/qwik-city";
-import { isBrowser, isServer } from "@builder.io/qwik/build";
+import { isBrowser } from "@builder.io/qwik/build";
 import type { InitialValues } from "@modular-forms/qwik";
 import {
   formAction$,
@@ -10,15 +10,10 @@ import {
   valiForm$,
 } from "@modular-forms/qwik";
 import * as v from "valibot";
-import type { DisplayUser } from "~/server/auth/auth";
-import { guardLoggedOut, SESSION_COOKIE_NAME } from "~/server/auth/auth";
-import { activateUser } from "~/server/auth/local";
-import {
-  getUserByRegistrationToken,
-  sessionIdToToken,
-} from "~/server/stripe/customers";
+import type { DisplayUser } from "~/server/auth/session";
 
 export const onRequest: RequestHandler = async (event) => {
+  const { guardLoggedOut } = await import("~/server/auth/session");
   guardLoggedOut(event);
 };
 
@@ -32,7 +27,10 @@ const RegisterSchema = v.object({
 type RegisterForm = v.InferInput<typeof RegisterSchema>;
 
 export const useUserLoader = routeLoader$(async ({ params, redirect }) => {
-  const token = await tokenFromParams(params.token);
+  const { decodeRegistrationToken, getUserByRegistrationToken } = await import(
+    "~/server/stripe/customers"
+  );
+  const token = await decodeRegistrationToken(params.token);
   const user = await getUserByRegistrationToken(token);
 
   if (!user) {
@@ -51,12 +49,16 @@ export const useFormLoader = routeLoader$<InitialValues<RegisterForm>>(() => ({
 
 export const useFormAction = formAction$<RegisterForm, DisplayUser>(
   async (values, { params, cookie }) => {
-    console.log({ isServer });
-
+    if (isBrowser) return;
+    const { activateUser } = await import("~/server/auth/local");
+    const { SESSION_COOKIE_NAME } = await import("~/server/auth/session");
+    const { decodeRegistrationToken } = await import(
+      "~/server/stripe/customers"
+    );
     if (!params.token) {
       throw new FormError("Invalid registration attempt");
     }
-    const token = await tokenFromParams(params.token);
+    const token = await decodeRegistrationToken(params.token);
 
     const result = await activateUser(token, values.password);
     if (!result) {
@@ -199,9 +201,3 @@ export default component$(() => {
     </div>
   );
 });
-
-function tokenFromParams(token: string) {
-  return token.length === 24
-    ? Buffer.from(token, "base64url")
-    : sessionIdToToken(token);
-}

@@ -1,5 +1,5 @@
 import type Stripe from "stripe";
-import { getStripe } from "./stripe";
+import { stripe } from "./stripe";
 
 type Price = {
   id: string;
@@ -47,7 +47,6 @@ export async function deleteCachedProduct(productId: string) {
 }
 
 export async function upsertCachedPrice(price: Stripe.Price) {
-  const stripe = await getStripe();
   const cachedProduct = (await getStripeProducts()).find((p) => {
     return p.id === price.product;
   });
@@ -91,7 +90,6 @@ export async function refreshProducts() {
 }
 
 async function reloadProducts() {
-  const stripe = await getStripe();
   const [{ data: prods }, { data: links }] = await Promise.all([
     stripe.products.list({ active: true }),
     stripe.paymentLinks.list({ active: true, expand: ["data.line_items"] }),

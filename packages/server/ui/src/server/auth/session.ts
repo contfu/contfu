@@ -1,10 +1,46 @@
-import type { Session as DbSession, User } from "@contfu/db";
+import type { RequestEvent } from "@builder.io/qwik-city";
+import {
+  db,
+  sessionTable,
+  userTable,
+  type Session as DbSession,
+  type User,
+} from "@contfu/db";
+import { eq } from "drizzle-orm";
+import { hash, randomBytes } from "node:crypto";
 
 const SESSION_DURATION = 1000 * 60 * 60 * 24 * 30; // 30 days
 const SESSION_TOKEN_LENGTH = 24;
+export const SESSION_COOKIE_NAME = "s";
+
+export type DisplayUser = { email: string; name: string };
+
+export function getSession({
+  sharedMap,
+}: Pick<RequestEvent, "sharedMap">): Session | null {
+  return sharedMap.get("session") ?? null;
+}
+
+export function guardLoggedIn({
+  sharedMap,
+  redirect,
+}: Pick<RequestEvent, "sharedMap" | "redirect">) {
+  if (!getSession({ sharedMap })) throw redirect(302, "/login");
+}
+
+export function guardLoggedOut({
+  sharedMap,
+  redirect,
+  method,
+  error,
+}: Pick<RequestEvent, "sharedMap" | "redirect" | "method" | "error">) {
+  if (getSession({ sharedMap })) {
+    if (method === "GET") throw redirect(302, "/dashboard");
+    else throw error(403, "Forbidden");
+  }
+}
 
 export async function generateSessionToken(): Promise<string> {
-  const { randomBytes } = await import("node:crypto");
   return randomBytes(SESSION_TOKEN_LENGTH).toString("base64url");
 }
 
@@ -12,7 +48,6 @@ export async function createSession(
   token: string,
   userId: number,
 ): Promise<DbSession> {
-  const { db, sessionTable } = await import("@contfu/db");
   const sessionId = await getSessionId(token);
   const s: DbSession = {
     id: sessionId,
@@ -26,8 +61,6 @@ export async function createSession(
 export async function validateSessionToken(
   token: string,
 ): Promise<Session | null> {
-  const { db, sessionTable, userTable } = await import("@contfu/db");
-  const { eq } = await import("drizzle-orm");
   const sessionId = await getSessionId(token);
   const [result] = await db
     .select({
@@ -58,14 +91,10 @@ export async function validateSessionToken(
 }
 
 export async function invalidateSession(sessionId: Buffer) {
-  const { db, sessionTable } = await import("@contfu/db");
-  const { eq } = await import("drizzle-orm");
   await db.delete(sessionTable).where(eq(sessionTable.id, sessionId));
 }
 
 async function refreshSession(session: DbSession) {
-  const { db, sessionTable } = await import("@contfu/db");
-  const { eq } = await import("drizzle-orm");
   session.expiresAt = Date.now() + SESSION_DURATION;
   await db
     .update(sessionTable)
@@ -74,7 +103,6 @@ async function refreshSession(session: DbSession) {
 }
 
 async function getSessionId(token: string) {
-  const { hash } = await import("node:crypto");
   return hash("sha256", token, "buffer");
 }
 

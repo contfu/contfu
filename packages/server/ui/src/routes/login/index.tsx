@@ -10,11 +10,10 @@ import {
   valiForm$,
 } from "@modular-forms/qwik";
 import * as v from "valibot";
-import type { DisplayUser } from "~/server/auth/auth";
-import { guardLoggedOut, SESSION_COOKIE_NAME } from "~/server/auth/auth";
-import { login } from "~/server/auth/local";
+import type { DisplayUser } from "~/server/auth/session";
 
 export const onRequest: RequestHandler = async (event) => {
+  const { guardLoggedOut } = await import("~/server/auth/session");
   guardLoggedOut(event);
 };
 
@@ -32,6 +31,9 @@ export const useFormLoader = routeLoader$<InitialValues<LoginForm>>(() => ({
 
 export const useFormAction = formAction$<LoginForm, DisplayUser>(
   async (values, { cookie }) => {
+    if (isBrowser) return;
+    const { login } = await import("~/server/auth/local");
+    const { SESSION_COOKIE_NAME } = await import("~/server/auth/session");
     const minDuration = new Promise((resolve) => setTimeout(resolve, 200));
     const result = await login(values.email, values.password);
     if (!result) {

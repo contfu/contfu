@@ -5,9 +5,6 @@ import {
   type RequestHandler,
 } from "@builder.io/qwik-city";
 import Header from "~/components/ui/Header";
-import type { DisplayUser } from "~/server/auth/auth";
-import { getSession, SESSION_COOKIE_NAME } from "~/server/auth/auth";
-import { invalidateSession, validateSessionToken } from "~/server/auth/session";
 
 export const onGet: RequestHandler = async ({ cacheControl }) => {
   // Control caching for this request for best performance and to reduce hosting costs:
@@ -22,6 +19,9 @@ export const onGet: RequestHandler = async ({ cacheControl }) => {
 
 export const useLogout = routeAction$(
   async (_, { sharedMap, cookie, redirect }) => {
+    const { SESSION_COOKIE_NAME, invalidateSession } = await import(
+      "~/server/auth/session"
+    );
     await invalidateSession(sharedMap.get("session")?.id);
     sharedMap.delete("session");
     cookie.delete(SESSION_COOKIE_NAME);
@@ -30,13 +30,17 @@ export const useLogout = routeAction$(
 );
 
 export const onRequest: RequestHandler = async ({ cookie, sharedMap }) => {
+  const { SESSION_COOKIE_NAME, validateSessionToken } = await import(
+    "~/server/auth/session"
+  );
   const sessionToken = cookie.get(SESSION_COOKIE_NAME);
   if (sessionToken) {
     sharedMap.set("session", await validateSessionToken(sessionToken.value));
   }
 };
 
-export const useUser = routeLoader$((ev): DisplayUser | null => {
+export const useUser = routeLoader$(async (ev) => {
+  const { getSession } = await import("~/server/auth/session");
   return getSession(ev)?.user ?? null;
 });
 

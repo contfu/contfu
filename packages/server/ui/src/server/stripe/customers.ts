@@ -1,14 +1,12 @@
+import { db, quotaTable, userTable } from "@contfu/db";
+import { eq } from "drizzle-orm";
 import type Stripe from "stripe";
 import { getStripeProducts } from "./products";
-import { getStripe } from "./stripe";
+import { stripe } from "./stripe";
 
 export async function setCustomerSubscription(
   session: Stripe.Checkout.Session,
 ) {
-  const { db, quotaTable, userTable } = await import("@contfu/db");
-  const { eq } = await import("drizzle-orm");
-  const stripe = await getStripe();
-
   const sub = await stripe.subscriptions.retrieve(
     session.subscription as string,
   );
@@ -50,14 +48,18 @@ export async function setCustomerSubscription(
     });
 }
 
+export async function decodeRegistrationToken(token: string) {
+  return token.length === 24
+    ? Buffer.from(token, "base64url")
+    : await sessionIdToToken(token);
+}
+
 export async function sessionIdToToken(sessionId: string) {
   const { hash } = await import("node:crypto");
   return hash("sha256", sessionId, "buffer").subarray(0, 18);
 }
 
 export async function getUserByRegistrationToken(token: Buffer) {
-  const { db, userTable } = await import("@contfu/db");
-  const { eq } = await import("drizzle-orm");
   const user = await db.query.user.findFirst({
     where: eq(userTable.registrationToken, token),
     columns: {

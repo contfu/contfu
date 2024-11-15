@@ -1,7 +1,7 @@
 import { component$, useSignal } from "@builder.io/qwik";
 import type { ActionStore } from "@builder.io/qwik-city";
 import { Form, Link } from "@builder.io/qwik-city";
-import type { DisplayUser } from "~/server/auth/auth";
+import type { DisplayUser } from "~/server/auth/session";
 
 export default component$(
   ({
