@@ -13,7 +13,7 @@ const SESSION_DURATION = 1000 * 60 * 60 * 24 * 30; // 30 days
 export const SESSION_TOKEN_LENGTH = 24;
 export const SESSION_COOKIE_NAME = "s";
 
-export type DisplayUser = { email: string; name: string };
+export type DisplayUser = { email: string; name: string; oauthId?: string };
 
 export function getSession({
   sharedMap,
@@ -68,6 +68,7 @@ export async function validateSessionToken(
         id: userTable.id,
         email: userTable.email,
         name: userTable.name,
+        oauthId: userTable.oauthId,
       },
       session: sessionTable,
     })
@@ -106,7 +107,7 @@ async function getSessionId(token: string) {
   return hash("sha256", token, "buffer");
 }
 
-export type SessionUser = Pick<User, "id" | "email" | "name">;
+export type SessionUser = Pick<User, "id" | "email" | "name" | "oauthId">;
 
 export type Session = {
   id: Buffer;

@@ -2,6 +2,7 @@ import { component$, useSignal } from "@builder.io/qwik";
 import type { ActionStore } from "@builder.io/qwik-city";
 import { Form, Link } from "@builder.io/qwik-city";
 import type { DisplayUser } from "~/server/auth/session";
+import Avatar from "./Avatar";
 
 export default component$(
   ({
@@ -24,11 +25,11 @@ export default component$(
                 Contfu
               </Link>
             </div>
-            <nav class="flex items-center space-x-4">
+            <nav class="flex h-full items-center space-x-4">
               {user ? (
-                <div class="relative">
+                <div class="relative flex h-full items-center">
                   <button
-                    class="peer flex items-center space-x-2 rounded-lg px-4 py-2 text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                    class="peer flex h-14 items-center space-x-2 rounded-lg px-4 py-0 text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
                     onClick$={(_, b) => {
                       if (isOpen.value) b.blur();
                       else isOpen.value = true;
@@ -37,12 +38,10 @@ export default component$(
                       isOpen.value = false;
                     }}
                   >
-                    <div class="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-indigo-600 dark:bg-indigo-900 dark:text-indigo-400">
-                      {user.name[0].toUpperCase()}
-                    </div>
+                    <Avatar user={user} />
                   </button>
                   <div
-                    class="absolute right-0 mt-2 hidden w-48 bg-white py-2 shadow-lg peer-focus:block dark:bg-gray-800"
+                    class="absolute right-0 top-14 mt-2 hidden w-48 bg-white py-2 shadow-lg peer-focus:block dark:bg-gray-800"
                     preventdefault:mousedown
                   >
                     <span class="block w-full px-4 py-2 text-gray-400 dark:text-gray-500">

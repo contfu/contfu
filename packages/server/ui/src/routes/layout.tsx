@@ -41,7 +41,13 @@ export const onRequest: RequestHandler = async ({ cookie, sharedMap }) => {
 
 export const useUser = routeLoader$(async (ev) => {
   const { getSession } = await import("~/server/auth/session");
-  return getSession(ev)?.user ?? null;
+  const user = getSession(ev)?.user;
+  if (!user) return null;
+  return {
+    email: user.email,
+    name: user.name,
+    oauthId: user.oauthId ?? undefined,
+  };
 });
 
 export default component$(() => {
