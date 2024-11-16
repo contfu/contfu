@@ -85,9 +85,11 @@ CREATE TABLE `user` (
 	`registrationToken` blob,
 	`activeUntil` integer,
 	`password` text,
+	`oauthId` text,
 	`createdAt` integer DEFAULT (unixepoch()) NOT NULL,
 	`updatedAt` integer
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `user_email_unique` ON `user` (`email`);--> statement-breakpoint
-CREATE UNIQUE INDEX `user_registrationToken_unique` ON `user` (`registrationToken`);
+CREATE UNIQUE INDEX `user_registrationToken_unique` ON `user` (`registrationToken`);--> statement-breakpoint
+CREATE UNIQUE INDEX `user_oauthId_unique` ON `user` (`oauthId`);

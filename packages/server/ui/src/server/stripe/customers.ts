@@ -1,8 +1,13 @@
 import { db, quotaTable, userTable } from "@contfu/db";
 import { eq } from "drizzle-orm";
 import type Stripe from "stripe";
+import { SESSION_TOKEN_LENGTH } from "../auth/session";
 import { getStripeProducts } from "./products";
 import { stripe } from "./stripe";
+
+export const REGISTRATION_TOKEN_STRING_LENGTH = Math.ceil(
+  (SESSION_TOKEN_LENGTH / 3) * 4,
+);
 
 export async function setCustomerSubscription(
   session: Stripe.Checkout.Session,
@@ -49,14 +54,14 @@ export async function setCustomerSubscription(
 }
 
 export async function decodeRegistrationToken(token: string) {
-  return token.length === 24
+  return token.length === REGISTRATION_TOKEN_STRING_LENGTH
     ? Buffer.from(token, "base64url")
     : await sessionIdToToken(token);
 }
 
 export async function sessionIdToToken(sessionId: string) {
   const { hash } = await import("node:crypto");
-  return hash("sha256", sessionId, "buffer").subarray(0, 18);
+  return hash("sha256", sessionId, "buffer").subarray(0, SESSION_TOKEN_LENGTH);
 }
 
 export async function getUserByRegistrationToken(token: Buffer) {

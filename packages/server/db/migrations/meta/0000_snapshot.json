@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "f6214a8c-479c-42c7-8d66-2f79d16f21e6",
+  "id": "b77f8e20-6b45-49d3-ba08-4e98058af7d6",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "collection": {
@@ -628,6 +628,13 @@
           "notNull": false,
           "autoincrement": false
         },
+        "oauthId": {
+          "name": "oauthId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "createdAt": {
           "name": "createdAt",
           "type": "integer",
@@ -656,6 +663,13 @@
           "name": "user_registrationToken_unique",
           "columns": [
             "registrationToken"
+          ],
+          "isUnique": true
+        },
+        "user_oauthId_unique": {
+          "name": "user_oauthId_unique",
+          "columns": [
+            "oauthId"
           ],
           "isUnique": true
         }

@@ -22,8 +22,12 @@ export const userTable = sqliteTable("user", {
    * If it is null, the user is active forever.
    */
   activeUntil: integer(),
-  /** The password hash of the user. */
+  /**
+   * The password hash or oauth id of the user.
+   **/
   password: text(),
+  /** The id of the user from the oauth provider. */
+  oauthId: text().unique(),
   /** The time the user was created. */
   createdAt: integer()
     .default(sql`(unixepoch())`)
