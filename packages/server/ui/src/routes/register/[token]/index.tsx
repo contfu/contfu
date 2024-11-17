@@ -175,10 +175,12 @@ export default component$(() => {
               </div>
 
               <div class="mt-6 grid grid-cols-2 gap-3">
-                <form
-                  action={`/login/github?token=${location.params.token}`}
-                  method="get"
-                >
+                <form action="/login/github" method="get">
+                  <input
+                    type="hidden"
+                    name="token"
+                    value={location.params.token}
+                  />
                   <button
                     type="submit"
                     class="flex w-full items-center justify-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
@@ -192,7 +194,12 @@ export default component$(() => {
                     GitHub
                   </button>
                 </form>
-                <form action="/login/google" method="get">
+                <form action={`/login/google`} method="get">
+                  <input
+                    type="hidden"
+                    name="token"
+                    value={location.params.token}
+                  />
                   <button
                     type="submit"
                     class="flex w-full items-center justify-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"

@@ -33,9 +33,10 @@ export const onRequest: RequestHandler = async ({ cookie, sharedMap }) => {
   const { SESSION_COOKIE_NAME, validateSessionToken } = await import(
     "~/server/auth/session"
   );
-  const sessionToken = cookie.get(SESSION_COOKIE_NAME);
+  const [sessionToken, image] =
+    cookie.get(SESSION_COOKIE_NAME)?.value.split("|") ?? [];
   if (sessionToken) {
-    sharedMap.set("session", await validateSessionToken(sessionToken.value));
+    sharedMap.set("session", await validateSessionToken(sessionToken, image));
   }
 };
 
@@ -46,7 +47,7 @@ export const useUser = routeLoader$(async (ev) => {
   return {
     email: user.email,
     name: user.name,
-    oauthId: user.oauthId ?? undefined,
+    image: user.image ?? undefined,
   };
 });
 

@@ -1,12 +1,15 @@
 import { db, userTable } from "@contfu/db";
-import { GitHub } from "arctic";
+import { GitHub, Google } from "arctic";
 import { eq } from "drizzle-orm";
 import { getUserByRegistrationToken } from "../stripe/customers";
 import type { DisplayUser } from "./session";
 import { createSession, generateSessionToken } from "./session";
 
 export const OAUTH_STATE_COOKIE_NAME = "o";
+export const OAUTH_VERIFIER_COOKIE_NAME = "v";
 export const REGISTRATION_TOKEN_COOKIE_NAME = "r";
+
+export const oauthProviders = ["github", "google"] as const;
 
 export const github = new GitHub(
   process.env.GITHUB_CLIENT_ID!,
@@ -14,8 +17,13 @@ export const github = new GitHub(
   `${process.env.ORIGIN ?? "http://localhost:5173"}/login/github/callback`,
 );
 
+export const google = new Google(
+  process.env.GOOGLE_CLIENT_ID!,
+  process.env.GOOGLE_CLIENT_SECRET!,
+  `${process.env.ORIGIN ?? "http://localhost:5173"}/login/google/callback`,
+);
+
 export async function login(id: string) {
-  console.log("login", { id });
   const user = await db.query.user.findFirst({
     where: eq(userTable.oauthId, id),
   });
@@ -32,12 +40,7 @@ export async function login(id: string) {
 }
 
 export async function activateUser(registrationToken: Buffer, id: string) {
-  console.log("activateUser", {
-    registrationToken: registrationToken.toString("hex"),
-    id,
-  });
   const user = await getUserByRegistrationToken(registrationToken);
-  console.log("user", user);
 
   if (!user) return null;
 
