@@ -93,7 +93,7 @@ export default component$(() => {
                     <input
                       {...props}
                       type="email"
-                      class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                      class="focus:border-primary-500 focus:ring-primary-500 mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                     />
                     {field.error && (
                       <div class="mt-1 text-sm text-red-600 dark:text-red-400">
@@ -116,7 +116,7 @@ export default component$(() => {
                     <input
                       {...props}
                       type="password"
-                      class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                      class="focus:border-primary-500 focus:ring-primary-500 mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                     />
                     {field.error && (
                       <div class="mt-1 text-sm text-red-600 dark:text-red-400">
@@ -131,7 +131,7 @@ export default component$(() => {
                 <button
                   type="submit"
                   disabled={loginForm.submitting}
-                  class={`w-full rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:bg-indigo-500 dark:hover:bg-indigo-600 ${
+                  class={`bg-primary-400 hover:bg-primary-500 focus:ring-primary-400 dark:bg-primary-500 dark:hover:bg-primary-400 w-full rounded-md px-4 py-2 text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 ${
                     loginForm.submitting ? "cursor-not-allowed opacity-75" : ""
                   }`}
                 >
@@ -163,7 +163,7 @@ export default component$(() => {
                 <form action={`/login/github`} method="get">
                   <button
                     type="submit"
-                    class="flex w-full items-center justify-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+                    class="focus:ring-primary-500 flex w-full items-center justify-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
                   >
                     <svg class="h-5 w-5" viewBox="0 0 24 24">
                       <path
@@ -177,7 +177,7 @@ export default component$(() => {
                 <form action="/login/google" method="get">
                   <button
                     type="submit"
-                    class="flex w-full items-center justify-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+                    class="focus:ring-primary-500 flex w-full items-center justify-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
                   >
                     <svg class="h-5 w-5" viewBox="0 0 24 24">
                       <path

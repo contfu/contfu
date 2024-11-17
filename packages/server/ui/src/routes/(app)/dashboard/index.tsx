@@ -42,7 +42,7 @@ export default component$(() => {
         <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
           Sources
         </h1>
-        <button class="rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600">
+        <button class="bg-primary-400 hover:bg-primary-500 dark:bg-primary-500 dark:hover:bg-primary-400 rounded-lg px-4 py-2 text-white">
           Add Source
         </button>
       </div>
@@ -64,7 +64,7 @@ export default component$(() => {
                       ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
                       : source.status === "error"
                         ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300"
-                        : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300"
+                        : "bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-300"
                   }`}
               >
                 {source.status}

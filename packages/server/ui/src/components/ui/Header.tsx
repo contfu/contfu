@@ -66,20 +66,20 @@ export default component$(
               ) : (
                 <>
                   <Link
-                    href="#features"
+                    href="/#features"
                     class="text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
                   >
                     Features
                   </Link>
                   <Link
-                    href="#pricing"
+                    href="/#pricing"
                     class="text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
                   >
                     Pricing
                   </Link>
                   <Link
                     href="/login"
-                    class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600"
+                    class="bg-primary-400 hover:bg-primary-500 dark:bg-primary-500 dark:hover:bg-primary-400 rounded-lg px-4 py-2 text-sm font-medium text-white"
                   >
                     Login
                   </Link>

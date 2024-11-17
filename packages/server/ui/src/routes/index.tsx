@@ -68,7 +68,7 @@ export default component$(() => {
             <div class="flex justify-center gap-4">
               <a
                 href="#pricing"
-                class="rounded-lg bg-indigo-600 px-6 py-3 text-lg font-semibold text-white hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600"
+                class="bg-primary-400 hover:bg-primary-500 dark:bg-primary-500 dark:hover:bg-primary-400 rounded-lg px-6 py-3 text-lg font-semibold text-white"
               >
                 Boost your CMS
               </a>
@@ -95,9 +95,9 @@ export default component$(() => {
                 key={feature.title}
                 class="rounded-lg bg-white p-6 shadow-sm dark:bg-gray-800"
               >
-                <div class="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-indigo-100 p-3 dark:bg-indigo-900">
+                <div class="bg-primary-100 dark:bg-primary-900 mb-4 flex h-12 w-12 items-center justify-center rounded-full p-3">
                   <svg
-                    class="h-6 w-6 text-indigo-600 dark:text-indigo-400"
+                    class="text-primary-600 dark:text-primary-400 h-6 w-6"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -129,7 +129,7 @@ export default component$(() => {
           <div class="mb-8 flex justify-center">
             <div class="flex items-center gap-3">
               <span
-                class={`text-sm ${!isYearly.value ? "font-bold text-indigo-600 dark:text-indigo-400" : "text-gray-600 dark:text-gray-400"}`}
+                class={`text-sm ${!isYearly.value ? "text-primary-600 dark:text-primary-400 font-bold" : "text-gray-600 dark:text-gray-400"}`}
               >
                 Monthly
               </span>
@@ -137,7 +137,7 @@ export default component$(() => {
                 onClick$={() => (isYearly.value = !isYearly.value)}
                 class={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                   isYearly.value
-                    ? "bg-indigo-600 dark:bg-indigo-500"
+                    ? "bg-primary-600 dark:bg-primary-500"
                     : "bg-gray-300 dark:bg-gray-600"
                 }`}
               >
@@ -148,7 +148,7 @@ export default component$(() => {
                 />
               </button>
               <span
-                class={`text-sm ${isYearly.value ? "font-bold text-indigo-600 dark:text-indigo-400" : "text-gray-600 dark:text-gray-400"}`}
+                class={`text-sm ${isYearly.value ? "text-primary-600 dark:text-primary-400 font-bold" : "text-gray-600 dark:text-gray-400"}`}
               >
                 Yearly <span class="text-xs text-green-500">(Save 20%)</span>
               </span>
@@ -165,7 +165,7 @@ export default component$(() => {
                     class={`relative rounded-lg bg-white p-8 ${product.recommended ? "shadow-lg" : "shadow-sm"} dark:bg-gray-900`}
                   >
                     {product.recommended && (
-                      <div class="absolute -top-4 left-0 right-0 mx-auto w-32 rounded-full bg-indigo-600 py-1 text-center text-sm font-semibold text-white dark:bg-indigo-500">
+                      <div class="bg-primary-600 dark:bg-primary-500 absolute -top-4 left-0 right-0 mx-auto w-32 rounded-full py-1 text-center text-sm font-semibold text-white">
                         Recommended
                       </div>
                     )}
@@ -202,7 +202,7 @@ export default component$(() => {
                       href={price.url}
                       class={`block w-full rounded-lg px-4 py-2 text-center font-semibold ${
                         product.recommended
-                          ? "bg-indigo-600 text-white hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600"
+                          ? "bg-primary-600 hover:bg-primary-700 dark:bg-primary-500 dark:hover:bg-primary-600 text-white"
                           : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
                       }`}
                     >
@@ -217,14 +217,14 @@ export default component$(() => {
       </section>
 
       {/* CTA Section */}
-      <section class="bg-indigo-600 py-20 dark:bg-indigo-500">
+      <section class="bg-primary-400 dark:bg-primary-600 py-20">
         <div class="container mx-auto px-4 text-center">
           <h2 class="mb-6 text-3xl font-bold text-white">
             Ready to streamline your content management?
           </h2>
           <a
             href="#pricing"
-            class="inline-block rounded-lg bg-white px-6 py-3 text-lg font-semibold text-indigo-600 hover:bg-gray-100 dark:bg-gray-800 dark:text-indigo-400 dark:hover:bg-gray-700"
+            class="text-primary-600 dark:text-primary-400 inline-block rounded-lg bg-white px-6 py-3 text-lg font-semibold hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700"
           >
             Get started today
           </a>
