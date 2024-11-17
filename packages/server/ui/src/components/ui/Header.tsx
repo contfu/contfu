@@ -22,7 +22,13 @@ export default component$(
                 href={user ? "/dashboard" : "/"}
                 class="text-xl font-bold text-gray-900 dark:text-white"
               >
-                Contfu
+                <img
+                  src="/logo.svg"
+                  alt="Contfu"
+                  height={64}
+                  width={178}
+                  class="h-12"
+                />
               </Link>
             </div>
             <nav class="flex h-full items-center space-x-4">
