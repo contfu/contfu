@@ -1,4 +1,5 @@
 import { component$, useSignal } from "@builder.io/qwik";
+import type { RequestHandler } from "@builder.io/qwik-city";
 import { routeLoader$ } from "@builder.io/qwik-city";
 
 const features = [
@@ -42,6 +43,12 @@ const features = [
       "Work with a consistent data format regardless of the source CMS.",
   },
 ];
+
+export const onRequest: RequestHandler = async ({ redirect, env }) => {
+  if (!env.get("STRIPE_TEST_KEY") && !env.get("STRIPE_KEY")) {
+    throw redirect(302, "/under-construction");
+  }
+};
 
 export const useProducts = routeLoader$(async () => {
   const { getStripeProducts } = await import("~/server/stripe/products");

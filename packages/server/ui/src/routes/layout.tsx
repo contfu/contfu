@@ -40,6 +40,10 @@ export const onRequest: RequestHandler = async ({ cookie, sharedMap }) => {
   }
 };
 
+export const useIsUnderConstruction = routeLoader$(async (ev) => {
+  return !ev.env.get("STRIPE_TEST_KEY") && !ev.env.get("STRIPE_KEY");
+});
+
 export const useUser = routeLoader$(async (ev) => {
   const { getSession } = await import("~/server/auth/session");
   const user = getSession(ev)?.user;
@@ -54,9 +58,14 @@ export const useUser = routeLoader$(async (ev) => {
 export default component$(() => {
   const user = useUser();
   const logout = useLogout();
+  const isUnderConstruction = useIsUnderConstruction();
   return (
     <>
-      <Header user={user.value} logout={logout} />
+      <Header
+        user={user.value}
+        logout={logout}
+        isUnderConstruction={isUnderConstruction.value}
+      />
       <Slot />
     </>
   );
