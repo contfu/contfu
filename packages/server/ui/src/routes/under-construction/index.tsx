@@ -1,12 +1,19 @@
 import { component$ } from "@builder.io/qwik";
 import type { DocumentHead } from "@builder.io/qwik-city";
-import LogoSquare from "../../../public/logo-square.svg?jsx";
 
 export default component$(() => {
   return (
     <div class="flex min-h-screen flex-col items-center justify-center bg-gray-50 p-4 dark:bg-gray-900">
       <div class="mx-auto max-w-2xl text-center">
-        <LogoSquare class="mx-auto mb-8 h-32 w-32" />
+        <img
+          // eslint-disable-next-line qwik/jsx-img
+          src="/logo-square.svg"
+          alt="Contfu"
+          height={128}
+          width={128}
+          loading="eager"
+          class="mx-auto mb-8 h-32 w-32"
+        />
         <h1 class="mb-4 text-4xl font-bold text-gray-900 dark:text-white">
           Coming Soon
         </h1>

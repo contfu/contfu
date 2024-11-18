@@ -24,12 +24,15 @@ export default component$(
               <Link
                 href={user ? "/dashboard" : "/"}
                 class="text-xl font-bold text-gray-900 dark:text-white"
+                aria-label={user ? "Go to dashboard" : "Go to home"}
               >
                 <img
+                  // eslint-disable-next-line qwik/jsx-img
                   src="/logo.svg"
                   alt="Contfu"
                   height={64}
                   width={178}
+                  loading="eager"
                   class="h-12"
                 />
               </Link>
