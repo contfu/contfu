@@ -1,17 +1,5 @@
 import type { RequestHandler } from "@builder.io/qwik-city";
 import { decodeIdToken, type OAuth2Tokens } from "arctic";
-import {
-  activateUser,
-  github,
-  google,
-  login,
-  OAUTH_STATE_COOKIE_NAME,
-  OAUTH_VERIFIER_COOKIE_NAME,
-  oauthProviders,
-  REGISTRATION_TOKEN_COOKIE_NAME,
-} from "~/server/auth/oauth";
-import { SESSION_COOKIE_NAME } from "~/server/auth/session";
-import { decodeRegistrationToken } from "~/server/stripe/customers";
 
 export const onGet: RequestHandler = async ({
   cookie,
@@ -20,6 +8,18 @@ export const onGet: RequestHandler = async ({
   error,
   params,
 }) => {
+  const { SESSION_COOKIE_NAME } = await import("~/server/auth/session");
+  const { decodeRegistrationToken } = await import("~/server/stripe/customers");
+  const {
+    login,
+    activateUser,
+    github,
+    google,
+    oauthProviders,
+    OAUTH_STATE_COOKIE_NAME,
+    OAUTH_VERIFIER_COOKIE_NAME,
+    REGISTRATION_TOKEN_COOKIE_NAME,
+  } = await import("~/server/auth/oauth");
   if (!oauthProviders.includes(params.provider as any)) {
     throw redirect(302, "/login");
   }

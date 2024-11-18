@@ -11,7 +11,6 @@ import {
 } from "@modular-forms/qwik";
 import * as v from "valibot";
 import type { DisplayUser } from "~/server/auth/session";
-import { REGISTRATION_TOKEN_STRING_LENGTH } from "~/server/stripe/customers";
 
 export const onRequest: RequestHandler = async (event) => {
   const { guardLoggedOut } = await import("~/server/auth/session");
@@ -28,9 +27,11 @@ const RegisterSchema = v.object({
 type RegisterForm = v.InferInput<typeof RegisterSchema>;
 
 export const useUserLoader = routeLoader$(async ({ params, redirect }) => {
-  const { decodeRegistrationToken, getUserByRegistrationToken } = await import(
-    "~/server/stripe/customers"
-  );
+  const {
+    decodeRegistrationToken,
+    getUserByRegistrationToken,
+    REGISTRATION_TOKEN_STRING_LENGTH,
+  } = await import("~/server/stripe/customers");
   const token = await decodeRegistrationToken(params.token);
   const user = await getUserByRegistrationToken(token);
 
