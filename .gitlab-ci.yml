@@ -19,12 +19,12 @@ check:
     - bun run build
 
 dockerize-check:
-  image: docker:24.0.5
+  image: docker:27.3.1
   stage: check
   except:
     - main
   services:
-    - docker:24.0.5-dind
+    - docker:27.3.1-dind
   variables:
     IMAGE_TAG_BACKEND: $CI_REGISTRY_IMAGE:backend-$CI_COMMIT_REF_SLUG
     IMAGE_TAG_FRONTEND: $CI_REGISTRY_IMAGE:frontend-$CI_COMMIT_REF_SLUG
@@ -33,12 +33,12 @@ dockerize-check:
     - docker build -t $IMAGE_TAG_FRONTEND --target frontend .
 
 push:
-  image: docker:24.0.5
+  image: docker:27.3.1
   stage: publish
   only:
     - main
   services:
-    - docker:24.0.5-dind
+    - docker:27.3.1-dind
   variables:
     IMAGE_TAG_BACKEND: $CI_REGISTRY_IMAGE:backend-$CI_COMMIT_REF_SLUG
     IMAGE_TAG_FRONTEND: $CI_REGISTRY_IMAGE:frontend-$CI_COMMIT_REF_SLUG
