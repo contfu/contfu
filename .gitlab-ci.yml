@@ -9,46 +9,49 @@ stages:
   - publish
   - deploy
 
-check:
+test:
   stage: check
   except:
     - main
   script:
     - bun install
     - bun run test
-    - bun run build
 
 dockerize-check:
-  image: docker:24.0.5
+  image: docker:27.3.1
   stage: check
   except:
     - main
   services:
-    - docker:24.0.5-dind
+    - docker:27.3.1-dind
   variables:
-    IMAGE_TAG_SERVER: $CI_REGISTRY_IMAGE:server-$CI_COMMIT_REF_SLUG
+    IMAGE_TAG_BACKEND: $CI_REGISTRY_IMAGE:backend-$CI_COMMIT_REF_SLUG
+    IMAGE_TAG_FRONTEND: $CI_REGISTRY_IMAGE:frontend-$CI_COMMIT_REF_SLUG
   script:
-    - docker build -t $IMAGE_TAG_SERVER . -f packages/server/app/Dockerfile
+    - docker build -t $IMAGE_TAG_BACKEND --target backend .
+    - docker build -t $IMAGE_TAG_FRONTEND --target frontend .
 
 push:
-  image: docker:24.0.5
+  image: docker:27.3.1
   stage: publish
   only:
     - main
   services:
-    - docker:24.0.5-dind
+    - docker:27.3.1-dind
   variables:
-    IMAGE_TAG_SERVER: $CI_REGISTRY_IMAGE:server-$CI_COMMIT_REF_SLUG
+    IMAGE_TAG_BACKEND: $CI_REGISTRY_IMAGE:backend-$CI_COMMIT_REF_SLUG
+    IMAGE_TAG_FRONTEND: $CI_REGISTRY_IMAGE:frontend-$CI_COMMIT_REF_SLUG
   script:
     - echo "$CI_REGISTRY_PASSWORD" | docker login -u $CI_REGISTRY_USER $CI_REGISTRY --password-stdin
-    - docker build -t $IMAGE_TAG_SERVER . -f packages/server/app/Dockerfile
-    - docker push $IMAGE_TAG_SERVER
-
-deploy:
-  image: kroniak/ssh-client:latest
-  stage: deploy
-  only:
-    - main
-  script:
-    - chmod og= $ID_RSA
-    - ssh -i $ID_RSA -o StrictHostKeyChecking=no $SERVER_USER@$SERVER_IP "cd docker; docker-compose pull; docker-compose up -d"
+    - docker build -t $IMAGE_TAG_BACKEND --target backend .
+    - docker push $IMAGE_TAG_BACKEND
+    - docker build -t $IMAGE_TAG_FRONTEND --target frontend .
+    - docker push $IMAGE_TAG_FRONTEND
+# deploy:
+#   image: kroniak/ssh-client:latest
+#   stage: deploy
+#   only:
+#     - main
+#   script:
+#     - chmod og= $ID_RSA
+#     - ssh -i $ID_RSA -o StrictHostKeyChecking=no $SERVER_USER@$SERVER_IP "cd docker; docker-compose pull; docker-compose up -d"

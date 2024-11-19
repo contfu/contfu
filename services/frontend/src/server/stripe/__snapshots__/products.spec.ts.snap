@@ -1,0 +1,105 @@
+// Bun Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`refreshProducts() should refresh the products 1`] = `
+[
+  {
+    "description": "Perfect for single websites with one CMS.",
+    "features": [
+      "1 source",
+      "10 collections",
+      "1,000 items",
+      "3 consumers",
+    ],
+    "hidden": false,
+    "id": "prod_RCcC7Za6GSGKyG",
+    "name": "Starter",
+    "prices": {
+      "monthly": {
+        "amount": 6,
+        "currency": "eur",
+        "id": "price_1QKExxF7LKVFb0n56odwf4yi",
+        "url": "https://buy.stripe.com/test_4gw7uXghl8Ui7RKcMM",
+      },
+      "yearly": {
+        "amount": 60,
+        "currency": "eur",
+        "id": "price_1QKEwoF7LKVFb0n5IIcF1jVx",
+        "url": "https://buy.stripe.com/test_dR68z19SX9Ym7RK4gh",
+      },
+    },
+    "quota": {
+      "maxCollections": 10,
+      "maxConsumers": 3,
+      "maxItems": 1000,
+      "maxSources": 1,
+    },
+    "recommended": false,
+  },
+  {
+    "description": "Perfect for businesses with multiple websites or content sources.",
+    "features": [
+      "5 sources",
+      "50 collections",
+      "100,000 items",
+      "20 consumers",
+    ],
+    "hidden": false,
+    "id": "prod_RCeKY8tFXtqv1U",
+    "name": "Business",
+    "prices": {
+      "monthly": {
+        "amount": 24,
+        "currency": "eur",
+        "id": "price_1QKF4XF7LKVFb0n5fjlAljqA",
+        "url": "https://buy.stripe.com/test_4gwbLd7KP1rQb3WdQS",
+      },
+      "yearly": {
+        "amount": 240,
+        "currency": "eur",
+        "id": "price_1QKF1hF7LKVFb0n5KShVDTdL",
+        "url": "https://buy.stripe.com/test_fZe7uX0in0nM3Bu4gj",
+      },
+    },
+    "quota": {
+      "maxCollections": 50,
+      "maxConsumers": 20,
+      "maxItems": 100000,
+      "maxSources": 5,
+    },
+    "recommended": true,
+  },
+  {
+    "description": "If you really need to scale your data, this package is for you.",
+    "features": [
+      "50 sources",
+      "1,000 collections",
+      "1,000,000 items",
+      "200 consumers",
+    ],
+    "hidden": false,
+    "id": "prod_RCeRR6vNdK8nUf",
+    "name": "Enterprise",
+    "prices": {
+      "monthly": {
+        "amount": 240,
+        "currency": "eur",
+        "id": "price_1QKFARF7LKVFb0n5Fhhzw1cu",
+        "url": "https://buy.stripe.com/test_bIYg1te9d0nM4FyeUY",
+      },
+      "yearly": {
+        "amount": 2400,
+        "currency": "eur",
+        "id": "price_1QKF8KF7LKVFb0n5yWSyLylV",
+        "url": "https://buy.stripe.com/test_8wM7uX2qv8Ui3Bu28d",
+      },
+    },
+    "quota": {
+      "maxCollections": 1000,
+      "maxConsumers": 200,
+      "maxItems": 1000000,
+      "maxSources": 50,
+    },
+    "recommended": false,
+  },
+]
+`;

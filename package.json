@@ -5,18 +5,20 @@
   "private": true,
   "scripts": {
     "test": "bun --filter '@contfu/*' test",
-    "build": "bun --filter '@contfu/*' build"
+    "build": "bun --filter '@contfu/*' build",
+    "dev": "bun --filter '@contfu/*' dev"
   },
   "devDependencies": {
-    "@types/bun": "^1.1.10"
+    "@types/bun": "*"
   },
   "peerDependencies": {
-    "typescript": "^5.6.2"
+    "typescript": "^5.6.3"
   },
   "workspaces": [
     "packages/client/*",
-    "packages/server/*",
+    "services/*",
     "packages/core",
+    "packages/db",
     "packages/sync/*"
   ]
 }
