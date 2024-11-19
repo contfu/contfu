@@ -1,5 +1,5 @@
 {
-  "name": "@contfu/server",
+  "name": "@contfu/backend",
   "main": "src/index.ts",
   "type": "module",
   "version": "0.1.1",
