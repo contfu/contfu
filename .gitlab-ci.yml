@@ -9,14 +9,13 @@ stages:
   - publish
   - deploy
 
-check:
+test:
   stage: check
   except:
     - main
   script:
     - bun install
     - bun run test
-    - bun run build
 
 dockerize-check:
   image: docker:27.3.1

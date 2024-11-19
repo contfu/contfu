@@ -18,6 +18,6 @@ ENV PORT=3000\
     DATABASE_URL=file:/app/db/db.sqlite
 WORKDIR /app
 COPY --from=build /app/services/backend/dist/server.js /app/server.js
-COPY ./services/db/migrations /backend/migrations
+COPY ./packages/db/migrations /backend/migrations
 HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --start-interval=1s CMD [ "bun", "-e", "assert((await fetch('http://localhost:3000/health',{method:'OPTIONS'})).status === 200)" ]
 ENTRYPOINT [ "bun", "server.js" ]
