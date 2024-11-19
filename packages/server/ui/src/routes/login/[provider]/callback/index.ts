@@ -82,7 +82,7 @@ export const onGet: RequestHandler = async ({
 
   const oauthId = `${params.provider}:${id.toString()}`;
   const result =
-    (await login(oauthId)) ??
+    (await login(oauthId)) ?? // FIXME: Don't try login if no token provided
     (await activateUser(
       await decodeRegistrationToken(registrationToken!),
       oauthId,

@@ -1,7 +1,0 @@
-*
-!bun.lockb
-!package.json
-!server/app
-!core
-server/node_modules
-core/node_modules

@@ -5,7 +5,7 @@
   "version": "0.1.1",
   "private": true,
   "scripts": {
-    "start": "bun src/index.ts",
+    "dev": "bun src/index.ts",
     "test": "bun test",
     "clean": "rm -rf dist",
     "build": "bun build --minify --sourcemap --target=bun src/index.ts --outfile dist/server.js"
@@ -24,6 +24,7 @@
     "@contfu/core": "workspace:*",
     "@contfu/notion": "workspace:*",
     "@contfu/sync": "workspace:*",
+    "@contfu/db": "workspace:*",
     "@sinclair/typebox": "^0.33.15",
     "@sinonjs/fake-timers": "^13.0.4",
     "elysia": "^1.1.19",

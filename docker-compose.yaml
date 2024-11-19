@@ -1,17 +1,22 @@
-version: "3.8"
-
 services:
-  server:
+  backend:
     build:
       context: .
-      dockerfile: server/app/Dockerfile
+      dockerfile: Dockerfile
+      target: backend
     ports:
       - "3000:3000"
-  db-server:
-    image: postgres:17
+    volumes:
+      - ./local-db:/app/db
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: frontend
+    depends_on:
+      backend:
+        condition: service_healthy
     ports:
-      - "5432:5432"
-    environment:
-      - POSTGRES_DB=contfu
-      - POSTGRES_USER=contfu
-      - POSTGRES_PASSWORD=contfu
+      - "3001:3000"
+    volumes:
+      - ./local-db:/app/db

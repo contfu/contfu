@@ -27,23 +27,27 @@ dockerize-check:
     - docker:24.0.5-dind
   variables:
     IMAGE_TAG_SERVER: $CI_REGISTRY_IMAGE:server-$CI_COMMIT_REF_SLUG
+    IMAGE_TAG_UI: $CI_REGISTRY_IMAGE:ui-$CI_COMMIT_REF_SLUG
   script:
-    - docker build -t $IMAGE_TAG_SERVER . -f packages/server/app/Dockerfile
-# don't deploy yet
-# push:
-#   image: docker:24.0.5
-#   stage: publish
-#   only:
-#     - main
-#   services:
-#     - docker:24.0.5-dind
-#   variables:
-#     IMAGE_TAG_SERVER: $CI_REGISTRY_IMAGE:server-$CI_COMMIT_REF_SLUG
-#   script:
-#     - echo "$CI_REGISTRY_PASSWORD" | docker login -u $CI_REGISTRY_USER $CI_REGISTRY --password-stdin
-#     - docker build -t $IMAGE_TAG_SERVER . -f packages/server/app/Dockerfile
-#     - docker push $IMAGE_TAG_SERVER
+    - docker build -t $IMAGE_TAG_SERVER --target server .
+    - docker build -t $IMAGE_TAG_UI --target ui .
 
+push:
+  image: docker:24.0.5
+  stage: publish
+  only:
+    - main
+  services:
+    - docker:24.0.5-dind
+  variables:
+    IMAGE_TAG_SERVER: $CI_REGISTRY_IMAGE:server-$CI_COMMIT_REF_SLUG
+    IMAGE_TAG_UI: $CI_REGISTRY_IMAGE:ui-$CI_COMMIT_REF_SLUG
+  script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u $CI_REGISTRY_USER $CI_REGISTRY --password-stdin
+    - docker build -t $IMAGE_TAG_SERVER --target server .
+    - docker push $IMAGE_TAG_SERVER
+    - docker build -t $IMAGE_TAG_UI --target ui .
+    - docker push $IMAGE_TAG_UI
 # deploy:
 #   image: kroniak/ssh-client:latest
 #   stage: deploy

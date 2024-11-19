@@ -27,6 +27,7 @@ import {
   getConnectionsToCollections,
   items$,
 } from "./sync/sync-service";
+
 class CommandError extends Error {
   constructor(
     readonly code: "E_AUTH" | "E_CONFLICT" | "E_ACCESS",
@@ -39,6 +40,7 @@ class CommandError extends Error {
 export const app = new Elysia()
   .use(accessPlugin({ prefix: "/api/access" }))
   .get("/", () => "This will be awesome!")
+  .options("/health", () => {})
   .ws("/", {
     async message(ws, body) {
       const cmd = deserializeCommand(body as Buffer);

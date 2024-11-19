@@ -14,7 +14,7 @@ export async function createUser(email: string, name: string) {
       maxSources: 10,
       maxCollections: 10,
       maxItems: 1000,
-      maxClients: 10,
+      maxConsumers: 10,
     },
     Date.now() + 1000 * 60 * 60 * 24 * 365 * 10,
   );

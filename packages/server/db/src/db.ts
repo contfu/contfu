@@ -1,6 +1,6 @@
 import { createClient } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
-import { migrate } from "drizzle-orm/libsql/migrator";
+import { migrate as drizzleMigrate } from "drizzle-orm/libsql/migrator";
 import { schema } from "./schema";
 
 const client = createClient({
@@ -13,4 +13,6 @@ client.execute("PRAGMA journal_mode = WAL");
 
 export const db = drizzle(client, { schema });
 
-migrate(db, { migrationsFolder: "../db/migrations" });
+export async function migrate(migrationsFolder = "../migrations") {
+  await drizzleMigrate(db, { migrationsFolder });
+}

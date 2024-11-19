@@ -7,10 +7,11 @@ import {
   userTable,
 } from "@contfu/db";
 import { and, eq, sql } from "drizzle-orm";
+import crypto from "node:crypto";
 
 export type QuotaLimits = Pick<
   Quota,
-  "maxSources" | "maxCollections" | "maxItems" | "maxClients"
+  "maxSources" | "maxCollections" | "maxItems" | "maxConsumers"
 >;
 
 export async function verifyUserCredentials(email: string, password: string) {
@@ -53,7 +54,7 @@ export async function createQuota(userId: number, limits: QuotaLimits) {
         sources: 0,
         collections: 0,
         items: 0,
-        clients: 0,
+        consumers: 0,
       })
       .returning()
   )[0];
