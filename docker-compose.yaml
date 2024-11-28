@@ -1,20 +1,20 @@
 services:
-  backend:
+  sync:
     build:
       context: .
       dockerfile: Dockerfile
-      target: backend
+      target: sync
     ports:
       - "3000:3000"
     volumes:
       - ./local-db:/app/db
-  frontend:
+  app:
     build:
       context: .
       dockerfile: Dockerfile
-      target: frontend
+      target: app
     depends_on:
-      backend:
+      sync:
         condition: service_healthy
     ports:
       - "3001:3000"
