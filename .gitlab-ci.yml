@@ -1,4 +1,4 @@
-image: oven/bun:1.1.34-slim
+image: oven/bun:1.1.37-slim
 
 cache:
   paths:
