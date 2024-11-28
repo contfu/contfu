@@ -1,5 +1,5 @@
 {
-  "name": "@contfu/backend",
+  "name": "@contfu/sync-service",
   "main": "src/index.ts",
   "type": "module",
   "version": "0.1.1",
