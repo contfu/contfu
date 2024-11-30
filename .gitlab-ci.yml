@@ -13,6 +13,7 @@ test:
   rules:
     - if: $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME != "main"
   script:
+    - env
     - bun install
     - bun run test
 
