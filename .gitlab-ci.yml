@@ -12,8 +12,8 @@ test:
   stage: check
   rules:
     - if: $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME != "main"
+    - if: $CI_COMMIT_BRANCH != "main"
   script:
-    - env
     - bun install
     - bun run test
 
@@ -22,6 +22,7 @@ dockerize-check:
   stage: check
   rules:
     - if: $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME != "main"
+    - if: $CI_COMMIT_BRANCH != "main"
   services:
     - docker:27.3.1-dind
   variables:
@@ -36,6 +37,7 @@ push:
   stage: publish
   rules:
     - if: $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME == "main"
+    - if: $CI_COMMIT_BRANCH == "main"
   services:
     - docker:27.3.1-dind
   variables:
