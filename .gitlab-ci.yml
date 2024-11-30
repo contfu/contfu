@@ -11,7 +11,7 @@ test:
   image: oven/bun:1.1.38-slim
   stage: check
   rules:
-    - if: $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME != main
+    - if: $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME != "main"
   script:
     - bun install
     - bun run test
@@ -20,7 +20,7 @@ dockerize-check:
   image: docker:27.3.1
   stage: check
   rules:
-    - if: $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME != main
+    - if: $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME != "main"
   services:
     - docker:27.3.1-dind
   variables:
@@ -34,7 +34,7 @@ push:
   image: docker:27.3.1
   stage: publish
   rules:
-    - if: $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME == main
+    - if: $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME == "main"
   services:
     - docker:27.3.1-dind
   variables:
