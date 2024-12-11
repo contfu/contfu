@@ -1,10 +1,9 @@
-import { migrate } from "@contfu/db";
 import { merge } from "rxjs";
 import { app, processItems$ } from "./server";
 import { sync$ } from "./sync/sync-service";
 
-await migrate(process.env.MIGRATIONS_FOLDER);
+const port = Number(process.env.PORT ?? 3001);
 
-app.listen(3000);
+app.listen(port, () => console.log(`Server started: http://localhost:${port}`));
 
 merge(processItems$, sync$).subscribe();

@@ -26,9 +26,11 @@ dockerize-check:
   variables:
     IMAGE_TAG_SYNC: $CI_REGISTRY_IMAGE:sync-$CI_COMMIT_REF_SLUG
     IMAGE_TAG_APP: $CI_REGISTRY_IMAGE:app-$CI_COMMIT_REF_SLUG
+    IMAGE_TAG_MIGRATOR: $CI_REGISTRY_IMAGE:migrator-$CI_COMMIT_REF_SLUG
   script:
     - docker build -t $IMAGE_TAG_SYNC --target sync .
     - docker build -t $IMAGE_TAG_APP --target app .
+    - docker build -t $IMAGE_TAG_MIGRATOR --target migrator .
 
 push:
   image: docker:27.3.1
@@ -40,9 +42,12 @@ push:
   variables:
     IMAGE_TAG_SYNC: $CI_REGISTRY_IMAGE:sync-$CI_COMMIT_REF_SLUG
     IMAGE_TAG_APP: $CI_REGISTRY_IMAGE:app-$CI_COMMIT_REF_SLUG
+    IMAGE_TAG_MIGRATOR: $CI_REGISTRY_IMAGE:migrator-$CI_COMMIT_REF_SLUG
   script:
     - echo "$CI_REGISTRY_PASSWORD" | docker login -u $CI_REGISTRY_USER $CI_REGISTRY --password-stdin
     - docker build -t $IMAGE_TAG_SYNC --target sync .
     - docker push $IMAGE_TAG_SYNC
     - docker build -t $IMAGE_TAG_APP --target app .
     - docker push $IMAGE_TAG_APP
+    - docker build -t $IMAGE_TAG_MIGRATOR --target migrator .
+    - docker push $IMAGE_TAG_MIGRATOR
