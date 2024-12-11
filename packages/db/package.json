@@ -4,6 +4,10 @@
   "type": "module",
   "version": "0.1.1",
   "private": true,
+  "scripts": {
+    "build": "bun build --minify --sourcemap --target=bun src/migrator.ts --outfile dist/migrator.js",
+    "dev": "bun src/migrator.ts"
+  },
   "devDependencies": {
     "@types/bun": "*",
     "drizzle-kit": "^0.27.2"

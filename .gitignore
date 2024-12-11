@@ -176,4 +176,4 @@ dist
 
 .tmp
 
-local-db
+/data
