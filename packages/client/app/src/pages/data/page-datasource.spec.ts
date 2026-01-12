@@ -1,7 +1,7 @@
 import { Page, PageData } from "@contfu/core";
 import { beforeEach, describe, expect, it } from "bun:test";
-import { fromHex, getDb } from "../../core/db/db";
-import type { NewPage } from "../../core/db/schema";
+import { db } from "../../core/db/db";
+import { pageLinkTable, pageTable, type NewPage } from "../../core/db/schema";
 import {
   createOrUpdatePage,
   createPage,
@@ -255,23 +255,27 @@ const dbPage = {
 } satisfies NewPage;
 
 async function insertPage(c: NewPage = dbPage) {
-  await getDb()
-    .insertInto("page")
+  await db
+    .insert(pageTable)
     .values({ ...c })
     .execute();
 }
 
 async function selectAllPages() {
-  return await getDb().selectFrom("page").selectAll().execute();
+  return await db.select().from(pageTable).all();
 }
 
 async function selectAllPageLinks() {
-  return await getDb().selectFrom("pageLink").selectAll().execute();
+  return await db.select().from(pageLinkTable).all();
 }
 
 async function insertPageLink(type: string, from: string, to: string) {
-  await getDb()
-    .insertInto("pageLink")
+  await db
+    .insert(pageLinkTable)
     .values({ type, from: fromHex(from), to: fromHex(to) })
     .execute();
+}
+
+function fromHex(hex: string): Buffer {
+  return Buffer.from(hex, "hex");
 }

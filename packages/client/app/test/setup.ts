@@ -1,10 +1,8 @@
-import { beforeAll, beforeEach } from "bun:test";
-import { setupDb, truncate } from "../src/core/db/db";
-
-beforeAll(async () => {
-  await setupDb({ url: ":memory:" });
-});
+import { beforeEach } from "bun:test";
+import { db } from "../src/core/db/db";
+import { pageLinkTable, pageTable } from "../src/core/db/schema";
 
 beforeEach(async () => {
-  await truncate();
+  db.delete(pageLinkTable);
+  db.delete(pageTable);
 });

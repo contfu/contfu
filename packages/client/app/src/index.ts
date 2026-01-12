@@ -1,7 +1,4 @@
 import { ConnectionConfig } from "@contfu/core";
-import { setupDb } from "./core/db/db";
-
-export { getDb, setupDb, truncate } from "./core/db/db";
 
 type ContfuSetupOpts = {
   /**
@@ -18,7 +15,6 @@ type ContfuSetupOpts = {
 };
 
 export async function setup({ connections, databaseUrl }: ContfuSetupOpts) {
-  await setupDb({ url: databaseUrl });
   if (connections) {
     const { setConnections } = await import("./sync/connections");
     await setConnections(connections);
