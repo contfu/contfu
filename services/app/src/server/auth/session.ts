@@ -1,15 +1,15 @@
 import type { RequestEvent } from "@builder.io/qwik-city";
+import { eq } from "drizzle-orm";
+import { hash, randomBytes } from "node:crypto";
 import {
   db,
   sessionTable,
   userTable,
   type Session as DbSession,
   type User,
-} from "@contfu/db";
-import { eq } from "drizzle-orm";
-import { hash, randomBytes } from "node:crypto";
+} from "~/db/db";
 
-const SESSION_DURATION = 1000 * 60 * 60 * 24 * 30; // 30 days
+const SESSION_DURATION = 1000 * 60 * 60 * 24 * 30;
 export const SESSION_TOKEN_LENGTH = 24;
 export const SESSION_COOKIE_NAME = "s";
 
@@ -63,7 +63,7 @@ export async function validateSessionToken(
   image?: string,
 ): Promise<Session | null> {
   const sessionId = await getSessionId(token);
-  const [result] = await db
+  const results = await db
     .select({
       user: {
         id: userTable.id,
@@ -75,9 +75,12 @@ export async function validateSessionToken(
     })
     .from(sessionTable)
     .innerJoin(userTable, eq(sessionTable.userId, userTable.id))
-    .where(eq(sessionTable.id, sessionId));
-  if (!result) return null;
-  const { user, session } = result;
+    .where(eq(sessionTable.id, sessionId))
+    .limit(1)
+    .all();
+
+  if (results.length === 0) return null;
+  const { user, session } = results[0];
   if (Date.now() >= session.expiresAt) {
     await db.delete(sessionTable).where(eq(sessionTable.id, session.id));
     return null;

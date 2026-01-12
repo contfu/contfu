@@ -25,6 +25,7 @@ ENTRYPOINT [ "bun", "server.js" ]
 FROM base AS migrator
 ENV DATABASE_URL=file:/data/local.db
 WORKDIR /app
-COPY --from=build /app/packages/db/dist/migrator.js ./migrator.js
-COPY ./packages/db/migrations ./migrations
-ENTRYPOINT [ "bun", "migrator.js" ]
+COPY --from=build /app/services/app/dist ./dist
+COPY --from=build /app/services/app/server ./server
+COPY ./services/app/src/db/migrations ./migrations
+ENTRYPOINT [ "bun", "-e", "import('./dist/db/db.js')" ]

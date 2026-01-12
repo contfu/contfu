@@ -1,12 +1,12 @@
 import { ITEM_ID_SIZE } from "@contfu/core";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import {
   collectionTable,
   connectionTable,
   db,
   itemIdConflictResolutionTable,
   sourceTable,
-} from "@contfu/db";
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+} from "~/db/db";
 import { SortedSet } from "../../util/structures/sorted-set";
 import { SourceType } from "../data";
 
@@ -40,9 +40,12 @@ export async function createSource(
 }
 
 export async function getSourcesByIds(userId: number, ids: number[]) {
-  return db.query.source.findMany({
-    where: and(eq(sourceTable.userId, userId), inArray(sourceTable.id, ids)),
-  });
+  if (ids.length === 0) return [];
+  return db
+    .select()
+    .from(sourceTable)
+    .where(and(eq(sourceTable.userId, userId), inArray(sourceTable.id, ids)))
+    .all();
 }
 
 export async function createCollection(
@@ -198,14 +201,19 @@ export async function getItemId(
   collectionId: number,
   sourceItemId: Buffer,
 ) {
-  const result = await db.query.itemIdConflictResolution.findFirst({
-    where: and(
-      eq(itemIdConflictResolutionTable.userId, userId),
-      eq(itemIdConflictResolutionTable.collectionId, collectionId),
-      eq(itemIdConflictResolutionTable.sourceItemId, sourceItemId),
-    ),
-  });
-  if (result) return result.id;
+  const results = await db
+    .select()
+    .from(itemIdConflictResolutionTable)
+    .where(
+      and(
+        eq(itemIdConflictResolutionTable.userId, userId),
+        eq(itemIdConflictResolutionTable.collectionId, collectionId),
+        eq(itemIdConflictResolutionTable.sourceItemId, sourceItemId),
+      ),
+    )
+    .limit(1)
+    .all();
+  if (results.length > 0) return results[0].id;
   return sourceItemId.subarray(-4).readUInt32LE(0);
 }
 

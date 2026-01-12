@@ -26,12 +26,12 @@
     "preview": "qwik build preview && vite preview --open",
     "serve": "bun server/entry.bun.js",
     "start": "vite --open --mode ssr",
-    "qwik": "qwik"
+    "qwik": "qwik",
+    "db:generate": "drizzle-kit generate"
   },
   "devDependencies": {
     "@builder.io/qwik": "^1.10.0",
     "@builder.io/qwik-city": "^1.10.0",
-    "@contfu/db": "workspace:*",
     "@modular-forms/qwik": "^0.28.2",
     "@types/bun": "*",
     "@types/eslint": "8.56.10",
@@ -42,7 +42,6 @@
     "argon2": "^0.41.1",
     "autoprefixer": "^10.4.19",
     "cssnano": "^7.0.6",
-    "drizzle-orm": "^0.36.1",
     "eslint": "8.57.0",
     "eslint-plugin-qwik": "^1.10.0",
     "postcss": "^8.4.39",

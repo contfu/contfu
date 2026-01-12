@@ -1,6 +1,6 @@
 import { connectTo } from "@contfu/client";
 import { Block, EventType, Item } from "@contfu/core";
-import { Collection, Consumer, User } from "@contfu/db";
+import { Collection, Consumer, User } from "./src/db/db";
 import { NotionSource } from "@contfu/notion";
 import {
   afterAll,

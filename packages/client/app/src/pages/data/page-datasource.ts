@@ -1,11 +1,12 @@
 import { PageData } from "@contfu/core";
+import { and, desc, eq, or } from "drizzle-orm";
 import { MarkOptional } from "ts-essentials";
 import { fromHex, getDb, toHex } from "../../core/db/db";
-import type { DbPage, NewPage, PageUpdate } from "../../core/db/schema";
+import { pageLinkTable, pageTable, type DbPage, type NewPage, type PageUpdate } from "../../core/db/schema";
 import { deleteNulls } from "../../util/object-helpers";
 
 export async function getPages(ctx = getDb()): Promise<PageData[]> {
-  const dbos = await ctx.selectFrom("page").selectAll().execute();
+  const dbos = await ctx.select().from(pageTable).all();
   return dbos.map((dbo) => pageFromDb(dbo));
 }
 
@@ -14,10 +15,15 @@ export async function getPage(
   ctx = getDb()
 ): Promise<Omit<PageData, "links"> | null> {
   const dbos = await ctx
-    .selectFrom("page")
-    .selectAll()
-    .where((eb) => eb.and({ id: id ? fromHex(id) : undefined, path }))
-    .execute();
+    .select()
+    .from(pageTable)
+    .where(
+      and(
+        id ? eq(pageTable.id, fromHex(id)) : undefined,
+        path ? eq(pageTable.path, path) : undefined,
+      )
+    )
+    .all();
   return dbos.length > 0 ? pageFromDb(dbos[0]) : null;
 }
 
@@ -27,13 +33,18 @@ export async function getLastChangedPage(
   ctx = getDb()
 ): Promise<Omit<PageData, "links"> | null> {
   const dbo = await ctx
-    .selectFrom("page")
-    .selectAll()
-    .where((eb) => eb.and({ connection: fromHex(connection), collection }))
-    .orderBy("changedAt", "desc")
+    .select()
+    .from(pageTable)
+    .where(
+      and(
+        eq(pageTable.connection, fromHex(connection)),
+        eq(pageTable.collection, collection),
+      )
+    )
+    .orderBy(desc(pageTable.changedAt))
     .limit(1)
-    .executeTakeFirst();
-  return dbo ? pageFromDb(dbo) : null;
+    .all();
+  return dbo.length > 0 ? pageFromDb(dbo[0]) : null;
 }
 
 export async function createOrUpdatePage<T extends Omit<PageData, "links">>(
@@ -41,11 +52,13 @@ export async function createOrUpdatePage<T extends Omit<PageData, "links">>(
   ctx = getDb()
 ): Promise<T> {
   const existing = await ctx
-    .selectFrom("page")
-    .select(["id"])
-    .where("id", "=", fromHex(page.id))
-    .executeTakeFirst();
-  if (existing) {
+    .select({ id: pageTable.id })
+    .from(pageTable)
+    .where(eq(pageTable.id, fromHex(page.id)))
+    .limit(1)
+    .all();
+  
+  if (existing.length > 0) {
     await updatePage(page, ctx);
     return page;
   } else {
@@ -57,10 +70,7 @@ export async function createPage<T extends Omit<PageData, "links">>(
   page: T,
   ctx = getDb()
 ): Promise<T> {
-  await ctx
-    .insertInto("page")
-    .values(pageToDb(page) as NewPage)
-    .execute();
+  await ctx.insert(pageTable).values(pageToDb(page) as NewPage);
   return page;
 }
 
@@ -69,10 +79,9 @@ export async function updatePage<T extends Omit<PageData, "links">>(
   ctx = getDb()
 ): Promise<T> {
   await ctx
-    .updateTable("page")
+    .update(pageTable)
     .set(pageToDb(page))
-    .where("id", "=", fromHex(page.id))
-    .execute();
+    .where(eq(pageTable.id, fromHex(page.id)));
   return page;
 }
 
@@ -80,10 +89,11 @@ export async function deletePage(
   { id, path }: Partial<Pick<PageData, "id" | "path">>,
   ctx = getDb()
 ): Promise<void> {
-  await ctx
-    .deleteFrom("page")
-    .where((eb) => eb.and({ id: id ? fromHex(id) : undefined, path }))
-    .execute();
+  if (id) {
+    await ctx.delete(pageTable).where(eq(pageTable.id, fromHex(id)));
+  } else if (path) {
+    await ctx.delete(pageTable).where(eq(pageTable.path, path));
+  }
 }
 
 export async function deletePagesByIds(
@@ -91,15 +101,19 @@ export async function deletePagesByIds(
   ids: string[],
   ctx = getDb()
 ): Promise<void> {
-  await ctx
-    .deleteFrom("page")
-    .where((eb) =>
-      eb.and([
-        eb("connection", "=", fromHex(connection)),
-        eb("id", "in", ids.map(fromHex)),
-      ])
-    )
-    .execute();
+  if (ids.length === 0) return;
+  
+  const connectionBlob = fromHex(connection);
+  for (const id of ids) {
+    await ctx
+      .delete(pageTable)
+      .where(
+        and(
+          eq(pageTable.connection, connectionBlob),
+          eq(pageTable.id, fromHex(id)),
+        )
+      );
+  }
 }
 
 export async function getPageIdsByCollection(
@@ -108,12 +122,16 @@ export async function getPageIdsByCollection(
   ctx = getDb()
 ) {
   const dbos = await ctx
-    .selectFrom("page")
-    .select("id")
-    .where((eb) => eb.and({ connection: fromHex(connection), collection }))
-    .execute();
-  const refs = dbos.map((dbo) => toHex(dbo.id));
-  return refs;
+    .select({ id: pageTable.id })
+    .from(pageTable)
+    .where(
+      and(
+        eq(pageTable.connection, fromHex(connection)),
+        eq(pageTable.collection, collection),
+      )
+    )
+    .all();
+  return dbos.map((dbo) => toHex(dbo.id));
 }
 
 export async function getPageLinks(
@@ -121,16 +139,16 @@ export async function getPageLinks(
   ctx = getDb()
 ) {
   const dbos = await ctx
-    .selectFrom("pageLink")
-    .selectAll()
-    .where((eb) =>
-      eb.and({
-        type: opts.type,
-        from: opts.from ? fromHex(opts.from) : undefined,
-        to: opts.to ? fromHex(opts.to) : undefined,
-      })
+    .select()
+    .from(pageLinkTable)
+    .where(
+      and(
+        opts.type ? eq(pageLinkTable.type, opts.type) : undefined,
+        opts.from ? eq(pageLinkTable.from, fromHex(opts.from)) : undefined,
+        opts.to ? eq(pageLinkTable.to, fromHex(opts.to)) : undefined,
+      )
     )
-    .execute();
+    .all();
   const links = { content: [] } as Record<string, string[]>;
   for (const { type, from, to } of dbos) {
     if (!links[type]) links[type] = [];
@@ -143,24 +161,30 @@ export async function createPageLink(
   { type, from, to }: { type: string; from: string; to: string },
   ctx = getDb()
 ): Promise<void> {
-  await ctx
-    .insertInto("pageLink")
-    .values({ type, from: fromHex(from), to: fromHex(to) })
-    .execute();
+  await ctx.insert(pageLinkTable).values({
+    type,
+    from: fromHex(from),
+    to: fromHex(to),
+  });
 }
 
 export async function deleteOutgoingPageLinks(
   from: string,
   ctx = getDb()
 ): Promise<void> {
-  await ctx.deleteFrom("pageLink").where("from", "=", fromHex(from)).execute();
+  await ctx.delete(pageLinkTable).where(eq(pageLinkTable.from, fromHex(from)));
 }
 
 export async function deletePageLinksByRef(id: string, ctx = getDb()) {
+  const idBlob = fromHex(id);
   await ctx
-    .deleteFrom("pageLink")
-    .where((eb) => eb.or({ from: fromHex(id), to: fromHex(id) }))
-    .execute();
+    .delete(pageLinkTable)
+    .where(
+      or(
+        eq(pageLinkTable.from, idBlob),
+        eq(pageLinkTable.to, idBlob),
+      )
+    );
 }
 
 function pageToDb<T extends PageData | MarkOptional<PageData, "links">>({

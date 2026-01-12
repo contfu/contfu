@@ -1,6 +1,6 @@
-import { db, userTable } from "@contfu/db";
 import { GitHub, Google } from "arctic";
 import { eq } from "drizzle-orm";
+import { db, userTable } from "~/db/db";
 import { getUserByRegistrationToken } from "../stripe/customers";
 import type { DisplayUser } from "./session";
 import { createSession, generateSessionToken } from "./session";
@@ -24,10 +24,13 @@ export const google = new Google(
 );
 
 export async function login(id: string) {
-  const user = await db.query.user.findFirst({
-    where: eq(userTable.oauthId, id),
-  });
-
+  const users = await db
+    .select()
+    .from(userTable)
+    .where(eq(userTable.oauthId, id))
+    .limit(1)
+    .all();
+  const user = users[0];
   if (!user) return null;
 
   const token = await generateSessionToken();

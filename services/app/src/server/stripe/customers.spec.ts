@@ -1,6 +1,6 @@
-import { db, quotaTable, userTable } from "@contfu/db";
 import { beforeEach, describe, expect, it } from "bun:test";
 import { eq } from "drizzle-orm";
+import { db, quotaTable, userTable } from "~/db/db";
 import { stripeMock } from "../../../test/mocks";
 import {
   checkoutSessionFixture,

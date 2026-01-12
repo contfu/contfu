@@ -1,6 +1,6 @@
-import { db, quotaTable, userTable } from "@contfu/db";
 import { eq } from "drizzle-orm";
 import type Stripe from "stripe";
+import { db, quotaTable, userTable } from "~/db/db";
 import { SESSION_TOKEN_LENGTH } from "../auth/session";
 import { getStripeProducts } from "./products";
 import { stripe } from "./stripe";
@@ -16,9 +16,14 @@ export async function setCustomerSubscription(
     session.subscription as string,
   );
   const customer = session.customer_details!;
-  let user = await db.query.user.findFirst({
-    where: eq(userTable.email, customer.email!),
-  });
+  const users = await db
+    .select()
+    .from(userTable)
+    .where(eq(userTable.email, customer.email!))
+    .limit(1)
+    .all();
+  let user = users[0];
+  
   if (!user) {
     const registrationToken = await sessionIdToToken(session.id);
     [user] = await db
@@ -65,14 +70,16 @@ export async function sessionIdToToken(sessionId: string) {
 }
 
 export async function getUserByRegistrationToken(token: Buffer) {
-  const user = await db.query.user.findFirst({
-    where: eq(userTable.registrationToken, token),
-    columns: {
-      id: true,
-      name: true,
-      email: true,
-    },
-  });
+  const users = await db
+    .select({
+      id: userTable.id,
+      name: userTable.name,
+      email: userTable.email,
+    })
+    .from(userTable)
+    .where(eq(userTable.registrationToken, token))
+    .limit(1)
+    .all();
 
-  return user;
+  return users[0] || null;
 }

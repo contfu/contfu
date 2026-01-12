@@ -1,3 +1,5 @@
+import { and, eq, sql } from "drizzle-orm";
+import crypto from "node:crypto";
 import {
   Consumer,
   consumerTable,
@@ -5,9 +7,7 @@ import {
   Quota,
   quotaTable,
   userTable,
-} from "@contfu/db";
-import { and, eq, sql } from "drizzle-orm";
-import crypto from "node:crypto";
+} from "~/db/db";
 
 export type QuotaLimits = Pick<
   Quota,
@@ -15,9 +15,13 @@ export type QuotaLimits = Pick<
 >;
 
 export async function verifyUserCredentials(email: string, password: string) {
-  const u = await db.query.user.findFirst({
-    where: eq(userTable.email, email),
-  });
+  const users = await db
+    .select()
+    .from(userTable)
+    .where(eq(userTable.email, email))
+    .limit(1)
+    .all();
+  const u = users[0];
   if (!u || !u.password || !(await Bun.password.verify(password, u.password)))
     return null;
   return u.activeUntil ?? Infinity;
@@ -25,10 +29,13 @@ export async function verifyUserCredentials(email: string, password: string) {
 
 export async function authenticateConsumer(key: Buffer) {
   if (key.length !== 24) return null;
-  const c = await db.query.consumer.findFirst({
-    where: eq(consumerTable.key, key),
-  });
-  return c ?? null;
+  const consumers = await db
+    .select()
+    .from(consumerTable)
+    .where(eq(consumerTable.key, key))
+    .limit(1)
+    .all();
+  return consumers[0] ?? null;
 }
 
 export async function createUser(
@@ -74,10 +81,15 @@ export async function createConsumer(
     ? null
     : await generateAccessKey(
         24,
-        async (key) =>
-          !!(await db.query.consumer.findFirst({
-            where: eq(consumerTable.key, key),
-          })),
+        async (key) => {
+          const existing = await db
+            .select()
+            .from(consumerTable)
+            .where(eq(consumerTable.key, key))
+            .limit(1)
+            .all();
+          return existing.length > 0;
+        },
       );
   return (
     await db.insert(consumerTable).values({ userId, name, id, key }).returning()

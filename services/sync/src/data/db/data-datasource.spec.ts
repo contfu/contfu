@@ -1,14 +1,9 @@
 import {
-  collectionTable,
-  connectionTable,
   Consumer,
-  db,
-  itemIdConflictResolutionTable,
-  sourceTable,
   User,
-} from "@contfu/db";
+} from "../../db/db";
+import { db } from "../../db/db";
 import { beforeEach, describe, expect, it } from "bun:test";
-import { and, eq } from "drizzle-orm";
 import { createConsumer, createUser } from "../../access/access-repository";
 import { SourceType } from "../data";
 import {
@@ -36,9 +31,16 @@ describe("createSource()", () => {
       credentials: Buffer.from("test", "base64url"),
     });
 
-    const stored = await db.query.source.findFirst({
-      where: eq(sourceTable.id, s.id),
-    });
+    const stored = await db`SELECT * FROM source WHERE id = ${s.id}` as Array<{
+      id: number;
+      userId: number;
+      name: string | null;
+      type: number;
+      credentials: Buffer | null;
+      url: string | null;
+      createdAt: number;
+      updatedAt: number | null;
+    }>;
     expect(s).toEqual({
       id: s.id,
       userId: a.id,
@@ -49,7 +51,7 @@ describe("createSource()", () => {
       createdAt: expect.any(Number),
       updatedAt: null,
     });
-    expect(s).toEqual(stored!);
+    expect(s).toEqual(stored[0]!);
   });
 });
 
@@ -63,9 +65,16 @@ describe("createCollection()", () => {
 
     const c = await createCollection(a.id, s.id, "test", Buffer.alloc(0));
 
-    const stored = await db.query.collection.findFirst({
-      where: eq(collectionTable.id, c.id),
-    });
+    const stored = await db`SELECT * FROM collection WHERE id = ${c.id}` as Array<{
+      id: number;
+      userId: number;
+      sourceId: number;
+      name: string;
+      ref: Buffer | null;
+      createdAt: number;
+      updatedAt: number | null;
+      itemIds: Buffer | null;
+    }>;
     expect(c).toEqual({
       id: c.id,
       userId: a.id,
@@ -76,7 +85,7 @@ describe("createCollection()", () => {
       updatedAt: null,
       itemIds: null,
     });
-    expect(c).toEqual(stored!);
+    expect(c).toEqual(stored[0]!);
   });
 });
 
@@ -92,13 +101,16 @@ describe("createConnection()", () => {
 
     const cc = await createConnection(a.id, cl.id, c.id);
 
-    const stored = await db.query.connection.findFirst({
-      where: and(
-        eq(connectionTable.userId, a.id),
-        eq(connectionTable.consumerId, cl.id),
-        eq(connectionTable.collectionId, c.id),
-      ),
-    });
+    const stored = await db`
+      SELECT * FROM connection 
+      WHERE userId = ${a.id} AND consumerId = ${cl.id} AND collectionId = ${c.id}
+    ` as Array<{
+      userId: number;
+      consumerId: number;
+      collectionId: number;
+      lastItemChanged: number | null;
+      lastConsistencyCheck: number | null;
+    }>;
     expect(cc).toEqual({
       userId: a.id,
       consumerId: cl.id,
@@ -106,7 +118,7 @@ describe("createConnection()", () => {
       lastItemChanged: null,
       lastConsistencyCheck: null,
     });
-    expect(stored).toEqual(cc);
+    expect(stored[0]).toEqual(cc);
   });
 });
 
@@ -144,10 +156,15 @@ describe("createItemIdConflictResolution()", () => {
 
     await createItemIdConflictResolution(a.id, c.id, Buffer.from([1]), 1);
 
-    const stored = await db.query.itemIdConflictResolution.findFirst({
-      where: eq(itemIdConflictResolutionTable.id, 1),
-    });
-    expect(stored).toEqual({
+    const stored = await db`
+      SELECT * FROM item_id_conflict_resolution WHERE id = 1
+    ` as Array<{
+      userId: number;
+      collectionId: number;
+      sourceItemId: Buffer;
+      id: number;
+    }>;
+    expect(stored[0]).toEqual({
       userId: a.id,
       collectionId: c.id,
       sourceItemId: Buffer.from([1]),
