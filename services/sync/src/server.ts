@@ -6,12 +6,12 @@ import {
   ConnectedEvent,
   ErrorEvent,
   EventType,
-  ITEM_ID_SIZE,
   ItemEvent,
-  ListIdsEvent,
+  ListIdsEvent
 } from "@contfu/core";
 import Elysia from "elysia";
 import { ElysiaWS } from "elysia/ws";
+import { pack, unpack } from "msgpackr";
 import { bufferTime, concatMap, filter, Subscription } from "rxjs";
 import { accessPlugin } from "./access/access-plugin";
 import { authenticateConsumer } from "./access/access-repository";
@@ -91,77 +91,70 @@ const sockets = new Map<string, ElysiaWS<any, any>>();
 const subs = new Map<string, Subscription>();
 const socketClients = new Map<string, number[]>();
 
-function deserializeCommand(buf: Buffer) {
-  const type = buf.readUInt8(0) as CommandType;
+function deserializeCommand(buf: Buffer): Command {
+  const arr = unpack(buf) as [CommandType, ...any[]];
+  const type = arr[0];
   switch (type) {
     case CommandType.CONNECT: {
-      return { type, key: buf.subarray(1) } as ConnectCommand;
+      return {
+        type,
+        key: Buffer.from(arr[1] as unknown as Uint8Array),
+      } as ConnectCommand;
     }
     case CommandType.ACK: {
       return {
         type,
-        itemId: buf.subarray(1, 13),
-        collectionId: buf.readUInt16LE(13),
+        itemId: Buffer.from(arr[1] as unknown as Uint8Array),
       } as AckCommand;
     }
   }
 }
 
-function serializeEvent(data: ItemEvent | ErrorEvent | ConnectedEvent) {
+function serializeEvent(data: ItemEvent | ErrorEvent | ConnectedEvent): Buffer {
+  let packed: unknown;
   switch (data.type) {
     case EventType.CONNECTED: {
-      const buf = Buffer.alloc(1);
-      buf.writeUInt8(data.type, 0);
-      return buf;
+      packed = pack([EventType.CONNECTED]);
+      break;
     }
     case EventType.CHANGED: {
       const { item } = data;
-      const jsonBuf = Buffer.from(
-        JSON.stringify(
-          item.content && item.content.length > 0
-            ? [item.ref, item.props, item.content]
-            : [item.ref, item.props],
-        ),
-        "utf8",
-      );
-      const buf = Buffer.alloc(19 + ITEM_ID_SIZE + jsonBuf.length);
-      buf.writeUInt8(data.type, 0);
-      buf.writeUInt16LE(item.collection, 1);
-      item.id.copy(buf, 3);
-      buf.writeBigInt64LE(BigInt(item.createdAt), 3 + ITEM_ID_SIZE);
-      buf.writeBigInt64LE(BigInt(item.changedAt), 11 + ITEM_ID_SIZE);
-      jsonBuf.copy(buf, 19 + ITEM_ID_SIZE);
-      return buf;
+      const contentArray =
+        item.content && item.content.length > 0
+          ? [item.ref, item.props, item.content]
+          : [item.ref, item.props];
+      packed = pack([
+        EventType.CHANGED,
+        item.collection,
+        item.id,
+        item.createdAt,
+        item.changedAt,
+        contentArray,
+      ]);
+      break;
     }
     case EventType.DELETED: {
-      const bufferLength = 4 + ITEM_ID_SIZE;
-      const buf = Buffer.alloc(bufferLength);
-      buf.writeUInt8(data.type, 0);
-      data.item.copy(buf, 1);
-      return buf;
+      packed = pack([EventType.DELETED, data.item]);
+      break;
     }
     case EventType.LIST_IDS: {
-      const buf = Buffer.alloc(3 + data.ids.length * ITEM_ID_SIZE);
-      buf.writeUInt8(data.type, 0);
-      buf.writeUInt16LE(data.collection, 1);
-      for (let i = 0; i < data.ids.length; i++)
-        data.ids[i].copy(buf, 3 + i * ITEM_ID_SIZE);
-      return buf;
+      packed = pack([EventType.LIST_IDS, data.collection, ...data.ids]);
+      break;
     }
     case EventType.CHECKSUM: {
-      const buf = Buffer.alloc(3 + data.checksum.length);
-      buf.writeUInt8(data.type, 0);
-      buf.writeUInt16LE(data.collection, 1);
-      data.checksum.copy(buf, 3);
-      return buf;
+      packed = pack([
+        EventType.CHECKSUM,
+        data.collection,
+        data.checksum,
+      ]);
+      break;
     }
     case EventType.ERROR: {
-      const buf = Buffer.alloc(1 + data.code.length);
-      buf.writeUInt8(data.type, 0);
-      buf.write(data.code, 1, "ascii");
-      return buf;
+      packed = pack([EventType.ERROR, data.code]);
+      break;
     }
   }
+  return Buffer.from(packed as Uint8Array);
 }
 
 export const processItems$ = items$.pipe(
