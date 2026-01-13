@@ -22,8 +22,6 @@
   },
   "dependencies": {
     "@contfu/core": "workspace:*",
-    "@contfu/notion": "workspace:*",
-    "@contfu/sync": "workspace:*",
     "@sinclair/typebox": "^0.33.15",
     "@sinonjs/fake-timers": "^13.0.4",
     "elysia": "^1.1.19",

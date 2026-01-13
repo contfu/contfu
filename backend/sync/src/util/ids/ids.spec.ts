@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { genUid, uuidToBuffer } from "./mappings";
+import { genUid, uuidToBuffer } from "./ids";
 
 describe("idFromRef()", () => {
   it("should convert a reference to an id", () => {

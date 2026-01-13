@@ -16,8 +16,7 @@
   },
   "workspaces": [
     "packages/client/*",
-    "services/*",
-    "packages/core",
-    "packages/sync/*"
+    "backend/*",
+    "packages/core"
   ]
 }

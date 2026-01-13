@@ -1,20 +1,20 @@
 import { Block, Item, PageProps } from "@contfu/core";
-import { genUid, uuidToBuffer } from "@contfu/sync";
 import { PageObjectResponse } from "notion-client-web-fetch/build/src/api-endpoints";
 import { MarkOptional } from "ts-essentials";
-import type { NotionFetchOpts } from "./notion";
+import type { NotionFetchOpts } from ".";
+import { genUid, uuidToBuffer } from "../../util/ids/ids";
 import { getContentBlocks } from "./notion-blocks";
 import { DbQuery, getImageUrl, iterateDb } from "./notion-helpers";
 
 export async function* iteratePages(
   { credentials, ref, collection }: NotionFetchOpts,
-  params: DbQuery & {}
+  params: DbQuery & {},
 ) {
   for await (const page of iterateDb(credentials, ref, params)) {
     yield parseItem(
       page,
       collection,
-      (await getContentBlocks(credentials, page.id)) ?? []
+      (await getContentBlocks(credentials, page.id)) ?? [],
     );
   }
 }
@@ -29,7 +29,7 @@ function parseItem(
     cover,
   }: PageObjectResponse,
   collection: number,
-  content?: Block[]
+  content?: Block[],
 ): Item {
   const createdAt = new Date(created_time).getTime();
   const props = parseProps(properties);
@@ -59,7 +59,7 @@ function parseProps(pageProps: PageObjectResponse["properties"]) {
 }
 
 function parseValue(
-  value: MarkOptional<PageObjectResponse["properties"][string], "id">
+  value: MarkOptional<PageObjectResponse["properties"][string], "id">,
 ):
   | number
   | string

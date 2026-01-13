@@ -1,4 +1,3 @@
-import { ITEM_ID_SIZE } from "@contfu/core";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import {
   collectionTable,
@@ -7,6 +6,7 @@ import {
   itemIdConflictResolutionTable,
   sourceTable,
 } from "~/db/db";
+import { ITEM_ID_SIZE } from "../../util/ids/ids";
 import { SortedSet } from "../../util/structures/sorted-set";
 import { SourceType } from "../data";
 

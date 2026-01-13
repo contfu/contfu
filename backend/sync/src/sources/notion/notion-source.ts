@@ -1,5 +1,5 @@
 import { CollectionSchema, Item } from "@contfu/core";
-import { Source } from "@contfu/sync";
+import { Source } from "../source";
 import { NotionFetchOpts } from "./notion";
 import { getCollectionSchema } from "./notion-collections";
 import { DbQuery } from "./notion-helpers";
