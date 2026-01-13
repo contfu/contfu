@@ -1,7 +1,8 @@
 import { SQL } from "bun";
 import { drizzle } from "drizzle-orm/bun-sql/sqlite";
 import { migrate } from "drizzle-orm/bun-sql/sqlite/migrator";
-import { join } from "path";
+import { dirname, join } from "path";
+import { fileURLToPath } from "url";
 import * as schema from "./schema";
 
 const url = process.env.DATABASE_URL ?? ":memory:";
@@ -12,7 +13,10 @@ if (client.options.adapter === "sqlite") {
 }
 
 export const db = drizzle({ client, schema });
-const migrationsDir = join(import.meta.dir, "../../db/migrations");
+const migrationsDir = join(
+  dirname(fileURLToPath(import.meta.url)),
+  "../../db/migrations",
+);
 await migrate(db, { migrationsFolder: migrationsDir });
 
 export * from "./schema";
