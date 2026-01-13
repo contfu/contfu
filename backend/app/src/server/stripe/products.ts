@@ -31,17 +31,13 @@ export function getStripeProducts() {
 }
 
 export async function upsertCachedProduct(product: Stripe.Product) {
-  const cachedProduct = (await getStripeProducts()).find(
-    (p) => p.id === product.id,
-  );
+  const cachedProduct = (await getStripeProducts()).find((p) => p.id === product.id);
   if (!cachedProduct) return (stripeProducts = reloadProducts());
   Object.assign(cachedProduct, mapProduct(product));
 }
 
 export async function deleteCachedProduct(productId: string) {
-  const index = (await getStripeProducts()).findIndex(
-    (p) => p.id === productId,
-  );
+  const index = (await getStripeProducts()).findIndex((p) => p.id === productId);
   if (index === -1) return;
   (await getStripeProducts()).splice(index, 1);
 }
@@ -52,21 +48,18 @@ export async function upsertCachedPrice(price: Stripe.Price) {
   });
   if (!cachedProduct) return refreshProducts();
   const cachedPrice =
-    cachedProduct.prices[
-      price.recurring?.interval === "year" ? "yearly" : "monthly"
-    ];
+    cachedProduct.prices[price.recurring?.interval === "year" ? "yearly" : "monthly"];
   if (!cachedPrice) {
     const { data: links } = await stripe.paymentLinks.list({
       active: true,
       expand: ["data.line_items"],
     });
-    const link = links.find((l) =>
-      l.line_items!.data.some((li) => li.price?.id === price.id),
-    );
+    const link = links.find((l) => l.line_items!.data.some((li) => li.price?.id === price.id));
     if (!link) return;
-    cachedProduct.prices[
-      price.recurring?.interval === "year" ? "yearly" : "monthly"
-    ] = mapPrice(price, link);
+    cachedProduct.prices[price.recurring?.interval === "year" ? "yearly" : "monthly"] = mapPrice(
+      price,
+      link,
+    );
     return;
   }
   cachedPrice.amount = price.unit_amount! / 100;
@@ -78,10 +71,8 @@ export async function deleteCachedPrice(priceId: string) {
     (p) => p.prices.yearly?.id === priceId || p.prices.monthly?.id === priceId,
   );
   if (!cachedProduct) return;
-  if (cachedProduct.prices.yearly?.id === priceId)
-    delete cachedProduct.prices.yearly;
-  if (cachedProduct.prices.monthly?.id === priceId)
-    delete cachedProduct.prices.monthly;
+  if (cachedProduct.prices.yearly?.id === priceId) delete cachedProduct.prices.yearly;
+  if (cachedProduct.prices.monthly?.id === priceId) delete cachedProduct.prices.monthly;
 }
 
 export async function refreshProducts() {
@@ -94,17 +85,16 @@ async function reloadProducts() {
     stripe.products.list({ active: true }),
     stripe.paymentLinks.list({ active: true, expand: ["data.line_items"] }),
   ]);
-  const products = prods.map(
-    (p) => ({ ...mapProduct(p), prices: {} }) as Product,
-  );
+  const products = prods.map((p) => ({ ...mapProduct(p), prices: {} }) as Product);
 
   for (const link of links) {
     const price = link.line_items!.data[0].price!;
     const product = products.find((p) => p.id === price.product);
     if (!product) continue;
-    product.prices[
-      price.recurring?.interval === "year" ? "yearly" : "monthly"
-    ] = mapPrice(price, link);
+    product.prices[price.recurring?.interval === "year" ? "yearly" : "monthly"] = mapPrice(
+      price,
+      link,
+    );
   }
 
   return products

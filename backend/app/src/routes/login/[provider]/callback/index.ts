@@ -1,13 +1,7 @@
 import type { RequestHandler } from "@builder.io/qwik-city";
 import { decodeIdToken, type OAuth2Tokens } from "arctic";
 
-export const onGet: RequestHandler = async ({
-  cookie,
-  redirect,
-  url,
-  error,
-  params,
-}) => {
+export const onGet: RequestHandler = async ({ cookie, redirect, url, error, params }) => {
   const { SESSION_COOKIE_NAME } = await import("~/server/auth/session");
   const { decodeRegistrationToken } = await import("~/server/stripe/customers");
   const {
@@ -71,10 +65,9 @@ export const onGet: RequestHandler = async ({
     image = `https://avatars.githubusercontent.com/u/${id}?size=100`;
   } else {
     const claims = decodeIdToken(tokens.idToken()) as any;
-    const userInfoResponse = await fetch(
-      "https://www.googleapis.com/oauth2/v2/userinfo",
-      { headers: { Authorization: `Bearer ${tokens.accessToken()}` } },
-    );
+    const userInfoResponse = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
+      headers: { Authorization: `Bearer ${tokens.accessToken()}` },
+    });
     const userInfo = await userInfoResponse.json();
     id = claims.sub;
     image = userInfo.picture;
@@ -83,10 +76,7 @@ export const onGet: RequestHandler = async ({
   const oauthId = `${params.provider}:${id.toString()}`;
   const result =
     (await login(oauthId)) ?? // FIXME: Don't try login if no token provided
-    (await activateUser(
-      await decodeRegistrationToken(registrationToken!),
-      oauthId,
-    ));
+    (await activateUser(await decodeRegistrationToken(registrationToken!), oauthId));
   if (!result) throw error(400, "Invalid request");
 
   cookie.set(SESSION_COOKIE_NAME, `${result.token}|${image}`, {

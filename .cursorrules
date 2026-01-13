@@ -1,0 +1,23 @@
+# Cursor Rules
+
+This file provides guidance to Cursor AI when working with code in this repository.
+
+## Code Quality
+
+**IMPORTANT: Always format and lint code after completing a task.**
+
+After making any code changes, run the following commands:
+
+```bash
+# Format all code (root level - uses oxfmt)
+bun run fmt
+
+# Lint all code (root level - uses oxlint)
+bun run lint
+```
+
+This ensures consistent code style and catches potential issues before committing changes.
+
+## Project Structure
+
+See `CLAUDE.md` for detailed project architecture and commands.

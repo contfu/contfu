@@ -24,12 +24,7 @@ export const google = new Google(
 );
 
 export async function login(id: string) {
-  const users = await db
-    .select()
-    .from(userTable)
-    .where(eq(userTable.oauthId, id))
-    .limit(1)
-    .all();
+  const users = await db.select().from(userTable).where(eq(userTable.oauthId, id)).limit(1).all();
   const user = users[0];
   if (!user) return null;
 

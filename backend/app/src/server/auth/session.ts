@@ -1,13 +1,7 @@
 import type { RequestEvent } from "@builder.io/qwik-city";
 import { eq } from "drizzle-orm";
 import { hash, randomBytes } from "node:crypto";
-import {
-  db,
-  sessionTable,
-  userTable,
-  type Session as DbSession,
-  type User,
-} from "~/db/db";
+import { db, sessionTable, userTable, type Session as DbSession, type User } from "~/db/db";
 
 const SESSION_DURATION = 1000 * 60 * 60 * 24 * 30;
 export const SESSION_TOKEN_LENGTH = 24;
@@ -15,9 +9,7 @@ export const SESSION_COOKIE_NAME = "s";
 
 export type DisplayUser = { email: string; name: string; image?: string };
 
-export function getSession({
-  sharedMap,
-}: Pick<RequestEvent, "sharedMap">): Session | null {
+export function getSession({ sharedMap }: Pick<RequestEvent, "sharedMap">): Session | null {
   return sharedMap.get("session") ?? null;
 }
 
@@ -44,10 +36,7 @@ export async function generateSessionToken(): Promise<string> {
   return randomBytes(SESSION_TOKEN_LENGTH).toString("base64url");
 }
 
-export async function createSession(
-  token: string,
-  userId: number,
-): Promise<DbSession> {
+export async function createSession(token: string, userId: number): Promise<DbSession> {
   const sessionId = await getSessionId(token);
   const s: DbSession = {
     id: sessionId,
@@ -58,10 +47,7 @@ export async function createSession(
   return s;
 }
 
-export async function validateSessionToken(
-  token: string,
-  image?: string,
-): Promise<Session | null> {
+export async function validateSessionToken(token: string, image?: string): Promise<Session | null> {
   const sessionId = await getSessionId(token);
   const results = await db
     .select({

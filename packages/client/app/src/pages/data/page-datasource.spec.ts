@@ -76,9 +76,7 @@ describe("updatePage()", () => {
 
     await updatePage(update);
 
-    expect(await selectAllPages()).toEqual([
-      { ...dbPage, collection: "test2" },
-    ]);
+    expect(await selectAllPages()).toEqual([{ ...dbPage, collection: "test2" }]);
   });
 });
 
@@ -155,9 +153,7 @@ describe("createPageLink()", () => {
 
     await createPageLink(link);
 
-    expect(await selectAllPageLinks()).toEqual([
-      { ...link, from: fromHex(id1), to: fromHex(id2) },
-    ]);
+    expect(await selectAllPageLinks()).toEqual([{ ...link, from: fromHex(id1), to: fromHex(id2) }]);
   });
 });
 
@@ -235,11 +231,7 @@ const page = {
   links: { content: [] },
 } satisfies PageData<Page>;
 
-const {
-  links: {},
-  connection: {},
-  ...pageWithoutLinks
-} = page;
+const { _links, _connection, ...pageWithoutLinks } = page;
 
 const dbPage = {
   ...pageWithoutLinks,

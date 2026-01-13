@@ -1,10 +1,4 @@
-import {
-  blob,
-  integer,
-  primaryKey,
-  sqliteTable,
-  text,
-} from "drizzle-orm/sqlite-core";
+import { blob, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 export const pageTable = sqliteTable("page", {
   id: blob({ mode: "buffer" }).primaryKey(),

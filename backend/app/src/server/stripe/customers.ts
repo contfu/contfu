@@ -5,16 +5,10 @@ import { SESSION_TOKEN_LENGTH } from "../auth/session";
 import { getStripeProducts } from "./products";
 import { stripe } from "./stripe";
 
-export const REGISTRATION_TOKEN_STRING_LENGTH = Math.ceil(
-  (SESSION_TOKEN_LENGTH / 3) * 4,
-);
+export const REGISTRATION_TOKEN_STRING_LENGTH = Math.ceil((SESSION_TOKEN_LENGTH / 3) * 4);
 
-export async function setCustomerSubscription(
-  session: Stripe.Checkout.Session,
-) {
-  const sub = await stripe.subscriptions.retrieve(
-    session.subscription as string,
-  );
+export async function setCustomerSubscription(session: Stripe.Checkout.Session) {
+  const sub = await stripe.subscriptions.retrieve(session.subscription as string);
   const customer = session.customer_details!;
   const users = await db
     .select()
@@ -23,7 +17,7 @@ export async function setCustomerSubscription(
     .limit(1)
     .all();
   let user = users[0];
-  
+
   if (!user) {
     const registrationToken = await sessionIdToToken(session.id);
     [user] = await db

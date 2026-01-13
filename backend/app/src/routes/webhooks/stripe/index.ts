@@ -16,11 +16,7 @@ export const onPost: RequestHandler = async ({ request, send, error, env }) => {
   if (!request.body) throw error(400, "No body");
   const body = await buffer(request.body as any);
 
-  const event = stripe.webhooks.constructEvent(
-    body,
-    sig,
-    env.get("STRIPE_WEBHOOK_SECRET")!,
-  );
+  const event = stripe.webhooks.constructEvent(body, sig, env.get("STRIPE_WEBHOOK_SECRET")!);
 
   switch (event.type) {
     case "product.created":

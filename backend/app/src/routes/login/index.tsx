@@ -3,12 +3,7 @@ import type { RequestHandler } from "@builder.io/qwik-city";
 import { routeLoader$, useNavigate } from "@builder.io/qwik-city";
 import { isBrowser } from "@builder.io/qwik/build";
 import type { InitialValues } from "@modular-forms/qwik";
-import {
-  formAction$,
-  FormError,
-  useForm,
-  valiForm$,
-} from "@modular-forms/qwik";
+import { formAction$, FormError, useForm, valiForm$ } from "@modular-forms/qwik";
 import * as v from "valibot";
 import type { DisplayUser } from "~/server/auth/session";
 
@@ -29,32 +24,29 @@ export const useFormLoader = routeLoader$<InitialValues<LoginForm>>(() => ({
   password: "",
 }));
 
-export const useFormAction = formAction$<LoginForm, DisplayUser>(
-  async (values, { cookie }) => {
-    if (isBrowser) return;
-    const { login } = await import("~/server/auth/local");
-    const { SESSION_COOKIE_NAME } = await import("~/server/auth/session");
-    const minDuration = new Promise((resolve) => setTimeout(resolve, 200));
-    const result = await login(values.email, values.password);
-    if (!result) {
-      await minDuration;
-      throw new FormError<LoginForm>("Wrong username or password");
-    }
+export const useFormAction = formAction$<LoginForm, DisplayUser>(async (values, { cookie }) => {
+  if (isBrowser) return;
+  const { login } = await import("~/server/auth/local");
+  const { SESSION_COOKIE_NAME } = await import("~/server/auth/session");
+  const minDuration = new Promise((resolve) => setTimeout(resolve, 200));
+  const result = await login(values.email, values.password);
+  if (!result) {
+    await minDuration;
+    throw new FormError<LoginForm>("Wrong username or password");
+  }
 
-    cookie.set(SESSION_COOKIE_NAME, result.token, {
-      httpOnly: true,
-      path: "/",
-      sameSite: "lax",
-      secure: true,
-    });
+  cookie.set(SESSION_COOKIE_NAME, result.token, {
+    httpOnly: true,
+    path: "/",
+    sameSite: "lax",
+    secure: true,
+  });
 
-    return {
-      status: "success",
-      data: result.user,
-    };
-  },
-  valiForm$(LoginSchema),
-);
+  return {
+    status: "success",
+    data: result.user,
+  };
+}, valiForm$(LoginSchema));
 
 export default component$(() => {
   const nav = useNavigate();
@@ -96,9 +88,7 @@ export default component$(() => {
                       class="focus:border-primary-500 focus:ring-primary-500 mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                     />
                     {field.error && (
-                      <div class="mt-1 text-sm text-red-600 dark:text-red-400">
-                        {field.error}
-                      </div>
+                      <div class="mt-1 text-sm text-red-600 dark:text-red-400">{field.error}</div>
                     )}
                   </div>
                 )}
@@ -119,9 +109,7 @@ export default component$(() => {
                       class="focus:border-primary-500 focus:ring-primary-500 mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                     />
                     {field.error && (
-                      <div class="mt-1 text-sm text-red-600 dark:text-red-400">
-                        {field.error}
-                      </div>
+                      <div class="mt-1 text-sm text-red-600 dark:text-red-400">{field.error}</div>
                     )}
                   </div>
                 )}
@@ -139,12 +127,11 @@ export default component$(() => {
                 </button>
               </div>
 
-              {loginForm.response.status === "error" &&
-                loginForm.response.message && (
-                  <div class="mb-4 rounded-md bg-red-50 p-4 text-sm text-red-700 dark:bg-red-900/50 dark:text-red-400">
-                    {loginForm.response.message}
-                  </div>
-                )}
+              {loginForm.response.status === "error" && loginForm.response.message && (
+                <div class="mb-4 rounded-md bg-red-50 p-4 text-sm text-red-700 dark:bg-red-900/50 dark:text-red-400">
+                  {loginForm.response.message}
+                </div>
+              )}
             </Form>
 
             <div class="mt-6">

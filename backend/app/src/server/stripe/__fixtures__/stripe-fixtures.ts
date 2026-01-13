@@ -10,8 +10,7 @@ export const listProductsFixture = {
       attributes: [],
       created: 1731398852,
       default_price: "price_1QKF8KF7LKVFb0n5yWSyLylV",
-      description:
-        "If you really need to scale your data, this package is for you.",
+      description: "If you really need to scale your data, this package is for you.",
       images: [],
       livemode: false,
       marketing_features: [
@@ -43,8 +42,7 @@ export const listProductsFixture = {
       attributes: [],
       created: 1731398441,
       default_price: "price_1QKF1hF7LKVFb0n5KShVDTdL",
-      description:
-        "Perfect for businesses with multiple websites or content sources.",
+      description: "Perfect for businesses with multiple websites or content sources.",
       images: [],
       livemode: false,
       marketing_features: [

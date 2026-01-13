@@ -3,12 +3,7 @@ import type { RequestHandler } from "@builder.io/qwik-city";
 import { routeLoader$, useLocation, useNavigate } from "@builder.io/qwik-city";
 import { isBrowser } from "@builder.io/qwik/build";
 import type { InitialValues } from "@modular-forms/qwik";
-import {
-  formAction$,
-  FormError,
-  useForm,
-  valiForm$,
-} from "@modular-forms/qwik";
+import { formAction$, FormError, useForm, valiForm$ } from "@modular-forms/qwik";
 import * as v from "valibot";
 import type { DisplayUser } from "~/server/auth/session";
 
@@ -18,20 +13,14 @@ export const onRequest: RequestHandler = async (event) => {
 };
 
 const RegisterSchema = v.object({
-  password: v.pipe(
-    v.string(),
-    v.minLength(8, "Password must be at least 8 characters long"),
-  ),
+  password: v.pipe(v.string(), v.minLength(8, "Password must be at least 8 characters long")),
 });
 
 type RegisterForm = v.InferInput<typeof RegisterSchema>;
 
 export const useUserLoader = routeLoader$(async ({ params, redirect }) => {
-  const {
-    decodeRegistrationToken,
-    getUserByRegistrationToken,
-    REGISTRATION_TOKEN_STRING_LENGTH,
-  } = await import("~/server/stripe/customers");
+  const { decodeRegistrationToken, getUserByRegistrationToken, REGISTRATION_TOKEN_STRING_LENGTH } =
+    await import("~/server/stripe/customers");
   const token = await decodeRegistrationToken(params.token);
   const user = await getUserByRegistrationToken(token);
 
@@ -58,9 +47,7 @@ export const useFormAction = formAction$<RegisterForm, DisplayUser>(
     if (isBrowser) return;
     const { activateUser } = await import("~/server/auth/local");
     const { SESSION_COOKIE_NAME } = await import("~/server/auth/session");
-    const { decodeRegistrationToken } = await import(
-      "~/server/stripe/customers"
-    );
+    const { decodeRegistrationToken } = await import("~/server/stripe/customers");
     if (!params.token) {
       throw new FormError("Invalid registration attempt");
     }
@@ -132,9 +119,7 @@ export default component$(() => {
                       class="focus:border-primary-500 focus:ring-primary-500 mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                     />
                     {field.error && (
-                      <div class="mt-1 text-sm text-red-600 dark:text-red-400">
-                        {field.error}
-                      </div>
+                      <div class="mt-1 text-sm text-red-600 dark:text-red-400">{field.error}</div>
                     )}
                   </div>
                 )}
@@ -145,14 +130,10 @@ export default component$(() => {
                   type="submit"
                   disabled={registerForm.submitting}
                   class={`bg-primary-600 hover:bg-primary-700 focus:ring-primary-500 dark:bg-primary-500 dark:hover:bg-primary-600 w-full rounded-md px-4 py-2 text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-                    registerForm.submitting
-                      ? "cursor-not-allowed opacity-75"
-                      : ""
+                    registerForm.submitting ? "cursor-not-allowed opacity-75" : ""
                   }`}
                 >
-                  {registerForm.submitting
-                    ? "Creating account..."
-                    : "Create account"}
+                  {registerForm.submitting ? "Creating account..." : "Create account"}
                 </button>
               </div>
 
@@ -177,11 +158,7 @@ export default component$(() => {
 
               <div class="mt-6 grid grid-cols-2 gap-3">
                 <form action="/login/github" method="get">
-                  <input
-                    type="hidden"
-                    name="token"
-                    value={location.params.token}
-                  />
+                  <input type="hidden" name="token" value={location.params.token} />
                   <button
                     type="submit"
                     class="focus:ring-primary-500 flex w-full items-center justify-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
@@ -196,11 +173,7 @@ export default component$(() => {
                   </button>
                 </form>
                 <form action={`/login/google`} method="get">
-                  <input
-                    type="hidden"
-                    name="token"
-                    value={location.params.token}
-                  />
+                  <input type="hidden" name="token" value={location.params.token} />
                   <button
                     type="submit"
                     class="focus:ring-primary-500 flex w-full items-center justify-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"

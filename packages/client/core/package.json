@@ -1,11 +1,17 @@
 {
   "name": "@contfu/client-core",
-  "main": "src/index.ts",
-  "type": "module",
   "version": "0.1.1",
+  "files": [
+    "src"
+  ],
+  "type": "module",
+  "main": "src/index.ts",
   "scripts": {
     "test": "bun test",
     "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "kysely": "^0.27.4"
   },
   "devDependencies": {
     "@types/bun": "*",
@@ -14,11 +20,5 @@
   },
   "peerDependencies": {
     "typescript": "^5.6.3"
-  },
-  "dependencies": {
-    "kysely": "^0.27.4"
-  },
-  "files": [
-    "src"
-  ]
+  }
 }

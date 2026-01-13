@@ -7,7 +7,7 @@ import {
   ErrorEvent,
   EventType,
   ItemEvent,
-  ListIdsEvent
+  ListIdsEvent,
 } from "@contfu/core";
 import Elysia from "elysia";
 import { ElysiaWS } from "elysia/ws";
@@ -22,11 +22,7 @@ import {
   expandCollectionId,
   expandConsumerId,
 } from "./sync/sync";
-import {
-  activateConsumer,
-  getConnectionsToCollections,
-  items$,
-} from "./sync/sync-service";
+import { activateConsumer, getConnectionsToCollections, items$ } from "./sync/sync-service";
 
 class CommandError extends Error {
   constructor(
@@ -66,6 +62,8 @@ async function handleWsMessage(cmd: Command, ws: ElysiaWS<any, any>) {
   if (!consumerId) return new CommandError("E_ACCESS");
   if (cmd.type === CommandType.ACK) {
     const [userId, id] = expandConsumerId(consumerId);
+    console.log("ack", userId, id, cmd.itemId);
+
     return ack(cmd.itemId);
   }
 }
@@ -87,7 +85,6 @@ async function ack(itemId: Buffer) {
 
 const consumerToSocket = new Map<number, ElysiaWS<any, any>>();
 const socketToConsumer = new Map<string, number>();
-const sockets = new Map<string, ElysiaWS<any, any>>();
 const subs = new Map<string, Subscription>();
 const socketClients = new Map<string, number[]>();
 
@@ -142,11 +139,7 @@ function serializeEvent(data: ItemEvent | ErrorEvent | ConnectedEvent): Buffer {
       break;
     }
     case EventType.CHECKSUM: {
-      packed = pack([
-        EventType.CHECKSUM,
-        data.collection,
-        data.checksum,
-      ]);
+      packed = pack([EventType.CHECKSUM, data.collection, data.checksum]);
       break;
     }
     case EventType.ERROR: {
@@ -162,10 +155,7 @@ export const processItems$ = items$.pipe(
   filter((events) => events.length > 0),
   concatMap(async (items) => {
     const collectionIds = new Set<number>();
-    const collectionEvents = new Map<
-      number,
-      Exclude<ItemEvent, ListIdsEvent>[]
-    >();
+    const collectionEvents = new Map<number, Exclude<ItemEvent, ListIdsEvent>[]>();
     for (const item of items) {
       const collectionId = compressCollectionId(item.user, item.collection);
       collectionIds.add(collectionId);
@@ -176,9 +166,7 @@ export const processItems$ = items$.pipe(
     for (const conn of await getConnectionsToCollections(
       [...collectionIds].map((id) => expandCollectionId(id)),
     )) {
-      const socket = consumerToSocket.get(
-        compressConsumerId(conn.userId, conn.consumerId),
-      );
+      const socket = consumerToSocket.get(compressConsumerId(conn.userId, conn.consumerId));
       if (!socket) continue;
       const collectionId = compressCollectionId(conn.userId, conn.collectionId);
       const events = collectionEvents.get(collectionId)!;

@@ -1,8 +1,4 @@
 // Approach 1: Map-based consumer selection
-type Consumer = {
-  id: string;
-  handle: (message: any) => void;
-};
 
 class MapBasedDistributor {
   private consumers = new Set<number>();
@@ -64,7 +60,7 @@ for (let i = 0; i < 10000; i++) {
   // Callback-based: Stores filter function + handler
   callbackBased.addConsumer(
     (msg) => msg.type === `type-${i % 10}`,
-    (msg) => console.log(msg)
+    (msg) => console.log(msg),
   );
 }
 console.timeEnd(`callbackBased`);

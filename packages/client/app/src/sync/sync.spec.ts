@@ -30,9 +30,7 @@ describe("sync()", () => {
   });
 
   it("should continuously pull from a connection", async () => {
-    conn.pull.mockImplementationOnce(async function* (
-      collection: "foo" | "bar"
-    ) {
+    conn.pull.mockImplementationOnce(async function* (collection: "foo" | "bar") {
       if (collection === "foo") {
         yield { page, assets: [] };
         yield { page: { ...page, ref: "test2", path: "test2" }, assets: [] };
@@ -55,9 +53,7 @@ describe("sync()", () => {
   });
 
   it("should create new links in the database", async () => {
-    conn.pull.mockImplementationOnce(async function* (
-      collection: "foo" | "bar"
-    ) {
+    conn.pull.mockImplementationOnce(async function* (collection: "foo" | "bar") {
       if (collection === "foo") {
         yield { page: { ...page, links: { content: ["test2"] } }, assets: [] };
         yield {
@@ -80,9 +76,7 @@ describe("sync()", () => {
     const page1 = await createPage({ ...page });
     const page2 = await createPage({ ...page, ref: "test2", path: "test2" });
     await createPageLink({ type: "content", from: page1.id, to: page2.id });
-    conn.pull.mockImplementationOnce(async function* (
-      collection: "foo" | "bar"
-    ) {
+    conn.pull.mockImplementationOnce(async function* (collection: "foo" | "bar") {
       if (collection === "foo") {
         yield {
           page: { ...page, links: { content: [], foo: ["test2"] } },
@@ -90,9 +84,7 @@ describe("sync()", () => {
         };
       }
     });
-    conn.pullCollectionRefs.mockImplementationOnce(async function* (
-      collection: "foo" | "bar"
-    ) {
+    conn.pullCollectionRefs.mockImplementationOnce(async function* (collection: "foo" | "bar") {
       if (collection === "foo") yield ["test", "test2"];
     });
 
@@ -106,9 +98,7 @@ describe("sync()", () => {
 
   it("should store assets", async () => {
     const block = ["i", "/test.jpg", "test"] satisfies ImageBlock;
-    conn.pull.mockImplementationOnce(async function* (
-      collection: "foo" | "bar"
-    ) {
+    conn.pull.mockImplementationOnce(async function* (collection: "foo" | "bar") {
       if (collection === "foo") {
         yield {
           page: { ...page, content: block },
@@ -125,7 +115,7 @@ describe("sync()", () => {
     expect(conn.mediaOptimizer.optimizeImage).toHaveBeenCalledWith(
       conn.mediaStore,
       `${hash}.jpg`,
-      conn.fetchAsset.mock.results[0].value
+      conn.fetchAsset.mock.results[0].value,
     );
     expect(block).toEqual(["i", `${hash}.jpg`, "test"]);
   });
@@ -135,9 +125,7 @@ describe("sync()", () => {
     const page2 = await createPage({ ...page, ref: "test2", path: "test2" });
     await createPageLink({ type: "foo", from: page1.id, to: page2.id });
     conn.pull.mockImplementationOnce(async function* () {});
-    conn.pullCollectionRefs.mockImplementationOnce(async function* (
-      collection: "foo" | "bar"
-    ) {
+    conn.pullCollectionRefs.mockImplementationOnce(async function* (collection: "foo" | "bar") {
       if (collection === "foo") yield ["test2"];
     });
 

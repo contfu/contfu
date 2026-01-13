@@ -43,7 +43,7 @@ const createMockWebSocket = (): MockWebSocket => {
 // Test utility function to simulate WebSocket handler behavior
 const testWebSocketHandler = async (
   handler: any,
-  actions: (ws: MockWebSocket) => Promise<void>
+  actions: (ws: MockWebSocket) => Promise<void>,
 ) => {
   const ws = createMockWebSocket();
 
@@ -77,13 +77,13 @@ describe("WebSocket Handler Tests", () => {
     const messages: string[] = [];
 
     const app = new Elysia().ws("/ws", {
-      open(ws) {
+      open(_ws) {
         console.log("Connected");
       },
       message(ws, message) {
         ws.send(`Echo: ${message}`);
       },
-      close(ws) {
+      close(_ws) {
         console.log("Closed");
       },
     });

@@ -1,10 +1,6 @@
-import {
-  Consumer,
-  User,
-} from "../../db/db";
-import { db } from "../../db/db";
 import { beforeEach, describe, expect, it } from "bun:test";
 import { createConsumer, createUser } from "../../access/access-repository";
+import { db, User } from "../../db/db";
 import { SourceType } from "../data";
 import {
   countCollectionsForConsumer,
@@ -16,11 +12,10 @@ import {
 } from "./data-datasource";
 
 let a: User;
-let cl: Consumer;
 
 beforeEach(async () => {
   a = await createUser("test@test.com", "test");
-  cl = await createConsumer(a.id, "test");
+  await createConsumer(a.id, "test");
 });
 
 describe("createSource()", () => {
@@ -31,7 +26,7 @@ describe("createSource()", () => {
       credentials: Buffer.from("test", "base64url"),
     });
 
-    const stored = await db`SELECT * FROM source WHERE id = ${s.id}` as Array<{
+    const stored = (await db`SELECT * FROM source WHERE id = ${s.id}`) as Array<{
       id: number;
       userId: number;
       name: string | null;
@@ -65,7 +60,7 @@ describe("createCollection()", () => {
 
     const c = await createCollection(a.id, s.id, "test", Buffer.alloc(0));
 
-    const stored = await db`SELECT * FROM collection WHERE id = ${c.id}` as Array<{
+    const stored = (await db`SELECT * FROM collection WHERE id = ${c.id}`) as Array<{
       id: number;
       userId: number;
       sourceId: number;
@@ -101,10 +96,10 @@ describe("createConnection()", () => {
 
     const cc = await createConnection(a.id, cl.id, c.id);
 
-    const stored = await db`
+    const stored = (await db`
       SELECT * FROM connection 
       WHERE userId = ${a.id} AND consumerId = ${cl.id} AND collectionId = ${c.id}
-    ` as Array<{
+    `) as Array<{
       userId: number;
       consumerId: number;
       collectionId: number;
@@ -156,9 +151,9 @@ describe("createItemIdConflictResolution()", () => {
 
     await createItemIdConflictResolution(a.id, c.id, Buffer.from([1]), 1);
 
-    const stored = await db`
+    const stored = (await db`
       SELECT * FROM item_id_conflict_resolution WHERE id = 1
-    ` as Array<{
+    `) as Array<{
       userId: number;
       collectionId: number;
       sourceItemId: Buffer;

@@ -13,8 +13,7 @@ const features = [
       />
     ),
     title: "Universal Integration",
-    description:
-      "Connect with any CMS platform through our standardized API interface.",
+    description: "Connect with any CMS platform through our standardized API interface.",
   },
   {
     icon: (
@@ -26,8 +25,7 @@ const features = [
       />
     ),
     title: "Real-time Sync",
-    description:
-      "Keep your content in sync across all platforms automatically.",
+    description: "Keep your content in sync across all platforms automatically.",
   },
   {
     icon: (
@@ -39,8 +37,7 @@ const features = [
       />
     ),
     title: "Normalized Data",
-    description:
-      "Work with a consistent data format regardless of the source CMS.",
+    description: "Work with a consistent data format regardless of the source CMS.",
   },
 ];
 
@@ -69,8 +66,8 @@ export default component$(() => {
               Power-up your favourite CMS
             </h1>
             <p class="mb-10 text-xl text-gray-600 dark:text-gray-300">
-              Seamlessly synchronize and normalize data across multiple CMS
-              platforms. One API to rule them all.
+              Seamlessly synchronize and normalize data across multiple CMS platforms. One API to
+              rule them all.
             </p>
             <div class="flex justify-center gap-4">
               <a
@@ -98,10 +95,7 @@ export default component$(() => {
           </h2>
           <div class="grid grid-cols-1 gap-8 md:grid-cols-3">
             {features.map((feature) => (
-              <div
-                key={feature.title}
-                class="rounded-lg bg-white p-6 shadow-sm dark:bg-gray-800"
-              >
+              <div key={feature.title} class="rounded-lg bg-white p-6 shadow-sm dark:bg-gray-800">
                 <div class="bg-primary-100 dark:bg-primary-900 mb-4 flex h-12 w-12 items-center justify-center rounded-full p-3">
                   <svg
                     class="text-primary-600 dark:text-primary-400 h-6 w-6"
@@ -115,9 +109,7 @@ export default component$(() => {
                 <h3 class="mb-2 text-xl font-semibold text-gray-900 dark:text-white">
                   {feature.title}
                 </h3>
-                <p class="text-gray-600 dark:text-gray-300">
-                  {feature.description}
-                </p>
+                <p class="text-gray-600 dark:text-gray-300">{feature.description}</p>
               </div>
             ))}
           </div>
@@ -163,8 +155,7 @@ export default component$(() => {
           </div>
           <div class="grid grid-cols-1 gap-8 md:grid-cols-3">
             {products.value.map((product) => {
-              const price =
-                product.prices[isYearly.value ? "yearly" : "monthly"];
+              const price = product.prices[isYearly.value ? "yearly" : "monthly"];
               return (
                 price && (
                   <div
@@ -181,14 +172,9 @@ export default component$(() => {
                     </h3>
                     <div class="mb-4">
                       <span class="text-4xl font-bold text-gray-900 dark:text-white">
-                        €
-                        {isYearly.value
-                          ? Math.round(price.amount / 12)
-                          : price.amount}
+                        €{isYearly.value ? Math.round(price.amount / 12) : price.amount}
                       </span>
-                      <span class="text-gray-600 dark:text-gray-400">
-                        /month
-                      </span>
+                      <span class="text-gray-600 dark:text-gray-400">/month</span>
                       {isYearly.value && (
                         <div class="mt-1 text-sm text-gray-500 dark:text-gray-400">
                           Billed €{price.amount}/year

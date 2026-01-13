@@ -14,7 +14,7 @@ type ContfuSetupOpts = {
   connections?: ConnectionConfig<any>[];
 };
 
-export async function setup({ connections, databaseUrl }: ContfuSetupOpts) {
+export async function setup({ connections }: ContfuSetupOpts) {
   if (connections) {
     const { setConnections } = await import("./sync/connections");
     await setConnections(connections);

@@ -9,7 +9,7 @@ import {
   EventType,
   Item,
   ItemEvent,
-  ListIdsEvent
+  ListIdsEvent,
 } from "@contfu/core";
 import { pack, unpack } from "msgpackr";
 
@@ -18,19 +18,16 @@ type Opts = {
   handle?: (e: ItemEvent) => Promise<void>;
 };
 
-export function connectTo<Props extends Record<string, Record<string, any>>>(
+export function connectTo(
   key: Buffer,
-  opts: Opts & { handle: (e: ItemEvent) => Promise<void> }
+  opts: Opts & { handle: (e: ItemEvent) => Promise<void> },
 ): Promise<void>;
-export function connectTo<Props extends Record<string, Record<string, any>>>(
+export function connectTo(
   key: Buffer,
-  opts?: Omit<Opts, "handle">
+  opts?: Omit<Opts, "handle">,
 ): Promise<AsyncGenerator<ItemEvent>>;
-export async function connectTo(
-  key: Buffer,
-  { WS = global.WebSocket, handle }: Opts = {}
-) {
-  let resolve: (value: any) => void, reject: (reason?: any) => void;
+export async function connectTo(key: Buffer, { WS = global.WebSocket, handle }: Opts = {}) {
+  let resolve: (value: any) => void;
   let socket = new WS("ws://localhost:9999");
 
   socket.onopen = () => {
@@ -42,28 +39,23 @@ export async function connectTo(
     const deserialized = deserializeEvent(data as Buffer);
     resolve(deserialized);
   };
-  await new Promise((res, rej) => {
+  await new Promise((res) => {
     resolve = res;
-    reject = rej;
   });
 
   if (handle) {
     return (async () => {
       do {
-        const event = await new Promise<ItemEvent>((res, rej) => {
+        const event = await new Promise<ItemEvent>((res) => {
           resolve = res;
-          reject = rej;
         });
-        if (
-          event.type === EventType.CHANGED ||
-          event.type === EventType.DELETED
-        ) {
+        if (event.type === EventType.CHANGED || event.type === EventType.DELETED) {
           await handle(event);
           socket.send(
             serializeCommand({
               type: CommandType.ACK,
               itemId: event.item instanceof Buffer ? event.item : event.item.id,
-            })
+            }),
           );
         }
       } while (socket.readyState === WebSocket.OPEN);
@@ -71,9 +63,8 @@ export async function connectTo(
   }
   return (async function* () {
     do {
-      yield await new Promise<ItemEvent>((res, rej) => {
+      yield await new Promise<ItemEvent>((res) => {
         resolve = res;
-        reject = rej;
       });
     } while (socket.readyState === WebSocket.OPEN);
   })();
@@ -103,11 +94,7 @@ function deserializeEvent(buf: Buffer): ItemEvent | ErrorEvent | ConnectedEvent 
     }
     case EventType.CHANGED: {
       const [, collection, id, createdAt, changedAt, contentArray] = arr;
-      const [ref, props, content] = contentArray as [
-        Uint8Array | Buffer | number[],
-        any,
-        any?,
-      ];
+      const [ref, props, content] = contentArray as [Uint8Array | Buffer | number[], any, any?];
       const item = {
         id: Buffer.from(id as unknown as Uint8Array),
         ref: Buffer.from(ref as unknown as Uint8Array),

@@ -19,8 +19,7 @@ export function combine2ints(size1: number, size2: number) {
   const mask = shift - 1;
   return [
     (a: number, b: number) => a * shift + (b & mask),
-    (combined: number) =>
-      [Math.floor(combined / shift), combined & mask] as [number, number],
+    (combined: number) => [Math.floor(combined / shift), combined & mask] as [number, number],
   ] as const;
 }
 export function combine3ints(size1: number, size2: number, size3: number) {
@@ -33,10 +32,10 @@ export function combine3ints(size1: number, size2: number, size3: number) {
   return [
     (a: number, b: number, c: number) => a * shift12 + b * shift2 + c * mask2,
     (combined: number) =>
-      [
-        Math.floor(combined / shift12),
-        Math.floor(combined / shift1) & mask1,
-        combined & mask2,
-      ] as [number, number, number],
+      [Math.floor(combined / shift12), Math.floor(combined / shift1) & mask1, combined & mask2] as [
+        number,
+        number,
+        number,
+      ],
   ] as const;
 }

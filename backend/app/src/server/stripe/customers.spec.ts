@@ -12,9 +12,7 @@ beforeEach(() => {});
 
 describe("setCustomerSubscription()", () => {
   it("should create a new user and add quota", async () => {
-    stripeMock.subscriptions.retrieve.mockResolvedValue(
-      subscriptionRetrieveFixture,
-    );
+    stripeMock.subscriptions.retrieve.mockResolvedValue(subscriptionRetrieveFixture);
 
     await setCustomerSubscription(checkoutSessionFixture);
 
@@ -22,10 +20,7 @@ describe("setCustomerSubscription()", () => {
       checkoutSessionFixture.subscription as string,
     );
     const user = await db.query.user.findFirst({
-      where: eq(
-        userTable.email,
-        checkoutSessionFixture.customer_details!.email!,
-      ),
+      where: eq(userTable.email, checkoutSessionFixture.customer_details!.email!),
     });
     expect(user).toEqual(
       expect.objectContaining({

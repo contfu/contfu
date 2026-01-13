@@ -2,9 +2,7 @@
   "version": "7",
   "dialect": "sqlite",
   "id": "a4c8d833-8dec-4016-b2fd-1efa82a63515",
-  "prevIds": [
-    "00000000-0000-0000-0000-000000000000"
-  ],
+  "prevIds": ["00000000-0000-0000-0000-000000000000"],
   "ddl": [
     {
       "name": "pageLink",
@@ -175,13 +173,9 @@
       "table": "page"
     },
     {
-      "columns": [
-        "from"
-      ],
+      "columns": ["from"],
       "tableTo": "page",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
@@ -190,13 +184,9 @@
       "table": "pageLink"
     },
     {
-      "columns": [
-        "to"
-      ],
+      "columns": ["to"],
       "tableTo": "page",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
@@ -205,29 +195,21 @@
       "table": "pageLink"
     },
     {
-      "columns": [
-        "type",
-        "from",
-        "to"
-      ],
+      "columns": ["type", "from", "to"],
       "nameExplicit": false,
       "name": "pageLink_pk",
       "entityType": "pks",
       "table": "pageLink"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "page_pk",
       "table": "page",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "path"
-      ],
+      "columns": ["path"],
       "nameExplicit": false,
       "name": "page_path_unique",
       "entityType": "uniques",

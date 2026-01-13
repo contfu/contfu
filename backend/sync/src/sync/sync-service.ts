@@ -1,4 +1,3 @@
-import { NotionFetchOpts, NotionSource } from "@contfu/notion";
 import {
   combineLatest,
   defer,
@@ -10,11 +9,9 @@ import {
   tap,
   timer,
 } from "rxjs";
-import {
-  countCollectionsForConsumer,
-  getNextCollectionFetchOpts,
-} from "../data/data-repository";
+import { countCollectionsForConsumer, getNextCollectionFetchOpts } from "../data/data-repository";
 import { addItemIds } from "../data/db/data-datasource";
+import { NotionFetchOpts, NotionSource } from "../sources/notion";
 import { combine3ints } from "../util/numbers/numbers";
 import { SortedSet } from "../util/structures/sorted-set";
 import { UserSyncItem } from "./items";
@@ -26,9 +23,7 @@ const notionSource = new NotionSource();
 
 export async function activateConsumer(userId: number, consumerId: number) {
   const connCount = await countCollectionsForConsumer(userId, consumerId);
-  activeConsumers.add(
-    compressConsumerIdWithCount(userId, consumerId, connCount),
-  );
+  activeConsumers.add(compressConsumerIdWithCount(userId, consumerId, connCount));
 }
 
 const itemsSubject = new Subject<UserSyncItem>();
@@ -49,16 +44,13 @@ async function syncAllActiveConsumers() {
   if (activeConsumers.length === 0) return;
   const consumers = [...activeConsumers];
   let partition: [number, number][] = [];
-  let connectedCollections = 0;
   for (const consumer of consumers) {
     const [userId, consumerId, count] = expandConsumerIdWithCount(consumer);
     if (partition.length + count > MAX_COLLECTION_PULL_SIZE) {
       await syncConsumers(partition);
       partition = [];
-      connectedCollections = 0;
       continue;
     }
-    connectedCollections += count;
     partition.push([userId, consumerId]);
   }
   if (partition.length > 0) await syncConsumers(partition);
@@ -70,10 +62,7 @@ async function syncConsumers(consumers: [number, number][]) {
   await lastValueFrom(
     merge(
       ...opts.map((o) =>
-        combineLatest([
-          [o.user],
-          notionSource.fetch(o as NotionFetchOpts),
-        ]).pipe(
+        combineLatest([[o.user], notionSource.fetch(o as NotionFetchOpts)]).pipe(
           tap(([user, item]) => {
             const collection = compressCollectionId(user, o.collection);
             const ids = idsToAdd.get(collection);
@@ -93,8 +82,4 @@ async function syncConsumers(consumers: [number, number][]) {
   }
 }
 
-const [compressConsumerIdWithCount, expandConsumerIdWithCount] = combine3ints(
-  32,
-  10,
-  10,
-);
+const [compressConsumerIdWithCount, expandConsumerIdWithCount] = combine3ints(32, 10, 10);

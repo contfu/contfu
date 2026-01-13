@@ -3,10 +3,7 @@ import { type Client, iteratePaginatedAPI } from "notion-client-web-fetch";
 import { DeepPartial } from "ts-essentials";
 import type { NotionFetchOpts } from ".";
 import { genUid, uuidToBuffer } from "../../util/ids/ids";
-import {
-  dbQueryPage1,
-  dbQueryResult1,
-} from "./__fixtures__/notion-query-results";
+import { dbQueryPage1, dbQueryResult1 } from "./__fixtures__/notion-query-results";
 
 const pullOpts: NotionFetchOpts = {
   ref: Buffer.alloc(0),
@@ -54,9 +51,7 @@ describe("NotionConnection", () => {
       const id1 = genUid(ref1);
       const id2 = genUid(ref2);
       const otherId = genUid(
-        uuidToBuffer(
-          dbQueryPage1.results[0].properties["Other Reference"].relation[0].id,
-        ),
+        uuidToBuffer(dbQueryPage1.results[0].properties["Other Reference"].relation[0].id),
       );
       expect(events).toEqual([
         {
@@ -98,9 +93,7 @@ describe("NotionConnection", () => {
       });
       mockClient.blocks.children.list.mockResolvedValue({ results: [] });
 
-      const events = await Array.fromAsync(
-        source.fetch({ ...pullOpts, since: 1711864560000 }),
-      );
+      const events = await Array.fromAsync(source.fetch({ ...pullOpts, since: 1711864560000 }));
 
       const id1 = genUid(uuidToBuffer(dbQueryPage1.results[0].id));
       expect(events).toEqual([expect.objectContaining({ id: id1 })]);

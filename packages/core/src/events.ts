@@ -58,8 +58,4 @@ export type ChecksumEvent = EventBase<EventType.CHECKSUM> & {
   collection: number;
 };
 
-export type ItemEvent =
-  | ChangedEvent
-  | DeletedEvent
-  | ListIdsEvent
-  | ChecksumEvent;
+export type ItemEvent = ChangedEvent | DeletedEvent | ListIdsEvent | ChecksumEvent;

@@ -46,7 +46,7 @@ async function removeOrphans(source: Source) {
 async function createLinks(
   page: Omit<PageData, "id">,
   id: number,
-  transientLinks: Map<string, Set<[string, number]>>
+  transientLinks: Map<string, Set<[string, number]>>,
 ) {
   for (const type in page.links) {
     for (const ref of page.links[type]) {
@@ -68,20 +68,14 @@ async function createLinks(
   }
 }
 
-async function processAssets(
-  source: Source,
-  assets: { block: ImageBlock; ref: string }[]
-) {
+async function processAssets(source: Source, assets: { block: ImageBlock; ref: string }[]) {
   assets.map(async ({ block, ref }) => {
     const hash = hashId(`${source.id}|${ref}`);
     const ext = extname(ref);
     const url = block[1];
     const canonical = `${hash}${ext}`;
     block[1] = canonical;
-    if (
-      await source.mediaStore.exists(hasMulpitleOutputs(ext) ? hash : canonical)
-    )
-      return;
+    if (await source.mediaStore.exists(hasMulpitleOutputs(ext) ? hash : canonical)) return;
     const asset = await source.fetchAsset(url);
 
     if (!source.mediaOptimizer) {
@@ -89,11 +83,7 @@ async function processAssets(
       return;
     }
 
-    await source.mediaOptimizer.optimizeImage(
-      source.mediaStore,
-      canonical,
-      asset
-    );
+    await source.mediaOptimizer.optimizeImage(source.mediaStore, canonical, asset);
   });
 }
 

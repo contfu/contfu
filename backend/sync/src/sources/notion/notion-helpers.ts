@@ -1,14 +1,8 @@
-import {
-  Client,
-  isFullPage,
-  iteratePaginatedAPI,
-} from "notion-client-web-fetch";
+import { Client, isFullPage, iteratePaginatedAPI } from "notion-client-web-fetch";
 import type { QueryDatabaseParameters } from "notion-client-web-fetch/build/src/api-endpoints";
 export const notion = new Client({});
 
-export type DbQuery = Partial<
-  Omit<QueryDatabaseParameters, "database_id" | "auth">
->;
+export type DbQuery = Partial<Omit<QueryDatabaseParameters, "database_id" | "auth">>;
 
 export async function* iterateDb(key: Buffer, ref: Buffer, params?: DbQuery) {
   for await (const pageObj of iteratePaginatedAPI(notion.databases.query, {
@@ -28,6 +22,6 @@ export function getImageUrl(img: Required<Image>): string;
 export function getImageUrl(img: Image): string | undefined;
 export function getImageUrl(img: Image): string | undefined {
   if (img.type === "file") return img.file.url;
-  if (img.type === "external") img.external.url;
+  if (img.type === "external") return img.external.url;
   return undefined;
 }

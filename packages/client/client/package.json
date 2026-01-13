@@ -1,8 +1,8 @@
 {
   "name": "@contfu/client",
-  "main": "src/index.ts",
-  "type": "module",
   "version": "0.1.1",
+  "type": "module",
+  "main": "src/index.ts",
   "scripts": {
     "prepublish": "tsc",
     "test": "bun test",

@@ -11,23 +11,12 @@ export async function* iteratePages(
   params: DbQuery & {},
 ) {
   for await (const page of iterateDb(credentials, ref, params)) {
-    yield parseItem(
-      page,
-      collection,
-      (await getContentBlocks(credentials, page.id)) ?? [],
-    );
+    yield parseItem(page, collection, (await getContentBlocks(credentials, page.id)) ?? []);
   }
 }
 
 function parseItem(
-  {
-    id,
-    properties,
-    created_time,
-    last_edited_time,
-    icon,
-    cover,
-  }: PageObjectResponse,
+  { id, properties, created_time, last_edited_time, icon, cover }: PageObjectResponse,
   collection: number,
   content?: Block[],
 ): Item {
@@ -60,24 +49,12 @@ function parseProps(pageProps: PageObjectResponse["properties"]) {
 
 function parseValue(
   value: MarkOptional<PageObjectResponse["properties"][string], "id">,
-):
-  | number
-  | string
-  | boolean
-  | number[]
-  | string[]
-  | Buffer[]
-  | null
-  | undefined {
+): number | string | boolean | number[] | string[] | Buffer[] | null | undefined {
   switch (value.type) {
     case "title":
-      return value.title.length > 0
-        ? value.title.map((x) => x.plain_text).join(" ")
-        : null;
+      return value.title.length > 0 ? value.title.map((x) => x.plain_text).join(" ") : null;
     case "rich_text":
-      return value.rich_text.length > 0
-        ? value.rich_text.map((t) => t.plain_text).join(" ")
-        : null;
+      return value.rich_text.length > 0 ? value.rich_text.map((t) => t.plain_text).join(" ") : null;
     case "number":
       return value.number;
     case "date":

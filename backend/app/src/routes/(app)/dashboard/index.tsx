@@ -39,9 +39,7 @@ export default component$(() => {
   return (
     <div class="min-h-screen bg-gray-50 p-6 dark:bg-gray-900">
       <div class="mb-6 flex items-center justify-between">
-        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
-          Sources
-        </h1>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Sources</h1>
         <button class="bg-primary-400 hover:bg-primary-500 dark:bg-primary-500 dark:hover:bg-primary-400 rounded-lg px-4 py-2 text-white">
           Add Source
         </button>
@@ -54,9 +52,7 @@ export default component$(() => {
             class="flex flex-col rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800"
           >
             <div class="mb-4 flex items-center justify-between">
-              <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-                {source.name}
-              </h3>
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{source.name}</h3>
               <span
                 class={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium
                   ${
@@ -83,9 +79,7 @@ export default component$(() => {
               {source.lastSync && (
                 <div class="flex items-center">
                   <span class="mr-2">Last sync:</span>
-                  <span class="font-medium">
-                    {new Date(source.lastSync).toLocaleString()}
-                  </span>
+                  <span class="font-medium">{new Date(source.lastSync).toLocaleString()}</span>
                 </div>
               )}
             </div>

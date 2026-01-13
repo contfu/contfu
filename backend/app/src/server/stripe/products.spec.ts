@@ -1,9 +1,6 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { stripeMock } from "../../../test/mocks";
-import {
-  listLinksFixture,
-  listProductsFixture,
-} from "./__fixtures__/stripe-fixtures";
+import { listLinksFixture, listProductsFixture } from "./__fixtures__/stripe-fixtures";
 import {
   deleteCachedPrice,
   deleteCachedProduct,
@@ -35,9 +32,7 @@ describe("upsertCachedProduct()", () => {
       name: "Upserted Name",
     });
 
-    expect(
-      (await getStripeProducts()).find((p) => p.name === "Upserted Name")?.name,
-    ).toBeDefined();
+    expect((await getStripeProducts()).find((p) => p.name === "Upserted Name")?.name).toBeDefined();
   });
 });
 
@@ -47,9 +42,7 @@ describe("deleteCachedProduct()", () => {
 
     deleteCachedProduct(listProductsFixture.data[0].id);
 
-    expect(await getStripeProducts()).not.toContainEqual(
-      listProductsFixture.data[0],
-    );
+    expect(await getStripeProducts()).not.toContainEqual(listProductsFixture.data[0]);
   });
 });
 
@@ -66,8 +59,7 @@ describe("upsertCachedPrice()", () => {
     });
 
     expect(
-      (await getStripeProducts()).find((p) => p.id === price.product)?.prices
-        .yearly?.amount,
+      (await getStripeProducts()).find((p) => p.id === price.product)?.prices.yearly?.amount,
     ).toBe(10);
     expect(stripeMock.products.list).not.toHaveBeenCalled();
   });
@@ -88,9 +80,7 @@ describe("upsertCachedPrice()", () => {
     await refreshProducts();
     stripeMock.products.list.mockClear();
     stripeMock.paymentLinks.list.mockClear();
-    const product = (await getStripeProducts()).find(
-      (p) => p.id === price.product,
-    )!;
+    const product = (await getStripeProducts()).find((p) => p.id === price.product)!;
     delete product.prices.yearly;
 
     await upsertCachedPrice({

@@ -5,9 +5,7 @@ import { fileURLToPath } from "url";
 import { detectRuntime } from "../../util/runtime";
 import * as schema from "./schema";
 
-type Database =
-  | BunSQLiteDatabase<typeof schema>
-  | BetterSQLite3Database<typeof schema>;
+type Database = BunSQLiteDatabase<typeof schema> | BetterSQLite3Database<typeof schema>;
 
 const dbUrl: string = process.env.DATABASE_URL ?? ":memory:";
 
@@ -15,10 +13,7 @@ export const db: Database = await createDatabaseClient(dbUrl);
 
 async function createDatabaseClient(url: string) {
   const runtime = detectRuntime();
-  const migrationsFolder = join(
-    dirname(fileURLToPath(import.meta.url)),
-    "../../../db/migrations",
-  );
+  const migrationsFolder = join(dirname(fileURLToPath(import.meta.url)), "../../../db/migrations");
 
   if (runtime === "bun") {
     const { Database } = await import("bun:sqlite");

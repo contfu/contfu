@@ -1,9 +1,5 @@
 import { component$, Slot } from "@builder.io/qwik";
-import {
-  routeAction$,
-  routeLoader$,
-  type RequestHandler,
-} from "@builder.io/qwik-city";
+import { routeAction$, routeLoader$, type RequestHandler } from "@builder.io/qwik-city";
 import Header from "~/components/ui/Header";
 
 export const onGet: RequestHandler = async ({ cacheControl }) => {
@@ -17,24 +13,17 @@ export const onGet: RequestHandler = async ({ cacheControl }) => {
   });
 };
 
-export const useLogout = routeAction$(
-  async (_, { sharedMap, cookie, redirect }) => {
-    const { SESSION_COOKIE_NAME, invalidateSession } = await import(
-      "~/server/auth/session"
-    );
-    await invalidateSession(sharedMap.get("session")?.id);
-    sharedMap.delete("session");
-    cookie.delete(SESSION_COOKIE_NAME);
-    throw redirect(302, "/login");
-  },
-);
+export const useLogout = routeAction$(async (_, { sharedMap, cookie, redirect }) => {
+  const { SESSION_COOKIE_NAME, invalidateSession } = await import("~/server/auth/session");
+  await invalidateSession(sharedMap.get("session")?.id);
+  sharedMap.delete("session");
+  cookie.delete(SESSION_COOKIE_NAME);
+  throw redirect(302, "/login");
+});
 
 export const onRequest: RequestHandler = async ({ cookie, sharedMap }) => {
-  const { SESSION_COOKIE_NAME, validateSessionToken } = await import(
-    "~/server/auth/session"
-  );
-  const [sessionToken, image] =
-    cookie.get(SESSION_COOKIE_NAME)?.value.split("|") ?? [];
+  const { SESSION_COOKIE_NAME, validateSessionToken } = await import("~/server/auth/session");
+  const [sessionToken, image] = cookie.get(SESSION_COOKIE_NAME)?.value.split("|") ?? [];
   if (sessionToken) {
     sharedMap.set("session", await validateSessionToken(sessionToken, image));
   }
@@ -61,11 +50,7 @@ export default component$(() => {
   const isUnderConstruction = useIsUnderConstruction();
   return (
     <>
-      <Header
-        user={user.value}
-        logout={logout}
-        isUnderConstruction={isUnderConstruction.value}
-      />
+      <Header user={user.value} logout={logout} isUnderConstruction={isUnderConstruction.value} />
       <Slot />
     </>
   );

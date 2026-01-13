@@ -1,17 +1,7 @@
 import { connectTo } from "@contfu/client";
-import { Block, EventType, Item } from "@contfu/core";
-import { Collection, Consumer, User } from "./src/db/db";
+import { EventType, Item } from "@contfu/core";
 import { NotionSource } from "@contfu/notion";
-import {
-  afterAll,
-  afterEach,
-  beforeAll,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  mock,
-} from "bun:test";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, mock } from "bun:test";
 import Elysia from "elysia";
 import { Subscription } from "rxjs";
 import { fakeTimers } from "../test/timers";
@@ -23,6 +13,7 @@ import {
   createSource,
 } from "./data/data-repository";
 import { getItemIds } from "./data/db/data-datasource";
+import { Collection, Consumer, User } from "./src/db/db";
 import { MIN_FETCH_INTERVAL } from "./sync/sync-constants";
 
 const mockNotionSource = {
@@ -98,17 +89,7 @@ describe("connect via WS", () => {
         } satisfies Item;
       })();
     });
-    const conn = await connectTo<{
-      pages: {
-        color: string;
-        description?: string;
-        otherReference: string[];
-        selfReference: string[];
-        title: string;
-        content: Block[];
-        slug?: string;
-      };
-    }>(cons.key!);
+    const conn = await connectTo(cons.key!);
 
     const item1 = conn.next();
     const item2 = conn.next();

@@ -42,9 +42,7 @@ export async function getContentBlocks(key: Buffer, id: string) {
       if (isTable(b) && res.has_children) {
         for await (const row of paginatedChildren(key, res.id)) {
           if (row.type !== "table_row") continue;
-          const cells = row.table_row.cells.map((cell) =>
-            extractRichTextContent(cell)
-          );
+          const cells = row.table_row.cells.map((cell) => extractRichTextContent(cell));
           b[2].push(cells);
         }
       }
@@ -74,11 +72,7 @@ export function parseBlock(block: BlockObjectResponse): Block | null {
       return ["q", texts] satisfies QuoteBlock;
     }
     case "code":
-      return [
-        "c",
-        block.code.language,
-        block.code.rich_text[0].plain_text.replace(/\\/g, ""),
-      ];
+      return ["c", block.code.language, block.code.rich_text[0].plain_text.replace(/\\/g, "")];
     case "heading_1": {
       if (block.has_children) return null;
       const texts = extractRichTextContent(block.heading_1.rich_text);
@@ -104,12 +98,7 @@ export function parseBlock(block: BlockObjectResponse): Block | null {
     }
     case "image": {
       const caption = extractRichTextContent(block.image.caption);
-      return [
-        "i",
-        getImageUrl(block.image),
-        toPlainText(caption),
-        [],
-      ] satisfies ImageBlock;
+      return ["i", getImageUrl(block.image), toPlainText(caption), []] satisfies ImageBlock;
     }
     case "link_to_page": {
       if (block.link_to_page.type !== "page_id") return null;
@@ -128,11 +117,11 @@ function extractRichTextContent(items: RichTextItemResponse[]): Inline[] {
     return href
       ? ["a", text, href]
       : annotations.code
-      ? ["c", text]
-      : annotations.bold
-      ? ["b", text]
-      : annotations.italic
-      ? ["i", text]
-      : text;
+        ? ["c", text]
+        : annotations.bold
+          ? ["b", text]
+          : annotations.italic
+            ? ["i", text]
+            : text;
   });
 }

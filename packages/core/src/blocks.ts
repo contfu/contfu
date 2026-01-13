@@ -6,23 +6,9 @@ export type Heading2Block = [type: "2", text: Inline[]];
 export type Heading3Block = [type: "3", text: Inline[]];
 export type UnorderedListBlock = [type: "u", items: (Inline | Block)[]];
 export type OrderedListBlock = [type: "o", items: (Inline | Block)[]];
-export type TableBlock = [
-  type: "t",
-  hasHeader: boolean,
-  cells: (Block | Inline)[][][]
-];
-export type ImageBlock = [
-  type: "i",
-  canonical: string,
-  alt: string,
-  widths: number[]
-];
-export type CustomBlock = [
-  type: "x",
-  name: string,
-  props: Record<string, any>,
-  children: Block[]
-];
+export type TableBlock = [type: "t", hasHeader: boolean, cells: (Block | Inline)[][][]];
+export type ImageBlock = [type: "i", canonical: string, alt: string, widths: number[]];
+export type CustomBlock = [type: "x", name: string, props: Record<string, any>, children: Block[]];
 
 export type Block<T extends CustomBlock = CustomBlock> =
   | QuoteBlock
@@ -92,13 +78,7 @@ export function isItalic(text?: Inline | null): text is Italic {
 }
 export function isInline(x?: Inline | Block | null): x is Inline {
   const text = x as Inline;
-  return (
-    isString(text) ||
-    isAnchor(text) ||
-    isMonospace(text) ||
-    isBold(text) ||
-    isItalic(text)
-  );
+  return isString(text) || isAnchor(text) || isMonospace(text) || isBold(text) || isItalic(text);
 }
 export function isString(text?: Inline | null): text is string {
   return typeof text === "string";

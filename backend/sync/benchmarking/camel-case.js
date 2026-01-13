@@ -1,8 +1,6 @@
 const methods = {
   regexSingle: (str) => {
-    return str
-      .toLowerCase()
-      .replace(/[^a-zA-Z0-9]+(.)/g, (_, chr) => chr.toUpperCase());
+    return str.toLowerCase().replace(/[^a-zA-Z0-9]+(.)/g, (_, chr) => chr.toUpperCase());
   },
 
   regexMultiple: (str) => {
@@ -17,7 +15,7 @@ const methods = {
       .map((word, index) =>
         index === 0
           ? word.toLowerCase()
-          : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+          : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase(),
       )
       .join("");
   },

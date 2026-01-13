@@ -14,16 +14,12 @@ export default component$(() => {
           loading="eager"
           class="mx-auto mb-8 h-32 w-32"
         />
-        <h1 class="mb-4 text-4xl font-bold text-gray-900 dark:text-white">
-          Coming Soon
-        </h1>
+        <h1 class="mb-4 text-4xl font-bold text-gray-900 dark:text-white">Coming Soon</h1>
         <p class="mb-8 text-xl text-gray-600 dark:text-gray-300">
-          We're working hard to bring you something amazing. Our application is
-          currently under construction.
+          We're working hard to bring you something amazing. Our application is currently under
+          construction.
         </p>
-        <div class="text-sm text-gray-500 dark:text-gray-400">
-          Thank you for your patience!
-        </div>
+        <div class="text-sm text-gray-500 dark:text-gray-400">Thank you for your patience!</div>
       </div>
     </div>
   );
@@ -34,8 +30,7 @@ export const head: DocumentHead = {
   meta: [
     {
       name: "description",
-      content:
-        "Our application is currently under construction. Check back soon!",
+      content: "Our application is currently under construction. Check back soon!",
     },
   ],
 };

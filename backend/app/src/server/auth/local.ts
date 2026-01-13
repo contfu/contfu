@@ -6,12 +6,7 @@ import type { DisplayUser } from "./session";
 import { createSession, generateSessionToken } from "./session";
 
 export async function login(email: string, password: string) {
-  const users = await db
-    .select()
-    .from(userTable)
-    .where(eq(userTable.email, email))
-    .limit(1)
-    .all();
+  const users = await db.select().from(userTable).where(eq(userTable.email, email)).limit(1).all();
   let user = users[0];
 
   if (import.meta.env.DEV && !user) {
@@ -25,18 +20,14 @@ export async function login(email: string, password: string) {
       .returning();
   }
 
-  if (!user || !user.password || !(await verify(user.password, password)))
-    return null;
+  if (!user || !user.password || !(await verify(user.password, password))) return null;
 
   const token = await generateSessionToken();
   await createSession(token, user.id);
   return { token, user: { email: user.email, name: user.name } as DisplayUser };
 }
 
-export async function activateUser(
-  registrationToken: Buffer,
-  password: string,
-) {
+export async function activateUser(registrationToken: Buffer, password: string) {
   const user = await getUserByRegistrationToken(registrationToken);
 
   if (!user) {
