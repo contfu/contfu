@@ -4,10 +4,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Contfu ("content funnel") is a platform that allows application and web developers to consume data from multiple CMS systems. It supports two deployment modes:
+Contfu ("content funnel") is a **proxy CMS** synchronization service that aggregates content from multiple upstream CMS platforms (Notion, Strapi, etc.) into a unified, locally-hosted database. It enables developers to consume content from various CMS platforms through a single, consistent API.
+
+**For detailed product requirements, see [PRD.md](./PRD.md).**
+
+### Deployment Modes
 
 - **Self-hosted**: Single client connected to all collections with streaming, collections, and schema versioning
 - **Server-hosted**: Multi-client support with media optimization, backups, and automation
+
+### Core Concepts
+
+- **Data Sources** - Connections to upstream CMSs (Notion, Strapi)
+- **Collections** - Logical groupings of synchronized content
+- **Items** - Individual content pieces with properties and content blocks
+- **Clients** - Applications consuming content via WebSocket
 
 ## Common Commands
 
