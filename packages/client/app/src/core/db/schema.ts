@@ -2,6 +2,7 @@ import { blob, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite
 
 export const pageTable = sqliteTable("page", {
   id: blob({ mode: "buffer" }).primaryKey(),
+  ref: text().notNull(),
   path: text().unique().notNull(),
   collection: text(),
   title: text().notNull(),
@@ -9,7 +10,7 @@ export const pageTable = sqliteTable("page", {
   content: text(),
   props: text(),
   author: text(),
-  connection: integer().notNull(),
+  connection: blob({ mode: "buffer" }).notNull(),
   publishedAt: integer().notNull(),
   createdAt: integer().notNull(),
   updatedAt: integer(),

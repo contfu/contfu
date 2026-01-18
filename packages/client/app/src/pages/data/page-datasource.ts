@@ -1,4 +1,4 @@
-import { PageData } from "@contfu/core";
+import type { PageData } from "../pages";
 import { and, desc, eq, or } from "drizzle-orm";
 import { MarkOptional } from "ts-essentials";
 import { db } from "../../core/db/db";

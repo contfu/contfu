@@ -2,15 +2,15 @@ import type { ImageBlock } from "@contfu/core";
 import { extname } from "path";
 import type { Source } from "../connections/connections";
 import { hashId } from "../core/crypto";
-import type { PageData } from "../pages/data/page-data";
+import type { PageData } from "../pages/pages";
 import {
   createOrUpdatePage,
   createPageLink,
   deleteOutgoingPageLinks,
   deletePageLinksByRef,
-  deletePagesByRefs,
+  deletePagesByIds,
   getPage,
-  getPageRefsByCollection,
+  getPageIdsByCollection,
 } from "../pages/data/page-datasource";
 
 export function sync(sources: Source[]) {
@@ -18,10 +18,12 @@ export function sync(sources: Source[]) {
 }
 
 async function pull(source: Source) {
-  const transientLinks = new Map<string, Set<[string, number]>>();
+  const transientLinks = new Map<string, Set<[string, string]>>();
   for (const collection of source.collectionNames) {
     for await (const { page, assets } of source.pull(collection)) {
-      const { id } = await createOrUpdatePage(page);
+      const id = hashId(`${source.id}|${page.ref}`);
+      const fullPage = { ...page, id, connection: source.id };
+      await createOrUpdatePage(fullPage);
       await deleteOutgoingPageLinks(id);
       await createLinks(page, id, transientLinks);
       await processAssets(source, assets);
@@ -31,13 +33,13 @@ async function pull(source: Source) {
 
 async function removeOrphans(source: Source) {
   for (const collection of source.collectionNames) {
-    for await (const upstreamRefs of source.pullCollectionRefs(collection)) {
-      const existingRefs = await getPageRefsByCollection(source.id, collection);
-      const refsToDelete = new Set(existingRefs);
-      for (const ref of upstreamRefs) refsToDelete.delete(ref);
-      if (refsToDelete.size === 0) continue;
-      for (const ref of refsToDelete) await deletePageLinksByRef(ref);
-      await deletePagesByRefs(source.id, [...refsToDelete]);
+    for await (const upstreamIds of source.pullCollectionRefs(collection)) {
+      const existingIds = await getPageIdsByCollection(source.id, collection);
+      const idsToDelete = new Set(existingIds);
+      for (const id of upstreamIds) idsToDelete.delete(id);
+      if (idsToDelete.size === 0) continue;
+      for (const id of idsToDelete) await deletePageLinksByRef(id);
+      await deletePagesByIds(source.id, [...idsToDelete]);
       // TODO: Take care of assets
     }
   }
@@ -45,26 +47,26 @@ async function removeOrphans(source: Source) {
 
 async function createLinks(
   page: Omit<PageData, "id">,
-  id: number,
-  transientLinks: Map<string, Set<[string, number]>>,
+  id: string,
+  transientLinks: Map<string, Set<[string, string]>>,
 ) {
   for (const type in page.links) {
-    for (const ref of page.links[type]) {
-      const target = await getPage({ ref });
+    for (const targetRef of page.links[type]) {
+      const target = await getPage({ id: targetRef });
       if (target) await createPageLink({ type, from: id, to: target.id });
       else {
-        const outgoing = transientLinks.get(ref) ?? new Set();
+        const outgoing = transientLinks.get(targetRef) ?? new Set();
         outgoing.add([type, id]);
-        if (!transientLinks.has(ref)) transientLinks.set(ref, outgoing);
+        if (!transientLinks.has(targetRef)) transientLinks.set(targetRef, outgoing);
       }
     }
   }
-  const incoming = transientLinks.get(page.ref);
+  const incoming = transientLinks.get(id);
   if (incoming) {
     for (const [type, incomingId] of incoming) {
       await createPageLink({ type, from: incomingId, to: id });
     }
-    transientLinks.delete(page.ref);
+    transientLinks.delete(id);
   }
 }
 

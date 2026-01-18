@@ -1,10 +1,10 @@
 import type { ImageBlock } from "@contfu/core";
 import { beforeEach, describe, expect, it, mock } from "bun:test";
+import "../../test/setup";
 import type { Connection } from "../connections/connections";
 import { createConnection } from "../connections/data/connection-datasource";
 import { hashId } from "../core/crypto";
 import type { MediaStore } from "../media/media";
-import type { PageData } from "../pages/data/page-data";
 import {
   createPage,
   createPageLink,
@@ -12,15 +12,29 @@ import {
   getPageLinks,
   getPages,
 } from "../pages/data/page-datasource";
-import type { Page } from "../pages/pages";
+import type { Page, PageData } from "../pages/pages";
 import { sync } from "./sync";
 
 let c: Connection<"foo" | "bar">;
+let connectionId: string;
 
 beforeEach(async () => {
   c = await createConnection(conn);
-  page.connection = c.id;
+  connectionId = c.id;
 });
+
+function makePageId(ref: string): string {
+  return hashId(`${connectionId}|${ref}`);
+}
+
+function makeFullPage(partial: Omit<PageData, "id" | "connection">): Omit<PageData, "links"> {
+  const { links: _links, ...rest } = partial as PageData;
+  return {
+    ...rest,
+    id: makePageId(partial.ref),
+    connection: connectionId,
+  };
+}
 
 describe("sync()", () => {
   it("should initially pull from a connection", async () => {
@@ -32,8 +46,8 @@ describe("sync()", () => {
   it("should continuously pull from a connection", async () => {
     conn.pull.mockImplementationOnce(async function* (collection: "foo" | "bar") {
       if (collection === "foo") {
-        yield { page, assets: [] };
-        yield { page: { ...page, ref: "test2", path: "test2" }, assets: [] };
+        yield { page: basePage, assets: [] };
+        yield { page: { ...basePage, ref: "test2", path: "test2" }, assets: [] };
       }
     });
 
@@ -46,18 +60,26 @@ describe("sync()", () => {
     await sync([c]);
 
     expect(conn.pull).toHaveBeenCalled();
-    expect(await getPage({ ref: "test" })).toEqual({
-      id: expect.any(Number),
-      ...page,
+    const id = makePageId("test");
+    const result = await getPage({ id });
+    expect(result).toMatchObject({
+      id,
+      ref: "test",
+      path: "test",
+      collection: "foo",
+      connection: connectionId,
     });
   });
 
   it("should create new links in the database", async () => {
     conn.pull.mockImplementationOnce(async function* (collection: "foo" | "bar") {
       if (collection === "foo") {
-        yield { page: { ...page, links: { content: ["test2"] } }, assets: [] };
         yield {
-          page: { ...page, collection: "bar", ref: "test2", path: "test2" },
+          page: { ...basePage, links: { content: [makePageId("test2")] } },
+          assets: [],
+        };
+        yield {
+          page: { ...basePage, collection: "bar", ref: "test2", path: "test2" },
           assets: [],
         };
       }
@@ -65,34 +87,36 @@ describe("sync()", () => {
 
     await sync([c]);
 
-    const page1 = await getPage({ ref: "test" });
-    const page2 = await getPage({ ref: "test2" });
-    expect(await getPageLinks({ from: page1!.id })).toEqual({
-      content: [page2!.id],
+    const id1 = makePageId("test");
+    const id2 = makePageId("test2");
+    expect(await getPageLinks({ from: id1 })).toEqual({
+      content: [id2],
     });
   });
 
   it("should update links in the database", async () => {
-    const page1 = await createPage({ ...page });
-    const page2 = await createPage({ ...page, ref: "test2", path: "test2" });
+    const id1 = makePageId("test");
+    const id2 = makePageId("test2");
+    const page1 = await createPage(makeFullPage(basePage));
+    const page2 = await createPage(makeFullPage({ ...basePage, ref: "test2", path: "test2" }));
     await createPageLink({ type: "content", from: page1.id, to: page2.id });
     conn.pull.mockImplementationOnce(async function* (collection: "foo" | "bar") {
       if (collection === "foo") {
         yield {
-          page: { ...page, links: { content: [], foo: ["test2"] } },
+          page: { ...basePage, links: { content: [], foo: [id2] } },
           assets: [],
         };
       }
     });
     conn.pullCollectionRefs.mockImplementationOnce(async function* (collection: "foo" | "bar") {
-      if (collection === "foo") yield ["test", "test2"];
+      if (collection === "foo") yield [id1, id2];
     });
 
     await sync([c]);
 
-    expect(await getPageLinks({ from: page1!.id })).toEqual({
+    expect(await getPageLinks({ from: page1.id })).toEqual({
       content: [],
-      foo: [page2!.id],
+      foo: [page2.id],
     });
   });
 
@@ -101,12 +125,12 @@ describe("sync()", () => {
     conn.pull.mockImplementationOnce(async function* (collection: "foo" | "bar") {
       if (collection === "foo") {
         yield {
-          page: { ...page, content: block },
+          page: { ...basePage, content: block },
           assets: [{ block, ref: "/test-ref.jpg" }],
         };
       }
     });
-    const hash = await hashId(`${c.id}|/test-ref.jpg`);
+    const hash = hashId(`${c.id}|/test-ref.jpg`);
 
     await sync([c]);
 
@@ -121,24 +145,24 @@ describe("sync()", () => {
   });
 
   it("should remove orphans with links", async () => {
-    const page1 = await createPage({ ...page });
-    const page2 = await createPage({ ...page, ref: "test2", path: "test2" });
+    const id2 = makePageId("test2");
+    const page1 = await createPage(makeFullPage(basePage));
+    const page2 = await createPage(makeFullPage({ ...basePage, ref: "test2", path: "test2" }));
     await createPageLink({ type: "foo", from: page1.id, to: page2.id });
     conn.pull.mockImplementationOnce(async function* () {});
     conn.pullCollectionRefs.mockImplementationOnce(async function* (collection: "foo" | "bar") {
-      if (collection === "foo") yield ["test2"];
+      if (collection === "foo") yield [id2];
     });
 
     await sync([c]);
 
-    expect(await getPages()).toEqual([
-      {
-        ...page,
-        id: page2.id,
-        ref: "test2",
-        path: "test2",
-      },
-    ]);
+    const pages = await getPages();
+    expect(pages).toHaveLength(1);
+    expect(pages[0]).toMatchObject({
+      id: page2.id,
+      ref: "test2",
+      path: "test2",
+    });
     expect(await getPageLinks({ from: page1.id })).toEqual({ content: [] });
   });
 });
@@ -155,19 +179,19 @@ const conn = {
     optimizeImage: mock(async () => {}),
   },
   pullCollectionRefs: mock(async function* (collection: "foo" | "bar") {
-    if (collection === "foo") yield ["test"];
+    if (collection === "foo") yield [hashId(`foo|test`)];
   }),
   pull: mock(async function* (collection: "foo" | "bar") {
     if (collection === "foo")
       yield {
-        page,
+        page: basePage,
         assets: [] as { block: ImageBlock; ref: string }[],
       };
   }),
   fetchAsset: mock(async () => new ReadableStream()),
 } satisfies Omit<Connection<"foo" | "bar">, "id">;
 
-const page: Omit<PageData<Page<{ collection: "foo" | "bar" }>>, "id"> = {
+const basePage: Omit<PageData<Page<{ collection: "foo" | "bar" }>>, "id" | "connection"> = {
   ref: "test",
   path: "test",
   collection: "foo",
@@ -175,7 +199,6 @@ const page: Omit<PageData<Page<{ collection: "foo" | "bar" }>>, "id"> = {
   description: "test",
   content: [],
   props: {},
-  connection: 1,
   publishedAt: 0,
   createdAt: 0,
   changedAt: 0,

@@ -9,6 +9,7 @@ CREATE TABLE `pageLink` (
 --> statement-breakpoint
 CREATE TABLE `page` (
 	`id` blob PRIMARY KEY,
+	`ref` text NOT NULL,
 	`path` text NOT NULL UNIQUE,
 	`collection` text,
 	`title` text NOT NULL,
@@ -16,7 +17,7 @@ CREATE TABLE `page` (
 	`content` text,
 	`props` text,
 	`author` text,
-	`connection` integer NOT NULL,
+	`connection` blob NOT NULL,
 	`publishedAt` integer NOT NULL,
 	`createdAt` integer NOT NULL,
 	`updatedAt` integer,

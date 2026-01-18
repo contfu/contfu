@@ -1,5 +1,6 @@
-import { Page, PageData } from "@contfu/core";
+import type { Page, PageData } from "../pages";
 import { beforeEach, describe, expect, it } from "bun:test";
+import "../../../test/setup";
 import { db } from "../../core/db/db";
 import { pageLinkTable, pageTable, type NewPage } from "../../core/db/schema";
 import {
@@ -218,6 +219,7 @@ describe("deletePageLinksByRef()", () => {
 
 const page = {
   id: id1,
+  ref: "test",
   connection: "1234567890abcdef",
   path: "test",
   collection: "foo",
@@ -231,7 +233,7 @@ const page = {
   links: { content: [] },
 } satisfies PageData<Page>;
 
-const { _links, _connection, ...pageWithoutLinks } = page;
+const { links: _links, ...pageWithoutLinks } = page;
 
 const dbPage = {
   ...pageWithoutLinks,

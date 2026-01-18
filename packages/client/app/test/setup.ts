@@ -3,6 +3,6 @@ import { db } from "../src/core/db/db";
 import { pageLinkTable, pageTable } from "../src/core/db/schema";
 
 beforeEach(async () => {
-  db.delete(pageLinkTable);
-  db.delete(pageTable);
+  await db.delete(pageLinkTable).execute();
+  await db.delete(pageTable).execute();
 });

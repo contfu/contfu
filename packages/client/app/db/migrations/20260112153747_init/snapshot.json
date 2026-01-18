@@ -58,6 +58,16 @@
       "autoincrement": false,
       "default": null,
       "generated": null,
+      "name": "ref",
+      "entityType": "columns",
+      "table": "page"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
       "name": "path",
       "entityType": "columns",
       "table": "page"
@@ -123,7 +133,7 @@
       "table": "page"
     },
     {
-      "type": "integer",
+      "type": "blob",
       "notNull": true,
       "autoincrement": false,
       "default": null,
