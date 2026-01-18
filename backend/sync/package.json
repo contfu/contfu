@@ -3,29 +3,21 @@
   "version": "0.1.1",
   "private": true,
   "files": [
-    "dist"
+    "src"
   ],
   "type": "module",
   "main": "src/index.ts",
   "scripts": {
-    "dev": "bun src/index.ts",
     "test": "bun test",
-    "clean": "rm -rf dist",
-    "build": "bun build --minify --sourcemap --target=bun src/index.ts --outfile dist/server.js"
+    "clean": "rm -rf dist"
   },
   "dependencies": {
     "@contfu/core": "workspace:*",
-    "@sinclair/typebox": "^0.33.15",
-    "@sinonjs/fake-timers": "^13.0.4",
-    "elysia": "^1.1.19",
-    "msgpackr": "^1.9.4",
     "notion-client-web-fetch": "^2.2.15",
-    "postgres": "^3.4.4",
     "rxjs": "^7.8.1"
   },
   "devDependencies": {
-    "@contfu/client": "workspace:*",
-    "@electric-sql/pglite": "^0.2.11",
+    "@sinonjs/fake-timers": "^13.0.4",
     "@types/bun": "*",
     "@types/sinonjs__fake-timers": "^8.1.5",
     "ts-essentials": "^10.0.2"

@@ -1,4 +1,4 @@
-import { Block } from "./blocks";
+import type { Block } from "./blocks";
 
 export type PageProps = Record<
   string,

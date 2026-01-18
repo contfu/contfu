@@ -12,9 +12,11 @@
     "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
+    "@contfu/core": "workspace:*",
     "arctic": "latest",
     "argon2": "latest",
     "drizzle-orm": "latest",
+    "msgpackr": "^1.9.4",
     "stripe": "latest",
     "valibot": "latest"
   },
