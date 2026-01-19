@@ -46,7 +46,7 @@
 								<span class="block w-full px-4 py-2 text-gray-400 dark:text-gray-500">
 									{user.name}
 								</span>
-								<form method="POST" action="/?/logout">
+								<form method="POST" action="/logout">
 									<button
 										type="submit"
 										class="block w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"

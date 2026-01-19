@@ -1,7 +1,8 @@
+import { SESSION_TOKEN_LENGTH } from "$lib/server/auth/constants";
+import { db } from "$lib/server/db/db";
+import { quotaTable, userTable } from "$lib/server/db/schema";
 import { eq } from "drizzle-orm";
 import type Stripe from "stripe";
-import { db, quotaTable, userTable } from "$lib/server/db/db";
-import { SESSION_TOKEN_LENGTH } from "$lib/server/auth/session";
 import { getStripeProducts } from "./products";
 import { stripe } from "./stripe";
 

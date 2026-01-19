@@ -1,8 +1,10 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "5d7a64b0-567d-456d-b626-e765a9cefc1a",
-  "prevIds": ["00000000-0000-0000-0000-000000000000"],
+  "id": "ad5256c7-edd1-4a24-a546-e8422fa099f1",
+  "prevIds": [
+    "00000000-0000-0000-0000-000000000000"
+  ],
   "ddl": [
     {
       "name": "collection",
@@ -547,9 +549,13 @@
       "table": "user"
     },
     {
-      "columns": ["userId"],
+      "columns": [
+        "userId"
+      ],
       "tableTo": "user",
-      "columnsTo": ["id"],
+      "columnsTo": [
+        "id"
+      ],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
@@ -558,9 +564,15 @@
       "table": "collection"
     },
     {
-      "columns": ["userId", "sourceId"],
+      "columns": [
+        "userId",
+        "sourceId"
+      ],
       "tableTo": "source",
-      "columnsTo": ["userId", "id"],
+      "columnsTo": [
+        "userId",
+        "id"
+      ],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
@@ -569,9 +581,13 @@
       "table": "collection"
     },
     {
-      "columns": ["userId"],
+      "columns": [
+        "userId"
+      ],
       "tableTo": "user",
-      "columnsTo": ["id"],
+      "columnsTo": [
+        "id"
+      ],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
@@ -580,9 +596,15 @@
       "table": "connection"
     },
     {
-      "columns": ["userId", "consumerId"],
+      "columns": [
+        "userId",
+        "consumerId"
+      ],
       "tableTo": "consumer",
-      "columnsTo": ["userId", "id"],
+      "columnsTo": [
+        "userId",
+        "id"
+      ],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
@@ -591,9 +613,15 @@
       "table": "connection"
     },
     {
-      "columns": ["userId", "collectionId"],
+      "columns": [
+        "userId",
+        "collectionId"
+      ],
       "tableTo": "collection",
-      "columnsTo": ["userId", "id"],
+      "columnsTo": [
+        "userId",
+        "id"
+      ],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
@@ -602,9 +630,13 @@
       "table": "connection"
     },
     {
-      "columns": ["userId"],
+      "columns": [
+        "userId"
+      ],
       "tableTo": "user",
-      "columnsTo": ["id"],
+      "columnsTo": [
+        "id"
+      ],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
@@ -613,9 +645,13 @@
       "table": "consumer"
     },
     {
-      "columns": ["userId"],
+      "columns": [
+        "userId"
+      ],
       "tableTo": "user",
-      "columnsTo": ["id"],
+      "columnsTo": [
+        "id"
+      ],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
@@ -624,9 +660,15 @@
       "table": "item_id_conflict_resolution"
     },
     {
-      "columns": ["userId", "collectionId"],
+      "columns": [
+        "userId",
+        "collectionId"
+      ],
       "tableTo": "collection",
-      "columnsTo": ["userId", "id"],
+      "columnsTo": [
+        "userId",
+        "id"
+      ],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
@@ -635,9 +677,13 @@
       "table": "item_id_conflict_resolution"
     },
     {
-      "columns": ["id"],
+      "columns": [
+        "id"
+      ],
       "tableTo": "user",
-      "columnsTo": ["id"],
+      "columnsTo": [
+        "id"
+      ],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
@@ -646,9 +692,13 @@
       "table": "quota"
     },
     {
-      "columns": ["userId"],
+      "columns": [
+        "userId"
+      ],
       "tableTo": "user",
-      "columnsTo": ["id"],
+      "columnsTo": [
+        "id"
+      ],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
@@ -657,9 +707,13 @@
       "table": "session"
     },
     {
-      "columns": ["userId"],
+      "columns": [
+        "userId"
+      ],
       "tableTo": "user",
-      "columnsTo": ["id"],
+      "columnsTo": [
+        "id"
+      ],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
@@ -668,84 +722,115 @@
       "table": "source"
     },
     {
-      "columns": ["userId", "id"],
+      "columns": [
+        "userId",
+        "id"
+      ],
       "nameExplicit": false,
       "name": "collection_pk",
       "entityType": "pks",
       "table": "collection"
     },
     {
-      "columns": ["userId", "consumerId", "collectionId"],
+      "columns": [
+        "userId",
+        "consumerId",
+        "collectionId"
+      ],
       "nameExplicit": false,
       "name": "connection_pk",
       "entityType": "pks",
       "table": "connection"
     },
     {
-      "columns": ["userId", "id"],
+      "columns": [
+        "userId",
+        "id"
+      ],
       "nameExplicit": false,
       "name": "consumer_pk",
       "entityType": "pks",
       "table": "consumer"
     },
     {
-      "columns": ["userId", "collectionId", "sourceItemId"],
+      "columns": [
+        "userId",
+        "collectionId",
+        "sourceItemId"
+      ],
       "nameExplicit": false,
       "name": "item_id_conflict_resolution_pk",
       "entityType": "pks",
       "table": "item_id_conflict_resolution"
     },
     {
-      "columns": ["userId", "id"],
+      "columns": [
+        "userId",
+        "id"
+      ],
       "nameExplicit": false,
       "name": "source_pk",
       "entityType": "pks",
       "table": "source"
     },
     {
-      "columns": ["id"],
+      "columns": [
+        "id"
+      ],
       "nameExplicit": false,
       "name": "quota_pk",
       "table": "quota",
       "entityType": "pks"
     },
     {
-      "columns": ["id"],
+      "columns": [
+        "id"
+      ],
       "nameExplicit": false,
       "name": "session_pk",
       "table": "session",
       "entityType": "pks"
     },
     {
-      "columns": ["id"],
+      "columns": [
+        "id"
+      ],
       "nameExplicit": false,
       "name": "user_pk",
       "table": "user",
       "entityType": "pks"
     },
     {
-      "columns": ["key"],
+      "columns": [
+        "key"
+      ],
       "nameExplicit": false,
       "name": "consumer_key_unique",
       "entityType": "uniques",
       "table": "consumer"
     },
     {
-      "columns": ["email"],
+      "columns": [
+        "email"
+      ],
       "nameExplicit": false,
       "name": "user_email_unique",
       "entityType": "uniques",
       "table": "user"
     },
     {
-      "columns": ["registrationToken"],
+      "columns": [
+        "registrationToken"
+      ],
       "nameExplicit": false,
       "name": "user_registrationToken_unique",
       "entityType": "uniques",
       "table": "user"
     },
     {
-      "columns": ["oauthId"],
+      "columns": [
+        "oauthId"
+      ],
       "nameExplicit": false,
       "name": "user_oauthId_unique",
       "entityType": "uniques",

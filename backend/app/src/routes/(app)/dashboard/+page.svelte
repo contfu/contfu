@@ -1,98 +1,70 @@
 <script lang="ts">
-	interface Source {
-		id: string;
-		name: string;
-		type: "notion" | "strapi" | "pocketbase";
-		status: "active" | "error" | "pending";
-		lastSync?: string;
-		collections: number;
-	}
+	import { getSources } from "$lib/remote/sources.remote";
+	import { Button } from "$lib/components/ui/button";
+	import * as Card from "$lib/components/ui/card";
+	import * as Alert from "$lib/components/ui/alert";
 
-	const mockSources: Source[] = [
-		{
-			id: "1",
-			name: "Company Blog",
-			type: "notion",
-			status: "active",
-			lastSync: "2024-03-25T10:30:00Z",
-			collections: 3
-		},
-		{
-			id: "2",
-			name: "Marketing Site",
-			type: "strapi",
-			status: "error",
-			lastSync: "2024-03-24T15:45:00Z",
-			collections: 5
-		},
-		{
-			id: "3",
-			name: "Documentation",
-			type: "pocketbase",
-			status: "pending",
-			collections: 2
-		}
-	];
+	const sources = await getSources();
+
+	const SOURCE_TYPE_LABELS: Record<number, string> = {
+		0: "Notion",
+		1: "Strapi"
+	};
 </script>
 
-<div class="min-h-screen bg-gray-50 p-6 dark:bg-gray-900">
+<div class="container mx-auto max-w-5xl p-6">
 	<div class="mb-6 flex items-center justify-between">
-		<h1 class="text-2xl font-bold text-gray-900 dark:text-white">Sources</h1>
-		<button
-			class="bg-primary-400 hover:bg-primary-500 dark:bg-primary-500 dark:hover:bg-primary-400 rounded-lg px-4 py-2 text-white"
-		>
-			Add Source
-		</button>
+		<h1 class="text-2xl font-bold">Dashboard</h1>
 	</div>
 
-	<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-		{#each mockSources as source}
-			<div class="flex flex-col rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-				<div class="mb-4 flex items-center justify-between">
-					<h3 class="text-lg font-semibold text-gray-900 dark:text-white">{source.name}</h3>
-					<span
-						class={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
-							source.status === "active"
-								? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
-								: source.status === "error"
-									? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300"
-									: "bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-300"
-						}`}
-					>
-						{source.status}
-					</span>
-				</div>
+	<section class="mb-8">
+		<div class="mb-4 flex items-center justify-between">
+			<h2 class="text-lg font-semibold">Sources</h2>
+			<Button size="sm" href="/sources/new">Add Source</Button>
+		</div>
 
-				<div class="space-y-2 text-sm text-gray-600 dark:text-gray-300">
-					<div class="flex items-center">
-						<span class="mr-2">Type:</span>
-						<span class="font-medium">{source.type}</span>
-					</div>
-					<div class="flex items-center">
-						<span class="mr-2">Collections:</span>
-						<span class="font-medium">{source.collections}</span>
-					</div>
-					{#if source.lastSync}
-						<div class="flex items-center">
-							<span class="mr-2">Last sync:</span>
-							<span class="font-medium">{new Date(source.lastSync).toLocaleString()}</span>
-						</div>
-					{/if}
-				</div>
+		{#if sources.length === 0}
+			<Alert.Root>
+				<Alert.Title>No sources configured</Alert.Title>
+				<Alert.Description>
+					<a href="/sources/new" class="underline">Add your first content source</a> to start syncing
+					data from Notion or Strapi.
+				</Alert.Description>
+			</Alert.Root>
+		{:else}
+			<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+				{#each sources as source}
+					<Card.Root class="flex flex-col">
+						<Card.Header class="pb-2">
+							<div class="flex items-center justify-between">
+								<Card.Title class="text-base">{source.name || "Unnamed Source"}</Card.Title>
+								<span
+									class="inline-flex rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground"
+								>
+									{SOURCE_TYPE_LABELS[source.type] ?? "Unknown"}
+								</span>
+							</div>
+						</Card.Header>
 
-				<div class="mt-auto flex space-x-2 pt-4">
-					<button
-						class="rounded border border-gray-300 px-3 py-1 text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
-					>
-						Sync
-					</button>
-					<button
-						class="rounded border border-gray-300 px-3 py-1 text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
-					>
-						Settings
-					</button>
-				</div>
+						<Card.Content class="flex-1">
+							<div class="space-y-1 text-sm text-muted-foreground">
+								<div class="flex items-center justify-between">
+									<span>Collections:</span>
+									<span class="font-medium text-foreground">{source.collectionCount}</span>
+								</div>
+							</div>
+						</Card.Content>
+
+						<Card.Footer class="pt-2">
+							<Button variant="outline" size="sm" href="/sources/{source.id}">Manage</Button>
+						</Card.Footer>
+					</Card.Root>
+				{/each}
 			</div>
-		{/each}
-	</div>
+
+			<div class="mt-4">
+				<Button variant="link" href="/sources" class="px-0">View all sources &rarr;</Button>
+			</div>
+		{/if}
+	</section>
 </div>

@@ -1,17 +1,16 @@
-import { error, redirect } from "@sveltejs/kit";
-import { eq } from "drizzle-orm";
-import { hash, randomBytes } from "node:crypto";
+import { db } from "$lib/server/db/db";
 import {
-  db,
   sessionTable,
   userTable,
   type Session as DbSession,
   type User,
-} from "$lib/server/db/db";
+} from "$lib/server/db/schema";
+import { error, redirect } from "@sveltejs/kit";
+import { eq } from "drizzle-orm";
+import { hash, randomBytes } from "node:crypto";
+import { SESSION_COOKIE_NAME, SESSION_DURATION, SESSION_TOKEN_LENGTH } from "./constants";
 
-const SESSION_DURATION = 1000 * 60 * 60 * 24 * 30;
-export const SESSION_TOKEN_LENGTH = 24;
-export const SESSION_COOKIE_NAME = "s";
+export { SESSION_COOKIE_NAME, SESSION_TOKEN_LENGTH };
 
 export type DisplayUser = { email: string; name: string; image?: string };
 

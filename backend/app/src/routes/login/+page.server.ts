@@ -3,6 +3,7 @@ import { fail, redirect } from "@sveltejs/kit";
 import * as v from "valibot";
 import { login } from "$lib/server/auth/local";
 import { SESSION_COOKIE_NAME, guardLoggedOut } from "$lib/server/auth/session";
+import { dev } from "$app/environment";
 
 const LoginSchema = v.object({
   email: v.pipe(v.string(), v.nonEmpty("Please enter your email.")),
@@ -38,11 +39,13 @@ export const actions: Actions = {
       return fail(401, { email, message: "Wrong username or password" });
     }
 
+    // Use secure cookies in production, but allow insecure for testing over HTTP
+    const isTestMode = process.env.TEST_MODE === "true";
     cookies.set(SESSION_COOKIE_NAME, loginResult.token, {
       httpOnly: true,
       path: "/",
       sameSite: "lax",
-      secure: true,
+      secure: !dev && !isTestMode,
     });
 
     throw redirect(302, "/dashboard");

@@ -1,7 +1,8 @@
+import { db } from "$lib/server/db/db";
+import { userTable } from "$lib/server/db/schema";
+import { getUserByRegistrationToken } from "$lib/server/stripe/customers";
 import { GitHub, Google } from "arctic";
 import { eq } from "drizzle-orm";
-import { db, userTable } from "$lib/server/db/db";
-import { getUserByRegistrationToken } from "$lib/server/stripe/customers";
 import type { DisplayUser } from "./session";
 import { createSession, generateSessionToken } from "./session";
 
