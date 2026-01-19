@@ -5,6 +5,7 @@ import {
   AppToWorkerMessage,
   ExtendedFetchOpts,
   MessageBus,
+  SourceType,
   SyncMessageType,
   UserSyncItem,
   WorkerToAppMessage,
@@ -21,6 +22,7 @@ import {
   timer,
 } from "rxjs";
 import { NotionFetchOpts, NotionSource } from "./sources/notion";
+import { StrapiFetchOpts, StrapiSource } from "./sources/strapi";
 import { combine2ints, combine3ints } from "./util/numbers/numbers";
 import { SortedSet } from "./util/structures/sorted-set";
 
@@ -30,6 +32,7 @@ const MIN_FETCH_INTERVAL = Number(process.env.MIN_FETCH_INTERVAL ?? 10_000);
 
 // Sources
 const notionSource = new NotionSource();
+const strapiSource = new StrapiSource();
 
 // Message bus for request/response
 const syncInfoBus = new MessageBus<ExtendedFetchOpts[]>();
@@ -143,8 +146,14 @@ async function syncConsumers(consumers: [number, number][]) {
 
   await lastValueFrom(
     merge(
-      ...opts.map((o) =>
-        combineLatest([[o.user], notionSource.fetch(o as NotionFetchOpts)]).pipe(
+      ...opts.map((o) => {
+        // Dispatch to appropriate source based on type
+        const source$ =
+          o.type === SourceType.STRAPI
+            ? strapiSource.fetch(o as StrapiFetchOpts)
+            : notionSource.fetch(o as NotionFetchOpts);
+
+        return combineLatest([[o.user], source$]).pipe(
           tap(([user, item]) => {
             const collection = compressCollectionId(user, o.collection);
             const ids = idsToAdd.get(collection);
@@ -154,8 +163,8 @@ async function syncConsumers(consumers: [number, number][]) {
             fetchedItems.push(userItem);
             itemsSubject.next(userItem);
           }),
-        ),
-      ),
+        );
+      }),
     ).pipe(endWith(null)),
   );
 

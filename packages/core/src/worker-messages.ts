@@ -20,8 +20,16 @@ export enum SyncMessageType {
   REQUEST_ADD_ITEM_IDS = 103,
 }
 
+/** Source type identifiers. */
+export const SourceType = {
+  NOTION: 0,
+  STRAPI: 1,
+} as const;
+
 /** Extended fetch options with user context. */
 export type ExtendedFetchOpts = {
+  /** Source type: 0 = Notion, 1 = Strapi. */
+  type: number;
   user: number;
   collection: number;
   ref?: Buffer;

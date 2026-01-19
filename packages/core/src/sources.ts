@@ -12,4 +12,11 @@ export interface NotionPullConfig extends BaseSourcePullConfig {
   dbId: Buffer;
 }
 
-export type PullConfig = NotionPullConfig;
+export interface StrapiPullConfig extends BaseSourcePullConfig {
+  type: "strapi";
+  apiToken: Buffer;
+  url: string;
+  contentType: Buffer;
+}
+
+export type PullConfig = NotionPullConfig | StrapiPullConfig;

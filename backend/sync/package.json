@@ -20,6 +20,7 @@
     "@sinonjs/fake-timers": "^13.0.4",
     "@types/bun": "*",
     "@types/sinonjs__fake-timers": "^8.1.5",
+    "testcontainers": "^10.16.0",
     "ts-essentials": "^10.0.2"
   },
   "peerDependencies": {
