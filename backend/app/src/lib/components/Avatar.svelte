@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { DisplayUser } from "$lib/server/auth/session";
+	import type { DisplayUser } from "./Header.svelte";
 
 	let { user }: { user: DisplayUser } = $props();
 </script>

@@ -1,5 +1,22 @@
+CREATE TABLE `account` (
+	`id` text PRIMARY KEY,
+	`userId` text NOT NULL,
+	`accountId` text NOT NULL,
+	`providerId` text NOT NULL,
+	`accessToken` text,
+	`refreshToken` text,
+	`accessTokenExpiresAt` integer,
+	`refreshTokenExpiresAt` integer,
+	`scope` text,
+	`idToken` text,
+	`password` text,
+	`createdAt` integer DEFAULT (unixepoch()) NOT NULL,
+	`updatedAt` integer,
+	CONSTRAINT `fk_account_userId_user_id_fk` FOREIGN KEY (`userId`) REFERENCES `user`(`id`) ON DELETE CASCADE
+);
+--> statement-breakpoint
 CREATE TABLE `collection` (
-	`userId` integer NOT NULL,
+	`userId` text NOT NULL,
 	`sourceId` integer NOT NULL,
 	`id` integer NOT NULL,
 	`name` text NOT NULL,
@@ -13,7 +30,7 @@ CREATE TABLE `collection` (
 );
 --> statement-breakpoint
 CREATE TABLE `connection` (
-	`userId` integer NOT NULL,
+	`userId` text NOT NULL,
 	`consumerId` integer NOT NULL,
 	`collectionId` integer NOT NULL,
 	`lastItemChanged` integer,
@@ -25,7 +42,7 @@ CREATE TABLE `connection` (
 );
 --> statement-breakpoint
 CREATE TABLE `consumer` (
-	`userId` integer NOT NULL,
+	`userId` text NOT NULL,
 	`id` integer NOT NULL,
 	`key` blob UNIQUE,
 	`name` text NOT NULL,
@@ -35,7 +52,7 @@ CREATE TABLE `consumer` (
 );
 --> statement-breakpoint
 CREATE TABLE `item_id_conflict_resolution` (
-	`userId` integer NOT NULL,
+	`userId` text NOT NULL,
 	`collectionId` integer NOT NULL,
 	`sourceItemId` blob NOT NULL,
 	`id` integer NOT NULL,
@@ -45,7 +62,11 @@ CREATE TABLE `item_id_conflict_resolution` (
 );
 --> statement-breakpoint
 CREATE TABLE `quota` (
-	`id` integer PRIMARY KEY,
+	`id` text PRIMARY KEY,
+	`polarCustomerId` text,
+	`subscriptionId` text,
+	`subscriptionStatus` text,
+	`currentPeriodEnd` integer,
 	`sources` integer DEFAULT 0 NOT NULL,
 	`maxSources` integer NOT NULL,
 	`collections` integer DEFAULT 0 NOT NULL,
@@ -58,14 +79,19 @@ CREATE TABLE `quota` (
 );
 --> statement-breakpoint
 CREATE TABLE `session` (
-	`id` blob PRIMARY KEY,
-	`userId` integer NOT NULL,
+	`id` text PRIMARY KEY,
+	`userId` text NOT NULL,
+	`token` text NOT NULL UNIQUE,
 	`expiresAt` integer NOT NULL,
+	`ipAddress` text,
+	`userAgent` text,
+	`createdAt` integer DEFAULT (unixepoch()) NOT NULL,
+	`updatedAt` integer,
 	CONSTRAINT `fk_session_userId_user_id_fk` FOREIGN KEY (`userId`) REFERENCES `user`(`id`) ON DELETE CASCADE
 );
 --> statement-breakpoint
 CREATE TABLE `source` (
-	`userId` integer NOT NULL,
+	`userId` text NOT NULL,
 	`id` integer NOT NULL,
 	`name` text,
 	`url` text,
@@ -78,13 +104,20 @@ CREATE TABLE `source` (
 );
 --> statement-breakpoint
 CREATE TABLE `user` (
-	`id` integer PRIMARY KEY AUTOINCREMENT,
+	`id` text PRIMARY KEY,
 	`email` text NOT NULL UNIQUE,
 	`name` text NOT NULL,
-	`registrationToken` blob UNIQUE,
-	`activeUntil` integer,
-	`password` text,
-	`oauthId` text UNIQUE,
+	`emailVerified` integer DEFAULT false NOT NULL,
+	`image` text,
+	`createdAt` integer DEFAULT (unixepoch()) NOT NULL,
+	`updatedAt` integer
+);
+--> statement-breakpoint
+CREATE TABLE `verification` (
+	`id` text PRIMARY KEY,
+	`identifier` text NOT NULL,
+	`value` text NOT NULL,
+	`expiresAt` integer NOT NULL,
 	`createdAt` integer DEFAULT (unixepoch()) NOT NULL,
 	`updatedAt` integer
 );

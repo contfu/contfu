@@ -1,54 +1,88 @@
 import { sql } from "drizzle-orm";
 import { blob, foreignKey, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
+// better-auth tables
+
 export const userTable = sqliteTable("user", {
-  /** The id of the user. */
-  id: integer().primaryKey({ autoIncrement: true }),
-  /** The email of the user. */
+  id: text().primaryKey(),
   email: text().unique().notNull(),
-  /** The name of the user. */
   name: text().notNull(),
-  /** The activation token of the user. */
-  registrationToken: blob({ mode: "buffer" }).unique(),
-  /**
-   * The time the user is active. If it is in the past, the user is inactive.
-   * If it is null, the user is active forever.
-   */
-  activeUntil: integer(),
-  /**
-   * The password hash or oauth id of the user.
-   **/
-  password: text(),
-  /** The id of the user from the oauth provider. */
-  oauthId: text().unique(),
-  /** The time the user was created. */
+  emailVerified: integer({ mode: "boolean" }).notNull().default(false),
+  image: text(),
   createdAt: integer()
     .default(sql`(unixepoch())`)
     .notNull(),
-  /** The time the user was updated. */
   updatedAt: integer(),
 });
 
 export type User = typeof userTable.$inferSelect;
 
 export const sessionTable = sqliteTable("session", {
-  /** The id of the session. */
-  id: blob({ mode: "buffer" }).primaryKey(),
-  /** The user id that the session belongs to. */
-  userId: integer()
+  id: text().primaryKey(),
+  userId: text()
     .notNull()
     .references(() => userTable.id, { onDelete: "cascade" }),
-  /** The time the session expires. */
+  token: text().unique().notNull(),
   expiresAt: integer().notNull(),
+  ipAddress: text(),
+  userAgent: text(),
+  createdAt: integer()
+    .default(sql`(unixepoch())`)
+    .notNull(),
+  updatedAt: integer(),
 });
 
 export type Session = typeof sessionTable.$inferSelect;
 
+export const accountTable = sqliteTable("account", {
+  id: text().primaryKey(),
+  userId: text()
+    .notNull()
+    .references(() => userTable.id, { onDelete: "cascade" }),
+  accountId: text().notNull(),
+  providerId: text().notNull(),
+  accessToken: text(),
+  refreshToken: text(),
+  accessTokenExpiresAt: integer(),
+  refreshTokenExpiresAt: integer(),
+  scope: text(),
+  idToken: text(),
+  password: text(),
+  createdAt: integer()
+    .default(sql`(unixepoch())`)
+    .notNull(),
+  updatedAt: integer(),
+});
+
+export type Account = typeof accountTable.$inferSelect;
+
+export const verificationTable = sqliteTable("verification", {
+  id: text().primaryKey(),
+  identifier: text().notNull(),
+  value: text().notNull(),
+  expiresAt: integer().notNull(),
+  createdAt: integer()
+    .default(sql`(unixepoch())`)
+    .notNull(),
+  updatedAt: integer(),
+});
+
+export type Verification = typeof verificationTable.$inferSelect;
+
+// Application tables
+
 export const quotaTable = sqliteTable("quota", {
-  /** The user id that the quota belongs to. */
-  id: integer()
+  id: text()
     .primaryKey()
     .references(() => userTable.id, { onDelete: "cascade" }),
+  /** Polar customer ID */
+  polarCustomerId: text(),
+  /** Polar subscription ID */
+  subscriptionId: text(),
+  /** Subscription status (active, canceled, past_due, etc.) */
+  subscriptionStatus: text(),
+  /** Current billing period end timestamp */
+  currentPeriodEnd: integer(),
   /** The number of sources. */
   sources: integer().notNull().default(0),
   /** The maximum number of sources. */
@@ -73,7 +107,7 @@ export const consumerTable = sqliteTable(
   "consumer",
   {
     /** The user id that the consumer belongs to. */
-    userId: integer()
+    userId: text()
       .notNull()
       .references(() => userTable.id, { onDelete: "cascade" }),
     /** The id of the consumer. */
@@ -96,7 +130,7 @@ export const sourceTable = sqliteTable(
   "source",
   {
     /** The user which owns the source. */
-    userId: integer()
+    userId: text()
       .references(() => userTable.id, { onDelete: "cascade" })
       .notNull(),
     /** The id which is unique within the user. */
@@ -125,7 +159,7 @@ export const collectionTable = sqliteTable(
   "collection",
   {
     /** The user which owns the collection. */
-    userId: integer()
+    userId: text()
       .references(() => userTable.id, { onDelete: "cascade" })
       .notNull(),
     /** The source which the collection is connected to. */
@@ -161,7 +195,7 @@ export const connectionTable = sqliteTable(
   "connection",
   {
     /** The user which owns the collection and consumer. */
-    userId: integer()
+    userId: text()
       .references(() => userTable.id, { onDelete: "cascade" })
       .notNull(),
     /** The consumer id. */
@@ -194,7 +228,7 @@ export const itemIdConflictResolutionTable = sqliteTable(
   "item_id_conflict_resolution",
   {
     /** The user which owns the id mapping. */
-    userId: integer()
+    userId: text()
       .references(() => userTable.id, { onDelete: "cascade" })
       .notNull(),
     /** The collection which the id mapping is connected to. */

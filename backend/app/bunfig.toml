@@ -1,2 +1,4 @@
 [test]
 preload = ["./test/setup.ts"]
+# Only run bun:test files, exclude Playwright E2E tests in tests/
+root = "./src"

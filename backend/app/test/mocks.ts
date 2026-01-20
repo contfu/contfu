@@ -1,13 +1,12 @@
 import { mock } from "bun:test";
-import type Stripe from "stripe";
 
-export const stripeMock = {
-  products: {
-    list: mock(async () => ({ data: [] }) as unknown as Stripe.ApiListPromise<Stripe.Product>),
+// Polar SDK mock
+export const polarMock = {
+  customers: {
+    create: mock(),
+    get: mock(),
   },
-  paymentLinks: {
-    list: mock(async () => ({ data: [] }) as unknown as Stripe.ApiListPromise<Stripe.PaymentLink>),
+  checkouts: {
+    create: mock(),
   },
-  subscriptions: { retrieve: mock() },
-  webhooks: { constructEvent: mock() },
 };

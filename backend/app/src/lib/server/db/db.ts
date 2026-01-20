@@ -13,3 +13,6 @@ await dbClient`PRAGMA journal_mode = WAL`;
 
 export const db = drizzle({ client: dbClient, schema });
 migrate(db, { migrationsFolder });
+
+// Re-export schema tables for convenience
+export * from "./schema";

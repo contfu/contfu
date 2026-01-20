@@ -1,9 +1,10 @@
-import type { Session } from "$lib/server/auth/session";
+import type { Session, User } from "$lib/server/auth/auth";
 
 declare global {
   namespace App {
     interface Locals {
       session: Session | null;
+      user: User | null;
     }
   }
 }

@@ -19,16 +19,12 @@ mock.module("../db/db", () => ({
 }));
 
 // Import after mock
-const {
-  WebSocketServer,
-  compressConsumerId,
-  expandConsumerId,
-  compressCollectionId,
-  expandCollectionId,
-} = await import("./ws-server");
+const { WebSocketServer } = await import("./ws-server");
 
 // Mock WebSocket
-function createMockWebSocket(id = crypto.randomUUID()) {
+function createMockWebSocket(
+  id: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID(),
+) {
   const sent: Buffer[] = [];
   return {
     data: { id },
@@ -46,42 +42,6 @@ function createMockWorkerManager() {
 }
 
 describe("WebSocketServer", () => {
-  describe("ID compression utilities", () => {
-    it("should compress and expand consumer IDs", () => {
-      const userId = 12345;
-      const consumerId = 67;
-      const compressed = compressConsumerId(userId, consumerId);
-      const [expandedUserId, expandedConsumerId] = expandConsumerId(compressed);
-
-      expect(expandedUserId).toBe(userId);
-      expect(expandedConsumerId).toBe(consumerId);
-    });
-
-    it("should compress and expand collection IDs", () => {
-      const userId = 99999;
-      const collectionId = 42;
-      const compressed = compressCollectionId(userId, collectionId);
-      const [expandedUserId, expandedCollectionId] = expandCollectionId(compressed);
-
-      expect(expandedUserId).toBe(userId);
-      expect(expandedCollectionId).toBe(collectionId);
-    });
-
-    it("should handle edge cases for IDs", () => {
-      // Test with 0
-      const compressed0 = compressConsumerId(0, 0);
-      const [u0, c0] = expandConsumerId(compressed0);
-      expect(u0).toBe(0);
-      expect(c0).toBe(0);
-
-      // Test with reasonable large values
-      const compressedMax = compressConsumerId(1000000, 500);
-      const [uMax, cMax] = expandConsumerId(compressedMax);
-      expect(uMax).toBe(1000000);
-      expect(cMax).toBe(500);
-    });
-  });
-
   describe("createHandler", () => {
     it("should assign unique ID on open", () => {
       const server = new WebSocketServer();
@@ -89,7 +49,7 @@ describe("WebSocketServer", () => {
       server.setWorker(workerManager as any);
 
       const handler = server.createHandler();
-      const ws = createMockWebSocket("");
+      const ws = createMockWebSocket("00000000-0000-0000-0000-000000000000");
 
       handler.open(ws as any);
 
@@ -197,10 +157,10 @@ describe("WebSocketServer", () => {
 
       const items = [
         {
-          user: 1,
+          user: "user-1",
           collection: 1,
           id: Buffer.alloc(16),
-          ref: "test-ref",
+          ref: Buffer.from("test-ref"),
           props: {},
           content: [],
           createdAt: 1000,
@@ -209,7 +169,7 @@ describe("WebSocketServer", () => {
       ];
 
       // No connections, should not throw
-      await server.broadcast(items, []);
+      await server.broadcast(items as any, []);
     });
   });
 });

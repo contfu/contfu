@@ -77,21 +77,23 @@ export class SyncWorkerManager {
     this.itemsCallback = callback;
   }
 
-  async activateConsumer(userId: number, consumerId: number): Promise<number> {
+  async activateConsumer(userId: string, consumerId: number): Promise<number> {
     const collectionCount = await countCollectionsForConsumer(userId, consumerId);
+    // TODO: Update @contfu/core to use string userId
     this.worker?.postMessage({
       type: SyncMessageType.ACTIVATE_CONSUMER,
-      userId,
+      userId: userId as unknown as number,
       consumerId,
       collectionCount,
     } as AppToWorkerMessage);
     return collectionCount;
   }
 
-  deactivateConsumer(userId: number, consumerId: number) {
+  deactivateConsumer(userId: string, consumerId: number) {
+    // TODO: Update @contfu/core to use string userId
     this.worker?.postMessage({
       type: SyncMessageType.DEACTIVATE_CONSUMER,
-      userId,
+      userId: userId as unknown as number,
       consumerId,
     } as AppToWorkerMessage);
   }
@@ -112,11 +114,21 @@ export class SyncWorkerManager {
         break;
 
       case SyncMessageType.REQUEST_SYNC_INFO:
-        await this.handleSyncInfoRequest(msg.requestId, msg.pairs);
+        // TODO: Update @contfu/core to use string userId
+        await this.handleSyncInfoRequest(
+          msg.requestId,
+          msg.pairs.map(([u, c]) => [String(u), c] as [string, number]),
+        );
         break;
 
       case SyncMessageType.REQUEST_ADD_ITEM_IDS:
-        await this.handleAddItemIds(msg.requestId, msg.userId, msg.collectionId, msg.itemIds);
+        // TODO: Update @contfu/core to use string userId
+        await this.handleAddItemIds(
+          msg.requestId,
+          String(msg.userId),
+          msg.collectionId,
+          msg.itemIds,
+        );
         break;
 
       default:
@@ -128,10 +140,11 @@ export class SyncWorkerManager {
     if (!this.itemsCallback || items.length === 0) return;
 
     // Get collection IDs from items
+    // TODO: Update @contfu/core to use string userId - item.user is number in core
     const collectionRefs = [...new Set(items.map((i) => `${i.user}:${i.collection}`))].map(
       (ref) => {
-        const [userId, collectionId] = ref.split(":").map(Number);
-        return [userId, collectionId] as const;
+        const [userId, collectionId] = ref.split(":");
+        return [userId, Number(collectionId)] as const;
       },
     );
 
@@ -140,7 +153,7 @@ export class SyncWorkerManager {
     this.itemsCallback(items, connections);
   }
 
-  private async handleSyncInfoRequest(requestId: number, pairs: [number, number][]) {
+  private async handleSyncInfoRequest(requestId: number, pairs: [string, number][]) {
     const opts = await getNextCollectionFetchOpts(pairs);
     this.worker?.postMessage({
       type: SyncMessageType.SYNC_INFO_RESPONSE,
@@ -151,7 +164,7 @@ export class SyncWorkerManager {
 
   private async handleAddItemIds(
     requestId: number,
-    userId: number,
+    userId: string,
     collectionId: number,
     itemIds: Buffer[],
   ) {
@@ -175,7 +188,7 @@ export class SyncWorkerManager {
 
 // Database access functions moved from sync service
 
-async function countCollectionsForConsumer(userId: number, consumerId: number) {
+async function countCollectionsForConsumer(userId: string, consumerId: number) {
   return db.$count(
     db
       .select({ collectionId: connectionTable.collectionId })
@@ -186,15 +199,24 @@ async function countCollectionsForConsumer(userId: number, consumerId: number) {
 }
 
 async function getConnectionsToCollections(
-  refs: (readonly [userId: number, collectionId: number])[],
+  refs: (readonly [userId: string, collectionId: number])[],
 ): Promise<ConnectionInfo[]> {
-  return db.query.connection.findMany({
-    where: inArray(sql`(${connectionTable.userId}, ${connectionTable.collectionId})`, refs),
-    orderBy: [asc(connectionTable.userId), asc(connectionTable.collectionId)],
-  });
+  // Build a simple query since inArray with tuples is complex
+  const results: ConnectionInfo[] = [];
+  for (const [userId, collectionId] of refs) {
+    const connections = await db
+      .select()
+      .from(connectionTable)
+      .where(
+        and(eq(connectionTable.userId, userId), eq(connectionTable.collectionId, collectionId)),
+      )
+      .orderBy(asc(connectionTable.userId), asc(connectionTable.collectionId));
+    results.push(...connections);
+  }
+  return results;
 }
 
-async function getNextCollectionFetchOpts(pairs: [userId: number, collectionId: number][]) {
+async function getNextCollectionFetchOpts(pairs: [userId: string, collectionId: number][]) {
   const state = await getConnectionsWithCollectionSyncInfo(pairs);
 
   const collectionFetchopts = new Array<ExtendedFetchOpts>();
@@ -202,8 +224,8 @@ async function getNextCollectionFetchOpts(pairs: [userId: number, collectionId: 
   for (const { consumer: _, lastItemChanged, ...s } of state) {
     // state is sorted by userId, collectionId, so we can safely assume that we
     // create only one fetchOpts per userId
-    if (current == null || current.user !== s.user)
-      collectionFetchopts.push((current = s as ExtendedFetchOpts));
+    if (current == null || current.user !== (s.user as unknown as number))
+      collectionFetchopts.push((current = s as unknown as ExtendedFetchOpts));
     if (lastItemChanged != null) {
       current.since =
         current.since == null
@@ -216,39 +238,59 @@ async function getNextCollectionFetchOpts(pairs: [userId: number, collectionId: 
   return collectionFetchopts;
 }
 
-async function getConnectionsWithCollectionSyncInfo(ids: [userId: number, collectionId: number][]) {
-  return db
-    .select({
-      user: connectionTable.userId,
-      consumer: connectionTable.consumerId,
-      collection: connectionTable.collectionId,
-      source: collectionTable.sourceId,
-      type: sourceTable.type,
-      lastItemChanged: connectionTable.lastItemChanged,
-      url: sourceTable.url,
-      ref: collectionTable.ref,
-      credentials: sourceTable.credentials,
-    })
-    .from(connectionTable)
-    .innerJoin(
-      collectionTable,
-      and(
-        eq(connectionTable.userId, collectionTable.userId),
-        eq(connectionTable.collectionId, collectionTable.id),
-      ),
-    )
-    .innerJoin(
-      sourceTable,
-      and(
-        eq(collectionTable.userId, sourceTable.userId),
-        eq(collectionTable.sourceId, sourceTable.id),
-      ),
-    )
-    .where(inArray(sql`(${connectionTable.userId}, ${connectionTable.collectionId})`, ids))
-    .orderBy(asc(connectionTable.userId), asc(connectionTable.collectionId));
+async function getConnectionsWithCollectionSyncInfo(ids: [userId: string, collectionId: number][]) {
+  // Build a simple query since inArray with tuples is complex
+  const results: Array<{
+    user: string;
+    consumer: number;
+    collection: number;
+    source: number;
+    type: number;
+    lastItemChanged: number | null;
+    url: string | null;
+    ref: Buffer | null;
+    credentials: Buffer | null;
+  }> = [];
+
+  for (const [userId, collectionId] of ids) {
+    const rows = await db
+      .select({
+        user: connectionTable.userId,
+        consumer: connectionTable.consumerId,
+        collection: connectionTable.collectionId,
+        source: collectionTable.sourceId,
+        type: sourceTable.type,
+        lastItemChanged: connectionTable.lastItemChanged,
+        url: sourceTable.url,
+        ref: collectionTable.ref,
+        credentials: sourceTable.credentials,
+      })
+      .from(connectionTable)
+      .innerJoin(
+        collectionTable,
+        and(
+          eq(connectionTable.userId, collectionTable.userId),
+          eq(connectionTable.collectionId, collectionTable.id),
+        ),
+      )
+      .innerJoin(
+        sourceTable,
+        and(
+          eq(collectionTable.userId, sourceTable.userId),
+          eq(collectionTable.sourceId, sourceTable.id),
+        ),
+      )
+      .where(
+        and(eq(connectionTable.userId, userId), eq(connectionTable.collectionId, collectionId)),
+      )
+      .orderBy(asc(connectionTable.userId), asc(connectionTable.collectionId));
+    results.push(...rows);
+  }
+
+  return results;
 }
 
-async function addItemIds(userId: number, collectionId: number, toAdd: Buffer[]) {
+async function addItemIds(userId: string, collectionId: number, toAdd: Buffer[]) {
   const ids = await getItemIds(userId, collectionId);
 
   for (const id of toAdd) ids.add(id);
@@ -258,7 +300,7 @@ async function addItemIds(userId: number, collectionId: number, toAdd: Buffer[])
     .where(and(eq(collectionTable.userId, userId), eq(collectionTable.id, collectionId)));
 }
 
-async function getItemIds(userId: number, collectionId: number) {
+async function getItemIds(userId: string, collectionId: number) {
   const result = await db
     .select({ itemIds: collectionTable.itemIds })
     .from(collectionTable)

@@ -1,11 +1,13 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "ad5256c7-edd1-4a24-a546-e8422fa099f1",
-  "prevIds": [
-    "00000000-0000-0000-0000-000000000000"
-  ],
+  "id": "db862404-4621-460b-bf67-4207d7721c1f",
+  "prevIds": ["00000000-0000-0000-0000-000000000000"],
   "ddl": [
+    {
+      "name": "account",
+      "entityType": "tables"
+    },
     {
       "name": "collection",
       "entityType": "tables"
@@ -39,7 +41,141 @@
       "entityType": "tables"
     },
     {
+      "name": "verification",
+      "entityType": "tables"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "account"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "userId",
+      "entityType": "columns",
+      "table": "account"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "accountId",
+      "entityType": "columns",
+      "table": "account"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "providerId",
+      "entityType": "columns",
+      "table": "account"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "accessToken",
+      "entityType": "columns",
+      "table": "account"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "refreshToken",
+      "entityType": "columns",
+      "table": "account"
+    },
+    {
       "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "accessTokenExpiresAt",
+      "entityType": "columns",
+      "table": "account"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "refreshTokenExpiresAt",
+      "entityType": "columns",
+      "table": "account"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "scope",
+      "entityType": "columns",
+      "table": "account"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "idToken",
+      "entityType": "columns",
+      "table": "account"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "password",
+      "entityType": "columns",
+      "table": "account"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "(unixepoch())",
+      "generated": null,
+      "name": "createdAt",
+      "entityType": "columns",
+      "table": "account"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "updatedAt",
+      "entityType": "columns",
+      "table": "account"
+    },
+    {
+      "type": "text",
       "notNull": true,
       "autoincrement": false,
       "default": null,
@@ -119,7 +255,7 @@
       "table": "collection"
     },
     {
-      "type": "integer",
+      "type": "text",
       "notNull": true,
       "autoincrement": false,
       "default": null,
@@ -169,7 +305,7 @@
       "table": "connection"
     },
     {
-      "type": "integer",
+      "type": "text",
       "notNull": true,
       "autoincrement": false,
       "default": null,
@@ -219,7 +355,7 @@
       "table": "consumer"
     },
     {
-      "type": "integer",
+      "type": "text",
       "notNull": true,
       "autoincrement": false,
       "default": null,
@@ -259,12 +395,52 @@
       "table": "item_id_conflict_resolution"
     },
     {
-      "type": "integer",
+      "type": "text",
       "notNull": false,
       "autoincrement": false,
       "default": null,
       "generated": null,
       "name": "id",
+      "entityType": "columns",
+      "table": "quota"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "polarCustomerId",
+      "entityType": "columns",
+      "table": "quota"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "subscriptionId",
+      "entityType": "columns",
+      "table": "quota"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "subscriptionStatus",
+      "entityType": "columns",
+      "table": "quota"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "currentPeriodEnd",
       "entityType": "columns",
       "table": "quota"
     },
@@ -349,7 +525,7 @@
       "table": "quota"
     },
     {
-      "type": "blob",
+      "type": "text",
       "notNull": false,
       "autoincrement": false,
       "default": null,
@@ -359,12 +535,22 @@
       "table": "session"
     },
     {
-      "type": "integer",
+      "type": "text",
       "notNull": true,
       "autoincrement": false,
       "default": null,
       "generated": null,
       "name": "userId",
+      "entityType": "columns",
+      "table": "session"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "token",
       "entityType": "columns",
       "table": "session"
     },
@@ -379,7 +565,47 @@
       "table": "session"
     },
     {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "ipAddress",
+      "entityType": "columns",
+      "table": "session"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "userAgent",
+      "entityType": "columns",
+      "table": "session"
+    },
+    {
       "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "(unixepoch())",
+      "generated": null,
+      "name": "createdAt",
+      "entityType": "columns",
+      "table": "session"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "updatedAt",
+      "entityType": "columns",
+      "table": "session"
+    },
+    {
+      "type": "text",
       "notNull": true,
       "autoincrement": false,
       "default": null,
@@ -459,9 +685,9 @@
       "table": "source"
     },
     {
-      "type": "integer",
+      "type": "text",
       "notNull": false,
-      "autoincrement": true,
+      "autoincrement": false,
       "default": null,
       "generated": null,
       "name": "id",
@@ -489,22 +715,12 @@
       "table": "user"
     },
     {
-      "type": "blob",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "registrationToken",
-      "entityType": "columns",
-      "table": "user"
-    },
-    {
       "type": "integer",
-      "notNull": false,
+      "notNull": true,
       "autoincrement": false,
-      "default": null,
+      "default": "false",
       "generated": null,
-      "name": "activeUntil",
+      "name": "emailVerified",
       "entityType": "columns",
       "table": "user"
     },
@@ -514,17 +730,7 @@
       "autoincrement": false,
       "default": null,
       "generated": null,
-      "name": "password",
-      "entityType": "columns",
-      "table": "user"
-    },
-    {
-      "type": "text",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "oauthId",
+      "name": "image",
       "entityType": "columns",
       "table": "user"
     },
@@ -549,13 +755,80 @@
       "table": "user"
     },
     {
-      "columns": [
-        "userId"
-      ],
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "verification"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "identifier",
+      "entityType": "columns",
+      "table": "verification"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "value",
+      "entityType": "columns",
+      "table": "verification"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "expiresAt",
+      "entityType": "columns",
+      "table": "verification"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "(unixepoch())",
+      "generated": null,
+      "name": "createdAt",
+      "entityType": "columns",
+      "table": "verification"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "updatedAt",
+      "entityType": "columns",
+      "table": "verification"
+    },
+    {
+      "columns": ["userId"],
       "tableTo": "user",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
+      "name": "fk_account_userId_user_id_fk",
+      "entityType": "fks",
+      "table": "account"
+    },
+    {
+      "columns": ["userId"],
+      "tableTo": "user",
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
@@ -564,15 +837,9 @@
       "table": "collection"
     },
     {
-      "columns": [
-        "userId",
-        "sourceId"
-      ],
+      "columns": ["userId", "sourceId"],
       "tableTo": "source",
-      "columnsTo": [
-        "userId",
-        "id"
-      ],
+      "columnsTo": ["userId", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
@@ -581,13 +848,9 @@
       "table": "collection"
     },
     {
-      "columns": [
-        "userId"
-      ],
+      "columns": ["userId"],
       "tableTo": "user",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
@@ -596,15 +859,9 @@
       "table": "connection"
     },
     {
-      "columns": [
-        "userId",
-        "consumerId"
-      ],
+      "columns": ["userId", "consumerId"],
       "tableTo": "consumer",
-      "columnsTo": [
-        "userId",
-        "id"
-      ],
+      "columnsTo": ["userId", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
@@ -613,15 +870,9 @@
       "table": "connection"
     },
     {
-      "columns": [
-        "userId",
-        "collectionId"
-      ],
+      "columns": ["userId", "collectionId"],
       "tableTo": "collection",
-      "columnsTo": [
-        "userId",
-        "id"
-      ],
+      "columnsTo": ["userId", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
@@ -630,13 +881,9 @@
       "table": "connection"
     },
     {
-      "columns": [
-        "userId"
-      ],
+      "columns": ["userId"],
       "tableTo": "user",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
@@ -645,13 +892,9 @@
       "table": "consumer"
     },
     {
-      "columns": [
-        "userId"
-      ],
+      "columns": ["userId"],
       "tableTo": "user",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
@@ -660,15 +903,9 @@
       "table": "item_id_conflict_resolution"
     },
     {
-      "columns": [
-        "userId",
-        "collectionId"
-      ],
+      "columns": ["userId", "collectionId"],
       "tableTo": "collection",
-      "columnsTo": [
-        "userId",
-        "id"
-      ],
+      "columnsTo": ["userId", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
@@ -677,13 +914,9 @@
       "table": "item_id_conflict_resolution"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "tableTo": "user",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
@@ -692,13 +925,9 @@
       "table": "quota"
     },
     {
-      "columns": [
-        "userId"
-      ],
+      "columns": ["userId"],
       "tableTo": "user",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
@@ -707,13 +936,9 @@
       "table": "session"
     },
     {
-      "columns": [
-        "userId"
-      ],
+      "columns": ["userId"],
       "tableTo": "user",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
@@ -722,117 +947,93 @@
       "table": "source"
     },
     {
-      "columns": [
-        "userId",
-        "id"
-      ],
+      "columns": ["userId", "id"],
       "nameExplicit": false,
       "name": "collection_pk",
       "entityType": "pks",
       "table": "collection"
     },
     {
-      "columns": [
-        "userId",
-        "consumerId",
-        "collectionId"
-      ],
+      "columns": ["userId", "consumerId", "collectionId"],
       "nameExplicit": false,
       "name": "connection_pk",
       "entityType": "pks",
       "table": "connection"
     },
     {
-      "columns": [
-        "userId",
-        "id"
-      ],
+      "columns": ["userId", "id"],
       "nameExplicit": false,
       "name": "consumer_pk",
       "entityType": "pks",
       "table": "consumer"
     },
     {
-      "columns": [
-        "userId",
-        "collectionId",
-        "sourceItemId"
-      ],
+      "columns": ["userId", "collectionId", "sourceItemId"],
       "nameExplicit": false,
       "name": "item_id_conflict_resolution_pk",
       "entityType": "pks",
       "table": "item_id_conflict_resolution"
     },
     {
-      "columns": [
-        "userId",
-        "id"
-      ],
+      "columns": ["userId", "id"],
       "nameExplicit": false,
       "name": "source_pk",
       "entityType": "pks",
       "table": "source"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
+      "nameExplicit": false,
+      "name": "account_pk",
+      "table": "account",
+      "entityType": "pks"
+    },
+    {
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "quota_pk",
       "table": "quota",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "session_pk",
       "table": "session",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "user_pk",
       "table": "user",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "key"
-      ],
+      "columns": ["id"],
+      "nameExplicit": false,
+      "name": "verification_pk",
+      "table": "verification",
+      "entityType": "pks"
+    },
+    {
+      "columns": ["key"],
       "nameExplicit": false,
       "name": "consumer_key_unique",
       "entityType": "uniques",
       "table": "consumer"
     },
     {
-      "columns": [
-        "email"
-      ],
+      "columns": ["token"],
+      "nameExplicit": false,
+      "name": "session_token_unique",
+      "entityType": "uniques",
+      "table": "session"
+    },
+    {
+      "columns": ["email"],
       "nameExplicit": false,
       "name": "user_email_unique",
-      "entityType": "uniques",
-      "table": "user"
-    },
-    {
-      "columns": [
-        "registrationToken"
-      ],
-      "nameExplicit": false,
-      "name": "user_registrationToken_unique",
-      "entityType": "uniques",
-      "table": "user"
-    },
-    {
-      "columns": [
-        "oauthId"
-      ],
-      "nameExplicit": false,
-      "name": "user_oauthId_unique",
       "entityType": "uniques",
       "table": "user"
     }

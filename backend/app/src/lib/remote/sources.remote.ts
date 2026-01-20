@@ -16,13 +16,13 @@ import {
   type ConnectionTestResult,
 } from "$lib/server/sources/source-validator";
 
-function getUserId(): number {
+function getUserId(): string {
   const event = getRequestEvent();
-  const session = event.locals.session;
-  if (!session) {
+  const user = event.locals.user;
+  if (!user) {
     throw redirect(302, "/login");
   }
-  return session.user.id;
+  return user.id;
 }
 
 /**

@@ -1,6 +1,8 @@
 import type { LayoutServerLoad } from "./$types";
-import { guardLoggedIn } from "$lib/server/auth/session";
+import { redirect } from "@sveltejs/kit";
 
 export const load: LayoutServerLoad = async ({ locals }) => {
-  guardLoggedIn(locals);
+  if (!locals.user) {
+    throw redirect(302, "/login");
+  }
 };

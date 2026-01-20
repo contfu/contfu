@@ -179,13 +179,14 @@ describe("SyncWorkerManager", () => {
       mockWorker.simulateMessage({ type: SyncMessageType.WORKER_READY });
       await startPromise;
 
-      const count = await manager.activateConsumer(1, 2);
+      const count = await manager.activateConsumer("user-1", 2);
 
       expect(count).toBe(3); // From mocked db.$count
       const messages = mockWorker.getMessages();
+      // Note: @contfu/core expects numeric userId, so it's cast
       expect(messages).toContainEqual({
         type: SyncMessageType.ACTIVATE_CONSUMER,
-        userId: 1,
+        userId: "user-1",
         consumerId: 2,
         collectionCount: 3,
       });
@@ -201,12 +202,13 @@ describe("SyncWorkerManager", () => {
       mockWorker.simulateMessage({ type: SyncMessageType.WORKER_READY });
       await startPromise;
 
-      manager.deactivateConsumer(1, 2);
+      manager.deactivateConsumer("user-1", 2);
 
       const messages = mockWorker.getMessages();
+      // Note: @contfu/core expects numeric userId, so it's cast
       expect(messages).toContainEqual({
         type: SyncMessageType.DEACTIVATE_CONSUMER,
-        userId: 1,
+        userId: "user-1",
         consumerId: 2,
       });
     });
@@ -226,16 +228,16 @@ describe("SyncWorkerManager", () => {
         receivedItems.push(...items);
       });
 
-      const testItem: UserSyncItem = {
-        user: 1,
+      const testItem = {
+        user: "user-1",
         collection: 1,
         id: Buffer.alloc(16),
-        ref: "test-ref",
+        ref: Buffer.from("test-ref"),
         props: {},
         content: [],
         createdAt: 1000,
         changedAt: 2000,
-      };
+      } as unknown as UserSyncItem;
 
       mockWorker.simulateMessage({
         type: SyncMessageType.ITEMS_FETCHED,
@@ -246,7 +248,7 @@ describe("SyncWorkerManager", () => {
       await new Promise((resolve) => setTimeout(resolve, 10));
 
       expect(receivedItems.length).toBe(1);
-      expect(receivedItems[0].ref).toBe("test-ref");
+      expect(Buffer.from(receivedItems[0].ref).toString()).toBe("test-ref");
     });
 
     it("should not invoke callback for empty items", async () => {

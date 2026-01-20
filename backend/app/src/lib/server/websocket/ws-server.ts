@@ -17,7 +17,6 @@ import { eq } from "drizzle-orm";
 import { pack, unpack } from "msgpackr";
 import { consumerTable, db } from "../db/db";
 import type { SyncWorkerManager } from "../sync-worker/worker-manager";
-import { combine2ints } from "../util/numbers";
 
 type BunWebSocket<T> = {
   data: T;
@@ -33,13 +32,12 @@ class CommandError extends Error {
   }
 }
 
-export const [compressConsumerId, expandConsumerId] = combine2ints(32, 20);
-export const [compressCollectionId, expandCollectionId] = combine2ints(32, 20);
-
-/** Maps compressed consumer ID to WebSocket. */
-const consumerToSocket = new Map<number, BunWebSocket<WsData>>();
-/** Maps socket ID to compressed consumer ID. */
-const socketToConsumer = new Map<string, number>();
+/** Maps consumer key (hex) to WebSocket. */
+const consumerToSocket = new Map<string, BunWebSocket<WsData>>();
+/** Maps socket ID to consumer key (hex). */
+const socketToConsumer = new Map<string, string>();
+/** Maps consumer key (hex) to consumer info. */
+const consumerInfo = new Map<string, { userId: string; consumerId: number }>();
 
 type WsData = { id: string };
 
@@ -77,13 +75,16 @@ export class WebSocketServer {
         ws.data = { id: crypto.randomUUID() };
       },
       close: (ws: BunWebSocket<WsData>) => {
-        const consumerId = socketToConsumer.get(ws.data.id);
-        if (!consumerId) return;
+        const consumerKey = socketToConsumer.get(ws.data.id);
+        if (!consumerKey) return;
         socketToConsumer.delete(ws.data.id);
-        consumerToSocket.delete(consumerId);
+        consumerToSocket.delete(consumerKey);
 
-        const [userId, id] = expandConsumerId(consumerId);
-        this.worker?.deactivateConsumer(userId, id);
+        const info = consumerInfo.get(consumerKey);
+        if (info) {
+          consumerInfo.delete(consumerKey);
+          this.worker?.deactivateConsumer(info.userId, info.consumerId);
+        }
       },
     };
   }
@@ -94,10 +95,11 @@ export class WebSocketServer {
         return this.connect(cmd.key, ws);
 
       case CommandType.ACK: {
-        const consumerId = socketToConsumer.get(ws.data.id);
-        if (!consumerId) return new CommandError("E_ACCESS");
-        const [userId, id] = expandConsumerId(consumerId);
-        console.log("ack", userId, id, cmd.itemId);
+        const consumerKey = socketToConsumer.get(ws.data.id);
+        if (!consumerKey) return new CommandError("E_ACCESS");
+        const info = consumerInfo.get(consumerKey);
+        if (!info) return new CommandError("E_ACCESS");
+        console.log("ack", info.userId, info.consumerId, cmd.itemId);
         return this.ack(cmd.itemId);
       }
 
@@ -112,17 +114,19 @@ export class WebSocketServer {
     if (!client) return new CommandError("E_AUTH");
     if (socketToConsumer.has(ws.data.id)) return new CommandError("E_CONFLICT");
 
-    const consumerId = compressConsumerId(client.userId, client.id);
+    const consumerKey = key.toString("hex");
 
     try {
       await this.worker?.activateConsumer(client.userId, client.id);
-      consumerToSocket.set(consumerId, ws);
-      socketToConsumer.set(ws.data.id, consumerId);
+      consumerToSocket.set(consumerKey, ws);
+      socketToConsumer.set(ws.data.id, consumerKey);
+      consumerInfo.set(consumerKey, { userId: client.userId, consumerId: client.id });
       ws.send(serializeEvent({ type: EventType.CONNECTED }));
     } catch (error) {
       // Clean up maps if activation or send fails
-      consumerToSocket.delete(consumerId);
+      consumerToSocket.delete(consumerKey);
       socketToConsumer.delete(ws.data.id);
+      consumerInfo.delete(consumerKey);
       console.error("Failed to connect consumer:", error);
       return new CommandError("E_ACCESS");
     }
@@ -136,20 +140,28 @@ export class WebSocketServer {
    * Broadcasts items to connected consumers.
    */
   async broadcast(items: UserSyncItem[], connections: ConnectionInfo[]) {
-    const collectionEvents = new Map<number, Exclude<ItemEvent, ListIdsEvent>[]>();
+    const collectionEvents = new Map<string, Exclude<ItemEvent, ListIdsEvent>[]>();
 
     for (const item of items) {
-      const collectionId = compressCollectionId(item.user, item.collection);
-      const events = collectionEvents.get(collectionId) ?? [];
-      if (events.length === 0) collectionEvents.set(collectionId, events);
+      const collectionKey = `${item.user}:${item.collection}`;
+      const events = collectionEvents.get(collectionKey) ?? [];
+      if (events.length === 0) collectionEvents.set(collectionKey, events);
       events.push(changedEvent(item));
     }
 
     for (const conn of connections) {
-      const socket = consumerToSocket.get(compressConsumerId(conn.userId, conn.consumerId));
+      // Find socket by looking up consumer info
+      let socket: BunWebSocket<WsData> | undefined;
+      for (const [key, info] of consumerInfo.entries()) {
+        if (info.userId === conn.userId && info.consumerId === conn.consumerId) {
+          socket = consumerToSocket.get(key);
+          break;
+        }
+      }
       if (!socket) continue;
-      const collectionId = compressCollectionId(conn.userId, conn.collectionId);
-      const events = collectionEvents.get(collectionId);
+
+      const collectionKey = `${conn.userId}:${conn.collectionId}`;
+      const events = collectionEvents.get(collectionKey);
       if (!events) continue;
 
       for (const event of events) {
@@ -167,7 +179,7 @@ export class WebSocketServer {
 }
 
 export type ConnectionInfo = {
-  userId: number;
+  userId: string;
   consumerId: number;
   collectionId: number;
   lastItemChanged: number | null;

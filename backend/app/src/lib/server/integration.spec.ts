@@ -8,7 +8,7 @@ TEST_CONSUMER_KEY.write("test-consumer-key-12345", 0, 24);
 
 const TEST_CONSUMER = {
   id: 1,
-  userId: 1,
+  userId: "user-1",
   key: TEST_CONSUMER_KEY,
 };
 
@@ -57,7 +57,7 @@ function createKeyTrackingChainableMock() {
   chain.all = () => {
     // Check if the last queried key matches TEST_CONSUMER_KEY
     // We'll rely on the key being set via intercepted calls
-    if (lastQueriedKey && !lastQueriedKey.equals(TEST_CONSUMER_KEY)) {
+    if (lastQueriedKey && lastQueriedKey.toString("hex") !== TEST_CONSUMER_KEY.toString("hex")) {
       return Promise.resolve([]);
     }
     return Promise.resolve([TEST_CONSUMER]);
@@ -80,7 +80,7 @@ mock.module("./db/db", () => {
           findMany: mock(() =>
             Promise.resolve([
               {
-                userId: 1,
+                userId: "user-1",
                 consumerId: 1,
                 collectionId: 1,
                 lastItemChanged: null,
@@ -136,7 +136,7 @@ mock.module("drizzle-orm", () => ({
 // Dynamic import after mock
 const { WebSocketServer } = await import("./websocket/ws-server");
 type ConnectionInfo = {
-  userId: number;
+  userId: string;
   consumerId: number;
   collectionId: number;
   lastItemChanged: number | null;
@@ -348,10 +348,10 @@ describe("Integration: WebSocket Server", () => {
 
     // Now broadcast an item
     const testItem = {
-      user: 1,
+      user: "user-1",
       collection: 1,
       id: Buffer.alloc(16),
-      ref: "test-ref",
+      ref: Buffer.from("test-ref"),
       props: { title: "Test Item" },
       content: [],
       createdAt: 1000,
@@ -360,7 +360,7 @@ describe("Integration: WebSocket Server", () => {
 
     const connections: ConnectionInfo[] = [
       {
-        userId: 1,
+        userId: "user-1",
         consumerId: 1,
         collectionId: 1,
         lastItemChanged: null,
@@ -368,10 +368,20 @@ describe("Integration: WebSocket Server", () => {
     ];
 
     // Broadcast the item
-    await wsServer.broadcast([testItem], connections);
+    await wsServer.broadcast([testItem] as any, connections);
 
     // Receive the item
-    const receivedItem = await new Promise<ItemEvent>((resolve, reject) => {
+    const receivedItem = await new Promise<{
+      type: typeof EventType.CHANGED;
+      item: {
+        collection: number;
+        id: Buffer;
+        createdAt: number;
+        changedAt: number;
+        ref: unknown;
+        props: Record<string, unknown>;
+      };
+    }>((resolve, reject) => {
       const timeout = setTimeout(() => reject(new Error("Broadcast timeout")), 5000);
 
       ws.onmessage = (event) => {
@@ -385,10 +395,10 @@ describe("Integration: WebSocket Server", () => {
               id: Buffer.from(data[2] as Uint8Array),
               createdAt: data[3] as number,
               changedAt: data[4] as number,
-              ref: (data[5] as unknown[])[0] as string,
+              ref: (data[5] as unknown[])[0],
               props: (data[5] as unknown[])[1] as Record<string, unknown>,
             },
-          } as ItemEvent);
+          });
         } else {
           reject(new Error(`Expected CHANGED event, got ${data[0]}`));
         }
@@ -437,10 +447,10 @@ describe("Integration: WebSocket Server", () => {
 
     // Broadcast an old item (changedAt < lastItemChanged)
     const oldItem = {
-      user: 1,
+      user: "user-1",
       collection: 1,
       id: Buffer.alloc(16),
-      ref: "old-ref",
+      ref: Buffer.from("old-ref"),
       props: {},
       content: [],
       createdAt: 500,
@@ -449,7 +459,7 @@ describe("Integration: WebSocket Server", () => {
 
     const connections: ConnectionInfo[] = [
       {
-        userId: 1,
+        userId: "user-1",
         consumerId: 1,
         collectionId: 1,
         lastItemChanged: 2000, // Item changed at 1000, so it should be filtered
@@ -457,7 +467,7 @@ describe("Integration: WebSocket Server", () => {
     ];
 
     // Broadcast the old item - it should be filtered
-    await wsServer.broadcast([oldItem], connections);
+    await wsServer.broadcast([oldItem] as any, connections);
 
     // Check that no message was received (with a short timeout)
     const receivedMessage = await Promise.race([

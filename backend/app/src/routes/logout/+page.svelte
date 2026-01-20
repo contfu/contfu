@@ -1,11 +1,15 @@
 <script lang="ts">
-  import { enhance } from "$app/forms";
+  import { goto } from "$app/navigation";
+  import { signOut } from "$lib/auth-client";
+
+  async function handleLogout() {
+    await signOut();
+    goto("/login");
+  }
 </script>
 
 <div class="flex min-h-screen items-center justify-center">
-  <form method="POST" use:enhance>
-    <button type="submit" class="text-primary hover:underline">
-      Click here to logout
-    </button>
-  </form>
+  <button type="button" onclick={handleLogout} class="text-primary hover:underline">
+    Click here to logout
+  </button>
 </div>
