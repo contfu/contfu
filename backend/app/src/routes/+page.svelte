@@ -183,27 +183,6 @@
               >
                 <polygon points="0 0, 8 3, 0 6" fill="#22c55e" />
               </marker>
-              <!-- Gradient for database -->
-              <linearGradient
-                id="db-gradient"
-                x1="0%"
-                y1="0%"
-                x2="0%"
-                y2="100%"
-              >
-                <stop offset="0%" style="stop-color:#60a5fa;stop-opacity:1" />
-                <stop offset="100%" style="stop-color:#3b82f6;stop-opacity:1" />
-              </linearGradient>
-              <linearGradient
-                id="db-gradient-dark"
-                x1="0%"
-                y1="0%"
-                x2="0%"
-                y2="100%"
-              >
-                <stop offset="0%" style="stop-color:#1e40af;stop-opacity:1" />
-                <stop offset="100%" style="stop-color:#1e3a8a;stop-opacity:1" />
-              </linearGradient>
             </defs>
 
             <!-- Swap indicator label -->
@@ -411,80 +390,40 @@
               <!-- Database cylinder body -->
               <ellipse
                 cx="0"
-                cy="-35"
+                cy="20"
                 rx="65"
                 ry="18"
-                class="fill-blue-400 dark:fill-blue-700"
+                fill="none"
+                stroke="white"
               />
               <rect
-                x="-65"
+                x="-66"
                 y="-35"
-                width="130"
+                width="132"
                 height="55"
                 class="fill-blue-500 dark:fill-blue-600"
               />
-              <!-- Middle ring for 3D effect -->
-              <ellipse
-                cx="0"
-                cy="-10"
-                rx="65"
-                ry="18"
-                class="fill-blue-400 dark:fill-blue-700"
-                opacity="0.3"
-              />
-              <!-- Side edges -->
-              <line
-                x1="-65"
-                y1="-35"
-                x2="-65"
-                y2="20"
-                stroke="#2563eb"
-                stroke-width="2"
-              />
-              <line
-                x1="65"
-                y1="-35"
-                x2="65"
-                y2="20"
-                stroke="#2563eb"
-                stroke-width="2"
-              />
-              <!-- Bottom ellipse -->
-              <ellipse
-                cx="0"
-                cy="20"
-                rx="65"
-                ry="18"
-                class="fill-blue-600 dark:fill-blue-800"
-              />
-              <ellipse
-                cx="0"
-                cy="20"
-                rx="65"
-                ry="18"
-                fill="none"
-                stroke="#2563eb"
-                stroke-width="2"
-              />
-              <!-- Top ellipse stroke -->
               <ellipse
                 cx="0"
                 cy="-35"
                 rx="65"
                 ry="18"
                 fill="none"
-                stroke="#2563eb"
-                stroke-width="2"
+                stroke="white"
               />
+              <!-- Bottom ellipse -->
+              <ellipse cx="0" cy="20" rx="65" ry="18" fill="#2563eb" />
+              <!-- Top ellipse -->
+              <ellipse cx="0" cy="-35" rx="65" ry="18" fill="#2563eb" />
               <!-- SQLite logo/text -->
               <path
                 class="fill-white"
-                transform="scale(2) translate(-30, -20)"
+                transform="scale(1.8) translate(-30, -7)"
                 d="M21.678.521c-1.032-.92-2.28-.55-3.513.544a8.71 8.71 0 0 0-.547.535c-2.109 2.237-4.066 6.38-4.674 9.544.237.48.422 1.093.544 1.561a13.044 13.044 0 0 1 .164.703s-.019-.071-.096-.296l-.05-.146a1.689 1.689 0 0 0-.033-.08c-.138-.32-.518-.995-.686-1.289-.143.423-.27.818-.376 1.176.484.884.778 2.4.778 2.4s-.025-.099-.147-.442c-.107-.303-.644-1.244-.772-1.464-.217.804-.304 1.346-.226 1.478.152.256.296.698.422 1.186.286 1.1.485 2.44.485 2.44l.017.224a22.41 22.41 0 0 0 .056 2.748c.095 1.146.273 2.13.5 2.657l.155-.084c-.334-1.038-.47-2.399-.41-3.967.09-2.398.642-5.29 1.661-8.304 1.723-4.55 4.113-8.201 6.3-9.945-1.993 1.8-4.692 7.63-5.5 9.788-.904 2.416-1.545 4.684-1.931 6.857.666-2.037 2.821-2.912 2.821-2.912s1.057-1.304 2.292-3.166c-.74.169-1.955.458-2.362.629-.6.251-.762.337-.762.337s1.945-1.184 3.613-1.72C21.695 7.9 24.195 2.767 21.678.521m-18.573.543A1.842 1.842 0 0 0 1.27 2.9v16.608a1.84 1.84 0 0 0 1.835 1.834h9.418a22.953 22.953 0 0 1-.052-2.707c-.006-.062-.011-.141-.016-.2a27.01 27.01 0 0 0-.473-2.378c-.121-.47-.275-.898-.369-1.057-.116-.197-.098-.31-.097-.432 0-.12.015-.245.037-.386a9.98 9.98 0 0 1 .234-1.045l.217-.028c-.017-.035-.014-.065-.031-.097l-.041-.381a32.8 32.8 0 0 1 .382-1.194l.2-.019c-.008-.016-.01-.038-.018-.053l-.043-.316c.63-3.28 2.587-7.443 4.8-9.791.066-.069.133-.128.198-.194Z"
               />
               <text
                 x="10"
-                y="-5"
+                y="8"
                 text-anchor="middle"
                 fill="white"
                 style="font-size: 14px; font-weight: 700;"
@@ -493,7 +432,7 @@
               </text>
               <text
                 x="10"
-                y="14"
+                y="24"
                 text-anchor="middle"
                 fill="white"
                 opacity="0.8"
@@ -622,11 +561,6 @@
             class="rounded-full bg-purple-100 px-4 py-2 text-sm font-medium text-purple-800 dark:bg-purple-900 dark:text-purple-200"
           >
             Always Available
-          </span>
-          <span
-            class="rounded-full bg-amber-100 px-4 py-2 text-sm font-medium text-amber-800 dark:bg-amber-900 dark:text-amber-200"
-          >
-            Zero Vendor Lock-in
           </span>
         </div>
       </div>
@@ -813,6 +747,13 @@
                     <h3 class="text-xl font-bold text-gray-900 dark:text-white">
                       {plan.name}
                     </h3>
+                    {#if plan.recommended}
+                      <span
+                        class="rounded-full bg-amber-100 px-2 py-1 text-sm font-medium text-amber-800 dark:bg-amber-900 dark:text-amber-200"
+                      >
+                        Recommended
+                      </span>
+                    {/if}
                     {#if tab === "yearly"}
                       <span
                         class="text-md font-bold text-gray-500 dark:text-gray-400 line-through"

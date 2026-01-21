@@ -22,7 +22,7 @@
   }
 </script>
 
-<header class="fixed top-0 w-full bg-white shadow-sm dark:bg-gray-800">
+<header class="sticky top-0 z-50 w-full bg-white shadow-sm dark:bg-gray-800">
   <div class="container mx-auto px-4">
     <div class="flex h-16 items-center justify-between">
       <div class="flex items-center gap-2">
@@ -88,10 +88,10 @@
           {:else}
             <Button variant="link" href="/#features">Features</Button>
             <Button variant="link" href="/#pricing">Pricing</Button>
+            <Button variant="default" href="/login">Login</Button>
           {/if}
         </nav>
       {/if}
-      <Button variant="default" href="/login">Login</Button>
     </div>
   </div>
 </header>

@@ -1,70 +1,73 @@
 import { sql } from "drizzle-orm";
-import { blob, foreignKey, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import {
+  blob,
+  foreignKey,
+  integer,
+  primaryKey,
+  sqliteTable,
+  text,
+} from "drizzle-orm/sqlite-core";
 
 // better-auth tables
 
 export const userTable = sqliteTable("user", {
-  id: text().primaryKey(),
-  email: text().unique().notNull(),
+  id: integer().primaryKey(),
   name: text().notNull(),
+  email: text().unique().notNull(),
   emailVerified: integer({ mode: "boolean" }).notNull().default(false),
   image: text(),
-  createdAt: integer()
+  createdAt: integer({ mode: "timestamp" })
     .default(sql`(unixepoch())`)
     .notNull(),
-  updatedAt: integer(),
+  updatedAt: integer({ mode: "timestamp" })
+    .default(sql`(unixepoch())`)
+    .notNull(),
 });
 
 export type User = typeof userTable.$inferSelect;
 
 export const sessionTable = sqliteTable("session", {
-  id: text().primaryKey(),
-  userId: text()
-    .notNull()
-    .references(() => userTable.id, { onDelete: "cascade" }),
+  id: integer().primaryKey(),
+  expiresAt: integer({ mode: "timestamp" }).notNull(),
   token: text().unique().notNull(),
-  expiresAt: integer().notNull(),
+  createdAt: integer({ mode: "timestamp" }).notNull(),
+  updatedAt: integer({ mode: "timestamp" }).notNull(),
   ipAddress: text(),
   userAgent: text(),
-  createdAt: integer()
-    .default(sql`(unixepoch())`)
-    .notNull(),
-  updatedAt: integer(),
+  userId: integer()
+    .notNull()
+    .references(() => userTable.id, { onDelete: "cascade" }),
 });
 
 export type Session = typeof sessionTable.$inferSelect;
 
 export const accountTable = sqliteTable("account", {
-  id: text().primaryKey(),
-  userId: text()
-    .notNull()
-    .references(() => userTable.id, { onDelete: "cascade" }),
+  id: integer().primaryKey({ autoIncrement: true }),
   accountId: text().notNull(),
   providerId: text().notNull(),
+  userId: integer()
+    .notNull()
+    .references(() => userTable.id, { onDelete: "cascade" }),
   accessToken: text(),
   refreshToken: text(),
-  accessTokenExpiresAt: integer(),
-  refreshTokenExpiresAt: integer(),
-  scope: text(),
   idToken: text(),
+  accessTokenExpiresAt: integer({ mode: "timestamp" }),
+  refreshTokenExpiresAt: integer({ mode: "timestamp" }),
+  scope: text(),
   password: text(),
-  createdAt: integer()
-    .default(sql`(unixepoch())`)
-    .notNull(),
-  updatedAt: integer(),
+  createdAt: integer({ mode: "timestamp" }).notNull(),
+  updatedAt: integer({ mode: "timestamp" }).notNull(),
 });
 
 export type Account = typeof accountTable.$inferSelect;
 
 export const verificationTable = sqliteTable("verification", {
-  id: text().primaryKey(),
+  id: integer().primaryKey({ autoIncrement: true }),
   identifier: text().notNull(),
   value: text().notNull(),
-  expiresAt: integer().notNull(),
-  createdAt: integer()
-    .default(sql`(unixepoch())`)
-    .notNull(),
-  updatedAt: integer(),
+  expiresAt: integer({ mode: "timestamp" }).notNull(),
+  createdAt: integer({ mode: "timestamp" }).$defaultFn(() => new Date()),
+  updatedAt: integer({ mode: "timestamp" }).$defaultFn(() => new Date()),
 });
 
 export type Verification = typeof verificationTable.$inferSelect;
@@ -249,4 +252,5 @@ export const itemIdConflictResolutionTable = sqliteTable(
   ],
 );
 
-export type ItemIdConflictResolution = typeof itemIdConflictResolutionTable.$inferSelect;
+export type ItemIdConflictResolution =
+  typeof itemIdConflictResolutionTable.$inferSelect;

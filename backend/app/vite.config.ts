@@ -7,4 +7,8 @@ export default defineConfig({
   server: {
     port: 8011,
   },
+  ssr: {
+    noExternal: process.env.NODE_ENV === "production" ? true : undefined,
+    external: ["@css-inline/css-inline"],
+  },
 });

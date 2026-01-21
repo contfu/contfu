@@ -213,3 +213,4 @@ backend/app/build/
 backend/app/playwright-report
 backend/app/.svelte-kit
 backend/app/test-results/
+backend/app/data

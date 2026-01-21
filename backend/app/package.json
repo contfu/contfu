@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@contfu/core": "workspace:*",
+    "@css-inline/css-inline": "^0.19.1",
     "@polar-sh/better-auth": "^1.6.4",
     "@polar-sh/sdk": "^0.42.2",
     "better-auth": "^1.4.15",
@@ -40,6 +41,7 @@
     "autoprefixer": "latest",
     "drizzle-kit": "^1.0.0-beta.10-4a43a22",
     "mode-watcher": "^1.1.0",
+    "nodemailer": "^7.0.12",
     "playwright": "latest",
     "postcss": "latest",
     "svelte": "latest",
