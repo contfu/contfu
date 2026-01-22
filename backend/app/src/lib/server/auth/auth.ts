@@ -1,13 +1,7 @@
 import { db } from "$lib/server/db/db";
 import * as schema from "$lib/server/db/schema";
 import { sendEmail } from "$lib/server/mail/mail";
-import {
-  checkout,
-  polar,
-  portal,
-  usage,
-  webhooks,
-} from "@polar-sh/better-auth";
+import { checkout, polar, portal, usage, webhooks } from "@polar-sh/better-auth";
 import { Polar } from "@polar-sh/sdk";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
@@ -93,10 +87,7 @@ export const auth = betterAuth({
         // We only use 3 bytes of hash to identify the user agent.
         const buf = Buffer.alloc(8);
         buf.writeBigUInt64LE(BigInt(Bun.hash.rapidhash(ua)));
-        ctx.headers!.set(
-          "user-agent",
-          buf.subarray(0, 3).toString("base64url"),
-        );
+        ctx.headers!.set("user-agent", buf.subarray(0, 3).toString("base64url"));
       }
     }),
   },

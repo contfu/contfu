@@ -1,6 +1,12 @@
 import { createTransport } from "nodemailer";
 
-export function sendSmtp(opts: { from: string; to: string; subject: string; html: string; text?: string }) {
+export function sendSmtp(opts: {
+  from: string;
+  to: string;
+  subject: string;
+  html: string;
+  text?: string;
+}) {
   return transport.sendMail(opts);
 }
 

@@ -95,5 +95,8 @@ function minify(html: string) {
   return html
     .replace(/\s+/gm, " ")
     .replace(/> </g, "><")
-    .replace(/style="([^"]*)"/g, (_, css) => `style="${css.replace(/; /g, ";").replace(/;$/, "")}"`);
+    .replace(
+      /style="([^"]*)"/g,
+      (_, css) => `style="${css.replace(/; /g, ";").replace(/;$/, "")}"`,
+    );
 }

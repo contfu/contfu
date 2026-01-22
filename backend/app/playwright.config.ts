@@ -5,6 +5,7 @@ const TEST_PORT = 4173;
 
 export default defineConfig({
   testDir: "./tests",
+  testMatch: "**/*.e2e.ts",
   fullyParallel: false, // Run tests sequentially for auth state
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,

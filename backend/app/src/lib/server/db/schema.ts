@@ -1,12 +1,5 @@
 import { sql } from "drizzle-orm";
-import {
-  blob,
-  foreignKey,
-  integer,
-  primaryKey,
-  sqliteTable,
-  text,
-} from "drizzle-orm/sqlite-core";
+import { blob, foreignKey, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 // better-auth tables
 
@@ -252,5 +245,4 @@ export const itemIdConflictResolutionTable = sqliteTable(
   ],
 );
 
-export type ItemIdConflictResolution =
-  typeof itemIdConflictResolutionTable.$inferSelect;
+export type ItemIdConflictResolution = typeof itemIdConflictResolutionTable.$inferSelect;

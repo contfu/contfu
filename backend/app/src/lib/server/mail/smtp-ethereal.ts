@@ -1,7 +1,13 @@
 import { rm } from "fs/promises";
 import { createTestAccount, createTransport, getTestMessageUrl } from "nodemailer";
 
-export async function sendSmtp(opts: { from: string; to: string; subject: string; html: string; text?: string }) {
+export async function sendSmtp(opts: {
+  from: string;
+  to: string;
+  subject: string;
+  html: string;
+  text?: string;
+}) {
   const info = await transport.sendMail(opts);
   const link = getTestMessageUrl(info);
   if (link) {
