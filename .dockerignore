@@ -4,4 +4,4 @@
 !package.json
 !Dockerfile
 !tsconfig.json
-!bun.lockb
+!bun.lock
