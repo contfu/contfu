@@ -21,7 +21,7 @@ describe("optimizeImage()", () => {
     await optimizer.optimizeImage(
       store,
       "test.png",
-      await readFile(`${__dirname}/__fixtures__/test-image.png`)
+      await readFile(`${__dirname}/__fixtures__/test-image.png`),
     );
 
     expect(store.write).toHaveBeenCalledWith("test.avif", expect.any(Buffer));
@@ -32,7 +32,7 @@ describe("optimizeImage()", () => {
       store,
       "test.png",
       await readFile(`${__dirname}/__fixtures__/test-image.png`),
-      { avif: [[]], webp: [[]] }
+      { avif: [[]], webp: [[]] },
     );
 
     expect(store.write).toHaveBeenCalledWith("test.avif", expect.any(Buffer));
@@ -44,21 +44,12 @@ describe("optimizeImage()", () => {
       store,
       "test.png",
       await readFile(`${__dirname}/__fixtures__/test-image.png`),
-      { avif: [200, 400, 600] } // original is 433px
+      { avif: [200, 400, 600] }, // original is 433px
     );
 
-    expect(store.write).toHaveBeenCalledWith(
-      "test/w200.avif",
-      expect.any(Buffer)
-    );
-    expect(store.write).toHaveBeenCalledWith(
-      "test/w400.avif",
-      expect.any(Buffer)
-    );
-    expect(store.write).toHaveBeenCalledWith(
-      "test/w600.avif",
-      expect.any(Buffer)
-    );
+    expect(store.write).toHaveBeenCalledWith("test/w200.avif", expect.any(Buffer));
+    expect(store.write).toHaveBeenCalledWith("test/w400.avif", expect.any(Buffer));
+    expect(store.write).toHaveBeenCalledWith("test/w600.avif", expect.any(Buffer));
   });
 
   it("should work with input stream", async () => {
@@ -68,7 +59,7 @@ describe("optimizeImage()", () => {
       (
         await open(`${__dirname}/__fixtures__/test-image.png`)
       ).readableWebStream() as ReadableStream,
-      { avif: [[]], webp: [[]] }
+      { avif: [[]], webp: [[]] },
     );
 
     expect(store.write).toHaveBeenCalledWith("test.avif", expect.any(Buffer));
@@ -85,7 +76,7 @@ describe("optimizeImage()", () => {
       (
         await open(`${__dirname}/__fixtures__/test-image.png`)
       ).readableWebStream() as ReadableStream,
-      { avif: [[200, , 5], [400, 100], 600], webp: [200, 400, 600] }
+      { avif: [[200, undefined, 5], [400, 100], 600], webp: [200, 400, 600] },
     );
 
     expect(await store.exists("test/w200.avif")).toBe(true);

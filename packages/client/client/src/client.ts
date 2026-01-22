@@ -8,29 +8,26 @@ import {
   ErrorEvent,
   EventType,
   Item,
-  ITEM_ID_SIZE,
   ItemEvent,
   ListIdsEvent,
 } from "@contfu/core";
+import { pack, unpack } from "msgpackr";
 
 type Opts = {
   WS?: typeof WebSocket;
   handle?: (e: ItemEvent) => Promise<void>;
 };
 
-export function connectTo<Props extends Record<string, Record<string, any>>>(
+export function connectTo(
   key: Buffer,
-  opts: Opts & { handle: (e: ItemEvent) => Promise<void> }
+  opts: Opts & { handle: (e: ItemEvent) => Promise<void> },
 ): Promise<void>;
-export function connectTo<Props extends Record<string, Record<string, any>>>(
+export function connectTo(
   key: Buffer,
-  opts?: Omit<Opts, "handle">
+  opts?: Omit<Opts, "handle">,
 ): Promise<AsyncGenerator<ItemEvent>>;
-export async function connectTo(
-  key: Buffer,
-  { WS = global.WebSocket, handle }: Opts = {}
-) {
-  let resolve: (value: any) => void, reject: (reason?: any) => void;
+export async function connectTo(key: Buffer, { WS = global.WebSocket, handle }: Opts = {}) {
+  let resolve: (value: any) => void;
   let socket = new WS("ws://localhost:9999");
 
   socket.onopen = () => {
@@ -38,31 +35,27 @@ export async function connectTo(
   };
 
   socket.onmessage = (event) => {
-    const data = deserializeEvent(event.data as Buffer);
-    resolve(data);
+    const data = event.data;
+    const deserialized = deserializeEvent(data as Buffer);
+    resolve(deserialized);
   };
-  await new Promise((res, rej) => {
+  await new Promise((res) => {
     resolve = res;
-    reject = rej;
   });
 
   if (handle) {
     return (async () => {
       do {
-        const event = await new Promise<ItemEvent>((res, rej) => {
+        const event = await new Promise<ItemEvent>((res) => {
           resolve = res;
-          reject = rej;
         });
-        if (
-          event.type === EventType.CHANGED ||
-          event.type === EventType.DELETED
-        ) {
+        if (event.type === EventType.CHANGED || event.type === EventType.DELETED) {
           await handle(event);
           socket.send(
             serializeCommand({
               type: CommandType.ACK,
               itemId: event.item instanceof Buffer ? event.item : event.item.id,
-            })
+            }),
           );
         }
       } while (socket.readyState === WebSocket.OPEN);
@@ -70,48 +63,41 @@ export async function connectTo(
   }
   return (async function* () {
     do {
-      yield await new Promise<ItemEvent>((res, rej) => {
+      yield await new Promise<ItemEvent>((res) => {
         resolve = res;
-        reject = rej;
       });
     } while (socket.readyState === WebSocket.OPEN);
   })();
 }
 
-function serializeCommand(cmd: Command) {
+function serializeCommand(cmd: Command): Buffer {
+  let packed: unknown;
   switch (cmd.type) {
     case CommandType.CONNECT: {
-      const buf = Buffer.alloc(1 + cmd.key.length);
-      buf.writeUInt8(cmd.type, 0);
-      cmd.key.copy(buf, 1);
-      return buf;
+      packed = pack([CommandType.CONNECT, cmd.key] as any);
+      break;
     }
     case CommandType.ACK: {
-      const buf = Buffer.alloc(11);
-      buf.writeUInt8(cmd.type, 0);
-      cmd.itemId.copy(buf, 1);
-      return buf;
+      packed = pack([CommandType.ACK, cmd.itemId] as any);
+      break;
     }
   }
+  return Buffer.from(packed as Uint8Array);
 }
 
-function deserializeEvent(buf: Buffer) {
-  const type = buf.readUInt8(0) as EventType;
+function deserializeEvent(buf: Buffer): ItemEvent | ErrorEvent | ConnectedEvent {
+  const arr = unpack(buf) as [EventType, ...any[]];
+  const type = arr[0];
   switch (type) {
     case EventType.CONNECTED: {
       return { type } satisfies ConnectedEvent;
     }
     case EventType.CHANGED: {
-      const collection = buf.readUInt16LE(1);
-      const id = buf.subarray(3, 3 + ITEM_ID_SIZE);
-      const createdAt = Number(buf.readBigInt64LE(3 + ITEM_ID_SIZE));
-      const changedAt = Number(buf.readBigInt64LE(11 + ITEM_ID_SIZE));
-      const json = buf.subarray(19 + ITEM_ID_SIZE).toString("utf8");
-      const parsed = JSON.parse(json.trim());
-      const [ref, props, content] = Array.isArray(parsed) ? parsed : [parsed];
+      const [, collection, id, createdAt, changedAt, contentArray] = arr;
+      const [ref, props, content] = contentArray as [Uint8Array | Buffer | number[], any, any?];
       const item = {
-        id,
-        ref: Buffer.from(ref, "base64url"),
+        id: Buffer.from(id as unknown as Uint8Array),
+        ref: Buffer.from(ref as unknown as Uint8Array),
         createdAt,
         changedAt,
         collection,
@@ -121,24 +107,29 @@ function deserializeEvent(buf: Buffer) {
       return { type, item } as ChangedEvent;
     }
     case EventType.DELETED: {
-      const item = buf.subarray(3);
-      return { type, item } satisfies DeletedEvent;
+      return {
+        type,
+        item: Buffer.from(arr[1] as unknown as Uint8Array),
+      } satisfies DeletedEvent;
     }
     case EventType.LIST_IDS: {
-      const ids = [];
-      const collection = buf.readUInt16LE(1);
-      for (let i = 0; i < buf.length - 3; i += ITEM_ID_SIZE)
-        ids.push(buf.subarray(3 + i, 3 + ITEM_ID_SIZE + i));
-      return { type, collection, ids } satisfies ListIdsEvent;
+      const [, collection, ...ids] = arr;
+      return {
+        type,
+        collection,
+        ids: ids.map((id) => Buffer.from(id as unknown as Uint8Array)),
+      } satisfies ListIdsEvent;
     }
     case EventType.CHECKSUM: {
-      const collection = buf.readUInt16LE(1);
-      const checksum = buf.subarray(3);
-      return { type, collection, checksum } satisfies ChecksumEvent;
+      const [, collection, checksum] = arr;
+      return {
+        type,
+        collection,
+        checksum: Buffer.from(checksum as unknown as Uint8Array),
+      } satisfies ChecksumEvent;
     }
     case EventType.ERROR: {
-      const code = buf.subarray(4).toString("ascii");
-      return { type, code } satisfies ErrorEvent;
+      return { type, code: arr[1] } satisfies ErrorEvent;
     }
   }
 }

@@ -1,34 +1,40 @@
-import type { Insertable, Selectable, Updateable } from "kysely";
+import { blob, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
-export interface Schema {
-  page: PageTable;
-  pageLink: PageLinkTable;
-}
+export const pageTable = sqliteTable("page", {
+  id: blob({ mode: "buffer" }).primaryKey(),
+  ref: text().notNull(),
+  path: text().unique().notNull(),
+  collection: text(),
+  title: text().notNull(),
+  description: text().notNull(),
+  content: text(),
+  props: text(),
+  author: text(),
+  connection: blob({ mode: "buffer" }).notNull(),
+  publishedAt: integer().notNull(),
+  createdAt: integer().notNull(),
+  updatedAt: integer(),
+  changedAt: integer().notNull(),
+});
 
-export interface PageTable {
-  id: Uint8Array;
-  path: string;
-  collection: string | null;
-  title: string;
-  description: string | null;
-  content: string | null;
-  props: string | null;
-  connection: Uint8Array;
-  createdAt: number;
-  changedAt: number;
-  updatedAt: number | null;
-  publishedAt: number;
-  author: string | null;
-}
-export type DbPage = Selectable<PageTable>;
-export type NewPage = Insertable<PageTable>;
-export type PageUpdate = Updateable<PageTable>;
+export type DbPage = typeof pageTable.$inferSelect;
+export type NewPage = typeof pageTable.$inferInsert;
+export type PageUpdate = Partial<NewPage>;
 
-export interface PageLinkTable {
-  type: string;
-  from: Uint8Array;
-  to: Uint8Array;
-}
-export type DbPageLink = Selectable<PageLinkTable>;
-export type NewPageLink = Insertable<PageLinkTable>;
-export type PageLinkUpdate = Updateable<PageLinkTable>;
+export const pageLinkTable = sqliteTable(
+  "pageLink",
+  {
+    type: text().notNull(),
+    from: blob({ mode: "buffer" })
+      .notNull()
+      .references(() => pageTable.id, { onDelete: "cascade" }),
+    to: blob({ mode: "buffer" })
+      .notNull()
+      .references(() => pageTable.id, { onDelete: "cascade" }),
+  },
+  (t) => [primaryKey({ columns: [t.type, t.from, t.to] })],
+);
+
+export type DbPageLink = typeof pageLinkTable.$inferSelect;
+export type NewPageLink = typeof pageLinkTable.$inferInsert;
+export type PageLinkUpdate = Partial<NewPageLink>;

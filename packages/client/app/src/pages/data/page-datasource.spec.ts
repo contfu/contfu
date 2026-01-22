@@ -1,7 +1,8 @@
-import { Page, PageData } from "@contfu/core";
+import type { Page, PageData } from "../pages";
 import { beforeEach, describe, expect, it } from "bun:test";
-import { fromHex, getDb } from "../../core/db/db";
-import type { NewPage } from "../../core/db/schema";
+import "../../../test/setup";
+import { db } from "../../core/db/db";
+import { pageLinkTable, pageTable, type NewPage } from "../../core/db/schema";
 import {
   createOrUpdatePage,
   createPage,
@@ -76,9 +77,7 @@ describe("updatePage()", () => {
 
     await updatePage(update);
 
-    expect(await selectAllPages()).toEqual([
-      { ...dbPage, collection: "test2" },
-    ]);
+    expect(await selectAllPages()).toEqual([{ ...dbPage, collection: "test2" }]);
   });
 });
 
@@ -155,9 +154,7 @@ describe("createPageLink()", () => {
 
     await createPageLink(link);
 
-    expect(await selectAllPageLinks()).toEqual([
-      { ...link, from: fromHex(id1), to: fromHex(id2) },
-    ]);
+    expect(await selectAllPageLinks()).toEqual([{ ...link, from: fromHex(id1), to: fromHex(id2) }]);
   });
 });
 
@@ -222,6 +219,7 @@ describe("deletePageLinksByRef()", () => {
 
 const page = {
   id: id1,
+  ref: "test",
   connection: "1234567890abcdef",
   path: "test",
   collection: "foo",
@@ -235,11 +233,7 @@ const page = {
   links: { content: [] },
 } satisfies PageData<Page>;
 
-const {
-  links: {},
-  connection: {},
-  ...pageWithoutLinks
-} = page;
+const { links: _links, ...pageWithoutLinks } = page;
 
 const dbPage = {
   ...pageWithoutLinks,
@@ -255,23 +249,27 @@ const dbPage = {
 } satisfies NewPage;
 
 async function insertPage(c: NewPage = dbPage) {
-  await getDb()
-    .insertInto("page")
+  await db
+    .insert(pageTable)
     .values({ ...c })
     .execute();
 }
 
 async function selectAllPages() {
-  return await getDb().selectFrom("page").selectAll().execute();
+  return await db.select().from(pageTable).all();
 }
 
 async function selectAllPageLinks() {
-  return await getDb().selectFrom("pageLink").selectAll().execute();
+  return await db.select().from(pageLinkTable).all();
 }
 
 async function insertPageLink(type: string, from: string, to: string) {
-  await getDb()
-    .insertInto("pageLink")
+  await db
+    .insert(pageLinkTable)
     .values({ type, from: fromHex(from), to: fromHex(to) })
     .execute();
+}
+
+function fromHex(hex: string): Buffer {
+  return Buffer.from(hex, "hex");
 }

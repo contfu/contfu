@@ -1,12 +1,8 @@
-import { beforeAll, beforeEach } from "bun:test";
-import { BunWorkerDialect } from "kysely-bun-worker";
-import { setupDb, truncate } from "../src/core/db/db";
-
-beforeAll(async () => {
-  const dialect = new BunWorkerDialect();
-  await setupDb({ dialect });
-});
+import { beforeEach } from "bun:test";
+import { db } from "../src/core/db/db";
+import { pageLinkTable, pageTable } from "../src/core/db/schema";
 
 beforeEach(async () => {
-  await truncate();
+  await db.delete(pageLinkTable).execute();
+  await db.delete(pageTable).execute();
 });

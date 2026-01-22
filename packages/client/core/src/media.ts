@@ -19,6 +19,6 @@ export interface MediaOptimizer {
     store: MediaStore,
     canonical: string,
     input: Buffer | ReadableStream,
-    opts?: OptimizeImageOpts
+    opts?: OptimizeImageOpts,
   ): Promise<void>;
 }

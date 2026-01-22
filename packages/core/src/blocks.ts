@@ -9,19 +9,19 @@ export type OrderedListBlock = [type: "o", items: (Inline | Block)[]];
 export type TableBlock = [
   type: "t",
   hasHeader: boolean,
-  cells: (Block | Inline)[][][]
+  cells: (Block | Inline)[][][],
 ];
 export type ImageBlock = [
   type: "i",
   canonical: string,
   alt: string,
-  widths: number[]
+  widths: number[],
 ];
 export type CustomBlock = [
   type: "x",
   name: string,
   props: Record<string, any>,
-  children: Block[]
+  children: Block[],
 ];
 
 export type Block<T extends CustomBlock = CustomBlock> =

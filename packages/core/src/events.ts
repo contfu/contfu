@@ -1,4 +1,4 @@
-import { Item } from "./items";
+import type { Item } from "./items";
 
 export enum EventType {
   CONNECTED = 0,
@@ -58,8 +58,4 @@ export type ChecksumEvent = EventBase<EventType.CHECKSUM> & {
   collection: number;
 };
 
-export type ItemEvent =
-  | ChangedEvent
-  | DeletedEvent
-  | ListIdsEvent
-  | ChecksumEvent;
+export type ItemEvent = ChangedEvent | DeletedEvent | ListIdsEvent | ChecksumEvent;

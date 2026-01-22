@@ -1,112 +1,45 @@
-import {
-  Dialect,
-  Insertable,
-  Kysely,
-  Migrator,
-  NO_MIGRATIONS,
-  Transaction,
-  sql,
-} from "kysely";
-import { migrationProvider } from "./migrations";
-import type { Schema } from "./schema";
+import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
+import type { BunSQLiteDatabase } from "drizzle-orm/bun-sql/sqlite";
+import { dirname, join } from "path";
+import { fileURLToPath } from "url";
+import { detectRuntime } from "../../util/runtime";
+import * as schema from "./schema";
 
-export type DbCtx = Kysely<Schema>;
+type Database = BunSQLiteDatabase<typeof schema> | BetterSQLite3Database<typeof schema>;
 
-let db: DbCtx;
+const dbUrl: string = process.env.DATABASE_URL ?? ":memory:";
 
-export function getDb() {
-  if (!db) {
-    throw new Error("db not initialized");
+export const db: Database = await createDatabaseClient(dbUrl);
+
+async function createDatabaseClient(url: string) {
+  const runtime = detectRuntime();
+  const migrationsFolder = join(dirname(fileURLToPath(import.meta.url)), "../../../db/migrations");
+
+  if (runtime === "bun") {
+    const { Database } = await import("bun:sqlite");
+    const { drizzle } = await import("drizzle-orm/bun-sqlite");
+    const { migrate } = await import("drizzle-orm/bun-sqlite/migrator");
+
+    const client = new Database(url);
+    client.run("PRAGMA foreign_keys = ON");
+    client.run("PRAGMA journal_mode = WAL");
+
+    const db = drizzle({ client, schema });
+    migrate(db, { migrationsFolder });
+    return db;
   }
+
+  // @ts-ignore - better-sqlite3 is an optional dependency
+  const Database = await import("better-sqlite3");
+  const { drizzle } = await import("drizzle-orm/better-sqlite3");
+  const { migrate } = await import("drizzle-orm/better-sqlite3/migrator");
+
+  const DatabaseClass = Database.default || Database;
+  const client = new DatabaseClass(url);
+  client.pragma("foreign_keys = ON");
+  client.pragma("journal_mode = WAL");
+
+  const db = drizzle(client, { schema });
+  migrate(db, { migrationsFolder });
   return db;
-}
-
-export function runTransaction<T>(
-  callback: (trx: Transaction<Schema>) => Promise<T>
-) {
-  return getDb().transaction().execute(callback);
-}
-
-export async function setupDb({
-  dialect,
-  erase = false,
-}: {
-  dialect: Dialect;
-  erase?: boolean;
-}) {
-  db = new Kysely<Schema>({ dialect });
-  try {
-    await sql`PRAGMA foreign_keys = ON`.execute(db);
-  } catch {}
-  await migrate(erase);
-}
-
-export async function insertReturningId<T extends keyof Schema>(
-  table: T,
-  values: Insertable<Schema[T]>,
-  ctx: DbCtx = getDb()
-): Promise<number> {
-  const id = ctx.getExecutor().adapter.supportsReturning
-    ? ((
-        await (ctx as Kysely<any>)
-          .insertInto(table)
-          .values(values)
-          .returning("id")
-          .executeTakeFirst()
-      )?.id as number)
-    : (await ctx.insertInto(table).values(values).executeTakeFirst()).insertId;
-  return id === undefined
-    ? await getSqliteInsertId(ctx)
-    : typeof id === "bigint"
-    ? Number(id)
-    : id;
-}
-
-export async function truncate() {
-  await getDb().deleteFrom("page").execute();
-}
-
-export { migrationProvider } from "./migrations";
-
-async function migrate(erase: boolean) {
-  const migrator = new Migrator({
-    db: getDb(),
-    provider: migrationProvider,
-  });
-  if (erase) {
-    const { error } = await migrator.migrateTo(NO_MIGRATIONS);
-    if (error) {
-      console.error("failed to erase database");
-      console.error(error);
-      throw error;
-    }
-  }
-  const { error, results } = await migrator.migrateToLatest();
-  results?.forEach((it) => {
-    if (it.status === "Success") {
-      console.log(`migration "${it.migrationName}" was executed successfully`);
-    } else if (it.status === "Error") {
-      console.error(`failed to execute migration "${it.migrationName}"`);
-    }
-  });
-
-  if (error) {
-    console.error("failed to run `migrateToLatest`");
-    console.error(error);
-    throw error;
-  }
-}
-
-async function getSqliteInsertId(ctx: DbCtx = getDb()) {
-  return (
-    await sql<{ id: number }>`SELECT last_insert_rowid() as id`.execute(ctx)
-  ).rows[0].id;
-}
-
-export function toHex(id: Uint8Array) {
-  return Buffer.from(id).toString("hex");
-}
-
-export function fromHex(id: string) {
-  return Uint8Array.from(Buffer.from(id, "hex"));
 }
