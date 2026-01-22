@@ -1,7 +1,13 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import type { PageProps } from "@contfu/core";
 import { GenericContainer, type StartedTestContainer, Wait } from "testcontainers";
 import type { StrapiFetchOpts } from "./strapi";
 import { StrapiSource } from "./strapi-source";
+
+// Helper to get props with correct type
+function getProps(item: { props: unknown }): PageProps {
+  return item.props as PageProps;
+}
 
 /**
  * Integration tests for StrapiSource using Testcontainers.
@@ -237,13 +243,13 @@ describe("StrapiSource Integration", () => {
     expect(items.length).toBeGreaterThanOrEqual(2);
 
     // Verify first item structure
-    const item = items.find((i) => i.props.title === "First Test Article");
+    const item = items.find((i) => getProps(i).title === "First Test Article");
     expect(item).toBeDefined();
     expect(item!.ref).toBeInstanceOf(Buffer);
     expect(item!.collection).toBe(1);
     expect(item!.createdAt).toBeGreaterThan(0);
     expect(item!.changedAt).toBeGreaterThan(0);
-    expect(item!.props.slug).toBe("first-test-article");
+    expect(getProps(item!).slug).toBe("first-test-article");
   });
 
   it("should handle article properties correctly", async () => {
@@ -261,13 +267,13 @@ describe("StrapiSource Integration", () => {
     };
 
     const items = await Array.fromAsync(source.fetch(opts));
-    const item = items.find((i) => i.props.title === "First Test Article");
+    const item = items.find((i) => getProps(i).title === "First Test Article");
 
     expect(item).toBeDefined();
     // The demo article schema uses dynamiczone 'blocks' instead of 'content'
     // So content may be undefined for simple test articles
-    expect(item!.props.title).toBe("First Test Article");
-    expect(item!.props.description).toBe("This is the first test article");
+    expect(getProps(item!).title).toBe("First Test Article");
+    expect(getProps(item!).description).toBe("This is the first test article");
   });
 
   it("should support incremental sync with since parameter", async () => {

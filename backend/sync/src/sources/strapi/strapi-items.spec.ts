@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
+import type { PageProps } from "@contfu/core";
 import { genUid } from "../../util/ids/ids";
 import {
   articleEntry1,
@@ -8,6 +9,11 @@ import {
   entriesPage2,
 } from "./__fixtures__/strapi-api-results";
 import type { StrapiEntry, StrapiFetchOpts, StrapiResponse } from "./strapi";
+
+// Helper to get props with correct type
+function getProps(item: { props: unknown }): PageProps {
+  return item.props as PageProps;
+}
 
 // Mock fetch globally
 const mockFetch = mock(() => Promise.resolve(new Response()));
@@ -59,9 +65,9 @@ describe("strapi-items", () => {
       expect(item.publishedAt).toBe(new Date("2024-01-15T10:30:00.000Z").getTime());
 
       // Check props
-      expect(item.props.title).toBe("Getting Started with Strapi");
-      expect(item.props.slug).toBe("getting-started-with-strapi");
-      expect(item.props.description).toBe("A comprehensive guide to Strapi CMS");
+      expect(getProps(item).title).toBe("Getting Started with Strapi");
+      expect(getProps(item).slug).toBe("getting-started-with-strapi");
+      expect(getProps(item).description).toBe("A comprehensive guide to Strapi CMS");
 
       // Check content was extracted from blocks
       expect(item.content).toBeDefined();
@@ -106,10 +112,10 @@ describe("strapi-items", () => {
       const item = items[0];
 
       // Single media - absolute URL
-      expect(item.props.featuredImage).toBe("https://cdn.example.com/images/featured.jpg");
+      expect(getProps(item).featuredImage).toBe("https://cdn.example.com/images/featured.jpg");
 
       // Multiple media - relative URLs with base URL prepended
-      expect(item.props.gallery).toEqual([
+      expect(getProps(item).gallery).toEqual([
         "https://strapi.example.com/uploads/gallery1.jpg",
         "https://strapi.example.com/uploads/gallery2.jpg",
       ]);
@@ -134,10 +140,10 @@ describe("strapi-items", () => {
       const item = items[0];
 
       // Single relation - Buffer
-      expect(item.props.author.toString()).toEqual(Buffer.from("author001", "utf8").toString());
+      expect(getProps(item).author.toString()).toEqual(Buffer.from("author001", "utf8").toString());
 
       // Multiple relations - array of base64url strings
-      expect(item.props.tags).toEqual([
+      expect(getProps(item).tags).toEqual([
         genUid(Buffer.from("tag001", "utf8")).toString("base64url"),
         genUid(Buffer.from("tag002", "utf8")).toString("base64url"),
       ]);
@@ -211,7 +217,7 @@ describe("strapi-items", () => {
       );
 
       expect(mockFetch).toHaveBeenCalledTimes(1);
-      const [rawUrl] = mockFetch.mock.calls[0] as [string];
+      const [rawUrl] = mockFetch.mock.calls[0] as unknown as [string];
       const url = decodeURIComponent(rawUrl);
 
       expect(url).toContain("filters[updatedAt][$gt]=2024-01-01T00:00:00.000Z");

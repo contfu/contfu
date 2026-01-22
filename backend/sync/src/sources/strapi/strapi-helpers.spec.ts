@@ -118,7 +118,7 @@ describe("strapi-helpers", () => {
       await fetchEntries(testOpts);
 
       expect(mockFetch).toHaveBeenCalledTimes(1);
-      const [rawUrl, options] = mockFetch.mock.calls[0] as [string, RequestInit];
+      const [rawUrl, options] = mockFetch.mock.calls[0] as unknown as [string, RequestInit];
       const url = decodeURIComponent(rawUrl);
 
       expect(url).toContain("https://strapi.example.com/api/articles");
@@ -143,7 +143,7 @@ describe("strapi-helpers", () => {
 
       await fetchEntries(testOpts, { page: 3, pageSize: 50 });
 
-      const [rawUrl] = mockFetch.mock.calls[0] as [string];
+      const [rawUrl] = mockFetch.mock.calls[0] as unknown as [string];
       const url = decodeURIComponent(rawUrl);
       expect(url).toContain("pagination[page]=3");
       expect(url).toContain("pagination[pageSize]=50");
@@ -162,7 +162,7 @@ describe("strapi-helpers", () => {
         until: "2024-12-31T23:59:59.999Z",
       });
 
-      const [rawUrl] = mockFetch.mock.calls[0] as [string];
+      const [rawUrl] = mockFetch.mock.calls[0] as unknown as [string];
       const url = decodeURIComponent(rawUrl);
       expect(url).toContain("filters[updatedAt][$gt]=2024-01-01T00:00:00.000Z");
       expect(url).toContain("filters[updatedAt][$lte]=2024-12-31T23:59:59.999Z");
@@ -273,7 +273,7 @@ describe("strapi-helpers", () => {
       expect(schema.uid).toBe("api::article.article");
       expect(schema.attributes.title.type).toBe("string");
 
-      const [url] = mockFetch.mock.calls[0] as [string];
+      const [url] = mockFetch.mock.calls[0] as unknown as [string];
       expect(url).toBe(
         "https://strapi.example.com/api/content-type-builder/content-types/api::article.article",
       );

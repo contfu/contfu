@@ -159,7 +159,7 @@ describe("strapi-blocks", () => {
         },
       ];
 
-      expect(convertStrapiBlocks(blocks)).toEqual([["u", ["Item 1"], ["Item 2"]]]);
+      expect(convertStrapiBlocks(blocks) as unknown).toEqual([["u", ["Item 1"], ["Item 2"]]]);
     });
 
     it("should convert ordered list blocks and merge consecutive items", () => {
@@ -176,7 +176,7 @@ describe("strapi-blocks", () => {
         },
       ];
 
-      expect(convertStrapiBlocks(blocks)).toEqual([["o", ["First"], ["Second"]]]);
+      expect(convertStrapiBlocks(blocks) as unknown).toEqual([["o", ["First"], ["Second"]]]);
     });
 
     it("should not merge different list types", () => {

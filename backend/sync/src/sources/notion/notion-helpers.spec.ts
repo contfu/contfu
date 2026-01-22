@@ -31,7 +31,7 @@ describe("notion-helpers", () => {
     });
 
     it("should return undefined for images without type", () => {
-      const img = {} as { type?: undefined };
+      const img = {} as unknown as Parameters<typeof getImageUrl>[0];
       expect(getImageUrl(img)).toBeUndefined();
     });
 

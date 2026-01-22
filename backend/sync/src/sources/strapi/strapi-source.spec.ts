@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
+import type { PageProps } from "@contfu/core";
 import { genUid } from "../../util/ids/ids";
 import {
   articleEntry1,
@@ -8,6 +9,11 @@ import {
   entriesPage2,
 } from "./__fixtures__/strapi-api-results";
 import type { StrapiEntry, StrapiFetchOpts, StrapiResponse } from "./strapi";
+
+// Helper to get props with correct type
+function getProps(item: { props: unknown }): PageProps {
+  return item.props as PageProps;
+}
 
 // Mock fetch globally
 const mockFetch = mock(() => Promise.resolve(new Response()));
@@ -56,10 +62,10 @@ describe("StrapiSource", () => {
       expect(item1.collection).toBe(1);
       expect(item1.ref).toEqual(Buffer.from("abc123def456", "utf8"));
       expect(item1.id).toEqual(genUid(Buffer.from("abc123def456", "utf8")));
-      expect(item1.props.title).toBe("Getting Started with Strapi");
+      expect(getProps(item1).title).toBe("Getting Started with Strapi");
 
       const item2 = items[1];
-      expect(item2.props.title).toBe("Advanced Strapi Features");
+      expect(getProps(item2).title).toBe("Advanced Strapi Features");
     });
 
     it("should apply until filter for full sync", async () => {
@@ -78,7 +84,7 @@ describe("StrapiSource", () => {
       const source = new StrapiSource();
       await Array.fromAsync(source.fetch(testOpts));
 
-      const [rawUrl] = mockFetch.mock.calls[0] as [string];
+      const [rawUrl] = mockFetch.mock.calls[0] as unknown as [string];
       const url = decodeURIComponent(rawUrl);
       expect(url).toContain("filters[updatedAt][$lte]=");
       expect(url).not.toContain("filters[updatedAt][$gt]=");
@@ -101,7 +107,7 @@ describe("StrapiSource", () => {
       const sinceTimestamp = new Date("2024-01-01T00:00:00.000Z").getTime();
       await Array.fromAsync(source.fetch({ ...testOpts, since: sinceTimestamp }));
 
-      const [rawUrl] = mockFetch.mock.calls[0] as [string];
+      const [rawUrl] = mockFetch.mock.calls[0] as unknown as [string];
       const url = decodeURIComponent(rawUrl);
       expect(url).toContain("filters[updatedAt][$gt]=2024-01-01T00:00:00.000Z");
       expect(url).toContain("filters[updatedAt][$lte]=");
@@ -123,7 +129,7 @@ describe("StrapiSource", () => {
       const source = new StrapiSource();
       await Array.fromAsync(source.fetch(testOpts));
 
-      const [rawUrl] = mockFetch.mock.calls[0] as [string];
+      const [rawUrl] = mockFetch.mock.calls[0] as unknown as [string];
       const url = decodeURIComponent(rawUrl);
       expect(url).toContain("sort=createdAt:asc");
     });
@@ -197,11 +203,11 @@ describe("StrapiSource", () => {
       const item = items[0];
 
       // Single relation should be a Buffer
-      expect(item.props.author.toString()).toEqual(Buffer.from("author001", "utf8").toString());
+      expect(getProps(item).author.toString()).toEqual(Buffer.from("author001", "utf8").toString());
 
       // Multiple relations should be an array of base64url strings
-      expect(Array.isArray(item.props.tags)).toBe(true);
-      expect(item.props.tags).toHaveLength(2);
+      expect(Array.isArray(getProps(item).tags)).toBe(true);
+      expect(getProps(item).tags).toHaveLength(2);
     });
 
     it("should handle entries with media", async () => {
@@ -224,10 +230,10 @@ describe("StrapiSource", () => {
       const item = items[0];
 
       // Single media with absolute URL
-      expect(item.props.featuredImage).toBe("https://cdn.example.com/images/featured.jpg");
+      expect(getProps(item).featuredImage).toBe("https://cdn.example.com/images/featured.jpg");
 
       // Multiple media with relative URLs
-      expect(item.props.gallery).toEqual([
+      expect(getProps(item).gallery).toEqual([
         "https://strapi.example.com/uploads/gallery1.jpg",
         "https://strapi.example.com/uploads/gallery2.jpg",
       ]);
@@ -254,7 +260,7 @@ describe("StrapiSource", () => {
       expect(schema.description).toBeDefined();
 
       // Verify API was called with correct URL
-      const [url] = mockFetch.mock.calls[0] as [string];
+      const [url] = mockFetch.mock.calls[0] as unknown as [string];
       expect(url).toContain("content-type-builder/content-types/api::article.article");
     });
 
@@ -269,7 +275,7 @@ describe("StrapiSource", () => {
       const source = new StrapiSource();
       await source.getCollectionSchema(testOpts);
 
-      const [, options] = mockFetch.mock.calls[0] as [string, RequestInit];
+      const [, options] = mockFetch.mock.calls[0] as unknown as [string, RequestInit];
       expect(options.headers).toEqual({
         Authorization: "Bearer test-token",
         "Content-Type": "application/json",
