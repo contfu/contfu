@@ -875,3 +875,477 @@ export const emptyList = {
   block: {},
   request_id: "a2952396-58bb-45bc-b769-25f9272f09d8",
 };
+
+// Database schema response fixture
+export const databaseSchemaResponse = {
+  object: "database",
+  id: "9c746d11-1249-4dec-82b5-6f1eebd455a8",
+  created_time: "2024-01-01T00:00:00.000Z",
+  last_edited_time: "2024-06-01T00:00:00.000Z",
+  title: [
+    {
+      type: "text",
+      text: { content: "Test Database", link: null },
+      plain_text: "Test Database",
+    },
+  ],
+  properties: {
+    Title: {
+      id: "title",
+      type: "title",
+      name: "Title",
+      title: {},
+    },
+    Description: {
+      id: "%40ZYD",
+      type: "rich_text",
+      name: "Description",
+      rich_text: {},
+    },
+    Status: {
+      id: "status-id",
+      type: "status",
+      name: "Status",
+      status: {
+        options: [
+          { id: "opt1", name: "Not Started", color: "default" },
+          { id: "opt2", name: "In Progress", color: "blue" },
+          { id: "opt3", name: "Done", color: "green" },
+        ],
+        groups: [],
+      },
+    },
+    Priority: {
+      id: "priority-id",
+      type: "select",
+      name: "Priority",
+      select: {
+        options: [
+          { id: "p1", name: "High", color: "red" },
+          { id: "p2", name: "Medium", color: "yellow" },
+          { id: "p3", name: "Low", color: "gray" },
+        ],
+      },
+    },
+    Tags: {
+      id: "tags-id",
+      type: "multi_select",
+      name: "Tags",
+      multi_select: {
+        options: [
+          { id: "t1", name: "Frontend", color: "blue" },
+          { id: "t2", name: "Backend", color: "green" },
+        ],
+      },
+    },
+    Count: {
+      id: "count-id",
+      type: "number",
+      name: "Count",
+      number: { format: "number" },
+    },
+    DueDate: {
+      id: "due-id",
+      type: "date",
+      name: "DueDate",
+      date: {},
+    },
+    Done: {
+      id: "done-id",
+      type: "checkbox",
+      name: "Done",
+      checkbox: {},
+    },
+    Attachments: {
+      id: "files-id",
+      type: "files",
+      name: "Attachments",
+      files: {},
+    },
+    Related: {
+      id: "relation-id",
+      type: "relation",
+      name: "Related",
+      relation: {
+        database_id: "other-db-id",
+        type: "dual_property",
+        dual_property: {},
+      },
+    },
+    Assignees: {
+      id: "people-id",
+      type: "people",
+      name: "Assignees",
+      people: {},
+    },
+    CreatedAt: {
+      id: "created-id",
+      type: "created_time",
+      name: "CreatedAt",
+      created_time: {},
+    },
+    UpdatedAt: {
+      id: "updated-id",
+      type: "last_edited_time",
+      name: "UpdatedAt",
+      last_edited_time: {},
+    },
+    Creator: {
+      id: "creator-id",
+      type: "created_by",
+      name: "Creator",
+      created_by: {},
+    },
+    Editor: {
+      id: "editor-id",
+      type: "last_edited_by",
+      name: "Editor",
+      last_edited_by: {},
+    },
+    Link: {
+      id: "url-id",
+      type: "url",
+      name: "Link",
+      url: {},
+    },
+    Email: {
+      id: "email-id",
+      type: "email",
+      name: "Email",
+      email: {},
+    },
+    Phone: {
+      id: "phone-id",
+      type: "phone_number",
+      name: "Phone",
+      phone_number: {},
+    },
+  },
+  parent: { type: "workspace", workspace: true },
+  url: "https://www.notion.so/Test-Database-9c746d111249dec82b56f1eebd455a8",
+};
+
+// Additional block fixtures for comprehensive testing
+export const headingBlocks = {
+  object: "list",
+  results: [
+    {
+      object: "block",
+      id: "h1-block-id",
+      type: "heading_1",
+      has_children: false,
+      heading_1: {
+        rich_text: [
+          {
+            type: "text",
+            text: { content: "Main Title", link: null },
+            annotations: {
+              bold: false,
+              italic: false,
+              strikethrough: false,
+              underline: false,
+              code: false,
+              color: "default",
+            },
+            plain_text: "Main Title",
+            href: null,
+          },
+        ],
+        color: "default",
+        is_toggleable: false,
+      },
+    },
+    {
+      object: "block",
+      id: "h2-block-id",
+      type: "heading_2",
+      has_children: false,
+      heading_2: {
+        rich_text: [
+          {
+            type: "text",
+            text: { content: "Section Title", link: null },
+            annotations: {
+              bold: false,
+              italic: false,
+              strikethrough: false,
+              underline: false,
+              code: false,
+              color: "default",
+            },
+            plain_text: "Section Title",
+            href: null,
+          },
+        ],
+        color: "default",
+        is_toggleable: false,
+      },
+    },
+    {
+      object: "block",
+      id: "h3-block-id",
+      type: "heading_3",
+      has_children: false,
+      heading_3: {
+        rich_text: [
+          {
+            type: "text",
+            text: { content: "Sub Section", link: null },
+            annotations: {
+              bold: false,
+              italic: false,
+              strikethrough: false,
+              underline: false,
+              code: false,
+              color: "default",
+            },
+            plain_text: "Sub Section",
+            href: null,
+          },
+        ],
+        color: "default",
+        is_toggleable: false,
+      },
+    },
+  ],
+  next_cursor: null,
+  has_more: false,
+  type: "block",
+  block: {},
+};
+
+export const codeBlock = {
+  object: "list",
+  results: [
+    {
+      object: "block",
+      id: "code-block-id",
+      type: "code",
+      has_children: false,
+      code: {
+        rich_text: [
+          {
+            type: "text",
+            text: { content: "const x = 1;\nconsole.log(x);", link: null },
+            annotations: {
+              bold: false,
+              italic: false,
+              strikethrough: false,
+              underline: false,
+              code: false,
+              color: "default",
+            },
+            plain_text: "const x = 1;\nconsole.log(x);",
+            href: null,
+          },
+        ],
+        language: "javascript",
+        caption: [],
+      },
+    },
+  ],
+  next_cursor: null,
+  has_more: false,
+  type: "block",
+  block: {},
+};
+
+export const imageBlock = {
+  object: "list",
+  results: [
+    {
+      object: "block",
+      id: "image-block-id",
+      type: "image",
+      has_children: false,
+      image: {
+        type: "external",
+        external: { url: "https://example.com/image.png" },
+        caption: [
+          {
+            type: "text",
+            text: { content: "Image caption", link: null },
+            annotations: {
+              bold: false,
+              italic: false,
+              strikethrough: false,
+              underline: false,
+              code: false,
+              color: "default",
+            },
+            plain_text: "Image caption",
+            href: null,
+          },
+        ],
+      },
+    },
+  ],
+  next_cursor: null,
+  has_more: false,
+  type: "block",
+  block: {},
+};
+
+// Page with all property types for comprehensive testing
+export const pageWithAllProperties = {
+  object: "page",
+  id: "all-props-page-id",
+  created_time: "2024-01-15T10:00:00.000Z",
+  last_edited_time: "2024-06-20T15:30:00.000Z",
+  created_by: { object: "user", id: "user-creator-id" },
+  last_edited_by: { object: "user", id: "user-editor-id" },
+  cover: {
+    type: "external",
+    external: { url: "https://example.com/cover.jpg" },
+  },
+  icon: {
+    type: "external",
+    external: { url: "https://example.com/icon.png" },
+  },
+  parent: { type: "database_id", database_id: "db-id" },
+  archived: false,
+  in_trash: false,
+  properties: {
+    Title: {
+      id: "title",
+      type: "title",
+      title: [
+        {
+          type: "text",
+          text: { content: "Test Page", link: null },
+          annotations: {
+            bold: false,
+            italic: false,
+            strikethrough: false,
+            underline: false,
+            code: false,
+            color: "default",
+          },
+          plain_text: "Test Page",
+          href: null,
+        },
+      ],
+    },
+    Description: {
+      id: "desc",
+      type: "rich_text",
+      rich_text: [
+        {
+          type: "text",
+          text: { content: "A test description", link: null },
+          annotations: {
+            bold: false,
+            italic: false,
+            strikethrough: false,
+            underline: false,
+            code: false,
+            color: "default",
+          },
+          plain_text: "A test description",
+          href: null,
+        },
+      ],
+    },
+    Count: {
+      id: "count",
+      type: "number",
+      number: 42,
+    },
+    DueDate: {
+      id: "due",
+      type: "date",
+      date: { start: "2024-12-31", end: null, time_zone: null },
+    },
+    Done: {
+      id: "done",
+      type: "checkbox",
+      checkbox: true,
+    },
+    Status: {
+      id: "status",
+      type: "status",
+      status: { id: "s1", name: "In Progress", color: "blue" },
+    },
+    Priority: {
+      id: "priority",
+      type: "select",
+      select: { id: "p1", name: "High", color: "red" },
+    },
+    Tags: {
+      id: "tags",
+      type: "multi_select",
+      multi_select: [
+        { id: "t1", name: "Frontend", color: "blue" },
+        { id: "t2", name: "Backend", color: "green" },
+      ],
+    },
+    Link: {
+      id: "url",
+      type: "url",
+      url: "https://example.com",
+    },
+    Email: {
+      id: "email",
+      type: "email",
+      email: "test@example.com",
+    },
+    Phone: {
+      id: "phone",
+      type: "phone_number",
+      phone_number: "+1234567890",
+    },
+    Attachments: {
+      id: "files",
+      type: "files",
+      files: [
+        { type: "file", file: { url: "https://s3.amazonaws.com/file1.pdf" }, name: "file1.pdf" },
+        { type: "external", external: { url: "https://example.com/file2.pdf" }, name: "file2.pdf" },
+      ],
+    },
+    Related: {
+      id: "relation",
+      type: "relation",
+      relation: [{ id: "related-page-1" }, { id: "related-page-2" }],
+      has_more: false,
+    },
+    Assignees: {
+      id: "people",
+      type: "people",
+      people: [
+        { object: "user", id: "user-1" },
+        { object: "user", id: "user-2" },
+      ],
+    },
+    CreatedAt: {
+      id: "created",
+      type: "created_time",
+      created_time: "2024-01-15T10:00:00.000Z",
+    },
+    UpdatedAt: {
+      id: "updated",
+      type: "last_edited_time",
+      last_edited_time: "2024-06-20T15:30:00.000Z",
+    },
+    Creator: {
+      id: "creator",
+      type: "created_by",
+      created_by: { object: "user", id: "user-creator-id" },
+    },
+    Editor: {
+      id: "editor",
+      type: "last_edited_by",
+      last_edited_by: { object: "user", id: "user-editor-id" },
+    },
+    UniqueID: {
+      id: "unique",
+      type: "unique_id",
+      unique_id: { prefix: "TASK", number: 123 },
+    },
+    Verified: {
+      id: "verified",
+      type: "verification",
+      verification: { state: "verified", verified_by: null, date: null },
+    },
+  },
+  url: "https://www.notion.so/Test-Page-allpropspageid",
+};
