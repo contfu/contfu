@@ -7,7 +7,6 @@
   "type": "module",
   "main": "src/index.ts",
   "scripts": {
-    "test": "bun test",
     "clean": "rm -rf dist"
   },
   "dependencies": {
