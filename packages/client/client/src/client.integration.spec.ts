@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { CommandType, EventType } from "@contfu/core";
+import type { ChangedEvent, ChecksumEvent, DeletedEvent, ListIdsEvent } from "@contfu/core";
 import { pack, unpack } from "msgpackr";
 import { connectTo } from "./client";
 
@@ -345,7 +346,9 @@ describe("Integration: Client WebSocket", () => {
     expect((receivedEvent as any).item.collection).toBe(1);
     expect((receivedEvent as any).item.props.title).toBe("Test Item");
     expect((receivedEvent as any).item.props.status).toBe("published");
-    expect((receivedEvent as any).item.content).toEqual([{ type: "paragraph", text: "Hello world" }]);
+    expect((receivedEvent as any).item.content).toEqual([
+      { type: "paragraph", text: "Hello world" },
+    ]);
   });
 
   describe("callback (handle) interface", () => {
@@ -558,6 +561,244 @@ describe("Integration: Client WebSocket", () => {
 
       expect(item1Ack).toBeDefined();
       expect(item2Ack).toBeDefined();
+    });
+  });
+
+  describe("Event deserialization", () => {
+    it("should deserialize CHANGED event with content correctly", async () => {
+      const events = await connectTo(TEST_CONSUMER_KEY, {
+        url: `ws://localhost:${PORT}/ws`,
+      });
+
+      // Create test item data
+      const testItemId = Buffer.alloc(16);
+      testItemId.write("deser-chg-w-cnt", 0, 16);
+      const testRef = Buffer.alloc(16);
+      testRef.write("deser-ref-00001", 0, 16);
+
+      const testItem = {
+        collection: 42,
+        id: testItemId,
+        ref: testRef,
+        props: { title: "Deserialization Test", count: 123, nested: { foo: "bar" } },
+        content: [
+          { type: "paragraph", text: "Content block" },
+          { type: "heading", level: 1 },
+        ],
+        createdAt: 1700000000000,
+        changedAt: 1700000001000,
+      };
+
+      // Broadcast event after a short delay
+      setTimeout(() => {
+        testServer.broadcast(testItem);
+      }, 50);
+
+      // Receive the event
+      let receivedEvent: ChangedEvent | null = null;
+      for await (const event of events) {
+        if (event.type === EventType.CHANGED) {
+          receivedEvent = event as ChangedEvent;
+          break;
+        }
+      }
+
+      // Verify deserialization
+      expect(receivedEvent).not.toBeNull();
+      expect(receivedEvent!.type).toBe(EventType.CHANGED);
+      expect(receivedEvent!.item.collection).toBe(42);
+      expect(receivedEvent!.item.id).toBeInstanceOf(Buffer);
+      expect(receivedEvent!.item.id.toString("hex")).toBe(testItemId.toString("hex"));
+      expect(receivedEvent!.item.ref).toBeInstanceOf(Buffer);
+      expect(receivedEvent!.item.ref.toString("hex")).toBe(testRef.toString("hex"));
+      expect(receivedEvent!.item.createdAt).toBe(1700000000000);
+      expect(receivedEvent!.item.changedAt).toBe(1700000001000);
+      expect(receivedEvent!.item.props).toEqual({
+        title: "Deserialization Test",
+        count: 123,
+        nested: { foo: "bar" },
+      });
+      expect(receivedEvent!.item.content).toEqual([
+        { type: "paragraph", text: "Content block" },
+        { type: "heading", level: 1 },
+      ]);
+    });
+
+    it("should deserialize CHANGED event without content correctly", async () => {
+      const events = await connectTo(TEST_CONSUMER_KEY, {
+        url: `ws://localhost:${PORT}/ws`,
+      });
+
+      // Create test item without content
+      const testItemId = Buffer.alloc(16);
+      testItemId.write("deser-chg-no-ct", 0, 16);
+      const testRef = Buffer.alloc(16);
+      testRef.write("deser-ref-00002", 0, 16);
+
+      const testItem = {
+        collection: 7,
+        id: testItemId,
+        ref: testRef,
+        props: { title: "No Content Item" },
+        // No content array
+        createdAt: 1600000000000,
+        changedAt: 1600000002000,
+      };
+
+      // Broadcast event after a short delay
+      setTimeout(() => {
+        testServer.broadcast(testItem);
+      }, 50);
+
+      // Receive the event
+      let receivedEvent: ChangedEvent | null = null;
+      for await (const event of events) {
+        if (event.type === EventType.CHANGED) {
+          receivedEvent = event as ChangedEvent;
+          break;
+        }
+      }
+
+      // Verify deserialization
+      expect(receivedEvent).not.toBeNull();
+      expect(receivedEvent!.type).toBe(EventType.CHANGED);
+      expect(receivedEvent!.item.collection).toBe(7);
+      expect(receivedEvent!.item.id.toString("hex")).toBe(testItemId.toString("hex"));
+      expect(receivedEvent!.item.props).toEqual({ title: "No Content Item" });
+      expect(receivedEvent!.item.content).toBeUndefined();
+    });
+
+    it("should deserialize DELETED event correctly", async () => {
+      const events = await connectTo(TEST_CONSUMER_KEY, {
+        url: `ws://localhost:${PORT}/ws`,
+      });
+
+      // Create test item ID for deletion
+      const deletedItemId = Buffer.alloc(16);
+      deletedItemId.write("deser-del-item1", 0, 16);
+
+      // Send DELETED event after a short delay
+      setTimeout(() => {
+        testServer.sendDeleted(deletedItemId);
+      }, 50);
+
+      // Receive the event
+      let receivedEvent: DeletedEvent | null = null;
+      for await (const event of events) {
+        if (event.type === EventType.DELETED) {
+          receivedEvent = event as DeletedEvent;
+          break;
+        }
+      }
+
+      // Verify deserialization
+      expect(receivedEvent).not.toBeNull();
+      expect(receivedEvent!.type).toBe(EventType.DELETED);
+      expect(receivedEvent!.item).toBeInstanceOf(Buffer);
+      expect(receivedEvent!.item.toString("hex")).toBe(deletedItemId.toString("hex"));
+    });
+
+    it("should deserialize LIST_IDS event correctly", async () => {
+      const events = await connectTo(TEST_CONSUMER_KEY, {
+        url: `ws://localhost:${PORT}/ws`,
+      });
+
+      // Create test IDs
+      const id1 = Buffer.alloc(16);
+      id1.write("list-id-0000001", 0, 16);
+      const id2 = Buffer.alloc(16);
+      id2.write("list-id-0000002", 0, 16);
+      const id3 = Buffer.alloc(16);
+      id3.write("list-id-0000003", 0, 16);
+
+      const testCollection = 99;
+
+      // Send LIST_IDS event after a short delay
+      setTimeout(() => {
+        testServer.sendListIds(testCollection, [id1, id2, id3]);
+      }, 50);
+
+      // Receive the event
+      let receivedEvent: ListIdsEvent | null = null;
+      for await (const event of events) {
+        if (event.type === EventType.LIST_IDS) {
+          receivedEvent = event as ListIdsEvent;
+          break;
+        }
+      }
+
+      // Verify deserialization
+      expect(receivedEvent).not.toBeNull();
+      expect(receivedEvent!.type).toBe(EventType.LIST_IDS);
+      expect(receivedEvent!.collection).toBe(99);
+      expect(receivedEvent!.ids).toBeInstanceOf(Array);
+      expect(receivedEvent!.ids.length).toBe(3);
+      expect(receivedEvent!.ids[0]).toBeInstanceOf(Buffer);
+      expect(receivedEvent!.ids[0].toString("hex")).toBe(id1.toString("hex"));
+      expect(receivedEvent!.ids[1].toString("hex")).toBe(id2.toString("hex"));
+      expect(receivedEvent!.ids[2].toString("hex")).toBe(id3.toString("hex"));
+    });
+
+    it("should deserialize LIST_IDS event with empty ids array correctly", async () => {
+      const events = await connectTo(TEST_CONSUMER_KEY, {
+        url: `ws://localhost:${PORT}/ws`,
+      });
+
+      const testCollection = 55;
+
+      // Send LIST_IDS event with empty ids
+      setTimeout(() => {
+        testServer.sendListIds(testCollection, []);
+      }, 50);
+
+      // Receive the event
+      let receivedEvent: ListIdsEvent | null = null;
+      for await (const event of events) {
+        if (event.type === EventType.LIST_IDS) {
+          receivedEvent = event as ListIdsEvent;
+          break;
+        }
+      }
+
+      // Verify deserialization
+      expect(receivedEvent).not.toBeNull();
+      expect(receivedEvent!.type).toBe(EventType.LIST_IDS);
+      expect(receivedEvent!.collection).toBe(55);
+      expect(receivedEvent!.ids).toBeInstanceOf(Array);
+      expect(receivedEvent!.ids.length).toBe(0);
+    });
+
+    it("should deserialize CHECKSUM event correctly", async () => {
+      const events = await connectTo(TEST_CONSUMER_KEY, {
+        url: `ws://localhost:${PORT}/ws`,
+      });
+
+      // Create test checksum
+      const testChecksum = Buffer.alloc(32);
+      testChecksum.write("checksum-data-1234567890abcdef", 0, 32);
+
+      const testCollection = 33;
+
+      // Send CHECKSUM event after a short delay
+      setTimeout(() => {
+        testServer.sendChecksum(testCollection, testChecksum);
+      }, 50);
+
+      // Receive the event
+      let receivedEvent: ChecksumEvent | null = null;
+      for await (const event of events) {
+        if (event.type === EventType.CHECKSUM) {
+          receivedEvent = event as ChecksumEvent;
+          break;
+        }
+      }
+
+      // Verify deserialization
+      expect(receivedEvent).not.toBeNull();
+      expect(receivedEvent!.type).toBe(EventType.CHECKSUM);
+      expect(receivedEvent!.collection).toBe(33);
+      expect(receivedEvent!.checksum).toBeInstanceOf(Buffer);
+      expect(receivedEvent!.checksum.toString("hex")).toBe(testChecksum.toString("hex"));
     });
   });
 });
