@@ -1,10 +1,10 @@
-# CLAUDE.md - @contfu/app
+# CLAUDE.md - @contfu/svc-app
 
 > **Keep this file in sync with project changes and document important learnings.**
 
 ## Package Overview
 
-**Name:** `@contfu/app`
+**Name:** `@contfu/svc-app`
 **Purpose:** SvelteKit web application for user authentication, account management, and dashboard
 
 This is the user-facing web application providing authentication, billing, and management interfaces.

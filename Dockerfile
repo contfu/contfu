@@ -13,7 +13,7 @@ RUN apt-get update && \
 FROM build-base AS build
 COPY . .
 RUN bun install && \
-    bun run -F '@contfu/app' build
+    bun run -F '@contfu/svc-app' build
 
 FROM build-base AS deps
 COPY bun.lock /app/
@@ -22,8 +22,8 @@ RUN bun install --no-save @css-inline/css-inline
 FROM base AS app
 ENV MIGRATION_DIR=/app/db/migrations
 ENV DATABASE_URL=/data/db/contfu.sqlite
-COPY --from=build /app/backend/app/build/ /app/
-COPY backend/app/db/migrations/ /app/db/migrations/
+COPY --from=build /app/packages/service/app/build/ /app/
+COPY packages/service/app/db/migrations/ /app/db/migrations/
 COPY --from=deps /app/node_modules/ /app/node_modules/
 EXPOSE 3000
 CMD ["bun", "run", "./index.js"]

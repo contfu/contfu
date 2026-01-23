@@ -3,7 +3,7 @@
   "private": true,
   "workspaces": [
     "packages/client/*",
-    "backend/*",
+    "packages/service/*",
     "packages/core"
   ],
   "type": "module",

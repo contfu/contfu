@@ -64,7 +64,7 @@ The `connectTo()` function supports two usage patterns:
 
 ### Testing
 
-No unit tests in this package. Integration tests exist in `backend/sync/src/server.spec.ts` which tests the client against the real sync service.
+No unit tests in this package. Integration tests exist in `packages/service/sync/src/server.spec.ts` which tests the client against the real sync service.
 
 ### Commands
 
@@ -78,7 +78,7 @@ bun run tsc --noEmit
 
 ### Making Changes
 
-1. Test against the sync service (`backend/sync`)
+1. Test against the sync service (`packages/service/sync`)
 2. Ensure binary protocol compatibility with server
 3. Run `bun run fmt && bun run lint` from root after changes
 
