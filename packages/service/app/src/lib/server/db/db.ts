@@ -19,5 +19,11 @@ await dbClient`PRAGMA journal_mode = WAL`;
 export const db = drizzle({ client: dbClient, schema });
 migrate(db, { migrationsFolder });
 
+// Seed development test user (only in non-production mode)
+if (process.env.NODE_ENV !== "production") {
+  const { seedDevUser } = await import("./seed-dev");
+  await seedDevUser(db);
+}
+
 // Re-export schema tables for convenience
 export * from "./schema";
