@@ -16,7 +16,7 @@ const polarClient = new Polar({
 export const auth = betterAuth({
   secret: process.env.BETTER_AUTH_SECRET,
   basePath: "/api/auth",
-  trustedOrigins: [process.env.ORIGIN ?? "http://localhost:8011"],
+  trustedOrigins: [process.env.ORIGIN ?? "http://localhost:8011", "http://localhost:4173"],
   database: drizzleAdapter(db, {
     provider: "sqlite",
     schema: {

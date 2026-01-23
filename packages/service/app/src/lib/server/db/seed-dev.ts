@@ -1,22 +1,22 @@
-import type { BunSQLDatabase } from "drizzle-orm/bun-sql/sqlite";
-import { eq } from "drizzle-orm";
 import { auth } from "$lib/server/auth/auth";
-import { accountTable, userTable } from "./schema";
+import { eq } from "drizzle-orm";
+import type { BunSQLiteDatabase } from "drizzle-orm/bun-sql/sqlite";
 import type * as schema from "./schema";
+import { accountTable, userTable } from "./schema";
 
 /**
- * Seeds a test user for development purposes.
- * This script only runs when NODE_ENV is not 'production'.
+ * Seeds a test user for development and testing purposes.
+ * This script runs when NODE_ENV is not 'production' or when TEST_MODE is set.
  * It is idempotent - running it multiple times won't create duplicates.
  *
  * Test User Credentials:
- * - Email: test@example.com
- * - Password: test1234
+ * - Email: test@test.com
+ * - Password: test
  */
 
 const TEST_USER = {
-  email: "test@example.com",
-  password: "test1234",
+  email: "test@test.com",
+  password: "test",
   name: "Test User",
 };
 
@@ -24,9 +24,9 @@ const TEST_USER = {
  * Seeds the development test user into the database.
  * @param database - The drizzle database instance
  */
-export async function seedDevUser(database: BunSQLDatabase<typeof schema>): Promise<void> {
-  // Only run in development mode
-  if (process.env.NODE_ENV === "production") {
+export async function seedDevUser(database: BunSQLiteDatabase<typeof schema>): Promise<void> {
+  // Only run in development mode or when TEST_MODE is set
+  if (process.env.NODE_ENV === "production" && !process.env.TEST_MODE) {
     return;
   }
 

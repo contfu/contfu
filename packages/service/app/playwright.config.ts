@@ -11,7 +11,7 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: 1, // Single worker for consistent auth state
   reporter: "html",
-  timeout: 60000,
+  timeout: 5_000,
   use: {
     baseURL: `http://localhost:${TEST_PORT}`,
     trace: "on-first-retry",
@@ -29,6 +29,12 @@ export default defineConfig({
     command: `TEST_MODE=true bun run build && TEST_MODE=true PORT=${TEST_PORT} bun run serve`,
     url: `http://localhost:${TEST_PORT}`,
     reuseExistingServer: false, // Always start fresh server to avoid port conflicts
-    timeout: 180000, // Allow time for build + server startup
+    timeout: 180_000, // Allow time for build + server startup,
+    stdout: "pipe",
+    stderr: "pipe",
+    env: {
+      ORIGIN: `http://localhost:${TEST_PORT}`,
+      VITE_BETTER_AUTH_URL: `http://localhost:${TEST_PORT}`,
+    },
   },
 });
