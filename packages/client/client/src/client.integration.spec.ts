@@ -283,4 +283,49 @@ describe("Integration: Client WebSocket", () => {
     ws.close();
     expect(result).toBe("E_AUTH");
   });
+
+  it("async generator interface receives CHANGED events via for-await iteration", async () => {
+    const events = await connectTo(TEST_CONSUMER_KEY, {
+      url: `ws://localhost:${PORT}/ws`,
+    });
+
+    // Create test item data
+    const testItemId = Buffer.alloc(16);
+    testItemId.write("test-item-id-001", 0, 16);
+    const testRef = Buffer.alloc(16);
+    testRef.write("test-ref-0000001", 0, 16);
+
+    const testItem = {
+      collection: 1,
+      id: testItemId,
+      ref: testRef,
+      props: { title: "Test Item", status: "published" },
+      content: [{ type: "paragraph", text: "Hello world" }],
+      createdAt: Date.now(),
+      changedAt: Date.now(),
+    };
+
+    // Broadcast event after a short delay to allow the iterator to start waiting
+    setTimeout(() => {
+      testServer.broadcast(testItem);
+    }, 50);
+
+    // Receive the CHANGED event via for-await iteration
+    let receivedEvent: unknown = null;
+    for await (const event of events) {
+      if (event.type === EventType.CHANGED) {
+        receivedEvent = event;
+        break; // Only get first event
+      }
+    }
+
+    // Verify the received event
+    expect(receivedEvent).not.toBeNull();
+    expect((receivedEvent as any).type).toBe(EventType.CHANGED);
+    expect((receivedEvent as any).item).toBeDefined();
+    expect((receivedEvent as any).item.collection).toBe(1);
+    expect((receivedEvent as any).item.props.title).toBe("Test Item");
+    expect((receivedEvent as any).item.props.status).toBe("published");
+    expect((receivedEvent as any).item.content).toEqual([{ type: "paragraph", text: "Hello world" }]);
+  });
 });
