@@ -9,6 +9,9 @@ TEST_CONSUMER_KEY.write("test-consumer-key-12345", 0, 24);
 
 type WsData = { id: string; authenticated: boolean; consumerKey: string | null };
 
+// Track ACK commands received by the server
+type AckRecord = { itemId: Buffer; timestamp: number };
+
 // Minimal WebSocket server that speaks the contfu protocol
 // This allows us to test the client without depending on @contfu/svc-app
 function createTestWebSocketServer(port: number) {
@@ -16,6 +19,7 @@ function createTestWebSocketServer(port: number) {
     string,
     { ws: { send: (data: Buffer) => void }; data: WsData }
   >();
+  const receivedAcks: AckRecord[] = [];
 
   const server = Bun.serve({
     port,
@@ -76,6 +80,13 @@ function createTestWebSocketServer(port: number) {
               if (!ws.data.authenticated) {
                 ws.send(pack([EventType.ERROR, "E_ACCESS"]));
                 return;
+              }
+              // Track ACK for testing
+              if (arr.length >= 2 && arr[1] instanceof Uint8Array) {
+                receivedAcks.push({
+                  itemId: Buffer.from(arr[1]),
+                  timestamp: Date.now(),
+                });
               }
               // ACK received - no response needed
               break;
@@ -151,6 +162,14 @@ function createTestWebSocketServer(port: number) {
           ws.send(packed);
         }
       }
+    },
+    // Get all received ACK commands (for testing)
+    getReceivedAcks(): AckRecord[] {
+      return [...receivedAcks];
+    },
+    // Clear received ACKs (for test isolation)
+    clearReceivedAcks() {
+      receivedAcks.length = 0;
     },
   };
 }
@@ -327,5 +346,218 @@ describe("Integration: Client WebSocket", () => {
     expect((receivedEvent as any).item.props.title).toBe("Test Item");
     expect((receivedEvent as any).item.props.status).toBe("published");
     expect((receivedEvent as any).item.content).toEqual([{ type: "paragraph", text: "Hello world" }]);
+  });
+
+  describe("callback (handle) interface", () => {
+    it("callback interface receives CHANGED events and sends ACK commands", async () => {
+      // Clear any previous ACKs
+      testServer.clearReceivedAcks();
+
+      // Create test item data
+      const testItemId = Buffer.alloc(16);
+      testItemId.write("cb-test-item-001", 0, 16);
+      const testRef = Buffer.alloc(16);
+      testRef.write("cb-test-ref-0001", 0, 16);
+
+      const testItem = {
+        collection: 1,
+        id: testItemId,
+        ref: testRef,
+        props: { title: "Callback Test Item", status: "active" },
+        content: [{ type: "heading", text: "Hello callback" }],
+        createdAt: Date.now(),
+        changedAt: Date.now(),
+      };
+
+      // Track received events in callback
+      const receivedEvents: unknown[] = [];
+
+      // Use a flag to control when to stop (since handle doesn't return)
+      let connectionPromiseResolve: () => void;
+      const connectionCompleted = new Promise<void>((res) => {
+        connectionPromiseResolve = res;
+      });
+
+      // Connect with callback handler (returns a Promise<void> that runs indefinitely)
+      connectTo(TEST_CONSUMER_KEY, {
+        url: `ws://localhost:${PORT}/ws`,
+        handle: async (event) => {
+          receivedEvents.push(event);
+          // Simulate async processing
+          await new Promise((res) => setTimeout(res, 10));
+          // After receiving the event, signal completion
+          connectionPromiseResolve();
+        },
+      });
+
+      // Broadcast event after connection is established
+      setTimeout(() => {
+        testServer.broadcast(testItem);
+      }, 50);
+
+      // Wait for callback to be invoked and complete
+      await connectionCompleted;
+
+      // Give time for ACK to be sent and processed
+      await new Promise((res) => setTimeout(res, 50));
+
+      // Verify callback received the CHANGED event
+      expect(receivedEvents.length).toBeGreaterThanOrEqual(1);
+      const receivedEvent = receivedEvents[0] as any;
+      expect(receivedEvent.type).toBe(EventType.CHANGED);
+      expect(receivedEvent.item).toBeDefined();
+      expect(receivedEvent.item.props.title).toBe("Callback Test Item");
+      expect(receivedEvent.item.content).toEqual([{ type: "heading", text: "Hello callback" }]);
+
+      // Verify ACK was sent
+      const acks = testServer.getReceivedAcks();
+      expect(acks.length).toBeGreaterThanOrEqual(1);
+      // Verify the ACK contains the correct item ID
+      const ackItemId = acks[0].itemId;
+      expect(ackItemId.toString("hex")).toBe(testItemId.toString("hex"));
+    });
+
+    it("callback interface receives DELETED events and sends ACK commands", async () => {
+      // Clear any previous ACKs
+      testServer.clearReceivedAcks();
+
+      // Create test item ID for deletion
+      const deletedItemId = Buffer.alloc(16);
+      deletedItemId.write("del-test-item01", 0, 16);
+
+      // Track received events in callback
+      const receivedEvents: unknown[] = [];
+
+      let connectionPromiseResolve: () => void;
+      const connectionCompleted = new Promise<void>((res) => {
+        connectionPromiseResolve = res;
+      });
+
+      // Connect with callback handler
+      connectTo(TEST_CONSUMER_KEY, {
+        url: `ws://localhost:${PORT}/ws`,
+        handle: async (event) => {
+          receivedEvents.push(event);
+          await new Promise((res) => setTimeout(res, 10));
+          connectionPromiseResolve();
+        },
+      });
+
+      // Send DELETED event after connection is established
+      setTimeout(() => {
+        testServer.sendDeleted(deletedItemId);
+      }, 50);
+
+      // Wait for callback to be invoked and complete
+      await connectionCompleted;
+
+      // Give time for ACK to be sent and processed
+      await new Promise((res) => setTimeout(res, 50));
+
+      // Verify callback received the DELETED event
+      expect(receivedEvents.length).toBeGreaterThanOrEqual(1);
+      const receivedEvent = receivedEvents[0] as any;
+      expect(receivedEvent.type).toBe(EventType.DELETED);
+      expect(receivedEvent.item).toBeDefined();
+      // For DELETED events, item is the Buffer ID
+      expect(receivedEvent.item.toString("hex")).toBe(deletedItemId.toString("hex"));
+
+      // Verify ACK was sent with the deleted item ID
+      const acks = testServer.getReceivedAcks();
+      expect(acks.length).toBeGreaterThanOrEqual(1);
+      const ackItemId = acks[0].itemId;
+      expect(ackItemId.toString("hex")).toBe(deletedItemId.toString("hex"));
+    });
+
+    it("callback interface processes multiple events sequentially with ACKs", async () => {
+      // Record starting ACK count (previous tests may have left connections open)
+      const startingAckCount = testServer.getReceivedAcks().length;
+
+      // Create multiple test items with unique IDs for this test
+      const testItem1Id = Buffer.alloc(16);
+      testItem1Id.write("multi-item-0001", 0, 16);
+      const testItem2Id = Buffer.alloc(16);
+      testItem2Id.write("multi-item-0002", 0, 16);
+
+      const testRef = Buffer.alloc(16);
+      testRef.write("multi-ref-00001", 0, 16);
+
+      const testItem1 = {
+        collection: 1,
+        id: testItem1Id,
+        ref: testRef,
+        props: { title: "Item 1" },
+        createdAt: Date.now(),
+        changedAt: Date.now(),
+      };
+
+      const testItem2 = {
+        collection: 1,
+        id: testItem2Id,
+        ref: testRef,
+        props: { title: "Item 2" },
+        createdAt: Date.now(),
+        changedAt: Date.now(),
+      };
+
+      // Track received events for THIS connection only
+      const receivedEvents: unknown[] = [];
+      let eventCount = 0;
+
+      let connectionPromiseResolve: () => void;
+      const connectionCompleted = new Promise<void>((res) => {
+        connectionPromiseResolve = res;
+      });
+
+      // Connect with callback handler
+      connectTo(TEST_CONSUMER_KEY, {
+        url: `ws://localhost:${PORT}/ws`,
+        handle: async (event) => {
+          receivedEvents.push(event);
+          eventCount++;
+          // Simulate processing time
+          await new Promise((res) => setTimeout(res, 20));
+          // Complete after receiving both events
+          if (eventCount >= 2) {
+            connectionPromiseResolve();
+          }
+        },
+      });
+
+      // Broadcast events sequentially with delays
+      setTimeout(() => {
+        testServer.broadcast(testItem1);
+      }, 50);
+
+      setTimeout(() => {
+        testServer.broadcast(testItem2);
+      }, 150);
+
+      // Wait for both callbacks to complete
+      await connectionCompleted;
+
+      // Give time for all ACKs to be sent and processed
+      await new Promise((res) => setTimeout(res, 100));
+
+      // Verify both events were received by this callback
+      expect(receivedEvents.length).toBe(2);
+      expect((receivedEvents[0] as any).item.props.title).toBe("Item 1");
+      expect((receivedEvents[1] as any).item.props.title).toBe("Item 2");
+
+      // Verify ACKs were sent - check for our specific item IDs
+      const allAcks = testServer.getReceivedAcks();
+      const newAcks = allAcks.slice(startingAckCount);
+
+      // Find ACKs for our specific items
+      const item1Ack = newAcks.find(
+        (ack) => ack.itemId.toString("hex") === testItem1Id.toString("hex"),
+      );
+      const item2Ack = newAcks.find(
+        (ack) => ack.itemId.toString("hex") === testItem2Id.toString("hex"),
+      );
+
+      expect(item1Ack).toBeDefined();
+      expect(item2Ack).toBeDefined();
+    });
   });
 });
