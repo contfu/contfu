@@ -1,5 +1,0 @@
-user_access:
-  access_as:
-    agent: {}
-  projects:
-    - id: lets-build-apps/contfu
