@@ -16,7 +16,7 @@ export const dbClient = new SQL(dbUrl, { adapter: "sqlite" });
 await dbClient`PRAGMA foreign_keys = ON`;
 await dbClient`PRAGMA journal_mode = WAL`;
 
-export const db = drizzle({ client: dbClient, schema, logger: true });
+export const db = drizzle({ client: dbClient, schema });
 await migrate(db, { migrationsFolder });
 
 // Seed development test user (only in non-production mode or when TEST_MODE is set)
