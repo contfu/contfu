@@ -87,11 +87,7 @@ describe("notion-blocks", () => {
 
       it("should handle paragraph with multiple text segments", () => {
         const block = createBlock("paragraph", {
-          rich_text: [
-            richText("First "),
-            richText("second"),
-            richText(" third"),
-          ],
+          rich_text: [richText("First "), richText("second"), richText(" third")],
           color: "default",
         });
 
@@ -201,22 +197,14 @@ describe("notion-blocks", () => {
           language: "python",
           caption: [],
         });
-        expect(parseBlock(pythonBlock)).toEqual([
-          "c",
-          "python",
-          "print('hello')",
-        ]);
+        expect(parseBlock(pythonBlock)).toEqual(["c", "python", "print('hello')"]);
 
         const typescriptBlock = createBlock("code", {
           rich_text: [richText("const x: number = 1")],
           language: "typescript",
           caption: [],
         });
-        expect(parseBlock(typescriptBlock)).toEqual([
-          "c",
-          "typescript",
-          "const x: number = 1",
-        ]);
+        expect(parseBlock(typescriptBlock)).toEqual(["c", "typescript", "const x: number = 1"]);
       });
     });
 
@@ -251,12 +239,7 @@ describe("notion-blocks", () => {
           caption: [],
         });
 
-        expect(parseBlock(block)).toEqual([
-          "i",
-          "https://s3.amazonaws.com/image.png",
-          "",
-          [],
-        ]);
+        expect(parseBlock(block)).toEqual(["i", "https://s3.amazonaws.com/image.png", "", []]);
       });
 
       it("should parse image with external URL", () => {
@@ -266,12 +249,7 @@ describe("notion-blocks", () => {
           caption: [],
         });
 
-        expect(parseBlock(block)).toEqual([
-          "i",
-          "https://example.com/image.jpg",
-          "",
-          [],
-        ]);
+        expect(parseBlock(block)).toEqual(["i", "https://example.com/image.jpg", "", []]);
       });
 
       it("should parse image with caption", () => {
@@ -384,10 +362,7 @@ describe("notion-blocks", () => {
           color: "default",
         });
 
-        expect(parseBlock(block)).toEqual([
-          "p",
-          [["a", "click here", "https://example.com"]],
-        ]);
+        expect(parseBlock(block)).toEqual(["p", [["a", "click here", "https://example.com"]]]);
       });
 
       it("should handle mixed formatting", () => {
@@ -401,10 +376,7 @@ describe("notion-blocks", () => {
           color: "default",
         });
 
-        expect(parseBlock(block)).toEqual([
-          "p",
-          ["Normal", ["b", "bold"], "and", ["i", "italic"]],
-        ]);
+        expect(parseBlock(block)).toEqual(["p", ["Normal", ["b", "bold"], "and", ["i", "italic"]]]);
       });
 
       it("should prioritize link over other formatting", () => {
@@ -419,10 +391,7 @@ describe("notion-blocks", () => {
         });
 
         // Link should take precedence
-        expect(parseBlock(block)).toEqual([
-          "p",
-          [["a", "linked text", "https://example.com"]],
-        ]);
+        expect(parseBlock(block)).toEqual(["p", [["a", "linked text", "https://example.com"]]]);
       });
     });
   });
@@ -622,18 +591,16 @@ describe("notion-blocks", () => {
     });
 
     it("should parse all block types from showcase page", async () => {
-      mockClient.blocks.children.list.mockImplementation(
-        (args: { block_id: string }) => {
-          const childBlocks = showcasePageChildBlocks[args.block_id];
-          if (childBlocks) {
-            return Promise.resolve(childBlocks);
-          }
-          if (args.block_id === PAGE_ID) {
-            return Promise.resolve(showcasePageBlocks);
-          }
-          return Promise.resolve(emptyList);
-        },
-      );
+      mockClient.blocks.children.list.mockImplementation((args: { block_id: string }) => {
+        const childBlocks = showcasePageChildBlocks[args.block_id];
+        if (childBlocks) {
+          return Promise.resolve(childBlocks);
+        }
+        if (args.block_id === PAGE_ID) {
+          return Promise.resolve(showcasePageBlocks);
+        }
+        return Promise.resolve(emptyList);
+      });
 
       const blocks = await getContentBlocks(testKey, PAGE_ID);
 
@@ -666,16 +633,12 @@ describe("notion-blocks", () => {
     });
 
     it("should correctly parse paragraph with rich text formatting", async () => {
-      mockClient.blocks.children.list.mockImplementation(
-        (args: { block_id: string }) => {
-          if (args.block_id === PAGE_ID) {
-            return Promise.resolve(showcasePageBlocks);
-          }
-          return Promise.resolve(
-            showcasePageChildBlocks[args.block_id] || emptyList,
-          );
-        },
-      );
+      mockClient.blocks.children.list.mockImplementation((args: { block_id: string }) => {
+        if (args.block_id === PAGE_ID) {
+          return Promise.resolve(showcasePageBlocks);
+        }
+        return Promise.resolve(showcasePageChildBlocks[args.block_id] || emptyList);
+      });
 
       const blocks = await getContentBlocks(testKey, PAGE_ID);
 
@@ -691,46 +654,32 @@ describe("notion-blocks", () => {
     });
 
     it("should correctly parse headings", async () => {
-      mockClient.blocks.children.list.mockImplementation(
-        (args: { block_id: string }) => {
-          if (args.block_id === PAGE_ID) {
-            return Promise.resolve(showcasePageBlocks);
-          }
-          return Promise.resolve(
-            showcasePageChildBlocks[args.block_id] || emptyList,
-          );
-        },
-      );
+      mockClient.blocks.children.list.mockImplementation((args: { block_id: string }) => {
+        if (args.block_id === PAGE_ID) {
+          return Promise.resolve(showcasePageBlocks);
+        }
+        return Promise.resolve(showcasePageChildBlocks[args.block_id] || emptyList);
+      });
 
       const blocks = await getContentBlocks(testKey, PAGE_ID);
 
       // Find h1 with "Heading 1"
-      expect(blocks.some((b) => isH1(b) && b[1].includes("Heading 1"))).toBe(
-        true,
-      );
+      expect(blocks.some((b) => isH1(b) && b[1].includes("Heading 1"))).toBe(true);
 
       // Find h2 with "Heading 2"
-      expect(blocks.some((b) => isH2(b) && b[1].includes("Heading 2"))).toBe(
-        true,
-      );
+      expect(blocks.some((b) => isH2(b) && b[1].includes("Heading 2"))).toBe(true);
 
       // Find h3 with "Heading 3"
-      expect(blocks.some((b) => isH3(b) && b[1].includes("Heading 3"))).toBe(
-        true,
-      );
+      expect(blocks.some((b) => isH3(b) && b[1].includes("Heading 3"))).toBe(true);
     });
 
     it("should correctly parse code block with language", async () => {
-      mockClient.blocks.children.list.mockImplementation(
-        (args: { block_id: string }) => {
-          if (args.block_id === PAGE_ID) {
-            return Promise.resolve(showcasePageBlocks);
-          }
-          return Promise.resolve(
-            showcasePageChildBlocks[args.block_id] || emptyList,
-          );
-        },
-      );
+      mockClient.blocks.children.list.mockImplementation((args: { block_id: string }) => {
+        if (args.block_id === PAGE_ID) {
+          return Promise.resolve(showcasePageBlocks);
+        }
+        return Promise.resolve(showcasePageChildBlocks[args.block_id] || emptyList);
+      });
 
       const blocks = await getContentBlocks(testKey, PAGE_ID);
 
@@ -742,16 +691,12 @@ describe("notion-blocks", () => {
     });
 
     it("should merge consecutive list items", async () => {
-      mockClient.blocks.children.list.mockImplementation(
-        (args: { block_id: string }) => {
-          if (args.block_id === PAGE_ID) {
-            return Promise.resolve(showcasePageBlocks);
-          }
-          return Promise.resolve(
-            showcasePageChildBlocks[args.block_id] || emptyList,
-          );
-        },
-      );
+      mockClient.blocks.children.list.mockImplementation((args: { block_id: string }) => {
+        if (args.block_id === PAGE_ID) {
+          return Promise.resolve(showcasePageBlocks);
+        }
+        return Promise.resolve(showcasePageChildBlocks[args.block_id] || emptyList);
+      });
 
       const blocks = await getContentBlocks(testKey, PAGE_ID);
 
@@ -765,16 +710,12 @@ describe("notion-blocks", () => {
     });
 
     it("should correctly parse quote blocks", async () => {
-      mockClient.blocks.children.list.mockImplementation(
-        (args: { block_id: string }) => {
-          if (args.block_id === PAGE_ID) {
-            return Promise.resolve(showcasePageBlocks);
-          }
-          return Promise.resolve(
-            showcasePageChildBlocks[args.block_id] || emptyList,
-          );
-        },
-      );
+      mockClient.blocks.children.list.mockImplementation((args: { block_id: string }) => {
+        if (args.block_id === PAGE_ID) {
+          return Promise.resolve(showcasePageBlocks);
+        }
+        return Promise.resolve(showcasePageChildBlocks[args.block_id] || emptyList);
+      });
 
       const blocks = await getContentBlocks(testKey, PAGE_ID);
 
@@ -785,16 +726,12 @@ describe("notion-blocks", () => {
     });
 
     it("should skip unsupported block types gracefully", async () => {
-      mockClient.blocks.children.list.mockImplementation(
-        (args: { block_id: string }) => {
-          if (args.block_id === PAGE_ID) {
-            return Promise.resolve(showcasePageBlocks);
-          }
-          return Promise.resolve(
-            showcasePageChildBlocks[args.block_id] || emptyList,
-          );
-        },
-      );
+      mockClient.blocks.children.list.mockImplementation((args: { block_id: string }) => {
+        if (args.block_id === PAGE_ID) {
+          return Promise.resolve(showcasePageBlocks);
+        }
+        return Promise.resolve(showcasePageChildBlocks[args.block_id] || emptyList);
+      });
 
       // Should not throw error despite having divider, table_of_contents, and other unsupported types
       const blocks = await getContentBlocks(testKey, PAGE_ID);

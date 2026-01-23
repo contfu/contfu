@@ -3984,8 +3984,7 @@ export const showcasePageBlocks = {
           {
             type: "text",
             text: {
-              content:
-                "You can customize this database (properties, views, filters) as needed.",
+              content: "You can customize this database (properties, views, filters) as needed.",
               link: null,
             },
             annotations: {
@@ -3996,8 +3995,7 @@ export const showcasePageBlocks = {
               code: false,
               color: "default",
             },
-            plain_text:
-              "You can customize this database (properties, views, filters) as needed.",
+            plain_text: "You can customize this database (properties, views, filters) as needed.",
             href: null,
           },
         ],
@@ -4435,10 +4433,7 @@ export const showcasePageBlocks = {
   block: {},
 };
 
-export const showcasePageChildBlocks: Record<
-  string,
-  ListBlockChildrenResponse
-> = {
+export const showcasePageChildBlocks: Record<string, ListBlockChildrenResponse> = {
   "01249d98-1423-47d3-bbf2-a6d6917ee786": {
     object: "list",
     results: [
