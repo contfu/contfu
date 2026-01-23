@@ -214,3 +214,6 @@ backend/app/playwright-report
 backend/app/.svelte-kit
 backend/app/test-results/
 backend/app/data
+
+# Auto Claude data directory
+.auto-claude/
