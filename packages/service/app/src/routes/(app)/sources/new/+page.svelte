@@ -20,24 +20,15 @@
     testPending = true;
     testResult = null;
 
-    const formData = new FormData();
-    formData.set("type", selectedType);
     const urlInput = document.querySelector<HTMLInputElement>('input[name="url"]');
     const credentialsInput = document.querySelector<HTMLInputElement>('input[name="_credentials"]');
 
-    if (urlInput?.value) {
-      formData.set("url", urlInput.value);
-    }
-    if (credentialsInput?.value) {
-      formData.set("_credentials", credentialsInput.value);
-    }
-
     try {
-      const response = await fetch(testNewConnection.action, {
-        method: "POST",
-        body: formData,
+      const result = await testNewConnection({
+        type: Number.parseInt(selectedType, 10),
+        url: urlInput?.value || undefined,
+        _credentials: credentialsInput?.value ?? "",
       });
-      const result = await response.json();
       testResult = result;
     } catch (error) {
       testResult = {

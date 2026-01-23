@@ -35,15 +35,8 @@
     testPending = true;
     testResult = null;
 
-    const formData = new FormData();
-    formData.set("id", String(source.id));
-
     try {
-      const response = await fetch(testConnection.action, {
-        method: "POST",
-        body: formData,
-      });
-      const result = await response.json();
+      const result = await testConnection({ id: source.id });
       testResult = result;
     } catch (error) {
       testResult = {

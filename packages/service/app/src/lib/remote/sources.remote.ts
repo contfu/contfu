@@ -1,4 +1,4 @@
-import { form, query, getRequestEvent } from "$app/server";
+import { form, query, command, getRequestEvent } from "$app/server";
 import { invalid, redirect } from "@sveltejs/kit";
 import * as v from "valibot";
 import {
@@ -168,7 +168,7 @@ export const deleteSource = form(
 /**
  * Test connection to a source.
  */
-export const testConnection = form(
+export const testConnection = command(
   v.object({
     id: v.pipe(
       v.union([v.string(), v.number()]),
@@ -176,12 +176,12 @@ export const testConnection = form(
       v.number(),
     ),
   }),
-  async (data, issue): Promise<ConnectionTestResult> => {
+  async (data): Promise<ConnectionTestResult> => {
     const userId = getUserId();
     const source = await selectSourceWithCollectionCount(userId, data.id);
 
     if (!source) {
-      throw invalid(issue.id("Source not found"));
+      return { success: false, message: "Source not found" };
     }
 
     const credentials = source.credentials?.toString("utf-8") ?? "";
@@ -192,7 +192,7 @@ export const testConnection = form(
 /**
  * Test connection with credentials (without saving).
  */
-export const testNewConnection = form(
+export const testNewConnection = command(
   v.object({
     type: v.pipe(
       v.union([v.string(), v.number()]),
