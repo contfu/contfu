@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { CommandType, EventType } from "@contfu/core";
 import { pack, unpack } from "msgpackr";
+import { connectTo } from "./client";
 
 // Test consumer credentials
 const TEST_CONSUMER_KEY = Buffer.alloc(24);
@@ -154,9 +155,6 @@ function createTestWebSocketServer(port: number) {
   };
 }
 
-// Note: connectTo will be imported in subsequent subtasks for testing the client API
-// This subtask focuses on test infrastructure setup only
-
 describe("Integration: Client WebSocket", () => {
   let testServer: ReturnType<typeof createTestWebSocketServer>;
   let PORT: number;
@@ -206,6 +204,17 @@ describe("Integration: Client WebSocket", () => {
 
     ws.close();
     expect(connected).toBe(true);
+  });
+
+  it("should connect and authenticate with valid key using connectTo", async () => {
+    const events = await connectTo(TEST_CONSUMER_KEY, {
+      url: `ws://localhost:${PORT}/ws`,
+    });
+
+    // connectTo returns an AsyncGenerator that yields events after connection
+    // If we get here without throwing, the connection was successful
+    expect(events).toBeDefined();
+    expect(typeof events[Symbol.asyncIterator]).toBe("function");
   });
 
   it("should reject authentication with invalid key", async () => {
