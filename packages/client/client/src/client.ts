@@ -14,6 +14,7 @@ import {
 import { pack, unpack } from "msgpackr";
 
 type Opts = {
+  url?: string;
   WS?: typeof WebSocket;
   handle?: (e: ItemEvent) => Promise<void>;
 };
@@ -26,9 +27,12 @@ export function connectTo(
   key: Buffer,
   opts?: Omit<Opts, "handle">,
 ): Promise<AsyncGenerator<ItemEvent>>;
-export async function connectTo(key: Buffer, { WS = global.WebSocket, handle }: Opts = {}) {
+export async function connectTo(
+  key: Buffer,
+  { url = "ws://localhost:9999", WS = global.WebSocket, handle }: Opts = {},
+) {
   let resolve: (value: any) => void;
-  let socket = new WS("ws://localhost:9999");
+  let socket = new WS(url);
 
   socket.onopen = () => {
     socket.send(serializeCommand({ type: CommandType.CONNECT, key }));
