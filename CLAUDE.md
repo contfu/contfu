@@ -33,13 +33,13 @@ bun test
 bun run build
 
 # Run a single package's tests
-bun test --filter @contfu/sync-service
+bun test --filter @contfu/svc-sync
 
 # Run tests in a specific directory
-cd backend/sync && bun test
+cd packages/service/sync && bun test
 
 # Run a specific test file
-bun test backend/sync/src/server.spec.ts
+bun test packages/service/sync/src/server.spec.ts
 
 # Development mode for all packages
 bun run dev
@@ -49,10 +49,10 @@ bun run fmt
 bun run lint
 
 # Run sync service locally
-cd backend/sync && bun run dev
+cd packages/service/sync && bun run dev
 
 # Run app service locally
-cd backend/app && bun run dev
+cd packages/service/app && bun run dev
 
 # Docker compose for full stack
 docker-compose up
@@ -86,10 +86,10 @@ This ensures consistent code style and catches potential issues before committin
 - `@contfu/bun-file-store` (`packages/client/bun-file-store`) - File storage utilities for Bun
 - `@contfu/media-optimizer` (`packages/client/media-optimizer`) - Media optimization utilities using Sharp
 
-**Backend Services** (`backend/`):
+**Backend Services** (`packages/service/`):
 
-- `@contfu/sync-service` (`backend/sync`) - Elysia WebSocket server for real-time sync; handles client connections, authentication, and item streaming via RxJS; includes Notion adapter
-- `@contfu/app` (`backend/app`) - Qwik City web application with Bun server adapter
+- `@contfu/svc-sync` (`packages/service/sync`) - Elysia WebSocket server for real-time sync; handles client connections, authentication, and item streaming via RxJS; includes Notion adapter
+- `@contfu/svc-app` (`packages/service/app`) - Qwik City web application with Bun server adapter
 
 ### Key Technologies
 
@@ -102,7 +102,7 @@ This ensures consistent code style and catches potential issues before committin
 
 ### Data Flow
 
-1. CMS sources (e.g., Notion) are polled/synced via adapters in `backend/sync/src/sources/`
+1. CMS sources (e.g., Notion) are polled/synced via adapters in `packages/service/sync/src/sources/`
 2. Items flow through the sync service which buffers and broadcasts via WebSocket
 3. Clients connect with authentication keys, receive real-time item events
 4. Events use a compact binary format: `[EventType, collection, id, createdAt, changedAt, [ref, props, content?]]`
@@ -111,8 +111,8 @@ This ensures consistent code style and catches potential issues before committin
 
 Database schemas are located in:
 
-- `backend/app/src/db/schema.ts` - App service schema (users, etc.)
-- `backend/sync/src/db/schema.ts` - Sync service schema
+- `packages/service/app/src/db/schema.ts` - App service schema (users, etc.)
+- `packages/service/sync/src/db/schema.ts` - Sync service schema
 - `packages/client/app/src/core/db/schema.ts` - Client-side schema (pages, etc.)
 
 Core entities include:

@@ -29,9 +29,9 @@ jobs:
             fi
           }
 
-          CURRENT_APP_VERSION=$(get_version "backend/app/package.json")
+          CURRENT_APP_VERSION=$(get_version "packages/service/app/package.json")
           git checkout HEAD^
-          PREVIOUS_APP_VERSION=$(get_version "backend/app/package.json")
+          PREVIOUS_APP_VERSION=$(get_version "packages/service/app/package.json")
 
           app_changed=$([ "$CURRENT_APP_VERSION" != "$PREVIOUS_APP_VERSION" ] && echo "true" || echo "false")
           echo "app-changed=$app_changed" >> "$GITHUB_OUTPUT"

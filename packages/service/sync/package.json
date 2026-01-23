@@ -1,5 +1,5 @@
 {
-  "name": "@contfu/sync-service",
+  "name": "@contfu/svc-sync",
   "version": "0.1.1",
   "private": true,
   "files": [
@@ -25,5 +25,6 @@
   },
   "peerDependencies": {
     "typescript": "^5.6.3"
-  }
+  },
+  "link": "isolated"
 }

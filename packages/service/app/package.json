@@ -1,5 +1,5 @@
 {
-  "name": "@contfu/app",
+  "name": "@contfu/svc-app",
   "private": true,
   "description": "Contfu web application",
   "type": "module",
@@ -52,6 +52,7 @@
     "typescript": "latest",
     "vite": "latest"
   },
+  "link": "isolated",
   "trustedDependencies": [
     "sharp"
   ]

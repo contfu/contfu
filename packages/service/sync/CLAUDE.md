@@ -1,10 +1,10 @@
-# CLAUDE.md - @contfu/sync-service
+# CLAUDE.md - @contfu/svc-sync
 
 > **Keep this file in sync with project changes and document important learnings.**
 
 ## Package Overview
 
-**Name:** `@contfu/sync-service`
+**Name:** `@contfu/svc-sync`
 **Version:** 0.1.1
 **Purpose:** Real-time WebSocket server that syncs data from CMS sources to connected clients
 
