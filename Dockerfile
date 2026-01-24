@@ -1,7 +1,7 @@
 FROM oven/bun:1.3.6-slim AS base
 WORKDIR /app
 RUN apt-get update && \
-    apt-get install -y ca-certificates && \
+    apt-get install -y ca-certificates wget && \
     rm -rf /var/lib/apt/lists/*
 
 FROM base AS build-base

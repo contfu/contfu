@@ -1,0 +1,27 @@
+{
+  "name": "demo-consumer-app",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun -b vite dev --port 4000",
+    "build": "bun -b vite build",
+    "preview": "bun -b vite preview",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "serve": "bun build/index.js"
+  },
+  "dependencies": {
+    "@contfu/client": "workspace:*",
+    "@contfu/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@sveltejs/kit": "latest",
+    "@sveltejs/vite-plugin-svelte": "latest",
+    "@types/bun": "latest",
+    "svelte": "latest",
+    "svelte-adapter-bun": "latest",
+    "svelte-check": "latest",
+    "typescript": "latest",
+    "vite": "latest"
+  }
+}

@@ -1,8 +1,8 @@
 # Strapi 5 Docker image for integration testing
 FROM node:20-alpine
 
-# Install dependencies for better-sqlite3
-RUN apk add --no-cache python3 make g++
+# Install dependencies for better-sqlite3 and healthcheck
+RUN apk add --no-cache python3 make g++ wget
 
 WORKDIR /app
 

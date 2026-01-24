@@ -4,7 +4,8 @@
   "workspaces": [
     "packages/client/*",
     "packages/service/*",
-    "packages/core"
+    "packages/core",
+    "demos/*"
   ],
   "type": "module",
   "module": "index.ts",

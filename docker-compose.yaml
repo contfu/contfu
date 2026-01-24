@@ -8,13 +8,26 @@ services:
       - "3001:3000"
     volumes:
       - ./data/local:/data
+    environment:
+      POLAR_ACCESS_TOKEN: ${POLAR_ACCESS_TOKEN:-}
+      POLAR_SANDBOX: ${POLAR_SANDBOX:-true}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-}
+      ORIGIN: http://localhost:3001
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      start_period: 10s
+      retries: 3
+
   strapi:
-    image: naskio/strapi:5.30.1-alpine
+    build:
+      context: demos/strapi-demo
+      dockerfile: Dockerfile
     profiles:
       - strapi
+      - demo
     environment:
-      DATABASE_CLIENT: sqlite
-      DATABASE_FILENAME: .tmp/data.db
       JWT_SECRET: test-jwt-secret
       ADMIN_JWT_SECRET: test-admin-jwt-secret
       APP_KEYS: key1,key2,key3,key4
@@ -22,7 +35,35 @@ services:
     ports:
       - "1337:1337"
     volumes:
-      - strapi-data:/srv/app/.tmp
+      - strapi-data:/app/.tmp
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:1337/_health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+
+  demo-app:
+    build:
+      context: .
+      dockerfile: demos/consumer-app/Dockerfile
+    profiles:
+      - demo
+    ports:
+      - "4001:4000"
+    environment:
+      PORT: 4000
+      CONTFU_URL: ws://app:3000/contfu
+      CONTFU_KEY: ${CONTFU_KEY:-}
+    depends_on:
+      app:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:4000/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 10s
+      retries: 3
 
 volumes:
   strapi-data:
