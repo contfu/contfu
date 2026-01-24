@@ -35,9 +35,6 @@
   const availableCollections = allCollections.filter((c) => !connectedCollectionIds.has(c.id));
 
   let updateSuccess = $state(false);
-  let regeneratedKey = $state<string | null>(null);
-  let regeneratePending = $state(false);
-  let regenerateError = $state<string | null>(null);
   let selectedCollectionId = $state<number | null>(
     availableCollections.length > 0 ? availableCollections[0].id : null,
   );
@@ -54,43 +51,6 @@
       handleUpdateSuccess();
     }
   });
-
-  async function handleRegenerateKey() {
-    if (!client) return;
-
-    regeneratePending = true;
-    regeneratedKey = null;
-    regenerateError = null;
-
-    const formData = new FormData();
-    formData.set("id", String(client.id));
-
-    try {
-      const response = await fetch(regenerateKey.action, {
-        method: "POST",
-        body: formData,
-      });
-      if (!response.ok) {
-        throw new Error("Failed to regenerate API key.");
-      }
-      let result: { success?: boolean; key?: string } | null = null;
-      try {
-        result = await response.json();
-      } catch {
-        throw new Error("Failed to read API key response.");
-      }
-      if (result?.success && result.key) {
-        regeneratedKey = result.key;
-      } else {
-        throw new Error("Failed to regenerate API key.");
-      }
-    } catch (error) {
-      regenerateError =
-        error instanceof Error ? error.message : "Failed to regenerate API key.";
-    } finally {
-      regeneratePending = false;
-    }
-  }
 
   function copyToClipboard(text: string) {
     navigator.clipboard.writeText(text);
@@ -182,13 +142,13 @@
         </Card.Description>
       </Card.Header>
       <Card.Content>
-        {#if regenerateError}
+        {#if regenerateKey.fields?.id?.issues()?.length}
           <Alert.Root class="mb-4" variant="destructive">
             <Alert.Title>API key regeneration failed</Alert.Title>
-            <Alert.Description>{regenerateError}</Alert.Description>
+            <Alert.Description>{regenerateKey.fields?.id?.issues()?.[0]?.message}</Alert.Description>
           </Alert.Root>
         {/if}
-        {#if regeneratedKey}
+        {#if regenerateKey.result?.key}
           <Alert.Root class="mb-4">
             <Alert.Title>New API Key Generated</Alert.Title>
             <Alert.Description>
@@ -197,12 +157,12 @@
               </p>
               <div class="flex items-center gap-2">
                 <code class="flex-1 rounded bg-muted p-2 text-sm font-mono break-all">
-                  {regeneratedKey}
+                  {regenerateKey.result.key}
                 </code>
                 <Button
                   variant="outline"
                   size="sm"
-                  onclick={() => copyToClipboard(regeneratedKey!)}
+                  onclick={() => copyToClipboard(regenerateKey.result!.key)}
                 >
                   Copy
                 </Button>
@@ -210,13 +170,12 @@
             </Alert.Description>
           </Alert.Root>
         {/if}
-        <Button
-          variant="outline"
-          onclick={handleRegenerateKey}
-          disabled={regeneratePending}
-        >
-          {regeneratePending ? "Regenerating..." : "Regenerate API Key"}
-        </Button>
+        <form method="post" action={regenerateKey.action} class="inline-block">
+          <input type="hidden" name="id" value={client.id} />
+          <Button variant="outline" type="submit" disabled={!!regenerateKey.pending}>
+            {regenerateKey.pending ? "Regenerating..." : "Regenerate API Key"}
+          </Button>
+        </form>
         <p class="mt-2 text-sm text-muted-foreground">
           Warning: Regenerating the API key will invalidate the current key. Any applications using the old key will need to be updated.
         </p>
