@@ -9,7 +9,7 @@
   "scripts": {
     "test": "bun test",
     "clean": "rm -rf dist",
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "rm -rf db/migrations && drizzle-kit generate --name init"
   },
   "dependencies": {},
   "devDependencies": {

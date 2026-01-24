@@ -1,6 +1,15 @@
 import type { ImageBlock } from "@contfu/core";
+import type { OnAssetProgress } from "../assets/asset-types";
 import type { MediaStore } from "../media/media";
 import type { PageData } from "../pages/pages";
+
+/**
+ * Options for sync operations.
+ */
+export interface SyncOptions {
+  /** Optional callback to receive progress updates during asset sync */
+  onProgress?: OnAssetProgress;
+}
 
 export interface Source<C extends string = string> {
   id: string;

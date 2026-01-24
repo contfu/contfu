@@ -38,3 +38,19 @@ export const pageLinkTable = sqliteTable(
 export type DbPageLink = typeof pageLinkTable.$inferSelect;
 export type NewPageLink = typeof pageLinkTable.$inferInsert;
 export type PageLinkUpdate = Partial<NewPageLink>;
+
+export const assetTable = sqliteTable("asset", {
+  id: blob({ mode: "buffer" }).primaryKey(),
+  pageId: blob({ mode: "buffer" })
+    .notNull()
+    .references(() => pageTable.id, { onDelete: "cascade" }),
+  canonical: text().unique().notNull(),
+  originalUrl: text().notNull(),
+  format: text().notNull(),
+  size: integer().notNull(),
+  createdAt: integer().notNull(),
+});
+
+export type DbAsset = typeof assetTable.$inferSelect;
+export type NewAsset = typeof assetTable.$inferInsert;
+export type AssetUpdate = Partial<NewAsset>;

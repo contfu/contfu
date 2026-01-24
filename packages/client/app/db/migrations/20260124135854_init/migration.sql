@@ -1,3 +1,14 @@
+CREATE TABLE `asset` (
+	`id` blob PRIMARY KEY,
+	`pageId` blob NOT NULL,
+	`canonical` text NOT NULL UNIQUE,
+	`originalUrl` text NOT NULL,
+	`format` text NOT NULL,
+	`size` integer NOT NULL,
+	`createdAt` integer NOT NULL,
+	CONSTRAINT `fk_asset_pageId_page_id_fk` FOREIGN KEY (`pageId`) REFERENCES `page`(`id`) ON DELETE CASCADE
+);
+--> statement-breakpoint
 CREATE TABLE `pageLink` (
 	`type` text NOT NULL,
 	`from` blob NOT NULL,

@@ -35,26 +35,31 @@ Contfu acts as a **proxy layer** between upstream CMS platforms and client appli
        └───────────────────┼───────────────────┘
                            │
                            ▼
-                 ┌─────────────────┐
-                 │     Contfu      │
-                 │  Sync Service   │
-                 │  (Local/Tenant) │
-                 └────────┬────────┘
-                          │
-                          ▼
-                 ┌─────────────────┐
-                 │  Local SQLite   │
-                 │    Database     │
-                 └────────┬────────┘
-                          │
-          ┌───────────────┼───────────────┐
-          │               │               │
-          ▼               ▼               ▼
-    ┌──────────┐    ┌──────────┐    ┌──────────┐
-    │ Client 1 │    │ Client 2 │    │ Client N │
-    │  (App)   │    │  (App)   │    │  (App)   │
-    └──────────┘    └──────────┘    └──────────┘
+                 ┌─────────────────────────┐
+                 │    Contfu Sync Service  │
+                 │  ┌───────────────────┐  │
+                 │  │   Metadata DB     │  │
+                 │  │ (sources, cursors)│  │
+                 │  └───────────────────┘  │
+                 └───────────┬─────────────┘
+                             │ WebSocket
+          ┌──────────────────┼──────────────────┐
+          │                  │                  │
+          ▼                  ▼                  ▼
+    ┌───────────┐      ┌───────────┐      ┌───────────┐
+    │ Client 1  │      │ Client 2  │      │ Client N  │
+    │┌─────────┐│      │┌─────────┐│      │┌─────────┐│
+    ││Local DB ││      ││Local DB ││      ││Local DB ││
+    ││(content)││      ││(content)││      ││(content)││
+    │└─────────┘│      │└─────────┘│      │└─────────┘│
+    └───────────┘      └───────────┘      └───────────┘
 ```
+
+### Architecture Principles
+
+**Service is stateless for content.** The sync service does not persist content or media. It fetches from upstream sources, transforms data, and streams to clients via WebSocket. The service database only stores metadata: source configurations, sync cursors, collection definitions, and client authentication.
+
+**Clients own their data.** Each client maintains its own local SQLite database containing synchronized content and downloaded media. The client library provides a query API for accessing this local data. This enables offline access and low-latency queries.
 
 ---
 
@@ -112,7 +117,52 @@ An **Item** is a single piece of content within a collection. Items have:
 
 ### Clients
 
-**Clients** are applications that consume synchronized content. Each tenant can connect multiple clients via WebSocket to receive real-time updates.
+**Clients** are applications that consume synchronized content. Each client:
+
+- Connects to the sync service via WebSocket to receive real-time updates
+- Maintains its own **local SQLite database** for storing content and media
+- Downloads and stores media files locally (with optional optimization)
+- Provides a **query API** for accessing the local content database
+
+The client library handles synchronization, local storage, and provides a clean API for querying content. Applications never query the sync service directly for content—all reads come from the local database.
+
+### Data Flow
+
+```
+1. SYNC: Service fetches from upstream sources
+   ┌─────────────────────────────────────────────────────────────────┐
+   │  Notion API ──────┐                                             │
+   │  Strapi API ──────┼──▶ Sync Service ──▶ Transform ──▶ Stream    │
+   │  Other APIs ──────┘         │                           │       │
+   │                             ▼                           │       │
+   │                      Metadata DB                        │       │
+   │                   (cursors, config)                     │       │
+   └─────────────────────────────────────────────────────────│───────┘
+                                                             │
+2. STREAM: Service sends events to connected clients         │
+   ┌─────────────────────────────────────────────────────────│───────┐
+   │                        WebSocket                        ▼       │
+   │  ┌─────────────┬─────────────┬─────────────────────────────┐   │
+   │  ▼             ▼             ▼                             │   │
+   │ Client 1    Client 2    Client N                           │   │
+   └────────────────────────────────────────────────────────────┘   │
+                                                                     │
+3. STORE: Clients persist content and media locally                  │
+   ┌─────────────────────────────────────────────────────────────────┘
+   │  Client receives event ──▶ Stores in local DB ──▶ Downloads media
+   │                                   │                      │
+   │                                   ▼                      ▼
+   │                            Local SQLite           Local Files
+   │                         (content, metadata)     (images, assets)
+   └─────────────────────────────────────────────────────────────────
+
+4. QUERY: Application reads from client's local database
+   ┌─────────────────────────────────────────────────────────────────┐
+   │  Application ──▶ Client Query API ──▶ Local SQLite ──▶ Response │
+   │                                              │                  │
+   │                        (No network calls - all local)           │
+   └─────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
@@ -161,15 +211,30 @@ An **Item** is a single piece of content within a collection. Items have:
 | FR4.5 | Acknowledgment-based message delivery          | P1       |
 | FR4.6 | Client-specific collection subscriptions       | P2       |
 
-### FR5: Local Database
+### FR5: Client Local Database
 
-| ID    | Requirement                           | Priority |
-| ----- | ------------------------------------- | -------- |
-| FR5.1 | SQLite database for local persistence | P0       |
-| FR5.2 | Automatic schema migrations           | P0       |
-| FR5.3 | Query API for content retrieval       | P0       |
-| FR5.4 | Full-text search support              | P2       |
-| FR5.5 | Database backup and restore           | P2       |
+Each client application has its own local SQLite database for storing synchronized content and media.
+
+| ID    | Requirement                                     | Priority |
+| ----- | ----------------------------------------------- | -------- |
+| FR5.1 | Client-side SQLite database for content storage | P0       |
+| FR5.2 | Automatic schema migrations on client           | P0       |
+| FR5.3 | Query API for accessing local content           | P0       |
+| FR5.4 | Local media file storage with path references   | P0       |
+| FR5.5 | Full-text search support                        | P2       |
+| FR5.6 | Database backup and restore                     | P2       |
+
+### FR6: Service Metadata Database
+
+The sync service maintains a metadata database for configuration and sync state (no content storage).
+
+| ID    | Requirement                                      | Priority |
+| ----- | ------------------------------------------------ | -------- |
+| FR6.1 | Store data source configurations and credentials | P0       |
+| FR6.2 | Track sync cursors for incremental updates       | P0       |
+| FR6.3 | Store collection definitions and mappings        | P0       |
+| FR6.4 | Manage client authentication keys                | P0       |
+| FR6.5 | No content or media stored on service            | P0       |
 
 ---
 
@@ -210,6 +275,16 @@ An **Item** is a single piece of content within a collection. Items have:
 | NFR4.1 | Items per collection    | 100,000+ |
 | NFR4.2 | Collections per tenant  | 50+      |
 | NFR4.3 | Data sources per tenant | 10+      |
+
+### NFR5: Data Storage Separation
+
+| ID     | Requirement                                                 | Target   |
+| ------ | ----------------------------------------------------------- | -------- |
+| NFR5.1 | Service stores only metadata (sources, cursors, config)     | Required |
+| NFR5.2 | Service does not persist content items or media files       | Required |
+| NFR5.3 | Each client maintains its own local SQLite database         | Required |
+| NFR5.4 | Clients store content and media locally                     | Required |
+| NFR5.5 | Service remains stateless for content (can restart cleanly) | Required |
 
 ---
 
@@ -304,20 +379,31 @@ wss://<host>/ws
 | CHECKSUM  | 4    | `[collection, checksum]`                                         |
 | ERROR     | 5    | `{ code: number, message: string }`                              |
 
-### Local Query API
+### Client Query API
+
+The client library provides a query API for accessing the local SQLite database. All queries run against the client's local data—fast, offline-capable, and no network latency.
 
 ```typescript
-// Get all pages
-const pages = await getPages();
+import { createContfuClient } from "@contfu/client";
 
-// Get page by ID
-const page = await getPage({ id: "abc123" });
+const client = await createContfuClient({
+  syncUrl: "wss://sync.example.com/ws",
+  apiKey: "...",
+  dbPath: "./content.db", // Local SQLite database
+  mediaDir: "./media", // Local media storage
+});
 
-// Get page by path
-const page = await getPage({ path: "/blog/hello-world" });
+// Connect and sync (populates local database)
+await client.connect();
 
-// Get page links
-const links = await getPageLinks({ from: pageId });
+// All queries run against the local database
+const pages = await client.getPages();
+const page = await client.getPage({ id: "abc123" });
+const page = await client.getPage({ path: "/blog/hello-world" });
+const links = await client.getPageLinks({ from: pageId });
+
+// Access local media files
+const imagePath = client.getMediaPath(asset.id); // Returns local file path
 ```
 
 ---
@@ -329,35 +415,54 @@ const links = await getPageLinks({ from: pageId });
 Contfu runs locally on the tenant's infrastructure:
 
 ```
-┌─────────────────────────────────────────┐
-│           Tenant Infrastructure         │
-│  ┌─────────────────────────────────┐   │
-│  │         Contfu Service          │   │
-│  │  ┌─────────┐  ┌──────────────┐  │   │
-│  │  │  Sync   │  │  WebSocket   │  │   │
-│  │  │ Worker  │  │   Server     │  │   │
-│  │  └────┬────┘  └──────┬───────┘  │   │
-│  │       │              │          │   │
-│  │       ▼              │          │   │
-│  │  ┌─────────┐         │          │   │
-│  │  │ SQLite  │◄────────┘          │   │
-│  │  │   DB    │                    │   │
-│  │  └─────────┘                    │   │
-│  └─────────────────────────────────┘   │
-│                  │                      │
-│     ┌────────────┼────────────┐        │
-│     ▼            ▼            ▼        │
-│  ┌──────┐    ┌──────┐    ┌──────┐     │
-│  │ App1 │    │ App2 │    │ App3 │     │
-│  └──────┘    └──────┘    └──────┘     │
-└─────────────────────────────────────────┘
+                    Upstream CMS Platforms
+        ┌───────────────────┼───────────────────┐
+        ▼                   ▼                   ▼
+   ┌─────────┐         ┌─────────┐         ┌─────────┐
+   │ Notion  │         │ Strapi  │         │  ...    │
+   └────┬────┘         └────┬────┘         └────┬────┘
+        └───────────────────┼───────────────────┘
+                            │ API calls
+┌───────────────────────────┼────────────────────────────┐
+│  Tenant Infrastructure    ▼                            │
+│  ┌─────────────────────────────────────────────────┐   │
+│  │              Contfu Sync Service                │   │
+│  │  ┌─────────────┐  ┌──────────────┐              │   │
+│  │  │ Sync Worker │  │  WebSocket   │              │   │
+│  │  │(fetches from│  │   Server     │              │   │
+│  │  │  sources)   │  │(streams to   │              │   │
+│  │  └──────┬──────┘  │  clients)    │              │   │
+│  │         │         └──────┬───────┘              │   │
+│  │         ▼                │                      │   │
+│  │  ┌────────────────┐      │                      │   │
+│  │  │  Metadata DB   │◄─────┘                      │   │
+│  │  │ (sources, sync │      │                      │   │
+│  │  │  cursors only) │      │                      │   │
+│  │  └────────────────┘      │ WebSocket            │   │
+│  └──────────────────────────┼──────────────────────┘   │
+│                             │                          │
+│  ┌──────────────────────────┼──────────────────────┐   │
+│  │      Client Applications │                      │   │
+│  │     ┌────────────────────┼────────────────┐     │   │
+│  │     ▼                    ▼                ▼     │   │
+│  │ ┌────────────┐    ┌────────────┐   ┌──────────┐ │   │
+│  │ │   App 1    │    │   App 2    │   │  App N   │ │   │
+│  │ │┌──────────┐│    │┌──────────┐│   │┌────────┐│ │   │
+│  │ ││ Local DB ││    ││ Local DB ││   ││Local DB││ │   │
+│  │ ││ (content,││    ││ (content,││   ││(content││ │   │
+│  │ ││  media)  ││    ││  media)  ││   ││ media) ││ │   │
+│  │ │└──────────┘│    │└──────────┘│   │└────────┘│ │   │
+│  │ └────────────┘    └────────────┘   └──────────┘ │   │
+│  └─────────────────────────────────────────────────┘   │
+└────────────────────────────────────────────────────────┘
 ```
 
 **Benefits:**
 
-- Data stays within tenant's infrastructure
-- Low latency for local applications
-- No external dependencies at runtime
+- Content and media stay within tenant's infrastructure (on client machines)
+- Low latency queries against local client database
+- Offline access - clients work without connection to sync service
+- Service remains lightweight and stateless for content
 - Full control over updates and configuration
 
 ### Managed Cloud (Future)
@@ -439,16 +544,19 @@ For tenants who prefer a managed solution:
 
 ### A. Glossary
 
-| Term         | Definition                                                  |
-| ------------ | ----------------------------------------------------------- |
-| Upstream CMS | The source content management system (Notion, Strapi, etc.) |
-| Proxy CMS    | Contfu's role as an intermediary layer                      |
-| Tenant       | A paying customer with their own Contfu instance            |
-| Source       | A configured connection to an upstream CMS                  |
-| Collection   | A logical grouping of synchronized content                  |
-| Item         | A single piece of content (page, entry, etc.)               |
-| Client       | An application consuming content via WebSocket              |
-| Block        | A unit of rich content (paragraph, image, etc.)             |
+| Term             | Definition                                                            |
+| ---------------- | --------------------------------------------------------------------- |
+| Upstream CMS     | The source content management system (Notion, Strapi, etc.)           |
+| Proxy CMS        | Contfu's role as an intermediary layer                                |
+| Sync Service     | The Contfu server that fetches from sources and streams to clients    |
+| Service Database | Metadata storage on the service (sources, cursors, config—no content) |
+| Client           | An application consuming content via WebSocket and local database     |
+| Client Database  | Local SQLite database on each client storing content and media        |
+| Tenant           | A paying customer with their own Contfu instance                      |
+| Source           | A configured connection to an upstream CMS                            |
+| Collection       | A logical grouping of synchronized content                            |
+| Item             | A single piece of content (page, entry, etc.)                         |
+| Block            | A unit of rich content (paragraph, image, etc.)                       |
 
 ### B. Related Documents
 

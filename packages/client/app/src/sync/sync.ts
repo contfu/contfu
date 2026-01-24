@@ -1,6 +1,8 @@
 import type { ImageBlock } from "@contfu/core";
 import { extname } from "path";
-import type { Source } from "../connections/connections";
+import { createAsset, deleteAssetsByPage } from "../assets/asset-datasource";
+import type { AssetData, AssetSyncProgress, OnAssetProgress } from "../assets/asset-types";
+import type { Source, SyncOptions } from "../connections/connections";
 import { hashId } from "../core/crypto";
 import type { PageData } from "../pages/pages";
 import {
@@ -13,11 +15,11 @@ import {
   getPageIdsByCollection,
 } from "../pages/data/page-datasource";
 
-export function sync(sources: Source[]) {
-  return Promise.all(sources.flatMap((c) => [pull(c), removeOrphans(c)]));
+export function sync(sources: Source[], options?: SyncOptions) {
+  return Promise.all(sources.flatMap((c) => [pull(c, options), removeOrphans(c)]));
 }
 
-async function pull(source: Source) {
+async function pull(source: Source, options?: SyncOptions) {
   const transientLinks = new Map<string, Set<[string, string]>>();
   for (const collection of source.collectionNames) {
     for await (const { page, assets } of source.pull(collection)) {
@@ -26,7 +28,7 @@ async function pull(source: Source) {
       await createOrUpdatePage(fullPage);
       await deleteOutgoingPageLinks(id);
       await createLinks(page, id, transientLinks);
-      await processAssets(source, assets);
+      await processAssets(source, id, assets, options?.onProgress);
     }
   }
 }
@@ -39,8 +41,11 @@ async function removeOrphans(source: Source) {
       for (const id of upstreamIds) idsToDelete.delete(id);
       if (idsToDelete.size === 0) continue;
       for (const id of idsToDelete) await deletePageLinksByRef(id);
+      for (const ref of idsToDelete) {
+        const pageId = hashId(`${source.id}|${ref}`);
+        await deleteAssetsByPage(pageId);
+      }
       await deletePagesByIds(source.id, [...idsToDelete]);
-      // TODO: Take care of assets
     }
   }
 }
@@ -70,23 +75,75 @@ async function createLinks(
   }
 }
 
-async function processAssets(source: Source, assets: { block: ImageBlock; ref: string }[]) {
-  assets.map(async ({ block, ref }) => {
-    const hash = hashId(`${source.id}|${ref}`);
-    const ext = extname(ref);
-    const url = block[1];
-    const canonical = `${hash}${ext}`;
-    block[1] = canonical;
-    if (await source.mediaStore.exists(hasMulpitleOutputs(ext) ? hash : canonical)) return;
-    const asset = await source.fetchAsset(url);
+async function processAssets(
+  source: Source,
+  pageId: string,
+  assets: { block: ImageBlock; ref: string }[],
+  onProgress?: OnAssetProgress,
+) {
+  const total = assets.length;
+  let completed = 0;
 
-    if (!source.mediaOptimizer) {
-      await source.mediaStore.write(canonical, asset);
-      return;
+  const reportProgress = (
+    current: AssetSyncProgress["current"],
+    bytesDownloaded = 0,
+    bytesTotal = 0,
+  ) => {
+    if (onProgress) {
+      onProgress({ total, completed, current, bytesDownloaded, bytesTotal });
     }
+  };
 
-    await source.mediaOptimizer.optimizeImage(source.mediaStore, canonical, asset);
-  });
+  // Report initial progress if we have assets to process
+  if (total > 0) {
+    reportProgress(null);
+  }
+
+  await Promise.all(
+    assets.map(async ({ block, ref }) => {
+      const hash = hashId(`${source.id}|${ref}`);
+      const ext = extname(ref);
+      const url = block[1];
+      const canonical = `${hash}${ext}`;
+      const name = ref.split("/").pop() || canonical;
+      block[1] = canonical;
+
+      if (await source.mediaStore.exists(hasMulpitleOutputs(ext) ? hash : canonical)) {
+        completed++;
+        reportProgress(null);
+        return;
+      }
+
+      // Report start of download
+      reportProgress({ url, name });
+
+      const buffer = await source.fetchAsset(url);
+
+      // Report download complete
+      reportProgress({ url, name }, buffer.byteLength, buffer.byteLength);
+
+      if (!source.mediaOptimizer) {
+        await source.mediaStore.write(canonical, buffer);
+      } else {
+        await source.mediaOptimizer.optimizeImage(source.mediaStore, canonical, buffer);
+      }
+
+      const assetData: AssetData = {
+        id: hash,
+        pageId,
+        canonical,
+        originalUrl: url,
+        format: ext.replace(".", ""),
+        size: buffer.byteLength,
+        createdAt: Date.now(),
+      };
+      await createAsset(assetData);
+
+      // Report asset completed
+      completed++;
+      reportProgress(null);
+    }),
+  );
 }
 
 function hasMulpitleOutputs(ext: string) {
