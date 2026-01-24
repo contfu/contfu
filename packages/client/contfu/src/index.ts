@@ -8,42 +8,51 @@
 // Database exports
 export { db } from "./db/db";
 export {
-  pageTable,
-  pageLinkTable,
   assetTable,
-  type DbPage,
-  type NewPage,
-  type PageUpdate,
+  linkTable as pageLinkTable,
+  itemsTable as pageTable,
+  type AssetUpdate,
+  type DbAsset,
+  type DbItem as DbPage,
   type DbPageLink,
+  type NewAsset,
+  type NewItem as NewPage,
   type NewPageLink,
   type PageLinkUpdate,
-  type DbAsset,
-  type NewAsset,
-  type AssetUpdate,
+  type ItemUpdate as PageUpdate,
 } from "./db/schema";
 
 // Sync exports
 export { sync } from "./sync/sync";
 
 // Pages exports
-export { type Page, type PageData } from "./pages/pages";
 export {
-  getPages,
-  getPage,
-  getLastChangedPage,
   createOrUpdatePage,
   createPage,
-  updatePage,
-  deletePage,
-  deletePagesByIds,
-  getPageIdsByCollection,
-  getPageLinks,
   createPageLink,
   deleteOutgoingPageLinks,
+  deletePage,
   deletePageLinksByRef,
+  deletePagesByIds,
+  getLastChangedPage,
+  getPage,
+  getPageIdsByCollection,
+  getPageLinks,
+  getPages,
+  updatePage,
 } from "./pages/page-datasource";
+export { type Page, type PageData } from "./pages/pages";
 
 // Assets exports
+export {
+  createAsset,
+  deleteAssets,
+  deleteAssetsByPage,
+  getAsset,
+  getAssetByCanonical,
+  getAssetsByPage,
+  getOrphanAssets,
+} from "./assets/asset-datasource";
 export {
   type Asset,
   type AssetData,
@@ -51,37 +60,31 @@ export {
   type AssetSyncProgress,
   type OnAssetProgress,
 } from "./assets/asset-types";
-export {
-  createAsset,
-  getAssetsByPage,
-  deleteAssetsByPage,
-  getOrphanAssets,
-  deleteAssets,
-  getAsset,
-  getAssetByCanonical,
-} from "./assets/asset-datasource";
 
 // Connections exports
-export { type SyncOptions, type Source, type Connection } from "./connections/connections";
 export { createConnection } from "./connections/connection-datasource";
+export { type Connection, type Source, type SyncOptions } from "./connections/connections";
 
 // Media exports
 export {
-  type MediaStore,
-  type MediaOptimizer,
   type ImageFormat,
+  type MediaOptimizer,
+  type MediaStore,
   type OptimizeImageOpts,
 } from "./media/media";
 
 // Hooks exports
 export {
-  createEventHandler,
   composeHandlers,
+  createEventHandler,
   type EventHandler,
   type HookOptions,
 } from "./hooks/event-hooks";
 
 // Utility exports
-export { detectRuntime } from "./util/runtime";
-export { deleteNulls } from "./util/object-helpers";
+export { countAssets } from "./features/assets/countAssets";
+export { countCollections } from "./features/collections/countCollections";
+export { countItems } from "./features/items/countItems";
 export { hashId } from "./util/crypto";
+export { deleteNulls } from "./util/object-helpers";
+export { detectRuntime } from "./util/runtime";

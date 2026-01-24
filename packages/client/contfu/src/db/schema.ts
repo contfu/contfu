@@ -1,10 +1,12 @@
 import { blob, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
-export const pageTable = sqliteTable("page", {
+export const itemsTable = sqliteTable("items", {
   id: blob({ mode: "buffer" }).primaryKey(),
   ref: text().notNull(),
   path: text().unique().notNull(),
-  collection: text(),
+  collection: integer()
+    .notNull()
+    .references(() => collectionTable.id, { onDelete: "cascade" }),
   title: text().notNull(),
   description: text().notNull(),
   content: text(),
@@ -17,33 +19,40 @@ export const pageTable = sqliteTable("page", {
   changedAt: integer().notNull(),
 });
 
-export type DbPage = typeof pageTable.$inferSelect;
-export type NewPage = typeof pageTable.$inferInsert;
-export type PageUpdate = Partial<NewPage>;
+export type DbItem = typeof itemsTable.$inferSelect;
+export type NewItem = typeof itemsTable.$inferInsert;
+export type ItemUpdate = Partial<NewItem>;
 
-export const pageLinkTable = sqliteTable(
-  "pageLink",
+export const linkTable = sqliteTable(
+  "links",
   {
     type: text().notNull(),
     from: blob({ mode: "buffer" })
       .notNull()
-      .references(() => pageTable.id, { onDelete: "cascade" }),
+      .references(() => itemsTable.id, { onDelete: "cascade" }),
     to: blob({ mode: "buffer" })
       .notNull()
-      .references(() => pageTable.id, { onDelete: "cascade" }),
+      .references(() => itemsTable.id, { onDelete: "cascade" }),
   },
   (t) => [primaryKey({ columns: [t.type, t.from, t.to] })],
 );
 
-export type DbPageLink = typeof pageLinkTable.$inferSelect;
-export type NewPageLink = typeof pageLinkTable.$inferInsert;
+export type DbPageLink = typeof linkTable.$inferSelect;
+export type NewPageLink = typeof linkTable.$inferInsert;
 export type PageLinkUpdate = Partial<NewPageLink>;
+
+export const collectionTable = sqliteTable("collection", {
+  id: integer().primaryKey(),
+  name: text().notNull(),
+  createdAt: integer().notNull(),
+  updatedAt: integer(),
+});
 
 export const assetTable = sqliteTable("asset", {
   id: blob({ mode: "buffer" }).primaryKey(),
   pageId: blob({ mode: "buffer" })
     .notNull()
-    .references(() => pageTable.id, { onDelete: "cascade" }),
+    .references(() => itemsTable.id, { onDelete: "cascade" }),
   canonical: text().unique().notNull(),
   originalUrl: text().notNull(),
   format: text().notNull(),

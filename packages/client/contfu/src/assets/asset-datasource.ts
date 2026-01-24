@@ -1,6 +1,6 @@
 import { eq, inArray, notInArray } from "drizzle-orm";
 import { db } from "../db/db";
-import { assetTable, pageTable, type DbAsset, type NewAsset } from "../db/schema";
+import { assetTable, itemsTable, type DbAsset, type NewAsset } from "../db/schema";
 import type { AssetData } from "./asset-types";
 
 export async function createAsset<T extends AssetData>(asset: T, ctx = db): Promise<T> {
@@ -22,7 +22,7 @@ export async function deleteAssetsByPage(pageId: string, ctx = db): Promise<void
 }
 
 export async function getOrphanAssets(ctx = db): Promise<AssetData[]> {
-  const pages = await ctx.select().from(pageTable).all();
+  const pages = await ctx.select().from(itemsTable).all();
   const pageIds = pages.map((p) => p.id);
 
   if (pageIds.length === 0) {

@@ -1,12 +1,12 @@
-import type { PageData } from "./pages";
 import { and, desc, eq, or } from "drizzle-orm";
 import { MarkOptional } from "ts-essentials";
 import { db } from "../db/db";
-import { pageLinkTable, pageTable, type DbPage, type NewPage, type PageUpdate } from "../db/schema";
+import { itemsTable, linkTable, type DbItem, type ItemUpdate, type NewItem } from "../db/schema";
 import { deleteNulls } from "../util/object-helpers";
+import type { PageData } from "./pages";
 
 export async function getPages(ctx = db): Promise<PageData[]> {
-  const dbos = await ctx.select().from(pageTable).all();
+  const dbos = await ctx.select().from(itemsTable).all();
   return dbos.map((dbo) => pageFromDb(dbo));
 }
 
@@ -16,11 +16,11 @@ export async function getPage(
 ): Promise<Omit<PageData, "links"> | null> {
   const dbos = await ctx
     .select()
-    .from(pageTable)
+    .from(itemsTable)
     .where(
       and(
-        id ? eq(pageTable.id, fromHex(id)) : undefined,
-        path ? eq(pageTable.path, path) : undefined,
+        id ? eq(itemsTable.id, fromHex(id)) : undefined,
+        path ? eq(itemsTable.path, path) : undefined,
       ),
     )
     .all();
@@ -34,9 +34,11 @@ export async function getLastChangedPage(
 ): Promise<Omit<PageData, "links"> | null> {
   const dbo = await ctx
     .select()
-    .from(pageTable)
-    .where(and(eq(pageTable.connection, fromHex(connection)), eq(pageTable.collection, collection)))
-    .orderBy(desc(pageTable.changedAt))
+    .from(itemsTable)
+    .where(
+      and(eq(itemsTable.connection, fromHex(connection)), eq(itemsTable.collection, collection)),
+    )
+    .orderBy(desc(itemsTable.changedAt))
     .limit(1)
     .all();
   return dbo.length > 0 ? pageFromDb(dbo[0]) : null;
@@ -48,8 +50,8 @@ export async function createOrUpdatePage<T extends Omit<PageData, "links">>(
 ): Promise<T> {
   const existing = await ctx
     .select()
-    .from(pageTable)
-    .where(eq(pageTable.id, fromHex(page.id)))
+    .from(itemsTable)
+    .where(eq(itemsTable.id, fromHex(page.id)))
     .limit(1)
     .all();
 
@@ -62,15 +64,15 @@ export async function createOrUpdatePage<T extends Omit<PageData, "links">>(
 }
 
 export async function createPage<T extends Omit<PageData, "links">>(page: T, ctx = db): Promise<T> {
-  await ctx.insert(pageTable).values(pageToDb(page) as NewPage);
+  await ctx.insert(itemsTable).values(pageToDb(page) as NewItem);
   return page;
 }
 
 export async function updatePage<T extends Omit<PageData, "links">>(page: T, ctx = db): Promise<T> {
   await ctx
-    .update(pageTable)
+    .update(itemsTable)
     .set(pageToDb(page))
-    .where(eq(pageTable.id, fromHex(page.id)));
+    .where(eq(itemsTable.id, fromHex(page.id)));
   return page;
 }
 
@@ -79,9 +81,9 @@ export async function deletePage(
   ctx = db,
 ): Promise<void> {
   if (id) {
-    await ctx.delete(pageTable).where(eq(pageTable.id, fromHex(id)));
+    await ctx.delete(itemsTable).where(eq(itemsTable.id, fromHex(id)));
   } else if (path) {
-    await ctx.delete(pageTable).where(eq(pageTable.path, path));
+    await ctx.delete(itemsTable).where(eq(itemsTable.path, path));
   }
 }
 
@@ -91,16 +93,18 @@ export async function deletePagesByIds(connection: string, ids: string[], ctx = 
   const connectionBlob = fromHex(connection);
   for (const id of ids) {
     await ctx
-      .delete(pageTable)
-      .where(and(eq(pageTable.connection, connectionBlob), eq(pageTable.id, fromHex(id))));
+      .delete(itemsTable)
+      .where(and(eq(itemsTable.connection, connectionBlob), eq(itemsTable.id, fromHex(id))));
   }
 }
 
 export async function getPageIdsByCollection(connection: string, collection: string, ctx = db) {
   const dbos = await ctx
     .select()
-    .from(pageTable)
-    .where(and(eq(pageTable.connection, fromHex(connection)), eq(pageTable.collection, collection)))
+    .from(itemsTable)
+    .where(
+      and(eq(itemsTable.connection, fromHex(connection)), eq(itemsTable.collection, collection)),
+    )
     .all();
   return dbos.map((dbo) => toHex(dbo.id));
 }
@@ -111,12 +115,12 @@ export async function getPageLinks(
 ) {
   const dbos = await ctx
     .select()
-    .from(pageLinkTable)
+    .from(linkTable)
     .where(
       and(
-        opts.type ? eq(pageLinkTable.type, opts.type) : undefined,
-        opts.from ? eq(pageLinkTable.from, fromHex(opts.from)) : undefined,
-        opts.to ? eq(pageLinkTable.to, fromHex(opts.to)) : undefined,
+        opts.type ? eq(linkTable.type, opts.type) : undefined,
+        opts.from ? eq(linkTable.from, fromHex(opts.from)) : undefined,
+        opts.to ? eq(linkTable.to, fromHex(opts.to)) : undefined,
       ),
     )
     .all();
@@ -132,7 +136,7 @@ export async function createPageLink(
   { type, from, to }: { type: string; from: string; to: string },
   ctx = db,
 ): Promise<void> {
-  await ctx.insert(pageLinkTable).values({
+  await ctx.insert(linkTable).values({
     type,
     from: fromHex(from),
     to: fromHex(to),
@@ -140,20 +144,18 @@ export async function createPageLink(
 }
 
 export async function deleteOutgoingPageLinks(from: string, ctx = db): Promise<void> {
-  await ctx.delete(pageLinkTable).where(eq(pageLinkTable.from, fromHex(from)));
+  await ctx.delete(linkTable).where(eq(linkTable.from, fromHex(from)));
 }
 
 export async function deletePageLinksByRef(id: string, ctx = db) {
   const idBlob = fromHex(id);
-  await ctx
-    .delete(pageLinkTable)
-    .where(or(eq(pageLinkTable.from, idBlob), eq(pageLinkTable.to, idBlob)));
+  await ctx.delete(linkTable).where(or(eq(linkTable.from, idBlob), eq(linkTable.to, idBlob)));
 }
 
 function pageToDb<T extends PageData | MarkOptional<PageData, "links">>({
   links: _links,
   ...page
-}: T): PageUpdate | NewPage {
+}: T): ItemUpdate | NewItem {
   return {
     ...page,
     id: fromHex(page.id),
@@ -163,11 +165,11 @@ function pageToDb<T extends PageData | MarkOptional<PageData, "links">>({
     props: page.props ? JSON.stringify(page.props) : null,
     author: page.author ? JSON.stringify(page.author) : null,
     updatedAt: page.updatedAt ?? null,
-  } satisfies PageUpdate as any;
+  } satisfies ItemUpdate as any;
 }
 
 function pageFromDb(
-  dbo: DbPage,
+  dbo: DbItem,
   links?: Record<string, string[]> & { content: string[] },
 ): PageData {
   return deleteNulls({
