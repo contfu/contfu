@@ -1,4 +1,4 @@
-import { auth } from "$lib/server/auth/auth";
+import { hashPassword } from "better-auth/crypto";
 import { eq } from "drizzle-orm";
 import type { BunSQLiteDatabase } from "drizzle-orm/bun-sql/sqlite";
 import type * as schema from "./schema";
@@ -41,9 +41,8 @@ export async function seedDevUser(database: BunSQLiteDatabase<typeof schema>): P
     return;
   }
 
-  // Get the password hasher from better-auth context
-  const ctx = await auth.$context;
-  const hashedPassword = await ctx.password.hash(TEST_USER.password);
+  // Hash the password using better-auth's password hasher
+  const hashedPassword = await hashPassword(TEST_USER.password);
 
   const now = new Date();
 

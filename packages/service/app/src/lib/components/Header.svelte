@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { page } from "$app/state";
   import { goto } from "$app/navigation";
   import { signOut } from "$lib/auth-client";
   import Avatar from "./Avatar.svelte";
@@ -15,6 +16,20 @@
   } = $props();
 
   let isOpen = $state(false);
+
+  const navLinks = [
+    { href: "/dashboard", label: "Dashboard" },
+    { href: "/sources", label: "Sources" },
+    { href: "/clients", label: "Clients" },
+  ];
+
+  function isActiveLink(href: string): boolean {
+    const path = page.url?.pathname ?? "";
+    if (href === "/dashboard") {
+      return path === "/dashboard";
+    }
+    return path.startsWith(href);
+  }
 
   async function handleLogout() {
     await signOut();
@@ -50,6 +65,16 @@
       {#if !isUnderConstruction}
         <nav class="flex h-full items-center sm:gap-1 md:gap-2">
           {#if user}
+            {#each navLinks as { href, label }}
+              <a
+                {href}
+                class="hidden rounded-md px-3 py-2 text-sm font-medium transition-colors sm:block {isActiveLink(href)
+                  ? 'bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-white'
+                  : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white'}"
+              >
+                {label}
+              </a>
+            {/each}
             <div class="relative flex h-full items-center">
               <button
                 class="peer flex h-14 items-center space-x-2 rounded-lg px-4 py-0 text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"

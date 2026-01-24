@@ -7,6 +7,7 @@
     deleteSource,
     testConnection,
   } from "$lib/remote/sources.remote";
+  import { getCollectionsBySource } from "$lib/remote/collections.remote";
   import { Button } from "$lib/components/ui/button";
   import { Input } from "$lib/components/ui/input";
   import { Label } from "$lib/components/ui/label";
@@ -20,6 +21,7 @@
 
   const id = Number.parseInt(page.params.id ?? "", 10);
   const source = Number.isNaN(id) ? null : await getSource({ id });
+  const collections = source ? await getCollectionsBySource({ sourceId: id }) : [];
 
   if (!source) {
     goto("/sources");
@@ -234,6 +236,61 @@
         </div>
       </Card.Footer>
     </Card.Root>
+
+    <!-- Collections Section -->
+    <section class="mt-8">
+      <div class="mb-4 flex items-center justify-between">
+        <h2 class="text-lg font-semibold">Collections</h2>
+        <Button size="sm" href="/sources/{id}/collections/new">Add Collection</Button>
+      </div>
+
+      {#if collections.length === 0}
+        <Alert.Root>
+          <Alert.Title>No collections</Alert.Title>
+          <Alert.Description>
+            <a href="/sources/{id}/collections/new" class="underline">Add your first collection</a> to
+            start syncing content from this source.
+          </Alert.Description>
+        </Alert.Root>
+      {:else}
+        <div class="grid gap-4 sm:grid-cols-2">
+          {#each collections as collection}
+            <Card.Root class="flex flex-col">
+              <Card.Header class="pb-2">
+                <Card.Title class="text-base">{collection.name || "Unnamed Collection"}</Card.Title>
+              </Card.Header>
+
+              <Card.Content class="flex-1">
+                <div class="space-y-1 text-sm text-muted-foreground">
+                  <div class="flex items-center justify-between">
+                    <span>Connected clients:</span>
+                    <span class="font-medium text-foreground">{collection.connectionCount}</span>
+                  </div>
+                  <div class="flex items-center justify-between">
+                    <span>Created:</span>
+                    <span class="font-medium text-foreground">
+                      {new Date(collection.createdAt * 1000).toLocaleDateString()}
+                    </span>
+                  </div>
+                </div>
+              </Card.Content>
+
+              <Card.Footer class="pt-2">
+                <Button variant="outline" size="sm" href="/sources/{id}/collections/{collection.id}">
+                  Manage
+                </Button>
+              </Card.Footer>
+            </Card.Root>
+          {/each}
+        </div>
+
+        <div class="mt-4">
+          <Button variant="link" href="/sources/{id}/collections" class="px-0">
+            View all collections &rarr;
+          </Button>
+        </div>
+      {/if}
+    </section>
   </div>
 {:else}
   <div class="container mx-auto max-w-2xl p-6">
