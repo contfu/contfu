@@ -33,6 +33,7 @@ The demo app will be available at http://localhost:4000
 Before starting the demo app, ensure:
 
 1. **Contfu App Service is running** at http://localhost:3001 (port 3000 internally)
+
    ```bash
    # From monorepo root
    docker compose up app
@@ -46,11 +47,11 @@ Before starting the demo app, ensure:
 
 Environment variables:
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `PORT` | HTTP server port | `4000` |
-| `CONTFU_URL` | WebSocket URL to Contfu sync service | `ws://localhost:3000/contfu` |
-| `CONTFU_KEY` | Connection key for authentication (hex-encoded) | `` |
+| Variable     | Description                                     | Default                      |
+| ------------ | ----------------------------------------------- | ---------------------------- |
+| `PORT`       | HTTP server port                                | `4000`                       |
+| `CONTFU_URL` | WebSocket URL to Contfu sync service            | `ws://localhost:3000/contfu` |
+| `CONTFU_KEY` | Connection key for authentication (hex-encoded) | ``                           |
 
 ### Setting up CONTFU_KEY
 
@@ -59,6 +60,7 @@ The demo app requires a `CONTFU_KEY` to connect to the Contfu sync service and r
 **How to obtain a key:**
 
 1. **Start the app service**: Ensure the Contfu app service is running at http://localhost:3001
+
    ```bash
    docker compose up app
    ```
@@ -79,11 +81,11 @@ The demo app requires a `CONTFU_KEY` to connect to the Contfu sync service and r
 
 ## Endpoints
 
-| Path | Description |
-|------|-------------|
-| `/` | Article list page |
+| Path              | Description             |
+| ----------------- | ----------------------- |
+| `/`               | Article list page       |
 | `/articles/:slug` | Individual article page |
-| `/health` | Health check endpoint |
+| `/health`         | Health check endpoint   |
 
 ## How It Works
 

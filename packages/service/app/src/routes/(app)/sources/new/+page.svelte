@@ -10,11 +10,25 @@
   const SOURCE_TYPES = [
     { value: "0", label: "Notion" },
     { value: "1", label: "Strapi" },
+    { value: "2", label: "Web" },
+  ];
+
+  const AUTH_TYPES = [
+    { value: "0", label: "None" },
+    { value: "1", label: "Bearer Token" },
+    { value: "2", label: "Basic Auth" },
   ];
 
   let selectedType = $state("1"); // Default to Strapi
+  let selectedAuthType = $state("0"); // Default to None
   let testResult: { success: boolean; message: string } | null = $state(null);
   let testPending = $state(false);
+
+  // Derived state for whether credentials are required
+  const isWebSource = $derived(selectedType === "2");
+  const requiresCredentials = $derived(
+    !isWebSource || (isWebSource && selectedAuthType !== "0"),
+  );
 
   async function handleTestConnection() {
     testPending = true;
@@ -28,6 +42,7 @@
         type: Number.parseInt(selectedType, 10),
         url: urlInput?.value || undefined,
         _credentials: credentialsInput?.value ?? "",
+        authType: isWebSource ? Number.parseInt(selectedAuthType, 10) : undefined,
       });
       testResult = result;
     } catch (error) {
@@ -89,18 +104,22 @@
           {/if}
         </div>
 
-        {#if selectedType === "1"}
+        {#if selectedType === "1" || selectedType === "2"}
           <div class="space-y-2">
-            <Label for="url">Strapi URL</Label>
+            <Label for="url">{selectedType === "1" ? "Strapi URL" : "Base URL"}</Label>
             <Input
               id="url"
               name="url"
               type="url"
-              placeholder="https://strapi.example.com"
+              placeholder={selectedType === "1" ? "https://strapi.example.com" : "https://example.com"}
               required
             />
             <p class="text-sm text-muted-foreground">
-              The base URL of your Strapi instance.
+              {#if selectedType === "1"}
+                The base URL of your Strapi instance.
+              {:else}
+                The base URL of the website to fetch content from.
+              {/if}
             </p>
             {#if createSource.fields?.url?.issues()?.length}
               <p class="text-sm text-destructive">{createSource.fields?.url?.issues()?.[0]?.message}</p>
@@ -108,36 +127,73 @@
           </div>
         {/if}
 
-        <div class="space-y-2">
-          <Label for="_credentials">API Token</Label>
-          <Input
-            id="_credentials"
-            name="_credentials"
-            type="password"
-            placeholder={selectedType === "0" ? "secret_..." : "Enter API token"}
-            required
-          />
-          <p class="text-sm text-muted-foreground">
-            {#if selectedType === "0"}
-              Your Notion integration token. Create one at
-              <a
-                href="https://www.notion.so/my-integrations"
-                target="_blank"
-                rel="noopener"
-                class="underline"
-              >
-                notion.so/my-integrations
-              </a>.
-            {:else}
-              A Strapi API token with read access to your content types.
-            {/if}
-          </p>
-          {#if createSource.fields?._credentials?.issues()?.length}
-            <p class="text-sm text-destructive">
-              {createSource.fields?._credentials?.issues()?.[0]?.message}
+        {#if isWebSource}
+          <div class="space-y-2">
+            <Label for="authType">Authentication</Label>
+            <Select.Root type="single" name="authType" bind:value={selectedAuthType}>
+              <Select.Trigger id="authType" class="w-full" aria-label="Authentication Type">
+                {AUTH_TYPES.find((t) => t.value === selectedAuthType)?.label ?? "Select auth type"}
+              </Select.Trigger>
+              <Select.Content>
+                {#each AUTH_TYPES as authType}
+                  <Select.Item value={authType.value}>{authType.label}</Select.Item>
+                {/each}
+              </Select.Content>
+            </Select.Root>
+            <p class="text-sm text-muted-foreground">
+              Choose how to authenticate requests to this web source.
             </p>
-          {/if}
-        </div>
+          </div>
+        {/if}
+
+        {#if requiresCredentials}
+          <div class="space-y-2">
+            <Label for="_credentials">
+              {#if isWebSource}
+                {selectedAuthType === "1" ? "Bearer Token" : "Credentials"}
+              {:else}
+                API Token
+              {/if}
+            </Label>
+            <Input
+              id="_credentials"
+              name="_credentials"
+              type="password"
+              placeholder={
+                selectedType === "0"
+                  ? "secret_..."
+                  : isWebSource && selectedAuthType === "2"
+                    ? "username:password"
+                    : "Enter API token"
+              }
+              required
+            />
+            <p class="text-sm text-muted-foreground">
+              {#if selectedType === "0"}
+                Your Notion integration token. Create one at
+                <a
+                  href="https://www.notion.so/my-integrations"
+                  target="_blank"
+                  rel="noopener"
+                  class="underline"
+                >
+                  notion.so/my-integrations
+                </a>.
+              {:else if isWebSource && selectedAuthType === "1"}
+                A bearer token for authentication.
+              {:else if isWebSource && selectedAuthType === "2"}
+                Enter credentials in the format username:password.
+              {:else}
+                A Strapi API token with read access to your content types.
+              {/if}
+            </p>
+            {#if createSource.fields?._credentials?.issues()?.length}
+              <p class="text-sm text-destructive">
+                {createSource.fields?._credentials?.issues()?.[0]?.message}
+              </p>
+            {/if}
+          </div>
+        {/if}
 
         {#if testResult}
           <Alert.Root variant={testResult.success ? "default" : "destructive"}>

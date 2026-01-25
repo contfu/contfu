@@ -56,16 +56,25 @@ export const createSource = form(
       v.transform((val) => (typeof val === "string" ? Number.parseInt(val, 10) : val)),
       v.number(),
       v.minValue(0),
-      v.maxValue(1),
+      v.maxValue(2),
     ),
     url: v.optional(v.string()),
-    _credentials: v.pipe(v.string(), v.nonEmpty("API token is required")),
+    authType: v.optional(
+      v.pipe(
+        v.union([v.string(), v.number()]),
+        v.transform((val) => (typeof val === "string" ? Number.parseInt(val, 10) : val)),
+        v.number(),
+        v.minValue(0),
+        v.maxValue(2),
+      ),
+    ),
+    _credentials: v.optional(v.string()),
   }),
   async (data, issue) => {
     const userId = getUserId();
 
     // Validate type-specific requirements
-    const errors = validateSourceData(data.type, data.url, data._credentials);
+    const errors = validateSourceData(data.type, data.url, data._credentials ?? "", data.authType);
     for (const error of errors) {
       if (error.field === "url") {
         throw invalid(issue.url(error.message));
@@ -75,12 +84,28 @@ export const createSource = form(
       }
     }
 
+    // For Web sources, encode authType as first byte of credentials
+    // This allows the sync service to know which auth method to use
+    let credentialsBuffer: Buffer | null = null;
+    if (data._credentials) {
+      if (data.type === SourceType.WEB && data.authType !== undefined) {
+        // Prefix credentials with authType byte for Web sources
+        const credBytes = Buffer.from(data._credentials, "utf-8");
+        credentialsBuffer = Buffer.concat([Buffer.from([data.authType]), credBytes]);
+      } else {
+        credentialsBuffer = Buffer.from(data._credentials, "utf-8");
+      }
+    } else if (data.type === SourceType.WEB) {
+      // Web sources with no auth still need authType byte
+      credentialsBuffer = Buffer.from([data.authType ?? 0]);
+    }
+
     // Insert into database
     const source = await insertSource(userId, {
       name: data.name,
       type: data.type,
-      url: data.type === SourceType.STRAPI ? data.url : null,
-      credentials: Buffer.from(data._credentials, "utf-8"),
+      url: data.type === SourceType.STRAPI || data.type === SourceType.WEB ? data.url : null,
+      credentials: credentialsBuffer,
     });
 
     throw redirect(302, `/sources/${source.id}`);
@@ -200,11 +225,18 @@ export const testNewConnection = command(
       v.number(),
     ),
     url: v.optional(v.string()),
-    _credentials: v.pipe(v.string(), v.nonEmpty("API token is required")),
+    authType: v.optional(
+      v.pipe(
+        v.union([v.string(), v.number()]),
+        v.transform((val) => (typeof val === "string" ? Number.parseInt(val, 10) : val)),
+        v.number(),
+      ),
+    ),
+    _credentials: v.optional(v.string()),
   }),
   async (data): Promise<ConnectionTestResult> => {
     // Just verify the user is logged in
     getUserId();
-    return testSourceConnection(data.type, data.url, data._credentials);
+    return testSourceConnection(data.type, data.url, data._credentials ?? "", data.authType);
   },
 );

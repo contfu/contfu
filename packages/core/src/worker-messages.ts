@@ -24,11 +24,12 @@ export enum SyncMessageType {
 export const SourceType = {
   NOTION: 0,
   STRAPI: 1,
+  WEB: 2,
 } as const;
 
 /** Extended fetch options with user context. */
 export type ExtendedFetchOpts = {
-  /** Source type: 0 = Notion, 1 = Strapi. */
+  /** Source type: 0 = Notion, 1 = Strapi, 2 = Web. */
   type: number;
   user: number;
   collection: number;
@@ -36,6 +37,8 @@ export type ExtendedFetchOpts = {
   url?: string;
   credentials?: Buffer;
   since?: number;
+  /** Authentication type for web sources (e.g., 'none', 'basic', 'bearer'). */
+  authType?: string;
 };
 
 /** User-tagged item for multi-tenant routing. */

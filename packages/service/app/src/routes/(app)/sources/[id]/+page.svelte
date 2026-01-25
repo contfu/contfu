@@ -17,7 +17,25 @@
   const SOURCE_TYPE_LABELS: Record<number, string> = {
     0: "Notion",
     1: "Strapi",
+    2: "Web",
   };
+
+  const AUTH_TYPE_LABELS: Record<number, string> = {
+    0: "None",
+    1: "Bearer Token",
+    2: "Basic Auth",
+  };
+
+  /**
+   * Extract auth type from credentials buffer for Web sources.
+   * For Web sources, the first byte of credentials contains the authType.
+   */
+  function getWebAuthType(credentials: Buffer | null): number {
+    if (!credentials || credentials.length === 0) {
+      return 0; // Default to None
+    }
+    return credentials[0];
+  }
 
   const id = Number.parseInt(page.params.id ?? "", 10);
   const source = Number.isNaN(id) ? null : await getSource({ id });
@@ -112,18 +130,22 @@
             {/if}
           </div>
 
-          {#if source.type === 1}
+          {#if source.type === 1 || source.type === 2}
             <div class="space-y-2">
-              <Label for="url">Strapi URL</Label>
+              <Label for="url">{source.type === 1 ? "Strapi URL" : "Base URL"}</Label>
               <Input
                 id="url"
                 name="url"
                 type="url"
-                placeholder="https://strapi.example.com"
+                placeholder={source.type === 1 ? "https://strapi.example.com" : "https://example.com"}
                 value={source.url ?? ""}
               />
               <p class="text-sm text-muted-foreground">
-                The base URL of your Strapi instance.
+                {#if source.type === 1}
+                  The base URL of your Strapi instance.
+                {:else}
+                  The base URL of the website to fetch content from.
+                {/if}
               </p>
               {#if updateSource.fields?.url?.issues()?.length}
                 <p class="text-sm text-destructive">
@@ -133,23 +155,54 @@
             </div>
           {/if}
 
-          <div class="space-y-2">
-            <Label for="_credentials">API Token</Label>
-            <Input
-              id="_credentials"
-              name="_credentials"
-              type="password"
-              placeholder="Leave blank to keep current token"
-            />
-            <p class="text-sm text-muted-foreground">
-              Only enter a new token if you want to change it.
-            </p>
-            {#if updateSource.fields?._credentials?.issues()?.length}
-              <p class="text-sm text-destructive">
-                {updateSource.fields?._credentials?.issues()?.[0]?.message}
+          {#if source.type === 2}
+            {@const authType = getWebAuthType(source.credentials)}
+            <div class="space-y-2">
+              <Label>Authentication</Label>
+              <div class="rounded-md border bg-muted/50 px-3 py-2 text-sm">
+                {AUTH_TYPE_LABELS[authType] ?? "Unknown"}
+              </div>
+              <p class="text-sm text-muted-foreground">
+                Authentication type cannot be changed. Create a new source to use a different auth method.
               </p>
-            {/if}
-          </div>
+            </div>
+          {/if}
+
+          {#if source.type !== 2 || getWebAuthType(source.credentials) !== 0}
+            {@const isWebWithAuth = source.type === 2 && getWebAuthType(source.credentials) !== 0}
+            {@const webAuthType = source.type === 2 ? getWebAuthType(source.credentials) : null}
+            <div class="space-y-2">
+              <Label for="_credentials">
+                {#if isWebWithAuth}
+                  {webAuthType === 1 ? "Bearer Token" : "Credentials"}
+                {:else}
+                  API Token
+                {/if}
+              </Label>
+              <Input
+                id="_credentials"
+                name="_credentials"
+                type="password"
+                placeholder={isWebWithAuth && webAuthType === 2
+                  ? "Leave blank to keep current credentials"
+                  : "Leave blank to keep current token"}
+              />
+              <p class="text-sm text-muted-foreground">
+                {#if isWebWithAuth && webAuthType === 1}
+                  Enter a new bearer token if you want to change it.
+                {:else if isWebWithAuth && webAuthType === 2}
+                  Enter new credentials in the format username:password if you want to change them.
+                {:else}
+                  Only enter a new token if you want to change it.
+                {/if}
+              </p>
+              {#if updateSource.fields?._credentials?.issues()?.length}
+                <p class="text-sm text-destructive">
+                  {updateSource.fields?._credentials?.issues()?.[0]?.message}
+                </p>
+              {/if}
+            </div>
+          {/if}
 
           <div class="rounded-lg border bg-muted/50 p-4">
             <h3 class="mb-2 text-sm font-medium">Source Information</h3>
@@ -158,6 +211,12 @@
                 <dt class="text-muted-foreground">Collections:</dt>
                 <dd class="font-medium">{source.collectionCount}</dd>
               </div>
+              {#if source.type === 2}
+                <div class="flex justify-between">
+                  <dt class="text-muted-foreground">Auth type:</dt>
+                  <dd class="font-medium">{AUTH_TYPE_LABELS[getWebAuthType(source.credentials)] ?? "Unknown"}</dd>
+                </div>
+              {/if}
               <div class="flex justify-between">
                 <dt class="text-muted-foreground">Created:</dt>
                 <dd class="font-medium">

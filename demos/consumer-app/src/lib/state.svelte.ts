@@ -46,7 +46,7 @@ export function handleDeletedEvent(event: DeletedEvent): void {
  */
 export function getAllArticles(): Article[] {
   return Array.from(articles.values()).sort(
-    (a, b) => b.changedAt.getTime() - a.changedAt.getTime()
+    (a, b) => b.changedAt.getTime() - a.changedAt.getTime(),
   );
 }
 

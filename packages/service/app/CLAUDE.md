@@ -171,16 +171,17 @@ Use native HTML `<form>` elements with the action pattern:
 
 ### Key Pattern Properties
 
-| Property | Purpose |
-|----------|---------|
-| `formAction.action` | The form action URL to use in `action={...}` |
-| `formAction.pending` | Boolean indicating submission in progress |
-| `formAction.result` | The returned data from the form action |
-| `formAction.fields?.fieldName?.issues()` | Validation errors for a specific field |
+| Property                                 | Purpose                                      |
+| ---------------------------------------- | -------------------------------------------- |
+| `formAction.action`                      | The form action URL to use in `action={...}` |
+| `formAction.pending`                     | Boolean indicating submission in progress    |
+| `formAction.result`                      | The returned data from the form action       |
+| `formAction.fields?.fieldName?.issues()` | Validation errors for a specific field       |
 
 ### DO / DON'T
 
 **DO:**
+
 - Use `<form method="post" action={formAction.action}>`
 - Use hidden inputs for IDs: `<input type="hidden" name="id" value={...} />`
 - Check `formAction.pending` to disable buttons and show loading state
@@ -188,6 +189,7 @@ Use native HTML `<form>` elements with the action pattern:
 - Handle validation errors via `formAction.fields?.fieldName?.issues()`
 
 **DON'T:**
+
 - Don't use `fetch()` to submit forms manually
 - Don't create custom `FormData` objects
 - Don't add `use:enhance` directive (handled automatically)

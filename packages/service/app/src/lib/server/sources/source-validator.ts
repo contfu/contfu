@@ -4,6 +4,7 @@
 export const SourceType = {
   NOTION: 0,
   STRAPI: 1,
+  WEB: 2,
 } as const;
 
 export type SourceTypeValue = (typeof SourceType)[keyof typeof SourceType];
@@ -11,7 +12,19 @@ export type SourceTypeValue = (typeof SourceType)[keyof typeof SourceType];
 export const SOURCE_TYPE_LABELS: Record<SourceTypeValue, string> = {
   [SourceType.NOTION]: "Notion",
   [SourceType.STRAPI]: "Strapi",
+  [SourceType.WEB]: "Web",
 };
+
+/**
+ * Web authentication type constants
+ */
+export const WebAuthType = {
+  NONE: 0,
+  BEARER: 1,
+  BASIC: 2,
+} as const;
+
+export type WebAuthTypeValue = (typeof WebAuthType)[keyof typeof WebAuthType];
 
 /**
  * Validation errors
@@ -37,12 +50,14 @@ export function validateSourceData(
   type: number,
   url: string | null | undefined,
   credentials: string,
+  authType?: number,
 ): ValidationError[] {
   const errors: ValidationError[] = [];
 
-  if (type === SourceType.STRAPI) {
+  if (type === SourceType.STRAPI || type === SourceType.WEB) {
     if (!url) {
-      errors.push({ field: "url", message: "URL is required for Strapi sources" });
+      const sourceLabel = type === SourceType.STRAPI ? "Strapi" : "Web";
+      errors.push({ field: "url", message: `URL is required for ${sourceLabel} sources` });
     } else {
       try {
         const parsed = new URL(url);
@@ -55,7 +70,11 @@ export function validateSourceData(
     }
   }
 
-  if (!credentials || credentials.trim().length === 0) {
+  // Credentials are required for Notion and Strapi, but optional for Web sources when authType is NONE
+  const credentialsOptional =
+    type === SourceType.WEB && (authType === WebAuthType.NONE || authType === undefined);
+
+  if (!credentialsOptional && (!credentials || credentials.trim().length === 0)) {
     errors.push({ field: "credentials", message: "API token is required" });
   }
 
@@ -159,12 +178,102 @@ async function testStrapiConnection(
 }
 
 /**
+ * Build authorization header for web sources.
+ */
+function buildWebAuthHeader(authType: number | undefined, credentials: string): string | undefined {
+  if (!credentials || authType === WebAuthType.NONE || authType === undefined) {
+    return undefined;
+  }
+
+  switch (authType) {
+    case WebAuthType.BEARER:
+      return `Bearer ${credentials}`;
+    case WebAuthType.BASIC:
+      return `Basic ${encodeBase64(credentials)}`;
+    default:
+      return undefined;
+  }
+}
+
+/**
+ * Test connection to a Web source.
+ * Uses GET with Range header to minimize data transfer while testing connectivity.
+ */
+async function testWebConnection(
+  url: string,
+  authType?: number,
+  credentials?: string,
+): Promise<ConnectionTestResult> {
+  try {
+    // Normalize URL
+    const baseUrl = url.endsWith("/") ? url.slice(0, -1) : url;
+
+    const headers: Record<string, string> = {
+      // Request only the first byte to minimize data transfer
+      Range: "bytes=0-0",
+    };
+    const authHeader = buildWebAuthHeader(authType, credentials ?? "");
+    console.log("authHeader", authHeader, credentials, authType);
+    if (authHeader) {
+      headers["Authorization"] = authHeader;
+    }
+
+    // Use GET request with Range header for better server compatibility
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+    try {
+      const response = await fetch(baseUrl, {
+        method: "GET",
+        headers,
+        signal: controller.signal,
+      });
+
+      // 200 OK or 206 Partial Content both indicate success
+      if (response.ok || response.status === 206) {
+        return {
+          success: true,
+          message: "Successfully connected to web source",
+        };
+      }
+
+      if (response.status === 401 || response.status === 403) {
+        return { success: false, message: "Invalid credentials or access denied" };
+      }
+
+      if (response.status === 404) {
+        return { success: false, message: "URL not found (404)" };
+      }
+
+      return { success: false, message: `HTTP error: ${response.status}` };
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.name === "AbortError") {
+        return { success: false, message: "Connection timed out" };
+      }
+      if (error instanceof TypeError && error.message.includes("fetch")) {
+        return { success: false, message: "Could not connect to the server. Check the URL." };
+      }
+      return { success: false, message: error.message };
+    }
+    return {
+      success: false,
+      message: "Failed to connect to web source",
+    };
+  }
+}
+
+/**
  * Test connection to a source.
  */
 export async function testSourceConnection(
   type: number,
   url: string | null | undefined,
   credentials: string,
+  authType?: number,
 ): Promise<ConnectionTestResult> {
   if (type === SourceType.NOTION) {
     return testNotionConnection(credentials);
@@ -177,5 +286,16 @@ export async function testSourceConnection(
     return testStrapiConnection(url, credentials);
   }
 
+  if (type === SourceType.WEB) {
+    if (!url) {
+      return { success: false, message: "URL is required for Web sources" };
+    }
+    return testWebConnection(url, authType, credentials);
+  }
+
   return { success: false, message: `Unknown source type: ${type}` };
+}
+
+function encodeBase64(input: string): string {
+  return Buffer.from(input, "utf8").toString("base64");
 }

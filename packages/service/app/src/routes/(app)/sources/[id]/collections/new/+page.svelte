@@ -6,12 +6,14 @@
   import { Button } from "$lib/components/ui/button";
   import { Input } from "$lib/components/ui/input";
   import { Label } from "$lib/components/ui/label";
+  import { Textarea } from "$lib/components/ui/textarea";
   import * as Card from "$lib/components/ui/card";
   import * as Alert from "$lib/components/ui/alert";
 
   const SOURCE_TYPE_LABELS: Record<number, string> = {
     0: "Notion",
     1: "Strapi",
+    2: "Web",
   };
 
   const id = Number.parseInt(page.params.id ?? "", 10);
@@ -74,20 +76,34 @@
           </div>
 
           <div class="space-y-2">
-            <Label for="ref">Reference (optional)</Label>
-            <Input
-              id="ref"
-              name="ref"
-              type="text"
-              placeholder={source.type === 0 ? "Database ID" : "Content type API ID"}
-            />
-            <p class="text-sm text-muted-foreground">
-              {#if source.type === 0}
-                The Notion database ID to sync from.
-              {:else}
-                The Strapi content type API ID (e.g., "articles", "pages").
-              {/if}
-            </p>
+            {#if source.type === 2}
+              <Label for="ref">URLs to Fetch</Label>
+              <Textarea
+                id="ref"
+                name="ref"
+                placeholder="/page1&#10;/blog/article&#10;/products/item"
+                rows={6}
+              />
+              <p class="text-sm text-muted-foreground">
+                Enter the relative URLs to fetch from this web source, one per line.
+                These URLs will be resolved against the source's base URL.
+              </p>
+            {:else}
+              <Label for="ref">Reference (optional)</Label>
+              <Input
+                id="ref"
+                name="ref"
+                type="text"
+                placeholder={source.type === 0 ? "Database ID" : "Content type API ID"}
+              />
+              <p class="text-sm text-muted-foreground">
+                {#if source.type === 0}
+                  The Notion database ID to sync from.
+                {:else}
+                  The Strapi content type API ID (e.g., "articles", "pages").
+                {/if}
+              </p>
+            {/if}
             {#if createCollection.fields?.ref?.issues()?.length}
               <p class="text-sm text-destructive">
                 {createCollection.fields?.ref?.issues()?.[0]?.message}
@@ -106,9 +122,9 @@
                 <dt class="text-muted-foreground">Type:</dt>
                 <dd class="font-medium">{SOURCE_TYPE_LABELS[source.type] ?? "Unknown"}</dd>
               </div>
-              {#if source.type === 1 && source.url}
+              {#if (source.type === 1 || source.type === 2) && source.url}
                 <div class="flex justify-between">
-                  <dt class="text-muted-foreground">URL:</dt>
+                  <dt class="text-muted-foreground">{source.type === 2 ? "Base URL:" : "URL:"}</dt>
                   <dd class="truncate font-medium" title={source.url}>{source.url}</dd>
                 </div>
               {/if}

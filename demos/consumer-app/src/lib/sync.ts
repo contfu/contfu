@@ -40,7 +40,7 @@ export async function startSyncConnection(): Promise<void> {
           case EventType.CHANGED:
             handleChangedEvent(event);
             console.info(
-              `Article updated: ${(event.item.props as { title?: string }).title || "Untitled"}`
+              `Article updated: ${(event.item.props as { title?: string }).title || "Untitled"}`,
             );
             break;
           case EventType.DELETED:
@@ -48,9 +48,7 @@ export async function startSyncConnection(): Promise<void> {
             console.info(`Article deleted: ${event.item.toString("hex")}`);
             break;
           case EventType.LIST_IDS:
-            console.info(
-              `Received ${event.ids.length} IDs for collection ${event.collection}`
-            );
+            console.info(`Received ${event.ids.length} IDs for collection ${event.collection}`);
             break;
           case EventType.CHECKSUM:
             console.info(`Received checksum for collection ${event.collection}`);

@@ -23,6 +23,7 @@ import {
 } from "rxjs";
 import { NotionFetchOpts, NotionSource } from "./sources/notion";
 import { StrapiFetchOpts, StrapiSource } from "./sources/strapi";
+import { WebFetchOpts, WebSource } from "./sources/web";
 import { combine2ints, combine3ints } from "./util/numbers/numbers";
 import { SortedSet } from "./util/structures/sorted-set";
 
@@ -33,6 +34,7 @@ const MIN_FETCH_INTERVAL = Number(process.env.MIN_FETCH_INTERVAL ?? 10_000);
 // Sources
 const notionSource = new NotionSource();
 const strapiSource = new StrapiSource();
+const webSource = new WebSource();
 
 // Message bus for request/response
 const syncInfoBus = new MessageBus<ExtendedFetchOpts[]>();
@@ -151,7 +153,9 @@ async function syncConsumers(consumers: [number, number][]) {
         const source$ =
           o.type === SourceType.STRAPI
             ? strapiSource.fetch(o as StrapiFetchOpts)
-            : notionSource.fetch(o as NotionFetchOpts);
+            : o.type === SourceType.WEB
+              ? webSource.fetch(o as WebFetchOpts)
+              : notionSource.fetch(o as NotionFetchOpts);
 
         return combineLatest([[o.user], source$]).pipe(
           tap(([user, item]) => {

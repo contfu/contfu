@@ -9,6 +9,7 @@
   const SOURCE_TYPE_LABELS: Record<number, string> = {
     0: "Notion",
     1: "Strapi",
+    2: "Web",
   };
 </script>
 
@@ -22,7 +23,7 @@
     <Alert.Root>
       <Alert.Title>No sources configured</Alert.Title>
       <Alert.Description>
-        Add your first content source to start syncing data from Notion or Strapi.
+        Add your first content source to start syncing data from Notion, Strapi, or the Web.
       </Alert.Description>
     </Alert.Root>
   {:else}
