@@ -1,8 +1,10 @@
 import { WebSocketServer } from "./websocket/ws-server";
+import { SSEServer } from "./sse/sse-server";
 import { SyncWorkerManager } from "./sync-worker/worker-manager";
 
 // Singleton instances - lazily initialized
 let wsServer: WebSocketServer | null = null;
+let sseServer: SSEServer | null = null;
 let workerManager: SyncWorkerManager | null = null;
 let isInitialized = false;
 let devServer: ReturnType<typeof Bun.serve> | null = null;
@@ -19,6 +21,17 @@ export function getWebSocketServer(): WebSocketServer {
     wsServer = new WebSocketServer();
   }
   return wsServer;
+}
+
+/**
+ * Gets the SSEServer singleton instance.
+ * Creates it lazily on first access.
+ */
+export function getSSEServer(): SSEServer {
+  if (!sseServer) {
+    sseServer = new SSEServer();
+  }
+  return sseServer;
 }
 
 /**
@@ -50,14 +63,19 @@ export async function initialize(isDev = false): Promise<void> {
   }
 
   const ws = getWebSocketServer();
+  const sse = getSSEServer();
   const worker = getSyncWorkerManager();
 
   // Wire the worker to the WebSocket server
   ws.setWorker(worker);
 
+  // Wire the worker to the SSE server
+  sse.setWorker(worker);
+
   // Wire the onItems callback to broadcast items to connected clients
   worker.onItems((items, connections) => {
     ws.broadcast(items, connections);
+    sse.broadcast(items, connections);
   });
 
   // Start the worker
@@ -129,6 +147,7 @@ export async function shutdown(): Promise<void> {
 
   // Clear singletons
   wsServer = null;
+  sseServer = null;
   workerManager = null;
   isInitialized = false;
 

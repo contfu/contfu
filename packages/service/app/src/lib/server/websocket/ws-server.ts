@@ -190,7 +190,7 @@ function changedEvent(item: UserSyncItem): ChangedEvent {
 }
 
 async function authenticateConsumer(key: Buffer) {
-  if (key.length !== 24) return null;
+  if (key.length !== 32) return null;
   const consumers = await db
     .select()
     .from(consumerTable)

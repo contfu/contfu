@@ -8,11 +8,13 @@
     "build": "bun -b vite build",
     "preview": "bun -b vite preview",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-    "serve": "bun build/index.js"
+    "serve": "bun build/index.js",
+    "sse-test": "bun sse-cli.ts"
   },
   "dependencies": {
     "@contfu/client": "workspace:*",
-    "@contfu/core": "workspace:*"
+    "@contfu/core": "workspace:*",
+    "eventsource": "^2.0.2"
   },
   "devDependencies": {
     "@sveltejs/kit": "latest",
