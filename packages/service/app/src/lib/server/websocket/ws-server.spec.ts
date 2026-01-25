@@ -3,19 +3,66 @@ import { EventType, CommandType } from "@contfu/core";
 import { pack, unpack } from "msgpackr";
 
 // Mock the database module before importing anything else
+// Include all exports that may be needed when running with other test files
 mock.module("../db/db", () => ({
   db: {
+    $count: mock(() => Promise.resolve(0)),
     select: () => ({
       from: () => ({
         where: () => ({
           limit: () => ({
             all: () => Promise.resolve([]),
           }),
+          groupBy: () => ({
+            orderBy: () => Promise.resolve([]),
+          }),
+        }),
+        innerJoin: () => ({
+          innerJoin: () => ({
+            where: () => ({
+              orderBy: () => Promise.resolve([]),
+            }),
+          }),
         }),
       }),
     }),
+    update: () => ({
+      set: () => ({
+        where: () => Promise.resolve(undefined),
+      }),
+    }),
+    query: {
+      connection: {
+        findMany: mock(() => Promise.resolve([])),
+      },
+    },
   },
-  consumerTable: {},
+  consumerTable: {
+    userId: "userId",
+    id: "id",
+    key: "key",
+    name: "name",
+  },
+  collectionTable: {
+    userId: "userId",
+    id: "id",
+    itemIds: "itemIds",
+    sourceId: "sourceId",
+    ref: "ref",
+  },
+  connectionTable: {
+    userId: "userId",
+    consumerId: "consumerId",
+    collectionId: "collectionId",
+    lastItemChanged: "lastItemChanged",
+  },
+  sourceTable: {
+    userId: "userId",
+    id: "id",
+    type: "type",
+    url: "url",
+    credentials: "credentials",
+  },
 }));
 
 // Import after mock
