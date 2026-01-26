@@ -60,7 +60,7 @@ docker-compose up
 
 ## Code Quality
 
-**IMPORTANT: Always format and lint code after completing a task.**
+**IMPORTANT: Always format and lint code and run tests after completing a task.**
 
 After making any code changes, run the following commands:
 
@@ -70,9 +70,12 @@ bun run fmt
 
 # Lint all code (root level - uses oxlint)
 bun run lint
+
+# Run all tests
+bun run test
 ```
 
-This ensures consistent code style and catches potential issues before committing changes.
+This ensures consistent code style and verifies that changes don't break existing functionality.
 
 ## Architecture
 
