@@ -1,5 +1,5 @@
 import { FileStore } from "@contfu/bun-file-store";
-import { MediaStore } from "@contfu/client-core";
+import { type MediaStore } from "contfu";
 import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { open, readFile } from "fs/promises";
 import { SharpOptimizer } from "./sharp-optimizer";

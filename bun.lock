@@ -56,13 +56,14 @@
       },
     },
     "packages/client/app": {
-      "name": "contfu",
-      "version": "0.1.1",
+      "name": "@contfu/app",
+      "version": "0.0.1",
+      "dependencies": {
+        "contfu": "workspace:*",
+      },
       "devDependencies": {
         "@contfu/core": "workspace:*",
         "@types/bun": "*",
-        "drizzle-kit": "^1.0.0-beta.12-a5629fb",
-        "drizzle-orm": "^1.0.0-beta.12-a5629fb",
         "ts-essentials": "^10.0.2",
       },
       "optionalDependencies": {
@@ -74,38 +75,47 @@
     },
     "packages/client/bun-file-store": {
       "name": "@contfu/bun-file-store",
-      "version": "0.1.0",
+      "version": "0.0.1",
       "dependencies": {
         "sharp": "^0.33.5",
       },
       "devDependencies": {
-        "@contfu/client-core": "workspace:*",
         "@types/bun": "*",
+        "contfu": "workspace:*",
       },
       "peerDependencies": {
         "typescript": "^5.6.3",
       },
     },
-    "packages/client/client": {
+    "packages/client/contfu": {
+      "name": "contfu",
+      "version": "0.0.1",
+      "dependencies": {
+        "drizzle-orm": "^1.0.0-beta.12-a5629fb",
+      },
+      "devDependencies": {
+        "@contfu/client": "workspace:*",
+        "@contfu/core": "workspace:*",
+        "@types/bun": "*",
+        "drizzle-kit": "^1.0.0-beta.12-a5629fb",
+        "ts-essentials": "^10.0.2",
+      },
+      "optionalDependencies": {
+        "better-sqlite3": "^11.0.0",
+      },
+      "peerDependencies": {
+        "typescript": "^5.6.3",
+      },
+    },
+    "packages/client/core": {
       "name": "@contfu/client",
-      "version": "0.1.1",
+      "version": "0.0.1",
       "dependencies": {
         "@contfu/core": "workspace:*",
         "msgpackr": "^1.9.4",
       },
       "devDependencies": {
-        "typescript": "^5.6.3",
-      },
-    },
-    "packages/client/core": {
-      "name": "@contfu/client-core",
-      "version": "0.1.1",
-      "dependencies": {
-        "kysely": "^0.27.4",
-      },
-      "devDependencies": {
         "@types/bun": "*",
-        "kysely-bun-worker": "^0.6.3",
         "ts-essentials": "^10.0.2",
       },
       "peerDependencies": {
@@ -114,14 +124,14 @@
     },
     "packages/client/media-optimizer": {
       "name": "@contfu/media-optimizer",
-      "version": "0.1.0",
+      "version": "0.0.1",
       "dependencies": {
         "sharp": "^0.33.5",
       },
       "devDependencies": {
         "@contfu/bun-file-store": "workspace:*",
-        "@contfu/client-core": "workspace:*",
         "@types/bun": "*",
+        "contfu": "workspace:*",
       },
       "peerDependencies": {
         "typescript": "^5.6.3",
@@ -129,13 +139,14 @@
     },
     "packages/core": {
       "name": "@contfu/core",
-      "version": "0.1.1",
+      "version": "0.0.1",
       "devDependencies": {
         "typescript": "^5.6.3",
       },
     },
     "packages/service/app": {
       "name": "@contfu/svc-app",
+      "version": "0.0.1",
       "dependencies": {
         "@contfu/core": "workspace:*",
         "@css-inline/css-inline": "^0.19.1",
@@ -176,7 +187,7 @@
     },
     "packages/service/sync": {
       "name": "@contfu/svc-sync",
-      "version": "0.1.1",
+      "version": "0.0.1",
       "dependencies": {
         "@contfu/core": "workspace:*",
         "marked": "^17.0.1",
@@ -293,11 +304,11 @@
 
     "@colors/colors": ["@colors/colors@1.5.0", "", {}, "sha512-ooWCrlZP11i8GImSjTHYHLkvFDP48nS4+204nGb1RiX/WXYHmJA2III9/e2DWVabCESdW7hBAEzHRqUn9OUVvQ=="],
 
+    "@contfu/app": ["@contfu/app@workspace:packages/client/app"],
+
     "@contfu/bun-file-store": ["@contfu/bun-file-store@workspace:packages/client/bun-file-store"],
 
-    "@contfu/client": ["@contfu/client@workspace:packages/client/client"],
-
-    "@contfu/client-core": ["@contfu/client-core@workspace:packages/client/core"],
+    "@contfu/client": ["@contfu/client@workspace:packages/client/core"],
 
     "@contfu/core": ["@contfu/core@workspace:packages/core"],
 
@@ -1513,7 +1524,7 @@
 
     "content-type": ["content-type@1.0.5", "", {}, "sha512-nTjqfcBFEipKdXCv4YDQWCfmcLZKm81ldF0pAopTvyrFGVbcR6P/VAAd5G7N+0tTr8QqiU0tFadD6FK4NtJwOA=="],
 
-    "contfu": ["contfu@workspace:packages/client/app"],
+    "contfu": ["contfu@workspace:packages/client/contfu"],
 
     "convert-source-map": ["convert-source-map@1.9.0", "", {}, "sha512-ASFBup0Mz1uyiIjANan1jzLQami9z1PoYSZCiiYW2FczPbenXc45FZdBZLzOT+r6+iciuEModtmCti+hjaAk0A=="],
 
@@ -2245,9 +2256,7 @@
 
     "kuler": ["kuler@2.0.0", "", {}, "sha512-Xq9nH7KlWZmXAtodXDDRE7vs6DU1gTU8zYDHDiWLSip45Egwq3plLHzPn27NgvzL2r1LMPC1vdqh98sQxtqj4A=="],
 
-    "kysely": ["kysely@0.27.6", "", {}, "sha512-FIyV/64EkKhJmjgC0g2hygpBv5RNWVPyNCqSAD7eTCv6eFWNIi4PN1UvdSJGicN/o35bnevgis4Y0UDC0qi8jQ=="],
-
-    "kysely-bun-worker": ["kysely-bun-worker@0.6.3", "", { "peerDependencies": { "kysely": ">=0.26" } }, "sha512-gn1LqOsxsm7Bwv2c5Y+Mz07z8zKetqQMeSq6OLE5VUcU5NFEhv1TuPxV9AlwCuz8YX5vjkf5un4IZp2ATiJPhw=="],
+    "kysely": ["kysely@0.28.10", "", {}, "sha512-ksNxfzIW77OcZ+QWSAPC7yDqUSaIVwkTWnTPNiIy//vifNbwsSgQ57OkkncHxxpcBHM3LRfLAZVEh7kjq5twVA=="],
 
     "lazystream": ["lazystream@1.0.1", "", { "dependencies": { "readable-stream": "^2.0.5" } }, "sha512-b94GiNHQNy6JNTrt5w6zNyffMrNkXZb3KTkCZJb2V1xaEGCk093vkZ2jk3tpaeP33/OiXC+WvK9AxUebnf5nbw=="],
 
@@ -3361,8 +3370,6 @@
 
     "@azure/msal-node/uuid": ["uuid@8.3.2", "", { "bin": { "uuid": "dist/bin/uuid" } }, "sha512-+NYs2QeMWy+GWFOEm9xnn6HCDp0l7QBD7ml8zLUmJ+93Q5NF0NocErnwkTkXVFNiX3/fpC6afS8Dhb/gz7R7eg=="],
 
-    "@better-auth/core/kysely": ["kysely@0.28.10", "", {}, "sha512-ksNxfzIW77OcZ+QWSAPC7yDqUSaIVwkTWnTPNiIy//vifNbwsSgQ57OkkncHxxpcBHM3LRfLAZVEh7kjq5twVA=="],
-
     "@contfu/svc-app/playwright": ["playwright@1.58.0", "", { "dependencies": { "playwright-core": "1.58.0" }, "optionalDependencies": { "fsevents": "2.3.2" }, "bin": { "playwright": "cli.js" } }, "sha512-2SVA0sbPktiIY/MCOPX8e86ehA/e+tDNq+e5Y8qjKYti2Z/JG7xnronT/TXTIkKbYGWlCbuucZ6dziEgkoEjQQ=="],
 
     "@emotion/babel-plugin/source-map": ["source-map@0.5.7", "", {}, "sha512-LbrmJOMUSdEVxIKvdcJzQC+nQhe8FUZQTXQy6+I75skNgn3OoQ0DZA8YnFa7gp8tqtL3KPf1kmo0R5DoApeSGQ=="],
@@ -3740,8 +3747,6 @@
     "better-auth/drizzle-kit": ["drizzle-kit@0.31.8", "", { "dependencies": { "@drizzle-team/brocli": "^0.10.2", "@esbuild-kit/esm-loader": "^2.5.5", "esbuild": "^0.25.4", "esbuild-register": "^3.5.0" }, "bin": { "drizzle-kit": "bin.cjs" } }, "sha512-O9EC/miwdnRDY10qRxM8P3Pg8hXe3LyU4ZipReKOgTwn4OqANmftj8XJz1UPUAS6NMHf0E2htjsbQujUTkncCg=="],
 
     "better-auth/drizzle-orm": ["drizzle-orm@0.45.1", "", { "peerDependencies": { "@aws-sdk/client-rds-data": ">=3", "@cloudflare/workers-types": ">=4", "@electric-sql/pglite": ">=0.2.0", "@libsql/client": ">=0.10.0", "@libsql/client-wasm": ">=0.10.0", "@neondatabase/serverless": ">=0.10.0", "@op-engineering/op-sqlite": ">=2", "@opentelemetry/api": "^1.4.1", "@planetscale/database": ">=1.13", "@prisma/client": "*", "@tidbcloud/serverless": "*", "@types/better-sqlite3": "*", "@types/pg": "*", "@types/sql.js": "*", "@upstash/redis": ">=1.34.7", "@vercel/postgres": ">=0.8.0", "@xata.io/client": "*", "better-sqlite3": ">=7", "bun-types": "*", "expo-sqlite": ">=14.0.0", "gel": ">=2", "knex": "*", "kysely": "*", "mysql2": ">=2", "pg": ">=8", "postgres": ">=3", "sql.js": ">=1", "sqlite3": ">=5" }, "optionalPeers": ["@aws-sdk/client-rds-data", "@cloudflare/workers-types", "@electric-sql/pglite", "@libsql/client", "@libsql/client-wasm", "@neondatabase/serverless", "@op-engineering/op-sqlite", "@opentelemetry/api", "@planetscale/database", "@prisma/client", "@tidbcloud/serverless", "@types/better-sqlite3", "@types/pg", "@types/sql.js", "@upstash/redis", "@vercel/postgres", "@xata.io/client", "better-sqlite3", "bun-types", "expo-sqlite", "gel", "knex", "kysely", "mysql2", "pg", "postgres", "sql.js", "sqlite3"] }, "sha512-Te0FOdKIistGNPMq2jscdqngBRfBpC8uMFVwqjf6gtTVJHIQ/dosgV/CLBU2N4ZJBsXL5savCba9b0YJskKdcA=="],
-
-    "better-auth/kysely": ["kysely@0.28.10", "", {}, "sha512-ksNxfzIW77OcZ+QWSAPC7yDqUSaIVwkTWnTPNiIy//vifNbwsSgQ57OkkncHxxpcBHM3LRfLAZVEh7kjq5twVA=="],
 
     "bits-ui/runed": ["runed@0.35.1", "", { "dependencies": { "dequal": "^2.0.3", "esm-env": "^1.0.0", "lz-string": "^1.5.0" }, "peerDependencies": { "@sveltejs/kit": "^2.21.0", "svelte": "^5.7.0" }, "optionalPeers": ["@sveltejs/kit"] }, "sha512-2F4Q/FZzbeJTFdIS/PuOoPRSm92sA2LhzTnv6FXhCoENb3huf5+fDuNOg1LNvGOouy3u/225qxmuJvcV3IZK5Q=="],
 

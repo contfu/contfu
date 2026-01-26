@@ -4,6 +4,8 @@
     "packages/core/src/**/*.ts",
     "packages/client/client/src/**/*.ts",
     "packages/client/core/src/**/*.ts",
+    "packages/client/contfu/src/**/*.ts",
+    "packages/client/app/src/**/*.ts",
     "packages/client/bun-file-store/src/**/*.ts",
     "packages/client/media-optimizer/src/**/*.ts",
     "packages/service/sync/src/**/*.ts"

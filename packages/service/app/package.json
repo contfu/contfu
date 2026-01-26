@@ -1,7 +1,8 @@
 {
   "name": "@contfu/svc-app",
+  "version": "0.0.1",
   "private": true,
-  "description": "Contfu web application",
+  "description": "Contfu cloud service application",
   "type": "module",
   "scripts": {
     "dev": "bun -b vite dev",

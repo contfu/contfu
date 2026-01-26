@@ -1,9 +1,4 @@
-import type {
-  ImageFormat,
-  MediaOptimizer,
-  MediaStore,
-  OptimizeImageOpts,
-} from "@contfu/client-core";
+import type { ImageFormat, MediaOptimizer, MediaStore, OptimizeImageOpts } from "contfu";
 import { basename, extname } from "path";
 import sharp from "sharp";
 import { Readable } from "stream";
@@ -35,8 +30,9 @@ export class SharpOptimizer implements MediaOptimizer {
         );
       }
     }
-    if (!(input instanceof Buffer)) {
-      Readable.fromWeb(input).pipe(s);
+    if (!Buffer.isBuffer(input)) {
+      // Cast to any to handle ReadableStream type variance
+      Readable.fromWeb(input as unknown as Parameters<typeof Readable.fromWeb>[0]).pipe(s);
     }
     await Promise.all(promises);
   }

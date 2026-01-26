@@ -1,11 +1,17 @@
-import { type MediaStore } from "@contfu/client-core";
+import { type MediaStore } from "contfu";
 import { resolve } from "path";
 
 export class FileStore implements MediaStore {
   constructor(private _root: string) {}
-  async write(canonical: string, buffer: Buffer): Promise<void> {
+  async write(canonical: string, data: Buffer | ReadableStream): Promise<void> {
     const target = resolve(this._root, canonical);
-    await Bun.write(target, buffer);
+    // Bun.write accepts both Buffer and ReadableStream
+    if (Buffer.isBuffer(data)) {
+      await Bun.write(target, data);
+    } else {
+      // Use Response to wrap the stream for Bun compatibility
+      await Bun.write(target, new Response(data));
+    }
   }
   async read(canonical: string): Promise<Buffer | null> {
     const file = Bun.file(resolve(this._root, canonical));

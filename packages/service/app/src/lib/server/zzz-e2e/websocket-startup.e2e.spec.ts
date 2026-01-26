@@ -72,7 +72,7 @@ function createChainableMock(finalResult: any) {
 }
 
 // Mock database - must be before imports
-mock.module("$lib/server/db/db", () => {
+mock.module("../db/db", () => {
   return {
     db: {
       $count: mock(() => Promise.resolve(1)),
@@ -134,7 +134,7 @@ mock.module("drizzle-orm", () => ({
 }));
 
 // Mock SyncWorkerManager to avoid spawning actual workers
-mock.module("$lib/server/sync-worker/worker-manager", () => ({
+mock.module("../sync-worker/worker-manager", () => ({
   SyncWorkerManager: class MockSyncWorkerManager {
     private itemsCallback: ((items: any[], connections: any[]) => void) | null = null;
 
@@ -167,7 +167,7 @@ mock.module("$lib/server/sync-worker/worker-manager", () => ({
 
 // Dynamic import after mocks
 const { getWebSocketServer, initialize, shutdown, isServerInitialized, getWebSocketHandler } =
-  await import("$lib/server/startup");
+  await import("../startup");
 
 type ConnectionInfo = {
   userId: string;

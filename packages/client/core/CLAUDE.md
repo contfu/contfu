@@ -1,10 +1,10 @@
-# CLAUDE.md - @contfu/client-core
+# CLAUDE.md - @contfu/client
 
 > **Keep this file in sync with project changes and document important learnings.**
 
 ## Package Overview
 
-**Name:** `@contfu/client-core`
+**Name:** `@contfu/client`
 **Version:** 0.1.1
 **Purpose:** Client-side database utilities and media management interfaces
 

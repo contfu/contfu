@@ -1,8 +1,14 @@
-import { ConnectionConfig } from "@contfu/core";
+/**
+ * Configuration for a push connection.
+ */
+export interface ConnectionConfig<C extends string = string> {
+  id: string;
+  collectionNames: C[];
+}
 
 export function connectPush(
   connections: ConnectionConfig<string>[],
-  callback: (data: any) => void,
+  callback: (data: unknown) => void,
 ) {
   const socket = new WebSocket("ws://localhost:8080/pages");
 

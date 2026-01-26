@@ -1,5 +1,5 @@
 {
-  "name": "@contfu/app",
+  "name": "contfu",
   "version": "0.0.1",
   "files": [
     "src"
@@ -7,14 +7,18 @@
   "type": "module",
   "main": "src/index.ts",
   "scripts": {
-    "clean": "rm -rf dist"
+    "test": "bun test",
+    "clean": "rm -rf dist",
+    "db:generate": "rm -rf db/migrations && drizzle-kit generate --name init"
   },
   "dependencies": {
-    "contfu": "workspace:*"
+    "drizzle-orm": "^1.0.0-beta.12-a5629fb"
   },
   "devDependencies": {
+    "@contfu/client": "workspace:*",
     "@contfu/core": "workspace:*",
     "@types/bun": "*",
+    "drizzle-kit": "^1.0.0-beta.12-a5629fb",
     "ts-essentials": "^10.0.2"
   },
   "peerDependencies": {

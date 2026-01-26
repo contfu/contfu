@@ -50,7 +50,7 @@ class SharpOptimizer implements MediaOptimizer {
 | Library                | Version      | Purpose                        |
 | ---------------------- | ------------ | ------------------------------ |
 | sharp                  | ^0.33.5      | Image processing               |
-| @contfu/client-core    | workspace:\* | MediaOptimizer interface (dev) |
+| @contfu/client         | workspace:\* | MediaOptimizer interface (dev) |
 | @contfu/bun-file-store | workspace:\* | MediaStore for tests (dev)     |
 | @types/bun             | \*           | Bun type definitions (dev)     |
 

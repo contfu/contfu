@@ -1,0 +1,96 @@
+import type {
+  ChangedEvent,
+  ChecksumEvent,
+  DeletedEvent,
+  ItemEvent,
+  ListIdsEvent,
+} from "@contfu/core";
+import { EventType } from "@contfu/core";
+
+/**
+ * Event handler function type compatible with @contfu/client's handle callback
+ */
+export type EventHandler = (event: ItemEvent) => Promise<void>;
+
+/**
+ * Options for registering event hooks.
+ * Each hook is called when the corresponding event type is received.
+ */
+export interface HookOptions {
+  /** Called when an item is created or updated */
+  onChanged?: (event: ChangedEvent) => Promise<void>;
+  /** Called when an item is deleted */
+  onDeleted?: (event: DeletedEvent) => Promise<void>;
+  /** Called when a list of item IDs in a collection is received */
+  onListIds?: (event: ListIdsEvent) => Promise<void>;
+  /** Called when a checksum for a collection is received */
+  onChecksum?: (event: ChecksumEvent) => Promise<void>;
+}
+
+/**
+ * Creates an event handler function from hook options.
+ * The returned handler can be passed to connectTo() from @contfu/client.
+ *
+ * @example
+ * ```typescript
+ * import { connectTo } from "@contfu/client";
+ * import { createEventHandler } from "contfu";
+ *
+ * const handler = createEventHandler({
+ *   onChanged: async (event) => {
+ *     console.log("Item changed:", event.item.id);
+ *     // Save to database...
+ *   },
+ *   onDeleted: async (event) => {
+ *     console.log("Item deleted:", event.item);
+ *     // Remove from database...
+ *   },
+ * });
+ *
+ * await connectTo(key, { handle: handler });
+ * ```
+ */
+export function createEventHandler(hooks: HookOptions): EventHandler {
+  return async (event: ItemEvent): Promise<void> => {
+    switch (event.type) {
+      case EventType.CHANGED:
+        await hooks.onChanged?.(event);
+        break;
+      case EventType.DELETED:
+        await hooks.onDeleted?.(event);
+        break;
+      case EventType.LIST_IDS:
+        await hooks.onListIds?.(event);
+        break;
+      case EventType.CHECKSUM:
+        await hooks.onChecksum?.(event);
+        break;
+    }
+  };
+}
+
+/**
+ * Composes multiple event handlers into a single handler.
+ * All handlers are called in sequence for each event.
+ *
+ * @example
+ * ```typescript
+ * const loggingHandler = createEventHandler({
+ *   onChanged: async (e) => console.log("Changed:", e.item.id),
+ * });
+ *
+ * const persistenceHandler = createEventHandler({
+ *   onChanged: async (e) => db.upsert(e.item),
+ * });
+ *
+ * const handler = composeHandlers(loggingHandler, persistenceHandler);
+ * await connectTo(key, { handle: handler });
+ * ```
+ */
+export function composeHandlers(...handlers: EventHandler[]): EventHandler {
+  return async (event: ItemEvent): Promise<void> => {
+    for (const handler of handlers) {
+      await handler(event);
+    }
+  };
+}

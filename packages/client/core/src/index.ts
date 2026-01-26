@@ -1,2 +1,1 @@
-export * from "./items";
-export * from "./media";
+export { connectTo } from "./client";
