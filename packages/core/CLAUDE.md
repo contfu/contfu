@@ -77,3 +77,7 @@ bun run build
 
 - Event types must remain numeric for binary serialization efficiency
 - PropertyType values are powers of 2 for bitwise combination support
+
+## Related Skills
+
+When modifying types in this package, update `skills/contfu-content-modeling/SKILL.md` to keep documentation in sync with the actual schema.

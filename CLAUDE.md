@@ -77,6 +77,26 @@ bun run test
 
 This ensures consistent code style and verifies that changes don't break existing functionality.
 
+## Before Creating a PR
+
+**IMPORTANT: Follow these steps before pushing any changes:**
+
+1. **Run tests, format, and lint:**
+   ```bash
+   bun test          # Ensure all tests pass
+   bun run fmt       # Format code
+   bun run lint      # Lint code
+   ```
+
+2. **Squash into a single commit:**
+   ```bash
+   git rebase -i HEAD~N  # Where N is number of commits to squash
+   # Mark all but first commit as 'squash' or 's'
+   # Or use: git reset --soft HEAD~N && git commit
+   ```
+
+3. **Push and create PR**
+
 ## Architecture
 
 ### Monorepo Structure (Bun workspaces)
@@ -131,3 +151,19 @@ The Dockerfile has three targets:
 - `migrator` - Runs database migrations
 - `sync` - Sync WebSocket service (port 3000)
 - `app` - Qwik web application (port 3000)
+
+## Skills
+
+Development skills live in `skills/`. These provide guidance for AI coding assistants.
+
+**⚠️ Keep skills in sync with the codebase:**
+
+When modifying schemas, types, or core patterns in these areas, update the corresponding skill:
+
+| Code Change | Update Skill |
+|-------------|--------------|
+| `packages/core/src/` types/interfaces | `contfu-content-modeling` |
+| Database schemas (`*/db/schema.ts`) | `contfu-content-modeling` |
+| Source adapters (`sync/src/sources/`) | `contfu-source-adapter` |
+| UI components, design patterns | `contfu-design` |
+| Dev workflow, commands, monorepo structure | `contfu-development` |
