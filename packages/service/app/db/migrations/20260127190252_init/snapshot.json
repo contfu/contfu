@@ -1,7 +1,7 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "6feb163a-782d-4c6b-a152-b864e2dd1a7a",
+  "id": "b29f5308-a905-4b50-aa49-650f1e9412bb",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
@@ -667,6 +667,16 @@
       "table": "source"
     },
     {
+      "type": "blob",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "webhookSecret",
+      "entityType": "columns",
+      "table": "source"
+    },
+    {
       "type": "integer",
       "notNull": true,
       "autoincrement": false,
@@ -748,9 +758,9 @@
     },
     {
       "type": "integer",
-      "notNull": false,
+      "notNull": true,
       "autoincrement": false,
-      "default": null,
+      "default": "(unixepoch())",
       "generated": null,
       "name": "updatedAt",
       "entityType": "columns",

@@ -97,6 +97,7 @@ CREATE TABLE `source` (
 	`url` text,
 	`credentials` blob,
 	`type` integer NOT NULL,
+	`webhookSecret` blob,
 	`createdAt` integer DEFAULT (unixepoch()) NOT NULL,
 	`updatedAt` integer,
 	CONSTRAINT `source_pk` PRIMARY KEY(`userId`, `id`),
@@ -110,7 +111,7 @@ CREATE TABLE `user` (
 	`emailVerified` integer DEFAULT false NOT NULL,
 	`image` text,
 	`createdAt` integer DEFAULT (unixepoch()) NOT NULL,
-	`updatedAt` integer
+	`updatedAt` integer DEFAULT (unixepoch()) NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE `verification` (
