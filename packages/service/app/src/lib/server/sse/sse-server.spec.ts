@@ -65,7 +65,7 @@ describe("SSEServer", () => {
       server.setWorker(workerManager as any);
 
       const controller = createMockController();
-      const invalidKey = Buffer.alloc(16); // Should be 24 bytes
+      const invalidKey = Buffer.alloc(16); // Should be 32 bytes
 
       const result = await server.addConnection(invalidKey, controller as any);
 
@@ -80,7 +80,7 @@ describe("SSEServer", () => {
       server.setWorker(workerManager as any);
 
       const controller = createMockController();
-      const validKey = Buffer.alloc(24); // Valid length but not in database
+      const validKey = Buffer.alloc(32); // Valid length but not in database
 
       const result = await server.addConnection(validKey, controller as any);
 

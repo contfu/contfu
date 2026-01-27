@@ -11,9 +11,9 @@ import { afterAll, beforeAll, describe, expect, it, mock } from "bun:test";
 import { CommandType, EventType } from "@contfu/core";
 import { pack, unpack } from "msgpackr";
 
-// Test consumer credentials
-const TEST_CONSUMER_KEY = Buffer.alloc(24);
-TEST_CONSUMER_KEY.write("e2e-consumer-key-123456", 0, 24);
+// Test consumer credentials (32 bytes - matches server validation)
+const TEST_CONSUMER_KEY = Buffer.alloc(32);
+TEST_CONSUMER_KEY.write("e2e-consumer-key-32-bytes-long!", 0, 32);
 
 const TEST_CONSUMER = {
   id: 1,
@@ -122,7 +122,7 @@ mock.module("../db/db", () => {
 // Mock drizzle-orm's eq function to track key queries
 mock.module("drizzle-orm", () => ({
   eq: (column: any, value: any) => {
-    if (value instanceof Buffer && value.length === 24) {
+    if (value instanceof Buffer && value.length === 32) {
       lastQueriedKey = value;
     }
     return { column, value };
@@ -297,8 +297,8 @@ describe("E2E: WebSocket Server Startup", () => {
     it("should reject authentication with invalid consumer key", async () => {
       lastQueriedKey = null; // Reset
       const ws = new WebSocket(`ws://localhost:${PORT}/ws`);
-      const invalidKey = Buffer.alloc(24);
-      invalidKey.write("invalid-key-for-e2e-tst", 0, 24);
+      const invalidKey = Buffer.alloc(32);
+      invalidKey.write("invalid-key-for-e2e-testing!!", 0, 32);
 
       const result = await new Promise<string>((resolve, reject) => {
         const timeout = setTimeout(() => reject(new Error("Connection timeout")), 5000);
@@ -332,7 +332,7 @@ describe("E2E: WebSocket Server Startup", () => {
 
     it("should reject authentication with wrong key length", async () => {
       const ws = new WebSocket(`ws://localhost:${PORT}/ws`);
-      const shortKey = Buffer.alloc(10); // Wrong length (should be 24)
+      const shortKey = Buffer.alloc(10); // Wrong length (should be 32)
 
       const result = await new Promise<string>((resolve, reject) => {
         const timeout = setTimeout(() => reject(new Error("Connection timeout")), 5000);

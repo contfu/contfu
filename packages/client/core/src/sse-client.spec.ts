@@ -1,9 +1,9 @@
 import { EventType } from "@contfu/core";
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 
-// Test consumer credentials
-const TEST_CONSUMER_KEY = Buffer.alloc(24);
-TEST_CONSUMER_KEY.write("test-consumer-key-12345", 0, 24);
+// Test consumer credentials (32 bytes - matches server validation)
+const TEST_CONSUMER_KEY = Buffer.alloc(32);
+TEST_CONSUMER_KEY.write("test-consumer-key-32-bytes-long!", 0, 32);
 
 // Mock EventSource class - must be created at module level before mocking
 let mockEventSourceInstance: MockEventSource | null = null;

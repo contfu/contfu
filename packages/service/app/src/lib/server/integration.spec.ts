@@ -252,8 +252,8 @@ describe("Integration: WebSocket Server", () => {
   it("should reject authentication with invalid key", async () => {
     lastQueriedKey = null; // Reset
     const ws = new WebSocket(`ws://localhost:${PORT}/ws`);
-    const invalidKey = Buffer.alloc(24);
-    invalidKey.write("invalid-key-000000000", 0, 24);
+    const invalidKey = Buffer.alloc(32);
+    invalidKey.write("invalid-key-0000000000000000000", 0, 32);
 
     const result = await new Promise<string>((resolve, reject) => {
       const timeout = setTimeout(() => reject(new Error("Connection timeout")), 5000);
