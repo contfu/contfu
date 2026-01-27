@@ -3,7 +3,6 @@
   import { page } from "$app/state";
   import * as Alert from "$lib/components/ui/alert";
   import { Button } from "$lib/components/ui/button";
-  import * as Card from "$lib/components/ui/card";
   import { Input } from "$lib/components/ui/input";
   import { Label } from "$lib/components/ui/label";
   import {
@@ -13,243 +12,150 @@
   } from "$lib/remote/collections.remote";
   import { getSource } from "$lib/remote/sources.remote";
 
-  const SYNC_STATUS_LABELS: Record<
-    string,
-    { label: string; variant: "default" | "secondary" }
-  > = {
-    active: { label: "Active", variant: "default" },
-    inactive: { label: "No clients", variant: "secondary" },
-  };
-
   const sourceId = Number.parseInt(page.params.id ?? "", 10);
   const collectionId = Number.parseInt(page.params.collectionId ?? "", 10);
 
-  const source = Number.isNaN(sourceId)
-    ? null
-    : await getSource({ id: sourceId });
-  const collection =
-    Number.isNaN(collectionId) || !source
-      ? null
-      : await getCollection({ id: collectionId });
+  const source = Number.isNaN(sourceId) ? null : await getSource({ id: sourceId });
+  const collection = Number.isNaN(collectionId) || !source ? null : await getCollection({ id: collectionId });
 
-  // Redirect if source or collection not found
   if (!source) {
     await goto("/sources");
   } else if (!collection || collection.sourceId !== sourceId) {
     await goto(`/sources/${sourceId}`);
   }
 
-  // Compute sync status from collection connection count
-  const syncStatus = collection
-    ? getSyncStatus(collection.connectionCount)
-    : "inactive";
-
   let updateSuccess = $state(false);
 
   function handleUpdateSuccess() {
     updateSuccess = true;
-    setTimeout(() => {
-      updateSuccess = false;
-    }, 3000);
+    setTimeout(() => { updateSuccess = false; }, 3000);
   }
 
   $effect(() => {
-    if (updateCollection.result?.success) {
-      handleUpdateSuccess();
-    }
+    if (updateCollection.result?.success) handleUpdateSuccess();
   });
 
   $effect(() => {
     const result = deleteCollection.result as { success?: boolean } | undefined;
-    if (result?.success) {
-      goto(`/sources/${sourceId}`);
-    }
+    if (result?.success) goto(`/sources/${sourceId}`);
   });
-
-  function getSyncStatus(connectionCount: number): string {
-    return connectionCount > 0 ? "active" : "inactive";
-  }
 </script>
 
 {#if source && collection}
-  <div class="container mx-auto max-w-2xl p-6">
+  <div class="mx-auto max-w-xl px-4 py-8 sm:px-6">
     <div class="mb-6">
-      <a
-        href="/sources/{sourceId}"
-        class="text-sm text-muted-foreground hover:text-foreground"
-      >
-        &larr; Back to Source
-      </a>
+      <a href="/sources/{sourceId}" class="text-sm text-muted-foreground hover:text-foreground">← {source.name || "Source"}</a>
     </div>
 
-    <Card.Root>
-      <Card.Header>
-        <div class="flex items-center justify-between">
-          <div>
-            <Card.Title>Edit Collection</Card.Title>
-            <Card.Description>
-              Update your collection configuration for {source.name ??
-                "this source"}.
-            </Card.Description>
-          </div>
-          <span
-            class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium {SYNC_STATUS_LABELS[
-              syncStatus
-            ]?.variant === 'default'
-              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-              : 'bg-secondary text-secondary-foreground'}"
-          >
-            {SYNC_STATUS_LABELS[syncStatus]?.label ?? "Unknown"}
+    <div class="mb-8">
+      <div class="flex items-center gap-3">
+        <h1 class="text-2xl font-semibold tracking-tight">{collection.name || "Unnamed Collection"}</h1>
+        {#if collection.connectionCount > 0}
+          <span class="inline-flex items-center gap-1.5 text-xs">
+            <span class="h-1.5 w-1.5 rounded-full bg-success"></span>
+            Active
           </span>
-        </div>
-      </Card.Header>
+        {:else}
+          <span class="text-xs text-muted-foreground">No clients</span>
+        {/if}
+      </div>
+      <p class="mt-1 text-sm text-muted-foreground">Configure collection from {source.name || "this source"}</p>
+    </div>
 
-      <Card.Content>
-        <form
-          method="post"
-          action={updateCollection.action}
-          class="space-y-6"
-        >
-          <input type="hidden" name="id" value={collection.id} />
+    <!-- Edit form -->
+    <form method="post" action={updateCollection.action} class="space-y-4">
+      <input type="hidden" name="id" value={collection.id} />
 
-          <div class="space-y-2">
-            <Label for="name">Name</Label>
-            <Input
-              id="name"
-              name="name"
-              type="text"
-              placeholder="My Collection"
-              value={collection.name ?? ""}
-            />
-            {#if updateCollection.fields?.name?.issues()?.length}
-              <p class="text-sm text-destructive">
-                {updateCollection.fields?.name?.issues()?.[0]?.message}
-              </p>
-            {/if}
-          </div>
+      <div class="space-y-1.5">
+        <Label for="name">Name</Label>
+        <Input id="name" name="name" type="text" placeholder="My Collection" value={collection.name ?? ""} />
+        {#if updateCollection.fields?.name?.issues()?.length}
+          <p class="text-sm text-destructive">{updateCollection.fields?.name?.issues()?.[0]?.message}</p>
+        {/if}
+      </div>
 
-          <div class="space-y-2">
-            <Label for="ref">Collection Reference</Label>
-            <Input
-              id="ref"
-              name="ref"
-              type="text"
-              placeholder="e.g., database ID or content type"
-              value={collection.ref
-                ? new TextDecoder().decode(collection.ref)
-                : ""}
-            />
-            <p class="text-sm text-muted-foreground">
-              The reference identifier for the upstream content (e.g., Notion
-              database ID).
-            </p>
-            {#if updateCollection.fields?.ref?.issues()?.length}
-              <p class="text-sm text-destructive">
-                {updateCollection.fields?.ref?.issues()?.[0]?.message}
-              </p>
-            {/if}
-          </div>
+      <div class="space-y-1.5">
+        <Label for="ref">Reference</Label>
+        <Input
+          id="ref"
+          name="ref"
+          type="text"
+          placeholder="Database ID or content type"
+          value={collection.ref ? new TextDecoder().decode(collection.ref) : ""}
+        />
+        <p class="text-xs text-muted-foreground">
+          The upstream content identifier (e.g., Notion database ID).
+        </p>
+        {#if updateCollection.fields?.ref?.issues()?.length}
+          <p class="text-sm text-destructive">{updateCollection.fields?.ref?.issues()?.[0]?.message}</p>
+        {/if}
+      </div>
 
-          <div class="rounded-lg border bg-muted/50 p-4">
-            <h3 class="mb-2 text-sm font-medium">Sync Status</h3>
-            <dl class="space-y-1 text-sm">
-              <div class="flex justify-between">
-                <dt class="text-muted-foreground">Connected clients:</dt>
-                <dd class="font-medium">{collection.connectionCount}</dd>
-              </div>
-              <div class="flex justify-between">
-                <dt class="text-muted-foreground">Source:</dt>
-                <dd class="font-medium">{source.name ?? "Unnamed Source"}</dd>
-              </div>
-              <div class="flex justify-between">
-                <dt class="text-muted-foreground">Created:</dt>
-                <dd class="font-medium">
-                  {new Date(collection.createdAt * 1000).toLocaleString()}
-                </dd>
-              </div>
-              {#if collection.updatedAt}
-                <div class="flex justify-between">
-                  <dt class="text-muted-foreground">Last updated:</dt>
-                  <dd class="font-medium">
-                    {new Date(collection.updatedAt * 1000).toLocaleString()}
-                  </dd>
-                </div>
-              {/if}
-            </dl>
-          </div>
-
-          {#if updateSuccess}
-            <Alert.Root>
-              <Alert.Title>Collection updated</Alert.Title>
-              <Alert.Description
-                >Your changes have been saved.</Alert.Description
-              >
-            </Alert.Root>
+      <!-- Info block -->
+      <div class="rounded-md border border-border bg-muted/30 p-4">
+        <dl class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+          <dt class="text-muted-foreground">Connected clients</dt>
+          <dd class="text-right font-mono">{collection.connectionCount}</dd>
+          <dt class="text-muted-foreground">Source</dt>
+          <dd class="text-right">{source.name ?? "Unnamed"}</dd>
+          <dt class="text-muted-foreground">Created</dt>
+          <dd class="text-right">{new Date(collection.createdAt * 1000).toLocaleDateString()}</dd>
+          {#if collection.updatedAt}
+            <dt class="text-muted-foreground">Updated</dt>
+            <dd class="text-right">{new Date(collection.updatedAt * 1000).toLocaleDateString()}</dd>
           {/if}
+        </dl>
+      </div>
 
-          <div class="flex gap-3">
-            <Button type="submit" disabled={!!updateCollection.pending}>
-              {updateCollection.pending ? "Saving..." : "Save Changes"}
-            </Button>
-          </div>
-        </form>
-      </Card.Content>
+      {#if updateSuccess}
+        <Alert.Root>
+          <Alert.Title>Changes saved</Alert.Title>
+        </Alert.Root>
+      {/if}
 
-      <Card.Footer class="border-t pt-6">
-        <div class="flex w-full items-center justify-between">
-          <div>
-            <h3 class="text-sm font-medium text-destructive">Danger Zone</h3>
-            <p class="text-sm text-muted-foreground">
-              Deleting this collection will disconnect all clients.
-            </p>
-          </div>
-          <form method="post" action={deleteCollection.action}>
-            <input type="hidden" name="id" value={collection.id} />
-            <Button
-              variant="destructive"
-              type="submit"
-              disabled={!!deleteCollection.pending}
-              onclick={(e: MouseEvent) => {
-                if (
-                  !confirm(
-                    `Are you sure you want to delete "${collection.name || "this collection"}"? This action cannot be undone.`,
-                  )
-                ) {
-                  e.preventDefault();
-                }
-              }}
-            >
-              {deleteCollection.pending ? "Deleting..." : "Delete Collection"}
-            </Button>
-          </form>
+      <Button type="submit" disabled={!!updateCollection.pending}>
+        {updateCollection.pending ? "Saving..." : "Save"}
+      </Button>
+    </form>
+
+    <!-- Danger zone -->
+    <section class="mt-8 rounded-lg border border-destructive/30 p-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="text-sm font-medium">Delete collection</h3>
+          <p class="text-sm text-muted-foreground">All client connections will be removed.</p>
         </div>
-      </Card.Footer>
-    </Card.Root>
+        <form method="post" action={deleteCollection.action}>
+          <input type="hidden" name="id" value={collection.id} />
+          <Button
+            variant="destructive"
+            size="sm"
+            type="submit"
+            disabled={!!deleteCollection.pending}
+            onclick={(e: MouseEvent) => {
+              if (!confirm(`Delete "${collection.name || "this collection"}"?`)) {
+                e.preventDefault();
+              }
+            }}
+          >
+            {deleteCollection.pending ? "..." : "Delete"}
+          </Button>
+        </form>
+      </div>
+    </section>
   </div>
 {:else if source && !collection}
-  <div class="container mx-auto max-w-2xl p-6">
+  <div class="mx-auto max-w-xl px-4 py-8 sm:px-6">
     <Alert.Root variant="destructive">
       <Alert.Title>Collection not found</Alert.Title>
-      <Alert.Description>
-        The collection you're looking for doesn't exist or you don't have access
-        to it.
-      </Alert.Description>
     </Alert.Root>
-    <div class="mt-4">
-      <Button href="/sources/{sourceId}">Back to Source</Button>
-    </div>
+    <Button href="/sources/{sourceId}" class="mt-4">Back to Source</Button>
   </div>
 {:else}
-  <div class="container mx-auto max-w-2xl p-6">
+  <div class="mx-auto max-w-xl px-4 py-8 sm:px-6">
     <Alert.Root variant="destructive">
       <Alert.Title>Source not found</Alert.Title>
-      <Alert.Description>
-        The source you're looking for doesn't exist or you don't have access to
-        it.
-      </Alert.Description>
     </Alert.Root>
-    <div class="mt-4">
-      <Button href="/sources">Back to Sources</Button>
-    </div>
+    <Button href="/sources" class="mt-4">Back to Sources</Button>
   </div>
 {/if}

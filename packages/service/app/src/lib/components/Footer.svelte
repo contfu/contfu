@@ -2,82 +2,33 @@
   const currentYear = new Date().getFullYear();
 </script>
 
-<footer class="border-t border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
-  <div class="container mx-auto px-4 py-8">
-    <div class="grid grid-cols-1 gap-8 md:grid-cols-3">
-      <div>
-        <a href="/" class="inline-block">
-          <img
-            src="/logo.svg"
-            alt="Contfu"
-            height={48}
-            width={134}
-            class="h-10 hidden md:block"
-          />
+<footer class="border-t border-border bg-background">
+  <div class="mx-auto max-w-6xl px-4 sm:px-6">
+    <div class="flex flex-col items-center justify-between gap-4 py-6 sm:flex-row">
+      <div class="flex items-center gap-4">
+        <a href="/" class="flex items-center gap-2">
           <img
             src="/favicon.svg"
-            alt="Contfu"
-            height={48}
-            width={48}
-            class="h-10 block md:hidden"
+            alt=""
+            height={20}
+            width={20}
+            class="h-5 w-5"
           />
+          <span class="text-sm font-medium text-foreground">contfu</span>
         </a>
-        <p class="mt-4 text-sm text-gray-600 dark:text-gray-400">
-          &copy; {currentYear} Contfu. All rights reserved.
-        </p>
+        <span class="text-sm text-muted-foreground">
+          © {currentYear}
+        </span>
       </div>
 
-      <div>
-        <h3 class="font-semibold text-gray-900 dark:text-white">Navigation</h3>
-        <ul class="mt-4 space-y-2">
-          <li>
-            <a
-              href="/"
-              class="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-            >
-              Home
-            </a>
-          </li>
-          <li>
-            <a
-              href="/#pricing"
-              class="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-            >
-              Pricing
-            </a>
-          </li>
-          <li>
-            <a
-              href="/dashboard"
-              class="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-            >
-              Dashboard
-            </a>
-          </li>
-        </ul>
-      </div>
-
-      <div>
-        <h3 class="font-semibold text-gray-900 dark:text-white">Legal</h3>
-        <ul class="mt-4 space-y-2">
-          <li>
-            <a
-              href="/privacy"
-              class="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-            >
-              Privacy Policy
-            </a>
-          </li>
-          <li>
-            <a
-              href="/legal"
-              class="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-            >
-              Legal Notice
-            </a>
-          </li>
-        </ul>
-      </div>
+      <nav class="flex items-center gap-4 text-sm">
+        <a href="/privacy" class="text-muted-foreground hover:text-foreground">
+          Privacy
+        </a>
+        <a href="/legal" class="text-muted-foreground hover:text-foreground">
+          Legal
+        </a>
+      </nav>
     </div>
   </div>
 </footer>

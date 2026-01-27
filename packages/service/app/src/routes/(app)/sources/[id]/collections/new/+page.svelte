@@ -7,7 +7,6 @@
   import { Input } from "$lib/components/ui/input";
   import { Label } from "$lib/components/ui/label";
   import { Textarea } from "$lib/components/ui/textarea";
-  import * as Card from "$lib/components/ui/card";
   import * as Alert from "$lib/components/ui/alert";
 
   const SOURCE_TYPE_LABELS: Record<number, string> = {
@@ -25,132 +24,92 @@
 </script>
 
 {#if source}
-  <div class="container mx-auto max-w-2xl p-6">
+  <div class="mx-auto max-w-xl px-4 py-8 sm:px-6">
     <div class="mb-6">
-      <a
-        href="/sources/{id}/collections"
-        class="text-sm text-muted-foreground hover:text-foreground"
-      >
-        &larr; Back to Collections
-      </a>
+      <a href="/sources/{id}" class="text-sm text-muted-foreground hover:text-foreground">← {source.name || "Source"}</a>
     </div>
 
-    <Card.Root>
-      <Card.Header>
-        <div class="flex items-center justify-between">
-          <div>
-            <Card.Title>Add New Collection</Card.Title>
-            <Card.Description>
-              Create a collection to sync content from {source.name || "this source"}.
-            </Card.Description>
-          </div>
-          <span
-            class="inline-flex rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-secondary-foreground"
-          >
-            {SOURCE_TYPE_LABELS[source.type] ?? "Unknown"}
-          </span>
-        </div>
-      </Card.Header>
+    <div class="mb-8">
+      <div class="flex items-center gap-3">
+        <h1 class="text-2xl font-semibold tracking-tight">Add Collection</h1>
+        <span class="rounded-md bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
+          {SOURCE_TYPE_LABELS[source.type] ?? "Unknown"}
+        </span>
+      </div>
+      <p class="mt-1 text-sm text-muted-foreground">Configure content to sync from {source.name || "this source"}</p>
+    </div>
 
-      <Card.Content>
-        <form method="post" action={createCollection.action} class="space-y-6">
-          <input type="hidden" name="sourceId" value={source.id} />
+    <form method="post" action={createCollection.action} class="space-y-5">
+      <input type="hidden" name="sourceId" value={source.id} />
 
-          <div class="space-y-2">
-            <Label for="name">Name</Label>
-            <Input
-              id="name"
-              name="name"
-              type="text"
-              placeholder="My Collection"
-              required
-            />
-            <p class="text-sm text-muted-foreground">
-              A descriptive name for this collection.
-            </p>
-            {#if createCollection.fields?.name?.issues()?.length}
-              <p class="text-sm text-destructive">
-                {createCollection.fields?.name?.issues()?.[0]?.message}
-              </p>
-            {/if}
-          </div>
+      <div class="space-y-1.5">
+        <Label for="name">Name</Label>
+        <Input id="name" name="name" type="text" placeholder="My Collection" required />
+        {#if createCollection.fields?.name?.issues()?.length}
+          <p class="text-sm text-destructive">{createCollection.fields?.name?.issues()?.[0]?.message}</p>
+        {/if}
+      </div>
 
-          <div class="space-y-2">
-            {#if source.type === 2}
-              <Label for="ref">URLs to Fetch</Label>
-              <Textarea
-                id="ref"
-                name="ref"
-                placeholder="/page1&#10;/blog/article&#10;/products/item"
-                rows={6}
-              />
-              <p class="text-sm text-muted-foreground">
-                Enter the relative URLs to fetch from this web source, one per line.
-                These URLs will be resolved against the source's base URL.
-              </p>
+      <div class="space-y-1.5">
+        {#if source.type === 2}
+          <Label for="ref">URLs to Fetch</Label>
+          <Textarea
+            id="ref"
+            name="ref"
+            placeholder="/page1&#10;/blog/article&#10;/products/item"
+            rows={5}
+          />
+          <p class="text-xs text-muted-foreground">
+            Relative URLs to fetch, one per line. Resolved against {source.url || "the base URL"}.
+          </p>
+        {:else}
+          <Label for="ref">Reference</Label>
+          <Input
+            id="ref"
+            name="ref"
+            type="text"
+            placeholder={source.type === 0 ? "Database ID" : "Content type (e.g., articles)"}
+          />
+          <p class="text-xs text-muted-foreground">
+            {#if source.type === 0}
+              The Notion database ID to sync.
             {:else}
-              <Label for="ref">Reference (optional)</Label>
-              <Input
-                id="ref"
-                name="ref"
-                type="text"
-                placeholder={source.type === 0 ? "Database ID" : "Content type API ID"}
-              />
-              <p class="text-sm text-muted-foreground">
-                {#if source.type === 0}
-                  The Notion database ID to sync from.
-                {:else}
-                  The Strapi content type API ID (e.g., "articles", "pages").
-                {/if}
-              </p>
+              The Strapi content type API ID.
             {/if}
-            {#if createCollection.fields?.ref?.issues()?.length}
-              <p class="text-sm text-destructive">
-                {createCollection.fields?.ref?.issues()?.[0]?.message}
-              </p>
-            {/if}
-          </div>
+          </p>
+        {/if}
+        {#if createCollection.fields?.ref?.issues()?.length}
+          <p class="text-sm text-destructive">{createCollection.fields?.ref?.issues()?.[0]?.message}</p>
+        {/if}
+      </div>
 
-          <div class="rounded-lg border bg-muted/50 p-4">
-            <h3 class="mb-2 text-sm font-medium">Source Information</h3>
-            <dl class="space-y-1 text-sm">
-              <div class="flex justify-between">
-                <dt class="text-muted-foreground">Source:</dt>
-                <dd class="font-medium">{source.name || "Unnamed Source"}</dd>
-              </div>
-              <div class="flex justify-between">
-                <dt class="text-muted-foreground">Type:</dt>
-                <dd class="font-medium">{SOURCE_TYPE_LABELS[source.type] ?? "Unknown"}</dd>
-              </div>
-              {#if (source.type === 1 || source.type === 2) && source.url}
-                <div class="flex justify-between">
-                  <dt class="text-muted-foreground">{source.type === 2 ? "Base URL:" : "URL:"}</dt>
-                  <dd class="truncate font-medium" title={source.url}>{source.url}</dd>
-                </div>
-              {/if}
-            </dl>
-          </div>
+      <!-- Source info -->
+      <div class="rounded-md border border-border bg-muted/30 p-4">
+        <dl class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+          <dt class="text-muted-foreground">Source</dt>
+          <dd class="text-right">{source.name || "Unnamed"}</dd>
+          <dt class="text-muted-foreground">Type</dt>
+          <dd class="text-right">{SOURCE_TYPE_LABELS[source.type] ?? "Unknown"}</dd>
+          {#if source.url}
+            <dt class="text-muted-foreground">{source.type === 2 ? "Base URL" : "URL"}</dt>
+            <dd class="truncate text-right" title={source.url}>{source.url}</dd>
+          {/if}
+        </dl>
+      </div>
 
-          <div class="flex gap-3">
-            <Button type="submit" disabled={!!createCollection.pending}>
-              {createCollection.pending ? "Creating..." : "Create Collection"}
-            </Button>
-            <Button variant="outline" href="/sources/{id}/collections">Cancel</Button>
-          </div>
-        </form>
-      </Card.Content>
-    </Card.Root>
+      <div class="flex gap-2 pt-2">
+        <Button type="submit" disabled={!!createCollection.pending}>
+          {createCollection.pending ? "Creating..." : "Create Collection"}
+        </Button>
+        <Button variant="outline" href="/sources/{id}">Cancel</Button>
+      </div>
+    </form>
   </div>
 {:else}
-  <div class="container mx-auto max-w-2xl p-6">
+  <div class="mx-auto max-w-xl px-4 py-8 sm:px-6">
     <Alert.Root variant="destructive">
       <Alert.Title>Source not found</Alert.Title>
-      <Alert.Description>
-        The source you're looking for doesn't exist or you don't have access to it.
-      </Alert.Description>
     </Alert.Root>
-    <div class="mt-4">
-      <Button href="/sources">Back to Sources</Button>
-    </div>
+    <Button href="/sources" class="mt-4">Back to Sources</Button>
   </div>
 {/if}

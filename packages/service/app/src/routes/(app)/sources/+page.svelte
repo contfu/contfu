@@ -1,7 +1,6 @@
 <script lang="ts">
   import { getSources, deleteSource } from "$lib/remote/sources.remote";
   import { Button } from "$lib/components/ui/button";
-  import * as Card from "$lib/components/ui/card";
   import * as Alert from "$lib/components/ui/alert";
 
   const sources = await getSources();
@@ -13,78 +12,80 @@
   };
 </script>
 
-<div class="container mx-auto max-w-5xl p-6">
+<div class="mx-auto max-w-4xl px-4 py-8 sm:px-6">
   <div class="mb-6 flex items-center justify-between">
-    <h1 class="text-2xl font-bold">Sources</h1>
+    <div>
+      <h1 class="text-2xl font-semibold tracking-tight">Sources</h1>
+      <p class="mt-1 text-sm text-muted-foreground">Manage your content sources</p>
+    </div>
     <Button href="/sources/new">Add Source</Button>
   </div>
 
   {#if sources.length === 0}
-    <Alert.Root>
-      <Alert.Title>No sources configured</Alert.Title>
-      <Alert.Description>
-        Add your first content source to start syncing data from Notion, Strapi, or the Web.
-      </Alert.Description>
-    </Alert.Root>
+    <div class="rounded-lg border border-dashed border-border p-12 text-center">
+      <p class="text-muted-foreground">No sources configured</p>
+      <p class="mt-1 text-sm text-muted-foreground">
+        Connect a CMS like Notion, Strapi, or a web source to start syncing content.
+      </p>
+      <Button href="/sources/new" class="mt-4">Add your first source</Button>
+    </div>
   {:else}
-    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {#each sources as source}
-        <Card.Root class="flex flex-col">
-          <Card.Header class="pb-2">
-            <div class="flex items-center justify-between">
-              <Card.Title>{source.name || "Unnamed Source"}</Card.Title>
-              <span
-                class="inline-flex rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-secondary-foreground"
-              >
-                {SOURCE_TYPE_LABELS[source.type] ?? "Unknown"}
-              </span>
-            </div>
-          </Card.Header>
-
-          <Card.Content class="flex-1">
-            <div class="space-y-2 text-sm text-muted-foreground">
-              <div class="flex items-center justify-between">
-                <span>Collections:</span>
-                <span class="font-medium text-foreground">{source.collectionCount}</span>
-              </div>
-              {#if source.url}
-                <div class="flex items-center justify-between">
-                  <span>URL:</span>
-                  <span class="max-w-[150px] truncate font-medium text-foreground" title={source.url}>
-                    {source.url}
-                  </span>
+    <div class="overflow-hidden rounded-lg border border-border">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-border bg-muted/50">
+            <th class="px-4 py-3 text-left font-medium text-muted-foreground">Name</th>
+            <th class="px-4 py-3 text-left font-medium text-muted-foreground">Type</th>
+            <th class="hidden px-4 py-3 text-left font-medium text-muted-foreground sm:table-cell">URL</th>
+            <th class="px-4 py-3 text-right font-medium text-muted-foreground">Collections</th>
+            <th class="px-4 py-3 text-right font-medium text-muted-foreground"></th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-border">
+          {#each sources as source}
+            <tr class="hover:bg-muted/30">
+              <td class="px-4 py-3">
+                <a href="/sources/{source.id}" class="font-medium hover:underline">
+                  {source.name || "Unnamed Source"}
+                </a>
+                <div class="mt-0.5 text-xs text-muted-foreground">
+                  Created {new Date(source.createdAt * 1000).toLocaleDateString()}
                 </div>
-              {/if}
-              <div class="flex items-center justify-between">
-                <span>Created:</span>
-                <span class="font-medium text-foreground">
-                  {new Date(source.createdAt * 1000).toLocaleDateString()}
+              </td>
+              <td class="px-4 py-3">
+                <span class="inline-flex items-center rounded-md bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
+                  {SOURCE_TYPE_LABELS[source.type] ?? "Unknown"}
                 </span>
-              </div>
-            </div>
-          </Card.Content>
-
-          <Card.Footer class="flex gap-2 pt-4">
-            <Button variant="outline" size="sm" href="/sources/{source.id}">Edit</Button>
-            <form method="post" action={deleteSource.action}>
-              <input type="hidden" name="id" value={source.id} />
-              <Button
-                variant="ghost"
-                size="sm"
-                type="submit"
-                class="text-destructive hover:text-destructive"
-                onclick={(e: MouseEvent) => {
-                  if (!confirm("Are you sure you want to delete this source? All associated collections will also be deleted.")) {
-                    e.preventDefault();
-                  }
-                }}
-              >
-                Delete
-              </Button>
-            </form>
-          </Card.Footer>
-        </Card.Root>
-      {/each}
+              </td>
+              <td class="hidden max-w-[200px] truncate px-4 py-3 text-muted-foreground sm:table-cell" title={source.url || ""}>
+                {source.url || "—"}
+              </td>
+              <td class="px-4 py-3 text-right font-mono">
+                {source.collectionCount}
+              </td>
+              <td class="px-4 py-3 text-right">
+                <div class="flex items-center justify-end gap-2">
+                  <a href="/sources/{source.id}" class="text-primary hover:underline">Edit</a>
+                  <form method="post" action={deleteSource.action} class="inline">
+                    <input type="hidden" name="id" value={source.id} />
+                    <button
+                      type="submit"
+                      class="text-destructive hover:underline"
+                      onclick={(e: MouseEvent) => {
+                        if (!confirm("Delete this source? All collections will also be deleted.")) {
+                          e.preventDefault();
+                        }
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
     </div>
   {/if}
 </div>

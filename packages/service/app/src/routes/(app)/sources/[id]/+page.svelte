@@ -11,7 +11,6 @@
   import { Button } from "$lib/components/ui/button";
   import { Input } from "$lib/components/ui/input";
   import { Label } from "$lib/components/ui/label";
-  import * as Card from "$lib/components/ui/card";
   import * as Alert from "$lib/components/ui/alert";
 
   const SOURCE_TYPE_LABELS: Record<number, string> = {
@@ -26,14 +25,8 @@
     2: "Basic Auth",
   };
 
-  /**
-   * Extract auth type from credentials buffer for Web sources.
-   * For Web sources, the first byte of credentials contains the authType.
-   */
   function getWebAuthType(credentials: Buffer | null): number {
-    if (!credentials || credentials.length === 0) {
-      return 0; // Default to None
-    }
+    if (!credentials || credentials.length === 0) return 0;
     return credentials[0];
   }
 
@@ -51,7 +44,6 @@
 
   async function handleTestConnection() {
     if (!source) return;
-
     testPending = true;
     testResult = null;
 
@@ -70,297 +62,203 @@
 
   function handleUpdateSuccess() {
     updateSuccess = true;
-    setTimeout(() => {
-      updateSuccess = false;
-    }, 3000);
+    setTimeout(() => { updateSuccess = false; }, 3000);
   }
 </script>
 
 {#if source}
-  <div class="container mx-auto max-w-2xl p-6">
+  <div class="mx-auto max-w-2xl px-4 py-8 sm:px-6">
     <div class="mb-6">
-      <a href="/sources" class="text-sm text-muted-foreground hover:text-foreground">
-        &larr; Back to Sources
-      </a>
+      <a href="/sources" class="text-sm text-muted-foreground hover:text-foreground">← Sources</a>
     </div>
 
-    <Card.Root>
-      <Card.Header>
-        <div class="flex items-center justify-between">
-          <div>
-            <Card.Title>Edit Source</Card.Title>
-            <Card.Description>
-              Update your {SOURCE_TYPE_LABELS[source.type] ?? "content"} source configuration.
-            </Card.Description>
-          </div>
-          <span
-            class="inline-flex rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-secondary-foreground"
-          >
-            {SOURCE_TYPE_LABELS[source.type] ?? "Unknown"}
-          </span>
+    <div class="mb-8">
+      <div class="flex items-center gap-3">
+        <h1 class="text-2xl font-semibold tracking-tight">{source.name || "Unnamed Source"}</h1>
+        <span class="rounded-md bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
+          {SOURCE_TYPE_LABELS[source.type] ?? "Unknown"}
+        </span>
+      </div>
+      <p class="mt-1 text-sm text-muted-foreground">Configure your content source</p>
+    </div>
+
+    <!-- Edit form -->
+    <section class="mb-8">
+      <form method="post" action={updateSource.action} class="space-y-4" onsubmit={() => {
+        if (updateSource.result?.success) handleUpdateSuccess();
+      }}>
+        <input type="hidden" name="id" value={source.id} />
+
+        <div class="space-y-1.5">
+          <Label for="name">Name</Label>
+          <Input id="name" name="name" type="text" placeholder="My Content Source" value={source.name ?? ""} />
+          {#if updateSource.fields?.name?.issues()?.length}
+            <p class="text-sm text-destructive">{updateSource.fields?.name?.issues()?.[0]?.message}</p>
+          {/if}
         </div>
-      </Card.Header>
 
-      <Card.Content>
-        <form
-          method="post"
-          action={updateSource.action}
-          class="space-y-6"
-          onsubmit={() => {
-            if (updateSource.result?.success) {
-              handleUpdateSuccess();
-            }
-          }}
-        >
-          <input type="hidden" name="id" value={source.id} />
-
-          <div class="space-y-2">
-            <Label for="name">Name</Label>
+        {#if source.type === 1 || source.type === 2}
+          <div class="space-y-1.5">
+            <Label for="url">{source.type === 1 ? "Strapi URL" : "Base URL"}</Label>
             <Input
-              id="name"
-              name="name"
-              type="text"
-              placeholder="My Content Source"
-              value={source.name ?? ""}
+              id="url"
+              name="url"
+              type="url"
+              placeholder={source.type === 1 ? "https://strapi.example.com" : "https://example.com"}
+              value={source.url ?? ""}
             />
-            {#if updateSource.fields?.name?.issues()?.length}
-              <p class="text-sm text-destructive">
-                {updateSource.fields?.name?.issues()?.[0]?.message}
-              </p>
+            {#if updateSource.fields?.url?.issues()?.length}
+              <p class="text-sm text-destructive">{updateSource.fields?.url?.issues()?.[0]?.message}</p>
             {/if}
           </div>
+        {/if}
 
-          {#if source.type === 1 || source.type === 2}
-            <div class="space-y-2">
-              <Label for="url">{source.type === 1 ? "Strapi URL" : "Base URL"}</Label>
-              <Input
-                id="url"
-                name="url"
-                type="url"
-                placeholder={source.type === 1 ? "https://strapi.example.com" : "https://example.com"}
-                value={source.url ?? ""}
-              />
-              <p class="text-sm text-muted-foreground">
-                {#if source.type === 1}
-                  The base URL of your Strapi instance.
-                {:else}
-                  The base URL of the website to fetch content from.
-                {/if}
-              </p>
-              {#if updateSource.fields?.url?.issues()?.length}
-                <p class="text-sm text-destructive">
-                  {updateSource.fields?.url?.issues()?.[0]?.message}
-                </p>
-              {/if}
+        {#if source.type === 2}
+          {@const authType = getWebAuthType(source.credentials)}
+          <div class="space-y-1.5">
+            <Label>Authentication</Label>
+            <div class="rounded-md border border-input bg-muted/50 px-3 py-2 text-sm">
+              {AUTH_TYPE_LABELS[authType] ?? "Unknown"}
             </div>
-          {/if}
-
-          {#if source.type === 2}
-            {@const authType = getWebAuthType(source.credentials)}
-            <div class="space-y-2">
-              <Label>Authentication</Label>
-              <div class="rounded-md border bg-muted/50 px-3 py-2 text-sm">
-                {AUTH_TYPE_LABELS[authType] ?? "Unknown"}
-              </div>
-              <p class="text-sm text-muted-foreground">
-                Authentication type cannot be changed. Create a new source to use a different auth method.
-              </p>
-            </div>
-          {/if}
-
-          {#if source.type !== 2 || getWebAuthType(source.credentials) !== 0}
-            {@const isWebWithAuth = source.type === 2 && getWebAuthType(source.credentials) !== 0}
-            {@const webAuthType = source.type === 2 ? getWebAuthType(source.credentials) : null}
-            <div class="space-y-2">
-              <Label for="_credentials">
-                {#if isWebWithAuth}
-                  {webAuthType === 1 ? "Bearer Token" : "Credentials"}
-                {:else}
-                  API Token
-                {/if}
-              </Label>
-              <Input
-                id="_credentials"
-                name="_credentials"
-                type="password"
-                placeholder={isWebWithAuth && webAuthType === 2
-                  ? "Leave blank to keep current credentials"
-                  : "Leave blank to keep current token"}
-              />
-              <p class="text-sm text-muted-foreground">
-                {#if isWebWithAuth && webAuthType === 1}
-                  Enter a new bearer token if you want to change it.
-                {:else if isWebWithAuth && webAuthType === 2}
-                  Enter new credentials in the format username:password if you want to change them.
-                {:else}
-                  Only enter a new token if you want to change it.
-                {/if}
-              </p>
-              {#if updateSource.fields?._credentials?.issues()?.length}
-                <p class="text-sm text-destructive">
-                  {updateSource.fields?._credentials?.issues()?.[0]?.message}
-                </p>
-              {/if}
-            </div>
-          {/if}
-
-          <div class="rounded-lg border bg-muted/50 p-4">
-            <h3 class="mb-2 text-sm font-medium">Source Information</h3>
-            <dl class="space-y-1 text-sm">
-              <div class="flex justify-between">
-                <dt class="text-muted-foreground">Collections:</dt>
-                <dd class="font-medium">{source.collectionCount}</dd>
-              </div>
-              {#if source.type === 2}
-                <div class="flex justify-between">
-                  <dt class="text-muted-foreground">Auth type:</dt>
-                  <dd class="font-medium">{AUTH_TYPE_LABELS[getWebAuthType(source.credentials)] ?? "Unknown"}</dd>
-                </div>
-              {/if}
-              <div class="flex justify-between">
-                <dt class="text-muted-foreground">Created:</dt>
-                <dd class="font-medium">
-                  {new Date(source.createdAt * 1000).toLocaleString()}
-                </dd>
-              </div>
-              {#if source.updatedAt}
-                <div class="flex justify-between">
-                  <dt class="text-muted-foreground">Last updated:</dt>
-                  <dd class="font-medium">
-                    {new Date(source.updatedAt * 1000).toLocaleString()}
-                  </dd>
-                </div>
-              {/if}
-            </dl>
+            <p class="text-xs text-muted-foreground">Create a new source to change auth method.</p>
           </div>
+        {/if}
 
-          {#if testResult}
-            <Alert.Root variant={testResult.success ? "default" : "destructive"}>
-              <Alert.Title>
-                {testResult.success ? "Connection successful" : "Connection failed"}
-              </Alert.Title>
-              <Alert.Description>{testResult.message}</Alert.Description>
-            </Alert.Root>
-          {/if}
-
-          {#if updateSuccess}
-            <Alert.Root>
-              <Alert.Title>Source updated</Alert.Title>
-              <Alert.Description>Your changes have been saved.</Alert.Description>
-            </Alert.Root>
-          {/if}
-
-          <div class="flex gap-3">
-            <Button type="submit" disabled={!!updateSource.pending}>
-              {updateSource.pending ? "Saving..." : "Save Changes"}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onclick={handleTestConnection}
-              disabled={testPending}
-            >
-              {testPending ? "Testing..." : "Test Connection"}
-            </Button>
+        {#if source.type !== 2 || getWebAuthType(source.credentials) !== 0}
+          {@const isWebWithAuth = source.type === 2 && getWebAuthType(source.credentials) !== 0}
+          {@const webAuthType = source.type === 2 ? getWebAuthType(source.credentials) : null}
+          <div class="space-y-1.5">
+            <Label for="_credentials">
+              {#if isWebWithAuth}
+                {webAuthType === 1 ? "Bearer Token" : "Credentials"}
+              {:else}
+                API Token
+              {/if}
+            </Label>
+            <Input
+              id="_credentials"
+              name="_credentials"
+              type="password"
+              placeholder="Leave blank to keep current"
+            />
+            {#if updateSource.fields?._credentials?.issues()?.length}
+              <p class="text-sm text-destructive">{updateSource.fields?._credentials?.issues()?.[0]?.message}</p>
+            {/if}
           </div>
-        </form>
-      </Card.Content>
+        {/if}
 
-      <Card.Footer class="border-t pt-6">
-        <div class="flex w-full items-center justify-between">
-          <div>
-            <h3 class="text-sm font-medium text-destructive">Danger Zone</h3>
-            <p class="text-sm text-muted-foreground">
-              Deleting this source will also delete all associated collections.
-            </p>
-          </div>
-          <form method="post" action={deleteSource.action}>
-            <input type="hidden" name="id" value={source.id} />
-            <Button
-              variant="destructive"
-              type="submit"
-              onclick={(e: MouseEvent) => {
-                if (
-                  !confirm(
-                    `Are you sure you want to delete "${source.name || "this source"}"? This action cannot be undone.`,
-                  )
-                ) {
-                  e.preventDefault();
-                }
-              }}
-            >
-              Delete Source
-            </Button>
-          </form>
+        <!-- Info block -->
+        <div class="rounded-md border border-border bg-muted/30 p-4">
+          <dl class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+            <dt class="text-muted-foreground">Collections</dt>
+            <dd class="text-right font-mono">{source.collectionCount}</dd>
+            <dt class="text-muted-foreground">Created</dt>
+            <dd class="text-right">{new Date(source.createdAt * 1000).toLocaleDateString()}</dd>
+            {#if source.updatedAt}
+              <dt class="text-muted-foreground">Updated</dt>
+              <dd class="text-right">{new Date(source.updatedAt * 1000).toLocaleDateString()}</dd>
+            {/if}
+          </dl>
         </div>
-      </Card.Footer>
-    </Card.Root>
 
-    <!-- Collections Section -->
-    <section class="mt-8">
-      <div class="mb-4 flex items-center justify-between">
-        <h2 class="text-lg font-semibold">Collections</h2>
+        {#if testResult}
+          <Alert.Root variant={testResult.success ? "default" : "destructive"}>
+            <Alert.Title>{testResult.success ? "Connection successful" : "Connection failed"}</Alert.Title>
+            <Alert.Description>{testResult.message}</Alert.Description>
+          </Alert.Root>
+        {/if}
+
+        {#if updateSuccess}
+          <Alert.Root>
+            <Alert.Title>Changes saved</Alert.Title>
+          </Alert.Root>
+        {/if}
+
+        <div class="flex gap-2">
+          <Button type="submit" disabled={!!updateSource.pending}>
+            {updateSource.pending ? "Saving..." : "Save"}
+          </Button>
+          <Button type="button" variant="outline" onclick={handleTestConnection} disabled={testPending}>
+            {testPending ? "Testing..." : "Test Connection"}
+          </Button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Collections section -->
+    <section class="mb-8">
+      <div class="mb-3 flex items-center justify-between">
+        <h2 class="text-sm font-medium uppercase tracking-wide text-muted-foreground">Collections</h2>
         <Button size="sm" href="/sources/{id}/collections/new">Add Collection</Button>
       </div>
 
       {#if collections.length === 0}
-        <Alert.Root>
-          <Alert.Title>No collections</Alert.Title>
-          <Alert.Description>
-            <a href="/sources/{id}/collections/new" class="underline">Add your first collection</a> to
-            start syncing content from this source.
-          </Alert.Description>
-        </Alert.Root>
-      {:else}
-        <div class="grid gap-4 sm:grid-cols-2">
-          {#each collections as collection}
-            <Card.Root class="flex flex-col">
-              <Card.Header class="pb-2">
-                <Card.Title class="text-base">{collection.name || "Unnamed Collection"}</Card.Title>
-              </Card.Header>
-
-              <Card.Content class="flex-1">
-                <div class="space-y-1 text-sm text-muted-foreground">
-                  <div class="flex items-center justify-between">
-                    <span>Connected clients:</span>
-                    <span class="font-medium text-foreground">{collection.connectionCount}</span>
-                  </div>
-                  <div class="flex items-center justify-between">
-                    <span>Created:</span>
-                    <span class="font-medium text-foreground">
-                      {new Date(collection.createdAt * 1000).toLocaleDateString()}
-                    </span>
-                  </div>
-                </div>
-              </Card.Content>
-
-              <Card.Footer class="pt-2">
-                <Button variant="outline" size="sm" href="/sources/{id}/collections/{collection.id}">
-                  Manage
-                </Button>
-              </Card.Footer>
-            </Card.Root>
-          {/each}
+        <div class="rounded-lg border border-dashed border-border p-8 text-center">
+          <p class="text-sm text-muted-foreground">No collections configured</p>
+          <Button variant="link" href="/sources/{id}/collections/new" class="mt-2">Add your first collection →</Button>
         </div>
-
-        <div class="mt-4">
-          <Button variant="link" href="/sources/{id}/collections" class="px-0">
-            View all collections &rarr;
-          </Button>
+      {:else}
+        <div class="overflow-hidden rounded-lg border border-border">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-border bg-muted/50">
+                <th class="px-4 py-2.5 text-left font-medium text-muted-foreground">Name</th>
+                <th class="px-4 py-2.5 text-right font-medium text-muted-foreground">Clients</th>
+                <th class="px-4 py-2.5 text-right font-medium text-muted-foreground"></th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-border">
+              {#each collections as collection}
+                <tr class="hover:bg-muted/30">
+                  <td class="px-4 py-3">
+                    <a href="/sources/{id}/collections/{collection.id}" class="font-medium hover:underline">
+                      {collection.name || "Unnamed"}
+                    </a>
+                  </td>
+                  <td class="px-4 py-3 text-right font-mono text-muted-foreground">
+                    {collection.connectionCount}
+                  </td>
+                  <td class="px-4 py-3 text-right">
+                    <a href="/sources/{id}/collections/{collection.id}" class="text-primary hover:underline">Edit</a>
+                  </td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
         </div>
       {/if}
     </section>
+
+    <!-- Danger zone -->
+    <section class="rounded-lg border border-destructive/30 p-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="text-sm font-medium">Delete source</h3>
+          <p class="text-sm text-muted-foreground">This will delete all collections.</p>
+        </div>
+        <form method="post" action={deleteSource.action}>
+          <input type="hidden" name="id" value={source.id} />
+          <Button
+            variant="destructive"
+            size="sm"
+            type="submit"
+            onclick={(e: MouseEvent) => {
+              if (!confirm(`Delete "${source.name || "this source"}"? This cannot be undone.`)) {
+                e.preventDefault();
+              }
+            }}
+          >
+            Delete
+          </Button>
+        </form>
+      </div>
+    </section>
   </div>
 {:else}
-  <div class="container mx-auto max-w-2xl p-6">
+  <div class="mx-auto max-w-2xl px-4 py-8 sm:px-6">
     <Alert.Root variant="destructive">
       <Alert.Title>Source not found</Alert.Title>
-      <Alert.Description>
-        The source you're looking for doesn't exist or you don't have access to it.
-      </Alert.Description>
     </Alert.Root>
-    <div class="mt-4">
-      <Button href="/sources">Back to Sources</Button>
-    </div>
+    <Button href="/sources" class="mt-4">Back to Sources</Button>
   </div>
 {/if}

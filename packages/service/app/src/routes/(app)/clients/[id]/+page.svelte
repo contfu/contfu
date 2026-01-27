@@ -16,7 +16,6 @@
   import { Button } from "$lib/components/ui/button";
   import { Input } from "$lib/components/ui/input";
   import { Label } from "$lib/components/ui/label";
-  import * as Card from "$lib/components/ui/card";
   import * as Alert from "$lib/components/ui/alert";
 
   const id = Number.parseInt(page.params.id ?? "", 10);
@@ -26,11 +25,9 @@
     goto("/clients");
   }
 
-  // Fetch connections and all collections for this client
   const connections = client ? await getConnectionsByConsumer({ consumerId: id }) : [];
   const allCollections = client ? await getCollections() : [];
 
-  // Get available collections (not already connected)
   const connectedCollectionIds = new Set(connections.map((c) => c.collectionId));
   const availableCollections = allCollections.filter((c) => !connectedCollectionIds.has(c.id));
 
@@ -41,15 +38,11 @@
 
   function handleUpdateSuccess() {
     updateSuccess = true;
-    setTimeout(() => {
-      updateSuccess = false;
-    }, 3000);
+    setTimeout(() => { updateSuccess = false; }, 3000);
   }
 
   $effect(() => {
-    if (updateConsumer.result?.success) {
-      handleUpdateSuccess();
-    }
+    if (updateConsumer.result?.success) handleUpdateSuccess();
   });
 
   function copyToClipboard(text: string) {
@@ -58,238 +51,160 @@
 </script>
 
 {#if client}
-  <div class="container mx-auto max-w-2xl p-6">
+  <div class="mx-auto max-w-2xl px-4 py-8 sm:px-6">
     <div class="mb-6">
-      <a href="/clients" class="text-sm text-muted-foreground hover:text-foreground">
-        &larr; Back to Clients
-      </a>
+      <a href="/clients" class="text-sm text-muted-foreground hover:text-foreground">← Clients</a>
     </div>
 
-    <Card.Root>
-      <Card.Header>
-        <div class="flex items-center justify-between">
-          <div>
-            <Card.Title>Edit Client</Card.Title>
-            <Card.Description>
-              Update your client configuration and manage collection access.
-            </Card.Description>
-          </div>
-        </div>
-      </Card.Header>
+    <div class="mb-8">
+      <h1 class="text-2xl font-semibold tracking-tight">{client.name || "Unnamed Client"}</h1>
+      <p class="mt-1 text-sm text-muted-foreground">Manage API access and collection connections</p>
+    </div>
 
-      <Card.Content>
-        <form
-          method="post"
-          action={updateConsumer.action}
-          class="space-y-6"
-        >
-          <input type="hidden" name="id" value={client.id} />
+    <!-- Edit form -->
+    <section class="mb-8">
+      <h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-muted-foreground">Settings</h2>
+      <form method="post" action={updateConsumer.action} class="space-y-4">
+        <input type="hidden" name="id" value={client.id} />
 
-          <div class="space-y-2">
-            <Label for="name">Name</Label>
-            <Input
-              id="name"
-              name="name"
-              type="text"
-              placeholder="My Application"
-              value={client.name ?? ""}
-            />
-            {#if updateConsumer.fields?.name?.issues()?.length}
-              <p class="text-sm text-destructive">
-                {updateConsumer.fields?.name?.issues()?.[0]?.message}
-              </p>
-            {/if}
-          </div>
-
-          <div class="rounded-lg border bg-muted/50 p-4">
-            <h3 class="mb-2 text-sm font-medium">Client Information</h3>
-            <dl class="space-y-1 text-sm">
-              <div class="flex justify-between">
-                <dt class="text-muted-foreground">Connected Collections:</dt>
-                <dd class="font-medium">{client.connectionCount}</dd>
-              </div>
-              <div class="flex justify-between">
-                <dt class="text-muted-foreground">Created:</dt>
-                <dd class="font-medium">
-                  {new Date(client.createdAt * 1000).toLocaleString()}
-                </dd>
-              </div>
-            </dl>
-          </div>
-
-          {#if updateSuccess}
-            <Alert.Root>
-              <Alert.Title>Client updated</Alert.Title>
-              <Alert.Description>Your changes have been saved.</Alert.Description>
-            </Alert.Root>
+        <div class="space-y-1.5">
+          <Label for="name">Name</Label>
+          <Input id="name" name="name" type="text" placeholder="My Application" value={client.name ?? ""} />
+          {#if updateConsumer.fields?.name?.issues()?.length}
+            <p class="text-sm text-destructive">{updateConsumer.fields?.name?.issues()?.[0]?.message}</p>
           {/if}
+        </div>
 
-          <div class="flex gap-3">
-            <Button type="submit" disabled={!!updateConsumer.pending}>
-              {updateConsumer.pending ? "Saving..." : "Save Changes"}
-            </Button>
-          </div>
-        </form>
-      </Card.Content>
-    </Card.Root>
+        <div class="rounded-md border border-border bg-muted/30 p-4">
+          <dl class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+            <dt class="text-muted-foreground">Connections</dt>
+            <dd class="text-right font-mono">{client.connectionCount}</dd>
+            <dt class="text-muted-foreground">Created</dt>
+            <dd class="text-right">{new Date(client.createdAt * 1000).toLocaleDateString()}</dd>
+          </dl>
+        </div>
 
-    <!-- API Key Section -->
-    <Card.Root class="mt-6">
-      <Card.Header>
-        <Card.Title>API Key</Card.Title>
-        <Card.Description>
-          Regenerate the API key for this client. The new key will only be shown once.
-        </Card.Description>
-      </Card.Header>
-      <Card.Content>
-        {#if regenerateKey.fields?.id?.issues()?.length}
-          <Alert.Root class="mb-4" variant="destructive">
-            <Alert.Title>API key regeneration failed</Alert.Title>
-            <Alert.Description>{regenerateKey.fields?.id?.issues()?.[0]?.message}</Alert.Description>
+        {#if updateSuccess}
+          <Alert.Root>
+            <Alert.Title>Changes saved</Alert.Title>
           </Alert.Root>
         {/if}
-        {#if regenerateKey.result?.key}
-          <Alert.Root class="mb-4">
-            <Alert.Title>New API Key Generated</Alert.Title>
-            <Alert.Description>
-              <p class="mb-2">
-                Copy this key now. It will not be shown again.
-              </p>
-              <div class="flex items-center gap-2">
-                <code class="flex-1 rounded bg-muted p-2 text-sm font-mono break-all">
-                  {regenerateKey.result.key}
-                </code>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onclick={() => copyToClipboard(regenerateKey.result!.key)}
-                >
-                  Copy
-                </Button>
-              </div>
-            </Alert.Description>
-          </Alert.Root>
-        {/if}
-        <form method="post" action={regenerateKey.action} class="inline-block">
+
+        <Button type="submit" disabled={!!updateConsumer.pending}>
+          {updateConsumer.pending ? "Saving..." : "Save"}
+        </Button>
+      </form>
+    </section>
+
+    <!-- API Key -->
+    <section class="mb-8">
+      <h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-muted-foreground">API Key</h2>
+      
+      {#if regenerateKey.result?.key}
+        <Alert.Root class="mb-4">
+          <Alert.Title>New API Key</Alert.Title>
+          <Alert.Description>
+            <p class="mb-2 text-xs">Copy this key now. It won't be shown again.</p>
+            <div class="flex items-center gap-2">
+              <code class="flex-1 rounded bg-muted p-2 font-mono text-xs break-all">
+                {regenerateKey.result.key}
+              </code>
+              <Button variant="outline" size="sm" onclick={() => copyToClipboard(regenerateKey.result!.key)}>
+                Copy
+              </Button>
+            </div>
+          </Alert.Description>
+        </Alert.Root>
+      {/if}
+
+      <div class="flex items-center justify-between rounded-md border border-border p-4">
+        <div>
+          <p class="text-sm font-medium">Regenerate key</p>
+          <p class="text-xs text-muted-foreground">Current key will be revoked</p>
+        </div>
+        <form method="post" action={regenerateKey.action}>
           <input type="hidden" name="id" value={client.id} />
-          <Button variant="outline" type="submit" disabled={!!regenerateKey.pending}>
-            {regenerateKey.pending ? "Regenerating..." : "Regenerate API Key"}
+          <Button variant="outline" size="sm" type="submit" disabled={!!regenerateKey.pending}>
+            {regenerateKey.pending ? "..." : "Regenerate"}
           </Button>
         </form>
-        <p class="mt-2 text-sm text-muted-foreground">
-          Warning: Regenerating the API key will invalidate the current key. Any applications using the old key will need to be updated.
-        </p>
-      </Card.Content>
-    </Card.Root>
+      </div>
+    </section>
 
-    <!-- Collections Section -->
-    <Card.Root class="mt-6">
-      <Card.Header>
-        <Card.Title>Connected Collections</Card.Title>
-        <Card.Description>
-          Manage which collections this client can access.
-        </Card.Description>
-      </Card.Header>
-      <Card.Content>
-        {#if connections.length === 0}
-          <p class="text-sm text-muted-foreground">
-            No collections connected. Add a collection below to grant access.
-          </p>
-        {:else}
-          <div class="space-y-2">
-            {#each connections as connection}
-              <div class="flex items-center justify-between rounded-lg border p-3">
-                <span class="font-medium">{connection.collectionName}</span>
-                <form method="post" action={removeConnection.action}>
-                  <input type="hidden" name="consumerId" value={client.id} />
-                  <input type="hidden" name="collectionId" value={connection.collectionId} />
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    type="submit"
-                    class="text-destructive hover:text-destructive"
-                  >
-                    Remove
-                  </Button>
-                </form>
-              </div>
-            {/each}
-          </div>
-        {/if}
+    <!-- Connections -->
+    <section class="mb-8">
+      <h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-muted-foreground">Collections</h2>
 
-        {#if availableCollections.length > 0}
-          <form method="post" action={addConnection.action} class="mt-4 flex gap-2">
-            <input type="hidden" name="consumerId" value={client.id} />
-            <select
-              name="collectionId"
-              class="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
-              bind:value={selectedCollectionId}
-            >
-              {#each availableCollections as collection}
-                <option value={collection.id}>{collection.name}</option>
-              {/each}
-            </select>
-            <Button type="submit" variant="outline">
-              Add Collection
-            </Button>
-          </form>
-        {:else if connections.length > 0}
-          <p class="mt-4 text-sm text-muted-foreground">
-            All available collections are already connected.
-          </p>
-        {:else if allCollections.length === 0}
-          <p class="mt-4 text-sm text-muted-foreground">
-            No collections available. Create collections in your sources first.
-          </p>
-        {/if}
-      </Card.Content>
-    </Card.Root>
-
-    <!-- Danger Zone -->
-    <Card.Root class="mt-6 border-destructive/50">
-      <Card.Header>
-        <Card.Title class="text-destructive">Danger Zone</Card.Title>
-      </Card.Header>
-      <Card.Content>
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm font-medium">Delete this client</p>
-            <p class="text-sm text-muted-foreground">
-              This will permanently delete the client and revoke its API key.
-            </p>
-          </div>
-          <form method="post" action={deleteConsumer.action}>
-            <input type="hidden" name="id" value={client.id} />
-            <Button
-              variant="destructive"
-              type="submit"
-              onclick={(e: MouseEvent) => {
-                if (
-                  !confirm(
-                    `Are you sure you want to delete "${client.name || "this client"}"? This action cannot be undone.`,
-                  )
-                ) {
-                  e.preventDefault();
-                }
-              }}
-            >
-              Delete Client
-            </Button>
-          </form>
+      {#if connections.length === 0}
+        <p class="mb-4 text-sm text-muted-foreground">No collections connected.</p>
+      {:else}
+        <div class="mb-4 divide-y divide-border rounded-md border border-border">
+          {#each connections as connection}
+            <div class="flex items-center justify-between px-4 py-3">
+              <span class="text-sm font-medium">{connection.collectionName}</span>
+              <form method="post" action={removeConnection.action}>
+                <input type="hidden" name="consumerId" value={client.id} />
+                <input type="hidden" name="collectionId" value={connection.collectionId} />
+                <button type="submit" class="text-sm text-destructive hover:underline">
+                  Remove
+                </button>
+              </form>
+            </div>
+          {/each}
         </div>
-      </Card.Content>
-    </Card.Root>
+      {/if}
+
+      {#if availableCollections.length > 0}
+        <form method="post" action={addConnection.action} class="flex gap-2">
+          <input type="hidden" name="consumerId" value={client.id} />
+          <select
+            name="collectionId"
+            class="flex-1 rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+            bind:value={selectedCollectionId}
+          >
+            {#each availableCollections as collection}
+              <option value={collection.id}>{collection.name}</option>
+            {/each}
+          </select>
+          <Button type="submit" variant="outline" size="sm">Add</Button>
+        </form>
+      {:else if allCollections.length === 0}
+        <p class="text-sm text-muted-foreground">No collections available. Create collections in your sources first.</p>
+      {:else}
+        <p class="text-sm text-muted-foreground">All collections are connected.</p>
+      {/if}
+    </section>
+
+    <!-- Danger zone -->
+    <section class="rounded-lg border border-destructive/30 p-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="text-sm font-medium">Delete client</h3>
+          <p class="text-sm text-muted-foreground">API key will be revoked.</p>
+        </div>
+        <form method="post" action={deleteConsumer.action}>
+          <input type="hidden" name="id" value={client.id} />
+          <Button
+            variant="destructive"
+            size="sm"
+            type="submit"
+            onclick={(e: MouseEvent) => {
+              if (!confirm(`Delete "${client.name || "this client"}"?`)) {
+                e.preventDefault();
+              }
+            }}
+          >
+            Delete
+          </Button>
+        </form>
+      </div>
+    </section>
   </div>
 {:else}
-  <div class="container mx-auto max-w-2xl p-6">
+  <div class="mx-auto max-w-2xl px-4 py-8 sm:px-6">
     <Alert.Root variant="destructive">
       <Alert.Title>Client not found</Alert.Title>
-      <Alert.Description>
-        The client you're looking for doesn't exist or you don't have access to it.
-      </Alert.Description>
     </Alert.Root>
-    <div class="mt-4">
-      <Button href="/clients">Back to Clients</Button>
-    </div>
+    <Button href="/clients" class="mt-4">Back to Clients</Button>
   </div>
 {/if}

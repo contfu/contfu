@@ -1,73 +1,77 @@
 <script lang="ts">
   import { getConsumers, deleteConsumer } from "$lib/remote/consumers.remote";
   import { Button } from "$lib/components/ui/button";
-  import * as Card from "$lib/components/ui/card";
-  import * as Alert from "$lib/components/ui/alert";
 
   const clients = await getConsumers();
 </script>
 
-<div class="container mx-auto max-w-5xl p-6">
+<div class="mx-auto max-w-4xl px-4 py-8 sm:px-6">
   <div class="mb-6 flex items-center justify-between">
-    <h1 class="text-2xl font-bold">Clients</h1>
+    <div>
+      <h1 class="text-2xl font-semibold tracking-tight">Clients</h1>
+      <p class="mt-1 text-sm text-muted-foreground">Manage API access for your applications</p>
+    </div>
     <Button href="/clients/new">Add Client</Button>
   </div>
 
   {#if clients.length === 0}
-    <Alert.Root>
-      <Alert.Title>No clients configured</Alert.Title>
-      <Alert.Description>
-        Add your first client to generate an API key for accessing synced content.
-      </Alert.Description>
-    </Alert.Root>
+    <div class="rounded-lg border border-dashed border-border p-12 text-center">
+      <p class="text-muted-foreground">No clients configured</p>
+      <p class="mt-1 text-sm text-muted-foreground">
+        Create a client to generate an API key for accessing your synced content.
+      </p>
+      <Button href="/clients/new" class="mt-4">Add your first client</Button>
+    </div>
   {:else}
-    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {#each clients as client}
-        <Card.Root class="flex flex-col">
-          <Card.Header class="pb-2">
-            <div class="flex items-center justify-between">
-              <Card.Title>{client.name || "Unnamed Client"}</Card.Title>
-            </div>
-          </Card.Header>
-
-          <Card.Content class="flex-1">
-            <div class="space-y-2 text-sm text-muted-foreground">
-              <div class="flex items-center justify-between">
-                <span>Connections:</span>
-                <span class="font-medium text-foreground">{client.connectionCount}</span>
-              </div>
-              <div class="flex items-center justify-between">
-                <span>Created:</span>
-                <span class="font-medium text-foreground">
-                  {Number.isFinite(client.createdAt)
-                    ? new Date(client.createdAt * 1000).toLocaleDateString()
-                    : "—"}
-                </span>
-              </div>
-            </div>
-          </Card.Content>
-
-          <Card.Footer class="flex gap-2 pt-4">
-            <Button variant="outline" size="sm" href="/clients/{client.id}">Edit</Button>
-            <form method="post" action={deleteConsumer.action}>
-              <input type="hidden" name="id" value={client.id} />
-              <Button
-                variant="ghost"
-                size="sm"
-                type="submit"
-                class="text-destructive hover:text-destructive"
-                onclick={(e: MouseEvent) => {
-                  if (!confirm("Are you sure you want to delete this client? All associated connections will also be deleted.")) {
-                    e.preventDefault();
-                  }
-                }}
-              >
-                Delete
-              </Button>
-            </form>
-          </Card.Footer>
-        </Card.Root>
-      {/each}
+    <div class="overflow-hidden rounded-lg border border-border">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-border bg-muted/50">
+            <th class="px-4 py-3 text-left font-medium text-muted-foreground">Name</th>
+            <th class="px-4 py-3 text-right font-medium text-muted-foreground">Connections</th>
+            <th class="hidden px-4 py-3 text-left font-medium text-muted-foreground sm:table-cell">Created</th>
+            <th class="px-4 py-3 text-right font-medium text-muted-foreground"></th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-border">
+          {#each clients as client}
+            <tr class="hover:bg-muted/30">
+              <td class="px-4 py-3">
+                <a href="/clients/{client.id}" class="font-medium hover:underline">
+                  {client.name || "Unnamed Client"}
+                </a>
+              </td>
+              <td class="px-4 py-3 text-right font-mono">
+                {client.connectionCount}
+              </td>
+              <td class="hidden px-4 py-3 text-muted-foreground sm:table-cell">
+                {Number.isFinite(client.createdAt)
+                  ? new Date(client.createdAt * 1000).toLocaleDateString()
+                  : "—"}
+              </td>
+              <td class="px-4 py-3 text-right">
+                <div class="flex items-center justify-end gap-2">
+                  <a href="/clients/{client.id}" class="text-primary hover:underline">Edit</a>
+                  <form method="post" action={deleteConsumer.action} class="inline">
+                    <input type="hidden" name="id" value={client.id} />
+                    <button
+                      type="submit"
+                      class="text-destructive hover:underline"
+                      onclick={(e: MouseEvent) => {
+                        if (!confirm("Delete this client? The API key will be revoked.")) {
+                          e.preventDefault();
+                        }
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
     </div>
   {/if}
 </div>
