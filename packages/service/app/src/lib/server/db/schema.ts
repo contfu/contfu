@@ -139,6 +139,8 @@ export const sourceTable = sqliteTable(
     credentials: blob({ mode: "buffer" }),
     /** The type of the source. */
     type: integer().notNull(),
+    /** Webhook secret for validating incoming webhooks (optional). */
+    webhookSecret: blob({ mode: "buffer" }),
     /** The date the source was created. */
     createdAt: integer()
       .default(sql`(unixepoch())`)
