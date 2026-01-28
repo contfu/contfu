@@ -51,11 +51,11 @@ function pull(opts: NotionFetchOpts, filter?: DbQuery["filter"]) {
 // notion-items.ts
 function parseItem(page: PageObjectResponse, collection: number, content?: Block[]): Item {
   const props = parseProps(page.properties);
-  
+
   // Handle icon and cover
   if (page.icon && page.icon.type !== "emoji") props.icon = getImageUrl(page.icon);
   if (page.cover) props.cover = getImageUrl(page.cover);
-  
+
   return {
     id: genUid(uuidToBuffer(page.id)),
     ref: uuidToBuffer(page.id),
@@ -70,41 +70,41 @@ function parseItem(page: PageObjectResponse, collection: number, content?: Block
 
 ## Property Type Mapping
 
-| Notion Type | Contfu Type | Notes |
-|------------|-------------|-------|
-| title | string | Concatenate rich text |
-| rich_text | string | Concatenate plain text |
-| number | number | Direct |
-| date | number | Unix timestamp (ms) |
-| select | string | Option name |
-| multi_select | string[] | Option names |
-| checkbox | boolean | Direct |
-| url | string | Direct |
-| email | string | Direct |
-| phone_number | string | Direct |
-| relation | Buffer[] | Referenced item IDs |
-| files | string[] | File URLs |
-| status | string | Status name |
-| created_time | number | Unix timestamp |
-| last_edited_time | number | Unix timestamp |
+| Notion Type      | Contfu Type | Notes                  |
+| ---------------- | ----------- | ---------------------- |
+| title            | string      | Concatenate rich text  |
+| rich_text        | string      | Concatenate plain text |
+| number           | number      | Direct                 |
+| date             | number      | Unix timestamp (ms)    |
+| select           | string      | Option name            |
+| multi_select     | string[]    | Option names           |
+| checkbox         | boolean     | Direct                 |
+| url              | string      | Direct                 |
+| email            | string      | Direct                 |
+| phone_number     | string      | Direct                 |
+| relation         | Buffer[]    | Referenced item IDs    |
+| files            | string[]    | File URLs              |
+| status           | string      | Status name            |
+| created_time     | number      | Unix timestamp         |
+| last_edited_time | number      | Unix timestamp         |
 
 ## Pagination Pattern
 
 ```typescript
 async function* iterateDb(credentials: Buffer, dbId: Buffer, params: DbQuery) {
   let startCursor: string | undefined;
-  
+
   do {
     const response = await notion.databases.query({
       database_id: bufferToUuid(dbId),
       ...params,
       start_cursor: startCursor,
     });
-    
+
     for (const page of response.results) {
       if (page.object === "page") yield page;
     }
-    
+
     startCursor = response.has_more ? response.next_cursor : undefined;
   } while (startCursor);
 }

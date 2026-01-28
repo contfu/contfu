@@ -44,6 +44,7 @@ contfu/
 Shared types and interfaces. No runtime dependencies.
 
 Key exports:
+
 - `Item`, `PageProps`, `ContentBlock` — Content types
 - `CollectionSchema` — Schema definitions
 - `Command`, `Event` — WebSocket protocol
@@ -60,6 +61,7 @@ bun test             # Run tests
 ```
 
 Key files:
+
 - `src/server.ts` — Elysia app setup
 - `src/sources/` — CMS adapters (Notion, Strapi)
 - `src/db/schema.ts` — Drizzle schema
@@ -76,6 +78,7 @@ bun run check        # Type check
 ```
 
 Key files:
+
 - `src/routes/` — SvelteKit routes
 - `src/lib/` — Shared components/utilities
 - `src/db/schema.ts` — Drizzle schema
@@ -143,11 +146,11 @@ Messages use msgpackr serialization.
 // Item event: [type, collection, id, createdAt, changedAt, [ref, props, content?]]
 type ItemEvent = [
   EventType.Item,
-  number,           // collection
-  Buffer,           // id
-  number,           // createdAt
-  number,           // changedAt
-  [Buffer, PageProps, ContentBlock[]?]
+  number, // collection
+  Buffer, // id
+  number, // createdAt
+  number, // changedAt
+  [Buffer, PageProps, ContentBlock[]?],
 ];
 ```
 
@@ -157,7 +160,7 @@ type ItemEvent = [
 type Command =
   | { type: "subscribe"; collections: number[] }
   | { type: "unsubscribe"; collections: number[] }
-  | { type: "sync"; collection: number; since?: number }
+  | { type: "sync"; collection: number; since?: number };
 ```
 
 ## Docker Development
@@ -172,6 +175,7 @@ docker-compose up app
 ```
 
 Dockerfile targets:
+
 - `migrator` — Run migrations
 - `sync` — Sync service (port 3000)
 - `app` — Web app (port 3000)

@@ -50,14 +50,18 @@ Let type do the heavy lifting. Invest in hierarchy.
 
 ```css
 /* System with personality */
---font-display: 'Inter', system-ui;  /* Or: Söhne, Geist, Satoshi */
---font-mono: 'JetBrains Mono', monospace;
+--font-display: "Inter", system-ui; /* Or: Söhne, Geist, Satoshi */
+--font-mono: "JetBrains Mono", monospace;
 
 /* Tight tracking for headings */
-.heading { letter-spacing: -0.02em; }
+.heading {
+  letter-spacing: -0.02em;
+}
 
 /* Generous line-height for body */
-.body { line-height: 1.6; }
+.body {
+  line-height: 1.6;
+}
 ```
 
 ### 3. Intentional Color
@@ -88,7 +92,7 @@ Animation should provide feedback, not decoration.
 ```svelte
 <!-- Subtle, functional transitions -->
 <button class="transition-colors duration-150 hover:bg-zinc-100">
-  
+
 <!-- Not this -->
 <button class="animate-pulse hover:scale-110 transition-all duration-500">
 ```
@@ -175,7 +179,7 @@ Clean sidebar, no icons unless necessary.
   </div>
   <ul class="space-y-0.5">
     <li>
-      <a href="/collections" class="block px-4 py-1.5 text-sm hover:bg-zinc-100 
+      <a href="/collections" class="block px-4 py-1.5 text-sm hover:bg-zinc-100
         {$page.url.pathname === '/collections' ? 'bg-zinc-100 font-medium' : 'text-zinc-600'}">
         Collections
       </a>

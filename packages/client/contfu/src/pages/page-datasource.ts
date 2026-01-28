@@ -1,13 +1,18 @@
 import { and, desc, eq, or } from "drizzle-orm";
-import { MarkOptional } from "ts-essentials";
+import type { MarkOptional } from "ts-essentials";
 import { db } from "../db/db";
 import { itemsTable, linkTable, type DbItem, type ItemUpdate, type NewItem } from "../db/schema";
+import {
+  getCollectionId,
+  getCollectionName,
+  getOrCreateCollection,
+} from "../features/collections/collection-datasource";
 import { deleteNulls } from "../util/object-helpers";
 import type { PageData } from "./pages";
 
 export async function getPages(ctx = db): Promise<PageData[]> {
   const dbos = await ctx.select().from(itemsTable).all();
-  return dbos.map((dbo) => pageFromDb(dbo));
+  return Promise.all(dbos.map((dbo) => pageFromDb(dbo, undefined, ctx)));
 }
 
 export async function getPage(
@@ -24,7 +29,7 @@ export async function getPage(
       ),
     )
     .all();
-  return dbos.length > 0 ? pageFromDb(dbos[0]) : null;
+  return dbos.length > 0 ? pageFromDb(dbos[0], undefined, ctx) : null;
 }
 
 export async function getLastChangedPage(
@@ -32,16 +37,19 @@ export async function getLastChangedPage(
   collection: string,
   ctx = db,
 ): Promise<Omit<PageData, "links"> | null> {
+  const collectionId = await getCollectionId(collection, ctx);
+  if (collectionId === null) return null;
+
   const dbo = await ctx
     .select()
     .from(itemsTable)
     .where(
-      and(eq(itemsTable.connection, fromHex(connection)), eq(itemsTable.collection, collection)),
+      and(eq(itemsTable.connection, fromHex(connection)), eq(itemsTable.collection, collectionId)),
     )
     .orderBy(desc(itemsTable.changedAt))
     .limit(1)
     .all();
-  return dbo.length > 0 ? pageFromDb(dbo[0]) : null;
+  return dbo.length > 0 ? pageFromDb(dbo[0], undefined, ctx) : null;
 }
 
 export async function createOrUpdatePage<T extends Omit<PageData, "links">>(
@@ -64,14 +72,14 @@ export async function createOrUpdatePage<T extends Omit<PageData, "links">>(
 }
 
 export async function createPage<T extends Omit<PageData, "links">>(page: T, ctx = db): Promise<T> {
-  await ctx.insert(itemsTable).values(pageToDb(page) as NewItem);
+  await ctx.insert(itemsTable).values((await pageToDb(page, ctx)) as NewItem);
   return page;
 }
 
 export async function updatePage<T extends Omit<PageData, "links">>(page: T, ctx = db): Promise<T> {
   await ctx
     .update(itemsTable)
-    .set(pageToDb(page))
+    .set(await pageToDb(page, ctx))
     .where(eq(itemsTable.id, fromHex(page.id)));
   return page;
 }
@@ -99,11 +107,14 @@ export async function deletePagesByIds(connection: string, ids: string[], ctx = 
 }
 
 export async function getPageIdsByCollection(connection: string, collection: string, ctx = db) {
+  const collectionId = await getCollectionId(collection, ctx);
+  if (collectionId === null) return [];
+
   const dbos = await ctx
     .select()
     .from(itemsTable)
     .where(
-      and(eq(itemsTable.connection, fromHex(connection)), eq(itemsTable.collection, collection)),
+      and(eq(itemsTable.connection, fromHex(connection)), eq(itemsTable.collection, collectionId)),
     )
     .all();
   return dbos.map((dbo) => toHex(dbo.id));
@@ -152,15 +163,17 @@ export async function deletePageLinksByRef(id: string, ctx = db) {
   await ctx.delete(linkTable).where(or(eq(linkTable.from, idBlob), eq(linkTable.to, idBlob)));
 }
 
-function pageToDb<T extends PageData | MarkOptional<PageData, "links">>({
-  links: _links,
-  ...page
-}: T): ItemUpdate | NewItem {
+async function pageToDb<T extends PageData | MarkOptional<PageData, "links">>(
+  page: T,
+  ctx = db,
+): Promise<ItemUpdate | NewItem> {
+  const { links: _links, ...rest } = page;
+  const collectionId = page.collection ? await getOrCreateCollection(page.collection, ctx) : null;
   return {
-    ...page,
+    ...rest,
     id: fromHex(page.id),
     connection: fromHex(page.connection),
-    collection: page.collection ?? null,
+    collection: collectionId,
     content: page.content ? JSON.stringify(page.content) : null,
     props: page.props ? JSON.stringify(page.props) : null,
     author: page.author ? JSON.stringify(page.author) : null,
@@ -168,14 +181,17 @@ function pageToDb<T extends PageData | MarkOptional<PageData, "links">>({
   } satisfies ItemUpdate as any;
 }
 
-function pageFromDb(
+async function pageFromDb(
   dbo: DbItem,
   links?: Record<string, string[]> & { content: string[] },
-): PageData {
+  ctx = db,
+): Promise<PageData> {
+  const collectionName = dbo.collection ? await getCollectionName(dbo.collection, ctx) : "";
   return deleteNulls({
     ...dbo,
     id: toHex(dbo.id),
     connection: toHex(dbo.connection),
+    collection: collectionName,
     content: dbo.content && JSON.parse(dbo.content),
     props: dbo.props && JSON.parse(dbo.props),
     author: dbo.author && JSON.parse(dbo.author),

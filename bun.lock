@@ -113,10 +113,10 @@
       "name": "contfu",
       "version": "0.0.1",
       "dependencies": {
+        "@contfu/client": "workspace:*",
         "drizzle-orm": "^1.0.0-beta.12-a5629fb",
       },
       "devDependencies": {
-        "@contfu/client": "workspace:*",
         "@contfu/core": "workspace:*",
         "@types/bun": "*",
         "drizzle-kit": "^1.0.0-beta.12-a5629fb",

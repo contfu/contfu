@@ -1,8 +1,8 @@
-import type { RequestHandler } from "./$types";
+import { collectionTable, connectionTable, db, sourceTable } from "$lib/server/db/db";
 import { SourceType } from "@contfu/core";
-import { db, sourceTable, collectionTable, connectionTable } from "$lib/server/db/db";
 import { and, eq, sql } from "drizzle-orm";
 import crypto from "node:crypto";
+import type { RequestHandler } from "./$types";
 
 /** Strapi webhook event types we handle. */
 type StrapiEvent =
@@ -32,11 +32,7 @@ interface StrapiWebhookPayload {
  * Validates HMAC signature if webhook secret is configured.
  * Uses X-Strapi-Signature header (custom) or validates timestamp + payload.
  */
-function validateSignature(
-  body: string,
-  headers: Headers,
-  secret: string | null,
-): boolean {
+function validateSignature(body: string, headers: Headers, secret: string | null): boolean {
   if (!secret) return true; // No secret configured, skip validation
 
   const signature = headers.get("x-strapi-signature") || headers.get("x-webhook-signature");
@@ -76,14 +72,19 @@ export const POST: RequestHandler = async ({ request, params }) => {
 
   // Validate required fields
   if (!payload.event || !payload.model || !payload.entry) {
-    console.error("[Strapi webhook] Missing required fields:", { event: payload.event, model: payload.model });
+    console.error("[Strapi webhook] Missing required fields:", {
+      event: payload.event,
+      model: payload.model,
+    });
     return new Response("Missing required fields", { status: 400 });
   }
 
   // Get the event type from header (more reliable than payload)
   const eventType = request.headers.get("x-strapi-event") || payload.event;
 
-  console.log(`[Strapi webhook] Received ${eventType} for model "${payload.model}", entry ${payload.entry.id}`);
+  console.log(
+    `[Strapi webhook] Received ${eventType} for model "${payload.model}", entry ${payload.entry.id}`,
+  );
 
   // Find the source and verify it's a Strapi source
   // We need to find by URL since webhooks come from the Strapi instance
@@ -111,7 +112,9 @@ export const POST: RequestHandler = async ({ request, params }) => {
     if (source.webhookSecret) {
       const webhookSecret = source.webhookSecret.toString("utf8");
       if (!validateSignature(body, request.headers, webhookSecret)) {
-        console.error(`[Strapi webhook] Invalid signature for source ${source.userId}:${source.id}`);
+        console.error(
+          `[Strapi webhook] Invalid signature for source ${source.userId}:${source.id}`,
+        );
         continue; // Skip this source, try others
       }
     }
@@ -133,7 +136,9 @@ export const POST: RequestHandler = async ({ request, params }) => {
       );
 
     if (collections.length === 0) {
-      console.log(`[Strapi webhook] No collections found for content type "${contentTypeUid}" in source ${source.userId}:${source.id}`);
+      console.log(
+        `[Strapi webhook] No collections found for content type "${contentTypeUid}" in source ${source.userId}:${source.id}`,
+      );
       continue;
     }
 

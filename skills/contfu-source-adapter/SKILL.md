@@ -19,10 +19,10 @@ interface Source<T extends CollectionFetchOpts = CollectionFetchOpts> {
 
 type CollectionFetchOpts = {
   collection: number;
-  ref?: Buffer;           // Upstream collection reference
-  url?: string;           // API URL (self-hosted sources)
-  credentials?: Buffer;   // API key or token
-  since?: number;         // Incremental sync cursor
+  ref?: Buffer; // Upstream collection reference
+  url?: string; // API URL (self-hosted sources)
+  credentials?: Buffer; // API key or token
+  since?: number; // Incremental sync cursor
 };
 ```
 
@@ -62,12 +62,16 @@ Transform CMS content to these block types (from `@contfu/core`):
 type ContentBlock =
   | { type: "paragraph"; content: RichText[] }
   | { type: "heading_1" | "heading_2" | "heading_3"; content: RichText[] }
-  | { type: "bulleted_list_item" | "numbered_list_item"; content: RichText[]; children?: ContentBlock[] }
+  | {
+      type: "bulleted_list_item" | "numbered_list_item";
+      content: RichText[];
+      children?: ContentBlock[];
+    }
   | { type: "code"; content: RichText[]; language?: string }
   | { type: "quote"; content: RichText[] }
   | { type: "image"; url: string; caption?: RichText[] }
   | { type: "divider" }
-  | { type: "table"; rows: TableRow[] }
+  | { type: "table"; rows: TableRow[] };
 ```
 
 ## Example: Minimal Adapter
@@ -84,7 +88,7 @@ export class MySource implements Source<MyFetchOpts> {
   async *fetch(opts: MyFetchOpts): AsyncGenerator<Item> {
     const client = new MyClient(opts.credentials);
     let cursor = opts.since;
-    
+
     while (true) {
       const { items, nextCursor } = await client.getItems({ cursor });
       for (const raw of items) {
@@ -128,6 +132,7 @@ bun test src/sources/{cms-name}/
 ```
 
 Write tests for:
+
 - Pagination handling
 - Block transformation edge cases
 - Error handling (rate limits, auth failures)

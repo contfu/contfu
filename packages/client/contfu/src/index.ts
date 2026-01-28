@@ -83,6 +83,11 @@ export {
 
 // Utility exports
 export { countAssets } from "./features/assets/countAssets";
+export {
+  getCollectionId,
+  getCollectionName,
+  getOrCreateCollection,
+} from "./features/collections/collection-datasource";
 export { countCollections } from "./features/collections/countCollections";
 export { countItems } from "./features/items/countItems";
 export { hashId } from "./util/crypto";

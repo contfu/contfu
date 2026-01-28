@@ -12,6 +12,7 @@ Design effective content schemas for syncing CMS content.
 ### Collections
 
 A **Collection** maps to a content type in the upstream CMS:
+
 - Notion: Database
 - Strapi: Content Type
 - Contentful: Content Type
@@ -20,6 +21,7 @@ A **Collection** maps to a content type in the upstream CMS:
 ### Items
 
 An **Item** is a single content entry with:
+
 - `id` — Unique Contfu identifier (generated)
 - `ref` — Original CMS identifier (Buffer)
 - `collection` — Collection ID
@@ -29,24 +31,24 @@ An **Item** is a single content entry with:
 
 ### Properties vs Content
 
-| Use Properties For | Use Content For |
-|-------------------|-----------------|
-| Metadata (title, slug, date) | Long-form text |
-| Taxonomy (categories, tags) | Rich text with formatting |
-| Settings (published, featured) | Nested structures |
-| References (author, related) | Mixed media blocks |
-| Media URLs (thumbnail, cover) | Tables, code blocks |
+| Use Properties For             | Use Content For           |
+| ------------------------------ | ------------------------- |
+| Metadata (title, slug, date)   | Long-form text            |
+| Taxonomy (categories, tags)    | Rich text with formatting |
+| Settings (published, featured) | Nested structures         |
+| References (author, related)   | Mixed media blocks        |
+| Media URLs (thumbnail, cover)  | Tables, code blocks       |
 
 ## Property Types
 
 ```typescript
 type PropertyValue =
-  | string           // Text, URL, email
-  | number           // Numbers, timestamps
-  | boolean          // Checkboxes
-  | string[]         // Multi-select, tags
-  | number[]         // Number arrays
-  | Buffer[]         // Relations (item refs)
+  | string // Text, URL, email
+  | number // Numbers, timestamps
+  | boolean // Checkboxes
+  | string[] // Multi-select, tags
+  | number[] // Number arrays
+  | Buffer[]; // Relations (item refs)
 ```
 
 ## Schema Definition
@@ -78,7 +80,7 @@ type ContentBlock =
   | { type: "file"; url: string; name?: string }
   | { type: "divider" }
   | { type: "table"; rows: TableRow[] }
-  | { type: "toggle"; content: RichText[]; children?: ContentBlock[] }
+  | { type: "toggle"; content: RichText[]; children?: ContentBlock[] };
 
 type RichText = {
   text: string;
@@ -170,7 +172,7 @@ type RichText = {
 
 ```typescript
 // Page collection
-{ 
+{
   title: string,
   parent: Buffer[],   // Reference to another page
   order: number,      // Sort within parent

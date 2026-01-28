@@ -1,19 +1,25 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "f0317484-daab-4631-a931-653ee1da7487",
-  "prevIds": ["00000000-0000-0000-0000-000000000000"],
+  "id": "9dba26f3-3e2c-4203-bc10-b0fe4c82ffc1",
+  "prevIds": [
+    "00000000-0000-0000-0000-000000000000"
+  ],
   "ddl": [
     {
       "name": "asset",
       "entityType": "tables"
     },
     {
-      "name": "pageLink",
+      "name": "collection",
       "entityType": "tables"
     },
     {
-      "name": "page",
+      "name": "items",
+      "entityType": "tables"
+    },
+    {
+      "name": "links",
       "entityType": "tables"
     },
     {
@@ -87,44 +93,14 @@
       "table": "asset"
     },
     {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "type",
-      "entityType": "columns",
-      "table": "pageLink"
-    },
-    {
-      "type": "blob",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "from",
-      "entityType": "columns",
-      "table": "pageLink"
-    },
-    {
-      "type": "blob",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "to",
-      "entityType": "columns",
-      "table": "pageLink"
-    },
-    {
-      "type": "blob",
+      "type": "integer",
       "notNull": false,
       "autoincrement": false,
       "default": null,
       "generated": null,
       "name": "id",
       "entityType": "columns",
-      "table": "page"
+      "table": "collection"
     },
     {
       "type": "text",
@@ -132,99 +108,9 @@
       "autoincrement": false,
       "default": null,
       "generated": null,
-      "name": "ref",
+      "name": "name",
       "entityType": "columns",
-      "table": "page"
-    },
-    {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "path",
-      "entityType": "columns",
-      "table": "page"
-    },
-    {
-      "type": "text",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "collection",
-      "entityType": "columns",
-      "table": "page"
-    },
-    {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "title",
-      "entityType": "columns",
-      "table": "page"
-    },
-    {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "description",
-      "entityType": "columns",
-      "table": "page"
-    },
-    {
-      "type": "text",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "content",
-      "entityType": "columns",
-      "table": "page"
-    },
-    {
-      "type": "text",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "props",
-      "entityType": "columns",
-      "table": "page"
-    },
-    {
-      "type": "text",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "author",
-      "entityType": "columns",
-      "table": "page"
-    },
-    {
-      "type": "blob",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "connection",
-      "entityType": "columns",
-      "table": "page"
-    },
-    {
-      "type": "integer",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "publishedAt",
-      "entityType": "columns",
-      "table": "page"
+      "table": "collection"
     },
     {
       "type": "integer",
@@ -234,7 +120,7 @@
       "generated": null,
       "name": "createdAt",
       "entityType": "columns",
-      "table": "page"
+      "table": "collection"
     },
     {
       "type": "integer",
@@ -244,7 +130,137 @@
       "generated": null,
       "name": "updatedAt",
       "entityType": "columns",
-      "table": "page"
+      "table": "collection"
+    },
+    {
+      "type": "blob",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "items"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "ref",
+      "entityType": "columns",
+      "table": "items"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "path",
+      "entityType": "columns",
+      "table": "items"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "collection",
+      "entityType": "columns",
+      "table": "items"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "title",
+      "entityType": "columns",
+      "table": "items"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "description",
+      "entityType": "columns",
+      "table": "items"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "content",
+      "entityType": "columns",
+      "table": "items"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "props",
+      "entityType": "columns",
+      "table": "items"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "author",
+      "entityType": "columns",
+      "table": "items"
+    },
+    {
+      "type": "blob",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "connection",
+      "entityType": "columns",
+      "table": "items"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "publishedAt",
+      "entityType": "columns",
+      "table": "items"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "createdAt",
+      "entityType": "columns",
+      "table": "items"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "updatedAt",
+      "entityType": "columns",
+      "table": "items"
     },
     {
       "type": "integer",
@@ -254,75 +270,153 @@
       "generated": null,
       "name": "changedAt",
       "entityType": "columns",
-      "table": "page"
+      "table": "items"
     },
     {
-      "columns": ["pageId"],
-      "tableTo": "page",
-      "columnsTo": ["id"],
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "type",
+      "entityType": "columns",
+      "table": "links"
+    },
+    {
+      "type": "blob",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "from",
+      "entityType": "columns",
+      "table": "links"
+    },
+    {
+      "type": "blob",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "to",
+      "entityType": "columns",
+      "table": "links"
+    },
+    {
+      "columns": [
+        "pageId"
+      ],
+      "tableTo": "items",
+      "columnsTo": [
+        "id"
+      ],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
-      "name": "fk_asset_pageId_page_id_fk",
+      "name": "fk_asset_pageId_items_id_fk",
       "entityType": "fks",
       "table": "asset"
     },
     {
-      "columns": ["from"],
-      "tableTo": "page",
-      "columnsTo": ["id"],
+      "columns": [
+        "collection"
+      ],
+      "tableTo": "collection",
+      "columnsTo": [
+        "id"
+      ],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
-      "name": "fk_pageLink_from_page_id_fk",
+      "name": "fk_items_collection_collection_id_fk",
       "entityType": "fks",
-      "table": "pageLink"
+      "table": "items"
     },
     {
-      "columns": ["to"],
-      "tableTo": "page",
-      "columnsTo": ["id"],
+      "columns": [
+        "from"
+      ],
+      "tableTo": "items",
+      "columnsTo": [
+        "id"
+      ],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
-      "name": "fk_pageLink_to_page_id_fk",
+      "name": "fk_links_from_items_id_fk",
       "entityType": "fks",
-      "table": "pageLink"
+      "table": "links"
     },
     {
-      "columns": ["type", "from", "to"],
+      "columns": [
+        "to"
+      ],
+      "tableTo": "items",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
       "nameExplicit": false,
-      "name": "pageLink_pk",
+      "name": "fk_links_to_items_id_fk",
+      "entityType": "fks",
+      "table": "links"
+    },
+    {
+      "columns": [
+        "type",
+        "from",
+        "to"
+      ],
+      "nameExplicit": false,
+      "name": "links_pk",
       "entityType": "pks",
-      "table": "pageLink"
+      "table": "links"
     },
     {
-      "columns": ["id"],
+      "columns": [
+        "id"
+      ],
       "nameExplicit": false,
       "name": "asset_pk",
       "table": "asset",
       "entityType": "pks"
     },
     {
-      "columns": ["id"],
+      "columns": [
+        "id"
+      ],
       "nameExplicit": false,
-      "name": "page_pk",
-      "table": "page",
+      "name": "collection_pk",
+      "table": "collection",
       "entityType": "pks"
     },
     {
-      "columns": ["canonical"],
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "items_pk",
+      "table": "items",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "canonical"
+      ],
       "nameExplicit": false,
       "name": "asset_canonical_unique",
       "entityType": "uniques",
       "table": "asset"
     },
     {
-      "columns": ["path"],
+      "columns": [
+        "path"
+      ],
       "nameExplicit": false,
-      "name": "page_path_unique",
+      "name": "items_path_unique",
       "entityType": "uniques",
-      "table": "page"
+      "table": "items"
     }
   ],
   "renames": []

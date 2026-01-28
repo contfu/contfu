@@ -3,6 +3,9 @@
   "version": "0.0.1",
   "private": true,
   "description": "Contfu client application with dashboard",
+  "files": [
+    "src"
+  ],
   "type": "module",
   "main": "src/index.ts",
   "scripts": {
@@ -11,13 +14,9 @@
     "preview": "bun -b vite preview",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "serve": "bun build/index.js",
-    "test": "bun test",
     "clean": "rm -rf dist build .svelte-kit",
     "shadcn": "bunx shadcn-svelte"
   },
-  "files": [
-    "src"
-  ],
   "dependencies": {
     "@contfu/core": "workspace:*",
     "bits-ui": "^2.15.4",
@@ -27,7 +26,6 @@
     "tailwind-variants": "^3.2.2"
   },
   "devDependencies": {
-    "contfu": "workspace:*",
     "@lucide/svelte": "^0.561.0",
     "@sveltejs/kit": "latest",
     "@sveltejs/vite-plugin-svelte": "latest",
@@ -35,6 +33,7 @@
     "@tailwindcss/vite": "^4.1.18",
     "@types/bun": "latest",
     "autoprefixer": "latest",
+    "contfu": "workspace:*",
     "drizzle-kit": "^1.0.0-beta.12-a5629fb",
     "mode-watcher": "^1.1.0",
     "postcss": "latest",
