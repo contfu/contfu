@@ -1,18 +1,21 @@
 import { db } from "$lib/server/db/db";
 import { collectionTable, sourceTable, type Source } from "$lib/server/db/schema";
+import { decryptCredentials, encryptCredentials } from "$lib/server/crypto/credentials";
 import { and, eq, sql } from "drizzle-orm";
 
 export type NewSource = {
   name: string;
   type: number;
   url?: string | null;
-  credentials: Buffer;
+  credentials: Buffer | null;
+  webhookSecret?: Buffer | null;
 };
 
 export type SourceUpdate = {
   name?: string;
   url?: string | null;
   credentials?: Buffer;
+  webhookSecret?: Buffer | null;
 };
 
 export type SourceWithCollectionCount = Source & {
@@ -22,6 +25,7 @@ export type SourceWithCollectionCount = Source & {
 /**
  * Insert a new source for a user.
  * The ID is auto-generated as max(id) + 1 within the user's sources.
+ * Credentials and webhookSecret are encrypted before storage.
  */
 export async function insertSource(userId: string, source: NewSource): Promise<Source> {
   const maxIdResult = await db
@@ -32,6 +36,12 @@ export async function insertSource(userId: string, source: NewSource): Promise<S
 
   const nextId = (maxIdResult[0]?.maxId ?? 0) + 1;
 
+  // Encrypt credentials and webhookSecret before storage
+  const [encryptedCredentials, encryptedWebhookSecret] = await Promise.all([
+    encryptCredentials(userId, source.credentials),
+    encryptCredentials(userId, source.webhookSecret),
+  ]);
+
   const [inserted] = await db
     .insert(sourceTable)
     .values({
@@ -40,15 +50,22 @@ export async function insertSource(userId: string, source: NewSource): Promise<S
       name: source.name,
       type: source.type,
       url: source.url ?? null,
-      credentials: source.credentials,
+      credentials: encryptedCredentials,
+      webhookSecret: encryptedWebhookSecret,
     })
     .returning();
 
-  return inserted;
+  // Return with decrypted values for immediate use
+  return {
+    ...inserted,
+    credentials: source.credentials,
+    webhookSecret: source.webhookSecret ?? null,
+  };
 }
 
 /**
  * Get all sources for a user with collection counts.
+ * Credentials are decrypted on retrieval.
  */
 export async function selectSources(userId: string): Promise<SourceWithCollectionCount[]> {
   const sources = await db
@@ -70,16 +87,28 @@ export async function selectSources(userId: string): Promise<SourceWithCollectio
     collectionCounts.map((c: { sourceId: number; count: number }) => [c.sourceId, c.count]),
   );
 
-  return sources.map(
-    (source: Source): SourceWithCollectionCount => ({
-      ...source,
-      collectionCount: countMap.get(source.id) ?? 0,
+  // Decrypt credentials and webhookSecret for each source
+  const decryptedSources = await Promise.all(
+    sources.map(async (source: Source): Promise<SourceWithCollectionCount> => {
+      const [credentials, webhookSecret] = await Promise.all([
+        decryptCredentials(userId, source.credentials),
+        decryptCredentials(userId, source.webhookSecret),
+      ]);
+      return {
+        ...source,
+        credentials,
+        webhookSecret,
+        collectionCount: countMap.get(source.id) ?? 0,
+      };
     }),
   );
+
+  return decryptedSources;
 }
 
 /**
  * Get a single source by ID.
+ * Credentials and webhookSecret are decrypted on retrieval.
  */
 export async function selectSource(userId: string, id: number): Promise<Source | undefined> {
   const [source] = await db
@@ -88,11 +117,23 @@ export async function selectSource(userId: string, id: number): Promise<Source |
     .where(and(eq(sourceTable.userId, userId), eq(sourceTable.id, id)))
     .limit(1);
 
-  return source;
+  if (!source) return undefined;
+
+  const [credentials, webhookSecret] = await Promise.all([
+    decryptCredentials(userId, source.credentials),
+    decryptCredentials(userId, source.webhookSecret),
+  ]);
+
+  return {
+    ...source,
+    credentials,
+    webhookSecret,
+  };
 }
 
 /**
  * Get a single source by ID with collection count.
+ * Credentials and webhookSecret are decrypted on retrieval.
  */
 export async function selectSourceWithCollectionCount(
   userId: string,
@@ -106,35 +147,74 @@ export async function selectSourceWithCollectionCount(
 
   if (!source) return undefined;
 
-  const [countResult] = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(collectionTable)
-    .where(and(eq(collectionTable.userId, userId), eq(collectionTable.sourceId, id)));
+  const [[countResult], credentials, webhookSecret] = await Promise.all([
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(collectionTable)
+      .where(and(eq(collectionTable.userId, userId), eq(collectionTable.sourceId, id))),
+    decryptCredentials(userId, source.credentials),
+    decryptCredentials(userId, source.webhookSecret),
+  ]);
 
   return {
     ...source,
+    credentials,
+    webhookSecret,
     collectionCount: countResult?.count ?? 0,
   };
 }
 
 /**
  * Update a source.
+ * Credentials and webhookSecret are encrypted before storage.
  */
 export async function updateSource(
   userId: string,
   id: number,
   updates: SourceUpdate,
 ): Promise<Source | undefined> {
+  // Encrypt credentials and webhookSecret if being updated
+  const [encryptedCredentials, encryptedWebhookSecret] = await Promise.all([
+    updates.credentials ? encryptCredentials(userId, updates.credentials) : undefined,
+    updates.webhookSecret !== undefined
+      ? encryptCredentials(userId, updates.webhookSecret)
+      : undefined,
+  ]);
+
+  const encryptedUpdates = {
+    name: updates.name,
+    url: updates.url,
+    credentials: encryptedCredentials,
+    webhookSecret: encryptedWebhookSecret,
+    updatedAt: sql`(unixepoch())`,
+  };
+
+  // Remove undefined keys to avoid overwriting with undefined
+  const setValues = Object.fromEntries(
+    Object.entries(encryptedUpdates).filter(([_, v]) => v !== undefined),
+  );
+
   const [updated] = await db
     .update(sourceTable)
-    .set({
-      ...updates,
-      updatedAt: sql`(unixepoch())`,
-    })
+    .set(setValues)
     .where(and(eq(sourceTable.userId, userId), eq(sourceTable.id, id)))
     .returning();
 
-  return updated;
+  if (!updated) return undefined;
+
+  // Return with decrypted values
+  const [credentials, webhookSecret] = await Promise.all([
+    updates.credentials ?? decryptCredentials(userId, updated.credentials),
+    updates.webhookSecret !== undefined
+      ? updates.webhookSecret
+      : decryptCredentials(userId, updated.webhookSecret),
+  ]);
+
+  return {
+    ...updated,
+    credentials,
+    webhookSecret,
+  };
 }
 
 /**

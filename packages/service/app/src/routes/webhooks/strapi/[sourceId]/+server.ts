@@ -1,3 +1,4 @@
+import { decryptCredentials } from "$lib/server/crypto/credentials";
 import { collectionTable, connectionTable, db, sourceTable } from "$lib/server/db/db";
 import { SourceType } from "@contfu/core";
 import { and, eq, sql } from "drizzle-orm";
@@ -110,7 +111,18 @@ export const POST: RequestHandler = async ({ request, params }) => {
   for (const source of sources) {
     // Validate webhook signature if secret is configured
     if (source.webhookSecret) {
-      const webhookSecret = source.webhookSecret.toString("utf8");
+      // Decrypt the webhook secret before validation
+      let webhookSecret: string | null = null;
+      try {
+        const decryptedSecret = await decryptCredentials(source.userId, source.webhookSecret);
+        webhookSecret = decryptedSecret?.toString("utf8") ?? null;
+      } catch (err) {
+        console.error(
+          `[Strapi webhook] Failed to decrypt webhook secret for source ${source.userId}:${source.id}`,
+          err,
+        );
+        continue; // Skip this source, try others
+      }
       if (!validateSignature(body, request.headers, webhookSecret)) {
         console.error(
           `[Strapi webhook] Invalid signature for source ${source.userId}:${source.id}`,

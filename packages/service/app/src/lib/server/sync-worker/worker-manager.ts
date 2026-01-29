@@ -8,6 +8,7 @@ import {
 } from "@contfu/core";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { collectionTable, connectionTable, db, sourceTable } from "../db/db";
+import { decryptCredentials } from "../crypto/credentials";
 import { ITEM_ID_SIZE } from "../util/ids/ids";
 import { SortedSet } from "../util/structures/sorted-set";
 import type { ConnectionInfo } from "../websocket/ws-server";
@@ -284,7 +285,14 @@ async function getConnectionsWithCollectionSyncInfo(ids: [userId: string, collec
         and(eq(connectionTable.userId, userId), eq(connectionTable.collectionId, collectionId)),
       )
       .orderBy(asc(connectionTable.userId), asc(connectionTable.collectionId));
-    results.push(...rows);
+
+    // Decrypt credentials for each row
+    for (const row of rows) {
+      results.push({
+        ...row,
+        credentials: await decryptCredentials(userId, row.credentials),
+      });
+    }
   }
 
   return results;
