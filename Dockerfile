@@ -1,4 +1,4 @@
-FROM oven/bun:1.3.6-slim AS base
+FROM oven/bun:1.3.8-slim AS base
 WORKDIR /app
 RUN apt-get update && \
     apt-get install -y ca-certificates wget && \
