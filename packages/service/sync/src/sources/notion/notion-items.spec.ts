@@ -57,7 +57,7 @@ describe("notion-items", () => {
     const testOpts = {
       collection: 1,
       ref: Buffer.alloc(16),
-      credentials: Buffer.alloc(32),
+      credentials: "",
     };
 
     it("should convert basic page to item", async () => {
@@ -176,7 +176,7 @@ describe("notion-items", () => {
     const testOpts = {
       collection: 1,
       ref: Buffer.alloc(16),
-      credentials: Buffer.alloc(32),
+      credentials: "",
     };
 
     function createPageWithProperty(propName: string, prop: Record<string, unknown>) {
@@ -545,7 +545,7 @@ describe("notion-items", () => {
     const testOpts = {
       collection: 1,
       ref: Buffer.alloc(16),
-      credentials: Buffer.alloc(32),
+      credentials: "",
     };
 
     beforeEach(() => {

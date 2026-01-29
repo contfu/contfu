@@ -21,7 +21,7 @@ describe("notion-collections", () => {
   });
 
   describe("getCollectionSchema()", () => {
-    const testKey = Buffer.from("test-api-key", "utf8");
+    const testKey = "test-api-key";
     const testId = Buffer.from("database-id-123", "utf8");
 
     it("should include default cover and icon properties", async () => {
@@ -360,8 +360,8 @@ describe("notion-collections", () => {
       expect(Object.keys(schema)).toEqual(["cover", "icon"]);
     });
 
-    it("should use key and id from buffers correctly", async () => {
-      const key = Buffer.from("my-api-key-in-hex", "utf8");
+    it("should use key and id correctly", async () => {
+      const key = "my-api-key";
       const id = Buffer.from("my-database-uuid", "utf8");
 
       mockClient.databases.retrieve.mockResolvedValueOnce({
@@ -374,7 +374,7 @@ describe("notion-collections", () => {
 
       expect(mockClient.databases.retrieve).toHaveBeenCalledWith(
         expect.objectContaining({
-          auth: key.toString("hex"),
+          auth: "my-api-key",
           database_id: id.toString("hex"),
         }),
       );

@@ -62,7 +62,7 @@ describe("notion-helpers", () => {
   });
 
   describe("iterateDb()", () => {
-    const testKey = Buffer.from("test-api-key-hex-encoded", "utf8");
+    const testKey = "test-api-key";
     const testRef = Buffer.from("database-id-here", "utf8");
 
     it("should iterate through database pages", async () => {

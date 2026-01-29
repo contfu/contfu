@@ -397,7 +397,7 @@ describe("notion-blocks", () => {
   });
 
   describe("getContentBlocks()", () => {
-    const testKey = Buffer.from("test-api-key", "utf8");
+    const testKey = "test-api-key";
 
     it("should fetch and parse blocks from a page", async () => {
       mockClient.blocks.children.list.mockResolvedValueOnce(emptyList);
@@ -583,7 +583,7 @@ describe("notion-blocks", () => {
   });
 
   describe("showcase page blocks (comprehensive block types)", () => {
-    const testKey = Buffer.from("test-api-key", "utf8");
+    const testKey = "test-api-key";
     const PAGE_ID = "2e5459d4-e3a9-80ee-8dc6-fa918c5f7f17";
 
     beforeEach(() => {

@@ -20,7 +20,7 @@ import type {
 } from "notion-client-web-fetch/build/src/api-endpoints";
 import { getImageUrl, notion } from "./notion-helpers";
 
-export async function getContentBlocks(key: Buffer, id: string) {
+export async function getContentBlocks(key: string, id: string) {
   const blocks = [] as Block[];
   for await (const res of paginatedChildren(key, id)) {
     let b = parseBlock(res);
@@ -51,9 +51,9 @@ export async function getContentBlocks(key: Buffer, id: string) {
   return blocks;
 }
 
-async function* paginatedChildren(key: Buffer, id: string) {
+async function* paginatedChildren(key: string, id: string) {
   for await (const result of iteratePaginatedAPI(notion.blocks.children.list, {
-    auth: key.toString("hex"),
+    auth: key,
     block_id: id,
   })) {
     if (isFullBlock(result)) yield result;

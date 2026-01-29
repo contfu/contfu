@@ -155,7 +155,10 @@ async function syncConsumers(consumers: [number, number][]) {
             ? strapiSource.fetch(o as StrapiFetchOpts)
             : o.type === SourceType.WEB
               ? webSource.fetch(o as WebFetchOpts)
-              : notionSource.fetch(o as NotionFetchOpts);
+              : notionSource.fetch({
+                  ...o,
+                  credentials: o.credentials?.toString("utf-8") ?? "",
+                } as NotionFetchOpts);
 
         return combineLatest([[o.user], source$]).pipe(
           tap(([user, item]) => {

@@ -100,6 +100,14 @@ export const auth = betterAuth({
       clientId: process.env.GOOGLE_CLIENT_ID ?? "",
       clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
     },
+    ...(process.env.NOTION_CLIENT_ID && process.env.NOTION_CLIENT_SECRET
+      ? {
+          notion: {
+            clientId: process.env.NOTION_CLIENT_ID,
+            clientSecret: process.env.NOTION_CLIENT_SECRET,
+          },
+        }
+      : {}),
   },
   plugins: [
     polar({

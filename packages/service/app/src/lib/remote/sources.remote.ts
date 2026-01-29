@@ -15,6 +15,7 @@ import {
   SourceType,
   type ConnectionTestResult,
 } from "$lib/server/sources/source-validator";
+import { getProviderAccessToken } from "$lib/server/auth/linked-accounts";
 
 function getUserId(): string {
   const event = getRequestEvent();
@@ -109,6 +110,41 @@ export const createSource = form(
     });
 
     throw redirect(302, `/sources/${source.id}`);
+  },
+);
+
+/**
+ * Create a Notion source using the linked OAuth account.
+ * Uses the access token from the user's linked Notion account.
+ */
+export const createNotionSourceFromOAuth = command(
+  v.object({
+    name: v.pipe(v.string(), v.nonEmpty("Name is required")),
+  }),
+  async (data): Promise<{ id: number } | { error: string }> => {
+    const userId = getUserId();
+
+    // Get the Notion access token from linked accounts
+    const accessToken = await getProviderAccessToken(userId, "notion");
+    if (!accessToken) {
+      return { error: "No Notion account linked. Please connect Notion first." };
+    }
+
+    // Test the connection
+    const testResult = await testSourceConnection(SourceType.NOTION, undefined, accessToken);
+    if (!testResult.success) {
+      return { error: `Notion connection failed: ${testResult.message}` };
+    }
+
+    // Insert the source
+    const source = await insertSource(userId, {
+      name: data.name,
+      type: SourceType.NOTION,
+      url: null,
+      credentials: Buffer.from(accessToken, "utf-8"),
+    });
+
+    return { id: source.id };
   },
 );
 

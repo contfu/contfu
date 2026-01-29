@@ -1,9 +1,9 @@
 import { CollectionSchema, PropertyType } from "@contfu/core";
 import { notion } from "./notion-helpers";
 
-export async function getCollectionSchema(key: Buffer, id: Buffer) {
+export async function getCollectionSchema(key: string, id: Buffer) {
   const db = await notion.databases.retrieve({
-    auth: key.toString("hex"),
+    auth: key,
     database_id: id.toString("hex"),
   });
   const schema = {

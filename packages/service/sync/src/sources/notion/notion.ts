@@ -1,6 +1,6 @@
 export type NotionFetchOpts = {
   collection: number;
   ref: Buffer;
-  credentials: Buffer;
+  credentials: string;
   since?: number;
 };

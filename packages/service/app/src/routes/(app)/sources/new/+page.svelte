@@ -1,5 +1,8 @@
 <script lang="ts">
-  import { createSource, testNewConnection } from "$lib/remote/sources.remote";
+  import { goto } from "$app/navigation";
+  import { createSource, testNewConnection, createNotionSourceFromOAuth } from "$lib/remote/sources.remote";
+  import { listLinkedAccounts } from "$lib/remote/accounts.remote";
+  import { authClient } from "$lib/auth-client";
   import { Button } from "$lib/components/ui/button";
   import { Input } from "$lib/components/ui/input";
   import { Label } from "$lib/components/ui/label";
@@ -22,9 +25,75 @@
   let selectedAuthType = $state("0");
   let testResult: { success: boolean; message: string } | null = $state(null);
   let testPending = $state(false);
+  let useOAuth = $state(true);
+  let notionLinked = $state<boolean | null>(null);
+  let oauthPending = $state(false);
+  let oauthError = $state<string | null>(null);
 
+  const isNotionSource = $derived(selectedType === "0");
   const isWebSource = $derived(selectedType === "2");
-  const requiresCredentials = $derived(!isWebSource || (isWebSource && selectedAuthType !== "0"));
+  const requiresCredentials = $derived(
+    (isNotionSource && !useOAuth) || 
+    (!isNotionSource && !isWebSource) || 
+    (isWebSource && selectedAuthType !== "0")
+  );
+
+  // Check if Notion is linked when component mounts or when Notion is selected
+  $effect(() => {
+    if (isNotionSource) {
+      checkNotionLinked();
+    }
+  });
+
+  async function checkNotionLinked() {
+    try {
+      const accounts = await listLinkedAccounts();
+      notionLinked = accounts.some(a => a.providerId === "notion" && a.hasAccessToken);
+    } catch {
+      notionLinked = false;
+    }
+  }
+
+  async function handleConnectNotion() {
+    oauthPending = true;
+    oauthError = null;
+    try {
+      await authClient.linkSocial({
+        provider: "notion",
+        callbackURL: "/sources/new?type=notion&linked=1",
+      });
+    } catch (error) {
+      oauthError = error instanceof Error ? error.message : "Failed to connect Notion";
+    } finally {
+      oauthPending = false;
+    }
+  }
+
+  async function handleCreateNotionSource() {
+    oauthPending = true;
+    oauthError = null;
+    const nameInput = document.querySelector<HTMLInputElement>('input[name="name"]');
+    const name = nameInput?.value?.trim();
+    
+    if (!name) {
+      oauthError = "Name is required";
+      oauthPending = false;
+      return;
+    }
+
+    try {
+      const result = await createNotionSourceFromOAuth({ name });
+      if ("error" in result) {
+        oauthError = result.error;
+      } else {
+        goto(`/sources/${result.id}`);
+      }
+    } catch (error) {
+      oauthError = error instanceof Error ? error.message : "Failed to create source";
+    } finally {
+      oauthPending = false;
+    }
+  }
 
   async function handleTestConnection() {
     testPending = true;
@@ -62,7 +131,12 @@
     <p class="mt-1 text-sm text-muted-foreground">Connect a content source to start syncing</p>
   </div>
 
-  <form method="post" action={createSource.action} class="space-y-5">
+  <form method="post" action={createSource.action} class="space-y-5" onsubmit={(e) => {
+    if (isNotionSource && useOAuth) {
+      e.preventDefault();
+      void handleCreateNotionSource();
+    }
+  }}>
     <div class="space-y-1.5">
       <Label for="name">Name</Label>
       <Input id="name" name="name" type="text" placeholder="My Content Source" required />
@@ -87,6 +161,43 @@
         <p class="text-sm text-destructive">{createSource.fields?.type?.issues()?.[0]?.message}</p>
       {/if}
     </div>
+
+    {#if isNotionSource}
+      <div class="space-y-3">
+        <div class="flex items-center gap-4">
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="radio" bind:group={useOAuth} value={true} class="accent-primary" />
+            <span class="text-sm">Connect with Notion (recommended)</span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="radio" bind:group={useOAuth} value={false} class="accent-primary" />
+            <span class="text-sm">Use API token</span>
+          </label>
+        </div>
+        
+        {#if useOAuth}
+          <div class="rounded-lg border bg-muted/50 p-4">
+            {#if notionLinked === null}
+              <p class="text-sm text-muted-foreground">Checking Notion connection...</p>
+            {:else if notionLinked}
+              <div class="flex items-center gap-2 text-sm text-green-600">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+                Notion connected! Your workspace access will be used.
+              </div>
+            {:else}
+              <p class="text-sm text-muted-foreground mb-3">
+                Connect your Notion workspace to sync databases and pages.
+              </p>
+              <Button type="button" variant="outline" onclick={handleConnectNotion} disabled={oauthPending}>
+                {oauthPending ? "Connecting..." : "Connect Notion"}
+              </Button>
+            {/if}
+          </div>
+        {/if}
+      </div>
+    {/if}
 
     {#if selectedType === "1" || selectedType === "2"}
       <div class="space-y-1.5">
@@ -125,6 +236,8 @@
         <Label for="_credentials">
           {#if isWebSource}
             {selectedAuthType === "1" ? "Bearer Token" : "Credentials"}
+          {:else if isNotionSource}
+            Notion API Token
           {:else}
             API Token
           {/if}
@@ -134,7 +247,7 @@
           name="_credentials"
           type="password"
           placeholder={
-            selectedType === "0"
+            isNotionSource
               ? "secret_..."
               : isWebSource && selectedAuthType === "2"
                 ? "username:password"
@@ -143,7 +256,7 @@
           required
         />
         <p class="text-xs text-muted-foreground">
-          {#if selectedType === "0"}
+          {#if isNotionSource}
             Get your token at <a href="https://www.notion.so/my-integrations" target="_blank" rel="noopener" class="underline">notion.so/my-integrations</a>
           {:else if isWebSource && selectedAuthType === "2"}
             Format: username:password
@@ -162,13 +275,30 @@
       </Alert.Root>
     {/if}
 
+    {#if oauthError}
+      <Alert.Root variant="destructive">
+        <Alert.Title>Error</Alert.Title>
+        <Alert.Description>{oauthError}</Alert.Description>
+      </Alert.Root>
+    {/if}
+
     <div class="flex gap-2 pt-2">
-      <Button type="submit" disabled={!!createSource.pending}>
-        {createSource.pending ? "Creating..." : "Create Source"}
-      </Button>
-      <Button type="button" variant="outline" onclick={handleTestConnection} disabled={testPending}>
-        {testPending ? "Testing..." : "Test Connection"}
-      </Button>
+      {#if isNotionSource && useOAuth}
+        <Button 
+          type="button" 
+          onclick={handleCreateNotionSource} 
+          disabled={oauthPending || !notionLinked}
+        >
+          {oauthPending ? "Creating..." : "Create Source"}
+        </Button>
+      {:else}
+        <Button type="submit" disabled={!!createSource.pending}>
+          {createSource.pending ? "Creating..." : "Create Source"}
+        </Button>
+        <Button type="button" variant="outline" onclick={handleTestConnection} disabled={testPending}>
+          {testPending ? "Testing..." : "Test Connection"}
+        </Button>
+      {/if}
     </div>
   </form>
 </div>

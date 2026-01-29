@@ -7,7 +7,7 @@ import { mockClient } from "./__tests__/notion-mock-setup";
 
 const pullOpts: NotionFetchOpts = {
   ref: Buffer.alloc(16),
-  credentials: Buffer.alloc(32),
+  credentials: "",
   collection: 1,
 };
 
@@ -352,7 +352,7 @@ describe("NotionSource", () => {
     it("should pass credentials and ref to API", async () => {
       const customOpts: NotionFetchOpts = {
         ref: Buffer.from("custom-database-id", "utf8"),
-        credentials: Buffer.from("custom-api-key", "utf8"),
+        credentials: "custom-api-key",
         collection: 2,
       };
 
@@ -366,7 +366,7 @@ describe("NotionSource", () => {
 
       expect(mockClient.databases.retrieve).toHaveBeenCalledWith(
         expect.objectContaining({
-          auth: customOpts.credentials.toString("hex"),
+          auth: "custom-api-key",
           database_id: customOpts.ref.toString("hex"),
         }),
       );
