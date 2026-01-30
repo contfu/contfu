@@ -268,3 +268,41 @@ export const testNewConnection = command(
     return testSourceConnection(data.type, data.url, data._credentials ?? "", data.authType);
   },
 );
+
+/**
+ * Regenerate webhook secret for a Strapi source.
+ * Returns the new plaintext secret (only shown once).
+ */
+export const regenerateWebhookSecret = command(
+  v.object({
+    id: v.pipe(
+      v.union([v.string(), v.number()]),
+      v.transform((val) => (typeof val === "string" ? Number.parseInt(val, 10) : val)),
+      v.number(),
+    ),
+  }),
+  async (data): Promise<{ success: boolean; secret?: string; message?: string }> => {
+    const userId = getUserId();
+    const source = await selectSourceWithCollectionCount(userId, data.id);
+
+    if (!source) {
+      return { success: false, message: "Source not found" };
+    }
+
+    if (source.type !== SourceType.STRAPI) {
+      return { success: false, message: "Webhook secrets are only available for Strapi sources" };
+    }
+
+    // Generate new secret
+    const { randomBytes } = await import("node:crypto");
+    const newSecret = randomBytes(32).toString("hex");
+
+    // Encrypt and store the new secret
+    const { encryptCredentials } = await import("$lib/server/crypto/credentials");
+    const encryptedSecret = await encryptCredentials(userId, Buffer.from(newSecret, "utf8"));
+
+    await updateSourceDb(userId, data.id, { webhookSecret: encryptedSecret });
+
+    return { success: true, secret: newSecret };
+  },
+);

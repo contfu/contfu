@@ -248,3 +248,39 @@ export const itemIdConflictResolutionTable = sqliteTable(
 );
 
 export type ItemIdConflictResolution = typeof itemIdConflictResolutionTable.$inferSelect;
+
+// Webhook logging
+
+export const webhookLogTable = sqliteTable(
+  "webhook_log",
+  {
+    id: integer().primaryKey(),
+    /** The user who owns the source. */
+    userId: text().notNull(),
+    /** The source that received the webhook. */
+    sourceId: integer().notNull(),
+    /** The webhook event type (e.g., entry.create, entry.update). */
+    event: text().notNull(),
+    /** The content type/model affected. */
+    model: text(),
+    /** Status of the webhook processing. */
+    status: text().notNull(), // 'success' | 'error' | 'unauthorized'
+    /** Error message if processing failed. */
+    errorMessage: text(),
+    /** Number of items broadcast to consumers. */
+    itemsBroadcast: integer().notNull().default(0),
+    /** When the webhook was received. */
+    timestamp: integer({ mode: "timestamp" })
+      .default(sql`(unixepoch())`)
+      .notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.userId, table.sourceId],
+      foreignColumns: [sourceTable.userId, sourceTable.id],
+    }).onDelete("cascade"),
+  ],
+);
+
+export type WebhookLog = typeof webhookLogTable.$inferSelect;
+export type NewWebhookLog = typeof webhookLogTable.$inferInsert;

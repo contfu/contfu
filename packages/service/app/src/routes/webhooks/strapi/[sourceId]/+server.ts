@@ -1,11 +1,20 @@
 import { decryptCredentials } from "$lib/server/crypto/credentials";
-import { collectionTable, connectionTable, db, sourceTable } from "$lib/server/db/db";
+import {
+  collectionTable,
+  connectionTable,
+  db,
+  sourceTable,
+  webhookLogTable,
+} from "$lib/server/db/db";
 import { getSSEServer } from "$lib/server/startup";
 import { genUid } from "$lib/server/util/ids/ids";
 import { SourceType, type UserSyncItem } from "@contfu/core";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import crypto from "node:crypto";
 import type { RequestHandler } from "./$types";
+
+/** Maximum number of webhook logs to keep per source */
+const MAX_LOGS_PER_SOURCE = 50;
 
 /** Strapi webhook event types we handle. */
 type StrapiEvent =
@@ -29,6 +38,47 @@ interface StrapiWebhookPayload {
     publishedAt?: string;
     [key: string]: unknown;
   };
+}
+
+/**
+ * Log a webhook event to the database.
+ */
+async function logWebhookEvent(
+  userId: string,
+  sourceId: number,
+  event: string,
+  model: string | null,
+  status: "success" | "error" | "unauthorized",
+  errorMessage?: string,
+  itemsBroadcast?: number,
+): Promise<void> {
+  try {
+    // Insert new log
+    await db.insert(webhookLogTable).values({
+      userId,
+      sourceId,
+      event,
+      model,
+      status,
+      errorMessage,
+      itemsBroadcast: itemsBroadcast ?? 0,
+    });
+
+    // Clean up old logs (keep only the last MAX_LOGS_PER_SOURCE)
+    const logs = await db
+      .select({ id: webhookLogTable.id })
+      .from(webhookLogTable)
+      .where(and(eq(webhookLogTable.userId, userId), eq(webhookLogTable.sourceId, sourceId)))
+      .orderBy(desc(webhookLogTable.timestamp))
+      .limit(1000);
+
+    if (logs.length > MAX_LOGS_PER_SOURCE) {
+      const idsToDelete = logs.slice(MAX_LOGS_PER_SOURCE).map((l) => l.id);
+      await db.delete(webhookLogTable).where(inArray(webhookLogTable.id, idsToDelete));
+    }
+  } catch (err) {
+    console.error("[Strapi webhook] Failed to log webhook event:", err);
+  }
 }
 
 /**
@@ -143,6 +193,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
   }
 
   const sseServer = getSSEServer();
+  let totalItemsBroadcast = 0;
 
   for (const source of sources) {
     // Validate signature if configured
@@ -157,13 +208,29 @@ export const POST: RequestHandler = async ({ request, params }) => {
           `[Strapi webhook] Failed to decrypt webhook secret for source ${source.userId}:${source.id}`,
           err,
         );
-        continue; // Skip this source, try others
+        await logWebhookEvent(
+          source.userId,
+          source.id,
+          eventType,
+          payload.model,
+          "error",
+          "Failed to decrypt webhook secret",
+        );
+        continue;
       }
       if (!validateSignature(body, request.headers, webhookSecret)) {
         console.error(
           `[Strapi webhook] Invalid signature for source ${source.userId}:${source.id}`,
         );
-        continue; // Skip this source, try others
+        await logWebhookEvent(
+          source.userId,
+          source.id,
+          eventType,
+          payload.model,
+          "unauthorized",
+          "Invalid webhook signature",
+        );
+        continue;
       }
     }
 
@@ -185,6 +252,15 @@ export const POST: RequestHandler = async ({ request, params }) => {
     if (collections.length === 0) {
       console.log(
         `[Strapi webhook] No collections found for content type "${contentTypeUid}" in source ${source.userId}:${source.id}`,
+      );
+      await logWebhookEvent(
+        source.userId,
+        source.id,
+        eventType,
+        payload.model,
+        "success",
+        `No collections for content type ${contentTypeUid}`,
+        0,
       );
       continue;
     }
@@ -208,10 +284,20 @@ export const POST: RequestHandler = async ({ request, params }) => {
 
     if (connections.length === 0) {
       console.log(`[Strapi webhook] No consumer connections for collections`);
+      await logWebhookEvent(
+        source.userId,
+        source.id,
+        eventType,
+        payload.model,
+        "success",
+        "No connected consumers",
+        0,
+      );
       continue;
     }
 
     // Convert entry to items (one per collection) and broadcast
+    let itemsBroadcast = 0;
     for (const collection of collections) {
       const item = entryToItem(payload.entry, collection.id, source.userId);
 
@@ -228,8 +314,22 @@ export const POST: RequestHandler = async ({ request, params }) => {
       if (collectionConnections.length > 0) {
         console.log(`[Strapi webhook] Broadcasting to ${collectionConnections.length} consumer(s)`);
         sseServer.broadcast([item], collectionConnections);
+        itemsBroadcast += collectionConnections.length;
       }
     }
+
+    totalItemsBroadcast += itemsBroadcast;
+
+    // Log successful webhook processing
+    await logWebhookEvent(
+      source.userId,
+      source.id,
+      eventType,
+      payload.model,
+      "success",
+      undefined,
+      itemsBroadcast,
+    );
 
     console.log(`[Strapi webhook] Processed for source ${source.userId}:${source.id}`);
   }

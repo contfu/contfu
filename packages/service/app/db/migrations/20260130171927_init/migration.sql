@@ -122,3 +122,16 @@ CREATE TABLE `verification` (
 	`createdAt` integer,
 	`updatedAt` integer
 );
+--> statement-breakpoint
+CREATE TABLE `webhook_log` (
+	`id` integer PRIMARY KEY,
+	`userId` text NOT NULL,
+	`sourceId` integer NOT NULL,
+	`event` text NOT NULL,
+	`model` text,
+	`status` text NOT NULL,
+	`errorMessage` text,
+	`itemsBroadcast` integer DEFAULT 0 NOT NULL,
+	`timestamp` integer DEFAULT (unixepoch()) NOT NULL,
+	CONSTRAINT `fk_webhook_log_userId_sourceId_source_userId_id_fk` FOREIGN KEY (`userId`,`sourceId`) REFERENCES `source`(`userId`,`id`) ON DELETE CASCADE
+);
