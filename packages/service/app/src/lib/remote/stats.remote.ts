@@ -1,22 +1,13 @@
-import { query, getRequestEvent } from "$app/server";
-import { redirect } from "@sveltejs/kit";
+import { query } from "$app/server";
+import { getUser } from "$lib/server/auth/user";
 import { db } from "$lib/server/db/db";
 import {
-  sourceTable,
   collectionTable,
-  consumerTable,
   connectionTable,
+  consumerTable,
+  sourceTable,
 } from "$lib/server/db/schema";
 import { eq, sql } from "drizzle-orm";
-
-function getUserId(): string {
-  const event = getRequestEvent();
-  const user = event.locals.user;
-  if (!user) {
-    throw redirect(302, "/login");
-  }
-  return user.id;
-}
 
 export type DashboardStats = {
   sourceCount: number;
@@ -31,7 +22,7 @@ export type DashboardStats = {
  * Returns counts for sources, collections, total items, consumers, and connections.
  */
 export const getDashboardStats = query(async (): Promise<DashboardStats> => {
-  const userId = getUserId();
+  const userId = getUser();
 
   // Run all count queries in parallel for better performance
   const [sourceResult, collectionResult, consumerResult, connectionResult] = await Promise.all([

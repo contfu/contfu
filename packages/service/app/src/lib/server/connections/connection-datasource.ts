@@ -28,7 +28,7 @@ export type ConnectionWithDetails = Connection & {
  * Insert a new connection for a user.
  */
 export async function insertConnection(
-  userId: string,
+  userId: number,
   connection: NewConnection,
 ): Promise<Connection> {
   const [inserted] = await db
@@ -48,7 +48,7 @@ export async function insertConnection(
 /**
  * Get all connections for a user with consumer and collection names.
  */
-export async function selectConnections(userId: string): Promise<ConnectionWithDetails[]> {
+export async function selectConnections(userId: number): Promise<ConnectionWithDetails[]> {
   const connections = await db
     .select({
       userId: connectionTable.userId,
@@ -83,7 +83,7 @@ export async function selectConnections(userId: string): Promise<ConnectionWithD
  * Get all connections for a specific consumer with collection names.
  */
 export async function selectConnectionsByConsumer(
-  userId: string,
+  userId: number,
   consumerId: number,
 ): Promise<ConnectionWithDetails[]> {
   const connections = await db
@@ -120,7 +120,7 @@ export async function selectConnectionsByConsumer(
  * Get all connections for a specific collection with consumer names.
  */
 export async function selectConnectionsByCollection(
-  userId: string,
+  userId: number,
   collectionId: number,
 ): Promise<ConnectionWithDetails[]> {
   const connections = await db
@@ -157,7 +157,7 @@ export async function selectConnectionsByCollection(
  * Get a single connection by consumer and collection ID.
  */
 export async function selectConnection(
-  userId: string,
+  userId: number,
   consumerId: number,
   collectionId: number,
 ): Promise<Connection | undefined> {
@@ -180,7 +180,7 @@ export async function selectConnection(
  * Get a single connection with consumer and collection details.
  */
 export async function selectConnectionWithDetails(
-  userId: string,
+  userId: number,
   consumerId: number,
   collectionId: number,
 ): Promise<ConnectionWithDetails | undefined> {
@@ -225,7 +225,7 @@ export async function selectConnectionWithDetails(
  * Update a connection.
  */
 export async function updateConnection(
-  userId: string,
+  userId: number,
   consumerId: number,
   collectionId: number,
   updates: ConnectionUpdate,
@@ -249,7 +249,7 @@ export async function updateConnection(
  * Delete a connection.
  */
 export async function deleteConnection(
-  userId: string,
+  userId: number,
   consumerId: number,
   collectionId: number,
 ): Promise<boolean> {
@@ -271,7 +271,7 @@ export async function deleteConnection(
  * Delete all connections for a consumer.
  */
 export async function deleteConnectionsByConsumer(
-  userId: string,
+  userId: number,
   consumerId: number,
 ): Promise<number> {
   const result = await db
@@ -286,7 +286,7 @@ export async function deleteConnectionsByConsumer(
  * Delete all connections for a collection.
  */
 export async function deleteConnectionsByCollection(
-  userId: string,
+  userId: number,
   collectionId: number,
 ): Promise<number> {
   const result = await db

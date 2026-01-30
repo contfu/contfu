@@ -12,7 +12,8 @@
 
 import { connectToSSE } from "@contfu/client";
 import { EventType } from "@contfu/core";
-import EventSource from "eventsource";
+// eventsource for SSR (Bun has built-in, but Vite needs the npm package)
+import { EventSource } from "eventsource";
 
 // Configuration from environment
 const CONTFU_URL = process.env.CONTFU_URL || "http://localhost:5173/api/sse";

@@ -40,12 +40,24 @@ export const GET: RequestHandler = async ({ request, url }) => {
     return new Response("Request aborted", { status: 499 });
   }
 
-  // Create SSE stream
+  // Pre-authenticate before creating the stream (returns HTTP error codes, not SSE events)
+  const authResult = await server.preAuthenticate(key);
+  if (authResult.error) {
+    switch (authResult.error) {
+      case "E_AUTH":
+        return new Response("Invalid or unknown consumer key", { status: 401 });
+      case "E_CONFLICT":
+        return new Response("Consumer already connected", { status: 409 });
+      default:
+        return new Response("Authentication failed", { status: 403 });
+    }
+  }
+
+  // Create SSE stream - auth already passed, now we just need to set up the connection
   const stream = new ReadableStream({
     async start(controller) {
       let connectionId: string | null = null;
       let keepAlive: ReturnType<typeof setInterval> | null = null;
-      const encoder = new TextEncoder();
 
       // Cleanup function to be called on abort or cancel
       const cleanup = () => {
@@ -76,22 +88,19 @@ export const GET: RequestHandler = async ({ request, url }) => {
         return;
       }
 
-      // Add connection to SSE server
-      const result = await server.addConnection(key, controller);
+      // Finalize the connection (auth already passed in preAuthenticate)
+      const result = await server.finalizeConnection(key, controller);
 
-      // Check if aborted during async addConnection
+      // Check if aborted during async finalizeConnection
       if (request.signal.aborted) {
         cleanup();
         return;
       }
 
-      // Handle authentication errors
+      // Handle any errors during finalization (shouldn't happen after preAuth, but be safe)
       if (typeof result !== "string") {
-        // Send error event and close
-        const errorEvent = `event: error\ndata: ${JSON.stringify({ type: "error", code: result.code })}\n\n`;
-        controller.enqueue(encoder.encode(errorEvent));
+        // Close silently - the error was already handled or is a race condition
         controller.close();
-        // Remove abort listener since we're closing normally
         request.signal.removeEventListener("abort", onAbort);
         return;
       }
@@ -102,7 +111,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
       keepAlive = setInterval(() => {
         try {
           const pingEvent = `event: ping\ndata: {}\n\n`;
-          controller.enqueue(encoder.encode(pingEvent));
+          controller.enqueue(new TextEncoder().encode(pingEvent));
         } catch {
           // Controller may be closed, cleanup
           cleanup();

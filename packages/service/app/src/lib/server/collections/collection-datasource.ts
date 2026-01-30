@@ -24,7 +24,7 @@ export type CollectionWithConnectionCount = Collection & {
  * The ID is auto-generated as max(id) + 1 within the user's collections.
  */
 export async function insertCollection(
-  userId: string,
+  userId: number,
   collection: NewCollection,
 ): Promise<Collection> {
   const maxIdResult = await db
@@ -53,7 +53,7 @@ export async function insertCollection(
 /**
  * Get all collections for a user with connection counts.
  */
-export async function selectCollections(userId: string): Promise<CollectionWithConnectionCount[]> {
+export async function selectCollections(userId: number): Promise<CollectionWithConnectionCount[]> {
   const collections = await db
     .select()
     .from(collectionTable)
@@ -85,7 +85,7 @@ export async function selectCollections(userId: string): Promise<CollectionWithC
  * Get all collections for a user filtered by source ID with connection counts.
  */
 export async function selectCollectionsBySource(
-  userId: string,
+  userId: number,
   sourceId: number,
 ): Promise<CollectionWithConnectionCount[]> {
   const collections = await db
@@ -125,7 +125,7 @@ export async function selectCollectionsBySource(
  * Get a single collection by ID.
  */
 export async function selectCollection(
-  userId: string,
+  userId: number,
   id: number,
 ): Promise<Collection | undefined> {
   const [collection] = await db
@@ -141,7 +141,7 @@ export async function selectCollection(
  * Get a single collection by ID with connection count.
  */
 export async function selectCollectionWithConnectionCount(
-  userId: string,
+  userId: number,
   id: number,
 ): Promise<CollectionWithConnectionCount | undefined> {
   const [collection] = await db
@@ -167,7 +167,7 @@ export async function selectCollectionWithConnectionCount(
  * Update a collection.
  */
 export async function updateCollection(
-  userId: string,
+  userId: number,
   id: number,
   updates: CollectionUpdate,
 ): Promise<Collection | undefined> {
@@ -186,7 +186,7 @@ export async function updateCollection(
 /**
  * Delete a collection. Connections will cascade delete.
  */
-export async function deleteCollection(userId: string, id: number): Promise<boolean> {
+export async function deleteCollection(userId: number, id: number): Promise<boolean> {
   const result = await db
     .delete(collectionTable)
     .where(and(eq(collectionTable.userId, userId), eq(collectionTable.id, id)))

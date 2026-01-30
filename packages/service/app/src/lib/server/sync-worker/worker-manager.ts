@@ -6,9 +6,9 @@ import {
   type UserSyncItem,
   type WorkerToAppMessage,
 } from "@contfu/core";
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
-import { collectionTable, connectionTable, db, sourceTable } from "../db/db";
+import { and, asc, eq } from "drizzle-orm";
 import { decryptCredentials } from "../crypto/credentials";
+import { collectionTable, connectionTable, db, sourceTable } from "../db/db";
 import { ITEM_ID_SIZE } from "../util/ids/ids";
 import { SortedSet } from "../util/structures/sorted-set";
 import type { ConnectionInfo } from "../websocket/ws-server";
@@ -78,23 +78,21 @@ export class SyncWorkerManager {
     this.itemsCallback = callback;
   }
 
-  async activateConsumer(userId: string, consumerId: number): Promise<number> {
+  async activateConsumer(userId: number, consumerId: number): Promise<number> {
     const collectionCount = await countCollectionsForConsumer(userId, consumerId);
-    // TODO: Update @contfu/core to use string userId
     this.worker?.postMessage({
       type: SyncMessageType.ACTIVATE_CONSUMER,
-      userId: userId as unknown as number,
+      userId,
       consumerId,
       collectionCount,
     } as AppToWorkerMessage);
     return collectionCount;
   }
 
-  deactivateConsumer(userId: string, consumerId: number) {
-    // TODO: Update @contfu/core to use string userId
+  deactivateConsumer(userId: number, consumerId: number) {
     this.worker?.postMessage({
       type: SyncMessageType.DEACTIVATE_CONSUMER,
-      userId: userId as unknown as number,
+      userId,
       consumerId,
     } as AppToWorkerMessage);
   }
@@ -115,21 +113,11 @@ export class SyncWorkerManager {
         break;
 
       case SyncMessageType.REQUEST_SYNC_INFO:
-        // TODO: Update @contfu/core to use string userId
-        await this.handleSyncInfoRequest(
-          msg.requestId,
-          msg.pairs.map(([u, c]) => [String(u), c] as [string, number]),
-        );
+        await this.handleSyncInfoRequest(msg.requestId, msg.pairs);
         break;
 
       case SyncMessageType.REQUEST_ADD_ITEM_IDS:
-        // TODO: Update @contfu/core to use string userId
-        await this.handleAddItemIds(
-          msg.requestId,
-          String(msg.userId),
-          msg.collectionId,
-          msg.itemIds,
-        );
+        await this.handleAddItemIds(msg.requestId, msg.userId, msg.collectionId, msg.itemIds);
         break;
 
       default:
@@ -141,11 +129,10 @@ export class SyncWorkerManager {
     if (!this.itemsCallback || items.length === 0) return;
 
     // Get collection IDs from items
-    // TODO: Update @contfu/core to use string userId - item.user is number in core
     const collectionRefs = [...new Set(items.map((i) => `${i.user}:${i.collection}`))].map(
       (ref) => {
         const [userId, collectionId] = ref.split(":");
-        return [userId, Number(collectionId)] as const;
+        return [Number(userId), Number(collectionId)] as const;
       },
     );
 
@@ -154,7 +141,7 @@ export class SyncWorkerManager {
     this.itemsCallback(items, connections);
   }
 
-  private async handleSyncInfoRequest(requestId: number, pairs: [string, number][]) {
+  private async handleSyncInfoRequest(requestId: number, pairs: [number, number][]) {
     const opts = await getNextCollectionFetchOpts(pairs);
     this.worker?.postMessage({
       type: SyncMessageType.SYNC_INFO_RESPONSE,
@@ -165,7 +152,7 @@ export class SyncWorkerManager {
 
   private async handleAddItemIds(
     requestId: number,
-    userId: string,
+    userId: number,
     collectionId: number,
     itemIds: Buffer[],
   ) {
@@ -189,7 +176,7 @@ export class SyncWorkerManager {
 
 // Database access functions moved from sync service
 
-async function countCollectionsForConsumer(userId: string, consumerId: number) {
+async function countCollectionsForConsumer(userId: number, consumerId: number) {
   return db.$count(
     db
       .select({ collectionId: connectionTable.collectionId })
@@ -200,7 +187,7 @@ async function countCollectionsForConsumer(userId: string, consumerId: number) {
 }
 
 async function getConnectionsToCollections(
-  refs: (readonly [userId: string, collectionId: number])[],
+  refs: (readonly [userId: number, collectionId: number])[],
 ): Promise<ConnectionInfo[]> {
   // Build a simple query since inArray with tuples is complex
   const results: ConnectionInfo[] = [];
@@ -217,7 +204,7 @@ async function getConnectionsToCollections(
   return results;
 }
 
-async function getNextCollectionFetchOpts(pairs: [userId: string, collectionId: number][]) {
+async function getNextCollectionFetchOpts(pairs: [userId: number, collectionId: number][]) {
   const state = await getConnectionsWithCollectionSyncInfo(pairs);
 
   const collectionFetchopts = new Array<ExtendedFetchOpts>();
@@ -225,8 +212,8 @@ async function getNextCollectionFetchOpts(pairs: [userId: string, collectionId: 
   for (const { consumer: _, lastItemChanged, ...s } of state) {
     // state is sorted by userId, collectionId, so we can safely assume that we
     // create only one fetchOpts per userId
-    if (current == null || current.user !== (s.user as unknown as number))
-      collectionFetchopts.push((current = s as unknown as ExtendedFetchOpts));
+    if (current == null || current.user !== s.user)
+      collectionFetchopts.push((current = s as ExtendedFetchOpts));
     if (lastItemChanged != null) {
       current.since =
         current.since == null
@@ -239,10 +226,10 @@ async function getNextCollectionFetchOpts(pairs: [userId: string, collectionId: 
   return collectionFetchopts;
 }
 
-async function getConnectionsWithCollectionSyncInfo(ids: [userId: string, collectionId: number][]) {
+async function getConnectionsWithCollectionSyncInfo(ids: [userId: number, collectionId: number][]) {
   // Build a simple query since inArray with tuples is complex
   const results: Array<{
-    user: string;
+    user: number;
     consumer: number;
     collection: number;
     source: number;
@@ -298,7 +285,7 @@ async function getConnectionsWithCollectionSyncInfo(ids: [userId: string, collec
   return results;
 }
 
-async function addItemIds(userId: string, collectionId: number, toAdd: Buffer[]) {
+async function addItemIds(userId: number, collectionId: number, toAdd: Buffer[]) {
   const ids = await getItemIds(userId, collectionId);
 
   for (const id of toAdd) ids.add(id);
@@ -308,7 +295,7 @@ async function addItemIds(userId: string, collectionId: number, toAdd: Buffer[])
     .where(and(eq(collectionTable.userId, userId), eq(collectionTable.id, collectionId)));
 }
 
-async function getItemIds(userId: string, collectionId: number) {
+async function getItemIds(userId: number, collectionId: number) {
   const result = await db
     .select({ itemIds: collectionTable.itemIds })
     .from(collectionTable)
@@ -316,7 +303,6 @@ async function getItemIds(userId: string, collectionId: number) {
   return new SortedSet<Buffer>({
     seed: deserializeIds(result[0]?.itemIds ?? NO_ITEM_IDS),
     isSorted: true,
-    // @ts-expect-error Buffer.compare types differ between Node/Bun
     compare: (a: Buffer, b: Buffer) => a.compare(b),
   });
 }

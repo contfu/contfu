@@ -1,24 +1,16 @@
-import { form, query, getRequestEvent } from "$app/server";
-import { invalid, redirect } from "@sveltejs/kit";
-import * as v from "valibot";
+import { form, query } from "$app/server";
+import { getUserId } from "$lib/server/auth/user";
 import {
-  insertConnection,
-  selectConnections,
-  selectConnectionsByConsumer,
-  selectConnectionsByCollection,
-  selectConnection,
   deleteConnection as deleteConnectionDb,
+  insertConnection,
+  selectConnection,
+  selectConnections,
+  selectConnectionsByCollection,
+  selectConnectionsByConsumer,
   type ConnectionWithDetails,
 } from "$lib/server/connections/connection-datasource";
-
-function getUserId(): string {
-  const event = getRequestEvent();
-  const user = event.locals.user;
-  if (!user) {
-    throw redirect(302, "/login");
-  }
-  return user.id;
-}
+import { invalid } from "@sveltejs/kit";
+import * as v from "valibot";
 
 /**
  * Get all connections for the current user.

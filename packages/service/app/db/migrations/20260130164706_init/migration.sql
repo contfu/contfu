@@ -16,7 +16,7 @@ CREATE TABLE `account` (
 );
 --> statement-breakpoint
 CREATE TABLE `collection` (
-	`userId` text NOT NULL,
+	`userId` integer NOT NULL,
 	`sourceId` integer NOT NULL,
 	`id` integer NOT NULL,
 	`name` text NOT NULL,
@@ -30,7 +30,7 @@ CREATE TABLE `collection` (
 );
 --> statement-breakpoint
 CREATE TABLE `connection` (
-	`userId` text NOT NULL,
+	`userId` integer NOT NULL,
 	`consumerId` integer NOT NULL,
 	`collectionId` integer NOT NULL,
 	`lastItemChanged` integer,
@@ -42,7 +42,7 @@ CREATE TABLE `connection` (
 );
 --> statement-breakpoint
 CREATE TABLE `consumer` (
-	`userId` text NOT NULL,
+	`userId` integer NOT NULL,
 	`id` integer NOT NULL,
 	`key` blob UNIQUE,
 	`name` text NOT NULL,
@@ -52,7 +52,7 @@ CREATE TABLE `consumer` (
 );
 --> statement-breakpoint
 CREATE TABLE `item_id_conflict_resolution` (
-	`userId` text NOT NULL,
+	`userId` integer NOT NULL,
 	`collectionId` integer NOT NULL,
 	`sourceItemId` blob NOT NULL,
 	`id` integer NOT NULL,
@@ -62,7 +62,7 @@ CREATE TABLE `item_id_conflict_resolution` (
 );
 --> statement-breakpoint
 CREATE TABLE `quota` (
-	`id` text PRIMARY KEY,
+	`id` integer PRIMARY KEY,
 	`polarCustomerId` text,
 	`subscriptionId` text,
 	`subscriptionStatus` text,
@@ -91,7 +91,7 @@ CREATE TABLE `session` (
 );
 --> statement-breakpoint
 CREATE TABLE `source` (
-	`userId` text NOT NULL,
+	`userId` integer NOT NULL,
 	`id` integer NOT NULL,
 	`name` text,
 	`url` text,

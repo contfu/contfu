@@ -11,14 +11,14 @@ export type LinkedAccount = {
 /**
  * Get all linked social accounts for a user.
  */
-export async function getLinkedAccounts(userId: string): Promise<LinkedAccount[]> {
+export async function getLinkedAccounts(userId: number): Promise<LinkedAccount[]> {
   const accounts = await db
     .select({
       providerId: accountTable.providerId,
       accessToken: accountTable.accessToken,
     })
     .from(accountTable)
-    .where(eq(accountTable.userId, Number(userId)));
+    .where(eq(accountTable.userId, userId));
 
   return accounts.map((acc) => ({
     providerId: acc.providerId,
@@ -29,11 +29,11 @@ export async function getLinkedAccounts(userId: string): Promise<LinkedAccount[]
 /**
  * Check if a user has a specific provider linked.
  */
-export async function hasLinkedProvider(userId: string, providerId: string): Promise<boolean> {
+export async function hasLinkedProvider(userId: number, providerId: string): Promise<boolean> {
   const [account] = await db
     .select({ id: accountTable.id })
     .from(accountTable)
-    .where(and(eq(accountTable.userId, Number(userId)), eq(accountTable.providerId, providerId)))
+    .where(and(eq(accountTable.userId, userId), eq(accountTable.providerId, providerId)))
     .limit(1);
 
   return !!account;
@@ -45,13 +45,13 @@ export async function hasLinkedProvider(userId: string, providerId: string): Pro
  * Uses better-auth API which handles automatic token refresh.
  */
 export async function getProviderAccessToken(
-  userId: string,
+  userId: number,
   providerId: string,
 ): Promise<string | null> {
   const result = await auth.api.getAccessToken({
     body: {
       providerId,
-      userId,
+      userId: String(userId),
     },
   });
   return result?.accessToken ?? null;

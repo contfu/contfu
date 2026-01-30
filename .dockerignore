@@ -1,5 +1,6 @@
 *
 !packages
+!tests
 !package.json
 !Dockerfile
 !tsconfig.json

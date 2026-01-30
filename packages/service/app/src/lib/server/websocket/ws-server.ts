@@ -37,7 +37,7 @@ const consumerToSocket = new Map<string, BunWebSocket<WsData>>();
 /** Maps socket ID to consumer key (hex). */
 const socketToConsumer = new Map<string, string>();
 /** Maps consumer key (hex) to consumer info. */
-const consumerInfo = new Map<string, { userId: string; consumerId: number }>();
+const consumerInfo = new Map<string, { userId: number; consumerId: number }>();
 
 type WsData = { id: string };
 
@@ -179,7 +179,7 @@ export class WebSocketServer {
 }
 
 export type ConnectionInfo = {
-  userId: string;
+  userId: number;
   consumerId: number;
   collectionId: number;
   lastItemChanged: number | null;

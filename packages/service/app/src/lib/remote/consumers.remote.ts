@@ -1,4 +1,5 @@
-import { form, getRequestEvent, query } from "$app/server";
+import { form, query } from "$app/server";
+import { getUserId } from "$lib/server/auth/user";
 import {
   deleteConsumer as deleteConsumerDb,
   insertConsumer,
@@ -9,15 +10,6 @@ import {
 } from "$lib/server/consumers/consumer-datasource";
 import { invalid, redirect } from "@sveltejs/kit";
 import * as v from "valibot";
-
-function getUserId(): string {
-  const event = getRequestEvent();
-  const user = event.locals.user;
-  if (!user) {
-    throw redirect(302, "/login");
-  }
-  return user.id;
-}
 
 /**
  * Generate a random API key as a hex string.

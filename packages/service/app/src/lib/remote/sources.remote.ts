@@ -1,30 +1,22 @@
-import { form, query, command, getRequestEvent } from "$app/server";
-import { invalid, redirect } from "@sveltejs/kit";
-import * as v from "valibot";
+import { command, form, query } from "$app/server";
+import { getProviderAccessToken } from "$lib/server/auth/linked-accounts";
+import { getUserId } from "$lib/server/auth/user";
 import {
+  deleteSource as deleteSourceDb,
   insertSource,
   selectSources,
   selectSourceWithCollectionCount,
   updateSource as updateSourceDb,
-  deleteSource as deleteSourceDb,
   type SourceWithCollectionCount,
 } from "$lib/server/sources/source-datasource";
 import {
-  validateSourceData,
-  testSourceConnection,
   SourceType,
+  testSourceConnection,
+  validateSourceData,
   type ConnectionTestResult,
 } from "$lib/server/sources/source-validator";
-import { getProviderAccessToken } from "$lib/server/auth/linked-accounts";
-
-function getUserId(): string {
-  const event = getRequestEvent();
-  const user = event.locals.user;
-  if (!user) {
-    throw redirect(302, "/login");
-  }
-  return user.id;
-}
+import { invalid, redirect } from "@sveltejs/kit";
+import * as v from "valibot";
 
 /**
  * Get all sources for the current user.

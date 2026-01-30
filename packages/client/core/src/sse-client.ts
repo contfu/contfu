@@ -10,7 +10,21 @@ import {
   ListIdsEvent,
 } from "@contfu/core";
 
-const { EventSource } = typeof window === "undefined" ? await import("eventsource") : window;
+// EventSource: browser has native, Bun/Node use eventsource module (built-in for Bun)
+// Lazy load to avoid Vite SSR issues with top-level await
+let _EventSourceClass: typeof EventSource | null = null;
+
+async function getEventSourceClass(): Promise<typeof EventSource> {
+  if (_EventSourceClass) return _EventSourceClass;
+
+  if (typeof window !== "undefined" && window.EventSource) {
+    _EventSourceClass = window.EventSource;
+  } else {
+    const mod = await import("eventsource");
+    _EventSourceClass = mod.default || mod.EventSource;
+  }
+  return _EventSourceClass;
+}
 
 type Opts = {
   url?: string;
@@ -65,7 +79,8 @@ export async function connectToSSE(
       eventSource.close();
     }
 
-    eventSource = new EventSource(sseUrl);
+    const EventSourceImpl = await getEventSourceClass();
+    eventSource = new EventSourceImpl(sseUrl);
 
     // Setup event listeners for all event types
     const onEvent = (event: MessageEvent) => {
@@ -109,10 +124,12 @@ export async function connectToSSE(
 
     // Wait for initial connection
     return new Promise<void>((res, rej) => {
-      const onConnected = (_event: MessageEvent) => {
-        if (!eventSource) return;
-        eventSource.removeEventListener("connected", onConnected);
-        eventSource.removeEventListener("error", onError);
+      let resolved = false;
+
+      const setupPersistentListeners = () => {
+        if (!eventSource || resolved) return;
+        resolved = true;
+
         // Reset backoff on successful connection
         reconnectDelay = initialReconnectDelay;
 
@@ -122,18 +139,36 @@ export async function connectToSSE(
         eventSource.addEventListener("deleted", onEvent);
         eventSource.addEventListener("list_ids", onEvent);
         eventSource.addEventListener("checksum", onEvent);
-        eventSource.addEventListener("error", onEvent);
+        eventSource.addEventListener("auth_error", onEvent);
         eventSource.addEventListener("error", onConnectionError);
-
-        // Queue the CONNECTED event so it can be received by the handler/generator
-        onEvent(_event);
 
         res();
       };
 
-      const onError = async (event: Event | MessageEvent) => {
+      // Use onopen as primary connection success indicator
+      // This fires when HTTP 200 is received (before any SSE events)
+      const onOpen = () => {
+        if (!eventSource) return;
+        eventSource.removeEventListener("open", onOpen);
+        eventSource.removeEventListener("error", onError);
+        setupPersistentListeners();
+      };
+
+      // Also listen for the CONNECTED SSE event (backwards compatibility)
+      const onConnected = (_event: MessageEvent) => {
         if (!eventSource) return;
         eventSource.removeEventListener("connected", onConnected);
+        eventSource.removeEventListener("open", onOpen);
+        eventSource.removeEventListener("error", onError);
+        setupPersistentListeners();
+        // Queue the CONNECTED event so it can be received by the handler/generator
+        onEvent(_event);
+      };
+
+      const onError = async (event: Event | MessageEvent) => {
+        if (!eventSource || resolved) return;
+        eventSource.removeEventListener("connected", onConnected);
+        eventSource.removeEventListener("open", onOpen);
         eventSource.removeEventListener("error", onError);
         eventSource.close();
 
@@ -173,7 +208,11 @@ export async function connectToSSE(
       };
 
       if (eventSource) {
-        eventSource.addEventListener("connected", onConnected);
+        // Primary: use native 'open' event (fires on HTTP 200)
+        eventSource.addEventListener("open", onOpen, { once: true });
+        // Fallback: also listen for custom 'connected' SSE event
+        eventSource.addEventListener("connected", onConnected, { once: true });
+        // Error handling
         eventSource.addEventListener("error", onError, { once: true });
       }
     });

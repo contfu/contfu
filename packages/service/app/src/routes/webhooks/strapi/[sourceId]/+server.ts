@@ -1,7 +1,9 @@
 import { decryptCredentials } from "$lib/server/crypto/credentials";
 import { collectionTable, connectionTable, db, sourceTable } from "$lib/server/db/db";
-import { SourceType } from "@contfu/core";
-import { and, eq, sql } from "drizzle-orm";
+import { getSSEServer } from "$lib/server/startup";
+import { genUid } from "$lib/server/util/ids/ids";
+import { SourceType, type UserSyncItem } from "@contfu/core";
+import { and, eq, inArray } from "drizzle-orm";
 import crypto from "node:crypto";
 import type { RequestHandler } from "./$types";
 
@@ -31,7 +33,6 @@ interface StrapiWebhookPayload {
 
 /**
  * Validates HMAC signature if webhook secret is configured.
- * Uses X-Strapi-Signature header (custom) or validates timestamp + payload.
  */
 function validateSignature(body: string, headers: Headers, secret: string | null): boolean {
   if (!secret) return true; // No secret configured, skip validation
@@ -41,18 +42,59 @@ function validateSignature(body: string, headers: Headers, secret: string | null
 
   if (!signature) return false;
 
-  // Compute expected signature
   const payload = timestamp ? `${timestamp}.${body}` : body;
   const hmac = crypto.createHmac("sha256", secret);
   hmac.update(payload);
   const expected = `sha256=${hmac.digest("hex")}`;
 
-  // Constant-time comparison
   try {
     return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
   } catch {
     return false;
   }
+}
+
+/**
+ * Convert Strapi entry to UserSyncItem for SSE broadcast.
+ */
+function entryToItem(
+  entry: StrapiWebhookPayload["entry"],
+  collectionId: number,
+  userId: number,
+): UserSyncItem {
+  const documentId = entry.documentId ?? String(entry.id);
+  const ref = Buffer.from(documentId, "utf8");
+  const id = genUid(ref);
+
+  const createdAt = new Date(entry.createdAt).getTime();
+  const changedAt = new Date(entry.updatedAt).getTime();
+  const publishedAt = entry.publishedAt ? new Date(entry.publishedAt).getTime() : undefined;
+
+  if (Number.isNaN(createdAt) || Number.isNaN(changedAt)) {
+    throw new Error(
+      `Invalid timestamp in entry: createdAt=${entry.createdAt}, updatedAt=${entry.updatedAt}`,
+    );
+  }
+
+  // Extract props (excluding reserved fields)
+  const reserved = new Set(["id", "documentId", "createdAt", "updatedAt", "publishedAt"]);
+  const props: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(entry)) {
+    if (!reserved.has(key) && value != null) {
+      props[key] = value;
+    }
+  }
+
+  return {
+    user: userId,
+    collection: collectionId,
+    ref,
+    id,
+    createdAt,
+    changedAt,
+    publishedAt,
+    props,
+  };
 }
 
 export const POST: RequestHandler = async ({ request, params }) => {
@@ -80,36 +122,30 @@ export const POST: RequestHandler = async ({ request, params }) => {
     return new Response("Missing required fields", { status: 400 });
   }
 
-  // Get the event type from header (more reliable than payload)
   const eventType = request.headers.get("x-strapi-event") || payload.event;
-
   console.log(
     `[Strapi webhook] Received ${eventType} for model "${payload.model}", entry ${payload.entry.id}`,
   );
 
   // Find the source and verify it's a Strapi source
-  // We need to find by URL since webhooks come from the Strapi instance
-  // The sourceId in the URL is user-scoped, so we need to find which user owns it
   const sources = await db
     .select({
       userId: sourceTable.userId,
       id: sourceTable.id,
-      type: sourceTable.type,
-      url: sourceTable.url,
       webhookSecret: sourceTable.webhookSecret,
     })
     .from(sourceTable)
     .where(and(eq(sourceTable.id, sourceId), eq(sourceTable.type, SourceType.STRAPI)));
 
   if (sources.length === 0) {
-    console.error(`[Strapi webhook] Source ${sourceId} not found or not a Strapi source`);
+    console.error(`[Strapi webhook] Source ${sourceId} not found`);
     return new Response("Source not found", { status: 404 });
   }
 
-  // For each matching source (there could be multiple users with same source ID),
-  // validate signature and trigger sync
+  const sseServer = getSSEServer();
+
   for (const source of sources) {
-    // Validate webhook signature if secret is configured
+    // Validate signature if configured
     if (source.webhookSecret) {
       // Decrypt the webhook secret before validation
       let webhookSecret: string | null = null;
@@ -131,8 +167,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
       }
     }
 
-    // Find collections that use this source and match the content type
-    // The collection ref stores the content type UID (e.g., "api::article.article")
+    // Find collections matching this content type
     const contentTypeUid = payload.uid || `api::${payload.model}.${payload.model}`;
     const refBuffer = Buffer.from(contentTypeUid, "utf8");
 
@@ -154,31 +189,49 @@ export const POST: RequestHandler = async ({ request, params }) => {
       continue;
     }
 
-    // Reset lastItemChanged for all connections to these collections
-    // This triggers a resync on the next worker poll
     const collectionIds = collections.map((c) => c.id);
 
-    // Calculate the timestamp to sync from (a few seconds before the event)
-    const eventTime = new Date(payload.createdAt || payload.entry.updatedAt).getTime();
-    const syncFrom = Math.floor(eventTime / 1000) - 10; // 10 seconds buffer
+    // Find connected consumers for these collections
+    const connections = await db
+      .select({
+        consumerId: connectionTable.consumerId,
+        collectionId: connectionTable.collectionId,
+        lastItemChanged: connectionTable.lastItemChanged,
+      })
+      .from(connectionTable)
+      .where(
+        and(
+          eq(connectionTable.userId, source.userId),
+          inArray(connectionTable.collectionId, collectionIds),
+        ),
+      );
 
-    for (const collectionId of collectionIds) {
-      await db
-        .update(connectionTable)
-        .set({ lastItemChanged: syncFrom })
-        .where(
-          and(
-            eq(connectionTable.userId, source.userId),
-            eq(connectionTable.collectionId, collectionId),
-            // Only reset if current lastItemChanged is newer than syncFrom
-            sql`${connectionTable.lastItemChanged} IS NULL OR ${connectionTable.lastItemChanged} > ${syncFrom}`,
-          ),
-        );
+    if (connections.length === 0) {
+      console.log(`[Strapi webhook] No consumer connections for collections`);
+      continue;
     }
 
-    console.log(
-      `[Strapi webhook] Triggered resync for ${collections.length} collection(s) in source ${source.userId}:${source.id}`,
-    );
+    // Convert entry to items (one per collection) and broadcast
+    for (const collection of collections) {
+      const item = entryToItem(payload.entry, collection.id, source.userId);
+
+      // Build connection info for this collection
+      const collectionConnections = connections
+        .filter((c) => c.collectionId === collection.id)
+        .map((c) => ({
+          userId: source.userId,
+          consumerId: c.consumerId,
+          collectionId: c.collectionId,
+          lastItemChanged: c.lastItemChanged,
+        }));
+
+      if (collectionConnections.length > 0) {
+        console.log(`[Strapi webhook] Broadcasting to ${collectionConnections.length} consumer(s)`);
+        sseServer.broadcast([item], collectionConnections);
+      }
+    }
+
+    console.log(`[Strapi webhook] Processed for source ${source.userId}:${source.id}`);
   }
 
   return new Response("OK", { status: 200 });

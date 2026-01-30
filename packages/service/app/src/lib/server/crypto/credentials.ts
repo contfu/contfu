@@ -21,14 +21,16 @@ const keyCache = new Map<string, Buffer>();
 
 /**
  * Get or derive the encryption key for a user.
+ * Converts userId to string for backwards compatibility with existing encrypted data.
  */
-async function getKey(userId: string): Promise<Buffer> {
-  const cached = keyCache.get(userId);
+async function getKey(userId: number): Promise<Buffer> {
+  const key = String(userId);
+  const cached = keyCache.get(key);
   if (cached) return cached;
 
-  const key = await deriveKey(getAppSecret(), userId);
-  keyCache.set(userId, key);
-  return key;
+  const derivedKey = await deriveKey(getAppSecret(), key);
+  keyCache.set(key, derivedKey);
+  return derivedKey;
 }
 
 /**
@@ -36,7 +38,7 @@ async function getKey(userId: string): Promise<Buffer> {
  * Returns null if input is null/undefined.
  */
 export async function encryptCredentials(
-  userId: string,
+  userId: number,
   credentials: Buffer | null | undefined,
 ): Promise<Buffer | null> {
   if (!credentials || credentials.length === 0) return null;
@@ -49,7 +51,7 @@ export async function encryptCredentials(
  * Returns null if input is null/undefined.
  */
 export async function decryptCredentials(
-  userId: string,
+  userId: number,
   encryptedCredentials: Buffer | null | undefined,
 ): Promise<Buffer | null> {
   if (!encryptedCredentials || encryptedCredentials.length === 0) return null;
@@ -60,9 +62,9 @@ export async function decryptCredentials(
 /**
  * Clear the key cache for a user (e.g., on logout or key rotation).
  */
-export function clearKeyCache(userId?: string): void {
-  if (userId) {
-    keyCache.delete(userId);
+export function clearKeyCache(userId?: number): void {
+  if (userId !== undefined) {
+    keyCache.delete(String(userId));
   } else {
     keyCache.clear();
   }

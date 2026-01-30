@@ -1,7 +1,7 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "b29f5308-a905-4b50-aa49-650f1e9412bb",
+  "id": "15d02d2e-e4f7-4dcb-84c6-e27c82fb4499",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
@@ -177,7 +177,7 @@
       "table": "account"
     },
     {
-      "type": "text",
+      "type": "integer",
       "notNull": true,
       "autoincrement": false,
       "default": null,
@@ -257,7 +257,7 @@
       "table": "collection"
     },
     {
-      "type": "text",
+      "type": "integer",
       "notNull": true,
       "autoincrement": false,
       "default": null,
@@ -307,7 +307,7 @@
       "table": "connection"
     },
     {
-      "type": "text",
+      "type": "integer",
       "notNull": true,
       "autoincrement": false,
       "default": null,
@@ -357,7 +357,7 @@
       "table": "consumer"
     },
     {
-      "type": "text",
+      "type": "integer",
       "notNull": true,
       "autoincrement": false,
       "default": null,
@@ -397,7 +397,7 @@
       "table": "item_id_conflict_resolution"
     },
     {
-      "type": "text",
+      "type": "integer",
       "notNull": false,
       "autoincrement": false,
       "default": null,
@@ -607,7 +607,7 @@
       "table": "session"
     },
     {
-      "type": "text",
+      "type": "integer",
       "notNull": true,
       "autoincrement": false,
       "default": null,

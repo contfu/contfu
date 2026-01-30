@@ -4,6 +4,7 @@
   "private": true,
   "description": "A Strapi application",
   "scripts": {
+    "postinstall": "[ -f .env ] || cp .env.example .env",
     "build": "strapi build",
     "deploy": "strapi deploy",
     "develop": "strapi develop",
@@ -14,7 +15,7 @@
     "@strapi/plugin-cloud": "5.0.0-rc.17",
     "@strapi/plugin-users-permissions": "5.0.0-rc.17",
     "@strapi/strapi": "5.0.0-rc.17",
-    "better-sqlite3": "9.4.3",
+    "better-sqlite3": "^11.6.0",
     "fs-extra": "^10.0.0",
     "mime-types": "^2.1.27",
     "react": "^18.0.0",

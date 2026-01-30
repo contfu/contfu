@@ -27,7 +27,7 @@ export type SourceWithCollectionCount = Source & {
  * The ID is auto-generated as max(id) + 1 within the user's sources.
  * Credentials and webhookSecret are encrypted before storage.
  */
-export async function insertSource(userId: string, source: NewSource): Promise<Source> {
+export async function insertSource(userId: number, source: NewSource): Promise<Source> {
   const maxIdResult = await db
     .select({ maxId: sql<number>`coalesce(max(id), 0)` })
     .from(sourceTable)
@@ -67,7 +67,7 @@ export async function insertSource(userId: string, source: NewSource): Promise<S
  * Get all sources for a user with collection counts.
  * Credentials are decrypted on retrieval.
  */
-export async function selectSources(userId: string): Promise<SourceWithCollectionCount[]> {
+export async function selectSources(userId: number): Promise<SourceWithCollectionCount[]> {
   const sources = await db
     .select()
     .from(sourceTable)
@@ -110,7 +110,7 @@ export async function selectSources(userId: string): Promise<SourceWithCollectio
  * Get a single source by ID.
  * Credentials and webhookSecret are decrypted on retrieval.
  */
-export async function selectSource(userId: string, id: number): Promise<Source | undefined> {
+export async function selectSource(userId: number, id: number): Promise<Source | undefined> {
   const [source] = await db
     .select()
     .from(sourceTable)
@@ -136,7 +136,7 @@ export async function selectSource(userId: string, id: number): Promise<Source |
  * Credentials and webhookSecret are decrypted on retrieval.
  */
 export async function selectSourceWithCollectionCount(
-  userId: string,
+  userId: number,
   id: number,
 ): Promise<SourceWithCollectionCount | undefined> {
   const [source] = await db
@@ -169,7 +169,7 @@ export async function selectSourceWithCollectionCount(
  * Credentials and webhookSecret are encrypted before storage.
  */
 export async function updateSource(
-  userId: string,
+  userId: number,
   id: number,
   updates: SourceUpdate,
 ): Promise<Source | undefined> {
@@ -220,7 +220,7 @@ export async function updateSource(
 /**
  * Delete a source. Collections will cascade delete.
  */
-export async function deleteSource(userId: string, id: number): Promise<boolean> {
+export async function deleteSource(userId: number, id: number): Promise<boolean> {
   const result = await db
     .delete(sourceTable)
     .where(and(eq(sourceTable.userId, userId), eq(sourceTable.id, id)))

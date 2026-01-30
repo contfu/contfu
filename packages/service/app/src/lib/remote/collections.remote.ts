@@ -1,24 +1,16 @@
-import { form, query, getRequestEvent } from "$app/server";
-import { invalid, redirect } from "@sveltejs/kit";
-import * as v from "valibot";
+import { form, query } from "$app/server";
+import { getUserId } from "$lib/server/auth/user";
 import {
+  deleteCollection as deleteCollectionDb,
   insertCollection,
   selectCollections,
   selectCollectionsBySource,
   selectCollectionWithConnectionCount,
   updateCollection as updateCollectionDb,
-  deleteCollection as deleteCollectionDb,
   type CollectionWithConnectionCount,
 } from "$lib/server/collections/collection-datasource";
-
-function getUserId(): string {
-  const event = getRequestEvent();
-  const user = event.locals.user;
-  if (!user) {
-    throw redirect(302, "/login");
-  }
-  return user.id;
-}
+import { invalid, redirect } from "@sveltejs/kit";
+import * as v from "valibot";
 
 /**
  * Get all collections for the current user.

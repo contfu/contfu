@@ -77,6 +77,50 @@ bun run test
 
 This ensures consistent code style and verifies that changes don't break existing functionality.
 
+## Testing
+
+### Development/Test Credentials
+
+**IMPORTANT:** For local development and testing, use these pre-seeded credentials:
+
+- **Email:** `test@test.com`
+- **Password:** `test`
+
+This user is created by `packages/service/app/src/lib/server/db/seed-dev.ts` specifically for tests and development.
+
+**DO NOT register new users during e2e tests** - this triggers Polar customer creation which:
+
+1. Requires a valid Polar API key
+2. Creates real records that need manual cleanup
+
+### E2E Tests
+
+E2E tests are in `/tests/e2e/`. They use Playwright and require:
+
+- Strapi demo server (`demos/strapi-demo`)
+- Service app (`packages/service/app`)
+
+Run with:
+
+```bash
+cd tests
+E2E_FULL_FLOW=true bun test:e2e
+```
+
+**Strapi E2E testing patterns:**
+
+- Tests interact with Strapi via **admin UI automation** (Playwright) for realistic user flows
+- Use `strapiPage` fixture for admin panel, separate `page`/`consumerPage` for client app
+- Article creation/editing goes through the full UI flow (Content Manager → Create → Fill form → Save → Publish)
+- Strapi admin UI is complex - expect multiple navigation steps and wait states
+- See `demos/strapi-demo/CLAUDE.md` for test credentials and API details
+
+**Key fixtures in strapi-full-flow.spec.ts:**
+
+- `strapiPage` - Authenticated Strapi admin browser context
+- `syncServiceProcess` - Background sync service
+- `STRAPI_URL`, `SERVICE_URL`, `CONSUMER_URL` - Service endpoints
+
 ## Before Creating a PR
 
 **IMPORTANT: Follow these steps before pushing any changes:**
@@ -84,10 +128,12 @@ This ensures consistent code style and verifies that changes don't break existin
 1. **Run tests, format, and lint:**
 
    ```bash
-   bun test          # Ensure all tests pass
+   bun test          # Ensure all tests pass (includes e2e tests)
    bun run fmt       # Format code
    bun run lint      # Lint code
    ```
+
+> **Note:** E2E tests are not run on GitHub CI to save build time. Always run `bun test` locally before creating a PR - this includes e2e tests in the `zzz-e2e` directories.
 
 2. **Squash into a single commit:**
 

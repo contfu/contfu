@@ -41,6 +41,7 @@ $RECYCLE.BIN/
 *.dat
 *.dmg
 *.gz
+!strapi-build.tar.gz
 *.iso
 *.jar
 *.rar

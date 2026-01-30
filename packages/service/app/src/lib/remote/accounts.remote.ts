@@ -1,15 +1,6 @@
-import { query, getRequestEvent } from "$app/server";
-import { redirect } from "@sveltejs/kit";
+import { query } from "$app/server";
 import { getLinkedAccounts, type LinkedAccount } from "$lib/server/auth/linked-accounts";
-
-function getUserId(): string {
-  const event = getRequestEvent();
-  const user = event.locals.user;
-  if (!user) {
-    throw redirect(302, "/login");
-  }
-  return user.id;
-}
+import { getUserId } from "$lib/server/auth/user";
 
 /**
  * Get all linked social accounts for the current user.

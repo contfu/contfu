@@ -36,7 +36,12 @@ const consumerToConnection = new Map<string, SSEConnection>();
 /** Maps connection ID to consumer key (hex). */
 const connectionToConsumer = new Map<string, string>();
 /** Maps consumer key (hex) to consumer info. */
-const consumerInfo = new Map<string, { userId: string; consumerId: number }>();
+const consumerInfo = new Map<string, { userId: number; consumerId: number }>();
+/** Temporary cache for pre-authenticated consumers (expires after 30s). */
+const preAuthCache = new Map<
+  string,
+  { client: { id: number; userId: number }; timestamp: number }
+>();
 
 export class SSEServer {
   private worker: SyncWorkerManager | null = null;
@@ -51,16 +56,53 @@ export class SSEServer {
    * Adds a new SSE connection with authentication.
    * Returns the connection ID on success, or a ConnectionError on failure.
    */
-  async addConnection(
-    key: Buffer,
-    controller: ReadableStreamDefaultController<Uint8Array>,
-  ): Promise<string | ConnectionError> {
+  /**
+   * Pre-authenticate a consumer key before creating the SSE stream.
+   * This allows returning proper HTTP error codes (401, 409) instead of SSE error events.
+   */
+  async preAuthenticate(key: Buffer): Promise<{ error?: "E_AUTH" | "E_CONFLICT" | "E_ACCESS" }> {
     const client = await authenticateConsumer(key);
-    if (!client) return new ConnectionError("E_AUTH");
+    if (!client) {
+      return { error: "E_AUTH" };
+    }
 
     const consumerKey = key.toString("hex");
     const existingConnection = consumerToConnection.get(consumerKey);
-    if (existingConnection) return new ConnectionError("E_CONFLICT");
+    if (existingConnection) {
+      return { error: "E_CONFLICT" };
+    }
+
+    // Store pre-auth info for finalizeConnection
+    preAuthCache.set(consumerKey, { client, timestamp: Date.now() });
+
+    return {};
+  }
+
+  /**
+   * Finalize the SSE connection after pre-authentication passed.
+   * This sets up the actual connection and sends the CONNECTED event.
+   */
+  async finalizeConnection(
+    key: Buffer,
+    controller: ReadableStreamDefaultController<Uint8Array>,
+  ): Promise<string | ConnectionError> {
+    const consumerKey = key.toString("hex");
+
+    // Get pre-auth info (with 30s expiry)
+    const preAuth = preAuthCache.get(consumerKey);
+    if (!preAuth || Date.now() - preAuth.timestamp > 30000) {
+      preAuthCache.delete(consumerKey);
+      return new ConnectionError("E_AUTH");
+    }
+    preAuthCache.delete(consumerKey);
+
+    const { client } = preAuth;
+
+    // Double-check no connection exists (race condition protection)
+    const existingConnection = consumerToConnection.get(consumerKey);
+    if (existingConnection) {
+      return new ConnectionError("E_CONFLICT");
+    }
 
     const connectionId = crypto.randomUUID();
     const encoder = new TextEncoder();
@@ -72,7 +114,7 @@ export class SSEServer {
       connectionToConsumer.set(connectionId, consumerKey);
       consumerInfo.set(consumerKey, { userId: client.userId, consumerId: client.id });
 
-      // Send CONNECTED event
+      // Send CONNECTED event - this is a custom event that clients can listen for
       this.sendEvent(connection, { type: EventType.CONNECTED });
 
       return connectionId;
@@ -84,6 +126,21 @@ export class SSEServer {
       console.error("Failed to connect consumer:", error);
       return new ConnectionError("E_ACCESS");
     }
+  }
+
+  /**
+   * Legacy method - use preAuthenticate + finalizeConnection instead.
+   * Kept for backwards compatibility with tests.
+   */
+  async addConnection(
+    key: Buffer,
+    controller: ReadableStreamDefaultController<Uint8Array>,
+  ): Promise<string | ConnectionError> {
+    const preAuthResult = await this.preAuthenticate(key);
+    if (preAuthResult.error) {
+      return new ConnectionError(preAuthResult.error);
+    }
+    return this.finalizeConnection(key, controller);
   }
 
   /**
@@ -159,7 +216,7 @@ export class SSEServer {
 }
 
 export type ConnectionInfo = {
-  userId: string;
+  userId: number;
   consumerId: number;
   collectionId: number;
   lastItemChanged: number | null;
@@ -234,7 +291,9 @@ function serializeEvent(event: ItemEvent | ErrorEvent | ConnectedEvent): string 
         type: EventType.ERROR,
         code: event.code,
       };
-      return `event: error\ndata: ${JSON.stringify(data)}\n\n`;
+      // Use "auth_error" instead of "error" because the eventsource npm package
+      // intercepts "error" events and strips the data field
+      return `event: auth_error\ndata: ${JSON.stringify(data)}\n\n`;
     }
   }
 }

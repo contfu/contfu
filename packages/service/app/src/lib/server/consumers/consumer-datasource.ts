@@ -20,7 +20,7 @@ export type ConsumerWithConnectionCount = Consumer & {
  * Insert a new consumer for a user.
  * The ID is auto-generated as max(id) + 1 within the user's consumers.
  */
-export async function insertConsumer(userId: string, consumer: NewConsumer): Promise<Consumer> {
+export async function insertConsumer(userId: number, consumer: NewConsumer): Promise<Consumer> {
   const maxIdResult = await db
     .select({ maxId: sql<number>`coalesce(max(id), 0)` })
     .from(consumerTable)
@@ -45,7 +45,7 @@ export async function insertConsumer(userId: string, consumer: NewConsumer): Pro
 /**
  * Get all consumers for a user with connection counts.
  */
-export async function selectConsumers(userId: string): Promise<ConsumerWithConnectionCount[]> {
+export async function selectConsumers(userId: number): Promise<ConsumerWithConnectionCount[]> {
   const consumers = await db
     .select()
     .from(consumerTable)
@@ -76,7 +76,7 @@ export async function selectConsumers(userId: string): Promise<ConsumerWithConne
 /**
  * Get a single consumer by ID.
  */
-export async function selectConsumer(userId: string, id: number): Promise<Consumer | undefined> {
+export async function selectConsumer(userId: number, id: number): Promise<Consumer | undefined> {
   const [consumer] = await db
     .select()
     .from(consumerTable)
@@ -90,7 +90,7 @@ export async function selectConsumer(userId: string, id: number): Promise<Consum
  * Get a single consumer by ID with connection count.
  */
 export async function selectConsumerWithConnectionCount(
-  userId: string,
+  userId: number,
   id: number,
 ): Promise<ConsumerWithConnectionCount | undefined> {
   const [consumer] = await db
@@ -116,7 +116,7 @@ export async function selectConsumerWithConnectionCount(
  * Update a consumer.
  */
 export async function updateConsumer(
-  userId: string,
+  userId: number,
   id: number,
   updates: ConsumerUpdate,
 ): Promise<Consumer | undefined> {
@@ -132,7 +132,7 @@ export async function updateConsumer(
 /**
  * Delete a consumer. Connections will cascade delete.
  */
-export async function deleteConsumer(userId: string, id: number): Promise<boolean> {
+export async function deleteConsumer(userId: number, id: number): Promise<boolean> {
   const result = await db
     .delete(consumerTable)
     .where(and(eq(consumerTable.userId, userId), eq(consumerTable.id, id)))

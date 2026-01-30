@@ -68,7 +68,7 @@ export type Verification = typeof verificationTable.$inferSelect;
 // Application tables
 
 export const quotaTable = sqliteTable("quota", {
-  id: text()
+  id: integer()
     .primaryKey()
     .references(() => userTable.id, { onDelete: "cascade" }),
   /** Polar customer ID */
@@ -103,7 +103,7 @@ export const consumerTable = sqliteTable(
   "consumer",
   {
     /** The user id that the consumer belongs to. */
-    userId: text()
+    userId: integer()
       .notNull()
       .references(() => userTable.id, { onDelete: "cascade" }),
     /** The id of the consumer. */
@@ -126,7 +126,7 @@ export const sourceTable = sqliteTable(
   "source",
   {
     /** The user which owns the source. */
-    userId: text()
+    userId: integer()
       .references(() => userTable.id, { onDelete: "cascade" })
       .notNull(),
     /** The id which is unique within the user. */
@@ -157,7 +157,7 @@ export const collectionTable = sqliteTable(
   "collection",
   {
     /** The user which owns the collection. */
-    userId: text()
+    userId: integer()
       .references(() => userTable.id, { onDelete: "cascade" })
       .notNull(),
     /** The source which the collection is connected to. */
@@ -193,7 +193,7 @@ export const connectionTable = sqliteTable(
   "connection",
   {
     /** The user which owns the collection and consumer. */
-    userId: text()
+    userId: integer()
       .references(() => userTable.id, { onDelete: "cascade" })
       .notNull(),
     /** The consumer id. */
@@ -226,7 +226,7 @@ export const itemIdConflictResolutionTable = sqliteTable(
   "item_id_conflict_resolution",
   {
     /** The user which owns the id mapping. */
-    userId: text()
+    userId: integer()
       .references(() => userTable.id, { onDelete: "cascade" })
       .notNull(),
     /** The collection which the id mapping is connected to. */
