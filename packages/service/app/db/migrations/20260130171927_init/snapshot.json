@@ -841,7 +841,7 @@
       "table": "webhook_log"
     },
     {
-      "type": "text",
+      "type": "integer",
       "notNull": true,
       "autoincrement": false,
       "default": null,

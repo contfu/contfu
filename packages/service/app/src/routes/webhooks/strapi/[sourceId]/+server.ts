@@ -44,7 +44,7 @@ interface StrapiWebhookPayload {
  * Log a webhook event to the database.
  */
 async function logWebhookEvent(
-  userId: string,
+  userId: number,
   sourceId: number,
   event: string,
   model: string | null,

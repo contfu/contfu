@@ -125,7 +125,7 @@ CREATE TABLE `verification` (
 --> statement-breakpoint
 CREATE TABLE `webhook_log` (
 	`id` integer PRIMARY KEY,
-	`userId` text NOT NULL,
+	`userId` integer NOT NULL,
 	`sourceId` integer NOT NULL,
 	`event` text NOT NULL,
 	`model` text,

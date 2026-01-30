@@ -256,7 +256,7 @@ export const webhookLogTable = sqliteTable(
   {
     id: integer().primaryKey(),
     /** The user who owns the source. */
-    userId: text().notNull(),
+    userId: integer().notNull(),
     /** The source that received the webhook. */
     sourceId: integer().notNull(),
     /** The webhook event type (e.g., entry.create, entry.update). */
