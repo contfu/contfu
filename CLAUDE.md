@@ -192,6 +192,12 @@ Core entities include:
 - `page` - Client-side pages with content and metadata
 - Various service-specific tables for sources, collections, connections, etc.
 
+### Database Query Guidelines
+
+- **Minimal fetching:** Use lightweight select functions (e.g., `selectSource`) for existence checks; use aggregate variants (e.g., `selectSourceWithCollectionCount`) only when counts are displayed
+- **Avoid N+1:** Batch related queries instead of looping
+- **Filter aggregations:** Scope count queries to specific IDs, not all user data
+
 ### Docker Targets
 
 The Dockerfile has three targets:

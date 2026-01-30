@@ -1,6 +1,6 @@
 import { db } from "$lib/server/db/db";
 import { collectionTable, connectionTable, type Collection } from "$lib/server/db/schema";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 
 export type NewCollection = {
   sourceId: number;
@@ -106,7 +106,9 @@ export async function selectCollectionsBySource(
       count: sql<number>`count(*)`.as("count"),
     })
     .from(connectionTable)
-    .where(eq(connectionTable.userId, userId))
+    .where(
+      and(eq(connectionTable.userId, userId), inArray(connectionTable.collectionId, collectionIds)),
+    )
     .groupBy(connectionTable.collectionId);
 
   const countMap = new Map<number, number>(

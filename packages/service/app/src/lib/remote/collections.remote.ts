@@ -3,6 +3,7 @@ import { getUserId } from "$lib/server/auth/user";
 import {
   deleteCollection as deleteCollectionDb,
   insertCollection,
+  selectCollection,
   selectCollections,
   selectCollectionsBySource,
   selectCollectionWithConnectionCount,
@@ -87,7 +88,7 @@ export const updateCollection = form(
     const userId = getUserId();
 
     // Verify collection exists
-    const existing = await selectCollectionWithConnectionCount(userId, data.id);
+    const existing = await selectCollection(userId, data.id);
     if (!existing) {
       throw invalid(issue.id("Collection not found"));
     }
@@ -121,7 +122,7 @@ export const deleteCollection = form(
     const userId = getUserId();
 
     // Get collection to find sourceId before deleting
-    const existing = await selectCollectionWithConnectionCount(userId, data.id);
+    const existing = await selectCollection(userId, data.id);
     if (!existing) {
       throw invalid(issue.id("Collection not found"));
     }

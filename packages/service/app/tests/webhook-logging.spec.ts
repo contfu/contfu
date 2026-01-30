@@ -38,7 +38,7 @@ describe("Webhook Logging", () => {
   describe("logWebhookEvent", () => {
     it("should log webhook event with correct userId type (number)", async () => {
       const mockDb = createMockDb();
-      
+
       // Simulate the logWebhookEvent function logic
       const userId = 123; // number, not string
       const sourceId = 456;
@@ -147,12 +147,7 @@ describe("Webhook Logging", () => {
       mockSelectResult = Array.from({ length: 55 }, (_, i) => ({ id: i + 1 }));
 
       // Get logs
-      const logs = await mockDb
-        .select({ id: {} })
-        .from({})
-        .where({})
-        .orderBy({})
-        .limit(1000);
+      const logs = await mockDb.select({ id: {} }).from({}).where({}).orderBy({}).limit(1000);
 
       expect(logs.length).toBe(55);
 
@@ -166,7 +161,7 @@ describe("Webhook Logging", () => {
 
     it("should not delete logs when under MAX_LOGS_PER_SOURCE", async () => {
       const MAX_LOGS_PER_SOURCE = 50;
-      
+
       // Simulate having 30 logs
       mockSelectResult = Array.from({ length: 30 }, (_, i) => ({ id: i + 1 }));
 

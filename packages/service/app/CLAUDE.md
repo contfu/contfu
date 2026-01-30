@@ -108,6 +108,16 @@ Schema location: `src/lib/server/db/schema.ts`
 4. **Type safety:** Use Valibot for runtime validation
 5. **Secure auth:** Never expose secrets client-side; use httpOnly cookies
 
+## Database Query Efficiency
+
+1. **Fetch only what you need:** Use the minimal query function for the task
+   - Use `selectSource` for existence checks, not `selectSourceWithCollectionCount`
+   - Use `selectCollection` when you don't need connection counts
+   - Prefer lightweight selects over aggregate queries when counts aren't displayed
+2. **Avoid N+1 queries:** Batch database calls instead of looping with individual queries
+3. **Filter aggregations:** When counting related records, filter by the specific IDs needed, not all user data
+4. **Parallelize async operations:** Use `Promise.all()` for independent async operations like decryption
+
 ## Forms (svelte-kit-remote-functions)
 
 This project uses `svelte-kit-remote-functions` for form handling. **Always use this pattern instead of manual `fetch()` calls.**

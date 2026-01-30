@@ -3,6 +3,7 @@ import { getUserId } from "$lib/server/auth/user";
 import {
   deleteConsumer as deleteConsumerDb,
   insertConsumer,
+  selectConsumer,
   selectConsumers,
   selectConsumerWithConnectionCount,
   updateConsumer as updateConsumerDb,
@@ -78,7 +79,7 @@ export const updateConsumer = form(
     const userId = getUserId();
 
     // Verify consumer exists
-    const existing = await selectConsumerWithConnectionCount(userId, data.id);
+    const existing = await selectConsumer(userId, data.id);
     if (!existing) {
       throw invalid(issue.id("Consumer not found"));
     }
@@ -109,7 +110,7 @@ export const regenerateKey = form(
     const userId = getUserId();
 
     // Verify consumer exists
-    const existing = await selectConsumerWithConnectionCount(userId, data.id);
+    const existing = await selectConsumer(userId, data.id);
     if (!existing) {
       throw invalid(issue.id("Consumer not found"));
     }

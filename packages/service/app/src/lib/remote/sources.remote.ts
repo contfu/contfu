@@ -4,6 +4,7 @@ import { getUserId } from "$lib/server/auth/user";
 import {
   deleteSource as deleteSourceDb,
   insertSource,
+  selectSource,
   selectSources,
   selectSourceWithCollectionCount,
   updateSource as updateSourceDb,
@@ -158,7 +159,7 @@ export const updateSource = form(
     const userId = getUserId();
 
     // Fetch existing source to get the type
-    const existing = await selectSourceWithCollectionCount(userId, data.id);
+    const existing = await selectSource(userId, data.id);
     if (!existing) {
       throw invalid(issue.id("Source not found"));
     }
@@ -231,7 +232,7 @@ export const testConnection = command(
   }),
   async (data): Promise<ConnectionTestResult> => {
     const userId = getUserId();
-    const source = await selectSourceWithCollectionCount(userId, data.id);
+    const source = await selectSource(userId, data.id);
 
     if (!source) {
       return { success: false, message: "Source not found" };
@@ -283,7 +284,7 @@ export const regenerateWebhookSecret = command(
   }),
   async (data): Promise<{ success: boolean; secret?: string; message?: string }> => {
     const userId = getUserId();
-    const source = await selectSourceWithCollectionCount(userId, data.id);
+    const source = await selectSource(userId, data.id);
 
     if (!source) {
       return { success: false, message: "Source not found" };
