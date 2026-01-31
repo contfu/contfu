@@ -218,6 +218,75 @@
     </div>
   </section>
 
+  <!-- 
+  PRICING SECTION (temporarily disabled during beta)
+  Uncomment and remove Beta Section when ready to launch pricing.
+  
+  <section id="pricing" class="py-16 sm:py-24">
+    <div class="mx-auto max-w-5xl px-4 sm:px-6">
+      <div class="text-center">
+        <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">Simple pricing</h2>
+        <p class="mt-2 text-muted-foreground">All paid plans include a 7-day free trial</p>
+      </div>
+
+      <Tabs.Root value={isYearly ? "yearly" : "monthly"} class="mt-8">
+        <div class="flex justify-center">
+          <Tabs.List>
+            <Tabs.Trigger value="monthly" onclick={() => isYearly = false}>Monthly</Tabs.Trigger>
+            <Tabs.Trigger value="yearly" onclick={() => isYearly = true}>
+              Yearly <span class="ml-1 text-xs text-success">-15%</span>
+            </Tabs.Trigger>
+          </Tabs.List>
+        </div>
+
+        <div class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {#each plans as plan}
+            {@const yearlyTotal = getYearlyPrice(plan.monthlyPrice)}
+            {@const monthlyEquivalent = yearlyTotal > 0 ? Math.round(yearlyTotal / 12 * 100) / 100 : 0}
+            {@const price = isYearly ? monthlyEquivalent : plan.monthlyPrice}
+            <div class="relative flex flex-col rounded-lg border {plan.recommended ? 'border-primary' : 'border-border'} p-5">
+              {#if plan.recommended}
+                <span class="absolute -top-2.5 left-4 rounded bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground">
+                  Recommended
+                </span>
+              {/if}
+              <h3 class="font-semibold">{plan.name}</h3>
+              <div class="mt-2">
+                <span class="text-3xl font-semibold">{formatPrice(price)}</span>
+                {#if price > 0}
+                  <span class="text-sm text-muted-foreground">/mo</span>
+                {/if}
+              </div>
+              {#if isYearly && yearlyTotal > 0}
+                <p class="mt-1 text-xs text-muted-foreground">Billed ${yearlyTotal}/year</p>
+              {/if}
+              <ul class="mt-4 flex-1 space-y-2 text-sm text-muted-foreground">
+                {#each plan.features as feature}
+                  <li class="flex items-center gap-2">
+                    <svg class="h-4 w-4 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    {feature}
+                  </li>
+                {/each}
+              </ul>
+              {#if plan.slug && data.user}
+                <Button onclick={() => handleCheckout(plan.slug!)} class="mt-4 w-full">
+                  Subscribe
+                </Button>
+              {:else}
+                <Button href="/register" variant={plan.recommended ? "default" : "outline"} class="mt-4 w-full">
+                  Get Started
+                </Button>
+              {/if}
+            </div>
+          {/each}
+        </div>
+      </Tabs.Root>
+    </div>
+  </section>
+  -->
+
   <!-- Beta Section (replaces Pricing during beta) -->
   <section id="beta" class="py-16 sm:py-24">
     <div class="mx-auto max-w-3xl px-4 sm:px-6">
