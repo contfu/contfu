@@ -74,23 +74,40 @@
 
   // Use table's API to set filters (ensures proper reactivity)
   function getStatusFilter(): string {
-    return (table.getColumn("approved")?.getFilterValue() as string) ?? "all";
+    const val = table.getColumn("approved")?.getFilterValue() as string;
+    console.log("[DEBUG] getStatusFilter:", val);
+    return val ?? "all";
   }
 
   function setStatusFilter(value: string) {
-    table.getColumn("approved")?.setFilterValue(value === "all" ? undefined : value);
+    console.log("[DEBUG] setStatusFilter called with:", value);
+    const column = table.getColumn("approved");
+    console.log("[DEBUG] approved column exists:", !!column);
+    column?.setFilterValue(value === "all" ? undefined : value);
+    console.log("[DEBUG] filter value after set:", column?.getFilterValue());
+    console.log("[DEBUG] filtered rows:", table.getFilteredRowModel().rows.length);
   }
 
   function getRoleFilter(): string {
-    return (table.getColumn("role")?.getFilterValue() as string) ?? "all";
+    const val = table.getColumn("role")?.getFilterValue() as string;
+    console.log("[DEBUG] getRoleFilter:", val);
+    return val ?? "all";
   }
 
   function setRoleFilter(value: string) {
-    table.getColumn("role")?.setFilterValue(value === "all" ? undefined : value);
+    console.log("[DEBUG] setRoleFilter called with:", value);
+    const column = table.getColumn("role");
+    console.log("[DEBUG] role column exists:", !!column);
+    column?.setFilterValue(value === "all" ? undefined : value);
+    console.log("[DEBUG] filter value after set:", column?.getFilterValue());
+    console.log("[DEBUG] filtered rows:", table.getFilteredRowModel().rows.length);
   }
 
   function setGlobalFilter(value: string) {
+    console.log("[DEBUG] setGlobalFilter called with:", value);
     table.setGlobalFilter(value);
+    console.log("[DEBUG] global filter value:", table.getState().globalFilter);
+    console.log("[DEBUG] filtered rows:", table.getFilteredRowModel().rows.length);
   }
 </script>
 
