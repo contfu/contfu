@@ -1,7 +1,10 @@
 <script lang="ts">
+  // import { authClient } from "$lib/auth-client";
   import { Button } from "$lib/components/ui/button";
+  // import * as Tabs from "$lib/components/ui/tabs";
 
   let { data } = $props();
+  // let isYearly = $state(true);
 
   const features = [
     {
@@ -23,7 +26,48 @@
   ];
 
   // Pricing temporarily disabled during beta
-  // const plans = [...];
+  // const plans = [
+  //   {
+  //     name: "Free",
+  //     monthlyPrice: 0,
+  //     features: ["1 source", "5 collections", "1,000 items/mo", "1 client"],
+  //     slug: null,
+  //   },
+  //   {
+  //     name: "Starter",
+  //     monthlyPrice: 6,
+  //     features: ["3 sources", "15 collections", "10,000 items/mo", "2 clients"],
+  //     slug: "starter",
+  //   },
+  //   {
+  //     name: "Pro",
+  //     monthlyPrice: 25,
+  //     features: ["10 sources", "50 collections", "100,000 items/mo", "5 clients", "Priority support"],
+  //     slug: "pro",
+  //     recommended: true,
+  //   },
+  //   {
+  //     name: "Business",
+  //     monthlyPrice: 100,
+  //     features: ["100 sources", "500 collections", "1M items/mo", "50 clients", "Dedicated support"],
+  //     slug: "business",
+  //   },
+  // ];
+
+  // function getYearlyPrice(monthlyPrice: number) {
+  //   return Math.round(monthlyPrice * 12 * 0.85 * 100) / 100;
+  // }
+
+  // async function handleCheckout(slug: string) {
+  //   const period = isYearly ? "yearly" : "monthly";
+  //   await authClient.checkout({ slug: `${slug}/${period}` });
+  // }
+
+  // function formatPrice(amount: number) {
+  //   if (amount === 0) return "Free";
+  //   // Show decimals only if needed
+  //   return amount % 1 === 0 ? `$${amount}` : `$${amount.toFixed(2)}`;
+  // }
 </script>
 
 <main>

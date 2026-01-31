@@ -68,8 +68,8 @@
 
   <p class="mt-6 text-center text-sm text-muted-foreground">
     Have questions? Reach out to us at{" "}
-    <a href="mailto:support@contfu.com" class="text-primary hover:underline">
-      support@contfu.com
+    <a href="mailto:mail@contfu.com" class="text-primary hover:underline">
+      mail@contfu.com
     </a>
   </p>
 </div>

@@ -5,6 +5,8 @@
   import Avatar from "./Avatar.svelte";
   import ThemeToggle from "./ThemeToggle.svelte";
 
+  import { UserRole } from "$lib/server/auth/user";
+
   export type DisplayUser = { email: string; name: string; image?: string; role?: number };
 
   let {
@@ -15,7 +17,7 @@
     isUnderConstruction: boolean;
   } = $props();
 
-  const isAdmin = user?.role === 1;
+  const isAdmin = $derived(user?.role === UserRole.ADMIN);
 
   let isOpen = $state(false);
 

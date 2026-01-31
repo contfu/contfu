@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { enhance } from "$app/forms";
   import { Button } from "$lib/components/ui/button";
-  import type { UserSummary } from "$lib/server/admin/users";
+  import { getUsers, approveUser, revokeUser, promoteToAdmin, demoteFromAdmin } from "$lib/remote/admin.remote";
+  import { UserRole } from "$lib/server/auth/user";
 
-  let { data }: { data: { users: UserSummary[] } } = $props();
+  const users = await getUsers();
 
   function formatDate(date: Date | string) {
     return new Date(date).toLocaleDateString("en-US", {
@@ -26,10 +26,10 @@
     </div>
     <div class="flex gap-2">
       <span class="inline-flex items-center rounded-md border border-border bg-muted/50 px-2.5 py-0.5 text-sm">
-        {data.users.filter((u) => !u.approved).length} pending
+        {users.filter((u) => !u.approved).length} pending
       </span>
       <span class="inline-flex items-center rounded-md border border-border bg-muted/50 px-2.5 py-0.5 text-sm">
-        {data.users.length} total
+        {users.length} total
       </span>
     </div>
   </div>
@@ -46,7 +46,7 @@
         </tr>
       </thead>
       <tbody class="divide-y divide-border">
-        {#each data.users as user (user.id)}
+        {#each users as user (user.id)}
           <tr class="hover:bg-muted/30">
             <td class="px-4 py-3">
               <div>
@@ -72,7 +72,7 @@
               {/if}
             </td>
             <td class="px-4 py-3">
-              {#if user.role === 1}
+              {#if user.role === UserRole.ADMIN}
                 <span class="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
                   <svg class="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
                     <path d="M10 2a8 8 0 100 16 8 8 0 000-16zM8 14l-3-3 1.5-1.5L8 11l4.5-4.5L14 8l-6 6z" />
@@ -91,25 +91,33 @@
             <td class="px-4 py-3 text-right">
               <div class="flex justify-end gap-2">
                 {#if !user.approved}
-                  <form method="POST" action="?/approve" use:enhance>
+                  <form method="post" action={approveUser.action}>
                     <input type="hidden" name="id" value={user.id} />
-                    <Button type="submit" size="sm">Approve</Button>
+                    <Button type="submit" size="sm" disabled={!!approveUser.pending}>
+                      {approveUser.pending ? "..." : "Approve"}
+                    </Button>
                   </form>
                 {:else}
-                  <form method="POST" action="?/revoke" use:enhance>
+                  <form method="post" action={revokeUser.action}>
                     <input type="hidden" name="id" value={user.id} />
-                    <Button type="submit" size="sm" variant="outline">Revoke</Button>
+                    <Button type="submit" size="sm" variant="outline" disabled={!!revokeUser.pending}>
+                      {revokeUser.pending ? "..." : "Revoke"}
+                    </Button>
                   </form>
                 {/if}
-                {#if user.role === 1}
-                  <form method="POST" action="?/removeAdmin" use:enhance>
+                {#if user.role === UserRole.ADMIN}
+                  <form method="post" action={demoteFromAdmin.action}>
                     <input type="hidden" name="id" value={user.id} />
-                    <Button type="submit" size="sm" variant="outline">Remove Admin</Button>
+                    <Button type="submit" size="sm" variant="outline" disabled={!!demoteFromAdmin.pending}>
+                      {demoteFromAdmin.pending ? "..." : "Remove Admin"}
+                    </Button>
                   </form>
                 {:else}
-                  <form method="POST" action="?/makeAdmin" use:enhance>
+                  <form method="post" action={promoteToAdmin.action}>
                     <input type="hidden" name="id" value={user.id} />
-                    <Button type="submit" size="sm" variant="secondary">Make Admin</Button>
+                    <Button type="submit" size="sm" variant="secondary" disabled={!!promoteToAdmin.pending}>
+                      {promoteToAdmin.pending ? "..." : "Make Admin"}
+                    </Button>
                   </form>
                 {/if}
               </div>

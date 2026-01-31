@@ -1,6 +1,6 @@
 import { db } from "$lib/server/db/db";
 import * as schema from "$lib/server/db/schema";
-import { UserRole } from "$lib/server/db/schema";
+import { UserRole } from "$lib/server/auth/user";
 import { sendEmail } from "$lib/server/mail/mail";
 import { checkout, polar, portal, usage, webhooks } from "@polar-sh/better-auth";
 import { Polar } from "@polar-sh/sdk";
