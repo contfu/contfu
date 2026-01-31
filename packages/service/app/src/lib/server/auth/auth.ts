@@ -1,11 +1,13 @@
 import { db } from "$lib/server/db/db";
 import * as schema from "$lib/server/db/schema";
+import { UserRole } from "$lib/server/db/schema";
 import { sendEmail } from "$lib/server/mail/mail";
 import { checkout, polar, portal, usage, webhooks } from "@polar-sh/better-auth";
 import { Polar } from "@polar-sh/sdk";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { createAuthMiddleware } from "better-auth/api";
+import { count } from "drizzle-orm";
 import { absolute, button, link } from "../mail/mail-rendering";
 
 const polarClient = new Polar({
@@ -26,6 +28,42 @@ export const auth = betterAuth({
       verification: schema.verificationTable,
     },
   }),
+  user: {
+    additionalFields: {
+      role: {
+        type: "number",
+        required: false,
+        defaultValue: UserRole.USER,
+        input: false,
+      },
+      approved: {
+        type: "boolean",
+        required: false,
+        defaultValue: false,
+        input: false,
+      },
+    },
+  },
+  databaseHooks: {
+    user: {
+      create: {
+        async before(user) {
+          // Check if this is the first user (will be admin)
+          const [{ userCount }] = await db.select({ userCount: count() }).from(schema.userTable);
+
+          const isFirstUser = userCount === 0;
+
+          return {
+            data: {
+              ...user,
+              role: isFirstUser ? UserRole.ADMIN : UserRole.USER,
+              approved: isFirstUser, // First user is auto-approved
+            },
+          };
+        },
+      },
+    },
+  },
   advanced: {
     database: {
       useNumberId: true,

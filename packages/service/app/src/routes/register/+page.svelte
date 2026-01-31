@@ -42,9 +42,22 @@
 
 <div class="flex min-h-[calc(100vh-8rem)] items-center justify-center px-4 py-12">
 	<div class="w-full max-w-sm">
-		<div class="mb-8 text-center">
+		<div class="mb-6 text-center">
 			<h1 class="text-2xl font-semibold tracking-tight">Create account</h1>
-			<p class="mt-1 text-sm text-muted-foreground">Get started with Contfu</p>
+			<p class="mt-1 text-sm text-muted-foreground">Join the Contfu beta</p>
+		</div>
+
+		<!-- Beta info banner -->
+		<div class="mb-6 flex gap-3 rounded-lg bg-primary/10 p-4">
+			<svg class="mt-0.5 h-5 w-5 shrink-0 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+			</svg>
+			<div class="text-sm">
+				<p class="font-medium text-foreground">Beta Access</p>
+				<p class="mt-0.5 text-muted-foreground">
+					Your access will be granted as slots become available. We appreciate your patience and feedback!
+				</p>
+			</div>
 		</div>
 
 		<form onsubmit={handleSignUp} class="space-y-4">

@@ -110,6 +110,8 @@ CREATE TABLE `user` (
 	`email` text NOT NULL UNIQUE,
 	`emailVerified` integer DEFAULT false NOT NULL,
 	`image` text,
+	`role` integer DEFAULT 0 NOT NULL,
+	`approved` integer DEFAULT false NOT NULL,
 	`createdAt` integer DEFAULT (unixepoch()) NOT NULL,
 	`updatedAt` integer DEFAULT (unixepoch()) NOT NULL
 );

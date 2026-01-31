@@ -1,10 +1,7 @@
 <script lang="ts">
-  import { authClient } from "$lib/auth-client";
   import { Button } from "$lib/components/ui/button";
-  import * as Tabs from "$lib/components/ui/tabs";
 
   let { data } = $props();
-  let isYearly = $state(true);
 
   const features = [
     {
@@ -25,48 +22,8 @@
     },
   ];
 
-  const plans = [
-    {
-      name: "Free",
-      monthlyPrice: 0,
-      features: ["1 source", "5 collections", "1,000 items/mo", "1 client"],
-      slug: null,
-    },
-    {
-      name: "Starter",
-      monthlyPrice: 6,
-      features: ["3 sources", "15 collections", "10,000 items/mo", "2 clients"],
-      slug: "starter",
-    },
-    {
-      name: "Pro",
-      monthlyPrice: 25,
-      features: ["10 sources", "50 collections", "100,000 items/mo", "5 clients", "Priority support"],
-      slug: "pro",
-      recommended: true,
-    },
-    {
-      name: "Business",
-      monthlyPrice: 100,
-      features: ["100 sources", "500 collections", "1M items/mo", "50 clients", "Dedicated support"],
-      slug: "business",
-    },
-  ];
-
-  function getYearlyPrice(monthlyPrice: number) {
-    return Math.round(monthlyPrice * 12 * 0.85 * 100) / 100;
-  }
-
-  async function handleCheckout(slug: string) {
-    const period = isYearly ? "yearly" : "monthly";
-    await authClient.checkout({ slug: `${slug}/${period}` });
-  }
-
-  function formatPrice(amount: number) {
-    if (amount === 0) return "Free";
-    // Show decimals only if needed
-    return amount % 1 === 0 ? `$${amount}` : `$${amount.toFixed(2)}`;
-  }
+  // Pricing temporarily disabled during beta
+  // const plans = [...];
 </script>
 
 <main>
@@ -81,7 +38,7 @@
         Build faster apps with instant content access and zero API limits.
       </p>
       <div class="mt-8 flex justify-center gap-3">
-        <Button href="#pricing" size="lg">Start Free</Button>
+        <Button href="#beta" size="lg">Join the Beta</Button>
         <Button href="#how-it-works" variant="outline" size="lg">How It Works</Button>
       </div>
     </div>
@@ -217,68 +174,62 @@
     </div>
   </section>
 
-  <!-- Pricing -->
-  <section id="pricing" class="py-16 sm:py-24">
-    <div class="mx-auto max-w-5xl px-4 sm:px-6">
-      <div class="text-center">
-        <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">Simple pricing</h2>
-        <p class="mt-2 text-muted-foreground">All paid plans include a 7-day free trial</p>
-      </div>
-
-      <Tabs.Root value={isYearly ? "yearly" : "monthly"} class="mt-8">
-        <div class="flex justify-center">
-          <Tabs.List>
-            <Tabs.Trigger value="monthly" onclick={() => isYearly = false}>Monthly</Tabs.Trigger>
-            <Tabs.Trigger value="yearly" onclick={() => isYearly = true}>
-              Yearly <span class="ml-1 text-xs text-success">-15%</span>
-            </Tabs.Trigger>
-          </Tabs.List>
+  <!-- Beta Section (replaces Pricing during beta) -->
+  <section id="beta" class="py-16 sm:py-24">
+    <div class="mx-auto max-w-3xl px-4 sm:px-6">
+      <div class="rounded-2xl border-2 border-primary/20 bg-primary/5 p-8 sm:p-12">
+        <div class="text-center">
+          <div class="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+            <svg class="h-8 w-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+            </svg>
+          </div>
+          <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">We're in Beta!</h2>
+          <p class="mx-auto mt-4 max-w-lg text-muted-foreground">
+            Contfu is currently in closed beta. Sign up now to get early access and help shape
+            the future of content synchronization.
+          </p>
         </div>
 
-        <div class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {#each plans as plan}
-            {@const yearlyTotal = getYearlyPrice(plan.monthlyPrice)}
-            {@const monthlyEquivalent = yearlyTotal > 0 ? Math.round(yearlyTotal / 12 * 100) / 100 : 0}
-            {@const price = isYearly ? monthlyEquivalent : plan.monthlyPrice}
-            <div class="relative flex flex-col rounded-lg border {plan.recommended ? 'border-primary' : 'border-border'} p-5">
-              {#if plan.recommended}
-                <span class="absolute -top-2.5 left-4 rounded bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground">
-                  Recommended
-                </span>
-              {/if}
-              <h3 class="font-semibold">{plan.name}</h3>
-              <div class="mt-2">
-                <span class="text-3xl font-semibold">{formatPrice(price)}</span>
-                {#if price > 0}
-                  <span class="text-sm text-muted-foreground">/mo</span>
-                {/if}
-              </div>
-              {#if isYearly && yearlyTotal > 0}
-                <p class="mt-1 text-xs text-muted-foreground">Billed ${yearlyTotal}/year</p>
-              {/if}
-              <ul class="mt-4 flex-1 space-y-2 text-sm text-muted-foreground">
-                {#each plan.features as feature}
-                  <li class="flex items-center gap-2">
-                    <svg class="h-4 w-4 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                    </svg>
-                    {feature}
-                  </li>
-                {/each}
-              </ul>
-              {#if plan.slug && data.user}
-                <Button onclick={() => handleCheckout(plan.slug!)} class="mt-4 w-full">
-                  Subscribe
-                </Button>
-              {:else}
-                <Button href="/register" variant={plan.recommended ? "default" : "outline"} class="mt-4 w-full">
-                  Get Started
-                </Button>
-              {/if}
+        <!-- Beta Benefits -->
+        <div class="mt-8 grid gap-4 sm:grid-cols-3">
+          <div class="rounded-lg bg-background p-4">
+            <div class="mb-2 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+              <svg class="h-5 w-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+              </svg>
             </div>
-          {/each}
+            <h3 class="font-medium">Early Access</h3>
+            <p class="mt-1 text-sm text-muted-foreground">Be among the first to try new features</p>
+          </div>
+          <div class="rounded-lg bg-background p-4">
+            <div class="mb-2 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+              <svg class="h-5 w-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+            </div>
+            <h3 class="font-medium">Direct Feedback</h3>
+            <p class="mt-1 text-sm text-muted-foreground">Your input shapes the product</p>
+          </div>
+          <div class="rounded-lg bg-background p-4">
+            <div class="mb-2 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+              <svg class="h-5 w-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
+              </svg>
+            </div>
+            <h3 class="font-medium">Lifetime Pro</h3>
+            <p class="mt-1 text-sm text-muted-foreground">Provide a testimonial → free Pro forever</p>
+          </div>
         </div>
-      </Tabs.Root>
+
+        <!-- CTA -->
+        <div class="mt-8 text-center">
+          <Button href="/register" size="lg">Sign up for Beta Testing</Button>
+          <p class="mt-3 text-sm text-muted-foreground">
+            Already have an account? <a href="/login" class="text-primary hover:underline">Sign in</a>
+          </p>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -288,7 +239,7 @@
       <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">
         Ship Faster. Query Content Instantly.
       </h2>
-      <Button href="/register" size="lg" class="mt-6">Create Free Account</Button>
+      <Button href="/register" size="lg" class="mt-6">Sign up for Beta</Button>
     </div>
   </section>
 </main>

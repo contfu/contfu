@@ -1,7 +1,7 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "3a478819-8ff4-4d1c-8483-d0bb2a270460",
+  "id": "62fb269f-8101-4d08-aef3-3c3574e0c0d2",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
@@ -747,6 +747,26 @@
       "default": null,
       "generated": null,
       "name": "image",
+      "entityType": "columns",
+      "table": "user"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "0",
+      "generated": null,
+      "name": "role",
+      "entityType": "columns",
+      "table": "user"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "false",
+      "generated": null,
+      "name": "approved",
       "entityType": "columns",
       "table": "user"
     },

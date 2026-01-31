@@ -5,7 +5,7 @@
   import Avatar from "./Avatar.svelte";
   import ThemeToggle from "./ThemeToggle.svelte";
 
-  export type DisplayUser = { email: string; name: string; image?: string };
+  export type DisplayUser = { email: string; name: string; image?: string; role?: number };
 
   let {
     user,
@@ -14,6 +14,8 @@
     user: DisplayUser | null;
     isUnderConstruction: boolean;
   } = $props();
+
+  const isAdmin = user?.role === 1;
 
   let isOpen = $state(false);
 
@@ -97,6 +99,14 @@
                   >
                     Billing
                   </a>
+                  {#if isAdmin}
+                    <a
+                      href="/admin/users"
+                      class="block px-3 py-1.5 text-sm text-popover-foreground hover:bg-accent"
+                    >
+                      Admin
+                    </a>
+                  {/if}
                   <button
                     type="button"
                     onclick={handleLogout}
@@ -111,8 +121,8 @@
             <a href="/#features" class="px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground">
               Features
             </a>
-            <a href="/#pricing" class="px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground">
-              Pricing
+            <a href="/#beta" class="px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground">
+              Beta
             </a>
             <a
               href="/login"

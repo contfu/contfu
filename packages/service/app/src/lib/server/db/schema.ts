@@ -1,6 +1,13 @@
 import { sql } from "drizzle-orm";
 import { blob, foreignKey, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
+// User roles: 0 = user, 1 = admin
+export const UserRole = {
+  USER: 0,
+  ADMIN: 1,
+} as const;
+export type UserRole = (typeof UserRole)[keyof typeof UserRole];
+
 // better-auth tables
 
 export const userTable = sqliteTable("user", {
@@ -9,6 +16,8 @@ export const userTable = sqliteTable("user", {
   email: text().unique().notNull(),
   emailVerified: integer({ mode: "boolean" }).notNull().default(false),
   image: text(),
+  role: integer().$type<UserRole>().notNull().default(UserRole.USER),
+  approved: integer({ mode: "boolean" }).notNull().default(false),
   createdAt: integer({ mode: "timestamp" })
     .default(sql`(unixepoch())`)
     .notNull(),
