@@ -2,12 +2,13 @@ import { SQL } from "bun";
 import { drizzle } from "drizzle-orm/bun-sql/sqlite";
 import { migrate } from "drizzle-orm/bun-sql/sqlite/migrator";
 import { mkdir } from "fs/promises";
-import { dirname } from "path";
+import { dirname, join } from "path";
+import { fileURLToPath } from "url";
 import * as schema from "./schema";
 
 const dbUrl: string = process.env.DATABASE_URL ?? ":memory:";
 
-const migrationsFolder = "./db/migrations";
+const migrationsFolder = join(dirname(fileURLToPath(import.meta.url)), "../../../../db/migrations");
 if (dbUrl.match(/^\.?\//)) {
   mkdir(dirname(dbUrl), { recursive: true });
 }

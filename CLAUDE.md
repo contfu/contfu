@@ -93,6 +93,14 @@ This user is created by `packages/service/app/src/lib/server/db/seed-dev.ts` spe
 1. Requires a valid Polar API key
 2. Creates real records that need manual cleanup
 
+### Database Testing Pattern
+
+- **Use real database:** Tests use the in-memory SQLite database by default (`:memory:`), not mocks
+- **Truncate before each test:** Import `truncateAllTables` from `test/setup.ts` and call in `beforeEach()`
+- **Single source of truth:** Keep table truncation logic in `test/setup.ts` so it stays in sync with schema changes
+- **Respect FK order:** Create parent records before child records in tests
+- **Skip if mocked:** Use `describe.skipIf(isDbMocked)` for tests that need real db when running from monorepo root
+
 ### E2E Tests
 
 E2E tests are in `/tests/e2e/`. They use Playwright and require:

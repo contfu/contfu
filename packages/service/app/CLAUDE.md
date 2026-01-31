@@ -118,6 +118,44 @@ Schema location: `src/lib/server/db/schema.ts`
 3. **Filter aggregations:** When counting related records, filter by the specific IDs needed, not all user data
 4. **Parallelize async operations:** Use `Promise.all()` for independent async operations like decryption
 
+## Testing Guidelines
+
+1. **Use real in-memory database:** Tests use the real SQLite database (`:memory:` by default), not mocks
+2. **Truncate before each test:** Call `truncateAllTables()` from `test/setup.ts` in `beforeEach()` to ensure test isolation
+3. **Respect FK constraints:** When inserting test data, create parent records first (e.g., user before source before webhook_log)
+4. **Skip if mocked:** Use `describe.skipIf(isDbMocked)` to skip tests when running from monorepo root where other tests may mock the db
+
+**Example real database test pattern:**
+
+```typescript
+import { beforeEach, describe, expect, it } from "bun:test";
+import { truncateAllTables } from "../../../../test/setup";
+import { db } from "./db";
+import { userTable, sourceTable } from "./schema";
+
+// Skip if db is mocked by other tests
+const isDbMocked = typeof db.delete !== "function";
+
+describe.skipIf(isDbMocked)("MyFeature", () => {
+  beforeEach(async () => {
+    await truncateAllTables();
+  });
+
+  it("should insert correctly", async () => {
+    const [user] = await db
+      .insert(userTable)
+      .values({ name: "Test", email: "test@example.com" })
+      .returning();
+    expect(user.id).toBeTypeOf("number");
+  });
+});
+```
+
+**Running tests:**
+
+- From package: `cd packages/service/app && bun test` - runs all tests with real database
+- From root: `bun test` - webhook tests skip (mocked environment), other tests run
+
 ## Forms (svelte-kit-remote-functions)
 
 This project uses `svelte-kit-remote-functions` for form handling. **Always use this pattern instead of manual `fetch()` calls.**
