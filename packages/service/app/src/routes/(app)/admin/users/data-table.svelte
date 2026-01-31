@@ -109,6 +109,11 @@
     console.log("[DEBUG] global filter value:", table.getState().globalFilter);
     console.log("[DEBUG] filtered rows:", table.getFilteredRowModel().rows.length);
   }
+
+  // Derived values to ensure reactivity
+  const headerGroups = $derived(table.getHeaderGroups());
+  const rowModel = $derived(table.getRowModel());
+  const filteredRowCount = $derived(table.getFilteredRowModel().rows.length);
 </script>
 
 <div class="space-y-4">
@@ -158,7 +163,7 @@
   <div class="rounded-md border">
     <Table.Root>
       <Table.Header>
-        {#each table.getHeaderGroups() as headerGroup (headerGroup.id)}
+        {#each headerGroups as headerGroup (headerGroup.id)}
           <Table.Row>
             {#each headerGroup.headers as header (header.id)}
               <Table.Head colspan={header.colSpan}>
@@ -187,7 +192,7 @@
         {/each}
       </Table.Header>
       <Table.Body>
-        {#each table.getRowModel().rows as row (row.id)}
+        {#each rowModel.rows as row (row.id)}
           <Table.Row data-state={row.getIsSelected() && "selected"}>
             {#each row.getVisibleCells() as cell (cell.id)}
               <Table.Cell>
@@ -208,6 +213,6 @@
 
   <!-- Footer info -->
   <div class="text-sm text-muted-foreground">
-    Showing {table.getFilteredRowModel().rows.length} of {data.length} users
+    Showing {filteredRowCount} of {data.length} users
   </div>
 </div>
