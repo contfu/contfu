@@ -1,5 +1,6 @@
 import { db } from "$lib/server/db/db";
-import { userTable, type UserRole } from "$lib/server/db/schema";
+import { userTable } from "$lib/server/db/schema";
+import type { UserRole } from "$lib/constants/user";
 import { desc, eq } from "drizzle-orm";
 
 export interface UserSummary {

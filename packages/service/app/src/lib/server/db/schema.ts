@@ -2,9 +2,6 @@ import { sql } from "drizzle-orm";
 import { blob, foreignKey, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { UserRole, type UserRole as UserRoleType } from "$lib/constants/user";
 
-// Re-export for convenience
-export { UserRole, type UserRoleType };
-
 // better-auth tables
 
 export const userTable = sqliteTable("user", {

@@ -70,38 +70,25 @@
     },
   });
 
+  // Use table's API to set filters (ensures proper reactivity)
   function getStatusFilter(): string {
-    const filter = columnFilters.find((f) => f.id === "approved");
-    return (filter?.value as string) ?? "all";
+    return (table.getColumn("approved")?.getFilterValue() as string) ?? "all";
   }
 
   function setStatusFilter(value: string) {
-    if (value === "all") {
-      columnFilters = columnFilters.filter((f) => f.id !== "approved");
-    } else {
-      // Create new array to trigger reactivity (immutable update)
-      columnFilters = [
-        ...columnFilters.filter((f) => f.id !== "approved"),
-        { id: "approved", value },
-      ];
-    }
+    table.getColumn("approved")?.setFilterValue(value === "all" ? undefined : value);
   }
 
   function getRoleFilter(): string {
-    const filter = columnFilters.find((f) => f.id === "role");
-    return (filter?.value as string) ?? "all";
+    return (table.getColumn("role")?.getFilterValue() as string) ?? "all";
   }
 
   function setRoleFilter(value: string) {
-    if (value === "all") {
-      columnFilters = columnFilters.filter((f) => f.id !== "role");
-    } else {
-      // Create new array to trigger reactivity (immutable update)
-      columnFilters = [
-        ...columnFilters.filter((f) => f.id !== "role"),
-        { id: "role", value },
-      ];
-    }
+    table.getColumn("role")?.setFilterValue(value === "all" ? undefined : value);
+  }
+
+  function setGlobalFilter(value: string) {
+    table.setGlobalFilter(value);
   }
 </script>
 
@@ -111,12 +98,18 @@
     <Input
       placeholder="Search users..."
       class="max-w-sm"
-      value={globalFilter}
-      oninput={(e) => (globalFilter = e.currentTarget.value)}
+      value={table.getState().globalFilter ?? ""}
+      oninput={(e) => setGlobalFilter(e.currentTarget.value)}
     />
     <Select.Root type="single" value={getStatusFilter()} onValueChange={setStatusFilter}>
       <Select.Trigger class="w-[150px]">
-        {getStatusFilter() === "all" ? "All statuses" : getStatusFilter() === "approved" ? "Approved" : "Pending"}
+        {#if getStatusFilter() === "approved"}
+          Approved
+        {:else if getStatusFilter() === "pending"}
+          Pending
+        {:else}
+          All statuses
+        {/if}
       </Select.Trigger>
       <Select.Content>
         <Select.Item value="all">All statuses</Select.Item>
@@ -126,7 +119,13 @@
     </Select.Root>
     <Select.Root type="single" value={getRoleFilter()} onValueChange={setRoleFilter}>
       <Select.Trigger class="w-[120px]">
-        {getRoleFilter() === "all" ? "All roles" : getRoleFilter() === "admin" ? "Admin" : "User"}
+        {#if getRoleFilter() === "admin"}
+          Admin
+        {:else if getRoleFilter() === "user"}
+          User
+        {:else}
+          All roles
+        {/if}
       </Select.Trigger>
       <Select.Content>
         <Select.Item value="all">All roles</Select.Item>

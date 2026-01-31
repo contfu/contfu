@@ -41,10 +41,10 @@ export const columns: ColumnDef<UserSummary>[] = [
     cell: ({ row }) => {
       return renderComponent(DataTableStatusBadge, { approved: row.original.approved });
     },
-    filterFn: (row, _columnId, filterValue: string) => {
-      if (filterValue === "all") return true;
-      if (filterValue === "approved") return row.original.approved;
-      if (filterValue === "pending") return !row.original.approved;
+    filterFn: (row, _columnId, filterValue: string | undefined) => {
+      if (!filterValue || filterValue === "all") return true;
+      if (filterValue === "approved") return row.original.approved === true;
+      if (filterValue === "pending") return row.original.approved === false;
       return true;
     },
   },
@@ -55,8 +55,8 @@ export const columns: ColumnDef<UserSummary>[] = [
     cell: ({ row }) => {
       return renderComponent(DataTableRoleBadge, { role: row.original.role });
     },
-    filterFn: (row, _columnId, filterValue: string) => {
-      if (filterValue === "all") return true;
+    filterFn: (row, _columnId, filterValue: string | undefined) => {
+      if (!filterValue || filterValue === "all") return true;
       if (filterValue === "admin") return row.original.role === UserRole.ADMIN;
       if (filterValue === "user") return row.original.role === UserRole.USER;
       return true;
