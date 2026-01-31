@@ -21,6 +21,7 @@
     "@css-inline/css-inline": "^0.19.1",
     "@polar-sh/better-auth": "^1.6.4",
     "@polar-sh/sdk": "^0.42.2",
+    "@tanstack/table-core": "^8.21.3",
     "better-auth": "^1.4.15",
     "bits-ui": "^2.15.4",
     "clsx": "^2.1.1",
