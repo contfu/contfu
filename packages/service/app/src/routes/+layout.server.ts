@@ -5,7 +5,9 @@ export const load: LayoutServerLoad = async ({ locals }) => {
   const user = locals.user;
 
   return {
-    user: user ? { email: user.email, name: user.name, image: user.image ?? undefined } : null,
+    user: user
+      ? { email: user.email, name: user.name, image: user.image ?? undefined, role: user.role }
+      : null,
     isUnderConstruction,
   };
 };
