@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { UserRole } from "$lib/server/auth/user";
+  import { UserRole } from "$lib/constants/user";
 
   let { role }: { role: number } = $props();
 </script>

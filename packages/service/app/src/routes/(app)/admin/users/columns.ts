@@ -1,6 +1,6 @@
 import type { ColumnDef } from "@tanstack/table-core";
 import type { UserSummary } from "$lib/server/admin/users";
-import { UserRole } from "$lib/server/auth/user";
+import { UserRole } from "$lib/constants/user";
 import { renderComponent, renderSnippet } from "$lib/components/ui/data-table/index.js";
 import { createRawSnippet } from "svelte";
 import DataTableActions from "./data-table-actions.svelte";

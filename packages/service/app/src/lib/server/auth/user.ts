@@ -2,13 +2,8 @@ import { getRequestEvent } from "$app/server";
 import { redirect } from "@sveltejs/kit";
 import type { User } from "./auth";
 
-/** User roles: 0 = user, 1 = admin */
-export const UserRole = {
-  USER: 0,
-  ADMIN: 1,
-} as const;
-
-export type UserRole = (typeof UserRole)[keyof typeof UserRole];
+// Re-export UserRole from shared constants for server-side usage
+export * from "$lib/constants/user";
 
 export function getUser(): User {
   const event = getRequestEvent();

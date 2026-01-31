@@ -5,7 +5,7 @@
   import Avatar from "./Avatar.svelte";
   import ThemeToggle from "./ThemeToggle.svelte";
 
-  import { UserRole } from "$lib/server/auth/user";
+  import { UserRole } from "$lib/constants/user";
 
   export type DisplayUser = { email: string; name: string; image?: string; role?: number };
 
