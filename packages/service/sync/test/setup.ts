@@ -1,10 +1,17 @@
 import { mock } from "bun:test";
-import { iteratePaginatedAPI } from "notion-client-web-fetch";
-import { mockClient } from "./mocks/notion";
+import { isFullBlock, isFullPage, iteratePaginatedAPI } from "@notionhq/client";
+import { mockClient } from "../src/sources/notion/__tests__/notion-mock-setup";
 
 Error.stackTraceLimit = Infinity;
 
-mock.module("notion-client-web-fetch", () => ({
+// Mock @notionhq/client module with real helpers
+mock.module("@notionhq/client", () => ({
+  isFullPage,
+  isFullBlock,
   iteratePaginatedAPI,
-  Client: mock(() => mockClient),
+  Client: class MockClient {
+    databases = mockClient.databases;
+    dataSources = mockClient.dataSources;
+    blocks = mockClient.blocks;
+  },
 }));

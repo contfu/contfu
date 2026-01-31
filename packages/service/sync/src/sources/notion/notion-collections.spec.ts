@@ -290,18 +290,43 @@ describe("notion-collections", () => {
           Formula: createDbProperty("formula", { expression: "1+1" }),
           Rollup: createDbProperty("rollup", { function: "sum" }),
           Button: createDbProperty("button"),
-          MultiSelect: createDbProperty("multi_select", { options: [] }),
-          UniqueId: createDbProperty("unique_id", { prefix: "ID" }),
         },
       });
 
       const schema = await getCollectionSchema(testKey, testId);
 
+      // Formula, rollup, and button are computed/action types - not stored
       expect(schema.Formula).toBeUndefined();
       expect(schema.Rollup).toBeUndefined();
       expect(schema.Button).toBeUndefined();
-      expect(schema.MultiSelect).toBeUndefined();
-      expect(schema.UniqueId).toBeUndefined();
+    });
+
+    it("should map multi_select property to STRINGS | NULL", async () => {
+      mockClient.databases.retrieve.mockResolvedValueOnce({
+        object: "database",
+        id: testId.toString("hex"),
+        properties: {
+          Tags: createDbProperty("multi_select", { options: [] }),
+        },
+      });
+
+      const schema = await getCollectionSchema(testKey, testId);
+
+      expect(schema.Tags).toBe(PropertyType.STRINGS | PropertyType.NULL);
+    });
+
+    it("should map unique_id property to STRING", async () => {
+      mockClient.databases.retrieve.mockResolvedValueOnce({
+        object: "database",
+        id: testId.toString("hex"),
+        properties: {
+          ID: createDbProperty("unique_id", { prefix: "ID" }),
+        },
+      });
+
+      const schema = await getCollectionSchema(testKey, testId);
+
+      expect(schema.ID).toBe(PropertyType.STRING);
     });
 
     it("should handle database with multiple properties", async () => {
@@ -372,12 +397,10 @@ describe("notion-collections", () => {
 
       await getCollectionSchema(key, id);
 
-      expect(mockClient.databases.retrieve).toHaveBeenCalledWith(
-        expect.objectContaining({
-          auth: "my-api-key",
-          database_id: id.toString("hex"),
-        }),
-      );
+      expect(mockClient.databases.retrieve).toHaveBeenCalledWith({
+        auth: key,
+        database_id: id.toString("hex"),
+      });
     });
   });
 });

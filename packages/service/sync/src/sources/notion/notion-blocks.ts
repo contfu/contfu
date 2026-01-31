@@ -13,12 +13,12 @@ import {
   QuoteBlock,
   toPlainText,
 } from "@contfu/core";
-import { isFullBlock, iteratePaginatedAPI } from "notion-client-web-fetch";
+import { isFullBlock, iteratePaginatedAPI } from "@notionhq/client";
 import type {
   BlockObjectResponse,
   RichTextItemResponse,
-} from "notion-client-web-fetch/build/src/api-endpoints";
-import { getImageUrl, notion } from "./notion-helpers";
+} from "@notionhq/client/build/src/api-endpoints";
+import { notion, getImageUrl } from "./notion-helpers";
 
 export async function getContentBlocks(key: string, id: string) {
   const blocks = [] as Block[];
@@ -52,11 +52,11 @@ export async function getContentBlocks(key: string, id: string) {
 }
 
 async function* paginatedChildren(key: string, id: string) {
-  for await (const result of iteratePaginatedAPI(notion.blocks.children.list, {
+  for await (const block of iteratePaginatedAPI(notion.blocks.children.list, {
     auth: key,
     block_id: id,
   })) {
-    if (isFullBlock(result)) yield result;
+    if (isFullBlock(block)) yield block;
   }
 }
 

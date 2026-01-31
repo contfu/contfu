@@ -1,5 +1,5 @@
 import { Block, Item, PageProps } from "@contfu/core";
-import { PageObjectResponse } from "notion-client-web-fetch/build/src/api-endpoints";
+import type { PageObjectResponse } from "@notionhq/client/build/src/api-endpoints";
 import { MarkOptional } from "ts-essentials";
 import type { NotionFetchOpts } from ".";
 import { genUid, uuidToBuffer } from "../../util/ids/ids";

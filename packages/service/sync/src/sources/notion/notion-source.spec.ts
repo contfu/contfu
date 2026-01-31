@@ -16,15 +16,21 @@ const source = new NotionSource();
 
 describe("NotionSource", () => {
   beforeEach(() => {
-    mockClient.databases.query.mockClear();
+    mockClient.dataSources.query.mockClear();
     mockClient.databases.retrieve.mockClear();
     mockClient.blocks.children.list.mockClear();
+    // Default mock: database has one data source
+    mockClient.databases.retrieve.mockResolvedValue({
+      object: "database",
+      data_sources: [{ id: "data-source-id-1" }],
+      properties: {},
+    });
   });
 
   describe("fetch()", () => {
     describe("full sync (no since)", () => {
       it("should get all pages from a collection from notion", async () => {
-        mockClient.databases.query.mockResolvedValueOnce(dbQueryPage1);
+        mockClient.dataSources.query.mockResolvedValueOnce(dbQueryPage1);
         mockClient.blocks.children.list.mockResolvedValue({
           results: [],
         });
@@ -74,7 +80,7 @@ describe("NotionSource", () => {
       it("should apply onOrBefore filter for full sync", async () => {
         setSystemTime(new Date("2024-06-15T12:00:00.000Z"));
 
-        mockClient.databases.query.mockResolvedValueOnce({
+        mockClient.dataSources.query.mockResolvedValueOnce({
           ...dbQueryPage1,
           results: [],
         });
@@ -82,7 +88,7 @@ describe("NotionSource", () => {
 
         await Array.fromAsync(source.fetch(pullOpts));
 
-        const callArgs = mockClient.databases.query.mock.calls[0][0];
+        const callArgs = mockClient.dataSources.query.mock.calls[0][0];
         expect(callArgs.filter).toBeDefined();
         expect(callArgs.filter.and).toHaveLength(2);
 
@@ -101,21 +107,21 @@ describe("NotionSource", () => {
       });
 
       it("should sort by created_time ascending", async () => {
-        mockClient.databases.query.mockResolvedValueOnce({
+        mockClient.dataSources.query.mockResolvedValueOnce({
           ...dbQueryPage1,
           results: [],
         });
 
         await Array.fromAsync(source.fetch(pullOpts));
 
-        const callArgs = mockClient.databases.query.mock.calls[0][0];
+        const callArgs = mockClient.dataSources.query.mock.calls[0][0];
         expect(callArgs.sorts).toEqual([{ timestamp: "created_time", direction: "ascending" }]);
       });
     });
 
     describe("incremental sync (with since)", () => {
       it("should get changed pages from a collection, if since is provided", async () => {
-        mockClient.databases.query.mockResolvedValueOnce({
+        mockClient.dataSources.query.mockResolvedValueOnce({
           ...dbQueryPage1,
           results: [dbQueryResult1],
         });
@@ -130,7 +136,7 @@ describe("NotionSource", () => {
       it("should apply createdOrUpdated filter for incremental sync", async () => {
         setSystemTime(new Date("2024-06-15T12:00:00.000Z"));
 
-        mockClient.databases.query.mockResolvedValueOnce({
+        mockClient.dataSources.query.mockResolvedValueOnce({
           ...dbQueryPage1,
           results: [],
         });
@@ -138,7 +144,7 @@ describe("NotionSource", () => {
         const since = new Date("2024-06-01T00:00:00.000Z").getTime();
         await Array.fromAsync(source.fetch({ ...pullOpts, since }));
 
-        const callArgs = mockClient.databases.query.mock.calls[0][0];
+        const callArgs = mockClient.dataSources.query.mock.calls[0][0];
         expect(callArgs.filter).toBeDefined();
         expect(callArgs.filter.and).toHaveLength(1);
 
@@ -154,14 +160,14 @@ describe("NotionSource", () => {
         const fixedTime = new Date("2024-06-15T12:00:30.000Z");
         setSystemTime(fixedTime);
 
-        mockClient.databases.query.mockResolvedValueOnce({
+        mockClient.dataSources.query.mockResolvedValueOnce({
           ...dbQueryPage1,
           results: [],
         });
 
         await Array.fromAsync(source.fetch(pullOpts));
 
-        const callArgs = mockClient.databases.query.mock.calls[0][0];
+        const callArgs = mockClient.dataSources.query.mock.calls[0][0];
         const lastEditedFilter = callArgs.filter.and.find(
           (f: Record<string, unknown>) => f.timestamp === "last_edited_time",
         );
@@ -176,7 +182,7 @@ describe("NotionSource", () => {
 
     describe("empty database handling", () => {
       it("should handle empty database gracefully", async () => {
-        mockClient.databases.query.mockResolvedValueOnce({
+        mockClient.dataSources.query.mockResolvedValueOnce({
           object: "list",
           results: [],
           next_cursor: null,
@@ -189,7 +195,7 @@ describe("NotionSource", () => {
       });
 
       it("should handle database with only unsupported objects", async () => {
-        mockClient.databases.query.mockResolvedValueOnce({
+        mockClient.dataSources.query.mockResolvedValueOnce({
           object: "list",
           results: [
             { object: "database", id: "db-123" }, // Not a page
@@ -206,7 +212,7 @@ describe("NotionSource", () => {
 
     describe("pagination", () => {
       it("should handle multiple pages of results", async () => {
-        mockClient.databases.query
+        mockClient.dataSources.query
           .mockResolvedValueOnce({
             object: "list",
             results: [dbQueryResult1],
@@ -224,12 +230,12 @@ describe("NotionSource", () => {
         const events = await Array.fromAsync(source.fetch(pullOpts));
 
         expect(events).toHaveLength(2);
-        expect(mockClient.databases.query).toHaveBeenCalledTimes(2);
+        expect(mockClient.dataSources.query).toHaveBeenCalledTimes(2);
       });
 
       it("should handle many pages of pagination", async () => {
         // Simulate 3 pages with 1 result each
-        mockClient.databases.query
+        mockClient.dataSources.query
           .mockResolvedValueOnce({
             object: "list",
             results: [dbQueryResult1],
@@ -253,13 +259,13 @@ describe("NotionSource", () => {
         const events = await Array.fromAsync(source.fetch(pullOpts));
 
         expect(events).toHaveLength(3);
-        expect(mockClient.databases.query).toHaveBeenCalledTimes(3);
+        expect(mockClient.dataSources.query).toHaveBeenCalledTimes(3);
       });
     });
 
     describe("content blocks", () => {
       it("should include content blocks in items", async () => {
-        mockClient.databases.query.mockResolvedValueOnce({
+        mockClient.dataSources.query.mockResolvedValueOnce({
           ...dbQueryPage1,
           results: [dbQueryResult1],
         });
@@ -298,7 +304,7 @@ describe("NotionSource", () => {
       });
 
       it("should not include content key when no blocks", async () => {
-        mockClient.databases.query.mockResolvedValueOnce({
+        mockClient.dataSources.query.mockResolvedValueOnce({
           ...dbQueryPage1,
           results: [dbQueryResult1],
         });
@@ -315,7 +321,7 @@ describe("NotionSource", () => {
 
     describe("error handling", () => {
       it("should propagate API errors", async () => {
-        mockClient.databases.query.mockRejectedValueOnce(new Error("API Error: Rate limited"));
+        mockClient.dataSources.query.mockRejectedValueOnce(new Error("API Error: Rate limited"));
 
         await expect(Array.fromAsync(source.fetch(pullOpts))).rejects.toThrow("API Error");
       });
@@ -364,20 +370,24 @@ describe("NotionSource", () => {
 
       await source.getCollectionSchema(customOpts);
 
-      expect(mockClient.databases.retrieve).toHaveBeenCalledWith(
-        expect.objectContaining({
-          auth: "custom-api-key",
-          database_id: customOpts.ref.toString("hex"),
-        }),
-      );
+      expect(mockClient.databases.retrieve).toHaveBeenCalledWith({
+        auth: customOpts.credentials,
+        database_id: customOpts.ref.toString("hex"),
+      });
     });
   });
 });
 
 describe("filter functions", () => {
   beforeEach(() => {
-    mockClient.databases.query.mockClear();
+    mockClient.databases.retrieve.mockClear();
+    mockClient.dataSources.query.mockClear();
     mockClient.blocks.children.list.mockResolvedValue({ results: [] });
+    // Default mock: database has one data source
+    mockClient.databases.retrieve.mockResolvedValue({
+      object: "database",
+      data_sources: [{ id: "data-source-id-1" }],
+    });
   });
 
   afterAll(() => {
@@ -388,7 +398,7 @@ describe("filter functions", () => {
     const fixedTime = new Date("2024-06-15T12:00:30.000Z");
     setSystemTime(fixedTime);
 
-    mockClient.databases.query.mockResolvedValueOnce({
+    mockClient.dataSources.query.mockResolvedValueOnce({
       ...dbQueryPage1,
       results: [],
     });
@@ -396,7 +406,7 @@ describe("filter functions", () => {
     const since = new Date("2024-06-01T08:30:00.000Z").getTime();
     await Array.fromAsync(source.fetch({ ...pullOpts, since }));
 
-    const callArgs = mockClient.databases.query.mock.calls[0][0];
+    const callArgs = mockClient.dataSources.query.mock.calls[0][0];
     const createdFilter = callArgs.filter.and[0];
 
     // Should be ISO string format
@@ -412,14 +422,14 @@ describe("filter functions", () => {
     // Test with Unix epoch
     setSystemTime(new Date("2024-01-01T00:00:10.000Z"));
 
-    mockClient.databases.query.mockResolvedValueOnce({
+    mockClient.dataSources.query.mockResolvedValueOnce({
       ...dbQueryPage1,
       results: [],
     });
 
     await Array.fromAsync(source.fetch(pullOpts));
 
-    const callArgs = mockClient.databases.query.mock.calls[0][0];
+    const callArgs = mockClient.dataSources.query.mock.calls[0][0];
     const lastEditedFilter = callArgs.filter.and.find(
       (f: Record<string, unknown>) => f.timestamp === "last_edited_time",
     );

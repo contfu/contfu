@@ -7,8 +7,14 @@ const { getImageUrl, iterateDb } = await import("./notion-helpers");
 
 describe("notion-helpers", () => {
   beforeEach(() => {
-    mockClient.databases.query.mockClear();
+    mockClient.databases.retrieve.mockClear();
+    mockClient.dataSources.query.mockClear();
     mockClient.blocks.children.list.mockClear();
+    // Default mock: database has one data source
+    mockClient.databases.retrieve.mockResolvedValue({
+      object: "database",
+      data_sources: [{ id: "data-source-id-1" }],
+    });
   });
 
   describe("getImageUrl()", () => {
@@ -66,7 +72,7 @@ describe("notion-helpers", () => {
     const testRef = Buffer.from("database-id-here", "utf8");
 
     it("should iterate through database pages", async () => {
-      mockClient.databases.query.mockResolvedValueOnce(dbQueryPage1);
+      mockClient.dataSources.query.mockResolvedValueOnce(dbQueryPage1);
 
       const pages = [];
       for await (const page of iterateDb(testKey, testRef)) {
@@ -78,7 +84,7 @@ describe("notion-helpers", () => {
     });
 
     it("should handle empty database", async () => {
-      mockClient.databases.query.mockResolvedValueOnce({
+      mockClient.dataSources.query.mockResolvedValueOnce({
         object: "list",
         results: [],
         next_cursor: null,
@@ -108,7 +114,7 @@ describe("notion-helpers", () => {
         has_more: false,
       };
 
-      mockClient.databases.query
+      mockClient.dataSources.query
         .mockResolvedValueOnce(page1Results)
         .mockResolvedValueOnce(page2Results);
 
@@ -118,11 +124,11 @@ describe("notion-helpers", () => {
       }
 
       expect(pages).toHaveLength(2);
-      expect(mockClient.databases.query).toHaveBeenCalledTimes(2);
+      expect(mockClient.dataSources.query).toHaveBeenCalledTimes(2);
     });
 
     it("should pass filter parameters", async () => {
-      mockClient.databases.query.mockResolvedValueOnce({
+      mockClient.dataSources.query.mockResolvedValueOnce({
         object: "list",
         results: [],
         next_cursor: null,
@@ -136,11 +142,11 @@ describe("notion-helpers", () => {
 
       await Array.fromAsync(iterateDb(testKey, testRef, { filter }));
 
-      expect(mockClient.databases.query).toHaveBeenCalled();
+      expect(mockClient.dataSources.query).toHaveBeenCalled();
     });
 
     it("should pass sort parameters", async () => {
-      mockClient.databases.query.mockResolvedValueOnce({
+      mockClient.dataSources.query.mockResolvedValueOnce({
         object: "list",
         results: [],
         next_cursor: null,
@@ -151,7 +157,7 @@ describe("notion-helpers", () => {
 
       await Array.fromAsync(iterateDb(testKey, testRef, { sorts }));
 
-      expect(mockClient.databases.query).toHaveBeenCalled();
+      expect(mockClient.dataSources.query).toHaveBeenCalled();
     });
 
     it("should filter out non-page objects", async () => {
@@ -165,7 +171,7 @@ describe("notion-helpers", () => {
         has_more: false,
       };
 
-      mockClient.databases.query.mockResolvedValueOnce(mixedResults);
+      mockClient.dataSources.query.mockResolvedValueOnce(mixedResults);
 
       const pages = [];
       for await (const page of iterateDb(testKey, testRef)) {
@@ -187,7 +193,7 @@ describe("notion-helpers", () => {
         has_more: false,
       };
 
-      mockClient.databases.query.mockResolvedValueOnce(partialPageResults);
+      mockClient.dataSources.query.mockResolvedValueOnce(partialPageResults);
 
       const pages = [];
       for await (const page of iterateDb(testKey, testRef)) {

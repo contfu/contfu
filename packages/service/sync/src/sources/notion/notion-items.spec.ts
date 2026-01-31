@@ -49,8 +49,14 @@ function richTextItem(text: string) {
 
 describe("notion-items", () => {
   beforeEach(() => {
-    mockClient.databases.query.mockClear();
+    mockClient.databases.retrieve.mockClear();
+    mockClient.dataSources.query.mockClear();
     mockClient.blocks.children.list.mockClear();
+    // Default mock: database has one data source
+    mockClient.databases.retrieve.mockResolvedValue({
+      object: "database",
+      data_sources: [{ id: "data-source-id-1" }],
+    });
   });
 
   describe("iteratePages()", () => {
@@ -61,7 +67,7 @@ describe("notion-items", () => {
     };
 
     it("should convert basic page to item", async () => {
-      mockClient.databases.query.mockResolvedValueOnce(dbQueryPage1);
+      mockClient.dataSources.query.mockResolvedValueOnce(dbQueryPage1);
       mockClient.blocks.children.list.mockResolvedValue({ results: [], has_more: false });
 
       const items = await Array.fromAsync(iteratePages(testOpts, {}));
@@ -77,7 +83,7 @@ describe("notion-items", () => {
     });
 
     it("should extract title property", async () => {
-      mockClient.databases.query.mockResolvedValueOnce(dbQueryPage1);
+      mockClient.dataSources.query.mockResolvedValueOnce(dbQueryPage1);
       mockClient.blocks.children.list.mockResolvedValue({ results: [], has_more: false });
 
       const items = await Array.fromAsync(iteratePages(testOpts, {}));
@@ -87,7 +93,7 @@ describe("notion-items", () => {
     });
 
     it("should extract rich_text property", async () => {
-      mockClient.databases.query.mockResolvedValueOnce(dbQueryPage1);
+      mockClient.dataSources.query.mockResolvedValueOnce(dbQueryPage1);
       mockClient.blocks.children.list.mockResolvedValue({ results: [], has_more: false });
 
       const items = await Array.fromAsync(iteratePages(testOpts, {}));
@@ -97,7 +103,7 @@ describe("notion-items", () => {
     });
 
     it("should extract select property", async () => {
-      mockClient.databases.query.mockResolvedValueOnce(dbQueryPage1);
+      mockClient.dataSources.query.mockResolvedValueOnce(dbQueryPage1);
       mockClient.blocks.children.list.mockResolvedValue({ results: [], has_more: false });
 
       const items = await Array.fromAsync(iteratePages(testOpts, {}));
@@ -107,7 +113,7 @@ describe("notion-items", () => {
     });
 
     it("should extract relation property as array of refs", async () => {
-      mockClient.databases.query.mockResolvedValueOnce(dbQueryPage1);
+      mockClient.dataSources.query.mockResolvedValueOnce(dbQueryPage1);
       mockClient.blocks.children.list.mockResolvedValue({ results: [], has_more: false });
 
       const items = await Array.fromAsync(iteratePages(testOpts, {}));
@@ -119,7 +125,7 @@ describe("notion-items", () => {
     });
 
     it("should handle empty relation arrays", async () => {
-      mockClient.databases.query.mockResolvedValueOnce(dbQueryPage1);
+      mockClient.dataSources.query.mockResolvedValueOnce(dbQueryPage1);
       mockClient.blocks.children.list.mockResolvedValue({ results: [], has_more: false });
 
       const items = await Array.fromAsync(iteratePages(testOpts, {}));
@@ -129,7 +135,7 @@ describe("notion-items", () => {
     });
 
     it("should include content blocks when present", async () => {
-      mockClient.databases.query.mockResolvedValueOnce({
+      mockClient.dataSources.query.mockResolvedValueOnce({
         ...dbQueryPage1,
         results: [dbQueryResult1],
       });
@@ -157,7 +163,7 @@ describe("notion-items", () => {
     });
 
     it("should not include content key when blocks are empty", async () => {
-      mockClient.databases.query.mockResolvedValueOnce({
+      mockClient.dataSources.query.mockResolvedValueOnce({
         ...dbQueryPage1,
         results: [dbQueryResult1],
       });
@@ -194,7 +200,7 @@ describe("notion-items", () => {
 
     it("should parse number property", async () => {
       const page = createPageWithProperty("Count", createProperty("number", 42));
-      mockClient.databases.query.mockResolvedValueOnce({
+      mockClient.dataSources.query.mockResolvedValueOnce({
         ...dbQueryPage1,
         results: [page],
       });
@@ -205,7 +211,7 @@ describe("notion-items", () => {
 
     it("should parse null number property", async () => {
       const page = createPageWithProperty("Count", createProperty("number", null));
-      mockClient.databases.query.mockResolvedValueOnce({
+      mockClient.dataSources.query.mockResolvedValueOnce({
         ...dbQueryPage1,
         results: [page],
       });
@@ -219,7 +225,7 @@ describe("notion-items", () => {
         "Due",
         createProperty("date", { start: "2024-06-15", end: null, time_zone: null }),
       );
-      mockClient.databases.query.mockResolvedValueOnce({
+      mockClient.dataSources.query.mockResolvedValueOnce({
         ...dbQueryPage1,
         results: [page],
       });
@@ -230,7 +236,7 @@ describe("notion-items", () => {
 
     it("should parse null date property", async () => {
       const page = createPageWithProperty("Due", createProperty("date", null));
-      mockClient.databases.query.mockResolvedValueOnce({
+      mockClient.dataSources.query.mockResolvedValueOnce({
         ...dbQueryPage1,
         results: [page],
       });
@@ -241,7 +247,7 @@ describe("notion-items", () => {
 
     it("should parse checkbox property", async () => {
       const page = createPageWithProperty("Done", createProperty("checkbox", true));
-      mockClient.databases.query.mockResolvedValueOnce({
+      mockClient.dataSources.query.mockResolvedValueOnce({
         ...dbQueryPage1,
         results: [page],
       });
@@ -255,7 +261,7 @@ describe("notion-items", () => {
         "Tags",
         createProperty("multi_select", [{ name: "Tag1" }, { name: "Tag2" }]),
       );
-      mockClient.databases.query.mockResolvedValueOnce({
+      mockClient.dataSources.query.mockResolvedValueOnce({
         ...dbQueryPage1,
         results: [page],
       });
@@ -269,7 +275,7 @@ describe("notion-items", () => {
         "Status",
         createProperty("status", { name: "In Progress", color: "blue" }),
       );
-      mockClient.databases.query.mockResolvedValueOnce({
+      mockClient.dataSources.query.mockResolvedValueOnce({
         ...dbQueryPage1,
         results: [page],
       });
@@ -280,7 +286,7 @@ describe("notion-items", () => {
 
     it("should parse url property", async () => {
       const page = createPageWithProperty("Link", createProperty("url", "https://example.com"));
-      mockClient.databases.query.mockResolvedValueOnce({
+      mockClient.dataSources.query.mockResolvedValueOnce({
         ...dbQueryPage1,
         results: [page],
       });
@@ -291,7 +297,7 @@ describe("notion-items", () => {
 
     it("should parse email property", async () => {
       const page = createPageWithProperty("Email", createProperty("email", "test@example.com"));
-      mockClient.databases.query.mockResolvedValueOnce({
+      mockClient.dataSources.query.mockResolvedValueOnce({
         ...dbQueryPage1,
         results: [page],
       });
@@ -302,7 +308,7 @@ describe("notion-items", () => {
 
     it("should parse phone_number property", async () => {
       const page = createPageWithProperty("Phone", createProperty("phone_number", "+1234567890"));
-      mockClient.databases.query.mockResolvedValueOnce({
+      mockClient.dataSources.query.mockResolvedValueOnce({
         ...dbQueryPage1,
         results: [page],
       });
@@ -316,7 +322,7 @@ describe("notion-items", () => {
         "Created",
         createProperty("created_time", "2024-01-15T10:30:00.000Z"),
       );
-      mockClient.databases.query.mockResolvedValueOnce({
+      mockClient.dataSources.query.mockResolvedValueOnce({
         ...dbQueryPage1,
         results: [page],
       });
@@ -330,7 +336,7 @@ describe("notion-items", () => {
         "Edited",
         createProperty("last_edited_time", "2024-06-20T15:45:00.000Z"),
       );
-      mockClient.databases.query.mockResolvedValueOnce({
+      mockClient.dataSources.query.mockResolvedValueOnce({
         ...dbQueryPage1,
         results: [page],
       });
@@ -347,7 +353,7 @@ describe("notion-items", () => {
           { type: "external", external: { url: "https://example.com/file2.pdf" } },
         ]),
       );
-      mockClient.databases.query.mockResolvedValueOnce({
+      mockClient.dataSources.query.mockResolvedValueOnce({
         ...dbQueryPage1,
         results: [page],
       });
@@ -367,7 +373,7 @@ describe("notion-items", () => {
           { object: "user", id: "user-uuid-2" },
         ]),
       );
-      mockClient.databases.query.mockResolvedValueOnce({
+      mockClient.dataSources.query.mockResolvedValueOnce({
         ...dbQueryPage1,
         results: [page],
       });
@@ -384,7 +390,7 @@ describe("notion-items", () => {
         "Creator",
         createProperty("created_by", { object: "user", id: "creator-uuid" }),
       );
-      mockClient.databases.query.mockResolvedValueOnce({
+      mockClient.dataSources.query.mockResolvedValueOnce({
         ...dbQueryPage1,
         results: [page],
       });
@@ -400,7 +406,7 @@ describe("notion-items", () => {
         "Editor",
         createProperty("last_edited_by", { object: "user", id: "editor-uuid" }),
       );
-      mockClient.databases.query.mockResolvedValueOnce({
+      mockClient.dataSources.query.mockResolvedValueOnce({
         ...dbQueryPage1,
         results: [page],
       });
@@ -416,7 +422,7 @@ describe("notion-items", () => {
         "ID",
         createProperty("unique_id", { prefix: "TASK", number: 123 }),
       );
-      mockClient.databases.query.mockResolvedValueOnce({
+      mockClient.dataSources.query.mockResolvedValueOnce({
         ...dbQueryPage1,
         results: [page],
       });
@@ -430,7 +436,7 @@ describe("notion-items", () => {
         "ID",
         createProperty("unique_id", { prefix: null, number: 456 }),
       );
-      mockClient.databases.query.mockResolvedValueOnce({
+      mockClient.dataSources.query.mockResolvedValueOnce({
         ...dbQueryPage1,
         results: [page],
       });
@@ -444,7 +450,7 @@ describe("notion-items", () => {
         "Verified",
         createProperty("verification", { state: "verified", verified_by: null }),
       );
-      mockClient.databases.query.mockResolvedValueOnce({
+      mockClient.dataSources.query.mockResolvedValueOnce({
         ...dbQueryPage1,
         results: [page],
       });
@@ -458,7 +464,7 @@ describe("notion-items", () => {
         "Computed",
         createProperty("formula", { type: "number", number: 100 }),
       );
-      mockClient.databases.query.mockResolvedValueOnce({
+      mockClient.dataSources.query.mockResolvedValueOnce({
         ...dbQueryPage1,
         results: [page],
       });
@@ -472,7 +478,7 @@ describe("notion-items", () => {
         "Summary",
         createProperty("rollup", { type: "number", number: 50, function: "sum" }),
       );
-      mockClient.databases.query.mockResolvedValueOnce({
+      mockClient.dataSources.query.mockResolvedValueOnce({
         ...dbQueryPage1,
         results: [page],
       });
@@ -483,7 +489,7 @@ describe("notion-items", () => {
 
     it("should return null for button property", async () => {
       const page = createPageWithProperty("Action", createProperty("button", {}));
-      mockClient.databases.query.mockResolvedValueOnce({
+      mockClient.dataSources.query.mockResolvedValueOnce({
         ...dbQueryPage1,
         results: [page],
       });
@@ -500,7 +506,7 @@ describe("notion-items", () => {
           external: { url: "https://example.com/icon.png" },
         },
       };
-      mockClient.databases.query.mockResolvedValueOnce({
+      mockClient.dataSources.query.mockResolvedValueOnce({
         ...dbQueryPage1,
         results: [pageWithIcon],
       });
@@ -514,7 +520,7 @@ describe("notion-items", () => {
         ...dbQueryResult1,
         icon: { type: "emoji" as const, emoji: "🎉" },
       };
-      mockClient.databases.query.mockResolvedValueOnce({
+      mockClient.dataSources.query.mockResolvedValueOnce({
         ...dbQueryPage1,
         results: [pageWithEmojiIcon],
       });
@@ -531,7 +537,7 @@ describe("notion-items", () => {
           external: { url: "https://example.com/cover.jpg" },
         },
       };
-      mockClient.databases.query.mockResolvedValueOnce({
+      mockClient.dataSources.query.mockResolvedValueOnce({
         ...dbQueryPage1,
         results: [pageWithCover],
       });
@@ -549,12 +555,12 @@ describe("notion-items", () => {
     };
 
     beforeEach(() => {
-      mockClient.databases.query.mockClear();
+      mockClient.dataSources.query.mockClear();
       mockClient.blocks.children.list.mockClear();
     });
 
     it("should parse all property types from showcase page", async () => {
-      mockClient.databases.query.mockResolvedValueOnce(showcasePageQueryResult);
+      mockClient.dataSources.query.mockResolvedValueOnce(showcasePageQueryResult);
       mockClient.blocks.children.list.mockResolvedValue(emptyList);
 
       const items = await Array.fromAsync(iteratePages(testOpts, {}));
@@ -615,7 +621,7 @@ describe("notion-items", () => {
     });
 
     it("should have correct metadata from showcase page", async () => {
-      mockClient.databases.query.mockResolvedValueOnce(showcasePageQueryResult);
+      mockClient.dataSources.query.mockResolvedValueOnce(showcasePageQueryResult);
       mockClient.blocks.children.list.mockResolvedValue(emptyList);
 
       const items = await Array.fromAsync(iteratePages(testOpts, {}));
@@ -629,7 +635,7 @@ describe("notion-items", () => {
     });
 
     it("should include content blocks when present", async () => {
-      mockClient.databases.query.mockResolvedValueOnce(showcasePageQueryResult);
+      mockClient.dataSources.query.mockResolvedValueOnce(showcasePageQueryResult);
       mockClient.blocks.children.list.mockImplementation((args: { block_id: string }) => {
         const childBlocks = showcasePageChildBlocks[args.block_id];
         if (childBlocks) {

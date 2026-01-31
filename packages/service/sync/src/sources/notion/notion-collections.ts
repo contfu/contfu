@@ -46,6 +46,20 @@ export async function getCollectionSchema(key: string, id: Buffer) {
       case "last_edited_by":
         schema[key] = PropertyType.REF;
         break;
+      case "multi_select":
+        schema[key] = PropertyType.STRINGS | PropertyType.NULL;
+        break;
+      case "unique_id":
+        schema[key] = PropertyType.STRING;
+        break;
+      case "verification":
+        schema[key] = PropertyType.STRING | PropertyType.NULL;
+        break;
+      // Skip computed types
+      case "formula":
+      case "rollup":
+      case "button":
+        break;
     }
   }
   return schema;

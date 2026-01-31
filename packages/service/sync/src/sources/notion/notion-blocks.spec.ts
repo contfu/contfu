@@ -1,6 +1,6 @@
 import { isH1, isH2, isH3 } from "@contfu/core";
 import { beforeEach, describe, expect, it } from "bun:test";
-import type { BlockObjectResponse } from "notion-client-web-fetch/build/src/api-endpoints";
+import type { BlockObjectResponse } from "@notionhq/client/build/src/api-endpoints";
 import {
   emptyList,
   showcasePageBlocks,

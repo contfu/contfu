@@ -1,4 +1,4 @@
-import { ListBlockChildrenResponse } from "notion-client-web-fetch/build/src/api-endpoints";
+import { ListBlockChildrenResponse } from "@notionhq/client/build/src/api-endpoints";
 
 export const dbQueryResult1 = {
   object: "page",

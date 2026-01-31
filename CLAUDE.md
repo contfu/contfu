@@ -229,3 +229,24 @@ When modifying schemas, types, or core patterns in these areas, update the corre
 | Source adapters (`sync/src/sources/`)      | `contfu-source-adapter`   |
 | UI components, design patterns             | `contfu-design`           |
 | Dev workflow, commands, monorepo structure | `contfu-development`      |
+
+## ⚠️ Learnings & Process Improvements
+
+**IMPORTANT: Update this section when you learn something that would help future work.**
+
+This section captures lessons learned to prevent repeating mistakes and improve collaboration.
+
+### Code Changes
+
+- **Minimal changes only**: When updating dependencies or fixing issues, make the smallest possible change. Don't refactor or introduce new patterns unless explicitly asked.
+- **Ask before large changes**: If you think a significant architectural change is needed, present a plan first. Don't implement large pattern changes without approval.
+- **Forks often have identical APIs**: When migrating from a fork to the official package (e.g., `notion-client-web-fetch` → `@notionhq/client`), check if the API is identical. Often forks only change internals (like fetch implementation), so you may only need to change the import path.
+
+### Notion Integration
+
+- **Single client instance**: Use one shared `Client` instance, pass `auth` per request. Don't create new clients for each call.
+- **Use SDK helpers**: The `@notionhq/client` SDK exports useful helpers like `iteratePaginatedAPI`, `isFullPage`, `isFullBlock`. Use them instead of reimplementing pagination.
+
+### Testing
+
+- **Run tests from package directory**: When packages have their own `bunfig.toml` with preload scripts, run `bun test` from inside the package directory (e.g., `cd packages/service/sync && bun test`), or use `bun run test` from root which runs `bun --filter '@contfu/*' test`.
