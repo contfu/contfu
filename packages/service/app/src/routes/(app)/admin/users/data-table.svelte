@@ -30,7 +30,9 @@
     get data() {
       return data;
     },
-    columns,
+    get columns() {
+      return columns;
+    },
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
