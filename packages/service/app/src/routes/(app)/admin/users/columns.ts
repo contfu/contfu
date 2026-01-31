@@ -11,6 +11,8 @@ export const columns: ColumnDef<UserSummary>[] = [
   {
     accessorKey: "name",
     header: "User",
+    enableSorting: true,
+    enableGlobalFilter: true,
     cell: ({ row }) => {
       const userCellSnippet = createRawSnippet<[{ name: string; email: string }]>((getUser) => {
         const { name, email } = getUser();
@@ -35,6 +37,7 @@ export const columns: ColumnDef<UserSummary>[] = [
   {
     accessorKey: "approved",
     header: "Status",
+    enableSorting: true,
     cell: ({ row }) => {
       return renderComponent(DataTableStatusBadge, { approved: row.original.approved });
     },
@@ -48,6 +51,7 @@ export const columns: ColumnDef<UserSummary>[] = [
   {
     accessorKey: "role",
     header: "Role",
+    enableSorting: true,
     cell: ({ row }) => {
       return renderComponent(DataTableRoleBadge, { role: row.original.role });
     },
@@ -61,6 +65,7 @@ export const columns: ColumnDef<UserSummary>[] = [
   {
     accessorKey: "createdAt",
     header: "Joined",
+    enableSorting: true,
     cell: ({ row }) => {
       const dateSnippet = createRawSnippet<[{ date: string }]>((getData) => {
         const { date } = getData();

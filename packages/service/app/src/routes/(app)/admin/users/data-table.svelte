@@ -34,6 +34,12 @@
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
+    globalFilterFn: (row, _columnId, filterValue: string) => {
+      const search = filterValue.toLowerCase();
+      const name = String(row.getValue("name") ?? "").toLowerCase();
+      const email = String((row.original as { email?: string }).email ?? "").toLowerCase();
+      return name.includes(search) || email.includes(search);
+    },
     onSortingChange: (updater) => {
       if (typeof updater === "function") {
         sorting = updater(sorting);
@@ -73,12 +79,11 @@
     if (value === "all") {
       columnFilters = columnFilters.filter((f) => f.id !== "approved");
     } else {
-      const existing = columnFilters.findIndex((f) => f.id === "approved");
-      if (existing >= 0) {
-        columnFilters[existing] = { id: "approved", value };
-      } else {
-        columnFilters = [...columnFilters, { id: "approved", value }];
-      }
+      // Create new array to trigger reactivity (immutable update)
+      columnFilters = [
+        ...columnFilters.filter((f) => f.id !== "approved"),
+        { id: "approved", value },
+      ];
     }
   }
 
@@ -91,12 +96,11 @@
     if (value === "all") {
       columnFilters = columnFilters.filter((f) => f.id !== "role");
     } else {
-      const existing = columnFilters.findIndex((f) => f.id === "role");
-      if (existing >= 0) {
-        columnFilters[existing] = { id: "role", value };
-      } else {
-        columnFilters = [...columnFilters, { id: "role", value }];
-      }
+      // Create new array to trigger reactivity (immutable update)
+      columnFilters = [
+        ...columnFilters.filter((f) => f.id !== "role"),
+        { id: "role", value },
+      ];
     }
   }
 </script>
