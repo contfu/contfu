@@ -1,13 +1,26 @@
 <script lang="ts">
-  import { page } from "$app/state";
   import { goto, invalidateAll } from "$app/navigation";
+  import { page } from "$app/state";
   import { signOut } from "$lib/auth-client";
-  import Avatar from "./Avatar.svelte";
+  import * as Avatar from "$lib/components/ui/avatar";
+  import * as DropdownMenu from "$lib/components/ui/dropdown-menu";
+  import {
+    CreditCardIcon,
+    EllipsisVerticalIcon,
+    LogOutIcon,
+    UserCogIcon,
+  } from "@lucide/svelte";
   import ThemeToggle from "./ThemeToggle.svelte";
 
   import { UserRole, type UserRole as UserRoleType } from "$lib/constants/user";
+  import Button from "./ui/button/button.svelte";
 
-  export type DisplayUser = { email: string; name: string; image?: string; role?: UserRoleType };
+  export type DisplayUser = {
+    email: string;
+    name: string;
+    image?: string;
+    role?: UserRoleType;
+  };
 
   let {
     user,
@@ -42,7 +55,9 @@
   }
 </script>
 
-<header class="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+<header
+  class="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80"
+>
   <div class="mx-auto max-w-6xl px-4 sm:px-6">
     <div class="flex h-14 items-center justify-between">
       <!-- Logo -->
@@ -51,13 +66,7 @@
         class="flex items-center gap-2"
         aria-label={user ? "Go to dashboard" : "Go to home"}
       >
-        <img
-          src="/favicon.svg"
-          alt=""
-          height={28}
-          width={28}
-          class="h-7 w-7"
-        />
+        <img src="/favicon.svg" alt="" height={28} width={28} class="h-7 w-7" />
         <span class="font-semibold tracking-tight text-foreground">contfu</span>
       </a>
 
@@ -68,7 +77,9 @@
             {#each navLinks as { href, label }}
               <a
                 {href}
-                class="hidden px-3 py-1.5 text-sm transition-colors sm:block {isActiveLink(href)
+                class="hidden px-3 py-1.5 text-sm transition-colors sm:block {isActiveLink(
+                  href,
+                )
                   ? 'text-foreground font-medium'
                   : 'text-muted-foreground hover:text-foreground'}"
               >
@@ -78,53 +89,81 @@
 
             <div class="ml-2 flex items-center gap-2">
               <ThemeToggle />
-              
+
               <!-- User dropdown -->
-              <div class="relative">
-                <button
-                  class="peer flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                  onclick={(e) => {
-                    if (isOpen) e.currentTarget.blur();
-                    else isOpen = true;
-                  }}
-                  onblur={() => (isOpen = false)}
+              <DropdownMenu.Root>
+                <DropdownMenu.Trigger>
+                  {#snippet child({ props })}
+                    <Button {...props} size="lg" variant="outline" class="px-1">
+                      <Avatar.Root class="size-8 rounded-lg grayscale">
+                        <Avatar.Image src={user.image} alt={user.name} />
+                        <Avatar.Fallback class="rounded-lg"
+                          >{user.name.charAt(0)}</Avatar.Fallback
+                        >
+                      </Avatar.Root>
+                      <div class="grid flex-1 text-start text-sm leading-tight">
+                        <span class="truncate font-medium">{user.name}</span>
+                        <span class="text-muted-foreground truncate text-xs">
+                          {user.email}
+                        </span>
+                      </div>
+                      <EllipsisVerticalIcon class="ms-auto size-4" />
+                    </Button>
+                  {/snippet}
+                </DropdownMenu.Trigger>
+                <DropdownMenu.Content
+                  class="w-(--bits-dropdown-menu-anchor-width) min-w-56 rounded-lg"
+                  align="end"
+                  sideOffset={4}
                 >
-                  <Avatar {user} />
-                  <span class="hidden text-sm sm:block">{user.name}</span>
-                </button>
-                <div
-                  class="absolute right-0 top-full mt-1 hidden w-40 rounded-md border border-border bg-popover py-1 shadow-md peer-focus:block"
-                  onmousedown={(e) => e.preventDefault()}
-                >
-                  <a
-                    href="/billing"
-                    class="block px-3 py-1.5 text-sm text-popover-foreground hover:bg-accent"
-                  >
-                    Billing
-                  </a>
-                  {#if isAdmin}
-                    <a
-                      href="/admin/users"
-                      class="block px-3 py-1.5 text-sm text-popover-foreground hover:bg-accent"
+                  <DropdownMenu.Label class="p-0 font-normal">
+                    <div
+                      class="flex items-center gap-2 px-1 py-1.5 text-start text-sm"
                     >
+                      <Avatar.Root class="size-8 rounded-lg">
+                        <Avatar.Image src={user.image} alt={user.name} />
+                        <Avatar.Fallback class="rounded-lg"
+                          >{user.name.charAt(0)}</Avatar.Fallback
+                        >
+                      </Avatar.Root>
+                      <div class="grid flex-1 text-start text-sm leading-tight">
+                        <span class="truncate font-medium">{user.name}</span>
+                        <span class="text-muted-foreground truncate text-xs">
+                          {user.email}
+                        </span>
+                      </div>
+                    </div>
+                  </DropdownMenu.Label>
+                  <DropdownMenu.Separator />
+                  <DropdownMenu.Group>
+                    <DropdownMenu.Item onclick={() => goto("/billing")}>
+                      <CreditCardIcon />
+                      Billing
+                    </DropdownMenu.Item>
+                    <DropdownMenu.Item onclick={() => goto("/admin")}>
+                      <UserCogIcon />
                       Admin
-                    </a>
-                  {/if}
-                  <button
-                    type="button"
-                    onclick={handleLogout}
-                    class="block w-full px-3 py-1.5 text-left text-sm text-popover-foreground hover:bg-accent"
-                  >
-                    Sign out
-                  </button>
-                </div>
-              </div>
+                    </DropdownMenu.Item>
+                  </DropdownMenu.Group>
+                  <DropdownMenu.Separator />
+                  <DropdownMenu.Item onclick={handleLogout}>
+                    <LogOutIcon />
+                    Log out
+                  </DropdownMenu.Item>
+                </DropdownMenu.Content>
+              </DropdownMenu.Root>
             </div>
           {:else}
-            <a href="/#features" class="px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground">
+            <a
+              href="/#features"
+              class="px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground"
+            >
               Features
             </a>
-            <a href="/#beta" class="px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground">
+            <a
+              href="/#beta"
+              class="px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground"
+            >
               Beta
             </a>
             <a

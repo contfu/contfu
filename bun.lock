@@ -190,7 +190,7 @@
       },
       "devDependencies": {
         "@internationalized/date": "^3.10.0",
-        "@lucide/svelte": "^0.561.0",
+        "@lucide/svelte": "^0.563.1",
         "@playwright/test": "^1.57.0",
         "@sveltejs/kit": "latest",
         "@sveltejs/vite-plugin-svelte": "latest",
@@ -3376,6 +3376,8 @@
     "@azure/identity/open": ["open@10.2.0", "", { "dependencies": { "default-browser": "^5.2.1", "define-lazy-prop": "^3.0.0", "is-inside-container": "^1.0.0", "wsl-utils": "^0.1.0" } }, "sha512-YgBpdJHPyQ2UE5x+hlSXcnejzAvD0b22U2OuAP+8OnlJT+PjWPxtgmGqKKc+RgTM63U9gN0YzrYc71R2WT/hTA=="],
 
     "@azure/msal-node/uuid": ["uuid@8.3.2", "", { "bin": { "uuid": "dist/bin/uuid" } }, "sha512-+NYs2QeMWy+GWFOEm9xnn6HCDp0l7QBD7ml8zLUmJ+93Q5NF0NocErnwkTkXVFNiX3/fpC6afS8Dhb/gz7R7eg=="],
+
+    "@contfu/svc-app/@lucide/svelte": ["@lucide/svelte@0.563.1", "", { "peerDependencies": { "svelte": "^5" } }, "sha512-Kt+MbnE5D9RsuI/csmf7M+HWxALe57x3A0DhQ8pPnnUpneh7zuldrYjlT+veWtk+tVnp5doQtaAAxLujzIlhBw=="],
 
     "@contfu/svc-app/playwright": ["playwright@1.58.1", "", { "dependencies": { "playwright-core": "1.58.1" }, "optionalDependencies": { "fsevents": "2.3.2" }, "bin": { "playwright": "cli.js" } }, "sha512-+2uTZHxSCcxjvGc5C891LrS1/NlxglGxzrC4seZiVjcYVQfUa87wBL6rTDqzGjuoWNjnBzRqKmF6zRYGMvQUaQ=="],
 
