@@ -46,13 +46,14 @@ export async function seedDevUser(database: BunSQLiteDatabase<typeof schema>): P
 
   const now = new Date();
 
-  // Insert the test user
+  // Insert the test user (approved for testing)
   const [user] = await database
     .insert(userTable)
     .values({
       name: TEST_USER.name,
       email: TEST_USER.email,
       emailVerified: true,
+      approved: true,
       createdAt: now,
       updatedAt: now,
     })
