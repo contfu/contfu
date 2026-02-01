@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import { truncateAllTables } from "../../../../test/setup";
+import { truncateAllTables } from "../../../test/setup";
 import { db } from "./db";
 import { sourceTable, userTable, webhookLogTable } from "./schema";
 

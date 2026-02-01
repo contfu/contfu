@@ -31,7 +31,7 @@ export class SyncWorkerManager {
       this.readyResolve = resolve;
     });
 
-    this.worker = new Worker(new URL("../../../../../sync/src/worker.ts", import.meta.url), {
+    this.worker = new Worker(new URL("../../../../sync/src/worker.ts", import.meta.url), {
       type: "module",
     });
 

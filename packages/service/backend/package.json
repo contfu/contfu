@@ -17,7 +17,8 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
-    "@css-inline/css-inline": "^0.19.1"
+    "@css-inline/css-inline": "^0.19.1",
+    "@notionhq/client": "^5.9.0"
   },
   "devDependencies": {
     "@contfu/core": "workspace:*",
