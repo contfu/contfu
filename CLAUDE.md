@@ -18,7 +18,7 @@ Contfu ("content funnel") is a **proxy CMS** synchronization service that aggreg
 - **Data Sources** - Connections to upstream CMSs (Notion, Strapi)
 - **Collections** - Logical groupings of synchronized content
 - **Items** - Individual content pieces with properties and content blocks
-- **Clients** - Applications consuming content via WebSocket
+- **Clients** - Applications consuming content via SSE (Server-Sent Events)
 
 ## Common Commands
 
@@ -160,31 +160,30 @@ E2E_FULL_FLOW=true bun test:e2e
 **Core Packages** (`packages/`):
 
 - `@contfu/core` (`packages/core`) - Shared types and interfaces (items, collections, commands, events, sources, blocks)
-- `@contfu/client` (`packages/client/client`) - WebSocket client for consuming synced data (msgpackr serialization)
+- `@contfu/client` (`packages/client/client`) - SSE client for consuming synced data
 - `@contfu/client-core` (`packages/client/core`) - Client-side database utilities (Kysely)
 - `@contfu/bun-file-store` (`packages/client/bun-file-store`) - File storage utilities for Bun
 - `@contfu/media-optimizer` (`packages/client/media-optimizer`) - Media optimization utilities using Sharp
 
 **Backend Services** (`packages/service/`):
 
-- `@contfu/svc-sync` (`packages/service/sync`) - Elysia WebSocket server for real-time sync; handles client connections, authentication, and item streaming via RxJS; includes Notion adapter
+- `@contfu/svc-sync` (`packages/service/sync`) - Sync service for real-time content streaming via RxJS; includes Notion adapter
 - `@contfu/svc-app` (`packages/service/app`) - Qwik City web application with Bun server adapter
 
 ### Key Technologies
 
 - **Runtime**: Bun
 - **Database**: SQLite/libSQL with Drizzle ORM (server), Kysely (client)
-- **Sync Service**: Elysia framework, WebSocket, RxJS for reactive streams
-- **App Service**: Qwik City, Vite, TailwindCSS
-- **Serialization**: msgpackr for binary WebSocket messages
+- **Sync Service**: SSE (Server-Sent Events), RxJS for reactive streams
+- **App Service**: SvelteKit, Vite, TailwindCSS
 - **Auth**: Arctic (OAuth), Argon2 (passwords)
 
 ### Data Flow
 
 1. CMS sources (e.g., Notion) are polled/synced via adapters in `packages/service/sync/src/sources/`
-2. Items flow through the sync service which buffers and broadcasts via WebSocket
+2. Items flow through the sync service which buffers and broadcasts via SSE
 3. Clients connect with authentication keys, receive real-time item events
-4. Events use a compact binary format: `[EventType, collection, id, createdAt, changedAt, [ref, props, content?]]`
+4. Events are sent as JSON over SSE with structure: `{ type, item: { collection, id, createdAt, changedAt, ref, props, content? } }`
 
 ### Database Schema
 
@@ -211,7 +210,7 @@ Core entities include:
 The Dockerfile has three targets:
 
 - `migrator` - Runs database migrations
-- `sync` - Sync WebSocket service (port 3000)
+- `sync` - Sync service (port 3000)
 - `app` - Qwik web application (port 3000)
 
 ## Skills

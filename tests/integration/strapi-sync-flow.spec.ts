@@ -3,7 +3,7 @@
  *
  * This test suite verifies:
  * 1. Service can fetch content from Strapi (mocked)
- * 2. WebSocket/SSE clients can connect and authenticate
+ * 2. SSE clients can connect and authenticate
  * 3. Content sync events (CHANGED, DELETED) are correctly broadcast to clients
  * 4. Collection items are synchronized correctly
  * 5. Incremental sync works with `since` parameter
@@ -12,8 +12,7 @@
  * For real e2e tests, see tests/e2e/strapi-full-flow.spec.ts
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, mock } from "bun:test";
-import { CommandType, EventType, type Item } from "@contfu/core";
-import { pack, unpack } from "msgpackr";
+import { EventType, type Item } from "@contfu/core";
 
 // Test consumer credentials (32 bytes)
 const TEST_CONSUMER_KEY = Buffer.alloc(32);
@@ -22,6 +21,12 @@ TEST_CONSUMER_KEY.write("e2e-strapi-test-key-32-bytes!!", 0, 32);
 // Additional keys for SSE tests to avoid conflicts
 const TEST_CONSUMER_KEY_2 = Buffer.alloc(32);
 TEST_CONSUMER_KEY_2.write("e2e-strapi-test-key-2-32bytes!", 0, 32);
+
+const TEST_CONSUMER_KEY_3 = Buffer.alloc(32);
+TEST_CONSUMER_KEY_3.write("e2e-strapi-test-key-3-32bytes!", 0, 32);
+
+const TEST_CONSUMER_KEY_4 = Buffer.alloc(32);
+TEST_CONSUMER_KEY_4.write("e2e-strapi-test-key-4-32bytes!", 0, 32);
 
 const TEST_CONSUMER = {
   id: 1,
@@ -33,6 +38,18 @@ const TEST_CONSUMER_2 = {
   id: 2,
   userId: "strapi-e2e-user",
   key: TEST_CONSUMER_KEY_2,
+};
+
+const TEST_CONSUMER_3 = {
+  id: 3,
+  userId: "strapi-e2e-user",
+  key: TEST_CONSUMER_KEY_3,
+};
+
+const TEST_CONSUMER_4 = {
+  id: 4,
+  userId: "strapi-e2e-user",
+  key: TEST_CONSUMER_KEY_4,
 };
 
 // Track the last queried key for authentication tests
@@ -63,18 +80,33 @@ function createKeyTrackingChainableMock() {
     chain[method] = () => chain;
   }
 
-  chain.where = () => chain;
+  chain.where = (condition: any) => {
+    // Extract key from the condition created by eq()
+    // The condition has shape { column, value } from our eq mock
+    if (condition?.value instanceof Buffer) {
+      chain._queriedKey = condition.value;
+    }
+    return chain;
+  };
 
   chain.all = () => {
-    if (!lastQueriedKey) {
+    // Use the key captured from this chain's where clause, or fall back to lastQueriedKey
+    const key = chain._queriedKey || lastQueriedKey;
+    if (!key) {
       return Promise.resolve([TEST_CONSUMER]);
     }
-    const keyHex = lastQueriedKey.toString("hex");
+    const keyHex = key.toString("hex");
     if (keyHex === TEST_CONSUMER_KEY.toString("hex")) {
       return Promise.resolve([TEST_CONSUMER]);
     }
     if (keyHex === TEST_CONSUMER_KEY_2.toString("hex")) {
       return Promise.resolve([TEST_CONSUMER_2]);
+    }
+    if (keyHex === TEST_CONSUMER_KEY_3.toString("hex")) {
+      return Promise.resolve([TEST_CONSUMER_3]);
+    }
+    if (keyHex === TEST_CONSUMER_KEY_4.toString("hex")) {
+      return Promise.resolve([TEST_CONSUMER_4]);
     }
     return Promise.resolve([]);
   };
@@ -170,8 +202,6 @@ mock.module("drizzle-orm", () => ({
 }));
 
 // Dynamic imports after mocks - use absolute paths from the workspace root
-const { WebSocketServer } =
-  await import("../../packages/service/app/src/lib/server/websocket/ws-server");
 const { SSEServer } = await import("../../packages/service/app/src/lib/server/sse/sse-server");
 
 type ConnectionInfo = {
@@ -392,19 +422,14 @@ function createTestItem(overrides: Partial<Item> = {}): Item & { user: string } 
 // Use a unique high port range - 56xxx range for integration tests
 const PORT_BASE = 56000 + (crypto.getRandomValues(new Uint16Array(1))[0] % 5000);
 let mockStrapiServer: ReturnType<typeof Bun.serve>;
-let wsServer: InstanceType<typeof WebSocketServer>;
 let sseServer: InstanceType<typeof SSEServer>;
-let wsHttpServer: ReturnType<typeof Bun.serve>;
 let sseHttpServer: ReturnType<typeof Bun.serve>;
 let STRAPI_PORT = PORT_BASE;
-let WS_PORT = PORT_BASE + 1;
-let SSE_PORT = PORT_BASE + 2;
+let SSE_PORT = PORT_BASE + 1;
 
 describe("Integration: Strapi → Service → Client Flow", () => {
   beforeAll(async () => {
-    console.log(
-      `[Integration Strapi Flow] Using ports: Strapi=${STRAPI_PORT}, WS=${WS_PORT}, SSE=${SSE_PORT}`,
-    );
+    console.log(`[Integration Strapi Flow] Using ports: Strapi=${STRAPI_PORT}, SSE=${SSE_PORT}`);
 
     // Start mock Strapi server
     try {
@@ -414,29 +439,6 @@ describe("Integration: Strapi → Service → Client Flow", () => {
       console.error(`[Integration] Failed to start mock Strapi server:`, e);
       throw e;
     }
-
-    // Create WebSocket server
-    wsServer = new WebSocketServer();
-    const mockWsWorker = {
-      activateConsumer: mock(() => Promise.resolve()),
-      deactivateConsumer: mock(() => {}),
-    };
-    wsServer.setWorker(mockWsWorker as any);
-
-    wsHttpServer = Bun.serve({
-      port: WS_PORT,
-      fetch(request, server) {
-        const url = new URL(request.url);
-        if (url.pathname === "/ws") {
-          if (server.upgrade(request, { data: { id: "" } })) {
-            return undefined as any;
-          }
-          return new Response("WebSocket upgrade failed", { status: 400 });
-        }
-        return new Response("Not found", { status: 404 });
-      },
-      websocket: wsServer.createHandler(),
-    });
 
     // Create SSE server
     sseServer = new SSEServer();
@@ -496,7 +498,6 @@ describe("Integration: Strapi → Service → Client Flow", () => {
 
   afterAll(async () => {
     if (mockStrapiServer) mockStrapiServer.stop();
-    if (wsHttpServer) wsHttpServer.stop();
     if (sseHttpServer) sseHttpServer.stop();
   });
 
@@ -624,228 +625,6 @@ describe("Integration: Strapi → Service → Client Flow", () => {
     expect(response.status).toBe(401);
   });
 
-  // ============== WebSocket Client Tests ==============
-
-  it("should connect via WebSocket and receive CONNECTED event", async () => {
-    const ws = new WebSocket(`ws://localhost:${WS_PORT}/ws`);
-
-    const result = await new Promise<number>((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new Error("Connection timeout")), 5000);
-
-      ws.onopen = () => {
-        const connectCmd = pack([CommandType.CONNECT, TEST_CONSUMER_KEY]);
-        ws.send(connectCmd);
-      };
-
-      ws.onmessage = (event) => {
-        clearTimeout(timeout);
-        const data = unpack(Buffer.from(event.data as ArrayBuffer)) as unknown[];
-        resolve(data[0] as number);
-      };
-
-      ws.onerror = (error) => {
-        clearTimeout(timeout);
-        reject(error);
-      };
-    });
-
-    ws.close();
-    expect(result).toBe(EventType.CONNECTED);
-  });
-
-  it("should receive CHANGED event when item is broadcast via WebSocket", async () => {
-    const ws = new WebSocket(`ws://localhost:${WS_PORT}/ws`);
-
-    // Connect and authenticate
-    await new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new Error("Connection timeout")), 5000);
-
-      ws.onopen = () => {
-        const connectCmd = pack([CommandType.CONNECT, TEST_CONSUMER_KEY]);
-        ws.send(connectCmd);
-      };
-
-      ws.onmessage = (event) => {
-        clearTimeout(timeout);
-        const data = unpack(Buffer.from(event.data as ArrayBuffer)) as unknown[];
-        if (data[0] === EventType.CONNECTED) resolve();
-      };
-
-      ws.onerror = (error) => {
-        clearTimeout(timeout);
-        reject(error);
-      };
-    });
-
-    // Broadcast a test item
-    const testItem = createTestItem({
-      id: Buffer.from("test-item-id-12345678"),
-      props: { title: "Synced Article", slug: "synced-article" },
-      createdAt: 1000,
-      changedAt: 2000,
-    });
-
-    const connections: ConnectionInfo[] = [
-      {
-        userId: "strapi-e2e-user",
-        consumerId: 1,
-        collectionId: 1,
-        lastItemChanged: null,
-      },
-    ];
-
-    await wsServer.broadcast([testItem] as any, connections);
-
-    // Receive the CHANGED event
-    const receivedEvent = await new Promise<{
-      type: number;
-      collection: number;
-      props: Record<string, unknown>;
-    }>((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new Error("Broadcast timeout")), 5000);
-
-      ws.onmessage = (event) => {
-        clearTimeout(timeout);
-        const data = unpack(Buffer.from(event.data as ArrayBuffer)) as unknown[];
-        if (data[0] === EventType.CHANGED) {
-          resolve({
-            type: data[0] as number,
-            collection: data[1] as number,
-            props: (data[5] as unknown[])[1] as Record<string, unknown>,
-          });
-        }
-      };
-    });
-
-    ws.close();
-
-    expect(receivedEvent.type).toBe(EventType.CHANGED);
-    expect(receivedEvent.collection).toBe(1);
-    expect(receivedEvent.props.title).toBe("Synced Article");
-  });
-
-  it("should handle multiple items broadcast via WebSocket", async () => {
-    const ws = new WebSocket(`ws://localhost:${WS_PORT}/ws`);
-
-    // Connect and authenticate
-    await new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new Error("Connection timeout")), 5000);
-
-      ws.onopen = () => {
-        const connectCmd = pack([CommandType.CONNECT, TEST_CONSUMER_KEY]);
-        ws.send(connectCmd);
-      };
-
-      ws.onmessage = (event) => {
-        clearTimeout(timeout);
-        const data = unpack(Buffer.from(event.data as ArrayBuffer)) as unknown[];
-        if (data[0] === EventType.CONNECTED) resolve();
-      };
-
-      ws.onerror = (error) => {
-        clearTimeout(timeout);
-        reject(error);
-      };
-    });
-
-    // Broadcast multiple items
-    const items = [
-      createTestItem({ props: { title: "Article 1", slug: "article-1" } }),
-      createTestItem({ props: { title: "Article 2", slug: "article-2" } }),
-      createTestItem({ props: { title: "Article 3", slug: "article-3" } }),
-    ];
-
-    const connections: ConnectionInfo[] = [
-      {
-        userId: "strapi-e2e-user",
-        consumerId: 1,
-        collectionId: 1,
-        lastItemChanged: null,
-      },
-    ];
-
-    await wsServer.broadcast(items as any, connections);
-
-    // Collect received events
-    const receivedTitles: string[] = [];
-    await new Promise<void>((resolve) => {
-      const timeout = setTimeout(resolve, 1000);
-
-      ws.onmessage = (event) => {
-        const data = unpack(Buffer.from(event.data as ArrayBuffer)) as unknown[];
-        if (data[0] === EventType.CHANGED) {
-          const props = (data[5] as unknown[])[1] as Record<string, unknown>;
-          receivedTitles.push(props.title as string);
-          if (receivedTitles.length === 3) {
-            clearTimeout(timeout);
-            resolve();
-          }
-        }
-      };
-    });
-
-    ws.close();
-
-    expect(receivedTitles.length).toBe(3);
-    expect(receivedTitles).toContain("Article 1");
-    expect(receivedTitles).toContain("Article 2");
-    expect(receivedTitles).toContain("Article 3");
-  });
-
-  it("should filter items by lastItemChanged via WebSocket", async () => {
-    const ws = new WebSocket(`ws://localhost:${WS_PORT}/ws`);
-
-    // Connect and authenticate
-    await new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new Error("Connection timeout")), 5000);
-
-      ws.onopen = () => {
-        const connectCmd = pack([CommandType.CONNECT, TEST_CONSUMER_KEY]);
-        ws.send(connectCmd);
-      };
-
-      ws.onmessage = (event) => {
-        clearTimeout(timeout);
-        const data = unpack(Buffer.from(event.data as ArrayBuffer)) as unknown[];
-        if (data[0] === EventType.CONNECTED) resolve();
-      };
-
-      ws.onerror = (error) => {
-        clearTimeout(timeout);
-        reject(error);
-      };
-    });
-
-    // Broadcast an old item (changedAt < lastItemChanged)
-    const oldItem = createTestItem({
-      props: { title: "Old Article", slug: "old-article" },
-      changedAt: 1000,
-    });
-
-    // Connection has lastItemChanged = 2000, so items with changedAt < 2000 should be filtered
-    const connections: ConnectionInfo[] = [
-      {
-        userId: "strapi-e2e-user",
-        consumerId: 1,
-        collectionId: 1,
-        lastItemChanged: 2000,
-      },
-    ];
-
-    await wsServer.broadcast([oldItem] as any, connections);
-
-    // Should NOT receive the item (filtered out)
-    const received = await Promise.race([
-      new Promise<boolean>((resolve) => {
-        ws.onmessage = () => resolve(true);
-      }),
-      new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 500)),
-    ]);
-
-    ws.close();
-    expect(received).toBe(false);
-  });
-
   // ============== SSE Client Tests ==============
 
   it("should connect via SSE and receive CONNECTED event", async () => {
@@ -932,29 +711,36 @@ describe("Integration: Strapi → Service → Client Flow", () => {
 
   // ============== Full Sync Flow Simulation Tests ==============
 
-  it("should simulate full sync flow: Strapi create → service broadcast → client receive", async () => {
-    const ws = new WebSocket(`ws://localhost:${WS_PORT}/ws`);
+  it("should simulate full sync flow: Strapi create → service broadcast → client receive via SSE", async () => {
+    const keyBase64 = TEST_CONSUMER_KEY_3.toString("base64");
+    const url = `http://localhost:${SSE_PORT}/sse?key=${encodeURIComponent(keyBase64)}`;
 
-    // Connect client
-    await new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new Error("Connection timeout")), 5000);
+    const response = await fetch(url);
+    expect(response.ok).toBe(true);
 
-      ws.onopen = () => {
-        const connectCmd = pack([CommandType.CONNECT, TEST_CONSUMER_KEY]);
-        ws.send(connectCmd);
-      };
+    const reader = response.body!.getReader();
+    const decoder = new TextDecoder();
 
-      ws.onmessage = (event) => {
-        clearTimeout(timeout);
-        const data = unpack(Buffer.from(event.data as ArrayBuffer)) as unknown[];
-        if (data[0] === EventType.CONNECTED) resolve();
-      };
+    // Helper to read next event
+    let buffer = "";
+    const readEvent = async () => {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) return null;
+        buffer += decoder.decode(value, { stream: true });
+        const eventEndIndex = buffer.indexOf("\n\n");
+        if (eventEndIndex !== -1) {
+          const eventText = buffer.slice(0, eventEndIndex);
+          buffer = buffer.slice(eventEndIndex + 2);
+          const dataMatch = eventText.match(/data: (.+)/);
+          if (dataMatch) return JSON.parse(dataMatch[1]);
+        }
+      }
+    };
 
-      ws.onerror = (error) => {
-        clearTimeout(timeout);
-        reject(error);
-      };
-    });
+    // Read CONNECTED event
+    const connected = await readEvent();
+    expect(connected.type).toBe(EventType.CONNECTED);
 
     // Step 1: Create article in mock Strapi
     const createResponse = await fetch(`http://localhost:${STRAPI_PORT}/api/articles`, {
@@ -988,59 +774,55 @@ describe("Integration: Strapi → Service → Client Flow", () => {
     const connections: ConnectionInfo[] = [
       {
         userId: "strapi-e2e-user",
-        consumerId: 1,
+        consumerId: 3, // Use consumer 3 for this test
         collectionId: 1,
         lastItemChanged: null,
       },
     ];
 
     // Step 3: Broadcast to connected clients
-    await wsServer.broadcast([syncedItem] as any, connections);
+    await sseServer.broadcast([syncedItem] as any, connections);
 
     // Step 4: Client receives the synced content
-    const receivedEvent = await new Promise<Record<string, unknown>>((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new Error("Broadcast timeout")), 5000);
+    const changed = await readEvent();
+    expect(changed.type).toBe(EventType.CHANGED);
+    expect(changed.item.props.title).toBe("Full Flow Article");
+    expect(changed.item.props.slug).toBe("full-flow-article");
+    expect(changed.item.props.description).toBe("Testing the full sync flow");
 
-      ws.onmessage = (event) => {
-        clearTimeout(timeout);
-        const data = unpack(Buffer.from(event.data as ArrayBuffer)) as unknown[];
-        if (data[0] === EventType.CHANGED) {
-          resolve((data[5] as unknown[])[1] as Record<string, unknown>);
-        }
-      };
-    });
-
-    ws.close();
-
-    // Verify the full flow worked
-    expect(receivedEvent.title).toBe("Full Flow Article");
-    expect(receivedEvent.slug).toBe("full-flow-article");
-    expect(receivedEvent.description).toBe("Testing the full sync flow");
+    await reader.cancel();
   });
 
-  it("should simulate Strapi update → service broadcast → client receive", async () => {
-    const ws = new WebSocket(`ws://localhost:${WS_PORT}/ws`);
+  it("should simulate Strapi update → service broadcast → client receive via SSE", async () => {
+    const keyBase64 = TEST_CONSUMER_KEY_4.toString("base64");
+    const url = `http://localhost:${SSE_PORT}/sse?key=${encodeURIComponent(keyBase64)}`;
 
-    // Connect client
-    await new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new Error("Connection timeout")), 5000);
+    const response = await fetch(url);
+    expect(response.ok).toBe(true);
 
-      ws.onopen = () => {
-        const connectCmd = pack([CommandType.CONNECT, TEST_CONSUMER_KEY]);
-        ws.send(connectCmd);
-      };
+    const reader = response.body!.getReader();
+    const decoder = new TextDecoder();
 
-      ws.onmessage = (event) => {
-        clearTimeout(timeout);
-        const data = unpack(Buffer.from(event.data as ArrayBuffer)) as unknown[];
-        if (data[0] === EventType.CONNECTED) resolve();
-      };
+    // Helper to read next event
+    let buffer = "";
+    const readEvent = async () => {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) return null;
+        buffer += decoder.decode(value, { stream: true });
+        const eventEndIndex = buffer.indexOf("\n\n");
+        if (eventEndIndex !== -1) {
+          const eventText = buffer.slice(0, eventEndIndex);
+          buffer = buffer.slice(eventEndIndex + 2);
+          const dataMatch = eventText.match(/data: (.+)/);
+          if (dataMatch) return JSON.parse(dataMatch[1]);
+        }
+      }
+    };
 
-      ws.onerror = (error) => {
-        clearTimeout(timeout);
-        reject(error);
-      };
-    });
+    // Read CONNECTED event
+    const connected = await readEvent();
+    expect(connected.type).toBe(EventType.CONNECTED);
 
     // Create initial article
     const createResponse = await fetch(`http://localhost:${STRAPI_PORT}/api/articles`, {
@@ -1074,218 +856,59 @@ describe("Integration: Strapi → Service → Client Flow", () => {
     const connections: ConnectionInfo[] = [
       {
         userId: "strapi-e2e-user",
-        consumerId: 1,
+        consumerId: 4, // Use consumer 4 for this test
         collectionId: 1,
         lastItemChanged: null,
       },
     ];
 
-    await wsServer.broadcast([updatedItem] as any, connections);
+    await sseServer.broadcast([updatedItem] as any, connections);
 
     // Client receives the updated content
-    const receivedEvent = await new Promise<Record<string, unknown>>((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new Error("Broadcast timeout")), 5000);
+    const changed = await readEvent();
+    expect(changed.type).toBe(EventType.CHANGED);
+    expect(changed.item.props.title).toBe("Updated Title");
 
-      ws.onmessage = (event) => {
-        clearTimeout(timeout);
-        const data = unpack(Buffer.from(event.data as ArrayBuffer)) as unknown[];
-        if (data[0] === EventType.CHANGED) {
-          resolve((data[5] as unknown[])[1] as Record<string, unknown>);
-        }
-      };
-    });
-
-    ws.close();
-
-    expect(receivedEvent.title).toBe("Updated Title");
-  });
-
-  it("should handle ACK commands for item synchronization", async () => {
-    const ws = new WebSocket(`ws://localhost:${WS_PORT}/ws`);
-
-    // Connect client
-    await new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new Error("Connection timeout")), 5000);
-
-      ws.onopen = () => {
-        const connectCmd = pack([CommandType.CONNECT, TEST_CONSUMER_KEY]);
-        ws.send(connectCmd);
-      };
-
-      ws.onmessage = (event) => {
-        clearTimeout(timeout);
-        const data = unpack(Buffer.from(event.data as ArrayBuffer)) as unknown[];
-        if (data[0] === EventType.CONNECTED) resolve();
-      };
-
-      ws.onerror = (error) => {
-        clearTimeout(timeout);
-        reject(error);
-      };
-    });
-
-    // Broadcast an item
-    const testItem = createTestItem({
-      id: Buffer.from("ack-test-item-id!"),
-      props: { title: "ACK Test Article", slug: "ack-test" },
-    });
-
-    const connections: ConnectionInfo[] = [
-      {
-        userId: "strapi-e2e-user",
-        consumerId: 1,
-        collectionId: 1,
-        lastItemChanged: null,
-      },
-    ];
-
-    await wsServer.broadcast([testItem] as any, connections);
-
-    // Receive the item
-    await new Promise<void>((resolve) => {
-      ws.onmessage = (event) => {
-        const data = unpack(Buffer.from(event.data as ArrayBuffer)) as unknown[];
-        if (data[0] === EventType.CHANGED) resolve();
-      };
-    });
-
-    // Send ACK for the received item
-    const ackCmd = pack([CommandType.ACK, Buffer.from("ack-test-item-id!")]);
-    ws.send(ackCmd);
-
-    // Verify no error is received (ACK was processed successfully)
-    const receivedError = await Promise.race([
-      new Promise<boolean>((resolve) => {
-        ws.onmessage = (event) => {
-          const data = unpack(Buffer.from(event.data as ArrayBuffer)) as unknown[];
-          if (data[0] === EventType.ERROR) resolve(true);
-        };
-      }),
-      new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 500)),
-    ]);
-
-    ws.close();
-    expect(receivedError).toBe(false);
+    await reader.cancel();
   });
 
   // ============== Error Handling Tests ==============
 
-  it("should return E_AUTH for invalid consumer key", async () => {
-    const ws = new WebSocket(`ws://localhost:${WS_PORT}/ws`);
+  it("should return 401 for missing SSE key", async () => {
+    const url = `http://localhost:${SSE_PORT}/sse`;
+    const response = await fetch(url);
+    expect(response.status).toBe(401);
+  });
+
+  it("should return 401 for invalid SSE key format", async () => {
+    const url = `http://localhost:${SSE_PORT}/sse?key=short`;
+    const response = await fetch(url);
+    expect(response.status).toBe(401);
+  });
+
+  it("should return error event for invalid consumer key via SSE", async () => {
     const invalidKey = Buffer.alloc(32);
     invalidKey.write("invalid-consumer-key-12345678", 0, 32);
+    const keyBase64 = invalidKey.toString("base64");
+    const url = `http://localhost:${SSE_PORT}/sse?key=${encodeURIComponent(keyBase64)}`;
 
-    const result = await new Promise<string>((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new Error("Timeout")), 5000);
+    const response = await fetch(url);
+    expect(response.ok).toBe(true);
 
-      ws.onopen = () => {
-        const connectCmd = pack([CommandType.CONNECT, invalidKey]);
-        ws.send(connectCmd);
-      };
+    const reader = response.body!.getReader();
+    const decoder = new TextDecoder();
 
-      ws.onmessage = (event) => {
-        clearTimeout(timeout);
-        const data = unpack(Buffer.from(event.data as ArrayBuffer)) as unknown[];
-        if (data[0] === EventType.ERROR) {
-          resolve(data[1] as string);
-        }
-      };
+    let buffer = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      if (buffer.includes("\n\n")) break;
+    }
 
-      ws.onerror = (error) => {
-        clearTimeout(timeout);
-        reject(error);
-      };
-    });
+    await reader.cancel();
 
-    ws.close();
-    expect(result).toBe("E_AUTH");
-  });
-
-  it("should return E_AUTH for wrong key length", async () => {
-    const ws = new WebSocket(`ws://localhost:${WS_PORT}/ws`);
-    const shortKey = Buffer.alloc(16); // Should be 32 bytes
-
-    const result = await new Promise<string>((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new Error("Timeout")), 5000);
-
-      ws.onopen = () => {
-        const connectCmd = pack([CommandType.CONNECT, shortKey]);
-        ws.send(connectCmd);
-      };
-
-      ws.onmessage = (event) => {
-        clearTimeout(timeout);
-        const data = unpack(Buffer.from(event.data as ArrayBuffer)) as unknown[];
-        if (data[0] === EventType.ERROR) {
-          resolve(data[1] as string);
-        }
-      };
-
-      ws.onerror = (error) => {
-        clearTimeout(timeout);
-        reject(error);
-      };
-    });
-
-    ws.close();
-    expect(result).toBe("E_AUTH");
-  });
-
-  it("should return E_INVALID for malformed messages", async () => {
-    const ws = new WebSocket(`ws://localhost:${WS_PORT}/ws`);
-
-    const result = await new Promise<string>((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new Error("Timeout")), 5000);
-
-      ws.onopen = () => {
-        ws.send(new Uint8Array([0xff, 0xff, 0xff]));
-      };
-
-      ws.onmessage = (event) => {
-        clearTimeout(timeout);
-        const data = unpack(Buffer.from(event.data as ArrayBuffer)) as unknown[];
-        if (data[0] === EventType.ERROR) {
-          resolve(data[1] as string);
-        }
-      };
-
-      ws.onerror = (error) => {
-        clearTimeout(timeout);
-        reject(error);
-      };
-    });
-
-    ws.close();
-    expect(result).toBe("E_INVALID");
-  });
-
-  it("should return E_ACCESS for ACK before authentication", async () => {
-    const ws = new WebSocket(`ws://localhost:${WS_PORT}/ws`);
-
-    const result = await new Promise<string>((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new Error("Timeout")), 5000);
-
-      ws.onopen = () => {
-        // Send ACK without authenticating first
-        const ackCmd = pack([CommandType.ACK, Buffer.alloc(16)]);
-        ws.send(ackCmd);
-      };
-
-      ws.onmessage = (event) => {
-        clearTimeout(timeout);
-        const data = unpack(Buffer.from(event.data as ArrayBuffer)) as unknown[];
-        if (data[0] === EventType.ERROR) {
-          resolve(data[1] as string);
-        }
-      };
-
-      ws.onerror = (error) => {
-        clearTimeout(timeout);
-        reject(error);
-      };
-    });
-
-    ws.close();
-    expect(result).toBe("E_ACCESS");
+    expect(buffer).toContain("event: error");
+    expect(buffer).toContain("E_AUTH");
   });
 });

@@ -30,10 +30,10 @@ This package contains no runtime code—only TypeScript type definitions and int
 
 ### Event Format
 
-Events use a compact array format for WebSocket transmission:
+Events are transmitted as JSON over SSE:
 
 ```typescript
-[EventType, collection, id, createdAt, changedAt, [ref, props, content?]]
+{ type: EventType, item: { collection, id, createdAt, changedAt, ref, props, content? } }
 ```
 
 ## Libraries

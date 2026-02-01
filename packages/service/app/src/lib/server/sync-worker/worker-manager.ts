@@ -11,7 +11,7 @@ import { decryptCredentials } from "../crypto/credentials";
 import { collectionTable, connectionTable, db, sourceTable } from "../db/db";
 import { ITEM_ID_SIZE } from "../util/ids/ids";
 import { SortedSet } from "../util/structures/sorted-set";
-import type { ConnectionInfo } from "../websocket/ws-server";
+import type { ConnectionInfo } from "../sse/sse-server";
 
 const NO_ITEM_IDS = Buffer.alloc(0);
 

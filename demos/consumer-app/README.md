@@ -2,13 +2,13 @@
 
 A SvelteKit 5 demo application that demonstrates consuming content from the Contfu sync service. This app displays articles synced from upstream CMS platforms (like Strapi) in a clean HTML interface.
 
-By default, it uses **Server-Sent Events (SSE)** for content synchronization, with WebSocket available as an alternative via environment variable.
+It uses **Server-Sent Events (SSE)** for content synchronization.
 
 ## What This Demo Shows
 
-- **Real-time Sync**: Connects to Contfu via SSE (or WebSocket) and receives content updates automatically
+- **Real-time Sync**: Connects to Contfu via SSE and receives content updates automatically
 - **Content Rendering**: Converts Contfu's block-based content format to HTML using Svelte 5 components
-- **Client Library Usage**: Demonstrates how to use `@contfu/client` to consume synced content with both SSE and WebSocket
+- **Client Library Usage**: Demonstrates how to use `@contfu/client` to consume synced content
 - **SvelteKit Features**: Uses SvelteKit 5 with Bun adapter for server-side rendering
 
 ## Quick Start
@@ -49,27 +49,11 @@ Before starting the demo app, ensure:
 
 Environment variables:
 
-| Variable        | Description                                     | Default                                                                           |
-| --------------- | ----------------------------------------------- | --------------------------------------------------------------------------------- |
-| `PORT`          | HTTP server port                                | `4000`                                                                            |
-| `USE_WEBSOCKET` | Use WebSocket instead of SSE                    | `false`                                                                           |
-| `CONTFU_URL`    | Sync service URL (SSE or WebSocket)             | `http://localhost:5173/api/sse` (SSE) or `ws://localhost:3000/contfu` (WebSocket) |
-| `CONTFU_KEY`    | Connection key for authentication (hex-encoded) | ``                                                                                |
-
-### Choosing SSE vs WebSocket
-
-**Server-Sent Events (SSE)** - Default:
-
-- Works seamlessly with SvelteKit dev server
-- Simpler unidirectional communication
-- HTTP-based, better compatibility with proxies
-- Use by default or set `USE_WEBSOCKET=false`
-
-**WebSocket** - Optional:
-
-- Bidirectional communication (not used in this demo)
-- Slightly more efficient for frequent bidirectional messages
-- Set `USE_WEBSOCKET=true` to use WebSocket instead of SSE
+| Variable     | Description                                     | Default                         |
+| ------------ | ----------------------------------------------- | ------------------------------- |
+| `PORT`       | HTTP server port                                | `4000`                          |
+| `CONTFU_URL` | SSE endpoint URL                                | `http://localhost:5173/api/sse` |
+| `CONTFU_KEY` | Connection key for authentication (hex-encoded) | ``                              |
 
 ### Setting up CONTFU_KEY
 
@@ -107,7 +91,7 @@ The demo app requires a `CONTFU_KEY` to connect to the Contfu sync service and r
 
 ## How It Works
 
-1. **Connects to Contfu**: On server startup, the app connects to the Contfu sync service (via SSE by default, or WebSocket if configured) using the `@contfu/client` library (via `hooks.server.ts`)
+1. **Connects to Contfu**: On server startup, the app connects to the Contfu sync service via SSE using the `@contfu/client` library (via `hooks.server.ts`)
 2. **Receives Events**: Content events (`CHANGED`, `DELETED`, etc.) are received in real-time
 3. **Stores Articles**: Articles are stored in server-side state and rendered via SvelteKit's SSR
 4. **Renders Content**: Contfu's block-based content format (headings, paragraphs, code blocks, images, etc.) is converted to semantic HTML using the `BlockContent` Svelte component
@@ -160,7 +144,7 @@ Example output:
 - **Runtime**: Bun with SvelteKit 5
 - **Framework**: SvelteKit 5 with svelte-adapter-bun
 - **Rendering**: Server-side rendering with Svelte 5 runes
-- **Client**: `@contfu/client` for SSE/WebSocket sync
+- **Client**: `@contfu/client` for SSE sync
 
 ## Project Structure
 
@@ -174,7 +158,7 @@ demos/consumer-app/
 │   ├── lib/
 │   │   ├── types.ts        # Type definitions
 │   │   ├── state.svelte.ts # Article state management
-│   │   ├── sync.ts         # Sync client (SSE/WebSocket)
+│   │   ├── sync.ts         # SSE sync client
 │   │   └── components/
 │   │       └── BlockContent.svelte  # Block rendering
 │   └── routes/

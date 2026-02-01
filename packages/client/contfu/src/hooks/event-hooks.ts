@@ -33,7 +33,7 @@ export interface HookOptions {
  *
  * @example
  * ```typescript
- * import { connectTo } from "@contfu/client";
+ * import { connectToSSE } from "@contfu/client";
  * import { createEventHandler } from "contfu";
  *
  * const handler = createEventHandler({
@@ -47,7 +47,7 @@ export interface HookOptions {
  *   },
  * });
  *
- * await connectTo(key, { handle: handler });
+ * await connectToSSE(key, { url: "http://localhost:5173/api/sse", handle: handler });
  * ```
  */
 export function createEventHandler(hooks: HookOptions): EventHandler {
@@ -84,7 +84,7 @@ export function createEventHandler(hooks: HookOptions): EventHandler {
  * });
  *
  * const handler = composeHandlers(loggingHandler, persistenceHandler);
- * await connectTo(key, { handle: handler });
+ * await connectToSSE(key, { url: "http://localhost:5173/api/sse", handle: handler });
  * ```
  */
 export function composeHandlers(...handlers: EventHandler[]): EventHandler {
