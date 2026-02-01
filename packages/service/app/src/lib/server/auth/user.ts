@@ -1,9 +1,9 @@
 import { getRequestEvent } from "$app/server";
 import { redirect } from "@sveltejs/kit";
-import type { User } from "./auth";
+import type { User } from "@contfu/svc-backend/infra/auth/auth";
 
-// Re-export UserRole from shared constants for server-side usage
-export * from "$lib/constants/user";
+// Re-export UserRole from backend
+export * from "@contfu/svc-backend/infra/db/constants";
 
 export function getUser(): User {
   const event = getRequestEvent();

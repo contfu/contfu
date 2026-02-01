@@ -23,6 +23,6 @@ const transport = createTransport({
   pool: true,
 });
 
-transport.verify().catch((err) => {
+transport.verify().catch((err: unknown) => {
   console.warn("SMTP server is not ready to send emails", err);
 });

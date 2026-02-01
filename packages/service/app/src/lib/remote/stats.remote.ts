@@ -1,5 +1,5 @@
 import { query } from "$app/server";
-import { getUser } from "$lib/server/auth/user";
+import { getUserId } from "$lib/server/auth/user";
 import { db } from "$lib/server/db/db";
 import {
   collectionTable,
@@ -22,7 +22,7 @@ export type DashboardStats = {
  * Returns counts for sources, collections, total items, consumers, and connections.
  */
 export const getDashboardStats = query(async (): Promise<DashboardStats> => {
-  const userId = getUser();
+  const userId = getUserId();
 
   // Run all count queries in parallel for better performance
   const [sourceResult, collectionResult, consumerResult, connectionResult] = await Promise.all([

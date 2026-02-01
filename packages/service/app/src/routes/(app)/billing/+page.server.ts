@@ -11,7 +11,7 @@ export const load: PageServerLoad = async ({ locals }) => {
   const quotas = await db
     .select()
     .from(quotaTable)
-    .where(eq(quotaTable.id, locals.user.id))
+    .where(eq(quotaTable.id, Number(locals.user.id)))
     .limit(1);
 
   return {

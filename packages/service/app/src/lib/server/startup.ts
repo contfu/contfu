@@ -1,5 +1,5 @@
-import { SSEServer } from "./sse/sse-server";
-import { SyncWorkerManager } from "./sync-worker/worker-manager";
+import { SSEServer } from "./sse";
+import { SyncWorkerManager } from "./sync-worker";
 
 // Singleton instances - lazily initialized
 let sseServer: SSEServer | null = null;
