@@ -26,6 +26,7 @@
     "tailwind-variants": "^3.2.2"
   },
   "devDependencies": {
+    "drizzle-orm": "^1.0.0-beta.12-a5629fb",
     "valibot": "latest",
     "@internationalized/date": "^3.10.0",
     "@lucide/svelte": "^0.561.0",

@@ -196,6 +196,7 @@
         "@tailwindcss/vite": "^4.1.18",
         "@types/bun": "latest",
         "autoprefixer": "latest",
+        "drizzle-orm": "^1.0.0-beta.12-a5629fb",
         "mode-watcher": "^1.1.0",
         "playwright": "latest",
         "postcss": "latest",
