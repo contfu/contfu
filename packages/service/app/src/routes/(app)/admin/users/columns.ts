@@ -81,7 +81,9 @@ export const columns: ColumnDef<UserSummary>[] = [
       return renderSnippet(dateSnippet, { date: formatted });
     },
     sortingFn: (rowA, rowB) => {
-      return new Date(rowA.original.createdAt).getTime() - new Date(rowB.original.createdAt).getTime();
+      return (
+        new Date(rowA.original.createdAt).getTime() - new Date(rowB.original.createdAt).getTime()
+      );
     },
   },
   {

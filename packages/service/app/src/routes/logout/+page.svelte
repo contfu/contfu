@@ -1,9 +1,10 @@
 <script lang="ts">
-  import { goto } from "$app/navigation";
+  import { goto, invalidateAll } from "$app/navigation";
   import { signOut } from "$lib/auth-client";
 
   async function handleLogout() {
     await signOut();
+    await invalidateAll();
     goto("/login");
   }
 </script>

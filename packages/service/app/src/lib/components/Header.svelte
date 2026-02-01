@@ -1,6 +1,6 @@
 <script lang="ts">
   import { page } from "$app/state";
-  import { goto } from "$app/navigation";
+  import { goto, invalidateAll } from "$app/navigation";
   import { signOut } from "$lib/auth-client";
   import Avatar from "./Avatar.svelte";
   import ThemeToggle from "./ThemeToggle.svelte";
@@ -37,6 +37,7 @@
 
   async function handleLogout() {
     await signOut();
+    await invalidateAll();
     goto("/login");
   }
 </script>

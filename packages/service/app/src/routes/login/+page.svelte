@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { goto } from "$app/navigation";
+	import { goto, invalidateAll } from "$app/navigation";
 	import { signIn } from "$lib/auth-client";
 	import { Button } from "$lib/components/ui/button";
 	import { Input } from "$lib/components/ui/input";
@@ -20,6 +20,7 @@
 			if (result.error) {
 				error = result.error.message ?? "Login failed";
 			} else {
+				await invalidateAll();
 				goto("/dashboard");
 			}
 		} catch {

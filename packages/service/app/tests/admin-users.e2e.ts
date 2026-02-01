@@ -16,7 +16,12 @@ test.describe("Admin Users Management", () => {
     await expect(table).toBeVisible();
 
     // Check for table headers
-    await expect(authenticatedPage.locator("th")).toContainText(["User", "Status", "Role", "Joined"]);
+    await expect(authenticatedPage.locator("th")).toContainText([
+      "User",
+      "Status",
+      "Role",
+      "Joined",
+    ]);
   });
 
   test("should filter users by search", async ({ authenticatedPage }) => {
