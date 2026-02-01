@@ -84,12 +84,12 @@ export async function selectCollections(userId: number): Promise<CollectionWithC
 /**
  * Get all collections for a user filtered by source ID with connection counts.
  */
-export async function selectCollectionsBySource(
+export async function getCollectionSummariesBySource(
   userId: number,
   sourceId: number,
 ): Promise<CollectionWithConnectionCount[]> {
   const collections = await db
-    .select()
+    .select({ id: collectionTable.id, name: collectionTable.name })
     .from(collectionTable)
     .where(and(eq(collectionTable.userId, userId), eq(collectionTable.sourceId, sourceId)))
     .orderBy(collectionTable.createdAt);
@@ -116,7 +116,7 @@ export async function selectCollectionsBySource(
   );
 
   return collections.map(
-    (collection: Collection): CollectionWithConnectionCount => ({
+    (collection): CollectionWithConnectionCount => ({
       ...collection,
       connectionCount: countMap.get(collection.id) ?? 0,
     }),

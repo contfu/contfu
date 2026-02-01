@@ -7,8 +7,10 @@ export const mockClient = {
   },
   dataSources: {
     query: mock(),
+    retrieve: mock(),
   },
   blocks: {
     children: { list: mock() },
   },
+  search: mock(),
 };

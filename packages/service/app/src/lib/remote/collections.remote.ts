@@ -2,10 +2,10 @@ import { form, query } from "$app/server";
 import { getUserId } from "$lib/server/auth/user";
 import {
   deleteCollection as deleteCollectionDb,
+  getCollectionSummariesBySource,
   insertCollection,
   selectCollection,
   selectCollections,
-  selectCollectionsBySource,
   selectCollectionWithConnectionCount,
   updateCollection as updateCollectionDb,
   type CollectionWithConnectionCount,
@@ -27,8 +27,9 @@ export const getCollections = query(async (): Promise<CollectionWithConnectionCo
 export const getCollectionsBySource = query(
   v.object({ sourceId: v.number() }),
   async ({ sourceId }): Promise<CollectionWithConnectionCount[]> => {
+    console.log("Getting collections by sourceId", sourceId);
     const userId = getUserId();
-    return selectCollectionsBySource(userId, sourceId);
+    return getCollectionSummariesBySource(userId, sourceId);
   },
 );
 

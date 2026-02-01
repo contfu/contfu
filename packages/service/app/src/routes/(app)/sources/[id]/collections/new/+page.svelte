@@ -1,13 +1,15 @@
 <script lang="ts">
-  import { page } from "$app/state";
   import { goto } from "$app/navigation";
-  import { getSource } from "$lib/remote/sources.remote";
-  import { createCollection } from "$lib/remote/collections.remote";
+  import { page } from "$app/state";
+  import NotionDataSourcePicker from "$lib/components/NotionDataSourcePicker.svelte";
+  import * as Alert from "$lib/components/ui/alert";
   import { Button } from "$lib/components/ui/button";
   import { Input } from "$lib/components/ui/input";
   import { Label } from "$lib/components/ui/label";
   import { Textarea } from "$lib/components/ui/textarea";
-  import * as Alert from "$lib/components/ui/alert";
+  import { createCollection } from "$lib/remote/collections.remote";
+  import { getSource } from "$lib/remote/sources.remote";
+  import { SourceType } from "@contfu/core";
 
   const SOURCE_TYPE_LABELS: Record<number, string> = {
     0: "Notion",
@@ -26,17 +28,25 @@
 {#if source}
   <div class="mx-auto max-w-xl px-4 py-8 sm:px-6">
     <div class="mb-6">
-      <a href="/sources/{id}" class="text-sm text-muted-foreground hover:text-foreground">← {source.name || "Source"}</a>
+      <a
+        href="/sources/{id}"
+        class="text-sm text-muted-foreground hover:text-foreground"
+        >← {source.name || "Source"}</a
+      >
     </div>
 
     <div class="mb-8">
       <div class="flex items-center gap-3">
         <h1 class="text-2xl font-semibold tracking-tight">Add Collection</h1>
-        <span class="rounded-md bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
+        <span
+          class="rounded-md bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground"
+        >
           {SOURCE_TYPE_LABELS[source.type] ?? "Unknown"}
         </span>
       </div>
-      <p class="mt-1 text-sm text-muted-foreground">Configure content to sync from {source.name || "this source"}</p>
+      <p class="mt-1 text-sm text-muted-foreground">
+        Configure content to sync from {source.name || "this source"}
+      </p>
     </div>
 
     <form method="post" action={createCollection.action} class="space-y-5">
@@ -44,14 +54,29 @@
 
       <div class="space-y-1.5">
         <Label for="name">Name</Label>
-        <Input id="name" name="name" type="text" placeholder="My Collection" required />
+        <Input
+          id="name"
+          name="name"
+          type="text"
+          placeholder="My Collection"
+          required
+        />
         {#if createCollection.fields?.name?.issues()?.length}
-          <p class="text-sm text-destructive">{createCollection.fields?.name?.issues()?.[0]?.message}</p>
+          <p class="text-sm text-destructive">
+            {createCollection.fields?.name?.issues()?.[0]?.message}
+          </p>
         {/if}
       </div>
 
       <div class="space-y-1.5">
-        {#if source.type === 2}
+        {#if source.type === SourceType.NOTION}
+          <!-- Notion data source picker -->
+          <Label>Data Source</Label>
+          <NotionDataSourcePicker sourceId={source.id} name="ref" />
+          <p class="text-xs text-muted-foreground">
+            Select a Notion database to sync from your workspace.
+          </p>
+        {:else if source.type === 2}
           <Label for="ref">URLs to Fetch</Label>
           <Textarea
             id="ref"
@@ -60,7 +85,8 @@
             rows={5}
           />
           <p class="text-xs text-muted-foreground">
-            Relative URLs to fetch, one per line. Resolved against {source.url || "the base URL"}.
+            Relative URLs to fetch, one per line. Resolved against {source.url ||
+              "the base URL"}.
           </p>
         {:else}
           <Label for="ref">Reference</Label>
@@ -68,18 +94,16 @@
             id="ref"
             name="ref"
             type="text"
-            placeholder={source.type === 0 ? "Database ID" : "Content type (e.g., articles)"}
+            placeholder="Content type (e.g., articles)"
           />
           <p class="text-xs text-muted-foreground">
-            {#if source.type === 0}
-              The Notion database ID to sync.
-            {:else}
-              The Strapi content type API ID.
-            {/if}
+            The Strapi content type API ID.
           </p>
         {/if}
         {#if createCollection.fields?.ref?.issues()?.length}
-          <p class="text-sm text-destructive">{createCollection.fields?.ref?.issues()?.[0]?.message}</p>
+          <p class="text-sm text-destructive">
+            {createCollection.fields?.ref?.issues()?.[0]?.message}
+          </p>
         {/if}
       </div>
 
@@ -89,9 +113,13 @@
           <dt class="text-muted-foreground">Source</dt>
           <dd class="text-right">{source.name || "Unnamed"}</dd>
           <dt class="text-muted-foreground">Type</dt>
-          <dd class="text-right">{SOURCE_TYPE_LABELS[source.type] ?? "Unknown"}</dd>
+          <dd class="text-right">
+            {SOURCE_TYPE_LABELS[source.type] ?? "Unknown"}
+          </dd>
           {#if source.url}
-            <dt class="text-muted-foreground">{source.type === 2 ? "Base URL" : "URL"}</dt>
+            <dt class="text-muted-foreground">
+              {source.type === 2 ? "Base URL" : "URL"}
+            </dt>
             <dd class="truncate text-right" title={source.url}>{source.url}</dd>
           {/if}
         </dl>

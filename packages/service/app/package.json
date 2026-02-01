@@ -10,6 +10,7 @@
     "preview": "bun -b vite preview",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "serve": "bun build/index.js",
+    "clean": "rm -rf .svelte-kit build",
     "db:generate": "rm -rf db/migrations && drizzle-kit generate --name init",
     "shadcn": "bunx shadcn-svelte",
     "test:e2e": "playwright test",
@@ -19,6 +20,7 @@
   "dependencies": {
     "@contfu/core": "workspace:*",
     "@css-inline/css-inline": "^0.19.1",
+    "@notionhq/client": "^5.9.0",
     "@polar-sh/better-auth": "^1.6.4",
     "@polar-sh/sdk": "^0.42.2",
     "@tanstack/table-core": "^8.21.3",
@@ -33,7 +35,7 @@
   },
   "devDependencies": {
     "@internationalized/date": "^3.10.0",
-    "@lucide/svelte": "^0.563.1",
+    "@lucide/svelte": "^0.561.0",
     "@playwright/test": "^1.57.0",
     "@sveltejs/kit": "latest",
     "@sveltejs/vite-plugin-svelte": "latest",

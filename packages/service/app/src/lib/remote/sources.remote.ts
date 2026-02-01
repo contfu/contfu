@@ -2,6 +2,11 @@ import { command, form, query } from "$app/server";
 import { getProviderAccessToken } from "$lib/server/auth/linked-accounts";
 import { getUserId } from "$lib/server/auth/user";
 import {
+  iterateDataSources,
+  resolveDataSourceId,
+  type DataSourceResult,
+} from "$lib/server/notion/notion-api";
+import {
   deleteSource as deleteSourceDb,
   insertSource,
   selectSource,
@@ -16,7 +21,7 @@ import {
   validateSourceData,
   type ConnectionTestResult,
 } from "$lib/server/sources/source-validator";
-import { invalid, redirect } from "@sveltejs/kit";
+import { error, invalid, redirect } from "@sveltejs/kit";
 import * as v from "valibot";
 
 /**
@@ -305,5 +310,152 @@ export const regenerateWebhookSecret = command(
     await updateSourceDb(userId, data.id, { webhookSecret: encryptedSecret });
 
     return { success: true, secret: newSecret };
+  },
+);
+
+// ============================================================
+// Notion Data Source Picker Commands
+// ============================================================
+
+export type NotionDataSource = {
+  id: string;
+  title: string;
+  icon: { type: "emoji" | "external" | "file"; value: string } | null;
+  url: string;
+};
+
+export type NotionDataSourcesResult =
+  | { dataSources: NotionDataSource[]; usedIds: string[] }
+  | { error: string };
+
+function parseDataSource(ds: DataSourceResult): NotionDataSource {
+  // Title is in ds.title array (rich text)
+  const title = ds.title?.[0]?.plain_text || "Untitled";
+
+  let icon: NotionDataSource["icon"] = null;
+  const dsIcon = ds.icon;
+
+  if (dsIcon?.type === "emoji") {
+    icon = { type: "emoji", value: dsIcon.emoji };
+  } else if (dsIcon?.type === "external") {
+    icon = { type: "external", value: dsIcon.external.url };
+  } else if (dsIcon?.type === "file") {
+    icon = { type: "file", value: dsIcon.file.url };
+  }
+
+  return {
+    id: ds.id,
+    title,
+    icon,
+    url: ds.url,
+  };
+}
+
+/**
+ * List available Notion data sources for a source.
+ * Also returns IDs of data sources already used by collections.
+ */
+export const listNotionDataSources = query(
+  v.object({
+    sourceId: v.pipe(
+      v.union([v.string(), v.number()]),
+      v.transform((val) => (typeof val === "string" ? Number.parseInt(val, 10) : val)),
+      v.number(),
+    ),
+  }),
+  async (data) => {
+    const userId = getUserId();
+    const source = await selectSource(userId, data.sourceId);
+
+    if (!source) {
+      return error(404, "Source not found");
+    }
+
+    if (source.type !== SourceType.NOTION) {
+      return error(400, "Not a Notion source");
+    }
+
+    const token = source.credentials?.toString("utf-8");
+    if (!token) {
+      return error(400, "No API token configured");
+    }
+
+    try {
+      // Fetch data sources from Notion and existing collections in parallel
+      const { getCollectionSummariesBySource } =
+        await import("$lib/server/collections/collection-datasource");
+
+      const [collections, dataSources] = await Promise.all([
+        getCollectionSummariesBySource(userId, data.sourceId),
+        (async () => {
+          const results: NotionDataSource[] = [];
+          for await (const ds of iterateDataSources(token)) {
+            results.push(parseDataSource(ds));
+          }
+          return results;
+        })(),
+      ]);
+
+      // Extract used data source IDs from collection refs
+      const usedIds = collections
+        .map((c) => c.ref?.toString("utf-8"))
+        .filter((id): id is string => !!id);
+
+      console.log("Listing Notion data sources for sourceId", data.sourceId, collections, usedIds);
+      return { dataSources, usedIds };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      if (message.includes("401") || message.includes("unauthorized")) {
+        return error(401, "Invalid or expired Notion token");
+      }
+      if (message.includes("403") || message.includes("forbidden")) {
+        return error(403, "No data sources found. Make sure your integration has access.");
+      }
+      return error(500, message);
+    }
+  },
+);
+
+/**
+ * Resolve a user-provided ID (database or data source) to a data source ID.
+ */
+export const resolveNotionId = command(
+  v.object({
+    sourceId: v.pipe(
+      v.union([v.string(), v.number()]),
+      v.transform((val) => (typeof val === "string" ? Number.parseInt(val, 10) : val)),
+      v.number(),
+    ),
+    id: v.string(),
+  }),
+  async (
+    data,
+  ): Promise<{ success: true; dataSourceId: string } | { success: false; error: string }> => {
+    const userId = getUserId();
+    const source = await selectSource(userId, data.sourceId);
+
+    if (!source) {
+      return { success: false, error: "Source not found" };
+    }
+
+    if (source.type !== SourceType.NOTION) {
+      return { success: false, error: "Not a Notion source" };
+    }
+
+    const token = source.credentials?.toString("utf-8");
+    if (!token) {
+      return { success: false, error: "No API token configured" };
+    }
+
+    try {
+      const dataSourceId = await resolveDataSourceId(token, data.id);
+      return { success: true, dataSourceId };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      if (message.includes("401") || message.includes("unauthorized")) {
+        return { success: false, error: "Invalid or expired Notion token" };
+      }
+      return { success: false, error: "Could not find database or data source with this ID" };
+    }
   },
 );

@@ -17,6 +17,7 @@
     "test:e2e:headed": "bun setup:e2e && npx playwright test -c tests/playwright.config.ts --headed",
     "setup:e2e": "bun tests/e2e/setup.ts",
     "build": "bun --filter '@contfu/*' build",
+    "clean": "bun --filter '@contfu/*' clean",
     "dev": "bun --filter '@contfu/*' dev",
     "fmt": "oxfmt",
     "lint": "oxlint",
@@ -32,5 +33,9 @@
   },
   "peerDependencies": {
     "typescript": "^5.6.3"
+  },
+  "dependencies": {
+    "svelte": "^5.49.1",
+    "svelte-kit": "^1.2.0"
   }
 }
