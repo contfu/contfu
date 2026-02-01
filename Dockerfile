@@ -13,6 +13,7 @@ RUN apt-get update && \
 FROM build-base AS build
 COPY . .
 RUN bun install && \
+    bun run -F '@contfu/svc-backend' build && \
     bun run -F '@contfu/svc-app' build
 
 FROM build-base AS deps
