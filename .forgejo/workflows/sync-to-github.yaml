@@ -1,0 +1,21 @@
+name: Sync to GitHub
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  sync:
+    name: Push to GitHub
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Push to GitHub
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_PUSH_TOKEN }}
+        run: |
+          git remote add github https://x-access-token:${GITHUB_TOKEN}@github.com/contfu/contfu.git || true
+          git push github main --force
