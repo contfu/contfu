@@ -1,12 +1,12 @@
 import { form, query } from "$app/server";
 import { getUserId } from "$lib/server/user";
-import { createCollection as createCollectionDb } from "@contfu/svc-backend/features/collections/createCollection";
+import { createCollection as createCollectionFeature } from "@contfu/svc-backend/features/collections/createCollection";
 import { listCollections } from "@contfu/svc-backend/features/collections/listCollections";
 import { listCollectionSummariesBySource } from "@contfu/svc-backend/features/collections/listCollectionSummariesBySource";
-import { getCollection as getCollectionDb } from "@contfu/svc-backend/features/collections/getCollection";
+import { getCollection as getCollectionFeature } from "@contfu/svc-backend/features/collections/getCollection";
 import { getCollectionWithConnectionCount } from "@contfu/svc-backend/features/collections/getCollectionWithConnectionCount";
-import { updateCollection as updateCollectionDb } from "@contfu/svc-backend/features/collections/updateCollection";
-import { deleteCollection as deleteCollectionDb } from "@contfu/svc-backend/features/collections/deleteCollection";
+import { updateCollection as updateCollectionFeature } from "@contfu/svc-backend/features/collections/updateCollection";
+import { deleteCollection as deleteCollectionFeature } from "@contfu/svc-backend/features/collections/deleteCollection";
 import type {
   BackendCollectionWithConnectionCount,
   BackendCollectionSummary,
@@ -63,7 +63,7 @@ export const createCollection = form(
     const userId = getUserId();
 
     // Insert into database
-    const collection = await createCollectionDb(userId, {
+    const collection = await createCollectionFeature(userId, {
       name: data.name,
       sourceId: data.sourceId,
       ref: data.ref ? Buffer.from(data.ref, "utf-8") : null,
@@ -90,7 +90,7 @@ export const updateCollection = form(
     const userId = getUserId();
 
     // Verify collection exists
-    const existing = await getCollectionDb(userId, data.id);
+    const existing = await getCollectionFeature(userId, data.id);
     if (!existing) {
       throw invalid(issue.id("Collection not found"));
     }
@@ -104,7 +104,7 @@ export const updateCollection = form(
       updates.ref = data.ref.length > 0 ? Buffer.from(data.ref, "utf-8") : null;
     }
 
-    await updateCollectionDb(userId, data.id, updates);
+    await updateCollectionFeature(userId, data.id, updates);
     return { success: true };
   },
 );
@@ -124,13 +124,13 @@ export const deleteCollection = form(
     const userId = getUserId();
 
     // Get collection to find sourceId before deleting
-    const existing = await getCollectionDb(userId, data.id);
+    const existing = await getCollectionFeature(userId, data.id);
     if (!existing) {
       throw invalid(issue.id("Collection not found"));
     }
     const sourceId = existing.sourceId;
 
-    const deleted = await deleteCollectionDb(userId, data.id);
+    const deleted = await deleteCollectionFeature(userId, data.id);
     if (!deleted) {
       throw invalid(issue.id("Collection not found"));
     }

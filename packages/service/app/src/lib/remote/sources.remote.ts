@@ -6,12 +6,12 @@ import {
   type DataSourceResult,
 } from "@contfu/svc-backend/features/notion/iterateDataSources";
 import { resolveDataSourceId } from "@contfu/svc-backend/features/notion/resolveDataSourceId";
-import { createSource as createSourceDb } from "@contfu/svc-backend/features/sources/createSource";
+import { createSource as createSourceFeature } from "@contfu/svc-backend/features/sources/createSource";
 import { listSources } from "@contfu/svc-backend/features/sources/listSources";
-import { getSource as getSourceDb } from "@contfu/svc-backend/features/sources/getSource";
+import { getSource as getSourceFeature } from "@contfu/svc-backend/features/sources/getSource";
 import { getSourceWithCollectionCount } from "@contfu/svc-backend/features/sources/getSourceWithCollectionCount";
-import { updateSource as updateSourceDb } from "@contfu/svc-backend/features/sources/updateSource";
-import { deleteSource as deleteSourceDb } from "@contfu/svc-backend/features/sources/deleteSource";
+import { updateSource as updateSourceFeature } from "@contfu/svc-backend/features/sources/updateSource";
+import { deleteSource as deleteSourceFeature } from "@contfu/svc-backend/features/sources/deleteSource";
 import { getSourceWithCredentials } from "@contfu/svc-backend/features/sources/getSourceWithCredentials";
 import {
   testSourceConnection,
@@ -99,7 +99,7 @@ export const createSource = form(
     }
 
     // Insert into database
-    const source = await createSourceDb(userId, {
+    const source = await createSourceFeature(userId, {
       name: data.name,
       type: data.type,
       url: data.type === SourceType.STRAPI || data.type === SourceType.WEB ? data.url : null,
@@ -134,7 +134,7 @@ export const createNotionSourceFromOAuth = command(
     }
 
     // Insert the source
-    const source = await createSourceDb(userId, {
+    const source = await createSourceFeature(userId, {
       name: data.name,
       type: SourceType.NOTION,
       url: null,
@@ -195,7 +195,7 @@ export const updateSource = form(
       updates.credentials = Buffer.from(data._credentials, "utf-8");
     }
 
-    await updateSourceDb(userId, data.id, updates);
+    await updateSourceFeature(userId, data.id, updates);
     return { success: true };
   },
 );
@@ -213,7 +213,7 @@ export const deleteSource = form(
   }),
   async (data, issue) => {
     const userId = getUserId();
-    const deleted = await deleteSourceDb(userId, data.id);
+    const deleted = await deleteSourceFeature(userId, data.id);
 
     if (!deleted) {
       throw invalid(issue.id("Source not found"));
@@ -290,7 +290,7 @@ export const regenerateWebhookSecret = command(
   async (data): Promise<{ success: boolean; secret?: string; message?: string }> => {
     const userId = getUserId();
     // Don't need credentials here, just checking type
-    const source = await getSourceDb(userId, data.id);
+    const source = await getSourceFeature(userId, data.id);
 
     if (!source) {
       return { success: false, message: "Source not found" };
@@ -305,7 +305,7 @@ export const regenerateWebhookSecret = command(
     const newSecret = randomBytes(32).toString("hex");
 
     // Store the new secret (encryption happens in updateSource)
-    await updateSourceDb(userId, data.id, { webhookSecret: Buffer.from(newSecret, "utf8") });
+    await updateSourceFeature(userId, data.id, { webhookSecret: Buffer.from(newSecret, "utf8") });
 
     return { success: true, secret: newSecret };
   },

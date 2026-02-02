@@ -1,11 +1,11 @@
 import { form, query } from "$app/server";
 import { getUserId } from "$lib/server/user";
-import { createConnection as createConnectionDb } from "@contfu/svc-backend/features/connections/createConnection";
+import { createConnection as createConnectionFeature } from "@contfu/svc-backend/features/connections/createConnection";
 import { listConnections } from "@contfu/svc-backend/features/connections/listConnections";
 import { listConnectionsByConsumer } from "@contfu/svc-backend/features/connections/listConnectionsByConsumer";
 import { listConnectionsByCollection } from "@contfu/svc-backend/features/connections/listConnectionsByCollection";
-import { getConnection as getConnectionDb } from "@contfu/svc-backend/features/connections/getConnection";
-import { deleteConnection as deleteConnectionDb } from "@contfu/svc-backend/features/connections/deleteConnection";
+import { getConnection as getConnectionFeature } from "@contfu/svc-backend/features/connections/getConnection";
+import { deleteConnection as deleteConnectionFeature } from "@contfu/svc-backend/features/connections/deleteConnection";
 import type { BackendConnectionWithDetails } from "@contfu/svc-backend/domain/types";
 import { invalid } from "@sveltejs/kit";
 import * as v from "valibot";
@@ -60,13 +60,13 @@ export const addConnection = form(
     const userId = getUserId();
 
     // Check if connection already exists
-    const existing = await getConnectionDb(userId, data.consumerId, data.collectionId);
+    const existing = await getConnectionFeature(userId, data.consumerId, data.collectionId);
     if (existing) {
       throw invalid(issue.consumerId("Connection already exists"));
     }
 
     // Insert the new connection
-    const connection = await createConnectionDb(userId, {
+    const connection = await createConnectionFeature(userId, {
       consumerId: data.consumerId,
       collectionId: data.collectionId,
     });
@@ -93,7 +93,7 @@ export const removeConnection = form(
   }),
   async (data, issue) => {
     const userId = getUserId();
-    const deleted = await deleteConnectionDb(userId, data.consumerId, data.collectionId);
+    const deleted = await deleteConnectionFeature(userId, data.consumerId, data.collectionId);
 
     if (!deleted) {
       throw invalid(issue.consumerId("Connection not found"));

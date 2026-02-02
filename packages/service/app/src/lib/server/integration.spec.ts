@@ -163,7 +163,7 @@ mock.module("drizzle-orm", () => ({
 }));
 
 // Dynamic import after mock
-const { SSEServer } = await import("./sse/sse-server");
+const { SSEServer } = await import("@contfu/svc-backend/infra/sse/sse-server");
 type ConnectionInfo = {
   userId: number;
   consumerId: number;

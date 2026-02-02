@@ -1,11 +1,11 @@
 import { form, query } from "$app/server";
 import { getUserId } from "$lib/server/user";
-import { createConsumer as createConsumerDb } from "@contfu/svc-backend/features/consumers/createConsumer";
+import { createConsumer as createConsumerFeature } from "@contfu/svc-backend/features/consumers/createConsumer";
 import { listConsumers } from "@contfu/svc-backend/features/consumers/listConsumers";
-import { getConsumer as getConsumerDb } from "@contfu/svc-backend/features/consumers/getConsumer";
+import { getConsumer as getConsumerFeature } from "@contfu/svc-backend/features/consumers/getConsumer";
 import { getConsumerWithConnectionCount } from "@contfu/svc-backend/features/consumers/getConsumerWithConnectionCount";
-import { updateConsumer as updateConsumerDb } from "@contfu/svc-backend/features/consumers/updateConsumer";
-import { deleteConsumer as deleteConsumerDb } from "@contfu/svc-backend/features/consumers/deleteConsumer";
+import { updateConsumer as updateConsumerFeature } from "@contfu/svc-backend/features/consumers/updateConsumer";
+import { deleteConsumer as deleteConsumerFeature } from "@contfu/svc-backend/features/consumers/deleteConsumer";
 import type { BackendConsumerWithConnectionCount } from "@contfu/svc-backend/domain/types";
 import { invalid, redirect } from "@sveltejs/kit";
 import * as v from "valibot";
@@ -52,7 +52,7 @@ export const createConsumer = form(
     const apiKey = generateApiKey();
 
     // Insert into database
-    const consumer = await createConsumerDb(userId, {
+    const consumer = await createConsumerFeature(userId, {
       name: data.name,
       key: Buffer.from(apiKey, "hex"),
     });
@@ -77,7 +77,7 @@ export const updateConsumer = form(
     const userId = getUserId();
 
     // Verify consumer exists
-    const existing = await getConsumerDb(userId, data.id);
+    const existing = await getConsumerFeature(userId, data.id);
     if (!existing) {
       throw invalid(issue.id("Consumer not found"));
     }
@@ -88,7 +88,7 @@ export const updateConsumer = form(
       updates.name = data.name;
     }
 
-    await updateConsumerDb(userId, data.id, updates);
+    await updateConsumerFeature(userId, data.id, updates);
     return { success: true };
   },
 );
@@ -108,7 +108,7 @@ export const regenerateKey = form(
     const userId = getUserId();
 
     // Verify consumer exists
-    const existing = await getConsumerDb(userId, data.id);
+    const existing = await getConsumerFeature(userId, data.id);
     if (!existing) {
       throw invalid(issue.id("Consumer not found"));
     }
@@ -116,7 +116,7 @@ export const regenerateKey = form(
     // Generate a new API key
     const apiKey = generateApiKey();
 
-    await updateConsumerDb(userId, data.id, {
+    await updateConsumerFeature(userId, data.id, {
       key: Buffer.from(apiKey, "hex"),
     });
 
@@ -137,7 +137,7 @@ export const deleteConsumer = form(
   }),
   async (data, issue) => {
     const userId = getUserId();
-    const deleted = await deleteConsumerDb(userId, data.id);
+    const deleted = await deleteConsumerFeature(userId, data.id);
 
     if (!deleted) {
       throw invalid(issue.id("Consumer not found"));
