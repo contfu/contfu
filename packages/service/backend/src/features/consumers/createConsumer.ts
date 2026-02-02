@@ -16,28 +16,34 @@ function mapToBackendConsumer(consumer: Consumer): BackendConsumer {
 /**
  * Create a new consumer for a user.
  * The ID is auto-generated as max(id) + 1 within the user's consumers.
+ * Uses a transaction to prevent race conditions in ID generation.
  */
 export async function createConsumer(
   userId: number,
   input: CreateConsumerInput,
 ): Promise<BackendConsumer> {
-  const maxIdResult = await db
-    .select({ maxId: sql<number>`coalesce(max(id), 0)` })
-    .from(consumerTable)
-    .where(eq(consumerTable.userId, userId))
-    .limit(1);
+  // Use transaction to atomically generate ID and insert
+  const inserted = await db.transaction(async (tx) => {
+    const maxIdResult = await tx
+      .select({ maxId: sql<number>`coalesce(max(id), 0)` })
+      .from(consumerTable)
+      .where(eq(consumerTable.userId, userId))
+      .limit(1);
 
-  const nextId = (maxIdResult[0]?.maxId ?? 0) + 1;
+    const nextId = (maxIdResult[0]?.maxId ?? 0) + 1;
 
-  const [inserted] = await db
-    .insert(consumerTable)
-    .values({
-      userId,
-      id: nextId,
-      name: input.name,
-      key: input.key ?? null,
-    })
-    .returning();
+    const [result] = await tx
+      .insert(consumerTable)
+      .values({
+        userId,
+        id: nextId,
+        name: input.name,
+        key: input.key ?? null,
+      })
+      .returning();
+
+    return result;
+  });
 
   return mapToBackendConsumer(inserted);
 }

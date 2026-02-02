@@ -26,30 +26,36 @@ function mapToBackendCollection(collection: Collection): BackendCollection {
 /**
  * Create a new collection for a user.
  * The ID is auto-generated as max(id) + 1 within the user's collections.
+ * Uses a transaction to prevent race conditions in ID generation.
  */
 export async function createCollection(
   userId: number,
   input: CreateCollectionInput,
 ): Promise<BackendCollection> {
-  const maxIdResult = await db
-    .select({ maxId: sql<number>`coalesce(max(id), 0)` })
-    .from(collectionTable)
-    .where(eq(collectionTable.userId, userId))
-    .limit(1);
+  // Use transaction to atomically generate ID and insert
+  const inserted = await db.transaction(async (tx) => {
+    const maxIdResult = await tx
+      .select({ maxId: sql<number>`coalesce(max(id), 0)` })
+      .from(collectionTable)
+      .where(eq(collectionTable.userId, userId))
+      .limit(1);
 
-  const nextId = (maxIdResult[0]?.maxId ?? 0) + 1;
+    const nextId = (maxIdResult[0]?.maxId ?? 0) + 1;
 
-  const [inserted] = await db
-    .insert(collectionTable)
-    .values({
-      userId,
-      id: nextId,
-      sourceId: input.sourceId,
-      name: input.name,
-      ref: input.ref ?? null,
-      itemIds: input.itemIds ?? null,
-    })
-    .returning();
+    const [result] = await tx
+      .insert(collectionTable)
+      .values({
+        userId,
+        id: nextId,
+        sourceId: input.sourceId,
+        name: input.name,
+        ref: input.ref ?? null,
+        itemIds: input.itemIds ?? null,
+      })
+      .returning();
+
+    return result;
+  });
 
   return mapToBackendCollection(inserted);
 }
