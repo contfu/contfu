@@ -13,19 +13,19 @@ TEST_CONSUMER_KEY_3.write("test-consumer-key-3234567890123", 0, 32);
 
 const TEST_CONSUMER = {
   id: 1,
-  userId: "user-1",
+  userId: 1,
   key: TEST_CONSUMER_KEY,
 };
 
 const TEST_CONSUMER_2 = {
   id: 2,
-  userId: "user-1",
+  userId: 1,
   key: TEST_CONSUMER_KEY_2,
 };
 
 const TEST_CONSUMER_3 = {
   id: 3,
-  userId: "user-1",
+  userId: 1,
   key: TEST_CONSUMER_KEY_3,
 };
 
@@ -109,7 +109,7 @@ mock.module("./db/db", () => {
           findMany: mock(() =>
             Promise.resolve([
               {
-                userId: "user-1",
+                userId: 1,
                 consumerId: 1,
                 collectionId: 1,
                 lastItemChanged: null,
@@ -165,7 +165,7 @@ mock.module("drizzle-orm", () => ({
 // Dynamic import after mock
 const { SSEServer } = await import("./sse/sse-server");
 type ConnectionInfo = {
-  userId: string;
+  userId: number;
   consumerId: number;
   collectionId: number;
   lastItemChanged: number | null;
@@ -358,7 +358,7 @@ describe("Integration: SSE Server", () => {
 
     const connections: ConnectionInfo[] = [
       {
-        userId: "user-1",
+        userId: 1,
         consumerId: 1,
         collectionId: 1,
         lastItemChanged: null,
@@ -483,13 +483,13 @@ describe("Integration: SSE Server", () => {
 
     const connections: ConnectionInfo[] = [
       {
-        userId: "user-1",
+        userId: 1,
         consumerId: 2,
         collectionId: 1,
         lastItemChanged: null,
       },
       {
-        userId: "user-1",
+        userId: 1,
         consumerId: 3,
         collectionId: 1,
         lastItemChanged: null,

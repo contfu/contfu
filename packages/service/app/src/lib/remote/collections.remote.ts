@@ -2,13 +2,14 @@ import { form, query } from "$app/server";
 import { getUserId } from "$lib/server/auth/user";
 import {
   deleteCollection as deleteCollectionDb,
-  getCollectionSummariesBySource,
+  listCollectionSummariesBySource,
   insertCollection,
   selectCollection,
   selectCollections,
   selectCollectionWithConnectionCount,
   updateCollection as updateCollectionDb,
   type CollectionWithConnectionCount,
+  type CollectionSummary,
 } from "$lib/server/collections/collection-datasource";
 import { invalid, redirect } from "@sveltejs/kit";
 import * as v from "valibot";
@@ -22,14 +23,14 @@ export const getCollections = query(async (): Promise<CollectionWithConnectionCo
 });
 
 /**
- * Get collections filtered by source ID.
+ * Get collections filtered by source ID (minimal summary data).
  */
 export const getCollectionsBySource = query(
   v.object({ sourceId: v.number() }),
-  async ({ sourceId }): Promise<CollectionWithConnectionCount[]> => {
+  async ({ sourceId }): Promise<CollectionSummary[]> => {
     console.log("Getting collections by sourceId", sourceId);
     const userId = getUserId();
-    return getCollectionSummariesBySource(userId, sourceId);
+    return listCollectionSummariesBySource(userId, sourceId);
   },
 );
 

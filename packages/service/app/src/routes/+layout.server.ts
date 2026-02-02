@@ -1,3 +1,4 @@
+import type { UserRole } from "$lib/constants/user";
 import type { LayoutServerLoad } from "./$types";
 
 export const load: LayoutServerLoad = async ({ locals }) => {
@@ -6,7 +7,12 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 
   return {
     user: user
-      ? { email: user.email, name: user.name, image: user.image ?? undefined, role: user.role }
+      ? {
+          email: user.email,
+          name: user.name,
+          image: user.image ?? undefined,
+          role: (user.role ?? undefined) as UserRole | undefined,
+        }
       : null,
     isUnderConstruction,
   };

@@ -9,6 +9,6 @@ export default defineConfig({
   },
   ssr: {
     noExternal: process.env.NODE_ENV === "production" ? true : undefined,
-    external: [/^@css-inline\//, "@contfu/svc-backend"],
+    external: [/^@css-inline\//, "@contfu/svc-backend"] as string[],
   },
 });

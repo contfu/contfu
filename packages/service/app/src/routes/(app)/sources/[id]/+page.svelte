@@ -27,11 +27,6 @@
     2: "Basic Auth",
   };
 
-  function getWebAuthType(credentials: Buffer | null): number {
-    if (!credentials || credentials.length === 0) return 0;
-    return credentials[0];
-  }
-
   const id = Number.parseInt(page.params.id ?? "", 10);
   const source = Number.isNaN(id) ? null : await getSource({ id });
   const collections = source ? await getCollectionsBySource({ sourceId: id }) : [];
@@ -167,19 +162,18 @@
         {/if}
 
         {#if source.type === 2}
-          {@const authType = getWebAuthType(source.credentials)}
           <div class="space-y-1.5">
             <Label>Authentication</Label>
             <div class="rounded-md border border-input bg-muted/50 px-3 py-2 text-sm">
-              {AUTH_TYPE_LABELS[authType] ?? "Unknown"}
+              {AUTH_TYPE_LABELS[source.webAuthType ?? 0] ?? "Unknown"}
             </div>
             <p class="text-xs text-muted-foreground">Create a new source to change auth method.</p>
           </div>
         {/if}
 
-        {#if source.type !== 2 || getWebAuthType(source.credentials) !== 0}
-          {@const isWebWithAuth = source.type === 2 && getWebAuthType(source.credentials) !== 0}
-          {@const webAuthType = source.type === 2 ? getWebAuthType(source.credentials) : null}
+        {#if source.type !== 2 || (source.webAuthType ?? 0) !== 0}
+          {@const isWebWithAuth = source.type === 2 && (source.webAuthType ?? 0) !== 0}
+          {@const webAuthType = source.type === 2 ? (source.webAuthType ?? 0) : null}
           <div class="space-y-1.5">
             <Label for="_credentials">
               {#if isWebWithAuth}

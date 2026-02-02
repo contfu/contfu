@@ -6,49 +6,56 @@ import {
   type Connection,
 } from "../../infra/db/schema";
 import { and, eq } from "drizzle-orm";
+import type {
+  BackendConnection,
+  BackendConnectionWithDetails,
+  CreateConnectionInput,
+  UpdateConnectionInput,
+} from "../../domain/types";
 
-export type NewConnection = {
-  consumerId: number;
-  collectionId: number;
-  lastItemChanged?: number | null;
-  lastConsistencyCheck?: number | null;
-};
+// =============================================================================
+// Mappers (DB → Domain)
+// =============================================================================
 
-export type ConnectionUpdate = {
-  lastItemChanged?: number | null;
-  lastConsistencyCheck?: number | null;
-};
+function mapToBackendConnection(connection: Connection): BackendConnection {
+  return {
+    userId: connection.userId,
+    consumerId: connection.consumerId,
+    collectionId: connection.collectionId,
+    lastItemChanged: connection.lastItemChanged,
+    lastConsistencyCheck: connection.lastConsistencyCheck,
+  };
+}
 
-export type ConnectionWithDetails = Connection & {
-  consumerName: string;
-  collectionName: string;
-};
+// =============================================================================
+// Public Feature Functions (return domain types)
+// =============================================================================
 
 /**
- * Insert a new connection for a user.
+ * Create a new connection for a user.
  */
-export async function insertConnection(
+export async function createConnection(
   userId: number,
-  connection: NewConnection,
-): Promise<Connection> {
+  input: CreateConnectionInput,
+): Promise<BackendConnection> {
   const [inserted] = await db
     .insert(connectionTable)
     .values({
       userId,
-      consumerId: connection.consumerId,
-      collectionId: connection.collectionId,
-      lastItemChanged: connection.lastItemChanged ?? null,
-      lastConsistencyCheck: connection.lastConsistencyCheck ?? null,
+      consumerId: input.consumerId,
+      collectionId: input.collectionId,
+      lastItemChanged: input.lastItemChanged ?? null,
+      lastConsistencyCheck: input.lastConsistencyCheck ?? null,
     })
     .returning();
 
-  return inserted;
+  return mapToBackendConnection(inserted);
 }
 
 /**
  * Get all connections for a user with consumer and collection names.
  */
-export async function selectConnections(userId: number): Promise<ConnectionWithDetails[]> {
+export async function listConnections(userId: number): Promise<BackendConnectionWithDetails[]> {
   const connections = await db
     .select({
       userId: connectionTable.userId,
@@ -82,10 +89,10 @@ export async function selectConnections(userId: number): Promise<ConnectionWithD
 /**
  * Get all connections for a specific consumer with collection names.
  */
-export async function selectConnectionsByConsumer(
+export async function listConnectionsByConsumer(
   userId: number,
   consumerId: number,
-): Promise<ConnectionWithDetails[]> {
+): Promise<BackendConnectionWithDetails[]> {
   const connections = await db
     .select({
       userId: connectionTable.userId,
@@ -119,10 +126,10 @@ export async function selectConnectionsByConsumer(
 /**
  * Get all connections for a specific collection with consumer names.
  */
-export async function selectConnectionsByCollection(
+export async function listConnectionsByCollection(
   userId: number,
   collectionId: number,
-): Promise<ConnectionWithDetails[]> {
+): Promise<BackendConnectionWithDetails[]> {
   const connections = await db
     .select({
       userId: connectionTable.userId,
@@ -156,11 +163,11 @@ export async function selectConnectionsByCollection(
 /**
  * Get a single connection by consumer and collection ID.
  */
-export async function selectConnection(
+export async function getConnection(
   userId: number,
   consumerId: number,
   collectionId: number,
-): Promise<Connection | undefined> {
+): Promise<BackendConnection | undefined> {
   const [connection] = await db
     .select()
     .from(connectionTable)
@@ -173,17 +180,19 @@ export async function selectConnection(
     )
     .limit(1);
 
-  return connection;
+  if (!connection) return undefined;
+
+  return mapToBackendConnection(connection);
 }
 
 /**
  * Get a single connection with consumer and collection details.
  */
-export async function selectConnectionWithDetails(
+export async function getConnectionWithDetails(
   userId: number,
   consumerId: number,
   collectionId: number,
-): Promise<ConnectionWithDetails | undefined> {
+): Promise<BackendConnectionWithDetails | undefined> {
   const [connection] = await db
     .select({
       userId: connectionTable.userId,
@@ -228,11 +237,11 @@ export async function updateConnection(
   userId: number,
   consumerId: number,
   collectionId: number,
-  updates: ConnectionUpdate,
-): Promise<Connection | undefined> {
+  input: UpdateConnectionInput,
+): Promise<BackendConnection | undefined> {
   const [updated] = await db
     .update(connectionTable)
-    .set(updates)
+    .set(input)
     .where(
       and(
         eq(connectionTable.userId, userId),
@@ -242,7 +251,9 @@ export async function updateConnection(
     )
     .returning();
 
-  return updated;
+  if (!updated) return undefined;
+
+  return mapToBackendConnection(updated);
 }
 
 /**
@@ -296,3 +307,36 @@ export async function deleteConnectionsByCollection(
 
   return result.length;
 }
+
+// =============================================================================
+// Legacy exports (deprecated - use new function names)
+// =============================================================================
+
+/** @deprecated Use createConnection instead */
+export const insertConnection = createConnection;
+
+/** @deprecated Use listConnections instead */
+export const selectConnections = listConnections;
+
+/** @deprecated Use listConnectionsByConsumer instead */
+export const selectConnectionsByConsumer = listConnectionsByConsumer;
+
+/** @deprecated Use listConnectionsByCollection instead */
+export const selectConnectionsByCollection = listConnectionsByCollection;
+
+/** @deprecated Use getConnection instead */
+export const selectConnection = getConnection;
+
+/** @deprecated Use getConnectionWithDetails instead */
+export const selectConnectionWithDetails = getConnectionWithDetails;
+
+// Re-export types for convenience
+export type {
+  BackendConnection,
+  BackendConnectionWithDetails,
+} from "../../domain/types";
+
+// Legacy type aliases for backwards compatibility
+export type NewConnection = CreateConnectionInput;
+export type ConnectionUpdate = UpdateConnectionInput;
+export type ConnectionWithDetails = BackendConnectionWithDetails;

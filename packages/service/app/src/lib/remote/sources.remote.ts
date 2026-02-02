@@ -8,10 +8,11 @@ import {
 } from "$lib/server/notion/notion-api";
 import {
   deleteSource as deleteSourceDb,
-  insertSource,
-  selectSource,
-  selectSources,
-  selectSourceWithCollectionCount,
+  createSource as createSourceDb,
+  getSource as getSourceDb,
+  getSourceWithCredentials,
+  listSources,
+  getSourceWithCollectionCount,
   updateSource as updateSourceDb,
   type SourceWithCollectionCount,
 } from "$lib/server/sources/source-datasource";
@@ -29,7 +30,7 @@ import * as v from "valibot";
  */
 export const getSources = query(async (): Promise<SourceWithCollectionCount[]> => {
   const userId = getUserId();
-  return selectSources(userId);
+  return listSources(userId);
 });
 
 /**
@@ -39,7 +40,7 @@ export const getSource = query(
   v.object({ id: v.number() }),
   async ({ id }): Promise<SourceWithCollectionCount | null> => {
     const userId = getUserId();
-    const source = await selectSourceWithCollectionCount(userId, id);
+    const source = await getSourceWithCollectionCount(userId, id);
     return source ?? null;
   },
 );
@@ -100,7 +101,7 @@ export const createSource = form(
     }
 
     // Insert into database
-    const source = await insertSource(userId, {
+    const source = await createSourceDb(userId, {
       name: data.name,
       type: data.type,
       url: data.type === SourceType.STRAPI || data.type === SourceType.WEB ? data.url : null,
@@ -135,7 +136,7 @@ export const createNotionSourceFromOAuth = command(
     }
 
     // Insert the source
-    const source = await insertSource(userId, {
+    const source = await createSourceDb(userId, {
       name: data.name,
       type: SourceType.NOTION,
       url: null,
@@ -163,8 +164,8 @@ export const updateSource = form(
   async (data, issue) => {
     const userId = getUserId();
 
-    // Fetch existing source to get the type
-    const existing = await selectSource(userId, data.id);
+    // Fetch existing source to get the type (with credentials for validation)
+    const existing = await getSourceWithCredentials(userId, data.id);
     if (!existing) {
       throw invalid(issue.id("Source not found"));
     }
@@ -237,7 +238,8 @@ export const testConnection = command(
   }),
   async (data): Promise<ConnectionTestResult> => {
     const userId = getUserId();
-    const source = await selectSource(userId, data.id);
+    // Use getSourceWithCredentials since we need actual credentials for testing
+    const source = await getSourceWithCredentials(userId, data.id);
 
     if (!source) {
       return { success: false, message: "Source not found" };
@@ -289,7 +291,8 @@ export const regenerateWebhookSecret = command(
   }),
   async (data): Promise<{ success: boolean; secret?: string; message?: string }> => {
     const userId = getUserId();
-    const source = await selectSource(userId, data.id);
+    // Don't need credentials here, just checking type
+    const source = await getSourceDb(userId, data.id);
 
     if (!source) {
       return { success: false, message: "Source not found" };
@@ -303,11 +306,8 @@ export const regenerateWebhookSecret = command(
     const { randomBytes } = await import("node:crypto");
     const newSecret = randomBytes(32).toString("hex");
 
-    // Encrypt and store the new secret
-    const { encryptCredentials } = await import("$lib/server/crypto/credentials");
-    const encryptedSecret = await encryptCredentials(userId, Buffer.from(newSecret, "utf8"));
-
-    await updateSourceDb(userId, data.id, { webhookSecret: encryptedSecret });
+    // Store the new secret (encryption happens in updateSource)
+    await updateSourceDb(userId, data.id, { webhookSecret: Buffer.from(newSecret, "utf8") });
 
     return { success: true, secret: newSecret };
   },
@@ -365,7 +365,8 @@ export const listNotionDataSources = query(
   }),
   async (data) => {
     const userId = getUserId();
-    const source = await selectSource(userId, data.sourceId);
+    // Need credentials to access Notion API
+    const source = await getSourceWithCredentials(userId, data.sourceId);
 
     if (!source) {
       return error(404, "Source not found");
@@ -382,11 +383,11 @@ export const listNotionDataSources = query(
 
     try {
       // Fetch data sources from Notion and existing collections in parallel
-      const { getCollectionSummariesBySource } =
+      const { listCollectionSummariesBySource } =
         await import("$lib/server/collections/collection-datasource");
 
       const [collections, dataSources] = await Promise.all([
-        getCollectionSummariesBySource(userId, data.sourceId),
+        listCollectionSummariesBySource(userId, data.sourceId),
         (async () => {
           const results: NotionDataSource[] = [];
           for await (const ds of iterateDataSources(token)) {
@@ -396,9 +397,9 @@ export const listNotionDataSources = query(
         })(),
       ]);
 
-      // Extract used data source IDs from collection refs
+      // Extract used data source IDs from collection refs (now included in summary)
       const usedIds = collections
-        .map((c) => c.ref?.toString("utf-8"))
+        .map((c) => c.refString)
         .filter((id): id is string => !!id);
 
       console.log("Listing Notion data sources for sourceId", data.sourceId, collections, usedIds);
@@ -432,7 +433,8 @@ export const resolveNotionId = command(
     data,
   ): Promise<{ success: true; dataSourceId: string } | { success: false; error: string }> => {
     const userId = getUserId();
-    const source = await selectSource(userId, data.sourceId);
+    // Need credentials to access Notion API
+    const source = await getSourceWithCredentials(userId, data.sourceId);
 
     if (!source) {
       return { success: false, error: "Source not found" };

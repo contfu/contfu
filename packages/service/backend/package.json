@@ -3,6 +3,7 @@
   "version": "0.0.1",
   "type": "module",
   "exports": {
+    "./domain/*": "./dist/domain/*.js",
     "./infra/*": "./dist/infra/*.js",
     "./features/*": "./dist/features/*.js"
   },

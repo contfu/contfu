@@ -1,26 +1,49 @@
 import { db } from "../../infra/db/db";
 import { connectionTable, consumerTable, type Consumer } from "../../infra/db/schema";
 import { and, eq, sql } from "drizzle-orm";
+import type {
+  BackendConsumer,
+  BackendConsumerWithConnectionCount,
+  CreateConsumerInput,
+  UpdateConsumerInput,
+} from "../../domain/types";
 
-export type NewConsumer = {
-  name: string;
-  key?: Buffer | null;
-};
+// =============================================================================
+// Mappers (DB → Domain)
+// =============================================================================
 
-export type ConsumerUpdate = {
-  name?: string;
-  key?: Buffer | null;
-};
+function mapToBackendConsumer(consumer: Consumer): BackendConsumer {
+  return {
+    id: consumer.id,
+    userId: consumer.userId,
+    name: consumer.name,
+    hasKey: consumer.key !== null,
+    createdAt: consumer.createdAt,
+  };
+}
 
-export type ConsumerWithConnectionCount = Consumer & {
-  connectionCount: number;
-};
+function mapToBackendConsumerWithConnectionCount(
+  consumer: Consumer,
+  connectionCount: number,
+): BackendConsumerWithConnectionCount {
+  return {
+    ...mapToBackendConsumer(consumer),
+    connectionCount,
+  };
+}
+
+// =============================================================================
+// Public Feature Functions (return domain types)
+// =============================================================================
 
 /**
- * Insert a new consumer for a user.
+ * Create a new consumer for a user.
  * The ID is auto-generated as max(id) + 1 within the user's consumers.
  */
-export async function insertConsumer(userId: number, consumer: NewConsumer): Promise<Consumer> {
+export async function createConsumer(
+  userId: number,
+  input: CreateConsumerInput,
+): Promise<BackendConsumer> {
   const maxIdResult = await db
     .select({ maxId: sql<number>`coalesce(max(id), 0)` })
     .from(consumerTable)
@@ -34,18 +57,20 @@ export async function insertConsumer(userId: number, consumer: NewConsumer): Pro
     .values({
       userId,
       id: nextId,
-      name: consumer.name,
-      key: consumer.key ?? null,
+      name: input.name,
+      key: input.key ?? null,
     })
     .returning();
 
-  return inserted;
+  return mapToBackendConsumer(inserted);
 }
 
 /**
  * Get all consumers for a user with connection counts.
  */
-export async function selectConsumers(userId: number): Promise<ConsumerWithConnectionCount[]> {
+export async function listConsumers(
+  userId: number,
+): Promise<BackendConsumerWithConnectionCount[]> {
   const consumers = await db
     .select()
     .from(consumerTable)
@@ -62,37 +87,39 @@ export async function selectConsumers(userId: number): Promise<ConsumerWithConne
     .groupBy(connectionTable.consumerId);
 
   const countMap = new Map<number, number>(
-    connectionCounts.map((c: { consumerId: number; count: number }) => [c.consumerId, c.count]),
+    connectionCounts.map((c) => [c.consumerId, c.count]),
   );
 
-  return consumers.map(
-    (consumer: Consumer): ConsumerWithConnectionCount => ({
-      ...consumer,
-      connectionCount: countMap.get(consumer.id) ?? 0,
-    }),
+  return consumers.map((consumer) =>
+    mapToBackendConsumerWithConnectionCount(consumer, countMap.get(consumer.id) ?? 0),
   );
 }
 
 /**
  * Get a single consumer by ID.
  */
-export async function selectConsumer(userId: number, id: number): Promise<Consumer | undefined> {
+export async function getConsumer(
+  userId: number,
+  id: number,
+): Promise<BackendConsumer | undefined> {
   const [consumer] = await db
     .select()
     .from(consumerTable)
     .where(and(eq(consumerTable.userId, userId), eq(consumerTable.id, id)))
     .limit(1);
 
-  return consumer;
+  if (!consumer) return undefined;
+
+  return mapToBackendConsumer(consumer);
 }
 
 /**
  * Get a single consumer by ID with connection count.
  */
-export async function selectConsumerWithConnectionCount(
+export async function getConsumerWithConnectionCount(
   userId: number,
   id: number,
-): Promise<ConsumerWithConnectionCount | undefined> {
+): Promise<BackendConsumerWithConnectionCount | undefined> {
   const [consumer] = await db
     .select()
     .from(consumerTable)
@@ -106,10 +133,7 @@ export async function selectConsumerWithConnectionCount(
     .from(connectionTable)
     .where(and(eq(connectionTable.userId, userId), eq(connectionTable.consumerId, id)));
 
-  return {
-    ...consumer,
-    connectionCount: countResult?.count ?? 0,
-  };
+  return mapToBackendConsumerWithConnectionCount(consumer, countResult?.count ?? 0);
 }
 
 /**
@@ -118,15 +142,17 @@ export async function selectConsumerWithConnectionCount(
 export async function updateConsumer(
   userId: number,
   id: number,
-  updates: ConsumerUpdate,
-): Promise<Consumer | undefined> {
+  input: UpdateConsumerInput,
+): Promise<BackendConsumer | undefined> {
   const [updated] = await db
     .update(consumerTable)
-    .set(updates)
+    .set(input)
     .where(and(eq(consumerTable.userId, userId), eq(consumerTable.id, id)))
     .returning();
 
-  return updated;
+  if (!updated) return undefined;
+
+  return mapToBackendConsumer(updated);
 }
 
 /**
@@ -140,3 +166,65 @@ export async function deleteConsumer(userId: number, id: number): Promise<boolea
 
   return result.length > 0;
 }
+
+// =============================================================================
+// Internal Functions (with raw key - for internal backend use only)
+// =============================================================================
+
+/**
+ * Get a consumer with raw API key buffer.
+ * INTERNAL USE ONLY - for API authentication that needs the actual key.
+ */
+export async function getConsumerWithKey(
+  userId: number,
+  id: number,
+): Promise<Consumer | undefined> {
+  const [consumer] = await db
+    .select()
+    .from(consumerTable)
+    .where(and(eq(consumerTable.userId, userId), eq(consumerTable.id, id)))
+    .limit(1);
+
+  return consumer;
+}
+
+/**
+ * Find a consumer by API key.
+ * INTERNAL USE ONLY - for API authentication.
+ */
+export async function findConsumerByKey(key: Buffer): Promise<Consumer | undefined> {
+  const [consumer] = await db
+    .select()
+    .from(consumerTable)
+    .where(eq(consumerTable.key, key))
+    .limit(1);
+
+  return consumer;
+}
+
+// =============================================================================
+// Legacy exports (deprecated - use new function names)
+// =============================================================================
+
+/** @deprecated Use createConsumer instead */
+export const insertConsumer = createConsumer;
+
+/** @deprecated Use listConsumers instead */
+export const selectConsumers = listConsumers;
+
+/** @deprecated Use getConsumer instead */
+export const selectConsumer = getConsumer;
+
+/** @deprecated Use getConsumerWithConnectionCount instead */
+export const selectConsumerWithConnectionCount = getConsumerWithConnectionCount;
+
+// Re-export types for convenience
+export type {
+  BackendConsumer,
+  BackendConsumerWithConnectionCount,
+} from "../../domain/types";
+
+// Legacy type aliases for backwards compatibility
+export type NewConsumer = CreateConsumerInput;
+export type ConsumerUpdate = UpdateConsumerInput;
+export type ConsumerWithConnectionCount = BackendConsumerWithConnectionCount;

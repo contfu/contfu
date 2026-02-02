@@ -1,38 +1,60 @@
 import { db } from "../../infra/db/db";
 import { collectionTable, connectionTable, type Collection } from "../../infra/db/schema";
 import { and, eq, inArray, sql } from "drizzle-orm";
+import type {
+  BackendCollection,
+  BackendCollectionWithConnectionCount,
+  BackendCollectionSummary,
+  CreateCollectionInput,
+  UpdateCollectionInput,
+} from "../../domain/types";
 
-export type NewCollection = {
-  sourceId: number;
-  name: string;
-  ref?: Buffer | null;
-  itemIds?: Buffer | null;
-};
+// =============================================================================
+// Mappers (DB → Domain)
+// =============================================================================
 
-export type CollectionUpdate = {
-  name?: string;
-  ref?: Buffer | null;
-  itemIds?: Buffer | null;
-};
+function countItemIds(itemIds: Buffer | null): number {
+  if (!itemIds) return 0;
+  // Each item ID is 4 bytes
+  return Math.floor(itemIds.length / 4);
+}
 
-export type CollectionWithConnectionCount = Collection & {
-  connectionCount: number;
-};
+function mapToBackendCollection(collection: Collection): BackendCollection {
+  return {
+    id: collection.id,
+    userId: collection.userId,
+    sourceId: collection.sourceId,
+    name: collection.name,
+    hasRef: collection.ref !== null,
+    refString: collection.ref ? collection.ref.toString("utf-8") : null,
+    itemCount: countItemIds(collection.itemIds),
+    createdAt: collection.createdAt,
+    updatedAt: collection.updatedAt,
+  };
+}
 
-export type CollectionSummary = {
-  id: number;
-  name: string;
-  connectionCount: number;
-};
+function mapToBackendCollectionWithConnectionCount(
+  collection: Collection,
+  connectionCount: number,
+): BackendCollectionWithConnectionCount {
+  return {
+    ...mapToBackendCollection(collection),
+    connectionCount,
+  };
+}
+
+// =============================================================================
+// Public Feature Functions (return domain types)
+// =============================================================================
 
 /**
- * Insert a new collection for a user.
+ * Create a new collection for a user.
  * The ID is auto-generated as max(id) + 1 within the user's collections.
  */
-export async function insertCollection(
+export async function createCollection(
   userId: number,
-  collection: NewCollection,
-): Promise<Collection> {
+  input: CreateCollectionInput,
+): Promise<BackendCollection> {
   const maxIdResult = await db
     .select({ maxId: sql<number>`coalesce(max(id), 0)` })
     .from(collectionTable)
@@ -46,20 +68,22 @@ export async function insertCollection(
     .values({
       userId,
       id: nextId,
-      sourceId: collection.sourceId,
-      name: collection.name,
-      ref: collection.ref ?? null,
-      itemIds: collection.itemIds ?? null,
+      sourceId: input.sourceId,
+      name: input.name,
+      ref: input.ref ?? null,
+      itemIds: input.itemIds ?? null,
     })
     .returning();
 
-  return inserted;
+  return mapToBackendCollection(inserted);
 }
 
 /**
  * Get all collections for a user with connection counts.
  */
-export async function selectCollections(userId: number): Promise<CollectionWithConnectionCount[]> {
+export async function listCollections(
+  userId: number,
+): Promise<BackendCollectionWithConnectionCount[]> {
   const collections = await db
     .select()
     .from(collectionTable)
@@ -76,27 +100,29 @@ export async function selectCollections(userId: number): Promise<CollectionWithC
     .groupBy(connectionTable.collectionId);
 
   const countMap = new Map<number, number>(
-    connectionCounts.map((c: { collectionId: number; count: number }) => [c.collectionId, c.count]),
+    connectionCounts.map((c) => [c.collectionId, c.count]),
   );
 
-  return collections.map(
-    (collection: Collection): CollectionWithConnectionCount => ({
-      ...collection,
-      connectionCount: countMap.get(collection.id) ?? 0,
-    }),
+  return collections.map((collection) =>
+    mapToBackendCollectionWithConnectionCount(collection, countMap.get(collection.id) ?? 0),
   );
 }
 
 /**
  * Get all collections for a user filtered by source ID with connection counts.
- * Returns minimal collection info (id, name) for summaries.
+ * Returns minimal collection info (id, name, ref, createdAt) for summaries.
  */
-export async function getCollectionSummariesBySource(
+export async function listCollectionSummariesBySource(
   userId: number,
   sourceId: number,
-): Promise<CollectionSummary[]> {
+): Promise<BackendCollectionSummary[]> {
   const collections = await db
-    .select({ id: collectionTable.id, name: collectionTable.name })
+    .select({
+      id: collectionTable.id,
+      name: collectionTable.name,
+      ref: collectionTable.ref,
+      createdAt: collectionTable.createdAt,
+    })
     .from(collectionTable)
     .where(and(eq(collectionTable.userId, userId), eq(collectionTable.sourceId, sourceId)))
     .orderBy(collectionTable.createdAt);
@@ -119,40 +145,43 @@ export async function getCollectionSummariesBySource(
     .groupBy(connectionTable.collectionId);
 
   const countMap = new Map<number, number>(
-    connectionCounts.map((c: { collectionId: number; count: number }) => [c.collectionId, c.count]),
+    connectionCounts.map((c) => [c.collectionId, c.count]),
   );
 
-  return collections.map(
-    (collection): CollectionSummary => ({
-      ...collection,
-      connectionCount: countMap.get(collection.id) ?? 0,
-    }),
-  );
+  return collections.map((collection) => ({
+    id: collection.id,
+    name: collection.name,
+    refString: collection.ref ? collection.ref.toString("utf-8") : null,
+    createdAt: collection.createdAt,
+    connectionCount: countMap.get(collection.id) ?? 0,
+  }));
 }
 
 /**
  * Get a single collection by ID.
  */
-export async function selectCollection(
+export async function getCollection(
   userId: number,
   id: number,
-): Promise<Collection | undefined> {
+): Promise<BackendCollection | undefined> {
   const [collection] = await db
     .select()
     .from(collectionTable)
     .where(and(eq(collectionTable.userId, userId), eq(collectionTable.id, id)))
     .limit(1);
 
-  return collection;
+  if (!collection) return undefined;
+
+  return mapToBackendCollection(collection);
 }
 
 /**
  * Get a single collection by ID with connection count.
  */
-export async function selectCollectionWithConnectionCount(
+export async function getCollectionWithConnectionCount(
   userId: number,
   id: number,
-): Promise<CollectionWithConnectionCount | undefined> {
+): Promise<BackendCollectionWithConnectionCount | undefined> {
   const [collection] = await db
     .select()
     .from(collectionTable)
@@ -166,10 +195,7 @@ export async function selectCollectionWithConnectionCount(
     .from(connectionTable)
     .where(and(eq(connectionTable.userId, userId), eq(connectionTable.collectionId, id)));
 
-  return {
-    ...collection,
-    connectionCount: countResult?.count ?? 0,
-  };
+  return mapToBackendCollectionWithConnectionCount(collection, countResult?.count ?? 0);
 }
 
 /**
@@ -178,18 +204,20 @@ export async function selectCollectionWithConnectionCount(
 export async function updateCollection(
   userId: number,
   id: number,
-  updates: CollectionUpdate,
-): Promise<Collection | undefined> {
+  input: UpdateCollectionInput,
+): Promise<BackendCollection | undefined> {
   const [updated] = await db
     .update(collectionTable)
     .set({
-      ...updates,
+      ...input,
       updatedAt: sql`(unixepoch())`,
     })
     .where(and(eq(collectionTable.userId, userId), eq(collectionTable.id, id)))
     .returning();
 
-  return updated;
+  if (!updated) return undefined;
+
+  return mapToBackendCollection(updated);
 }
 
 /**
@@ -203,3 +231,77 @@ export async function deleteCollection(userId: number, id: number): Promise<bool
 
   return result.length > 0;
 }
+
+// =============================================================================
+// Internal Functions (with raw buffers - for internal backend use only)
+// =============================================================================
+
+/**
+ * Get a collection with raw ref and itemIds buffers.
+ * INTERNAL USE ONLY - for sync workers that need the actual buffer data.
+ */
+export async function getCollectionWithBuffers(
+  userId: number,
+  id: number,
+): Promise<Collection | undefined> {
+  const [collection] = await db
+    .select()
+    .from(collectionTable)
+    .where(and(eq(collectionTable.userId, userId), eq(collectionTable.id, id)))
+    .limit(1);
+
+  return collection;
+}
+
+/**
+ * Update collection's itemIds buffer directly.
+ * INTERNAL USE ONLY - for sync workers.
+ */
+export async function updateCollectionItemIds(
+  userId: number,
+  id: number,
+  itemIds: Buffer | null,
+): Promise<boolean> {
+  const result = await db
+    .update(collectionTable)
+    .set({
+      itemIds,
+      updatedAt: sql`(unixepoch())`,
+    })
+    .where(and(eq(collectionTable.userId, userId), eq(collectionTable.id, id)))
+    .returning({ id: collectionTable.id });
+
+  return result.length > 0;
+}
+
+// =============================================================================
+// Legacy exports (deprecated - use new function names)
+// =============================================================================
+
+/** @deprecated Use createCollection instead */
+export const insertCollection = createCollection;
+
+/** @deprecated Use listCollections instead */
+export const selectCollections = listCollections;
+
+/** @deprecated Use listCollectionSummariesBySource instead */
+export const getCollectionSummariesBySource = listCollectionSummariesBySource;
+
+/** @deprecated Use getCollection instead */
+export const selectCollection = getCollection;
+
+/** @deprecated Use getCollectionWithConnectionCount instead */
+export const selectCollectionWithConnectionCount = getCollectionWithConnectionCount;
+
+// Re-export types for convenience
+export type {
+  BackendCollection,
+  BackendCollectionWithConnectionCount,
+  BackendCollectionSummary,
+} from "../../domain/types";
+
+// Legacy type aliases for backwards compatibility
+export type NewCollection = CreateCollectionInput;
+export type CollectionUpdate = UpdateCollectionInput;
+export type CollectionWithConnectionCount = BackendCollectionWithConnectionCount;
+export type CollectionSummary = BackendCollectionSummary;

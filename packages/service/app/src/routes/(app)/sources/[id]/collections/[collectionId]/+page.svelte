@@ -81,7 +81,7 @@
           name="ref"
           type="text"
           placeholder="Database ID or content type"
-          value={collection.ref ? new TextDecoder().decode(collection.ref) : ""}
+          value={collection.refString ?? ""}
         />
         <p class="text-xs text-muted-foreground">
           The upstream content identifier (e.g., Notion database ID).
