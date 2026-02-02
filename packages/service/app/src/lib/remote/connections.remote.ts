@@ -1,23 +1,19 @@
 import { form, query } from "$app/server";
 import { getUserId } from "$lib/server/auth/user";
-import {
-  deleteConnection as deleteConnectionDb,
-  insertConnection,
-  selectConnection,
-  selectConnections,
-  selectConnectionsByCollection,
-  selectConnectionsByConsumer,
-  type ConnectionWithDetails,
-} from "$lib/server/connections/connection-datasource";
+import { createConnection as createConnectionDb } from "@contfu/svc-backend/features/connections/createConnection";
+import { listConnections, listConnectionsByConsumer, listConnectionsByCollection } from "@contfu/svc-backend/features/connections/listConnections";
+import { getConnection as getConnectionDb } from "@contfu/svc-backend/features/connections/getConnection";
+import { deleteConnection as deleteConnectionDb } from "@contfu/svc-backend/features/connections/deleteConnection";
+import type { BackendConnectionWithDetails } from "@contfu/svc-backend/domain/types";
 import { invalid } from "@sveltejs/kit";
 import * as v from "valibot";
 
 /**
  * Get all connections for the current user.
  */
-export const getConnections = query(async (): Promise<ConnectionWithDetails[]> => {
+export const getConnections = query(async (): Promise<BackendConnectionWithDetails[]> => {
   const userId = getUserId();
-  return selectConnections(userId);
+  return listConnections(userId);
 });
 
 /**
@@ -25,9 +21,9 @@ export const getConnections = query(async (): Promise<ConnectionWithDetails[]> =
  */
 export const getConnectionsByConsumer = query(
   v.object({ consumerId: v.number() }),
-  async ({ consumerId }): Promise<ConnectionWithDetails[]> => {
+  async ({ consumerId }): Promise<BackendConnectionWithDetails[]> => {
     const userId = getUserId();
-    return selectConnectionsByConsumer(userId, consumerId);
+    return listConnectionsByConsumer(userId, consumerId);
   },
 );
 
@@ -36,9 +32,9 @@ export const getConnectionsByConsumer = query(
  */
 export const getConnectionsByCollection = query(
   v.object({ collectionId: v.number() }),
-  async ({ collectionId }): Promise<ConnectionWithDetails[]> => {
+  async ({ collectionId }): Promise<BackendConnectionWithDetails[]> => {
     const userId = getUserId();
-    return selectConnectionsByCollection(userId, collectionId);
+    return listConnectionsByCollection(userId, collectionId);
   },
 );
 
@@ -62,13 +58,13 @@ export const addConnection = form(
     const userId = getUserId();
 
     // Check if connection already exists
-    const existing = await selectConnection(userId, data.consumerId, data.collectionId);
+    const existing = await getConnectionDb(userId, data.consumerId, data.collectionId);
     if (existing) {
       throw invalid(issue.consumerId("Connection already exists"));
     }
 
     // Insert the new connection
-    const connection = await insertConnection(userId, {
+    const connection = await createConnectionDb(userId, {
       consumerId: data.consumerId,
       collectionId: data.collectionId,
     });

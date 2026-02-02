@@ -27,14 +27,6 @@ export const WebAuthType = {
 export type WebAuthTypeValue = (typeof WebAuthType)[keyof typeof WebAuthType];
 
 /**
- * Validation errors
- */
-export type ValidationError = {
-  field?: string;
-  message: string;
-};
-
-/**
  * Connection test result
  */
 export type ConnectionTestResult = {
@@ -42,44 +34,6 @@ export type ConnectionTestResult = {
   message: string;
   details?: Record<string, unknown>;
 };
-
-/**
- * Validate source data based on type.
- */
-export function validateSourceData(
-  type: number,
-  url: string | null | undefined,
-  credentials: string,
-  authType?: number,
-): ValidationError[] {
-  const errors: ValidationError[] = [];
-
-  if (type === SourceType.STRAPI || type === SourceType.WEB) {
-    if (!url) {
-      const sourceLabel = type === SourceType.STRAPI ? "Strapi" : "Web";
-      errors.push({ field: "url", message: `URL is required for ${sourceLabel} sources` });
-    } else {
-      try {
-        const parsed = new URL(url);
-        if (!["http:", "https:"].includes(parsed.protocol)) {
-          errors.push({ field: "url", message: "URL must use http or https protocol" });
-        }
-      } catch {
-        errors.push({ field: "url", message: "Invalid URL format" });
-      }
-    }
-  }
-
-  // Credentials are required for Notion and Strapi, but optional for Web sources when authType is NONE
-  const credentialsOptional =
-    type === SourceType.WEB && (authType === WebAuthType.NONE || authType === undefined);
-
-  if (!credentialsOptional && (!credentials || credentials.trim().length === 0)) {
-    errors.push({ field: "credentials", message: "API token is required" });
-  }
-
-  return errors;
-}
 
 /**
  * Test connection to a Notion source.
@@ -213,7 +167,6 @@ async function testWebConnection(
       Range: "bytes=0-0",
     };
     const authHeader = buildWebAuthHeader(authType, credentials ?? "");
-    console.log("authHeader", authHeader, credentials, authType);
     if (authHeader) {
       headers["Authorization"] = authHeader;
     }

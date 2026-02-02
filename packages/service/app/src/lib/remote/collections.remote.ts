@@ -1,25 +1,20 @@
 import { form, query } from "$app/server";
 import { getUserId } from "$lib/server/auth/user";
-import {
-  deleteCollection as deleteCollectionDb,
-  listCollectionSummariesBySource,
-  insertCollection,
-  selectCollection,
-  selectCollections,
-  selectCollectionWithConnectionCount,
-  updateCollection as updateCollectionDb,
-  type CollectionWithConnectionCount,
-  type CollectionSummary,
-} from "$lib/server/collections/collection-datasource";
+import { createCollection as createCollectionDb } from "@contfu/svc-backend/features/collections/createCollection";
+import { listCollections, listCollectionSummariesBySource } from "@contfu/svc-backend/features/collections/listCollections";
+import { getCollection as getCollectionDb, getCollectionWithConnectionCount } from "@contfu/svc-backend/features/collections/getCollection";
+import { updateCollection as updateCollectionDb } from "@contfu/svc-backend/features/collections/updateCollection";
+import { deleteCollection as deleteCollectionDb } from "@contfu/svc-backend/features/collections/deleteCollection";
+import type { BackendCollectionWithConnectionCount, BackendCollectionSummary } from "@contfu/svc-backend/domain/types";
 import { invalid, redirect } from "@sveltejs/kit";
 import * as v from "valibot";
 
 /**
  * Get all collections for the current user.
  */
-export const getCollections = query(async (): Promise<CollectionWithConnectionCount[]> => {
+export const getCollections = query(async (): Promise<BackendCollectionWithConnectionCount[]> => {
   const userId = getUserId();
-  return selectCollections(userId);
+  return listCollections(userId);
 });
 
 /**
@@ -27,7 +22,7 @@ export const getCollections = query(async (): Promise<CollectionWithConnectionCo
  */
 export const getCollectionsBySource = query(
   v.object({ sourceId: v.number() }),
-  async ({ sourceId }): Promise<CollectionSummary[]> => {
+  async ({ sourceId }): Promise<BackendCollectionSummary[]> => {
     console.log("Getting collections by sourceId", sourceId);
     const userId = getUserId();
     return listCollectionSummariesBySource(userId, sourceId);
@@ -39,9 +34,9 @@ export const getCollectionsBySource = query(
  */
 export const getCollection = query(
   v.object({ id: v.number() }),
-  async ({ id }): Promise<CollectionWithConnectionCount | null> => {
+  async ({ id }): Promise<BackendCollectionWithConnectionCount | null> => {
     const userId = getUserId();
-    const collection = await selectCollectionWithConnectionCount(userId, id);
+    const collection = await getCollectionWithConnectionCount(userId, id);
     return collection ?? null;
   },
 );
@@ -63,7 +58,7 @@ export const createCollection = form(
     const userId = getUserId();
 
     // Insert into database
-    const collection = await insertCollection(userId, {
+    const collection = await createCollectionDb(userId, {
       name: data.name,
       sourceId: data.sourceId,
       ref: data.ref ? Buffer.from(data.ref, "utf-8") : null,
@@ -90,7 +85,7 @@ export const updateCollection = form(
     const userId = getUserId();
 
     // Verify collection exists
-    const existing = await selectCollection(userId, data.id);
+    const existing = await getCollectionDb(userId, data.id);
     if (!existing) {
       throw invalid(issue.id("Collection not found"));
     }
@@ -124,7 +119,7 @@ export const deleteCollection = form(
     const userId = getUserId();
 
     // Get collection to find sourceId before deleting
-    const existing = await selectCollection(userId, data.id);
+    const existing = await getCollectionDb(userId, data.id);
     if (!existing) {
       throw invalid(issue.id("Collection not found"));
     }

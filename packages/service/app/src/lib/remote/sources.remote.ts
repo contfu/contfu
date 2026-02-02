@@ -6,29 +6,22 @@ import {
   resolveDataSourceId,
   type DataSourceResult,
 } from "$lib/server/notion/notion-api";
-import {
-  deleteSource as deleteSourceDb,
-  createSource as createSourceDb,
-  getSource as getSourceDb,
-  getSourceWithCredentials,
-  listSources,
-  getSourceWithCollectionCount,
-  updateSource as updateSourceDb,
-  type SourceWithCollectionCount,
-} from "$lib/server/sources/source-datasource";
-import {
-  SourceType,
-  testSourceConnection,
-  validateSourceData,
-  type ConnectionTestResult,
-} from "$lib/server/sources/source-validator";
+import { createSource as createSourceDb } from "@contfu/svc-backend/features/sources/createSource";
+import { listSources } from "@contfu/svc-backend/features/sources/listSources";
+import { getSource as getSourceDb, getSourceWithCollectionCount } from "@contfu/svc-backend/features/sources/getSource";
+import { updateSource as updateSourceDb } from "@contfu/svc-backend/features/sources/updateSource";
+import { deleteSource as deleteSourceDb } from "@contfu/svc-backend/features/sources/deleteSource";
+import { getSourceWithCredentials } from "@contfu/svc-backend/features/sources/getSourceWithCredentials";
+import { testSourceConnection, SourceType, type ConnectionTestResult } from "@contfu/svc-backend/features/sources/testSourceConnection";
+import { validateSourceData } from "@contfu/svc-backend/features/sources/validateSourceData";
+import type { BackendSourceWithCollectionCount } from "@contfu/svc-backend/domain/types";
 import { error, invalid, redirect } from "@sveltejs/kit";
 import * as v from "valibot";
 
 /**
  * Get all sources for the current user.
  */
-export const getSources = query(async (): Promise<SourceWithCollectionCount[]> => {
+export const getSources = query(async (): Promise<BackendSourceWithCollectionCount[]> => {
   const userId = getUserId();
   return listSources(userId);
 });
@@ -38,7 +31,7 @@ export const getSources = query(async (): Promise<SourceWithCollectionCount[]> =
  */
 export const getSource = query(
   v.object({ id: v.number() }),
-  async ({ id }): Promise<SourceWithCollectionCount | null> => {
+  async ({ id }): Promise<BackendSourceWithCollectionCount | null> => {
     const userId = getUserId();
     const source = await getSourceWithCollectionCount(userId, id);
     return source ?? null;
@@ -383,8 +376,9 @@ export const listNotionDataSources = query(
 
     try {
       // Fetch data sources from Notion and existing collections in parallel
-      const { listCollectionSummariesBySource } =
-        await import("$lib/server/collections/collection-datasource");
+      const { listCollectionSummariesBySource } = await import(
+        "@contfu/svc-backend/features/collections/listCollections"
+      );
 
       const [collections, dataSources] = await Promise.all([
         listCollectionSummariesBySource(userId, data.sourceId),

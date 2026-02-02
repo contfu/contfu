@@ -1,14 +1,11 @@
 import { form, query } from "$app/server";
 import { getUserId } from "$lib/server/auth/user";
-import {
-  deleteConsumer as deleteConsumerDb,
-  insertConsumer,
-  selectConsumer,
-  selectConsumers,
-  selectConsumerWithConnectionCount,
-  updateConsumer as updateConsumerDb,
-  type ConsumerWithConnectionCount,
-} from "$lib/server/consumers/consumer-datasource";
+import { createConsumer as createConsumerDb } from "@contfu/svc-backend/features/consumers/createConsumer";
+import { listConsumers } from "@contfu/svc-backend/features/consumers/listConsumers";
+import { getConsumer as getConsumerDb, getConsumerWithConnectionCount } from "@contfu/svc-backend/features/consumers/getConsumer";
+import { updateConsumer as updateConsumerDb } from "@contfu/svc-backend/features/consumers/updateConsumer";
+import { deleteConsumer as deleteConsumerDb } from "@contfu/svc-backend/features/consumers/deleteConsumer";
+import type { BackendConsumerWithConnectionCount } from "@contfu/svc-backend/domain/types";
 import { invalid, redirect } from "@sveltejs/kit";
 import * as v from "valibot";
 
@@ -23,9 +20,9 @@ function generateApiKey(): string {
 /**
  * Get all consumers for the current user.
  */
-export const getConsumers = query(async (): Promise<ConsumerWithConnectionCount[]> => {
+export const getConsumers = query(async (): Promise<BackendConsumerWithConnectionCount[]> => {
   const userId = getUserId();
-  return selectConsumers(userId);
+  return listConsumers(userId);
 });
 
 /**
@@ -33,9 +30,9 @@ export const getConsumers = query(async (): Promise<ConsumerWithConnectionCount[
  */
 export const getConsumer = query(
   v.object({ id: v.number() }),
-  async ({ id }): Promise<ConsumerWithConnectionCount | null> => {
+  async ({ id }): Promise<BackendConsumerWithConnectionCount | null> => {
     const userId = getUserId();
-    const consumer = await selectConsumerWithConnectionCount(userId, id);
+    const consumer = await getConsumerWithConnectionCount(userId, id);
     return consumer ?? null;
   },
 );
@@ -54,7 +51,7 @@ export const createConsumer = form(
     const apiKey = generateApiKey();
 
     // Insert into database
-    const consumer = await insertConsumer(userId, {
+    const consumer = await createConsumerDb(userId, {
       name: data.name,
       key: Buffer.from(apiKey, "hex"),
     });
@@ -79,7 +76,7 @@ export const updateConsumer = form(
     const userId = getUserId();
 
     // Verify consumer exists
-    const existing = await selectConsumer(userId, data.id);
+    const existing = await getConsumerDb(userId, data.id);
     if (!existing) {
       throw invalid(issue.id("Consumer not found"));
     }
@@ -110,7 +107,7 @@ export const regenerateKey = form(
     const userId = getUserId();
 
     // Verify consumer exists
-    const existing = await selectConsumer(userId, data.id);
+    const existing = await getConsumerDb(userId, data.id);
     if (!existing) {
       throw invalid(issue.id("Consumer not found"));
     }
