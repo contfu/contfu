@@ -1,5 +1,5 @@
 import type { ColumnDef } from "@tanstack/table-core";
-import type { UserSummary } from "$lib/server/admin/users";
+import type { UserSummary } from "@contfu/svc-backend/features/admin/listUsers";
 import { UserRole } from "$lib/constants/user";
 import { renderComponent, renderSnippet } from "$lib/components/ui/data-table/index.js";
 import { createRawSnippet } from "svelte";

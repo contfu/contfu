@@ -1,6 +1,6 @@
 import type { PageServerLoad } from "./$types";
-import { db } from "$lib/server/db/db";
-import { quotaTable } from "$lib/server/db/schema";
+import { db } from "@contfu/svc-backend/infra/db/db";
+import { quotaTable } from "@contfu/svc-backend/infra/db/schema";
 import { eq } from "drizzle-orm";
 
 export const load: PageServerLoad = async ({ locals }) => {

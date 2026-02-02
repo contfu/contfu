@@ -1,6 +1,6 @@
 import { db } from "../../infra/db/db";
 import { collectionTable, connectionTable, type Collection } from "../../infra/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { BackendCollection, BackendCollectionWithConnectionCount } from "../../domain/types";
 
 function countItemIds(itemIds: Buffer | null): number {
@@ -34,29 +34,24 @@ function mapToBackendCollectionWithConnectionCount(
 }
 
 /**
- * Get all collections for a user with connection counts.
+ * Get a single collection by ID with connection count.
  */
-export async function listCollections(
+export async function getCollectionWithConnectionCount(
   userId: number,
-): Promise<BackendCollectionWithConnectionCount[]> {
-  const collections = await db
+  id: number,
+): Promise<BackendCollectionWithConnectionCount | undefined> {
+  const [collection] = await db
     .select()
     .from(collectionTable)
-    .where(eq(collectionTable.userId, userId))
-    .orderBy(collectionTable.createdAt);
+    .where(and(eq(collectionTable.userId, userId), eq(collectionTable.id, id)))
+    .limit(1);
 
-  const connectionCounts = await db
-    .select({
-      collectionId: connectionTable.collectionId,
-      count: sql<number>`count(*)`.as("count"),
-    })
+  if (!collection) return undefined;
+
+  const [countResult] = await db
+    .select({ count: sql<number>`count(*)` })
     .from(connectionTable)
-    .where(eq(connectionTable.userId, userId))
-    .groupBy(connectionTable.collectionId);
+    .where(and(eq(connectionTable.userId, userId), eq(connectionTable.collectionId, id)));
 
-  const countMap = new Map<number, number>(connectionCounts.map((c) => [c.collectionId, c.count]));
-
-  return collections.map((collection) =>
-    mapToBackendCollectionWithConnectionCount(collection, countMap.get(collection.id) ?? 0),
-  );
+  return mapToBackendCollectionWithConnectionCount(collection, countResult?.count ?? 0);
 }

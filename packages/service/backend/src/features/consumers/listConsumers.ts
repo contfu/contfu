@@ -26,9 +26,7 @@ function mapToBackendConsumerWithConnectionCount(
 /**
  * Get all consumers for a user with connection counts.
  */
-export async function listConsumers(
-  userId: number,
-): Promise<BackendConsumerWithConnectionCount[]> {
+export async function listConsumers(userId: number): Promise<BackendConsumerWithConnectionCount[]> {
   const consumers = await db
     .select()
     .from(consumerTable)
@@ -44,9 +42,7 @@ export async function listConsumers(
     .where(eq(connectionTable.userId, userId))
     .groupBy(connectionTable.consumerId);
 
-  const countMap = new Map<number, number>(
-    connectionCounts.map((c) => [c.consumerId, c.count]),
-  );
+  const countMap = new Map<number, number>(connectionCounts.map((c) => [c.consumerId, c.count]));
 
   return consumers.map((consumer) =>
     mapToBackendConsumerWithConnectionCount(consumer, countMap.get(consumer.id) ?? 0),

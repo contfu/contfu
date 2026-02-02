@@ -69,9 +69,7 @@ export async function listSources(userId: number): Promise<BackendSourceWithColl
     .where(eq(collectionTable.userId, userId))
     .groupBy(collectionTable.sourceId);
 
-  const countMap = new Map<number, number>(
-    collectionCounts.map((c) => [c.sourceId, c.count]),
-  );
+  const countMap = new Map<number, number>(collectionCounts.map((c) => [c.sourceId, c.count]));
 
   return sources.map((source) =>
     mapToBackendSourceWithCollectionCount(source, countMap.get(source.id) ?? 0),

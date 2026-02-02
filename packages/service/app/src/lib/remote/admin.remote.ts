@@ -1,7 +1,8 @@
 import { form, query } from "$app/server";
-import { listUsers, updateUser, type UserSummary } from "$lib/server/admin/users";
-import { getUser } from "$lib/server/auth/user";
-import { UserRole } from "$lib/server/auth/user";
+import { listUsers, type UserSummary } from "@contfu/svc-backend/features/admin/listUsers";
+import { updateUser } from "@contfu/svc-backend/features/admin/updateUser";
+import { getUser } from "$lib/server/user";
+import { UserRole } from "@contfu/svc-backend/infra/db/constants";
 import { error, invalid } from "@sveltejs/kit";
 import * as v from "valibot";
 

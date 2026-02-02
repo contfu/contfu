@@ -4,9 +4,12 @@ import { and, eq } from "drizzle-orm";
 import type { BackendConnectionWithDetails } from "../../domain/types";
 
 /**
- * Get all connections for a user with consumer and collection names.
+ * Get all connections for a specific consumer with collection names.
  */
-export async function listConnections(userId: number): Promise<BackendConnectionWithDetails[]> {
+export async function listConnectionsByConsumer(
+  userId: number,
+  consumerId: number,
+): Promise<BackendConnectionWithDetails[]> {
   const connections = await db
     .select({
       userId: connectionTable.userId,
@@ -32,7 +35,7 @@ export async function listConnections(userId: number): Promise<BackendConnection
         eq(connectionTable.collectionId, collectionTable.id),
       ),
     )
-    .where(eq(connectionTable.userId, userId));
+    .where(and(eq(connectionTable.userId, userId), eq(connectionTable.consumerId, consumerId)));
 
   return connections;
 }

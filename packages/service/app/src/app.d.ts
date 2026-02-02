@@ -1,4 +1,4 @@
-import type { Session, User } from "$lib/server/auth/auth";
+import type { Session, User } from "@contfu/svc-backend/infra/auth/auth";
 
 declare global {
   namespace App {

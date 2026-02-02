@@ -1,7 +1,7 @@
 import { db } from "../../infra/db/db";
-import { sourceTable, type Source } from "../../infra/db/schema";
-import { and, eq } from "drizzle-orm";
-import type { BackendSource } from "../../domain/types";
+import { collectionTable, sourceTable, type Source } from "../../infra/db/schema";
+import { and, eq, sql } from "drizzle-orm";
+import type { BackendSource, BackendSourceWithCollectionCount } from "../../domain/types";
 
 /** Source type: Web (for extracting auth type) */
 const SOURCE_TYPE_WEB = 2;
@@ -39,11 +39,24 @@ function mapToBackendSource(source: Source): BackendSource {
   return baseSource;
 }
 
+function mapToBackendSourceWithCollectionCount(
+  source: Source,
+  collectionCount: number,
+): BackendSourceWithCollectionCount {
+  return {
+    ...mapToBackendSource(source),
+    collectionCount,
+  };
+}
+
 /**
- * Get a single source by ID.
+ * Get a single source by ID with collection count.
  * Does NOT include credentials.
  */
-export async function getSource(userId: number, id: number): Promise<BackendSource | undefined> {
+export async function getSourceWithCollectionCount(
+  userId: number,
+  id: number,
+): Promise<BackendSourceWithCollectionCount | undefined> {
   const [source] = await db
     .select()
     .from(sourceTable)
@@ -52,5 +65,10 @@ export async function getSource(userId: number, id: number): Promise<BackendSour
 
   if (!source) return undefined;
 
-  return mapToBackendSource(source);
+  const [countResult] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(collectionTable)
+    .where(and(eq(collectionTable.userId, userId), eq(collectionTable.sourceId, id)));
+
+  return mapToBackendSourceWithCollectionCount(source, countResult?.count ?? 0);
 }

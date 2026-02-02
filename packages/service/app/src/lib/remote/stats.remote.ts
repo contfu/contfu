@@ -1,12 +1,12 @@
 import { query } from "$app/server";
-import { getUserId } from "$lib/server/auth/user";
-import { db } from "$lib/server/db/db";
+import { getUserId } from "$lib/server/user";
+import { db } from "@contfu/svc-backend/infra/db/db";
 import {
   collectionTable,
   connectionTable,
   consumerTable,
   sourceTable,
-} from "$lib/server/db/schema";
+} from "@contfu/svc-backend/infra/db/schema";
 import { eq, sql } from "drizzle-orm";
 
 export type DashboardStats = {

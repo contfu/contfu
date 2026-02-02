@@ -1,6 +1,9 @@
 import { query } from "$app/server";
-import { getLinkedAccounts, type LinkedAccount } from "$lib/server/auth/linked-accounts";
-import { getUserId } from "$lib/server/auth/user";
+import {
+  getLinkedAccounts,
+  type LinkedAccount,
+} from "@contfu/svc-backend/infra/auth/linked-accounts";
+import { getUserId } from "$lib/server/user";
 
 /**
  * Get all linked social accounts for the current user.

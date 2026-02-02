@@ -1,4 +1,4 @@
-import { auth } from "$lib/server/auth/auth";
+import { auth } from "@contfu/svc-backend/infra/auth/auth";
 import type { RequestHandler } from "./$types";
 
 export const GET: RequestHandler = async ({ request }) => auth.handler(request);

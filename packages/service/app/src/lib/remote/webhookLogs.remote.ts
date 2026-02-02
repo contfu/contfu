@@ -1,6 +1,7 @@
 import { query } from "$app/server";
-import { getUserId } from "$lib/server/auth/user";
-import { db, webhookLogTable, type WebhookLog } from "$lib/server/db/db";
+import { getUserId } from "$lib/server/user";
+import { db } from "@contfu/svc-backend/infra/db/db";
+import { webhookLogTable, type WebhookLog } from "@contfu/svc-backend/infra/db/schema";
 import { and, desc, eq } from "drizzle-orm";
 import * as v from "valibot";
 

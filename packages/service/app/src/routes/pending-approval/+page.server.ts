@@ -1,6 +1,6 @@
 import { redirect } from "@sveltejs/kit";
-import { db } from "$lib/server/db/db";
-import { userTable } from "$lib/server/db/schema";
+import { db } from "@contfu/svc-backend/infra/db/db";
+import { userTable } from "@contfu/svc-backend/infra/db/schema";
 import { eq } from "drizzle-orm";
 
 export async function load({ locals }) {

@@ -1,7 +1,9 @@
 import { form, query } from "$app/server";
-import { getUserId } from "$lib/server/auth/user";
+import { getUserId } from "$lib/server/user";
 import { createConnection as createConnectionDb } from "@contfu/svc-backend/features/connections/createConnection";
-import { listConnections, listConnectionsByConsumer, listConnectionsByCollection } from "@contfu/svc-backend/features/connections/listConnections";
+import { listConnections } from "@contfu/svc-backend/features/connections/listConnections";
+import { listConnectionsByConsumer } from "@contfu/svc-backend/features/connections/listConnectionsByConsumer";
+import { listConnectionsByCollection } from "@contfu/svc-backend/features/connections/listConnectionsByCollection";
 import { getConnection as getConnectionDb } from "@contfu/svc-backend/features/connections/getConnection";
 import { deleteConnection as deleteConnectionDb } from "@contfu/svc-backend/features/connections/deleteConnection";
 import type { BackendConnectionWithDetails } from "@contfu/svc-backend/domain/types";

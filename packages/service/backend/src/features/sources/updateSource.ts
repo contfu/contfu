@@ -54,9 +54,7 @@ export async function updateSource(
   // Encrypt credentials and webhookSecret if being updated
   const [encryptedCredentials, encryptedWebhookSecret] = await Promise.all([
     input.credentials ? encryptCredentials(userId, input.credentials) : undefined,
-    input.webhookSecret !== undefined
-      ? encryptCredentials(userId, input.webhookSecret)
-      : undefined,
+    input.webhookSecret !== undefined ? encryptCredentials(userId, input.webhookSecret) : undefined,
   ]);
 
   const encryptedUpdates = {

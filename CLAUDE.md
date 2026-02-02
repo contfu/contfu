@@ -249,3 +249,34 @@ This section captures lessons learned to prevent repeating mistakes and improve 
 ### Testing
 
 - **Run tests from package directory**: When packages have their own `bunfig.toml` with preload scripts, run `bun test` from inside the package directory (e.g., `cd packages/service/sync && bun test`), or use `bun run test` from root which runs `bun --filter '@contfu/*' test`.
+
+## Vertical Slice Architecture
+
+### Rules
+
+1. **One function per file** - Each feature function gets its own file
+2. **No re-exports** - App imports directly from `@contfu/svc-backend/...`
+3. **Domain types** - Features return DTOs from `domain/types.ts`, not DB types
+4. **No credential exposure** - Sensitive data never exposed to app layer
+
+### Feature Structure
+
+```
+features/
+  sources/
+    createSource.ts      # export async function createSource(...)
+    deleteSource.ts      # export async function deleteSource(...)
+    getSource.ts         # export async function getSource(...)
+    listSources.ts       # export async function listSources(...)
+    ...
+```
+
+### Imports in App
+
+```ts
+// ✅ Correct - direct import
+import { createSource } from "@contfu/svc-backend/features/sources/createSource";
+
+// ❌ Wrong - re-export
+import { createSource } from "$lib/server/sources";
+```

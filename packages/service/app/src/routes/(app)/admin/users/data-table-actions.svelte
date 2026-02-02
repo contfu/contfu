@@ -3,7 +3,7 @@
   import * as DropdownMenu from "$lib/components/ui/dropdown-menu";
   import { approveUser, revokeUser, promoteToAdmin, demoteFromAdmin } from "$lib/remote/admin.remote";
   import { UserRole } from "$lib/constants/user";
-  import type { UserSummary } from "$lib/server/admin/users";
+  import type { UserSummary } from "@contfu/svc-backend/features/admin/listUsers";
   import EllipsisIcon from "@lucide/svelte/icons/ellipsis";
 
   let { user }: { user: UserSummary } = $props();

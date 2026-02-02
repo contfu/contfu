@@ -44,24 +44,3 @@ export async function updateCollection(
 
   return mapToBackendCollection(updated);
 }
-
-/**
- * Update collection's itemIds buffer directly.
- * INTERNAL USE ONLY - for sync workers.
- */
-export async function updateCollectionItemIds(
-  userId: number,
-  id: number,
-  itemIds: Buffer | null,
-): Promise<boolean> {
-  const result = await db
-    .update(collectionTable)
-    .set({
-      itemIds,
-      updatedAt: sql`(unixepoch())`,
-    })
-    .where(and(eq(collectionTable.userId, userId), eq(collectionTable.id, id)))
-    .returning({ id: collectionTable.id });
-
-  return result.length > 0;
-}

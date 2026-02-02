@@ -4,9 +4,9 @@ import type { WebhookSubscriptionCreatedPayload } from "@polar-sh/sdk/models/com
 import type { WebhookSubscriptionUpdatedPayload } from "@polar-sh/sdk/models/components/webhooksubscriptionupdatedpayload";
 import type { WebhookSubscriptionRevokedPayload } from "@polar-sh/sdk/models/components/webhooksubscriptionrevokedpayload";
 import type { WebhookSubscriptionCanceledPayload } from "@polar-sh/sdk/models/components/webhooksubscriptioncanceledpayload";
-import { db } from "$lib/server/db/db";
-import { quotaTable } from "$lib/server/db/schema";
-import { getQuotaForProduct } from "$lib/server/polar/products";
+import { db } from "@contfu/svc-backend/infra/db/db";
+import { quotaTable } from "@contfu/svc-backend/infra/db/schema";
+import { getQuotaForProduct } from "@contfu/svc-backend/infra/polar/products";
 import { eq } from "drizzle-orm";
 
 export const POST: RequestHandler = async ({ request }) => {

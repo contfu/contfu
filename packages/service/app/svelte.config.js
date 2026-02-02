@@ -6,7 +6,11 @@ const config = {
   preprocess: vitePreprocess(),
   kit: {
     adapter: adapter({
-      external: ["@css-inline/css-inline", "@css-inline/css-inline-darwin-arm64", "@contfu/svc-backend"],
+      external: [
+        "@css-inline/css-inline",
+        "@css-inline/css-inline-darwin-arm64",
+        "@contfu/svc-backend",
+      ],
     }),
     alias: {
       "$lib/*": "./src/lib/*",

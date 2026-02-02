@@ -8,8 +8,8 @@ import * as schema from "./schema";
 const dbUrl: string = process.env.DATABASE_URL ?? ":memory:";
 
 // Use MIGRATIONS_PATH env var for flexibility, or resolve from import.meta.url for direct imports
-const migrationsFolder = process.env.MIGRATIONS_PATH ?? 
-  new URL("../../../db/migrations", import.meta.url).pathname;
+const migrationsFolder =
+  process.env.MIGRATIONS_PATH ?? new URL("../../../db/migrations", import.meta.url).pathname;
 if (dbUrl.match(/^\.?\//)) {
   mkdir(dirname(dbUrl), { recursive: true });
 }

@@ -1,8 +1,9 @@
 import { form, query } from "$app/server";
-import { getUserId } from "$lib/server/auth/user";
+import { getUserId } from "$lib/server/user";
 import { createConsumer as createConsumerDb } from "@contfu/svc-backend/features/consumers/createConsumer";
 import { listConsumers } from "@contfu/svc-backend/features/consumers/listConsumers";
-import { getConsumer as getConsumerDb, getConsumerWithConnectionCount } from "@contfu/svc-backend/features/consumers/getConsumer";
+import { getConsumer as getConsumerDb } from "@contfu/svc-backend/features/consumers/getConsumer";
+import { getConsumerWithConnectionCount } from "@contfu/svc-backend/features/consumers/getConsumerWithConnectionCount";
 import { updateConsumer as updateConsumerDb } from "@contfu/svc-backend/features/consumers/updateConsumer";
 import { deleteConsumer as deleteConsumerDb } from "@contfu/svc-backend/features/consumers/deleteConsumer";
 import type { BackendConsumerWithConnectionCount } from "@contfu/svc-backend/domain/types";

@@ -1,13 +1,13 @@
-import { decryptCredentials } from "$lib/server/crypto/credentials";
+import { decryptCredentials } from "@contfu/svc-backend/infra/crypto/credentials";
+import { db } from "@contfu/svc-backend/infra/db/db";
 import {
   collectionTable,
   connectionTable,
-  db,
   sourceTable,
   webhookLogTable,
-} from "$lib/server/db/db";
+} from "@contfu/svc-backend/infra/db/schema";
 import { getSSEServer } from "$lib/server/startup";
-import { genUid } from "$lib/server/util/ids/ids";
+import { genUid } from "@contfu/svc-backend/infra/util/ids/ids";
 import { SourceType, type UserSyncItem } from "@contfu/core";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import crypto from "node:crypto";

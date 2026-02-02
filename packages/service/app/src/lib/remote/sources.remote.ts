@@ -1,18 +1,23 @@
 import { command, form, query } from "$app/server";
-import { getProviderAccessToken } from "$lib/server/auth/linked-accounts";
-import { getUserId } from "$lib/server/auth/user";
+import { getProviderAccessToken } from "@contfu/svc-backend/infra/auth/linked-accounts";
+import { getUserId } from "$lib/server/user";
 import {
   iterateDataSources,
-  resolveDataSourceId,
   type DataSourceResult,
-} from "$lib/server/notion/notion-api";
+} from "@contfu/svc-backend/features/notion/iterateDataSources";
+import { resolveDataSourceId } from "@contfu/svc-backend/features/notion/resolveDataSourceId";
 import { createSource as createSourceDb } from "@contfu/svc-backend/features/sources/createSource";
 import { listSources } from "@contfu/svc-backend/features/sources/listSources";
-import { getSource as getSourceDb, getSourceWithCollectionCount } from "@contfu/svc-backend/features/sources/getSource";
+import { getSource as getSourceDb } from "@contfu/svc-backend/features/sources/getSource";
+import { getSourceWithCollectionCount } from "@contfu/svc-backend/features/sources/getSourceWithCollectionCount";
 import { updateSource as updateSourceDb } from "@contfu/svc-backend/features/sources/updateSource";
 import { deleteSource as deleteSourceDb } from "@contfu/svc-backend/features/sources/deleteSource";
 import { getSourceWithCredentials } from "@contfu/svc-backend/features/sources/getSourceWithCredentials";
-import { testSourceConnection, SourceType, type ConnectionTestResult } from "@contfu/svc-backend/features/sources/testSourceConnection";
+import {
+  testSourceConnection,
+  SourceType,
+  type ConnectionTestResult,
+} from "@contfu/svc-backend/features/sources/testSourceConnection";
 import { validateSourceData } from "@contfu/svc-backend/features/sources/validateSourceData";
 import type { BackendSourceWithCollectionCount } from "@contfu/svc-backend/domain/types";
 import { error, invalid, redirect } from "@sveltejs/kit";
@@ -376,9 +381,8 @@ export const listNotionDataSources = query(
 
     try {
       // Fetch data sources from Notion and existing collections in parallel
-      const { listCollectionSummariesBySource } = await import(
-        "@contfu/svc-backend/features/collections/listCollections"
-      );
+      const { listCollectionSummariesBySource } =
+        await import("@contfu/svc-backend/features/collections/listCollectionSummariesBySource");
 
       const [collections, dataSources] = await Promise.all([
         listCollectionSummariesBySource(userId, data.sourceId),
@@ -392,9 +396,7 @@ export const listNotionDataSources = query(
       ]);
 
       // Extract used data source IDs from collection refs (now included in summary)
-      const usedIds = collections
-        .map((c) => c.refString)
-        .filter((id): id is string => !!id);
+      const usedIds = collections.map((c) => c.refString).filter((id): id is string => !!id);
 
       console.log("Listing Notion data sources for sourceId", data.sourceId, collections, usedIds);
       return { dataSources, usedIds };
