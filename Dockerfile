@@ -26,7 +26,7 @@ ENV DATABASE_URL=/data/db/contfu.sqlite
 COPY --from=build /app/packages/service/app/build/ /app/
 COPY --from=build /app/packages/service/backend/dist/ /app/node_modules/@contfu/svc-backend/dist/
 COPY --from=build /app/packages/service/backend/package.json /app/node_modules/@contfu/svc-backend/package.json
-COPY --from=build /app/packages/core/contfu/ /app/node_modules/@contfu/core/
+COPY --from=build /app/packages/core/ /app/node_modules/@contfu/core/
 COPY --from=build /app/packages/service/sync/ /app/packages/service/sync/
 COPY packages/service/backend/db/migrations/ /app/db/migrations/
 COPY --from=deps /app/node_modules/ /app/node_modules/
