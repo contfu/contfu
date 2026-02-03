@@ -193,7 +193,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
   }
 
   const sseServer = getSSEServer();
-  let totalItemsBroadcast = 0;
+  let _totalItemsBroadcast = 0;
 
   for (const source of sources) {
     // Validate signature if configured
@@ -318,7 +318,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
       }
     }
 
-    totalItemsBroadcast += itemsBroadcast;
+    _totalItemsBroadcast += itemsBroadcast;
 
     // Log successful webhook processing
     await logWebhookEvent(

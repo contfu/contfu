@@ -63,7 +63,7 @@ async function readSSEEvents(
         }
       }
     }
-  } catch (e) {
+  } catch {
     // Stream cancelled or errored
   }
 

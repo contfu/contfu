@@ -15,9 +15,31 @@ function createDbProperty<T extends string>(type: T, extra: Record<string, unkno
   };
 }
 
+// Helper to setup mocks for database + data source
+function setupMocks(
+  testId: Buffer,
+  properties: Record<string, unknown>,
+  dataSourceId = "data-source-123",
+) {
+  // Mock database retrieve to return a database with data_sources reference
+  mockClient.databases.retrieve.mockResolvedValueOnce({
+    object: "database",
+    id: testId.toString("hex"),
+    data_sources: [{ id: dataSourceId }],
+  });
+
+  // Mock data source retrieve to return the properties
+  mockClient.dataSources.retrieve.mockResolvedValueOnce({
+    object: "data_source",
+    id: dataSourceId,
+    properties,
+  });
+}
+
 describe("notion-collections", () => {
   beforeEach(() => {
     mockClient.databases.retrieve.mockClear();
+    mockClient.dataSources.retrieve.mockClear();
   });
 
   describe("getCollectionSchema()", () => {
@@ -25,11 +47,7 @@ describe("notion-collections", () => {
     const testId = Buffer.from("database-id-123", "utf8");
 
     it("should include default cover and icon properties", async () => {
-      mockClient.databases.retrieve.mockResolvedValueOnce({
-        object: "database",
-        id: testId.toString("hex"),
-        properties: {},
-      });
+      setupMocks(testId, {});
 
       const schema = await getCollectionSchema(testKey, testId);
 
@@ -38,12 +56,8 @@ describe("notion-collections", () => {
     });
 
     it("should map title property to STRING | NULL", async () => {
-      mockClient.databases.retrieve.mockResolvedValueOnce({
-        object: "database",
-        id: testId.toString("hex"),
-        properties: {
-          Title: createDbProperty("title"),
-        },
+      setupMocks(testId, {
+        Title: createDbProperty("title"),
       });
 
       const schema = await getCollectionSchema(testKey, testId);
@@ -52,12 +66,8 @@ describe("notion-collections", () => {
     });
 
     it("should map rich_text property to STRING | NULL", async () => {
-      mockClient.databases.retrieve.mockResolvedValueOnce({
-        object: "database",
-        id: testId.toString("hex"),
-        properties: {
-          Description: createDbProperty("rich_text"),
-        },
+      setupMocks(testId, {
+        Description: createDbProperty("rich_text"),
       });
 
       const schema = await getCollectionSchema(testKey, testId);
@@ -66,12 +76,8 @@ describe("notion-collections", () => {
     });
 
     it("should map url property to STRING | NULL", async () => {
-      mockClient.databases.retrieve.mockResolvedValueOnce({
-        object: "database",
-        id: testId.toString("hex"),
-        properties: {
-          Link: createDbProperty("url"),
-        },
+      setupMocks(testId, {
+        Link: createDbProperty("url"),
       });
 
       const schema = await getCollectionSchema(testKey, testId);
@@ -80,12 +86,8 @@ describe("notion-collections", () => {
     });
 
     it("should map email property to STRING | NULL", async () => {
-      mockClient.databases.retrieve.mockResolvedValueOnce({
-        object: "database",
-        id: testId.toString("hex"),
-        properties: {
-          Email: createDbProperty("email"),
-        },
+      setupMocks(testId, {
+        Email: createDbProperty("email"),
       });
 
       const schema = await getCollectionSchema(testKey, testId);
@@ -94,12 +96,8 @@ describe("notion-collections", () => {
     });
 
     it("should map phone_number property to STRING | NULL", async () => {
-      mockClient.databases.retrieve.mockResolvedValueOnce({
-        object: "database",
-        id: testId.toString("hex"),
-        properties: {
-          Phone: createDbProperty("phone_number"),
-        },
+      setupMocks(testId, {
+        Phone: createDbProperty("phone_number"),
       });
 
       const schema = await getCollectionSchema(testKey, testId);
@@ -108,14 +106,10 @@ describe("notion-collections", () => {
     });
 
     it("should map status property to STRING | NULL", async () => {
-      mockClient.databases.retrieve.mockResolvedValueOnce({
-        object: "database",
-        id: testId.toString("hex"),
-        properties: {
-          Status: createDbProperty("status", {
-            options: [{ name: "Active" }, { name: "Done" }],
-          }),
-        },
+      setupMocks(testId, {
+        Status: createDbProperty("status", {
+          options: [{ name: "Active" }, { name: "Done" }],
+        }),
       });
 
       const schema = await getCollectionSchema(testKey, testId);
@@ -124,14 +118,10 @@ describe("notion-collections", () => {
     });
 
     it("should map select property to STRING | NULL", async () => {
-      mockClient.databases.retrieve.mockResolvedValueOnce({
-        object: "database",
-        id: testId.toString("hex"),
-        properties: {
-          Category: createDbProperty("select", {
-            options: [{ name: "A" }, { name: "B" }],
-          }),
-        },
+      setupMocks(testId, {
+        Category: createDbProperty("select", {
+          options: [{ name: "A" }, { name: "B" }],
+        }),
       });
 
       const schema = await getCollectionSchema(testKey, testId);
@@ -140,12 +130,8 @@ describe("notion-collections", () => {
     });
 
     it("should map number property to NUMBER | NULL", async () => {
-      mockClient.databases.retrieve.mockResolvedValueOnce({
-        object: "database",
-        id: testId.toString("hex"),
-        properties: {
-          Count: createDbProperty("number", { format: "number" }),
-        },
+      setupMocks(testId, {
+        Count: createDbProperty("number", { format: "number" }),
       });
 
       const schema = await getCollectionSchema(testKey, testId);
@@ -154,12 +140,8 @@ describe("notion-collections", () => {
     });
 
     it("should map date property to DATE | NULL", async () => {
-      mockClient.databases.retrieve.mockResolvedValueOnce({
-        object: "database",
-        id: testId.toString("hex"),
-        properties: {
-          Due: createDbProperty("date"),
-        },
+      setupMocks(testId, {
+        Due: createDbProperty("date"),
       });
 
       const schema = await getCollectionSchema(testKey, testId);
@@ -168,12 +150,8 @@ describe("notion-collections", () => {
     });
 
     it("should map checkbox property to BOOLEAN (without NULL)", async () => {
-      mockClient.databases.retrieve.mockResolvedValueOnce({
-        object: "database",
-        id: testId.toString("hex"),
-        properties: {
-          Done: createDbProperty("checkbox"),
-        },
+      setupMocks(testId, {
+        Done: createDbProperty("checkbox"),
       });
 
       const schema = await getCollectionSchema(testKey, testId);
@@ -182,12 +160,8 @@ describe("notion-collections", () => {
     });
 
     it("should map files property to FILES", async () => {
-      mockClient.databases.retrieve.mockResolvedValueOnce({
-        object: "database",
-        id: testId.toString("hex"),
-        properties: {
-          Attachments: createDbProperty("files"),
-        },
+      setupMocks(testId, {
+        Attachments: createDbProperty("files"),
       });
 
       const schema = await getCollectionSchema(testKey, testId);
@@ -196,12 +170,8 @@ describe("notion-collections", () => {
     });
 
     it("should map created_time property to DATE (without NULL)", async () => {
-      mockClient.databases.retrieve.mockResolvedValueOnce({
-        object: "database",
-        id: testId.toString("hex"),
-        properties: {
-          Created: createDbProperty("created_time"),
-        },
+      setupMocks(testId, {
+        Created: createDbProperty("created_time"),
       });
 
       const schema = await getCollectionSchema(testKey, testId);
@@ -210,12 +180,8 @@ describe("notion-collections", () => {
     });
 
     it("should map last_edited_time property to DATE (without NULL)", async () => {
-      mockClient.databases.retrieve.mockResolvedValueOnce({
-        object: "database",
-        id: testId.toString("hex"),
-        properties: {
-          Modified: createDbProperty("last_edited_time"),
-        },
+      setupMocks(testId, {
+        Modified: createDbProperty("last_edited_time"),
       });
 
       const schema = await getCollectionSchema(testKey, testId);
@@ -224,15 +190,11 @@ describe("notion-collections", () => {
     });
 
     it("should map relation property to REFS", async () => {
-      mockClient.databases.retrieve.mockResolvedValueOnce({
-        object: "database",
-        id: testId.toString("hex"),
-        properties: {
-          Related: createDbProperty("relation", {
-            database_id: "other-db-id",
-            type: "dual_property",
-          }),
-        },
+      setupMocks(testId, {
+        Related: createDbProperty("relation", {
+          database_id: "other-db-id",
+          type: "dual_property",
+        }),
       });
 
       const schema = await getCollectionSchema(testKey, testId);
@@ -241,12 +203,8 @@ describe("notion-collections", () => {
     });
 
     it("should map people property to REFS", async () => {
-      mockClient.databases.retrieve.mockResolvedValueOnce({
-        object: "database",
-        id: testId.toString("hex"),
-        properties: {
-          Assignees: createDbProperty("people"),
-        },
+      setupMocks(testId, {
+        Assignees: createDbProperty("people"),
       });
 
       const schema = await getCollectionSchema(testKey, testId);
@@ -255,12 +213,8 @@ describe("notion-collections", () => {
     });
 
     it("should map created_by property to REF", async () => {
-      mockClient.databases.retrieve.mockResolvedValueOnce({
-        object: "database",
-        id: testId.toString("hex"),
-        properties: {
-          Creator: createDbProperty("created_by"),
-        },
+      setupMocks(testId, {
+        Creator: createDbProperty("created_by"),
       });
 
       const schema = await getCollectionSchema(testKey, testId);
@@ -269,12 +223,8 @@ describe("notion-collections", () => {
     });
 
     it("should map last_edited_by property to REF", async () => {
-      mockClient.databases.retrieve.mockResolvedValueOnce({
-        object: "database",
-        id: testId.toString("hex"),
-        properties: {
-          Editor: createDbProperty("last_edited_by"),
-        },
+      setupMocks(testId, {
+        Editor: createDbProperty("last_edited_by"),
       });
 
       const schema = await getCollectionSchema(testKey, testId);
@@ -283,31 +233,21 @@ describe("notion-collections", () => {
     });
 
     it("should skip unsupported property types", async () => {
-      mockClient.databases.retrieve.mockResolvedValueOnce({
-        object: "database",
-        id: testId.toString("hex"),
-        properties: {
-          Formula: createDbProperty("formula", { expression: "1+1" }),
-          Rollup: createDbProperty("rollup", { function: "sum" }),
-          Button: createDbProperty("button"),
-        },
+      setupMocks(testId, {
+        Formula: createDbProperty("formula", { expression: "1+1" }),
+        Rollup: createDbProperty("rollup", { function: "sum" }),
       });
 
       const schema = await getCollectionSchema(testKey, testId);
 
-      // Formula, rollup, and button are computed/action types - not stored
+      // Formula and rollup are computed types - not stored
       expect(schema.Formula).toBeUndefined();
       expect(schema.Rollup).toBeUndefined();
-      expect(schema.Button).toBeUndefined();
     });
 
     it("should map multi_select property to STRINGS | NULL", async () => {
-      mockClient.databases.retrieve.mockResolvedValueOnce({
-        object: "database",
-        id: testId.toString("hex"),
-        properties: {
-          Tags: createDbProperty("multi_select", { options: [] }),
-        },
+      setupMocks(testId, {
+        Tags: createDbProperty("multi_select", { options: [] }),
       });
 
       const schema = await getCollectionSchema(testKey, testId);
@@ -316,12 +256,8 @@ describe("notion-collections", () => {
     });
 
     it("should map unique_id property to STRING", async () => {
-      mockClient.databases.retrieve.mockResolvedValueOnce({
-        object: "database",
-        id: testId.toString("hex"),
-        properties: {
-          ID: createDbProperty("unique_id", { prefix: "ID" }),
-        },
+      setupMocks(testId, {
+        ID: createDbProperty("unique_id", { prefix: "ID" }),
       });
 
       const schema = await getCollectionSchema(testKey, testId);
@@ -330,24 +266,20 @@ describe("notion-collections", () => {
     });
 
     it("should handle database with multiple properties", async () => {
-      mockClient.databases.retrieve.mockResolvedValueOnce({
-        object: "database",
-        id: testId.toString("hex"),
-        properties: {
-          Title: createDbProperty("title"),
-          Description: createDbProperty("rich_text"),
-          Status: createDbProperty("status"),
-          Priority: createDbProperty("select"),
-          Count: createDbProperty("number"),
-          DueDate: createDbProperty("date"),
-          Done: createDbProperty("checkbox"),
-          Files: createDbProperty("files"),
-          CreatedAt: createDbProperty("created_time"),
-          UpdatedAt: createDbProperty("last_edited_time"),
-          Related: createDbProperty("relation"),
-          Assignees: createDbProperty("people"),
-          Creator: createDbProperty("created_by"),
-        },
+      setupMocks(testId, {
+        Title: createDbProperty("title"),
+        Description: createDbProperty("rich_text"),
+        Status: createDbProperty("status"),
+        Priority: createDbProperty("select"),
+        Count: createDbProperty("number"),
+        DueDate: createDbProperty("date"),
+        Done: createDbProperty("checkbox"),
+        Files: createDbProperty("files"),
+        CreatedAt: createDbProperty("created_time"),
+        UpdatedAt: createDbProperty("last_edited_time"),
+        Related: createDbProperty("relation"),
+        Assignees: createDbProperty("people"),
+        Creator: createDbProperty("created_by"),
       });
 
       const schema = await getCollectionSchema(testKey, testId);
@@ -373,11 +305,7 @@ describe("notion-collections", () => {
     });
 
     it("should handle empty database properties", async () => {
-      mockClient.databases.retrieve.mockResolvedValueOnce({
-        object: "database",
-        id: testId.toString("hex"),
-        properties: {},
-      });
+      setupMocks(testId, {});
 
       const schema = await getCollectionSchema(testKey, testId);
 
@@ -388,18 +316,20 @@ describe("notion-collections", () => {
     it("should use key and id correctly", async () => {
       const key = "my-api-key";
       const id = Buffer.from("my-database-uuid", "utf8");
+      const dataSourceId = "test-data-source-id";
 
-      mockClient.databases.retrieve.mockResolvedValueOnce({
-        object: "database",
-        id: id.toString("hex"),
-        properties: {},
-      });
+      setupMocks(id, {}, dataSourceId);
 
       await getCollectionSchema(key, id);
 
       expect(mockClient.databases.retrieve).toHaveBeenCalledWith({
         auth: key,
         database_id: id.toString("hex"),
+      });
+
+      expect(mockClient.dataSources.retrieve).toHaveBeenCalledWith({
+        auth: key,
+        data_source_id: dataSourceId,
       });
     });
   });

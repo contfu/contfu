@@ -5,6 +5,7 @@ export default defineConfig({
   plugins: [sveltekit()],
   server: {
     port: 4000,
+    host: true,
   },
   ssr: {
     noExternal: process.env.NODE_ENV === "production" ? true : undefined,

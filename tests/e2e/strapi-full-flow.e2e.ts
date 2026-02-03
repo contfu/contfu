@@ -2,7 +2,7 @@
  * End-to-end Playwright test for the full Strapi → Service → Client flow.
  *
  * This test launches real servers and verifies the complete integration:
- * 1. Strapi demo server (demos/strapi-demo)
+ * 1. Strapi via Docker (contfu-strapi-test:latest with pre-configured article content type)
  * 2. Service app (packages/service/app)
  * 3. Consumer app (demos/consumer-app) - started AFTER API key is captured
  *
@@ -23,7 +23,7 @@ import { promises as fs } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
-import { setupStrapiDemo } from "./setup";
+import { startStrapiDocker, stopStrapiDocker } from "./setup";
 
 // Project root (contfu/)
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -34,7 +34,9 @@ const STRAPI_PORT = 1337;
 const SERVICE_PORT = 8011; // Configured in vite.config.ts
 const CONSUMER_PORT = 4000;
 
-const STRAPI_URL = `http://localhost:${STRAPI_PORT}`;
+// In CI, Strapi runs in a service container accessible via STRAPI_HOST
+const STRAPI_HOST = process.env.STRAPI_HOST || "localhost";
+const STRAPI_URL = `http://${STRAPI_HOST}:${STRAPI_PORT}`;
 const STRAPI_ADMIN_URL = `${STRAPI_URL}/admin`;
 const SERVICE_URL = `http://localhost:${SERVICE_PORT}`;
 const CONSUMER_URL = `http://localhost:${CONSUMER_PORT}`;
@@ -93,8 +95,10 @@ async function spawnProcess(
       const text = data.toString();
       output += text;
 
-      // Forward output after ready (for debugging)
-      if (forwardOutput && isReady) {
+      // Forward output for debugging in CI
+      if (process.env.CI) {
+        process.stdout.write(`[${command}] ${text}`);
+      } else if (forwardOutput && isReady) {
         process.stdout.write(`[${command}] ${text}`);
       }
 
@@ -149,16 +153,23 @@ async function killAllProcesses(): Promise<void> {
 async function waitForUrl(url: string, timeoutMs = 30000): Promise<void> {
   const start = Date.now();
   let lastError = "";
+  let attempts = 0;
   while (Date.now() - start < timeoutMs) {
+    attempts++;
     try {
       const response = await fetch(url, { method: "GET" });
-      if (response.ok || response.status === 404 || response.status === 500) {
+      if (response.ok || response.status === 403 || response.status === 404 || response.status === 500) {
         console.log(`[E2E] URL ${url} accessible (status ${response.status})`);
         return;
       }
       lastError = `status ${response.status}`;
     } catch (e) {
       lastError = String(e);
+    }
+    // Log progress every 10 attempts (~5 seconds)
+    if (attempts % 10 === 0) {
+      const elapsed = Math.round((Date.now() - start) / 1000);
+      console.log(`[E2E] Still waiting for ${url} (${elapsed}s, last: ${lastError})`);
     }
     await sleep(500);
   }
@@ -288,8 +299,9 @@ async function createArticleViaUI(
 
 /**
  * Update an article via the Strapi admin Content Manager UI
+ * (kept for future use)
  */
-async function updateArticleViaUI(
+async function _updateArticleViaUI(
   page: Page,
   originalTitle: string,
   updates: { title?: string; description?: string },
@@ -332,8 +344,9 @@ async function updateArticleViaUI(
 
 /**
  * Create an API token via Strapi admin UI and return it
+ * (kept for future use)
  */
-async function createStrapiApiTokenViaUI(page: Page): Promise<string> {
+async function _createStrapiApiTokenViaUI(page: Page): Promise<string> {
   console.log("[E2E] Creating Strapi API token via UI...");
 
   // Navigate to Settings > API Tokens
@@ -428,11 +441,109 @@ async function getStrapiAdminToken(): Promise<string> {
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to get Strapi admin token: ${response.status}`);
+    const errorBody = await response.text();
+    console.log(`[E2E] Strapi admin login failed: ${response.status} - ${errorBody}`);
+    throw new Error(`Failed to get Strapi admin token: ${response.status} - ${errorBody}`);
   }
 
   const data = await response.json();
   return data.data.token;
+}
+
+/**
+ * Create the Article content type via Strapi Content-Type Builder API.
+ * This is needed because naskio/strapi is a blank Strapi without content types.
+ * (kept for future use)
+ */
+async function _createArticleContentType(): Promise<void> {
+  console.log("[E2E] Creating Article content type via API...");
+
+  const adminToken = await getStrapiAdminToken();
+
+  // Check if article content type already exists
+  const checkResponse = await fetch(`${STRAPI_URL}/content-type-builder/content-types`, {
+    headers: { Authorization: `Bearer ${adminToken}` },
+  });
+
+  if (checkResponse.ok) {
+    const existing = await checkResponse.json();
+    const articleExists = existing.data?.some(
+      (ct: { uid: string }) => ct.uid === "api::article.article"
+    );
+    if (articleExists) {
+      console.log("[E2E] Article content type already exists");
+      return;
+    }
+  }
+
+  // Create the article content type
+  const contentTypeDefinition = {
+    contentType: {
+      displayName: "Article",
+      singularName: "article",
+      pluralName: "articles",
+      kind: "collectionType",
+      draftAndPublish: true,
+      attributes: {
+        title: {
+          type: "string",
+          required: true,
+        },
+        slug: {
+          type: "uid",
+          targetField: "title",
+          required: true,
+        },
+        description: {
+          type: "text",
+        },
+        content: {
+          type: "richtext",
+        },
+      },
+    },
+  };
+
+  const createResponse = await fetch(`${STRAPI_URL}/content-type-builder/content-types`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${adminToken}`,
+    },
+    body: JSON.stringify(contentTypeDefinition),
+  });
+
+  if (!createResponse.ok) {
+    const errorText = await createResponse.text();
+    throw new Error(`Failed to create Article content type: ${createResponse.status} - ${errorText}`);
+  }
+
+  console.log("[E2E] Article content type created, waiting for Strapi to reload...");
+
+  // Strapi auto-restarts after content type changes - wait for it to come back
+  await sleep(5000); // Give it time to start reloading
+
+  // Poll until Strapi is ready again
+  const maxWait = 60000;
+  const start = Date.now();
+  while (Date.now() - start < maxWait) {
+    try {
+      const healthCheck = await fetch(`${STRAPI_URL}/_health`);
+      if (healthCheck.ok) {
+        // Also verify admin is accessible
+        const adminCheck = await fetch(`${STRAPI_URL}/admin/init`);
+        if (adminCheck.ok) {
+          console.log("[E2E] Strapi reloaded successfully");
+          return;
+        }
+      }
+    } catch {
+      // Server still restarting
+    }
+    await sleep(2000);
+  }
+
+  throw new Error("Strapi did not come back up after content type creation");
 }
 
 /**
@@ -508,6 +619,54 @@ async function createArticleViaAPI(
 }
 
 /**
+ * Send a webhook to the service app to notify about an article change.
+ * This simulates what Strapi would do if webhooks were triggered for Content API operations.
+ * (Strapi 5 only fires webhooks for Admin UI/API changes, not Content API)
+ */
+async function sendArticleWebhook(
+  sourceId: number,
+  event: "entry.create" | "entry.update" | "entry.delete",
+  article: {
+    id: number;
+    documentId: string;
+    title: string;
+    slug: string;
+    description?: string;
+  },
+): Promise<void> {
+  const now = new Date().toISOString();
+  const webhookPayload = {
+    event,
+    createdAt: now,
+    model: "article",
+    uid: "api::article.article",
+    entry: {
+      id: article.id,
+      documentId: article.documentId,
+      title: article.title,
+      slug: article.slug,
+      description: article.description || "",
+      createdAt: now,
+      updatedAt: now,
+      publishedAt: now,
+    },
+  };
+
+  const response = await fetch(`${SERVICE_URL}/webhooks/strapi/${sourceId}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(webhookPayload),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[E2E] Webhook failed: ${response.status} - ${errorText}`);
+  } else {
+    console.log(`[E2E] Webhook sent for ${event}: ${article.title}`);
+  }
+}
+
+/**
  * Update an article in Strapi via REST API (and re-publish it)
  */
 async function updateArticleViaAPI(
@@ -558,8 +717,9 @@ async function deleteArticleViaAPI(apiToken: string, documentId: string): Promis
 
 /**
  * Publish an article in Strapi via REST API (Strapi v5)
+ * (kept for future use)
  */
-async function publishArticleViaAPI(apiToken: string, documentId: string): Promise<void> {
+async function _publishArticleViaAPI(apiToken: string, documentId: string): Promise<void> {
   console.log(`[E2E] Publishing article via API: ${documentId}`);
 
   // Strapi v5 uses /actions/publish endpoint
@@ -725,48 +885,37 @@ async function setupServiceAppAndGetApiKey(
     console.log("[E2E] Connected client to Articles collection");
   }
 
-  // The API key may not be visible initially - click Regenerate to get one
+  // Click Regenerate to generate/show the API key
+  // The key appears in an Alert with "New API Key" title after form submission
   let apiKey = "";
 
-  // Click Regenerate to generate/show the API key
-  const regenerateBtn = page.getByRole("button", { name: /Regenerate/i });
+  const regenerateBtn = page.getByRole("button", { name: /^Regenerate$/i });
   if (await regenerateBtn.isVisible().catch(() => false)) {
     await regenerateBtn.click();
-    // Wait for the key to be displayed after regeneration
-    await sleep(1000);
-  }
-
-  // Try to get API key from various possible locations
-  // It might appear in a dialog, code block, or input after regeneration
-  const codeBlock = page.locator("code").first();
-  if (await codeBlock.isVisible().catch(() => false)) {
-    apiKey = (await codeBlock.textContent()) || "";
-  }
-
-  if (!apiKey) {
-    const apiKeyInput = page.locator('input[name="apiKey"], input[readonly]').first();
-    if (await apiKeyInput.isVisible().catch(() => false)) {
-      apiKey = await apiKeyInput.inputValue();
+    
+    // Wait for the "New API Key" alert to appear (form submission + response)
+    const newKeyAlert = page.getByText("New API Key");
+    await newKeyAlert.waitFor({ state: "visible", timeout: 10000 });
+    
+    // The key is in a <code> element inside the alert
+    // Find the code element that contains a long alphanumeric string (the key)
+    const codeElements = page.locator("code");
+    const count = await codeElements.count();
+    
+    for (let i = 0; i < count; i++) {
+      const text = await codeElements.nth(i).textContent();
+      // API keys are typically 40+ character alphanumeric strings
+      if (text && text.length > 30 && /^[a-zA-Z0-9_-]+$/.test(text.trim())) {
+        apiKey = text.trim();
+        break;
+      }
     }
   }
 
   if (!apiKey) {
-    const apiKeyDisplay = page.getByTestId("api-key");
-    if (await apiKeyDisplay.isVisible().catch(() => false)) {
-      apiKey = (await apiKeyDisplay.textContent()) || "";
-    }
-  }
-
-  // Also check for any pre element or monospace text
-  if (!apiKey) {
-    const preElement = page.locator("pre").first();
-    if (await preElement.isVisible().catch(() => false)) {
-      apiKey = (await preElement.textContent()) || "";
-    }
-  }
-
-  if (!apiKey) {
-    throw new Error("Could not capture API key from service app UI");
+    // Take a screenshot for debugging
+    await page.screenshot({ path: "api-key-capture-debug.png" });
+    throw new Error("Could not capture API key from service app UI - see api-key-capture-debug.png");
   }
 
   const trimmedKey = apiKey.trim();
@@ -788,31 +937,31 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow", () => {
   let strapiSourceId: string | null;
 
   test.beforeAll(async ({ browser }, testInfo) => {
+    console.log("[E2E] beforeAll starting...");
+    
+    // Clean up any lingering processes from previous test attempts (e.g., retries)
+    await killAllProcesses();
+    
+    console.log(`[E2E] CI=${process.env.CI}, E2E_FULL_FLOW=${process.env.E2E_FULL_FLOW}, STRAPI_HOST=${process.env.STRAPI_HOST}`);
+    
     // Extend timeout for setup - starting 3 servers + UI automation takes time
     // Must be longer than Strapi spawn timeout (180s) + service/consumer startup
     testInfo.setTimeout(300000); // 5 minutes
 
     // Skip if running in CI without proper setup
     if (process.env.CI && !process.env.E2E_FULL_FLOW) {
+      console.log("[E2E] Skipping - E2E_FULL_FLOW not set in CI");
       test.skip();
       return;
     }
+    console.log("[E2E] Not skipping, proceeding with setup...");
 
-    // ===== STEP 0: Setup Strapi (extract build, copy .env, install deps) =====
-    await setupStrapiDemo();
-
-    // ===== STEP 1: Start Strapi =====
-    console.log("[E2E] Starting Strapi demo server...");
-    await spawnProcess(
-      "bun",
-      ["run", "develop"],
-      resolve(PROJECT_ROOT, "demos/strapi-demo"),
-      /Strapi started successfully/i,
-      { PORT: String(STRAPI_PORT) },
-      180000,
-    );
-    await waitForUrl(`${STRAPI_URL}/admin`);
-    console.log("[E2E] Strapi server ready");
+    // ===== STEP 1: Start Strapi via Docker =====
+    // Uses our custom contfu-strapi-test image with pre-configured article content type
+    await startStrapiDocker();
+    console.log(`[E2E] Waiting for admin init at ${STRAPI_URL}/admin/init...`);
+    await waitForUrl(`${STRAPI_URL}/admin/init`, 120000);
+    console.log("[E2E] Strapi ready");
 
     // ===== STEP 2: Start Service app =====
     console.log("[E2E] Starting service app...");
@@ -836,6 +985,9 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow", () => {
 
     // Register or login to Strapi admin
     await registerStrapiAdmin(strapiPage);
+
+    // Article content type is pre-configured in our custom Docker image (contfu-strapi-test)
+    // No need to create it via API anymore
 
     // Create Strapi API token via REST API (faster than UI)
     strapiApiToken = await createStrapiApiTokenViaAPI();
@@ -895,6 +1047,9 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow", () => {
       await strapiPage.context().close();
     }
     await killAllProcesses();
+    
+    // Stop Strapi Docker container (unless using external Strapi in CI)
+    stopStrapiDocker();
   });
 
   test("should show Strapi content in consumer app after sync", async ({ page }) => {
@@ -986,6 +1141,15 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow", () => {
       true,
     ); // true = publish immediately
 
+    // Send webhook manually since Strapi 5 doesn't fire webhooks for Content API operations
+    await sendArticleWebhook(strapiSourceId, "entry.create", {
+      id: article1.id,
+      documentId: article1.documentId,
+      title: "E2E Test Article",
+      slug: `e2e-test-article-${Date.now()}`,
+      description: "This article was created during e2e testing",
+    });
+
     // ===== STEP 7: Verify article in consumer app =====
     // Poll for article to appear (webhook + SSE propagation can take time)
     await waitForArticleInConsumerApp(consumerPage, "E2E Test Article", 30000);
@@ -1002,15 +1166,25 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow", () => {
     console.log("[E2E] First article visible in consumer app");
 
     // ===== STEP 8: Create second article via API =====
+    const article2Slug = `e2e-second-article-${Date.now()}`;
     const article2 = await createArticleViaAPI(
       strapiApiToken,
       {
         title: "E2E Second Article",
-        slug: `e2e-second-article-${Date.now()}`,
+        slug: article2Slug,
         description: "This is the second test article",
       },
       true,
     ); // true = publish immediately
+
+    // Send webhook for second article
+    await sendArticleWebhook(strapiSourceId, "entry.create", {
+      id: article2.id,
+      documentId: article2.documentId,
+      title: "E2E Second Article",
+      slug: article2Slug,
+      description: "This is the second test article",
+    });
 
     // Poll for second article to appear
     await waitForArticleInConsumerApp(consumerPage, "E2E Second Article", 30000);
@@ -1019,6 +1193,15 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow", () => {
     // ===== STEP 9: Update first article via API =====
     await updateArticleViaAPI(strapiApiToken, article1.documentId, {
       title: "E2E Updated Article",
+      description: "This article was updated during e2e testing",
+    });
+
+    // Send webhook for article update
+    await sendArticleWebhook(strapiSourceId, "entry.update", {
+      id: article1.id,
+      documentId: article1.documentId,
+      title: "E2E Updated Article",
+      slug: `e2e-test-article-${Date.now()}`,
       description: "This article was updated during e2e testing",
     });
     console.log("[E2E] First article updated via API");

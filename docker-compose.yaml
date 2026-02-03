@@ -21,17 +21,20 @@ services:
       retries: 3
 
   strapi:
-    build:
-      context: demos/strapi-demo
-      dockerfile: Dockerfile
+    image: naskio/strapi:latest-alpine
     profiles:
       - strapi
       - demo
     environment:
+      NODE_ENV: development
+      DATABASE_CLIENT: sqlite
+      HOST: 0.0.0.0
+      PORT: 1337
       JWT_SECRET: test-jwt-secret
       ADMIN_JWT_SECRET: test-admin-jwt-secret
       APP_KEYS: key1,key2,key3,key4
       API_TOKEN_SALT: test-api-token-salt
+      TRANSFER_TOKEN_SALT: test-transfer-salt
     ports:
       - "1337:1337"
     volumes:
@@ -40,8 +43,8 @@ services:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:1337/_health"]
       interval: 30s
       timeout: 10s
-      start_period: 60s
-      retries: 3
+      start_period: 120s
+      retries: 5
 
   demo-app:
     build:

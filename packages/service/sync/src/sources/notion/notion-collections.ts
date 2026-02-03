@@ -1,4 +1,5 @@
 import { CollectionSchema, PropertyType } from "@contfu/core";
+import { isFullDatabase, isFullDataSource } from "@notionhq/client";
 import { notion } from "./notion-helpers";
 
 export async function getCollectionSchema(key: string, id: Buffer) {
@@ -6,12 +7,30 @@ export async function getCollectionSchema(key: string, id: Buffer) {
     auth: key,
     database_id: id.toString("hex"),
   });
+  if (!isFullDatabase(db)) {
+    throw new Error(`Could not retrieve full database ${id.toString("hex")}`);
+  }
+
+  // In Notion SDK v5+, properties are on the data source, not the database
+  const dataSourceId = db.data_sources[0]?.id;
+  if (!dataSourceId) {
+    throw new Error(`No data sources found for database ${id.toString("hex")}`);
+  }
+
+  const dataSource = await notion.dataSources.retrieve({
+    auth: key,
+    data_source_id: dataSourceId,
+  });
+  if (!isFullDataSource(dataSource)) {
+    throw new Error(`Could not retrieve data source for database ${id.toString("hex")}`);
+  }
+
   const schema = {
     cover: PropertyType.FILE | PropertyType.NULL,
     icon: PropertyType.FILE | PropertyType.NULL,
   } as CollectionSchema;
-  for (const key in db.properties) {
-    const prop = db.properties[key];
+  for (const key in dataSource.properties) {
+    const prop = dataSource.properties[key];
     switch (prop.type) {
       case "title":
       case "rich_text":
@@ -52,13 +71,9 @@ export async function getCollectionSchema(key: string, id: Buffer) {
       case "unique_id":
         schema[key] = PropertyType.STRING;
         break;
-      case "verification":
-        schema[key] = PropertyType.STRING | PropertyType.NULL;
-        break;
       // Skip computed types
       case "formula":
       case "rollup":
-      case "button":
         break;
     }
   }

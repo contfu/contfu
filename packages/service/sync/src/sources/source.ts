@@ -7,8 +7,8 @@ export type CollectionFetchOpts = {
   ref?: Buffer;
   /** Optional URL for the source. SaaS sources don't have a configurable URL. */
   url?: string;
-  /** Can be an API key or other credentials. */
-  credentials?: Buffer;
+  /** Can be an API key (string) or encrypted credentials (Buffer). */
+  credentials?: string | Buffer;
   /** Since when (exclusive) to pull events. The default is all time. */
   since?: number;
 };

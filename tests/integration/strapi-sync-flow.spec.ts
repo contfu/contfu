@@ -111,6 +111,7 @@ function createKeyTrackingChainableMock() {
     return Promise.resolve([]);
   };
 
+  // eslint-disable-next-line unicorn/no-thenable -- intentional for chainable mock
   chain.then = (resolve: any) => chain.all().then(resolve);
 
   return chain;
@@ -134,6 +135,7 @@ function createChainableMock(finalResult: any) {
     chain[method] = () => chain;
   }
   chain.all = () => Promise.resolve(finalResult);
+  // eslint-disable-next-line unicorn/no-thenable -- intentional for chainable mock
   chain.then = (resolve: any) => Promise.resolve(finalResult).then(resolve);
   return () => chain;
 }

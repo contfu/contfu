@@ -17,13 +17,13 @@ const source = new NotionSource();
 describe("NotionSource", () => {
   beforeEach(() => {
     mockClient.dataSources.query.mockClear();
+    mockClient.dataSources.retrieve.mockClear();
     mockClient.databases.retrieve.mockClear();
     mockClient.blocks.children.list.mockClear();
     // Default mock: database has one data source
     mockClient.databases.retrieve.mockResolvedValue({
       object: "database",
       data_sources: [{ id: "data-source-id-1" }],
-      properties: {},
     });
   });
 
@@ -329,10 +329,17 @@ describe("NotionSource", () => {
   });
 
   describe("getCollectionSchema()", () => {
+    const dataSourceId = "test-data-source-id";
+
     it("should fetch and return collection schema", async () => {
       mockClient.databases.retrieve.mockResolvedValueOnce({
         object: "database",
         id: pullOpts.ref.toString("hex"),
+        data_sources: [{ id: dataSourceId }],
+      });
+      mockClient.dataSources.retrieve.mockResolvedValueOnce({
+        object: "data_source",
+        id: dataSourceId,
         properties: {
           Title: { id: "title", type: "title", title: {} },
           Description: { id: "desc", type: "rich_text", rich_text: {} },
@@ -361,10 +368,16 @@ describe("NotionSource", () => {
         credentials: "custom-api-key",
         collection: 2,
       };
+      const customDataSourceId = "custom-data-source-id";
 
       mockClient.databases.retrieve.mockResolvedValueOnce({
         object: "database",
         id: customOpts.ref.toString("hex"),
+        data_sources: [{ id: customDataSourceId }],
+      });
+      mockClient.dataSources.retrieve.mockResolvedValueOnce({
+        object: "data_source",
+        id: customDataSourceId,
         properties: {},
       });
 
@@ -373,6 +386,10 @@ describe("NotionSource", () => {
       expect(mockClient.databases.retrieve).toHaveBeenCalledWith({
         auth: customOpts.credentials,
         database_id: customOpts.ref.toString("hex"),
+      });
+      expect(mockClient.dataSources.retrieve).toHaveBeenCalledWith({
+        auth: customOpts.credentials,
+        data_source_id: customDataSourceId,
       });
     });
   });

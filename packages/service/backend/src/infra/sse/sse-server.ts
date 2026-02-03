@@ -1,9 +1,7 @@
 import {
   EventType,
   type ChangedEvent,
-  type ChecksumEvent,
   type ConnectedEvent,
-  type DeletedEvent,
   type ErrorEvent,
   type ItemEvent,
   type ListIdsEvent,

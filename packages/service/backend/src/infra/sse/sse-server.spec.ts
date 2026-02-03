@@ -43,8 +43,8 @@ function createMockWorkerManager() {
   };
 }
 
-// Helper to decode SSE messages
-function decodeSSEMessage(data: Uint8Array): { event: string; data: any } | null {
+// Helper to decode SSE messages (kept for future debugging)
+function _decodeSSEMessage(data: Uint8Array): { event: string; data: any } | null {
   const text = new TextDecoder().decode(data);
   const eventMatch = text.match(/event: (\w+)\n/);
   const dataMatch = text.match(/data: (.+)\n\n/);
@@ -142,12 +142,12 @@ describe("SSEServer", () => {
 describe("SSE serialization", () => {
   it("should serialize CONNECTED event correctly", () => {
     // We'll test the public API through a connection
-    const server = new SSEServer();
-    const controller = createMockController();
+    const _server = new SSEServer();
+    const _controller = createMockController();
 
     // The CONNECTED event is sent automatically on connection
     // We can test the format by checking the enqueued data
-    const expectedFormat = /^event: connected\ndata: \{"type":0\}\n\n$/;
+    const _expectedFormat = /^event: connected\ndata: \{"type":0\}\n\n$/;
 
     // Note: We can't test this directly without a valid consumer,
     // but we can verify the format in integration tests

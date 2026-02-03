@@ -33,9 +33,8 @@ describe("StrapiSource Integration", () => {
   const STRAPI_PORT = 1337;
   const CONTAINER_STARTUP_TIMEOUT = 300_000; // 5 minutes for Strapi to start and build
 
-  // Use local contfu-strapi-test image built from demos/strapi-demo
-  // Build with: cd demos/strapi-demo && docker build -t contfu-strapi-test:latest .
-  const STRAPI_IMAGE = "contfu-strapi-test:latest";
+  // Use ready-made Strapi Docker image (avoids native module issues with better-sqlite3)
+  const STRAPI_IMAGE = "naskio/strapi:latest-alpine";
 
   /**
    * Register the first admin user in Strapi.
@@ -89,6 +88,82 @@ describe("StrapiSource Integration", () => {
   }
 
   /**
+   * Create the Article content type via Content-Type Builder API.
+   * naskio/strapi is blank, so we need to create content types dynamically.
+   */
+  async function createArticleContentType(baseUrl: string, jwt: string): Promise<void> {
+    console.log("📝 Creating Article content type...");
+
+    // Check if already exists
+    const checkResponse = await fetch(`${baseUrl}/content-type-builder/content-types`, {
+      headers: { Authorization: `Bearer ${jwt}` },
+    });
+
+    if (checkResponse.ok) {
+      const existing = (await checkResponse.json()) as { data: Array<{ uid: string }> };
+      if (existing.data?.some((ct) => ct.uid === "api::article.article")) {
+        console.log("   Article content type already exists");
+        return;
+      }
+    }
+
+    const contentTypeDefinition = {
+      contentType: {
+        displayName: "Article",
+        singularName: "article",
+        pluralName: "articles",
+        kind: "collectionType",
+        draftAndPublish: true,
+        attributes: {
+          title: { type: "string", required: true },
+          slug: { type: "uid", targetField: "title", required: true },
+          description: { type: "text" },
+        },
+      },
+    };
+
+    const createResponse = await fetch(`${baseUrl}/content-type-builder/content-types`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${jwt}`,
+      },
+      body: JSON.stringify(contentTypeDefinition),
+    });
+
+    if (!createResponse.ok) {
+      const errorText = await createResponse.text();
+      throw new Error(`Failed to create Article content type: ${createResponse.status} ${errorText}`);
+    }
+
+    console.log("   Content type created, waiting for Strapi to reload...");
+
+    // Wait for Strapi to restart after content type change
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+
+    // Poll until ready
+    const maxWait = 60000;
+    const start = Date.now();
+    while (Date.now() - start < maxWait) {
+      try {
+        const healthCheck = await fetch(`${baseUrl}/_health`);
+        if (healthCheck.ok) {
+          const adminCheck = await fetch(`${baseUrl}/admin/init`);
+          if (adminCheck.ok) {
+            console.log("   Strapi reloaded successfully");
+            return;
+          }
+        }
+      } catch {
+        // Still restarting
+      }
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+    }
+
+    throw new Error("Strapi did not come back up after content type creation");
+  }
+
+  /**
    * Create a test article entry.
    */
   async function createArticle(
@@ -133,7 +208,6 @@ describe("StrapiSource Integration", () => {
       console.log(`   Using image: ${STRAPI_IMAGE}`);
 
       // Start Strapi container with SQLite database
-      // Uses local contfu-strapi-test image built from demos/strapi-demo
       container = await new GenericContainer(STRAPI_IMAGE)
         .withExposedPorts(STRAPI_PORT)
         .withEnvironment({
@@ -158,12 +232,29 @@ describe("StrapiSource Integration", () => {
       console.log("👤 Registering admin user...");
       adminJwt = await registerAdmin(strapiUrl);
 
+      // Create article content type (naskio/strapi is blank)
+      await createArticleContentType(strapiUrl, adminJwt);
+
+      // Re-login after Strapi restart
+      console.log("🔄 Re-authenticating after content type creation...");
+      adminJwt = await registerAdmin(strapiUrl).catch(async () => {
+        // Admin already exists after restart, need to login instead
+        const loginResponse = await fetch(`${strapiUrl}/admin/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: "admin@test.local",
+            password: "Admin12345",
+          }),
+        });
+        if (!loginResponse.ok) throw new Error("Failed to re-login after restart");
+        const data = (await loginResponse.json()) as { data: { token: string } };
+        return data.data.token;
+      });
+
       // Create API token
       console.log("🔑 Creating API token...");
       apiToken = await createApiToken(strapiUrl, adminJwt);
-
-      // Note: Article content type already exists in demos/strapi-demo
-      // No need to create it
 
       // Create test articles
       // Note: The demo's article schema uses dynamiczone 'blocks' instead of 'content'

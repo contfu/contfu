@@ -23,7 +23,7 @@ function parseItem(
   const createdAt = new Date(created_time).getTime();
   const props = parseProps(properties);
   const ref = uuidToBuffer(id);
-  if (icon && icon.type !== "emoji") props.icon = getImageUrl(icon);
+  if (icon && (icon.type === "file" || icon.type === "external")) props.icon = getImageUrl(icon);
   if (cover) props.cover = getImageUrl(cover);
   const item: Item = {
     id: genUid(ref),

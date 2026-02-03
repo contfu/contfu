@@ -21,9 +21,9 @@ async function getEventSourceClass(): Promise<typeof EventSource> {
     _EventSourceClass = window.EventSource;
   } else {
     const mod = await import("eventsource");
-    _EventSourceClass = mod.default || mod.EventSource;
+    _EventSourceClass = mod.EventSource as typeof EventSource;
   }
-  return _EventSourceClass;
+  return _EventSourceClass!;
 }
 
 type Opts = {
