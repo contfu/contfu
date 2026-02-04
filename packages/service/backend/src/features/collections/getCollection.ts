@@ -1,42 +1,49 @@
 import { db } from "../../infra/db/db";
-import { sourceCollectionTable, type SourceCollection } from "../../infra/db/schema";
-import { and, eq } from "drizzle-orm";
-import type { BackendCollection } from "../../domain/types";
-
-function countItemIds(itemIds: Buffer | null): number {
-  if (!itemIds) return 0;
-  // Each item ID is 4 bytes
-  return Math.floor(itemIds.length / 4);
-}
-
-function mapToBackendCollection(collection: SourceCollection): BackendCollection {
-  return {
-    id: collection.id,
-    userId: collection.userId,
-    sourceId: collection.sourceId,
-    name: collection.name,
-    hasRef: collection.ref !== null,
-    refString: collection.ref ? collection.ref.toString("utf-8") : null,
-    itemCount: countItemIds(collection.itemIds),
-    createdAt: collection.createdAt,
-    updatedAt: collection.updatedAt,
-  };
-}
+import { collectionTable, collectionMappingTable, connectionTable } from "../../infra/db/schema";
+import { and, eq, sql } from "drizzle-orm";
+import type { Collection } from "./listCollections";
 
 /**
- * Get a single collection by ID.
+ * Get a single Collection by ID.
  */
 export async function getCollection(
   userId: number,
-  id: number,
-): Promise<BackendCollection | undefined> {
+  collectionId: number,
+): Promise<Collection | null> {
   const [collection] = await db
     .select()
-    .from(sourceCollectionTable)
-    .where(and(eq(sourceCollectionTable.userId, userId), eq(sourceCollectionTable.id, id)))
+    .from(collectionTable)
+    .where(and(eq(collectionTable.userId, userId), eq(collectionTable.id, collectionId)))
     .limit(1);
 
-  if (!collection) return undefined;
+  if (!collection) return null;
 
-  return mapToBackendCollection(collection);
+  // Get source collection count
+  const [mappingCount] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(collectionMappingTable)
+    .where(
+      and(
+        eq(collectionMappingTable.userId, userId),
+        eq(collectionMappingTable.collectionId, collectionId),
+      ),
+    );
+
+  // Get connection count
+  const [connectionCount] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(connectionTable)
+    .where(
+      and(eq(connectionTable.userId, userId), eq(connectionTable.collectionId, collectionId)),
+    );
+
+  return {
+    id: collection.id,
+    userId: collection.userId,
+    name: collection.name,
+    sourceCollectionCount: mappingCount?.count ?? 0,
+    connectionCount: connectionCount?.count ?? 0,
+    createdAt: collection.createdAt,
+    updatedAt: collection.updatedAt,
+  };
 }

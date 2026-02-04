@@ -382,7 +382,7 @@ export const listNotionDataSources = query(
     try {
       // Fetch data sources from Notion and existing collections in parallel
       const { listCollectionSummariesBySource } =
-        await import("@contfu/svc-backend/features/collections/listCollectionSummariesBySource");
+        await import("@contfu/svc-backend/features/source-collections/listCollectionSummariesBySource");
 
       const [collections, dataSources] = await Promise.all([
         listCollectionSummariesBySource(userId, data.sourceId),

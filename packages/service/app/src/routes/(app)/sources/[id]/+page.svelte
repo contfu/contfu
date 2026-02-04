@@ -8,7 +8,7 @@
     testConnection,
     regenerateWebhookSecret,
   } from "$lib/remote/sources.remote";
-  import { getCollectionsBySource } from "$lib/remote/collections.remote";
+  import { getSourceCollectionsBySource } from "$lib/remote/source-collections.remote";
   import { getWebhookLogs, type WebhookLogEntry } from "$lib/remote/webhookLogs.remote";
   import { Button } from "$lib/components/ui/button";
   import { Input } from "$lib/components/ui/input";
@@ -29,7 +29,7 @@
 
   const id = Number.parseInt(page.params.id ?? "", 10);
   const source = Number.isNaN(id) ? null : await getSource({ id });
-  const collections = source ? await getCollectionsBySource({ sourceId: id }) : [];
+  const collections = source ? await getSourceCollectionsBySource({ sourceId: id }) : [];
 
   // Load webhook logs for Strapi sources
   const initialWebhookLogs: WebhookLogEntry[] =

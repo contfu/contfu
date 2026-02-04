@@ -6,17 +6,17 @@
   import { Input } from "$lib/components/ui/input";
   import { Label } from "$lib/components/ui/label";
   import {
-    deleteCollection,
-    getCollection,
-    updateCollection,
-  } from "$lib/remote/collections.remote";
+    deleteSourceCollection,
+    getSourceCollection,
+    updateSourceCollection,
+  } from "$lib/remote/source-collections.remote";
   import { getSource } from "$lib/remote/sources.remote";
 
   const sourceId = Number.parseInt(page.params.id ?? "", 10);
   const collectionId = Number.parseInt(page.params.collectionId ?? "", 10);
 
   const source = Number.isNaN(sourceId) ? null : await getSource({ id: sourceId });
-  const collection = Number.isNaN(collectionId) || !source ? null : await getCollection({ id: collectionId });
+  const collection = Number.isNaN(collectionId) || !source ? null : await getSourceCollection({ id: collectionId });
 
   if (!source) {
     await goto("/sources");
@@ -32,11 +32,11 @@
   }
 
   $effect(() => {
-    if (updateCollection.result?.success) handleUpdateSuccess();
+    if (updateSourceCollection.result?.success) handleUpdateSuccess();
   });
 
   $effect(() => {
-    const result = deleteCollection.result as { success?: boolean } | undefined;
+    const result = deleteSourceCollection.result as { success?: boolean } | undefined;
     if (result?.success) goto(`/sources/${sourceId}`);
   });
 </script>
@@ -63,14 +63,14 @@
     </div>
 
     <!-- Edit form -->
-    <form method="post" action={updateCollection.action} class="space-y-4">
+    <form method="post" action={updateSourceCollection.action} class="space-y-4">
       <input type="hidden" name="id" value={collection.id} />
 
       <div class="space-y-1.5">
         <Label for="name">Name</Label>
         <Input id="name" name="name" type="text" placeholder="My Collection" value={collection.name ?? ""} />
-        {#if updateCollection.fields?.name?.issues()?.length}
-          <p class="text-sm text-destructive">{updateCollection.fields?.name?.issues()?.[0]?.message}</p>
+        {#if updateSourceCollection.fields?.name?.issues()?.length}
+          <p class="text-sm text-destructive">{updateSourceCollection.fields?.name?.issues()?.[0]?.message}</p>
         {/if}
       </div>
 
@@ -86,8 +86,8 @@
         <p class="text-xs text-muted-foreground">
           The upstream content identifier (e.g., Notion database ID).
         </p>
-        {#if updateCollection.fields?.ref?.issues()?.length}
-          <p class="text-sm text-destructive">{updateCollection.fields?.ref?.issues()?.[0]?.message}</p>
+        {#if updateSourceCollection.fields?.ref?.issues()?.length}
+          <p class="text-sm text-destructive">{updateSourceCollection.fields?.ref?.issues()?.[0]?.message}</p>
         {/if}
       </div>
 
@@ -113,8 +113,8 @@
         </Alert.Root>
       {/if}
 
-      <Button type="submit" disabled={!!updateCollection.pending}>
-        {updateCollection.pending ? "Saving..." : "Save"}
+      <Button type="submit" disabled={!!updateSourceCollection.pending}>
+        {updateSourceCollection.pending ? "Saving..." : "Save"}
       </Button>
     </form>
 
@@ -125,20 +125,20 @@
           <h3 class="text-sm font-medium">Delete collection</h3>
           <p class="text-sm text-muted-foreground">All client connections will be removed.</p>
         </div>
-        <form method="post" action={deleteCollection.action}>
+        <form method="post" action={deleteSourceCollection.action}>
           <input type="hidden" name="id" value={collection.id} />
           <Button
             variant="destructive"
             size="sm"
             type="submit"
-            disabled={!!deleteCollection.pending}
+            disabled={!!deleteSourceCollection.pending}
             onclick={(e: MouseEvent) => {
               if (!confirm(`Delete "${collection.name || "this collection"}"?`)) {
                 e.preventDefault();
               }
             }}
           >
-            {deleteCollection.pending ? "..." : "Delete"}
+            {deleteSourceCollection.pending ? "..." : "Delete"}
           </Button>
         </form>
       </div>

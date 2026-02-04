@@ -1,14 +1,18 @@
 import { db } from "../../infra/db/db";
-import { sourceCollectionTable } from "../../infra/db/schema";
+import { collectionTable } from "../../infra/db/schema";
 import { and, eq } from "drizzle-orm";
 
 /**
- * Delete a collection. Connections will cascade delete.
+ * Delete a Collection.
+ * This will cascade delete all mappings and connections.
  */
-export async function deleteCollection(userId: number, id: number): Promise<boolean> {
+export async function deleteCollection(
+  userId: number,
+  collectionId: number,
+): Promise<boolean> {
   const result = await db
-    .delete(sourceCollectionTable)
-    .where(and(eq(sourceCollectionTable.userId, userId), eq(sourceCollectionTable.id, id)))
+    .delete(collectionTable)
+    .where(and(eq(collectionTable.userId, userId), eq(collectionTable.id, collectionId)))
     .returning();
 
   return result.length > 0;

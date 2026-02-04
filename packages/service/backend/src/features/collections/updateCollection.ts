@@ -1,46 +1,27 @@
 import { db } from "../../infra/db/db";
-import { sourceCollectionTable, type SourceCollection } from "../../infra/db/schema";
-import { and, eq, sql } from "drizzle-orm";
-import type { BackendCollection, UpdateCollectionInput } from "../../domain/types";
+import { collectionTable } from "../../infra/db/schema";
+import { and, eq } from "drizzle-orm";
 
-function countItemIds(itemIds: Buffer | null): number {
-  if (!itemIds) return 0;
-  // Each item ID is 4 bytes
-  return Math.floor(itemIds.length / 4);
-}
-
-function mapToBackendCollection(collection: SourceCollection): BackendCollection {
-  return {
-    id: collection.id,
-    userId: collection.userId,
-    sourceId: collection.sourceId,
-    name: collection.name,
-    hasRef: collection.ref !== null,
-    refString: collection.ref ? collection.ref.toString("utf-8") : null,
-    itemCount: countItemIds(collection.itemIds),
-    createdAt: collection.createdAt,
-    updatedAt: collection.updatedAt,
-  };
+export interface UpdateCollectionInput {
+  name?: string;
 }
 
 /**
- * Update a collection.
+ * Update a Collection.
  */
 export async function updateCollection(
   userId: number,
-  id: number,
+  collectionId: number,
   input: UpdateCollectionInput,
-): Promise<BackendCollection | undefined> {
-  const [updated] = await db
-    .update(sourceCollectionTable)
+): Promise<boolean> {
+  const result = await db
+    .update(collectionTable)
     .set({
-      ...input,
-      updatedAt: sql`(unixepoch())`,
+      name: input.name,
+      updatedAt: Math.floor(Date.now() / 1000),
     })
-    .where(and(eq(sourceCollectionTable.userId, userId), eq(sourceCollectionTable.id, id)))
+    .where(and(eq(collectionTable.userId, userId), eq(collectionTable.id, collectionId)))
     .returning();
 
-  if (!updated) return undefined;
-
-  return mapToBackendCollection(updated);
+  return result.length > 0;
 }

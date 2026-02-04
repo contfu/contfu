@@ -7,7 +7,7 @@
   import { Input } from "$lib/components/ui/input";
   import { Label } from "$lib/components/ui/label";
   import { Textarea } from "$lib/components/ui/textarea";
-  import { createCollection } from "$lib/remote/collections.remote";
+  import { createSourceCollection } from "$lib/remote/source-collections.remote";
   import { getSource } from "$lib/remote/sources.remote";
   import { SourceType } from "@contfu/core";
 
@@ -49,7 +49,7 @@
       </p>
     </div>
 
-    <form method="post" action={createCollection.action} class="space-y-5">
+    <form method="post" action={createSourceCollection.action} class="space-y-5">
       <input type="hidden" name="sourceId" value={source.id} />
 
       <div class="space-y-1.5">
@@ -61,9 +61,9 @@
           placeholder="My Collection"
           required
         />
-        {#if createCollection.fields?.name?.issues()?.length}
+        {#if createSourceCollection.fields?.name?.issues()?.length}
           <p class="text-sm text-destructive">
-            {createCollection.fields?.name?.issues()?.[0]?.message}
+            {createSourceCollection.fields?.name?.issues()?.[0]?.message}
           </p>
         {/if}
       </div>
@@ -100,9 +100,9 @@
             The Strapi content type API ID.
           </p>
         {/if}
-        {#if createCollection.fields?.ref?.issues()?.length}
+        {#if createSourceCollection.fields?.ref?.issues()?.length}
           <p class="text-sm text-destructive">
-            {createCollection.fields?.ref?.issues()?.[0]?.message}
+            {createSourceCollection.fields?.ref?.issues()?.[0]?.message}
           </p>
         {/if}
       </div>
@@ -126,8 +126,8 @@
       </div>
 
       <div class="flex gap-2 pt-2">
-        <Button type="submit" disabled={!!createCollection.pending}>
-          {createCollection.pending ? "Creating..." : "Create Collection"}
+        <Button type="submit" disabled={!!createSourceCollection.pending}>
+          {createSourceCollection.pending ? "Creating..." : "Create Collection"}
         </Button>
         <Button variant="outline" href="/sources/{id}">Cancel</Button>
       </div>

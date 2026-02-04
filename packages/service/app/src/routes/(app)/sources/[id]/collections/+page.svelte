@@ -2,7 +2,7 @@
   import { page } from "$app/state";
   import { goto } from "$app/navigation";
   import { getSource } from "$lib/remote/sources.remote";
-  import { getCollectionsBySource, deleteCollection } from "$lib/remote/collections.remote";
+  import { getSourceCollectionsBySource, deleteSourceCollection } from "$lib/remote/source-collections.remote";
   import { Button } from "$lib/components/ui/button";
   import * as Alert from "$lib/components/ui/alert";
 
@@ -14,7 +14,7 @@
 
   const id = Number.parseInt(page.params.id ?? "", 10);
   const source = Number.isNaN(id) ? null : await getSource({ id });
-  const collections = source ? await getCollectionsBySource({ sourceId: id }) : [];
+  const collections = source ? await getSourceCollectionsBySource({ sourceId: id }) : [];
 
   if (!source) {
     goto("/sources");
@@ -75,7 +75,7 @@
                 <td class="px-4 py-3 text-right">
                   <div class="flex items-center justify-end gap-2">
                     <a href="/sources/{id}/collections/{collection.id}" class="text-primary hover:underline">Edit</a>
-                    <form method="post" action={deleteCollection.action} class="inline">
+                    <form method="post" action={deleteSourceCollection.action} class="inline">
                       <input type="hidden" name="id" value={collection.id} />
                       <button
                         type="submit"

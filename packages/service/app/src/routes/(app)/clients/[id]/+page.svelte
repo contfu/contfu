@@ -12,7 +12,7 @@
     addConnection,
     removeConnection,
   } from "$lib/remote/connections.remote";
-  import { getAggregationCollections } from "$lib/remote/collections.remote";
+  import { getCollections } from "$lib/remote/collections.remote";
   import { Button } from "$lib/components/ui/button";
   import { Input } from "$lib/components/ui/input";
   import { Label } from "$lib/components/ui/label";
@@ -26,7 +26,7 @@
   }
 
   const connections = client ? await getConnectionsByConsumer({ consumerId: id }) : [];
-  const allCollections = client ? await getAggregationCollections() : [];
+  const allCollections = client ? await getCollections() : [];
 
   const connectedCollectionIds = new Set(connections.map((c) => c.collectionId));
   const availableCollections = allCollections.filter((c) => !connectedCollectionIds.has(c.id));
