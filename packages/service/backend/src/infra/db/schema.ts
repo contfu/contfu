@@ -144,6 +144,11 @@ export const sourceTable = sqliteTable(
     type: integer().notNull(),
     /** Webhook secret for validating incoming webhooks (optional). */
     webhookSecret: blob({ mode: "buffer" }),
+    /**
+     * Whether to include a ref field in Items linking back to the upstream SourceItem.
+     * Default false (privacy-first). Can be overridden per SourceCollection→Collection link.
+     */
+    includeRef: integer({ mode: "boolean" }).notNull().default(false),
     /** The date the source was created. */
     createdAt: integer()
       .default(sql`(unixepoch())`)
@@ -241,6 +246,11 @@ export const collectionMappingTable = sqliteTable(
      * Empty/null means no filtering (all items pass through).
      */
     filters: text(),
+    /**
+     * Override Source.includeRef for this specific link.
+     * null = use Source default, true/false = override.
+     */
+    includeRef: integer({ mode: "boolean" }),
     /** The date the mapping was created. */
     createdAt: integer()
       .default(sql`(unixepoch())`)

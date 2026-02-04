@@ -1,7 +1,7 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "d7104f50-1813-46a7-baf2-1c645112f3df",
+  "id": "a5e9c7ed-777c-476c-a39e-360a80296dc9",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
@@ -225,6 +225,16 @@
       "default": null,
       "generated": null,
       "name": "filters",
+      "entityType": "columns",
+      "table": "collection_mapping"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "includeRef",
       "entityType": "columns",
       "table": "collection_mapping"
     },
@@ -795,6 +805,16 @@
       "default": null,
       "generated": null,
       "name": "webhookSecret",
+      "entityType": "columns",
+      "table": "source"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "false",
+      "generated": null,
+      "name": "includeRef",
       "entityType": "columns",
       "table": "source"
     },
