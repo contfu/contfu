@@ -1,5 +1,10 @@
 import { db } from "../../infra/db/db";
-import { sourceCollectionTable, type SourceCollection } from "../../infra/db/schema";
+import {
+  sourceCollectionTable,
+  collectionTable,
+  collectionMappingTable,
+  type SourceCollection,
+} from "../../infra/db/schema";
 import { eq, sql } from "drizzle-orm";
 import type { BackendCollection, CreateCollectionInput } from "../../domain/types";
 
@@ -24,9 +29,15 @@ function mapToBackendCollection(collection: SourceCollection): BackendCollection
 }
 
 /**
- * Create a new collection for a user.
+ * Create a new source collection for a user.
  * The ID is auto-generated as max(id) + 1 within the user's collections.
  * Uses a transaction to prevent race conditions in ID generation.
+ *
+ * TODO: Refactor to correct architecture where:
+ * 1. Users create Collections (aggregation targets) first
+ * 2. Source collections are discovered from source API (transient)
+ * 3. Source collections are persisted only when linked to a Collection
+ * Currently we auto-create a Collection when a SourceCollection is created (backwards).
  */
 export async function createCollection(
   userId: number,
@@ -34,19 +45,21 @@ export async function createCollection(
 ): Promise<BackendCollection> {
   // Use transaction to atomically generate ID and insert
   const inserted = await db.transaction(async (tx) => {
-    const maxIdResult = await tx
+    // Get next ID for source collection
+    const maxSourceIdResult = await tx
       .select({ maxId: sql<number>`coalesce(max(id), 0)` })
       .from(sourceCollectionTable)
       .where(eq(sourceCollectionTable.userId, userId))
       .limit(1);
 
-    const nextId = (maxIdResult[0]?.maxId ?? 0) + 1;
+    const nextSourceId = (maxSourceIdResult[0]?.maxId ?? 0) + 1;
 
-    const [result] = await tx
+    // Create the source collection
+    const [sourceCollection] = await tx
       .insert(sourceCollectionTable)
       .values({
         userId,
-        id: nextId,
+        id: nextSourceId,
         sourceId: input.sourceId,
         name: input.name,
         ref: input.ref ?? null,
@@ -54,7 +67,31 @@ export async function createCollection(
       })
       .returning();
 
-    return result;
+    // Get next ID for collection (aggregation target)
+    const maxCollectionIdResult = await tx
+      .select({ maxId: sql<number>`coalesce(max(id), 0)` })
+      .from(collectionTable)
+      .where(eq(collectionTable.userId, userId))
+      .limit(1);
+
+    const nextCollectionId = (maxCollectionIdResult[0]?.maxId ?? 0) + 1;
+
+    // Create a corresponding collection (aggregation target)
+    await tx.insert(collectionTable).values({
+      userId,
+      id: nextCollectionId,
+      name: input.name,
+    });
+
+    // Create mapping from source collection to collection (no filters)
+    await tx.insert(collectionMappingTable).values({
+      userId,
+      collectionId: nextCollectionId,
+      sourceCollectionId: nextSourceId,
+      filters: null,
+    });
+
+    return sourceCollection;
   });
 
   return mapToBackendCollection(inserted);

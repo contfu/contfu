@@ -193,6 +193,76 @@ export const sourceCollectionTable = sqliteTable(
 
 export type SourceCollection = typeof sourceCollectionTable.$inferSelect;
 
+/**
+ * A collection is an aggregation target that consumers subscribe to.
+ * It can receive items from multiple source collections via mappings.
+ */
+export const collectionTable = sqliteTable(
+  "collection",
+  {
+    /** The user which owns the collection. */
+    userId: integer()
+      .references(() => userTable.id, { onDelete: "cascade" })
+      .notNull(),
+    /** The id which is unique within the user. */
+    id: integer().notNull(),
+    /** The name of the collection (displayed to users). */
+    name: text().notNull(),
+    /** The date the collection was created. */
+    createdAt: integer()
+      .default(sql`(unixepoch())`)
+      .notNull(),
+    /** The date the collection was last updated. */
+    updatedAt: integer(),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.id] })],
+);
+
+export type Collection = typeof collectionTable.$inferSelect;
+
+/**
+ * Maps a source collection to a collection with optional filters.
+ * Multiple source collections can map to the same collection (aggregation).
+ */
+export const collectionMappingTable = sqliteTable(
+  "collection_mapping",
+  {
+    /** The user which owns both collections. */
+    userId: integer()
+      .references(() => userTable.id, { onDelete: "cascade" })
+      .notNull(),
+    /** The target collection receiving items. */
+    collectionId: integer().notNull(),
+    /** The source collection providing items. */
+    sourceCollectionId: integer().notNull(),
+    /**
+     * JSON array of filters to apply to items from this source.
+     * Format: [{property: string, operator: string, value?: unknown}]
+     * Empty/null means no filtering (all items pass through).
+     */
+    filters: text(),
+    /** The date the mapping was created. */
+    createdAt: integer()
+      .default(sql`(unixepoch())`)
+      .notNull(),
+  },
+  (table) => [
+    primaryKey({
+      columns: [table.userId, table.collectionId, table.sourceCollectionId],
+    }),
+    foreignKey({
+      columns: [table.userId, table.collectionId],
+      foreignColumns: [collectionTable.userId, collectionTable.id],
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.userId, table.sourceCollectionId],
+      foreignColumns: [sourceCollectionTable.userId, sourceCollectionTable.id],
+    }).onDelete("cascade"),
+  ],
+);
+
+export type CollectionMapping = typeof collectionMappingTable.$inferSelect;
+
 /** The connection of the consumer to the collection. */
 export const connectionTable = sqliteTable(
   "connection",
@@ -220,7 +290,7 @@ export const connectionTable = sqliteTable(
     }).onDelete("cascade"),
     foreignKey({
       columns: [table.userId, table.collectionId],
-      foreignColumns: [sourceCollectionTable.userId, sourceCollectionTable.id],
+      foreignColumns: [collectionTable.userId, collectionTable.id],
     }).onDelete("cascade"),
   ],
 );
@@ -235,7 +305,7 @@ export const itemIdConflictResolutionTable = sqliteTable(
       .references(() => userTable.id, { onDelete: "cascade" })
       .notNull(),
     /** The source collection which the id mapping is connected to. */
-    collectionId: integer().notNull(),
+    sourceCollectionId: integer().notNull(),
     /** The id which is unique within the source collection. */
     sourceItemId: blob({ mode: "buffer" }).notNull(),
     /** The 4 byte id which is unique within the source collection. */
@@ -243,10 +313,10 @@ export const itemIdConflictResolutionTable = sqliteTable(
   },
   (table) => [
     primaryKey({
-      columns: [table.userId, table.collectionId, table.sourceItemId],
+      columns: [table.userId, table.sourceCollectionId, table.sourceItemId],
     }),
     foreignKey({
-      columns: [table.userId, table.collectionId],
+      columns: [table.userId, table.sourceCollectionId],
       foreignColumns: [sourceCollectionTable.userId, sourceCollectionTable.id],
     }).onDelete("cascade"),
   ],

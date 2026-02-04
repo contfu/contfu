@@ -15,6 +15,28 @@ CREATE TABLE `account` (
 	CONSTRAINT `fk_account_userId_user_id_fk` FOREIGN KEY (`userId`) REFERENCES `user`(`id`) ON DELETE CASCADE
 );
 --> statement-breakpoint
+CREATE TABLE `collection_mapping` (
+	`userId` integer NOT NULL,
+	`collectionId` integer NOT NULL,
+	`sourceCollectionId` integer NOT NULL,
+	`filters` text,
+	`createdAt` integer DEFAULT (unixepoch()) NOT NULL,
+	CONSTRAINT `collection_mapping_pk` PRIMARY KEY(`userId`, `collectionId`, `sourceCollectionId`),
+	CONSTRAINT `fk_collection_mapping_userId_user_id_fk` FOREIGN KEY (`userId`) REFERENCES `user`(`id`) ON DELETE CASCADE,
+	CONSTRAINT `fk_collection_mapping_userId_collectionId_collection_userId_id_fk` FOREIGN KEY (`userId`,`collectionId`) REFERENCES `collection`(`userId`,`id`) ON DELETE CASCADE,
+	CONSTRAINT `fk_collection_mapping_userId_sourceCollectionId_source_collection_userId_id_fk` FOREIGN KEY (`userId`,`sourceCollectionId`) REFERENCES `source_collection`(`userId`,`id`) ON DELETE CASCADE
+);
+--> statement-breakpoint
+CREATE TABLE `collection` (
+	`userId` integer NOT NULL,
+	`id` integer NOT NULL,
+	`name` text NOT NULL,
+	`createdAt` integer DEFAULT (unixepoch()) NOT NULL,
+	`updatedAt` integer,
+	CONSTRAINT `collection_pk` PRIMARY KEY(`userId`, `id`),
+	CONSTRAINT `fk_collection_userId_user_id_fk` FOREIGN KEY (`userId`) REFERENCES `user`(`id`) ON DELETE CASCADE
+);
+--> statement-breakpoint
 CREATE TABLE `connection` (
 	`userId` integer NOT NULL,
 	`consumerId` integer NOT NULL,
@@ -24,7 +46,7 @@ CREATE TABLE `connection` (
 	CONSTRAINT `connection_pk` PRIMARY KEY(`userId`, `consumerId`, `collectionId`),
 	CONSTRAINT `fk_connection_userId_user_id_fk` FOREIGN KEY (`userId`) REFERENCES `user`(`id`) ON DELETE CASCADE,
 	CONSTRAINT `fk_connection_userId_consumerId_consumer_userId_id_fk` FOREIGN KEY (`userId`,`consumerId`) REFERENCES `consumer`(`userId`,`id`) ON DELETE CASCADE,
-	CONSTRAINT `fk_connection_userId_collectionId_source_collection_userId_id_fk` FOREIGN KEY (`userId`,`collectionId`) REFERENCES `source_collection`(`userId`,`id`) ON DELETE CASCADE
+	CONSTRAINT `fk_connection_userId_collectionId_collection_userId_id_fk` FOREIGN KEY (`userId`,`collectionId`) REFERENCES `collection`(`userId`,`id`) ON DELETE CASCADE
 );
 --> statement-breakpoint
 CREATE TABLE `consumer` (
@@ -39,12 +61,12 @@ CREATE TABLE `consumer` (
 --> statement-breakpoint
 CREATE TABLE `item_id_conflict_resolution` (
 	`userId` integer NOT NULL,
-	`collectionId` integer NOT NULL,
+	`sourceCollectionId` integer NOT NULL,
 	`sourceItemId` blob NOT NULL,
 	`id` integer NOT NULL,
-	CONSTRAINT `item_id_conflict_resolution_pk` PRIMARY KEY(`userId`, `collectionId`, `sourceItemId`),
+	CONSTRAINT `item_id_conflict_resolution_pk` PRIMARY KEY(`userId`, `sourceCollectionId`, `sourceItemId`),
 	CONSTRAINT `fk_item_id_conflict_resolution_userId_user_id_fk` FOREIGN KEY (`userId`) REFERENCES `user`(`id`) ON DELETE CASCADE,
-	CONSTRAINT `fk_item_id_conflict_resolution_userId_collectionId_source_collection_userId_id_fk` FOREIGN KEY (`userId`,`collectionId`) REFERENCES `source_collection`(`userId`,`id`) ON DELETE CASCADE
+	CONSTRAINT `fk_item_id_conflict_resolution_userId_sourceCollectionId_source_collection_userId_id_fk` FOREIGN KEY (`userId`,`sourceCollectionId`) REFERENCES `source_collection`(`userId`,`id`) ON DELETE CASCADE
 );
 --> statement-breakpoint
 CREATE TABLE `quota` (

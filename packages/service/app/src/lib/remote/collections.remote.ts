@@ -2,6 +2,10 @@ import { form, query } from "$app/server";
 import { getUserId } from "$lib/server/user";
 import { createCollection as createCollectionFeature } from "@contfu/svc-backend/features/collections/createCollection";
 import { listCollections } from "@contfu/svc-backend/features/collections/listCollections";
+import {
+  listAggregationCollections,
+  type AggregationCollection,
+} from "@contfu/svc-backend/features/collections/listAggregationCollections";
 import { listCollectionSummariesBySource } from "@contfu/svc-backend/features/collections/listCollectionSummariesBySource";
 import { getCollection as getCollectionFeature } from "@contfu/svc-backend/features/collections/getCollection";
 import { getCollectionWithConnectionCount } from "@contfu/svc-backend/features/collections/getCollectionWithConnectionCount";
@@ -15,11 +19,20 @@ import { invalid, redirect } from "@sveltejs/kit";
 import * as v from "valibot";
 
 /**
- * Get all collections for the current user.
+ * Get all source collections for the current user (legacy).
  */
 export const getCollections = query(async (): Promise<BackendCollectionWithConnectionCount[]> => {
   const userId = getUserId();
   return listCollections(userId);
+});
+
+/**
+ * Get all aggregation collections for the current user.
+ * These are the collections that consumers can subscribe to.
+ */
+export const getAggregationCollections = query(async (): Promise<AggregationCollection[]> => {
+  const userId = getUserId();
+  return listAggregationCollections(userId);
 });
 
 /**
