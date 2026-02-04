@@ -5,10 +5,11 @@ import {
   connectionTable,
   sourceTable,
   webhookLogTable,
+  collectionMappingTable,
 } from "@contfu/svc-backend/infra/db/schema";
 import { getSSEServer } from "$lib/server/startup";
 import { genUid } from "@contfu/svc-backend/infra/util/ids/ids";
-import { SourceType, type UserSyncItem } from "@contfu/core";
+import { SourceType, matchesFilters, type Filter, type UserSyncItem } from "@contfu/core";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import crypto from "node:crypto";
 import type { RequestHandler } from "./$types";
@@ -105,12 +106,27 @@ function validateSignature(body: string, headers: Headers, secret: string | null
 }
 
 /**
+ * Extract props from Strapi entry (excluding reserved fields).
+ */
+function extractProps(entry: StrapiWebhookPayload["entry"]): Record<string, unknown> {
+  const reserved = new Set(["id", "documentId", "createdAt", "updatedAt", "publishedAt"]);
+  const props: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(entry)) {
+    if (!reserved.has(key) && value != null) {
+      props[key] = value;
+    }
+  }
+  return props;
+}
+
+/**
  * Convert Strapi entry to UserSyncItem for SSE broadcast.
  */
 function entryToItem(
   entry: StrapiWebhookPayload["entry"],
   collectionId: number,
   userId: number,
+  props: Record<string, unknown>,
 ): UserSyncItem {
   const documentId = entry.documentId ?? String(entry.id);
   const ref = Buffer.from(documentId, "utf8");
@@ -124,15 +140,6 @@ function entryToItem(
     throw new Error(
       `Invalid timestamp in entry: createdAt=${entry.createdAt}, updatedAt=${entry.updatedAt}`,
     );
-  }
-
-  // Extract props (excluding reserved fields)
-  const reserved = new Set(["id", "documentId", "createdAt", "updatedAt", "publishedAt"]);
-  const props: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(entry)) {
-    if (!reserved.has(key) && value != null) {
-      props[key] = value;
-    }
   }
 
   return {
@@ -195,6 +202,9 @@ export const POST: RequestHandler = async ({ request, params }) => {
   const sseServer = getSSEServer();
   let _totalItemsBroadcast = 0;
 
+  // Extract props once for filter evaluation
+  const props = extractProps(payload.entry);
+
   for (const source of sources) {
     // Validate signature if configured
     if (source.webhookSecret) {
@@ -234,11 +244,11 @@ export const POST: RequestHandler = async ({ request, params }) => {
       }
     }
 
-    // Find collections matching this content type
+    // Find source collections matching this content type
     const contentTypeUid = payload.uid || `api::${payload.model}.${payload.model}`;
     const refBuffer = Buffer.from(contentTypeUid, "utf8");
 
-    const collections = await db
+    const sourceCollections = await db
       .select({ id: sourceCollectionTable.id })
       .from(sourceCollectionTable)
       .where(
@@ -249,9 +259,9 @@ export const POST: RequestHandler = async ({ request, params }) => {
         ),
       );
 
-    if (collections.length === 0) {
+    if (sourceCollections.length === 0) {
       console.log(
-        `[Strapi webhook] No collections found for content type "${contentTypeUid}" in source ${source.userId}:${source.id}`,
+        `[Strapi webhook] No source collections found for content type "${contentTypeUid}" in source ${source.userId}:${source.id}`,
       );
       await logWebhookEvent(
         source.userId,
@@ -259,15 +269,79 @@ export const POST: RequestHandler = async ({ request, params }) => {
         eventType,
         payload.model,
         "success",
-        `No collections for content type ${contentTypeUid}`,
+        `No source collections for content type ${contentTypeUid}`,
         0,
       );
       continue;
     }
 
-    const collectionIds = collections.map((c) => c.id);
+    const sourceCollectionIds = sourceCollections.map((c) => c.id);
 
-    // Find connected consumers for these collections
+    // Get collection mappings with filters for these source collections
+    const mappings = await db
+      .select({
+        sourceCollectionId: collectionMappingTable.sourceCollectionId,
+        collectionId: collectionMappingTable.collectionId,
+        filters: collectionMappingTable.filters,
+      })
+      .from(collectionMappingTable)
+      .where(
+        and(
+          eq(collectionMappingTable.userId, source.userId),
+          inArray(collectionMappingTable.sourceCollectionId, sourceCollectionIds),
+        ),
+      );
+
+    if (mappings.length === 0) {
+      console.log(`[Strapi webhook] No collection mappings for source collections`);
+      await logWebhookEvent(
+        source.userId,
+        source.id,
+        eventType,
+        payload.model,
+        "success",
+        "No collection mappings",
+        0,
+      );
+      continue;
+    }
+
+    // Get unique target collection IDs that pass filters
+    const targetCollectionIds: number[] = [];
+    let filteredOutCount = 0;
+
+    for (const mapping of mappings) {
+      // Parse and apply filters
+      const filters: Filter[] = mapping.filters ? JSON.parse(mapping.filters) : [];
+      
+      if (filters.length > 0) {
+        if (!matchesFilters(props, filters)) {
+          filteredOutCount++;
+          console.log(
+            `[Strapi webhook] Entry filtered out for collection ${mapping.collectionId} (${filters.length} filters)`,
+          );
+          continue;
+        }
+      }
+      
+      targetCollectionIds.push(mapping.collectionId);
+    }
+
+    if (targetCollectionIds.length === 0) {
+      console.log(`[Strapi webhook] All items filtered out (${filteredOutCount} mappings)`);
+      await logWebhookEvent(
+        source.userId,
+        source.id,
+        eventType,
+        payload.model,
+        "success",
+        `All items filtered out (${filteredOutCount} mappings)`,
+        0,
+      );
+      continue;
+    }
+
+    // Find connected consumers for the target collections
     const connections = await db
       .select({
         consumerId: connectionTable.consumerId,
@@ -278,12 +352,12 @@ export const POST: RequestHandler = async ({ request, params }) => {
       .where(
         and(
           eq(connectionTable.userId, source.userId),
-          inArray(connectionTable.collectionId, collectionIds),
+          inArray(connectionTable.collectionId, targetCollectionIds),
         ),
       );
 
     if (connections.length === 0) {
-      console.log(`[Strapi webhook] No consumer connections for collections`);
+      console.log(`[Strapi webhook] No consumer connections for target collections`);
       await logWebhookEvent(
         source.userId,
         source.id,
@@ -296,14 +370,14 @@ export const POST: RequestHandler = async ({ request, params }) => {
       continue;
     }
 
-    // Convert entry to items (one per collection) and broadcast
+    // Convert entry to items (one per target collection) and broadcast
     let itemsBroadcast = 0;
-    for (const collection of collections) {
-      const item = entryToItem(payload.entry, collection.id, source.userId);
+    for (const collectionId of targetCollectionIds) {
+      const item = entryToItem(payload.entry, collectionId, source.userId, props);
 
       // Build connection info for this collection
       const collectionConnections = connections
-        .filter((c) => c.collectionId === collection.id)
+        .filter((c) => c.collectionId === collectionId)
         .map((c) => ({
           userId: source.userId,
           consumerId: c.consumerId,
@@ -312,7 +386,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
         }));
 
       if (collectionConnections.length > 0) {
-        console.log(`[Strapi webhook] Broadcasting to ${collectionConnections.length} consumer(s)`);
+        console.log(`[Strapi webhook] Broadcasting to ${collectionConnections.length} consumer(s) for collection ${collectionId}`);
         sseServer.broadcast([item], collectionConnections);
         itemsBroadcast += collectionConnections.length;
       }
@@ -321,13 +395,16 @@ export const POST: RequestHandler = async ({ request, params }) => {
     _totalItemsBroadcast += itemsBroadcast;
 
     // Log successful webhook processing
+    const logMessage = filteredOutCount > 0 
+      ? `${filteredOutCount} items filtered out`
+      : undefined;
     await logWebhookEvent(
       source.userId,
       source.id,
       eventType,
       payload.model,
       "success",
-      undefined,
+      logMessage,
       itemsBroadcast,
     );
 

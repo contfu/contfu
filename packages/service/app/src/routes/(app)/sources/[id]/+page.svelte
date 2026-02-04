@@ -344,47 +344,38 @@
       </section>
     {/if}
 
-    <!-- Collections section -->
+    <!-- Source Collections section -->
     <section class="mb-8">
       <div class="mb-3 flex items-center justify-between">
-        <h2 class="text-sm font-medium uppercase tracking-wide text-muted-foreground">Collections</h2>
-        <Button size="sm" href="/sources/{id}/collections/new">Add Collection</Button>
+        <h2 class="text-sm font-medium uppercase tracking-wide text-muted-foreground">Source Collections</h2>
+        <Button size="sm" variant="outline" href="/sources/{id}/collections">View All</Button>
       </div>
 
       {#if collections.length === 0}
         <div class="rounded-lg border border-dashed border-border p-8 text-center">
-          <p class="text-sm text-muted-foreground">No collections configured</p>
-          <Button variant="link" href="/sources/{id}/collections/new" class="mt-2">Add your first collection →</Button>
+          <p class="text-sm text-muted-foreground">No source collections discovered yet</p>
+          <p class="text-xs text-muted-foreground mt-1">Source collections are auto-discovered when syncing.</p>
         </div>
       {:else}
         <div class="overflow-hidden rounded-lg border border-border">
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="border-b border-border bg-muted/50">
-                <th class="px-4 py-2.5 text-left font-medium text-muted-foreground">Name</th>
-                <th class="px-4 py-2.5 text-right font-medium text-muted-foreground">Clients</th>
-                <th class="px-4 py-2.5 text-right font-medium text-muted-foreground"></th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-border">
-              {#each collections as collection}
-                <tr class="hover:bg-muted/30">
-                  <td class="px-4 py-3">
-                    <a href="/sources/{id}/collections/{collection.id}" class="font-medium hover:underline">
-                      {collection.name || "Unnamed"}
-                    </a>
-                  </td>
-                  <td class="px-4 py-3 text-right font-mono text-muted-foreground">
-                    {collection.connectionCount}
-                  </td>
-                  <td class="px-4 py-3 text-right">
-                    <a href="/sources/{id}/collections/{collection.id}" class="text-primary hover:underline">Edit</a>
-                  </td>
-                </tr>
-              {/each}
-            </tbody>
-          </table>
+          <ul class="divide-y divide-border">
+            {#each collections.slice(0, 5) as collection}
+              <li class="px-4 py-3 text-sm font-medium">
+                {collection.name || "Unnamed"}
+              </li>
+            {/each}
+          </ul>
+          {#if collections.length > 5}
+            <div class="border-t border-border px-4 py-2 text-center">
+              <a href="/sources/{id}/collections" class="text-sm text-primary hover:underline">
+                View all {collections.length} source collections →
+              </a>
+            </div>
+          {/if}
         </div>
+        <p class="mt-3 text-sm text-muted-foreground">
+          Use these in your <a href="/collections" class="text-primary hover:underline">Collections</a> to aggregate content.
+        </p>
       {/if}
     </section>
 

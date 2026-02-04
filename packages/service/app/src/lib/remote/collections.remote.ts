@@ -13,7 +13,11 @@ import {
   type SourceCollectionMappingWithDetails,
 } from "@contfu/svc-backend/features/collections/listSourceCollectionMappings";
 import { addSourceCollectionMapping } from "@contfu/svc-backend/features/collections/addSourceCollectionMapping";
+import { createCollection as createSourceCollectionFeature } from "@contfu/svc-backend/features/source-collections/createCollection";
 import { removeSourceCollectionMapping } from "@contfu/svc-backend/features/collections/removeSourceCollectionMapping";
+import { updateSourceCollectionMapping as updateSourceCollectionMappingFeature } from "@contfu/svc-backend/features/collections/updateSourceCollectionMapping";
+import { getCollectionSchema } from "@contfu/svc-backend/features/source-collections/getCollectionSchema";
+import type { Filter, CollectionSchema } from "@contfu/core";
 import { redirect, invalid } from "@sveltejs/kit";
 import * as v from "valibot";
 
@@ -40,14 +44,38 @@ export const getCollection = query(
 
 /**
  * Create a new Collection.
+ * Optionally create a SourceCollection and link it in one step.
  */
 export const createCollection = form(
   v.object({
     name: v.pipe(v.string(), v.nonEmpty("Name is required")),
+    // Optional: create and link a SourceCollection in one step
+    sourceId: v.optional(
+      v.pipe(
+        v.union([v.string(), v.number()]),
+        v.transform((val) => (typeof val === "string" ? Number.parseInt(val, 10) : val)),
+        v.number(),
+      ),
+    ),
+    ref: v.optional(v.string()), // Content type UID, e.g., "api::article.article"
   }),
   async (data) => {
     const userId = getUserId();
     const collection = await createCollectionFeature(userId, { name: data.name });
+
+    // If sourceId + ref provided, create SourceCollection and link it
+    if (data.sourceId && data.ref) {
+      const sourceCollection = await createSourceCollectionFeature(userId, {
+        name: data.name, // Use collection name for the source collection too
+        sourceId: data.sourceId,
+        ref: Buffer.from(data.ref, "utf-8"),
+      });
+      await addSourceCollectionMapping(userId, {
+        collectionId: collection.id,
+        sourceCollectionId: sourceCollection.id,
+      });
+    }
+
     throw redirect(302, `/collections/${collection.id}`);
   },
 );
@@ -149,6 +177,56 @@ export const removeSourceCollection = form(
   async (data) => {
     const userId = getUserId();
     await removeSourceCollectionMapping(userId, data.collectionId, data.sourceCollectionId);
+    return { success: true };
+  },
+);
+
+/**
+ * Get the schema for a source collection.
+ */
+export const getSourceCollectionSchemaQuery = query(
+  v.object({ sourceCollectionId: v.number() }),
+  async ({ sourceCollectionId }): Promise<CollectionSchema | null> => {
+    const userId = getUserId();
+    return getCollectionSchema(userId, sourceCollectionId);
+  },
+);
+
+/**
+ * Update filters on a source collection mapping.
+ */
+export const updateSourceCollectionMapping = form(
+  v.object({
+    collectionId: v.pipe(
+      v.union([v.string(), v.number()]),
+      v.transform((val) => (typeof val === "string" ? Number.parseInt(val, 10) : val)),
+      v.number(),
+    ),
+    sourceCollectionId: v.pipe(
+      v.union([v.string(), v.number()]),
+      v.transform((val) => (typeof val === "string" ? Number.parseInt(val, 10) : val)),
+      v.number(),
+    ),
+    filters: v.optional(v.string()), // JSON string of Filter[]
+  }),
+  async (data, issue) => {
+    const userId = getUserId();
+    let filters: Filter[] | null = null;
+    if (data.filters) {
+      try {
+        filters = JSON.parse(data.filters) as Filter[];
+      } catch {
+        throw invalid(issue.filters("Invalid filters JSON"));
+      }
+    }
+    const updated = await updateSourceCollectionMappingFeature(userId, {
+      collectionId: data.collectionId,
+      sourceCollectionId: data.sourceCollectionId,
+      filters,
+    });
+    if (!updated) {
+      throw invalid(issue.sourceCollectionId("Mapping not found"));
+    }
     return { success: true };
   },
 );

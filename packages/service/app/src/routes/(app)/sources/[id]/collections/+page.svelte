@@ -27,25 +27,22 @@
       <a href="/sources/{id}" class="text-sm text-muted-foreground hover:text-foreground">← {source.name || "Source"}</a>
     </div>
 
-    <div class="mb-6 flex items-center justify-between">
-      <div>
-        <div class="flex items-center gap-3">
-          <h1 class="text-2xl font-semibold tracking-tight">Collections</h1>
-          <span class="rounded-md bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
-            {SOURCE_TYPE_LABELS[source.type] ?? "Unknown"}
-          </span>
-        </div>
-        <p class="mt-1 text-sm text-muted-foreground">
-          {source.name || "Source"} · {collections.length} collection{collections.length !== 1 ? "s" : ""}
-        </p>
+    <div class="mb-6">
+      <div class="flex items-center gap-3">
+        <h1 class="text-2xl font-semibold tracking-tight">Source Collections</h1>
+        <span class="rounded-md bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
+          {SOURCE_TYPE_LABELS[source.type] ?? "Unknown"}
+        </span>
       </div>
-      <Button href="/sources/{id}/collections/new">Add Collection</Button>
+      <p class="mt-1 text-sm text-muted-foreground">
+        Available data from {source.name || "this source"}. Use these in your Collections.
+      </p>
     </div>
 
     {#if collections.length === 0}
       <div class="rounded-lg border border-dashed border-border p-12 text-center">
-        <p class="text-muted-foreground">No collections configured</p>
-        <Button variant="link" href="/sources/{id}/collections/new" class="mt-2">Add your first collection →</Button>
+        <p class="text-muted-foreground">No source collections discovered yet.</p>
+        <p class="mt-2 text-sm text-muted-foreground">Source collections are automatically discovered when syncing with the upstream source.</p>
       </div>
     {:else}
       <div class="overflow-hidden rounded-lg border border-border">
@@ -53,49 +50,44 @@
           <thead>
             <tr class="border-b border-border bg-muted/50">
               <th class="px-4 py-3 text-left font-medium text-muted-foreground">Name</th>
-              <th class="px-4 py-3 text-right font-medium text-muted-foreground">Clients</th>
-              <th class="hidden px-4 py-3 text-left font-medium text-muted-foreground sm:table-cell">Created</th>
+              <th class="hidden px-4 py-3 text-left font-medium text-muted-foreground sm:table-cell">Discovered</th>
               <th class="px-4 py-3 text-right font-medium text-muted-foreground"></th>
             </tr>
           </thead>
           <tbody class="divide-y divide-border">
             {#each collections as collection}
-              <tr class="hover:bg-muted/30">
-                <td class="px-4 py-3">
-                  <a href="/sources/{id}/collections/{collection.id}" class="font-medium hover:underline">
-                    {collection.name || "Unnamed Collection"}
-                  </a>
-                </td>
-                <td class="px-4 py-3 text-right font-mono">
-                  {collection.connectionCount}
+              <tr>
+                <td class="px-4 py-3 font-medium">
+                  {collection.name || "Unnamed"}
                 </td>
                 <td class="hidden px-4 py-3 text-muted-foreground sm:table-cell">
                   {new Date(collection.createdAt * 1000).toLocaleDateString()}
                 </td>
                 <td class="px-4 py-3 text-right">
-                  <div class="flex items-center justify-end gap-2">
-                    <a href="/sources/{id}/collections/{collection.id}" class="text-primary hover:underline">Edit</a>
-                    <form method="post" action={deleteSourceCollection.action} class="inline">
-                      <input type="hidden" name="id" value={collection.id} />
-                      <button
-                        type="submit"
-                        class="text-destructive hover:underline"
-                        onclick={(e: MouseEvent) => {
-                          if (!confirm("Delete this collection?")) {
-                            e.preventDefault();
-                          }
-                        }}
-                      >
-                        Delete
-                      </button>
-                    </form>
-                  </div>
+                  <form method="post" action={deleteSourceCollection.action} class="inline">
+                    <input type="hidden" name="id" value={collection.id} />
+                    <button
+                      type="submit"
+                      class="text-destructive hover:underline"
+                      onclick={(e: MouseEvent) => {
+                        if (!confirm("Remove this source collection?")) {
+                          e.preventDefault();
+                        }
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </form>
                 </td>
               </tr>
             {/each}
           </tbody>
         </table>
       </div>
+
+      <p class="mt-4 text-sm text-muted-foreground">
+        To use these in your app, <a href="/collections" class="text-primary hover:underline">create a Collection</a> and link these source collections to it.
+      </p>
     {/if}
   </div>
 {:else}

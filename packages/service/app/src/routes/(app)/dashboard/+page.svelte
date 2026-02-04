@@ -115,6 +115,59 @@
 		{/if}
 	</section>
 
+	<!-- Collections section -->
+	<section class="mb-8">
+		<div class="mb-3 flex items-center justify-between">
+			<h2 class="text-sm font-medium uppercase tracking-wide text-muted-foreground">Collections</h2>
+			<Button size="sm" href="/collections/new">New Collection</Button>
+		</div>
+
+		{#if collections.length === 0}
+			<div class="rounded-lg border border-dashed border-border p-8 text-center">
+				<p class="text-sm text-muted-foreground">No collections yet</p>
+				<Button variant="link" href="/collections/new" class="mt-2">Create your first collection →</Button>
+			</div>
+		{:else}
+			<div class="overflow-hidden rounded-lg border border-border">
+				<table class="w-full text-sm">
+					<thead>
+						<tr class="border-b border-border bg-muted/50">
+							<th class="px-4 py-2.5 text-left font-medium text-muted-foreground">Name</th>
+							<th class="px-4 py-2.5 text-right font-medium text-muted-foreground">Sources</th>
+							<th class="px-4 py-2.5 text-right font-medium text-muted-foreground">Clients</th>
+							<th class="px-4 py-2.5 text-right font-medium text-muted-foreground"></th>
+						</tr>
+					</thead>
+					<tbody class="divide-y divide-border">
+						{#each collections.slice(0, 5) as collection}
+							<tr class="hover:bg-muted/30">
+								<td class="px-4 py-3">
+									<a href="/collections/{collection.id}" class="font-medium hover:underline">
+										{collection.name || "Unnamed"}
+									</a>
+								</td>
+								<td class="px-4 py-3 text-right font-mono text-muted-foreground">
+									{collection.sourceCollectionCount}
+								</td>
+								<td class="px-4 py-3 text-right font-mono text-muted-foreground">
+									{collection.connectionCount}
+								</td>
+								<td class="px-4 py-3 text-right">
+									<a href="/collections/{collection.id}" class="text-primary hover:underline">Edit</a>
+								</td>
+							</tr>
+						{/each}
+					</tbody>
+				</table>
+			</div>
+			{#if collections.length > 5}
+				<div class="mt-2">
+					<Button variant="link" href="/collections" class="h-auto p-0 text-sm">View all {collections.length} collections →</Button>
+				</div>
+			{/if}
+		{/if}
+	</section>
+
 	<!-- Clients section -->
 	<section>
 		<div class="mb-3 flex items-center justify-between">

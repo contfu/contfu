@@ -1,8 +1,13 @@
 <script lang="ts">
+  import { page } from "$app/state";
   import { createCollection } from "$lib/remote/collections.remote";
   import { Button } from "$lib/components/ui/button";
   import { Input } from "$lib/components/ui/input";
   import { Label } from "$lib/components/ui/label";
+
+  // Optional query params for implicit SourceCollection creation (used by E2E tests)
+  const sourceId = page.url.searchParams.get("sourceId") ?? "";
+  const ref = page.url.searchParams.get("ref") ?? "";
 </script>
 
 <div class="mx-auto max-w-xl px-4 py-8 sm:px-6">
@@ -36,6 +41,14 @@
         </p>
       {/if}
     </div>
+
+    <!-- Hidden fields for implicit SourceCollection creation (populated via URL params) -->
+    {#if sourceId}
+      <input type="hidden" name="sourceId" value={sourceId} />
+    {/if}
+    {#if ref}
+      <input type="hidden" name="ref" value={ref} />
+    {/if}
 
     <div class="flex gap-3 pt-2">
       <Button type="submit" disabled={!!createCollection.pending}>

@@ -37,6 +37,7 @@
   const navLinks = [
     { href: "/dashboard", label: "Dashboard" },
     { href: "/sources", label: "Sources" },
+    { href: "/collections", label: "Collections" },
     { href: "/clients", label: "Clients" },
   ];
 

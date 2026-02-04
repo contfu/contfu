@@ -1,6 +1,6 @@
 <script lang="ts">
   import { page } from "$app/state";
-  import { goto } from "$app/navigation";
+  import { goto, invalidateAll } from "$app/navigation";
   import {
     getCollection,
     updateCollection,
@@ -8,12 +8,20 @@
     getSourceCollectionMappings,
     addSourceCollection,
     removeSourceCollection,
+    updateSourceCollectionMapping,
+    getSourceCollectionSchemaQuery,
   } from "$lib/remote/collections.remote";
   import { getSourceCollections } from "$lib/remote/source-collections.remote";
   import { Button } from "$lib/components/ui/button";
   import { Input } from "$lib/components/ui/input";
   import { Label } from "$lib/components/ui/label";
   import * as Alert from "$lib/components/ui/alert";
+  import * as Dialog from "$lib/components/ui/dialog";
+  import FilterEditor from "$lib/components/FilterEditor.svelte";
+  import type { Filter as FilterType, CollectionSchema } from "@contfu/core";
+  import ChevronDown from "@lucide/svelte/icons/chevron-down";
+  import ChevronUp from "@lucide/svelte/icons/chevron-up";
+  import FilterIcon from "@lucide/svelte/icons/filter";
 
   const id = Number.parseInt(page.params.id ?? "", 10);
   const collection = Number.isNaN(id) ? null : await getCollection({ id });
@@ -31,6 +39,16 @@
   );
 
   let updateSuccess = $state(false);
+  let filterUpdateSuccess = $state(false);
+
+  // Track expanded mappings for filter editing
+  let expandedMappings = $state<Set<number>>(new Set());
+  
+  // Cache schemas for source collections
+  let schemaCache = $state<Map<number, CollectionSchema | null>>(new Map());
+  
+  // Track filter edits per mapping
+  let filterEdits = $state<Map<number, FilterType[]>>(new Map());
 
   function handleUpdateSuccess() {
     updateSuccess = true;
@@ -39,9 +57,66 @@
     }, 3000);
   }
 
+  function handleFilterUpdateSuccess() {
+    filterUpdateSuccess = true;
+    setTimeout(() => {
+      filterUpdateSuccess = false;
+    }, 3000);
+  }
+
   $effect(() => {
     if (updateCollection.result?.success) handleUpdateSuccess();
   });
+
+  $effect(() => {
+    if (updateSourceCollectionMapping.result?.success) {
+      handleFilterUpdateSuccess();
+      // Reset edit state after successful save
+      filterEdits = new Map();
+    }
+  });
+
+  async function toggleMapping(sourceCollectionId: number) {
+    const newExpanded = new Set(expandedMappings);
+    if (newExpanded.has(sourceCollectionId)) {
+      newExpanded.delete(sourceCollectionId);
+      // Clear any unsaved edits
+      const newEdits = new Map(filterEdits);
+      newEdits.delete(sourceCollectionId);
+      filterEdits = newEdits;
+    } else {
+      newExpanded.add(sourceCollectionId);
+      // Load schema if not cached
+      if (!schemaCache.has(sourceCollectionId)) {
+        const schema = await getSourceCollectionSchemaQuery({ sourceCollectionId });
+        schemaCache = new Map(schemaCache).set(sourceCollectionId, schema);
+      }
+    }
+    expandedMappings = newExpanded;
+  }
+
+  function getFiltersForMapping(sourceCollectionId: number): FilterType[] {
+    // Return edited filters if available, otherwise the original
+    if (filterEdits.has(sourceCollectionId)) {
+      return filterEdits.get(sourceCollectionId)!;
+    }
+    const mapping = mappings.find((m) => m.sourceCollectionId === sourceCollectionId);
+    return mapping?.filters ?? [];
+  }
+
+  function handleFilterChange(sourceCollectionId: number, newFilters: FilterType[]) {
+    filterEdits = new Map(filterEdits).set(sourceCollectionId, newFilters);
+  }
+
+  function hasUnsavedChanges(sourceCollectionId: number): boolean {
+    return filterEdits.has(sourceCollectionId);
+  }
+
+  function formatFilterCount(filters: FilterType[] | null): string {
+    const count = filters?.length ?? 0;
+    if (count === 0) return "No filters";
+    return `${count} filter${count === 1 ? "" : "s"}`;
+  }
 </script>
 
 {#if collection}
@@ -63,6 +138,12 @@
     {#if updateSuccess}
       <Alert.Root class="mb-6">
         <Alert.Description>Collection updated successfully.</Alert.Description>
+      </Alert.Root>
+    {/if}
+
+    {#if filterUpdateSuccess}
+      <Alert.Root class="mb-6">
+        <Alert.Description>Filters updated successfully.</Alert.Description>
       </Alert.Root>
     {/if}
 
@@ -90,17 +171,77 @@
       {#if mappings.length === 0}
         <p class="mb-4 text-sm text-muted-foreground">No source collections linked yet.</p>
       {:else}
-        <div class="mb-4 divide-y divide-border rounded-md border border-border">
+        <div class="mb-4 space-y-2">
           {#each mappings as mapping}
-            <div class="flex items-center justify-between px-4 py-3">
-              <span class="text-sm font-medium">{mapping.sourceCollectionName}</span>
-              <form method="post" action={removeSourceCollection.action}>
-                <input type="hidden" name="collectionId" value={collection.id} />
-                <input type="hidden" name="sourceCollectionId" value={mapping.sourceCollectionId} />
-                <button type="submit" class="text-sm text-destructive hover:underline">
-                  Remove
-                </button>
-              </form>
+            <div class="rounded-md border border-border">
+              <!-- Mapping header -->
+              <div class="flex items-center justify-between px-4 py-3">
+                <div class="flex items-center gap-3">
+                  <button
+                    type="button"
+                    class="flex items-center gap-2 text-sm font-medium hover:text-primary"
+                    onclick={() => toggleMapping(mapping.sourceCollectionId)}
+                  >
+                    {#if expandedMappings.has(mapping.sourceCollectionId)}
+                      <ChevronUp class="h-4 w-4" />
+                    {:else}
+                      <ChevronDown class="h-4 w-4" />
+                    {/if}
+                    {mapping.sourceCollectionName}
+                  </button>
+                  <span class="flex items-center gap-1 text-xs text-muted-foreground">
+                    <FilterIcon class="h-3 w-3" />
+                    {formatFilterCount(getFiltersForMapping(mapping.sourceCollectionId))}
+                  </span>
+                </div>
+                <form method="post" action={removeSourceCollection.action}>
+                  <input type="hidden" name="collectionId" value={collection.id} />
+                  <input type="hidden" name="sourceCollectionId" value={mapping.sourceCollectionId} />
+                  <button type="submit" class="text-sm text-destructive hover:underline">
+                    Remove
+                  </button>
+                </form>
+              </div>
+
+              <!-- Expanded filter editor -->
+              {#if expandedMappings.has(mapping.sourceCollectionId)}
+                <div class="border-t border-border bg-muted/20 px-4 py-4">
+                  <h3 class="mb-3 text-sm font-medium">Filters</h3>
+                  <FilterEditor
+                    schema={schemaCache.get(mapping.sourceCollectionId) ?? null}
+                    filters={getFiltersForMapping(mapping.sourceCollectionId)}
+                    onchange={(filters) => handleFilterChange(mapping.sourceCollectionId, filters)}
+                  />
+                  
+                  {#if hasUnsavedChanges(mapping.sourceCollectionId)}
+                    <div class="mt-4 flex gap-2">
+                      <form method="post" action={updateSourceCollectionMapping.action}>
+                        <input type="hidden" name="collectionId" value={collection.id} />
+                        <input type="hidden" name="sourceCollectionId" value={mapping.sourceCollectionId} />
+                        <input
+                          type="hidden"
+                          name="filters"
+                          value={JSON.stringify(filterEdits.get(mapping.sourceCollectionId) ?? [])}
+                        />
+                        <Button type="submit" size="sm" disabled={!!updateSourceCollectionMapping.pending}>
+                          {updateSourceCollectionMapping.pending ? "Saving..." : "Save Filters"}
+                        </Button>
+                      </form>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onclick={() => {
+                          const newEdits = new Map(filterEdits);
+                          newEdits.delete(mapping.sourceCollectionId);
+                          filterEdits = newEdits;
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  {/if}
+                </div>
+              {/if}
             </div>
           {/each}
         </div>
