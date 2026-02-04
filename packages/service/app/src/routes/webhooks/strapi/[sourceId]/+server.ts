@@ -1,7 +1,7 @@
 import { decryptCredentials } from "@contfu/svc-backend/infra/crypto/credentials";
 import { db } from "@contfu/svc-backend/infra/db/db";
 import {
-  collectionTable,
+  sourceCollectionTable,
   connectionTable,
   sourceTable,
   webhookLogTable,
@@ -239,13 +239,13 @@ export const POST: RequestHandler = async ({ request, params }) => {
     const refBuffer = Buffer.from(contentTypeUid, "utf8");
 
     const collections = await db
-      .select({ id: collectionTable.id })
-      .from(collectionTable)
+      .select({ id: sourceCollectionTable.id })
+      .from(sourceCollectionTable)
       .where(
         and(
-          eq(collectionTable.userId, source.userId),
-          eq(collectionTable.sourceId, source.id),
-          eq(collectionTable.ref, refBuffer),
+          eq(sourceCollectionTable.userId, source.userId),
+          eq(sourceCollectionTable.sourceId, source.id),
+          eq(sourceCollectionTable.ref, refBuffer),
         ),
       );
 

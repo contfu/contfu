@@ -1,17 +1,13 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "62fb269f-8101-4d08-aef3-3c3574e0c0d2",
+  "id": "6dc62b5e-fb65-4991-8096-78fa2d90bc10",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
   "ddl": [
     {
       "name": "account",
-      "entityType": "tables"
-    },
-    {
-      "name": "collection",
       "entityType": "tables"
     },
     {
@@ -32,6 +28,10 @@
     },
     {
       "name": "session",
+      "entityType": "tables"
+    },
+    {
+      "name": "source_collection",
       "entityType": "tables"
     },
     {
@@ -179,86 +179,6 @@
       "name": "updatedAt",
       "entityType": "columns",
       "table": "account"
-    },
-    {
-      "type": "integer",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "userId",
-      "entityType": "columns",
-      "table": "collection"
-    },
-    {
-      "type": "integer",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "sourceId",
-      "entityType": "columns",
-      "table": "collection"
-    },
-    {
-      "type": "integer",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "id",
-      "entityType": "columns",
-      "table": "collection"
-    },
-    {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "name",
-      "entityType": "columns",
-      "table": "collection"
-    },
-    {
-      "type": "blob",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "ref",
-      "entityType": "columns",
-      "table": "collection"
-    },
-    {
-      "type": "blob",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "itemIds",
-      "entityType": "columns",
-      "table": "collection"
-    },
-    {
-      "type": "integer",
-      "notNull": true,
-      "autoincrement": false,
-      "default": "(unixepoch())",
-      "generated": null,
-      "name": "createdAt",
-      "entityType": "columns",
-      "table": "collection"
-    },
-    {
-      "type": "integer",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "updatedAt",
-      "entityType": "columns",
-      "table": "collection"
     },
     {
       "type": "integer",
@@ -618,6 +538,96 @@
       "generated": null,
       "name": "userId",
       "entityType": "columns",
+      "table": "source_collection"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "sourceId",
+      "entityType": "columns",
+      "table": "source_collection"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "source_collection"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "name",
+      "entityType": "columns",
+      "table": "source_collection"
+    },
+    {
+      "type": "blob",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "ref",
+      "entityType": "columns",
+      "table": "source_collection"
+    },
+    {
+      "type": "blob",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "schema",
+      "entityType": "columns",
+      "table": "source_collection"
+    },
+    {
+      "type": "blob",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "itemIds",
+      "entityType": "columns",
+      "table": "source_collection"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "(unixepoch())",
+      "generated": null,
+      "name": "createdAt",
+      "entityType": "columns",
+      "table": "source_collection"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "updatedAt",
+      "entityType": "columns",
+      "table": "source_collection"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "userId",
+      "entityType": "columns",
       "table": "source"
     },
     {
@@ -966,38 +976,6 @@
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
-      "name": "fk_collection_userId_user_id_fk",
-      "entityType": "fks",
-      "table": "collection"
-    },
-    {
-      "columns": [
-        "userId",
-        "sourceId"
-      ],
-      "tableTo": "source",
-      "columnsTo": [
-        "userId",
-        "id"
-      ],
-      "onUpdate": "NO ACTION",
-      "onDelete": "CASCADE",
-      "nameExplicit": false,
-      "name": "fk_collection_userId_sourceId_source_userId_id_fk",
-      "entityType": "fks",
-      "table": "collection"
-    },
-    {
-      "columns": [
-        "userId"
-      ],
-      "tableTo": "user",
-      "columnsTo": [
-        "id"
-      ],
-      "onUpdate": "NO ACTION",
-      "onDelete": "CASCADE",
-      "nameExplicit": false,
       "name": "fk_connection_userId_user_id_fk",
       "entityType": "fks",
       "table": "connection"
@@ -1024,7 +1002,7 @@
         "userId",
         "collectionId"
       ],
-      "tableTo": "collection",
+      "tableTo": "source_collection",
       "columnsTo": [
         "userId",
         "id"
@@ -1032,7 +1010,7 @@
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
-      "name": "fk_connection_userId_collectionId_collection_userId_id_fk",
+      "name": "fk_connection_userId_collectionId_source_collection_userId_id_fk",
       "entityType": "fks",
       "table": "connection"
     },
@@ -1071,7 +1049,7 @@
         "userId",
         "collectionId"
       ],
-      "tableTo": "collection",
+      "tableTo": "source_collection",
       "columnsTo": [
         "userId",
         "id"
@@ -1079,7 +1057,7 @@
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
-      "name": "fk_item_id_conflict_resolution_userId_collectionId_collection_userId_id_fk",
+      "name": "fk_item_id_conflict_resolution_userId_collectionId_source_collection_userId_id_fk",
       "entityType": "fks",
       "table": "item_id_conflict_resolution"
     },
@@ -1124,6 +1102,38 @@
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
+      "name": "fk_source_collection_userId_user_id_fk",
+      "entityType": "fks",
+      "table": "source_collection"
+    },
+    {
+      "columns": [
+        "userId",
+        "sourceId"
+      ],
+      "tableTo": "source",
+      "columnsTo": [
+        "userId",
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
+      "name": "fk_source_collection_userId_sourceId_source_userId_id_fk",
+      "entityType": "fks",
+      "table": "source_collection"
+    },
+    {
+      "columns": [
+        "userId"
+      ],
+      "tableTo": "user",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
       "name": "fk_source_userId_user_id_fk",
       "entityType": "fks",
       "table": "source"
@@ -1144,16 +1154,6 @@
       "name": "fk_webhook_log_userId_sourceId_source_userId_id_fk",
       "entityType": "fks",
       "table": "webhook_log"
-    },
-    {
-      "columns": [
-        "userId",
-        "id"
-      ],
-      "nameExplicit": false,
-      "name": "collection_pk",
-      "entityType": "pks",
-      "table": "collection"
     },
     {
       "columns": [
@@ -1186,6 +1186,16 @@
       "name": "item_id_conflict_resolution_pk",
       "entityType": "pks",
       "table": "item_id_conflict_resolution"
+    },
+    {
+      "columns": [
+        "userId",
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "source_collection_pk",
+      "entityType": "pks",
+      "table": "source_collection"
     },
     {
       "columns": [

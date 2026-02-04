@@ -156,28 +156,30 @@ export const sourceTable = sqliteTable(
 
 export type Source = typeof sourceTable.$inferSelect;
 
-export const collectionTable = sqliteTable(
-  "collection",
+export const sourceCollectionTable = sqliteTable(
+  "source_collection",
   {
-    /** The user which owns the collection. */
+    /** The user which owns the source collection. */
     userId: integer()
       .references(() => userTable.id, { onDelete: "cascade" })
       .notNull(),
-    /** The source which the collection is connected to. */
+    /** The source which the source collection is connected to. */
     sourceId: integer().notNull(),
     /** The id which is unique within the user. */
     id: integer().notNull(),
-    /** The name of the collection. */
+    /** The name of the source collection. */
     name: text().notNull(),
     /** The reference to the upstream collection within the source. */
     ref: blob({ mode: "buffer" }),
-    /** The item ids that have been received for this collection. **/
+    /** The schema of the source collection (MessagePack serialized CollectionSchema). */
+    schema: blob({ mode: "buffer" }),
+    /** The item ids that have been received for this source collection. **/
     itemIds: blob({ mode: "buffer" }),
-    /** The date the collection was created. */
+    /** The date the source collection was created. */
     createdAt: integer()
       .default(sql`(unixepoch())`)
       .notNull(),
-    /** The date the collection was updated. */
+    /** The date the source collection was updated. */
     updatedAt: integer(),
   },
   (table) => [
@@ -189,7 +191,7 @@ export const collectionTable = sqliteTable(
   ],
 );
 
-export type Collection = typeof collectionTable.$inferSelect;
+export type SourceCollection = typeof sourceCollectionTable.$inferSelect;
 
 /** The connection of the consumer to the collection. */
 export const connectionTable = sqliteTable(
@@ -218,7 +220,7 @@ export const connectionTable = sqliteTable(
     }).onDelete("cascade"),
     foreignKey({
       columns: [table.userId, table.collectionId],
-      foreignColumns: [collectionTable.userId, collectionTable.id],
+      foreignColumns: [sourceCollectionTable.userId, sourceCollectionTable.id],
     }).onDelete("cascade"),
   ],
 );
@@ -232,11 +234,11 @@ export const itemIdConflictResolutionTable = sqliteTable(
     userId: integer()
       .references(() => userTable.id, { onDelete: "cascade" })
       .notNull(),
-    /** The collection which the id mapping is connected to. */
+    /** The source collection which the id mapping is connected to. */
     collectionId: integer().notNull(),
     /** The id which is unique within the source collection. */
     sourceItemId: blob({ mode: "buffer" }).notNull(),
-    /** The 4 byte id which is unique within the collection. */
+    /** The 4 byte id which is unique within the source collection. */
     id: integer().notNull(),
   },
   (table) => [
@@ -245,7 +247,7 @@ export const itemIdConflictResolutionTable = sqliteTable(
     }),
     foreignKey({
       columns: [table.userId, table.collectionId],
-      foreignColumns: [collectionTable.userId, collectionTable.id],
+      foreignColumns: [sourceCollectionTable.userId, sourceCollectionTable.id],
     }).onDelete("cascade"),
   ],
 );

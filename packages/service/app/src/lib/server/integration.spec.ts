@@ -125,7 +125,7 @@ mock.module("./db/db", () => {
         // When drizzle creates the condition, it may access this property
       },
     },
-    collectionTable: {
+    sourceCollectionTable: {
       userId: "userId",
       id: "id",
       itemIds: "itemIds",

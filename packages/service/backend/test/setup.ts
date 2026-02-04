@@ -1,7 +1,7 @@
 import { db } from "../src/infra/db/db";
 import {
   accountTable,
-  collectionTable,
+  sourceCollectionTable,
   connectionTable,
   consumerTable,
   itemIdConflictResolutionTable,
@@ -22,7 +22,7 @@ export async function truncateAllTables(): Promise<void> {
   await db.delete(webhookLogTable);
   await db.delete(itemIdConflictResolutionTable);
   await db.delete(connectionTable);
-  await db.delete(collectionTable);
+  await db.delete(sourceCollectionTable);
   await db.delete(consumerTable);
   await db.delete(sourceTable);
   await db.delete(quotaTable);

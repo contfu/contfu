@@ -1,5 +1,5 @@
 import { db } from "../../infra/db/db";
-import { collectionTable, type Collection } from "../../infra/db/schema";
+import { sourceCollectionTable, type SourceCollection } from "../../infra/db/schema";
 import { and, eq } from "drizzle-orm";
 import type { BackendCollection } from "../../domain/types";
 
@@ -9,7 +9,7 @@ function countItemIds(itemIds: Buffer | null): number {
   return Math.floor(itemIds.length / 4);
 }
 
-function mapToBackendCollection(collection: Collection): BackendCollection {
+function mapToBackendCollection(collection: SourceCollection): BackendCollection {
   return {
     id: collection.id,
     userId: collection.userId,
@@ -32,8 +32,8 @@ export async function getCollection(
 ): Promise<BackendCollection | undefined> {
   const [collection] = await db
     .select()
-    .from(collectionTable)
-    .where(and(eq(collectionTable.userId, userId), eq(collectionTable.id, id)))
+    .from(sourceCollectionTable)
+    .where(and(eq(sourceCollectionTable.userId, userId), eq(sourceCollectionTable.id, id)))
     .limit(1);
 
   if (!collection) return undefined;

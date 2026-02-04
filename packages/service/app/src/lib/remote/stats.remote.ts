@@ -2,7 +2,7 @@ import { query } from "$app/server";
 import { getUserId } from "$lib/server/user";
 import { db } from "@contfu/svc-backend/infra/db/db";
 import {
-  collectionTable,
+  sourceCollectionTable,
   connectionTable,
   consumerTable,
   sourceTable,
@@ -36,10 +36,10 @@ export const getDashboardStats = query(async (): Promise<DashboardStats> => {
     db
       .select({
         count: sql<number>`count(*)`,
-        totalItems: sql<number>`coalesce(sum(length(${collectionTable.itemIds}) / 4), 0)`,
+        totalItems: sql<number>`coalesce(sum(length(${sourceCollectionTable.itemIds}) / 4), 0)`,
       })
-      .from(collectionTable)
-      .where(eq(collectionTable.userId, userId)),
+      .from(sourceCollectionTable)
+      .where(eq(sourceCollectionTable.userId, userId)),
 
     // Count consumers
     db

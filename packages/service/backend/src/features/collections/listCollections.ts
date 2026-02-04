@@ -1,5 +1,5 @@
 import { db } from "../../infra/db/db";
-import { collectionTable, connectionTable, type Collection } from "../../infra/db/schema";
+import { sourceCollectionTable, connectionTable, type SourceCollection } from "../../infra/db/schema";
 import { eq, sql } from "drizzle-orm";
 import type { BackendCollection, BackendCollectionWithConnectionCount } from "../../domain/types";
 
@@ -9,7 +9,7 @@ function countItemIds(itemIds: Buffer | null): number {
   return Math.floor(itemIds.length / 4);
 }
 
-function mapToBackendCollection(collection: Collection): BackendCollection {
+function mapToBackendCollection(collection: SourceCollection): BackendCollection {
   return {
     id: collection.id,
     userId: collection.userId,
@@ -24,7 +24,7 @@ function mapToBackendCollection(collection: Collection): BackendCollection {
 }
 
 function mapToBackendCollectionWithConnectionCount(
-  collection: Collection,
+  collection: SourceCollection,
   connectionCount: number,
 ): BackendCollectionWithConnectionCount {
   return {
@@ -41,9 +41,9 @@ export async function listCollections(
 ): Promise<BackendCollectionWithConnectionCount[]> {
   const collections = await db
     .select()
-    .from(collectionTable)
-    .where(eq(collectionTable.userId, userId))
-    .orderBy(collectionTable.createdAt);
+    .from(sourceCollectionTable)
+    .where(eq(sourceCollectionTable.userId, userId))
+    .orderBy(sourceCollectionTable.createdAt);
 
   const connectionCounts = await db
     .select({

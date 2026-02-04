@@ -1,5 +1,5 @@
 import { db } from "../../infra/db/db";
-import { collectionTable, connectionTable, consumerTable } from "../../infra/db/schema";
+import { sourceCollectionTable, connectionTable, consumerTable } from "../../infra/db/schema";
 import { and, eq } from "drizzle-orm";
 import type { BackendConnectionWithDetails } from "../../domain/types";
 
@@ -15,7 +15,7 @@ export async function listConnections(userId: number): Promise<BackendConnection
       lastItemChanged: connectionTable.lastItemChanged,
       lastConsistencyCheck: connectionTable.lastConsistencyCheck,
       consumerName: consumerTable.name,
-      collectionName: collectionTable.name,
+      collectionName: sourceCollectionTable.name,
     })
     .from(connectionTable)
     .innerJoin(
@@ -26,10 +26,10 @@ export async function listConnections(userId: number): Promise<BackendConnection
       ),
     )
     .innerJoin(
-      collectionTable,
+      sourceCollectionTable,
       and(
-        eq(connectionTable.userId, collectionTable.userId),
-        eq(connectionTable.collectionId, collectionTable.id),
+        eq(connectionTable.userId, sourceCollectionTable.userId),
+        eq(connectionTable.collectionId, sourceCollectionTable.id),
       ),
     )
     .where(eq(connectionTable.userId, userId));

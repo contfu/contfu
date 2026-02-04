@@ -8,7 +8,7 @@ import {
 } from "@contfu/core";
 import { and, asc, eq } from "drizzle-orm";
 import { decryptCredentials } from "../crypto/credentials";
-import { collectionTable, connectionTable, db, sourceTable } from "../db/db";
+import { sourceCollectionTable, connectionTable, db, sourceTable } from "../db/db";
 import { ITEM_ID_SIZE } from "../util/ids/ids";
 import { SortedSet } from "../util/structures/sorted-set";
 import type { ConnectionInfo } from "../sse/sse-server";
@@ -246,26 +246,26 @@ async function getConnectionsWithCollectionSyncInfo(ids: [userId: number, collec
         user: connectionTable.userId,
         consumer: connectionTable.consumerId,
         collection: connectionTable.collectionId,
-        source: collectionTable.sourceId,
+        source: sourceCollectionTable.sourceId,
         type: sourceTable.type,
         lastItemChanged: connectionTable.lastItemChanged,
         url: sourceTable.url,
-        ref: collectionTable.ref,
+        ref: sourceCollectionTable.ref,
         credentials: sourceTable.credentials,
       })
       .from(connectionTable)
       .innerJoin(
-        collectionTable,
+        sourceCollectionTable,
         and(
-          eq(connectionTable.userId, collectionTable.userId),
-          eq(connectionTable.collectionId, collectionTable.id),
+          eq(connectionTable.userId, sourceCollectionTable.userId),
+          eq(connectionTable.collectionId, sourceCollectionTable.id),
         ),
       )
       .innerJoin(
         sourceTable,
         and(
-          eq(collectionTable.userId, sourceTable.userId),
-          eq(collectionTable.sourceId, sourceTable.id),
+          eq(sourceCollectionTable.userId, sourceTable.userId),
+          eq(sourceCollectionTable.sourceId, sourceTable.id),
         ),
       )
       .where(
@@ -290,16 +290,16 @@ async function addItemIds(userId: number, collectionId: number, toAdd: Buffer[])
 
   for (const id of toAdd) ids.add(id);
   await db
-    .update(collectionTable)
+    .update(sourceCollectionTable)
     .set({ itemIds: serializeIds(ids) })
-    .where(and(eq(collectionTable.userId, userId), eq(collectionTable.id, collectionId)));
+    .where(and(eq(sourceCollectionTable.userId, userId), eq(sourceCollectionTable.id, collectionId)));
 }
 
 async function getItemIds(userId: number, collectionId: number) {
   const result = await db
-    .select({ itemIds: collectionTable.itemIds })
-    .from(collectionTable)
-    .where(and(eq(collectionTable.userId, userId), eq(collectionTable.id, collectionId)));
+    .select({ itemIds: sourceCollectionTable.itemIds })
+    .from(sourceCollectionTable)
+    .where(and(eq(sourceCollectionTable.userId, userId), eq(sourceCollectionTable.id, collectionId)));
   return new SortedSet<Buffer>({
     seed: deserializeIds(result[0]?.itemIds ?? NO_ITEM_IDS),
     isSorted: true,

@@ -1,5 +1,5 @@
 import { db } from "../../infra/db/db";
-import { collectionTable, connectionTable } from "../../infra/db/schema";
+import { sourceCollectionTable, connectionTable } from "../../infra/db/schema";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import type { BackendCollectionSummary } from "../../domain/types";
 
@@ -13,14 +13,14 @@ export async function listCollectionSummariesBySource(
 ): Promise<BackendCollectionSummary[]> {
   const collections = await db
     .select({
-      id: collectionTable.id,
-      name: collectionTable.name,
-      ref: collectionTable.ref,
-      createdAt: collectionTable.createdAt,
+      id: sourceCollectionTable.id,
+      name: sourceCollectionTable.name,
+      ref: sourceCollectionTable.ref,
+      createdAt: sourceCollectionTable.createdAt,
     })
-    .from(collectionTable)
-    .where(and(eq(collectionTable.userId, userId), eq(collectionTable.sourceId, sourceId)))
-    .orderBy(collectionTable.createdAt);
+    .from(sourceCollectionTable)
+    .where(and(eq(sourceCollectionTable.userId, userId), eq(sourceCollectionTable.sourceId, sourceId)))
+    .orderBy(sourceCollectionTable.createdAt);
 
   const collectionIds = collections.map((c) => c.id);
 

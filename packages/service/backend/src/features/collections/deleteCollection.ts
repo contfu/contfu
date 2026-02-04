@@ -1,5 +1,5 @@
 import { db } from "../../infra/db/db";
-import { collectionTable } from "../../infra/db/schema";
+import { sourceCollectionTable } from "../../infra/db/schema";
 import { and, eq } from "drizzle-orm";
 
 /**
@@ -7,8 +7,8 @@ import { and, eq } from "drizzle-orm";
  */
 export async function deleteCollection(userId: number, id: number): Promise<boolean> {
   const result = await db
-    .delete(collectionTable)
-    .where(and(eq(collectionTable.userId, userId), eq(collectionTable.id, id)))
+    .delete(sourceCollectionTable)
+    .where(and(eq(sourceCollectionTable.userId, userId), eq(sourceCollectionTable.id, id)))
     .returning();
 
   return result.length > 0;

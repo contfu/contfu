@@ -1,5 +1,5 @@
 import { db } from "../../infra/db/db";
-import { collectionTable, type Collection } from "../../infra/db/schema";
+import { sourceCollectionTable, type SourceCollection } from "../../infra/db/schema";
 import { and, eq } from "drizzle-orm";
 
 /**
@@ -9,11 +9,11 @@ import { and, eq } from "drizzle-orm";
 export async function getCollectionWithBuffers(
   userId: number,
   id: number,
-): Promise<Collection | undefined> {
+): Promise<SourceCollection | undefined> {
   const [collection] = await db
     .select()
-    .from(collectionTable)
-    .where(and(eq(collectionTable.userId, userId), eq(collectionTable.id, id)))
+    .from(sourceCollectionTable)
+    .where(and(eq(sourceCollectionTable.userId, userId), eq(sourceCollectionTable.id, id)))
     .limit(1);
 
   return collection;

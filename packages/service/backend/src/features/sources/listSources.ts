@@ -1,5 +1,5 @@
 import { db } from "../../infra/db/db";
-import { collectionTable, sourceTable, type Source } from "../../infra/db/schema";
+import { sourceCollectionTable, sourceTable, type Source } from "../../infra/db/schema";
 import { eq, sql } from "drizzle-orm";
 import type { BackendSource, BackendSourceWithCollectionCount } from "../../domain/types";
 
@@ -62,12 +62,12 @@ export async function listSources(userId: number): Promise<BackendSourceWithColl
 
   const collectionCounts = await db
     .select({
-      sourceId: collectionTable.sourceId,
+      sourceId: sourceCollectionTable.sourceId,
       count: sql<number>`count(*)`.as("count"),
     })
-    .from(collectionTable)
-    .where(eq(collectionTable.userId, userId))
-    .groupBy(collectionTable.sourceId);
+    .from(sourceCollectionTable)
+    .where(eq(sourceCollectionTable.userId, userId))
+    .groupBy(sourceCollectionTable.sourceId);
 
   const countMap = new Map<number, number>(collectionCounts.map((c) => [c.sourceId, c.count]));
 

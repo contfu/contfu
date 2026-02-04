@@ -1,5 +1,5 @@
 import { db } from "../../infra/db/db";
-import { collectionTable, type Collection } from "../../infra/db/schema";
+import { sourceCollectionTable, type SourceCollection } from "../../infra/db/schema";
 import { eq, sql } from "drizzle-orm";
 import type { BackendCollection, CreateCollectionInput } from "../../domain/types";
 
@@ -9,7 +9,7 @@ function countItemIds(itemIds: Buffer | null): number {
   return Math.floor(itemIds.length / 4);
 }
 
-function mapToBackendCollection(collection: Collection): BackendCollection {
+function mapToBackendCollection(collection: SourceCollection): BackendCollection {
   return {
     id: collection.id,
     userId: collection.userId,
@@ -36,14 +36,14 @@ export async function createCollection(
   const inserted = await db.transaction(async (tx) => {
     const maxIdResult = await tx
       .select({ maxId: sql<number>`coalesce(max(id), 0)` })
-      .from(collectionTable)
-      .where(eq(collectionTable.userId, userId))
+      .from(sourceCollectionTable)
+      .where(eq(sourceCollectionTable.userId, userId))
       .limit(1);
 
     const nextId = (maxIdResult[0]?.maxId ?? 0) + 1;
 
     const [result] = await tx
-      .insert(collectionTable)
+      .insert(sourceCollectionTable)
       .values({
         userId,
         id: nextId,

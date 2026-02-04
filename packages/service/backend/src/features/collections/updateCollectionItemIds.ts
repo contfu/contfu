@@ -1,5 +1,5 @@
 import { db } from "../../infra/db/db";
-import { collectionTable } from "../../infra/db/schema";
+import { sourceCollectionTable } from "../../infra/db/schema";
 import { and, eq, sql } from "drizzle-orm";
 
 /**
@@ -12,13 +12,13 @@ export async function updateCollectionItemIds(
   itemIds: Buffer | null,
 ): Promise<boolean> {
   const result = await db
-    .update(collectionTable)
+    .update(sourceCollectionTable)
     .set({
       itemIds,
       updatedAt: sql`(unixepoch())`,
     })
-    .where(and(eq(collectionTable.userId, userId), eq(collectionTable.id, id)))
-    .returning({ id: collectionTable.id });
+    .where(and(eq(sourceCollectionTable.userId, userId), eq(sourceCollectionTable.id, id)))
+    .returning({ id: sourceCollectionTable.id });
 
   return result.length > 0;
 }
