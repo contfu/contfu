@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { truncateAllTables } from "../../../test/setup";
 import { db } from "../../infra/db/db";
-import { sourceCollectionTable, connectionTable, consumerTable, sourceTable, userTable } from "../../infra/db/schema";
+import { collectionTable, connectionTable, consumerTable, userTable } from "../../infra/db/schema";
 import { createConsumer } from "./createConsumer";
 import { deleteConsumer } from "./deleteConsumer";
 import { findConsumerByKey } from "./findConsumerByKey";
@@ -146,22 +146,11 @@ describe.skipIf(isDbMocked)("Consumer Features", () => {
     it("should include connection counts", async () => {
       await createConsumer(testUserId, { name: "Connected App" });
 
-      // Create a source and collection for connections
-      const [source] = await db
-        .insert(sourceTable)
-        .values({
-          userId: testUserId,
-          id: 1,
-          type: 1,
-          name: "Test Source",
-        })
-        .returning();
-
+      // Create a collection for connections
       const [collection] = await db
-        .insert(sourceCollectionTable)
+        .insert(collectionTable)
         .values({
           userId: testUserId,
-          sourceId: source.id,
           id: 1,
           name: "Articles",
         })
@@ -373,21 +362,11 @@ describe.skipIf(isDbMocked)("Consumer Features", () => {
     it("should return consumer with correct connection count", async () => {
       await createConsumer(testUserId, { name: "Popular App" });
 
-      // Create source and collections
-      const [source] = await db
-        .insert(sourceTable)
-        .values({
-          userId: testUserId,
-          id: 1,
-          type: 1,
-          name: "Test Source",
-        })
-        .returning();
-
-      await db.insert(sourceCollectionTable).values([
-        { userId: testUserId, sourceId: source.id, id: 1, name: "Collection 1" },
-        { userId: testUserId, sourceId: source.id, id: 2, name: "Collection 2" },
-        { userId: testUserId, sourceId: source.id, id: 3, name: "Collection 3" },
+      // Create collections
+      await db.insert(collectionTable).values([
+        { userId: testUserId, id: 1, name: "Collection 1" },
+        { userId: testUserId, id: 2, name: "Collection 2" },
+        { userId: testUserId, id: 3, name: "Collection 3" },
       ]);
 
       // Create multiple connections
