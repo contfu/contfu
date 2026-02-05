@@ -8,17 +8,18 @@
     testConnection,
     regenerateWebhookSecret,
   } from "$lib/remote/sources.remote";
-  import { getSourceCollectionsBySource } from "$lib/remote/source-collections.remote";
+  import { getSourceCollectionsBySource, createSourceCollection } from "$lib/remote/source-collections.remote";
   import { getWebhookLogs, type WebhookLogEntry } from "$lib/remote/webhookLogs.remote";
+  import { SourceType } from "@contfu/svc-backend/features/sources/testSourceConnection";
   import { Button } from "$lib/components/ui/button";
   import { Input } from "$lib/components/ui/input";
   import { Label } from "$lib/components/ui/label";
   import * as Alert from "$lib/components/ui/alert";
 
   const SOURCE_TYPE_LABELS: Record<number, string> = {
-    0: "Notion",
-    1: "Strapi",
-    2: "Web",
+    [SourceType.NOTION]: "Notion",
+    [SourceType.STRAPI]: "Strapi",
+    [SourceType.WEB]: "Web",
   };
 
   const AUTH_TYPE_LABELS: Record<number, string> = {
@@ -145,14 +146,14 @@
           {/if}
         </div>
 
-        {#if source.type === 1 || source.type === 2}
+        {#if source.type === SourceType.STRAPI || source.type === SourceType.WEB}
           <div class="space-y-1.5">
-            <Label for="url">{source.type === 1 ? "Strapi URL" : "Base URL"}</Label>
+            <Label for="url">{source.type === SourceType.STRAPI ? "Strapi URL" : "Base URL"}</Label>
             <Input
               id="url"
               name="url"
               type="url"
-              placeholder={source.type === 1 ? "https://strapi.example.com" : "https://example.com"}
+              placeholder={source.type === SourceType.STRAPI ? "https://strapi.example.com" : "https://example.com"}
               value={source.url ?? ""}
             />
             {#if updateSource.fields?.url?.issues()?.length}
@@ -161,7 +162,7 @@
           </div>
         {/if}
 
-        {#if source.type === 2}
+        {#if source.type === SourceType.WEB}
           <div class="space-y-1.5">
             <Label>Authentication</Label>
             <div class="rounded-md border border-input bg-muted/50 px-3 py-2 text-sm">
@@ -172,8 +173,8 @@
         {/if}
 
         {#if source.type !== 2 || (source.webAuthType ?? 0) !== 0}
-          {@const isWebWithAuth = source.type === 2 && (source.webAuthType ?? 0) !== 0}
-          {@const webAuthType = source.type === 2 ? (source.webAuthType ?? 0) : null}
+          {@const isWebWithAuth = source.type === SourceType.WEB && (source.webAuthType ?? 0) !== 0}
+          {@const webAuthType = source.type === SourceType.WEB ? (source.webAuthType ?? 0) : null}
           <div class="space-y-1.5">
             <Label for="_credentials">
               {#if isWebWithAuth}
@@ -233,7 +234,7 @@
     </section>
 
     <!-- Webhook configuration (Strapi only) -->
-    {#if source.type === 1}
+    {#if source.type === SourceType.STRAPI}
       <section class="mb-8">
         <h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-muted-foreground">Webhook Configuration</h2>
         <div class="rounded-lg border border-border p-4 space-y-4">
@@ -341,6 +342,38 @@
             </table>
           </div>
         {/if}
+      </section>
+    {/if}
+
+    <!-- Add Source Collection section (Web sources only) -->
+    {#if source.type === SourceType.WEB}
+      <section class="mb-8">
+        <h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-muted-foreground">Add Source Collection</h2>
+        <div class="rounded-lg border border-border p-4">
+          <p class="mb-4 text-sm text-muted-foreground">
+            Add a custom path or URL to create a new source collection.
+          </p>
+          <form method="post" action={createSourceCollection.action} class="space-y-4">
+            <input type="hidden" name="sourceId" value={source.id} />
+
+            <div class="space-y-1.5">
+              <Label for="web-path">Path or URL</Label>
+              <Input id="web-path" name="ref" type="text" placeholder="/api/posts or full URL" required />
+            </div>
+
+            <div class="space-y-1.5">
+              <Label for="collection-name">Collection Name</Label>
+              <Input id="collection-name" name="name" type="text" placeholder="e.g. Blog Posts" required />
+              {#if createSourceCollection.fields?.name?.issues()?.length}
+                <p class="text-sm text-destructive">{createSourceCollection.fields?.name?.issues()?.[0]?.message}</p>
+              {/if}
+            </div>
+
+            <Button type="submit" disabled={!!createSourceCollection.pending}>
+              {createSourceCollection.pending ? "Creating..." : "Add Source Collection"}
+            </Button>
+          </form>
+        </div>
       </section>
     {/if}
 

@@ -1,3 +1,4 @@
+export * from "./addInfluxWithSourceCollection";
 export * from "./createInflux";
 export * from "./getInflux";
 export * from "./listInfluxes";

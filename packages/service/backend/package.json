@@ -5,7 +5,9 @@
   "exports": {
     "./domain/*": "./dist/domain/*.js",
     "./infra/*": "./dist/infra/*.js",
-    "./features/*": "./dist/features/*.js"
+    "./features/*": "./dist/features/*.js",
+    "./features/influxes": "./dist/features/influxes/index.js",
+    "./features/notion": "./dist/features/notion/index.js"
   },
   "scripts": {
     "dev": "tsc -b --watch",

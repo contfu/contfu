@@ -6,18 +6,17 @@
     updateCollection,
     deleteCollection,
     getSourceCollectionMappings,
-    addSourceCollection,
     removeSourceCollection,
     updateSourceCollectionMapping,
     getSourceCollectionSchemaQuery,
   } from "$lib/remote/collections.remote";
-  import { getSourceCollections } from "$lib/remote/source-collections.remote";
   import { Button } from "$lib/components/ui/button";
   import { Input } from "$lib/components/ui/input";
   import { Label } from "$lib/components/ui/label";
   import * as Alert from "$lib/components/ui/alert";
-  import * as Dialog from "$lib/components/ui/dialog";
   import FilterEditor from "$lib/components/FilterEditor.svelte";
+  import AddInfluxDialog from "$lib/components/AddInfluxDialog.svelte";
+  import SourceTypeIcon from "$lib/components/icons/SourceTypeIcon.svelte";
   import type { Filter as FilterType, CollectionSchema } from "@contfu/core";
   import ChevronDown from "@lucide/svelte/icons/chevron-down";
   import ChevronUp from "@lucide/svelte/icons/chevron-up";
@@ -30,13 +29,21 @@
     goto("/collections");
   }
 
-  const mappings = collection ? await getSourceCollectionMappings({ collectionId: id }) : [];
-  const allSourceCollections = collection ? await getSourceCollections() : [];
+  // Make mappings reactive so they can be refreshed
+  let mappings = $state(collection ? await getSourceCollectionMappings({ collectionId: id }) : []);
 
-  const linkedSourceIds = new Set(mappings.map((m) => m.sourceCollectionId));
-  const availableSourceCollections = allSourceCollections.filter(
-    (sc) => !linkedSourceIds.has(sc.id),
-  );
+  // Derived: linked source IDs for the dialog
+  const linkedSourceIds = $derived(new Set(mappings.map((m) => m.sourceCollectionId)));
+
+  // Derived: linked source refs for filtering "Add custom path" options
+  const linkedSourceRefs = $derived(new Set(mappings.map((m) => m.sourceCollectionRef).filter((r): r is string => r !== null)));
+
+  // Refresh mappings after adding an influx
+  async function refreshMappings() {
+    if (collection) {
+      mappings = await getSourceCollectionMappings({ collectionId: id });
+    }
+  }
 
   let updateSuccess = $state(false);
   let filterUpdateSuccess = $state(false);
@@ -162,14 +169,22 @@
       </form>
     </section>
 
-    <!-- Source Collections -->
+    <!-- Influxes -->
     <section class="mb-8 rounded-lg border border-border p-4">
-      <h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-muted-foreground">
-        Source Collections
-      </h2>
+      <div class="mb-3 flex items-center justify-between">
+        <h2 class="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+          Influxes
+        </h2>
+        <AddInfluxDialog
+          collectionId={collection.id}
+          linkedSourceCollectionIds={linkedSourceIds}
+          linkedSourceCollectionRefs={linkedSourceRefs}
+          onSuccess={refreshMappings}
+        />
+      </div>
 
       {#if mappings.length === 0}
-        <p class="mb-4 text-sm text-muted-foreground">No source collections linked yet.</p>
+        <p class="mb-4 text-sm text-muted-foreground">No influxes configured yet. Add one to start receiving content.</p>
       {:else}
         <div class="mb-4 space-y-2">
           {#each mappings as mapping}
@@ -177,6 +192,7 @@
               <!-- Mapping header -->
               <div class="flex items-center justify-between px-4 py-3">
                 <div class="flex items-center gap-3">
+                  <SourceTypeIcon type={mapping.sourceType} class="h-4 w-4 text-muted-foreground" />
                   <button
                     type="button"
                     class="flex items-center gap-2 text-sm font-medium hover:text-primary"
@@ -187,7 +203,12 @@
                     {:else}
                       <ChevronDown class="h-4 w-4" />
                     {/if}
-                    {mapping.sourceCollectionName}
+                    <span>
+                      {#if mapping.sourceName}
+                        <span class="text-muted-foreground">{mapping.sourceName} /</span>
+                      {/if}
+                      {mapping.sourceCollectionName}
+                    </span>
                   </button>
                   <span class="flex items-center gap-1 text-xs text-muted-foreground">
                     <FilterIcon class="h-3 w-3" />
@@ -247,28 +268,6 @@
         </div>
       {/if}
 
-      {#if availableSourceCollections.length > 0}
-        <p class="mb-2 text-sm text-muted-foreground">
-          Link source collections from your sources:
-        </p>
-        <div class="flex flex-wrap gap-2">
-          {#each availableSourceCollections as sc}
-            <form method="post" action={addSourceCollection.action} class="inline">
-              <input type="hidden" name="collectionId" value={collection.id} />
-              <input type="hidden" name="sourceCollectionId" value={sc.id} />
-              <Button type="submit" variant="outline" size="sm">
-                + {sc.name}
-              </Button>
-            </form>
-          {/each}
-        </div>
-      {:else if allSourceCollections.length === 0}
-        <p class="text-sm text-muted-foreground">
-          No source collections available. Create collections in your sources first.
-        </p>
-      {:else}
-        <p class="text-sm text-muted-foreground">All source collections are linked.</p>
-      {/if}
     </section>
 
     <!-- Danger zone -->
