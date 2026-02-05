@@ -130,7 +130,7 @@
     <div class="mb-8">
       <h1 class="text-2xl font-semibold tracking-tight">{collection.name}</h1>
       <p class="mt-1 text-sm text-muted-foreground">
-        {collection.sourceCollectionCount} source{collection.sourceCollectionCount === 1 ? "" : "s"} ·
+        {collection.influxCount} influx{collection.influxCount === 1 ? "" : "es"} ·
         {collection.connectionCount} client{collection.connectionCount === 1 ? "" : "s"}
       </p>
     </div>

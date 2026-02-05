@@ -1,6 +1,7 @@
 import { db } from "../../infra/db/db";
-import { collectionMappingTable } from "../../infra/db/schema";
-import { and, eq } from "drizzle-orm";
+import { influxTable } from "../../infra/db/schema";
+import { and, eq, sql } from "drizzle-orm";
+import { pack } from "msgpackr";
 import type { Filter } from "@contfu/core";
 
 export interface UpdateSourceCollectionMappingInput {
@@ -12,24 +13,26 @@ export interface UpdateSourceCollectionMappingInput {
 /**
  * Update a source collection mapping (e.g., to change filters).
  * Returns true if the mapping was updated, false if it doesn't exist.
+ * @deprecated Use updateInflux from features/influxes instead
  */
 export async function updateSourceCollectionMapping(
   userId: number,
   input: UpdateSourceCollectionMappingInput,
 ): Promise<boolean> {
   const [updated] = await db
-    .update(collectionMappingTable)
+    .update(influxTable)
     .set({
-      filters: input.filters ? JSON.stringify(input.filters) : null,
+      filters: input.filters?.length ? pack(input.filters) : null,
+      updatedAt: sql`(unixepoch())`,
     })
     .where(
       and(
-        eq(collectionMappingTable.userId, userId),
-        eq(collectionMappingTable.collectionId, input.collectionId),
-        eq(collectionMappingTable.sourceCollectionId, input.sourceCollectionId),
+        eq(influxTable.userId, userId),
+        eq(influxTable.collectionId, input.collectionId),
+        eq(influxTable.sourceCollectionId, input.sourceCollectionId),
       ),
     )
-    .returning({ userId: collectionMappingTable.userId });
+    .returning({ userId: influxTable.userId });
 
   return !!updated;
 }

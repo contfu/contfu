@@ -41,7 +41,7 @@ export async function createCollection(
     id: inserted.id,
     userId: inserted.userId,
     name: inserted.name,
-    sourceCollectionCount: 0,
+    influxCount: 0,
     connectionCount: 0,
     createdAt: inserted.createdAt,
     updatedAt: inserted.updatedAt,

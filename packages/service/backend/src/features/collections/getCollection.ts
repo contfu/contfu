@@ -1,5 +1,5 @@
 import { db } from "../../infra/db/db";
-import { collectionTable, collectionMappingTable, connectionTable } from "../../infra/db/schema";
+import { collectionTable, influxTable, connectionTable } from "../../infra/db/schema";
 import { and, eq, sql } from "drizzle-orm";
 import type { Collection } from "./listCollections";
 
@@ -18,30 +18,23 @@ export async function getCollection(
 
   if (!collection) return null;
 
-  // Get source collection count
-  const [mappingCount] = await db
+  // Get influx count
+  const [influxCount] = await db
     .select({ count: sql<number>`count(*)` })
-    .from(collectionMappingTable)
-    .where(
-      and(
-        eq(collectionMappingTable.userId, userId),
-        eq(collectionMappingTable.collectionId, collectionId),
-      ),
-    );
+    .from(influxTable)
+    .where(and(eq(influxTable.userId, userId), eq(influxTable.collectionId, collectionId)));
 
   // Get connection count
   const [connectionCount] = await db
     .select({ count: sql<number>`count(*)` })
     .from(connectionTable)
-    .where(
-      and(eq(connectionTable.userId, userId), eq(connectionTable.collectionId, collectionId)),
-    );
+    .where(and(eq(connectionTable.userId, userId), eq(connectionTable.collectionId, collectionId)));
 
   return {
     id: collection.id,
     userId: collection.userId,
     name: collection.name,
-    sourceCollectionCount: mappingCount?.count ?? 0,
+    influxCount: influxCount?.count ?? 0,
     connectionCount: connectionCount?.count ?? 0,
     createdAt: collection.createdAt,
     updatedAt: collection.updatedAt,

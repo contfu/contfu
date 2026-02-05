@@ -18,7 +18,7 @@
     "setup:e2e": "bun tests/e2e/setup.ts",
     "build": "bun --filter '@contfu/*' build",
     "clean": "bun --filter '@contfu/*' clean",
-    "dev": "bun --filter '@contfu/*' dev",
+    "dev": "bun run --filter '@contfu/svc-backend' build && bun run --filter '@contfu/svc-backend' dev & bun run --parallel --filter '@contfu/*app' dev",
     "fmt": "oxfmt",
     "lint": "oxlint",
     "typecheck": "tsc --noEmit -p tsconfig.typecheck.json"

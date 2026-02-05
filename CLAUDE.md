@@ -280,3 +280,49 @@ import { createSource } from "@contfu/svc-backend/features/sources/createSource"
 // ❌ Wrong - re-export
 import { createSource } from "$lib/server/sources";
 ```
+
+### Domain Types
+
+Types that are shared across features or exposed to consumers/clients belong in `@contfu/core`, not in feature files:
+
+```ts
+// ✅ Correct - domain types in core
+// packages/core/src/incidents.ts
+export const IncidentType = { SchemaIncompatible: 1, FilterInvalid: 2, SyncError: 3 } as const;
+
+// ❌ Wrong - types defined in feature file
+// features/incidents/createIncident.ts
+export type IncidentType = "schema_incompatible" | "filter_invalid";
+```
+
+### Enums
+
+Use **const objects** instead of TypeScript enums or string unions:
+
+```ts
+// ✅ Correct - const object with numeric values
+export const IncidentType = {
+  SchemaIncompatible: 1,
+  FilterInvalid: 2,
+  SyncError: 3,
+} as const;
+export type IncidentType = (typeof IncidentType)[keyof typeof IncidentType];
+
+// ❌ Wrong - string union
+export type IncidentType = "schema_incompatible" | "filter_invalid";
+```
+
+### SvelteKit Data Loading
+
+**Don't use `+page.server.ts` for data loading** — use remote functions instead:
+
+```ts
+// ✅ Correct - remote function in +page.svelte
+import { getCollection } from "$lib/server/features/collections/getCollection";
+const collection = await getCollection(userId, collectionId);
+
+// ❌ Wrong - +page.server.ts load function
+export const load = async ({ params }) => { ... };
+```
+
+For mutations, use form actions with `<form method="POST">` instead of `+page.server.ts` actions.

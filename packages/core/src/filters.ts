@@ -1,25 +1,26 @@
 /**
  * Filter operators for collection filtering.
+ * Values are integers stored in the database.
  */
 export const FilterOperator = {
   // Equality
-  EQ: "eq",
-  NE: "ne",
+  EQ: 1,
+  NE: 2,
   // Comparison (number, date)
-  LT: "lt",
-  LTE: "lte",
-  GT: "gt",
-  GTE: "gte",
+  LT: 3,
+  LTE: 4,
+  GT: 5,
+  GTE: 6,
   // String matching
-  CONTAINS: "contains",
-  STARTS_WITH: "startsWith",
-  ENDS_WITH: "endsWith",
+  CONTAINS: 7,
+  STARTS_WITH: 8,
+  ENDS_WITH: 9,
   // Array matching
-  IN: "in",
-  NOT_IN: "notIn",
+  IN: 10,
+  NOT_IN: 11,
   // Null checks
-  IS_NULL: "isNull",
-  IS_NOT_NULL: "isNotNull",
+  IS_NULL: 12,
+  IS_NOT_NULL: 13,
 } as const;
 
 export type FilterOperator = (typeof FilterOperator)[keyof typeof FilterOperator];

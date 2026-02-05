@@ -1,7 +1,7 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "a5e9c7ed-777c-476c-a39e-360a80296dc9",
+  "id": "1ff99480-a6b2-402e-b25e-54a4ff372874",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
@@ -11,7 +11,7 @@
       "entityType": "tables"
     },
     {
-      "name": "collection_mapping",
+      "name": "influx",
       "entityType": "tables"
     },
     {
@@ -24,6 +24,10 @@
     },
     {
       "name": "consumer",
+      "entityType": "tables"
+    },
+    {
+      "name": "incident",
       "entityType": "tables"
     },
     {
@@ -196,7 +200,17 @@
       "generated": null,
       "name": "userId",
       "entityType": "columns",
-      "table": "collection_mapping"
+      "table": "influx"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "influx"
     },
     {
       "type": "integer",
@@ -206,7 +220,7 @@
       "generated": null,
       "name": "collectionId",
       "entityType": "columns",
-      "table": "collection_mapping"
+      "table": "influx"
     },
     {
       "type": "integer",
@@ -216,17 +230,27 @@
       "generated": null,
       "name": "sourceCollectionId",
       "entityType": "columns",
-      "table": "collection_mapping"
+      "table": "influx"
     },
     {
-      "type": "text",
+      "type": "blob",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "schema",
+      "entityType": "columns",
+      "table": "influx"
+    },
+    {
+      "type": "blob",
       "notNull": false,
       "autoincrement": false,
       "default": null,
       "generated": null,
       "name": "filters",
       "entityType": "columns",
-      "table": "collection_mapping"
+      "table": "influx"
     },
     {
       "type": "integer",
@@ -236,7 +260,7 @@
       "generated": null,
       "name": "includeRef",
       "entityType": "columns",
-      "table": "collection_mapping"
+      "table": "influx"
     },
     {
       "type": "integer",
@@ -246,7 +270,17 @@
       "generated": null,
       "name": "createdAt",
       "entityType": "columns",
-      "table": "collection_mapping"
+      "table": "influx"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "updatedAt",
+      "entityType": "columns",
+      "table": "influx"
     },
     {
       "type": "integer",
@@ -397,6 +431,96 @@
       "name": "createdAt",
       "entityType": "columns",
       "table": "consumer"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "userId",
+      "entityType": "columns",
+      "table": "incident"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "incident"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "influxId",
+      "entityType": "columns",
+      "table": "incident"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "type",
+      "entityType": "columns",
+      "table": "incident"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "message",
+      "entityType": "columns",
+      "table": "incident"
+    },
+    {
+      "type": "blob",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "details",
+      "entityType": "columns",
+      "table": "incident"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "false",
+      "generated": null,
+      "name": "resolved",
+      "entityType": "columns",
+      "table": "incident"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "(unixepoch())",
+      "generated": null,
+      "name": "createdAt",
+      "entityType": "columns",
+      "table": "incident"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "resolvedAt",
+      "entityType": "columns",
+      "table": "incident"
     },
     {
       "type": "integer",
@@ -685,6 +809,16 @@
       "default": null,
       "generated": null,
       "name": "name",
+      "entityType": "columns",
+      "table": "source_collection"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "displayName",
       "entityType": "columns",
       "table": "source_collection"
     },
@@ -1104,9 +1238,9 @@
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
-      "name": "fk_collection_mapping_userId_user_id_fk",
+      "name": "fk_influx_userId_user_id_fk",
       "entityType": "fks",
-      "table": "collection_mapping"
+      "table": "influx"
     },
     {
       "columns": [
@@ -1121,9 +1255,9 @@
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
-      "name": "fk_collection_mapping_userId_collectionId_collection_userId_id_fk",
+      "name": "fk_influx_userId_collectionId_collection_userId_id_fk",
       "entityType": "fks",
-      "table": "collection_mapping"
+      "table": "influx"
     },
     {
       "columns": [
@@ -1138,9 +1272,9 @@
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
-      "name": "fk_collection_mapping_userId_sourceCollectionId_source_collection_userId_id_fk",
+      "name": "fk_influx_userId_sourceCollectionId_source_collection_userId_id_fk",
       "entityType": "fks",
-      "table": "collection_mapping"
+      "table": "influx"
     },
     {
       "columns": [
@@ -1220,6 +1354,38 @@
       "name": "fk_consumer_userId_user_id_fk",
       "entityType": "fks",
       "table": "consumer"
+    },
+    {
+      "columns": [
+        "userId"
+      ],
+      "tableTo": "user",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
+      "name": "fk_incident_userId_user_id_fk",
+      "entityType": "fks",
+      "table": "incident"
+    },
+    {
+      "columns": [
+        "userId",
+        "influxId"
+      ],
+      "tableTo": "influx",
+      "columnsTo": [
+        "userId",
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
+      "name": "fk_incident_userId_influxId_influx_userId_id_fk",
+      "entityType": "fks",
+      "table": "incident"
     },
     {
       "columns": [
@@ -1350,13 +1516,12 @@
     {
       "columns": [
         "userId",
-        "collectionId",
-        "sourceCollectionId"
+        "id"
       ],
       "nameExplicit": false,
-      "name": "collection_mapping_pk",
+      "name": "influx_pk",
       "entityType": "pks",
-      "table": "collection_mapping"
+      "table": "influx"
     },
     {
       "columns": [
@@ -1388,6 +1553,16 @@
       "name": "consumer_pk",
       "entityType": "pks",
       "table": "consumer"
+    },
+    {
+      "columns": [
+        "userId",
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "incident_pk",
+      "entityType": "pks",
+      "table": "incident"
     },
     {
       "columns": [

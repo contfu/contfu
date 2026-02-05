@@ -3,10 +3,10 @@ import { influxTable } from "../../infra/db/schema";
 import { and, eq } from "drizzle-orm";
 
 /**
- * Remove a source collection from an aggregation collection.
- * @deprecated Use deleteInflux or deleteInfluxByMapping from features/influxes instead
+ * Delete an influx by collection and source collection IDs.
+ * Returns true if deleted, false if not found.
  */
-export async function removeSourceCollectionMapping(
+export async function deleteInfluxByMapping(
   userId: number,
   collectionId: number,
   sourceCollectionId: number,
@@ -20,7 +20,7 @@ export async function removeSourceCollectionMapping(
         eq(influxTable.sourceCollectionId, sourceCollectionId),
       ),
     )
-    .returning();
+    .returning({ id: influxTable.id });
 
   return result.length > 0;
 }

@@ -147,7 +147,7 @@
 									</a>
 								</td>
 								<td class="px-4 py-3 text-right font-mono text-muted-foreground">
-									{collection.sourceCollectionCount}
+									{collection.influxCount}
 								</td>
 								<td class="px-4 py-3 text-right font-mono text-muted-foreground">
 									{collection.connectionCount}

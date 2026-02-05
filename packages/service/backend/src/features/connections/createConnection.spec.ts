@@ -6,7 +6,7 @@ import {
   sourceTable,
   sourceCollectionTable,
   collectionTable,
-  collectionMappingTable,
+  influxTable,
 } from "../../infra/db/schema";
 import { createConnection } from "./createConnection";
 import { SourceType } from "@contfu/core";
@@ -14,7 +14,7 @@ import { SourceType } from "@contfu/core";
 describe("createConnection", () => {
   beforeEach(async () => {
     // Clean up tables in correct order (respecting foreign keys)
-    await db.delete(collectionMappingTable);
+    await db.delete(influxTable);
     await db.delete(collectionTable);
     await db.delete(sourceCollectionTable);
     await db.delete(consumerTable);
@@ -108,12 +108,14 @@ describe("createConnection", () => {
       name: "Articles Collection",
     });
 
-    // Create mapping from source collection to collection
-    await db.insert(collectionMappingTable).values({
+    // Create influx from source collection to collection
+    await db.insert(influxTable).values({
+      id: 1,
       userId: user.id,
       collectionId: 1,
       sourceCollectionId: 1,
-      filters: null, // No filters
+      schema: null,
+      filters: null,
     });
 
     // Create consumer

@@ -110,10 +110,9 @@ export async function startStrapiDocker(): Promise<void> {
   console.log(`[Setup] Starting Strapi via Docker (${strapiImage})...`);
   
   // Pre-configured with article content type for E2E testing
-  // Use --platform linux/amd64 for M1/ARM Macs (runs via Rosetta)
+  // Don't force platform - use native architecture
   const dockerArgs = [
     "run", "-d",
-    "--platform", "linux/amd64",
     "--name", STRAPI_CONTAINER_NAME,
     "-p", `${STRAPI_PORT}:1337`,
     strapiImage,

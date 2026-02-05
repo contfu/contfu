@@ -15,17 +15,20 @@ CREATE TABLE `account` (
 	CONSTRAINT `fk_account_userId_user_id_fk` FOREIGN KEY (`userId`) REFERENCES `user`(`id`) ON DELETE CASCADE
 );
 --> statement-breakpoint
-CREATE TABLE `collection_mapping` (
+CREATE TABLE `influx` (
 	`userId` integer NOT NULL,
+	`id` integer NOT NULL,
 	`collectionId` integer NOT NULL,
 	`sourceCollectionId` integer NOT NULL,
-	`filters` text,
+	`schema` blob,
+	`filters` blob,
 	`includeRef` integer,
 	`createdAt` integer DEFAULT (unixepoch()) NOT NULL,
-	CONSTRAINT `collection_mapping_pk` PRIMARY KEY(`userId`, `collectionId`, `sourceCollectionId`),
-	CONSTRAINT `fk_collection_mapping_userId_user_id_fk` FOREIGN KEY (`userId`) REFERENCES `user`(`id`) ON DELETE CASCADE,
-	CONSTRAINT `fk_collection_mapping_userId_collectionId_collection_userId_id_fk` FOREIGN KEY (`userId`,`collectionId`) REFERENCES `collection`(`userId`,`id`) ON DELETE CASCADE,
-	CONSTRAINT `fk_collection_mapping_userId_sourceCollectionId_source_collection_userId_id_fk` FOREIGN KEY (`userId`,`sourceCollectionId`) REFERENCES `source_collection`(`userId`,`id`) ON DELETE CASCADE
+	`updatedAt` integer,
+	CONSTRAINT `influx_pk` PRIMARY KEY(`userId`, `id`),
+	CONSTRAINT `fk_influx_userId_user_id_fk` FOREIGN KEY (`userId`) REFERENCES `user`(`id`) ON DELETE CASCADE,
+	CONSTRAINT `fk_influx_userId_collectionId_collection_userId_id_fk` FOREIGN KEY (`userId`,`collectionId`) REFERENCES `collection`(`userId`,`id`) ON DELETE CASCADE,
+	CONSTRAINT `fk_influx_userId_sourceCollectionId_source_collection_userId_id_fk` FOREIGN KEY (`userId`,`sourceCollectionId`) REFERENCES `source_collection`(`userId`,`id`) ON DELETE CASCADE
 );
 --> statement-breakpoint
 CREATE TABLE `collection` (
@@ -58,6 +61,21 @@ CREATE TABLE `consumer` (
 	`createdAt` integer DEFAULT (unixepoch()) NOT NULL,
 	CONSTRAINT `consumer_pk` PRIMARY KEY(`userId`, `id`),
 	CONSTRAINT `fk_consumer_userId_user_id_fk` FOREIGN KEY (`userId`) REFERENCES `user`(`id`) ON DELETE CASCADE
+);
+--> statement-breakpoint
+CREATE TABLE `incident` (
+	`userId` integer NOT NULL,
+	`id` integer NOT NULL,
+	`influxId` integer NOT NULL,
+	`type` text NOT NULL,
+	`message` text NOT NULL,
+	`details` blob,
+	`resolved` integer DEFAULT false NOT NULL,
+	`createdAt` integer DEFAULT (unixepoch()) NOT NULL,
+	`resolvedAt` integer,
+	CONSTRAINT `incident_pk` PRIMARY KEY(`userId`, `id`),
+	CONSTRAINT `fk_incident_userId_user_id_fk` FOREIGN KEY (`userId`) REFERENCES `user`(`id`) ON DELETE CASCADE,
+	CONSTRAINT `fk_incident_userId_influxId_influx_userId_id_fk` FOREIGN KEY (`userId`,`influxId`) REFERENCES `influx`(`userId`,`id`) ON DELETE CASCADE
 );
 --> statement-breakpoint
 CREATE TABLE `item_id_conflict_resolution` (
@@ -104,6 +122,7 @@ CREATE TABLE `source_collection` (
 	`sourceId` integer NOT NULL,
 	`id` integer NOT NULL,
 	`name` text NOT NULL,
+	`displayName` text,
 	`ref` blob,
 	`schema` blob,
 	`itemIds` blob,

@@ -2,7 +2,7 @@ import { db } from "../../infra/db/db";
 import {
   sourceCollectionTable,
   collectionTable,
-  collectionMappingTable,
+  influxTable,
   type SourceCollection,
 } from "../../infra/db/schema";
 import { eq, sql } from "drizzle-orm";
@@ -83,11 +83,22 @@ export async function createCollection(
       name: input.name,
     });
 
-    // Create mapping from source collection to collection (no filters)
-    await tx.insert(collectionMappingTable).values({
+    // Get next ID for influx
+    const maxInfluxIdResult = await tx
+      .select({ maxId: sql<number>`coalesce(max(id), 0)` })
+      .from(influxTable)
+      .where(eq(influxTable.userId, userId))
+      .limit(1);
+
+    const nextInfluxId = (maxInfluxIdResult[0]?.maxId ?? 0) + 1;
+
+    // Create influx from source collection to collection (no filters)
+    await tx.insert(influxTable).values({
+      id: nextInfluxId,
       userId,
       collectionId: nextCollectionId,
       sourceCollectionId: nextSourceId,
+      schema: null,
       filters: null,
     });
 

@@ -3,6 +3,8 @@ export * from "./collections";
 export * from "./commands";
 export * from "./events";
 export * from "./filters";
+export * from "./incidents";
+export * from "./influxes";
 export * from "./items";
 export * from "./sources";
 export * from "./worker-bus";

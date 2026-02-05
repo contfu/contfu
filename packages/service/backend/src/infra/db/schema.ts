@@ -172,8 +172,13 @@ export const sourceCollectionTable = sqliteTable(
     sourceId: integer().notNull(),
     /** The id which is unique within the user. */
     id: integer().notNull(),
-    /** The name of the source collection. */
+    /** The name of the source collection (from upstream, may be fetched fresh). */
     name: text().notNull(),
+    /**
+     * User-provided display name for generic URL sources.
+     * Takes precedence over `name` when set.
+     */
+    displayName: text(),
     /** The reference to the upstream collection within the source. */
     ref: blob({ mode: "buffer" }),
     /** The schema of the source collection (MessagePack serialized CollectionSchema). */
@@ -226,40 +231,47 @@ export const collectionTable = sqliteTable(
 export type Collection = typeof collectionTable.$inferSelect;
 
 /**
- * Maps a source collection to a collection with optional filters.
- * Multiple source collections can map to the same collection (aggregation).
+ * An Influx defines data flowing from a SourceCollection into a Collection.
+ * Includes optional filters and a schema snapshot for validation.
  */
-export const collectionMappingTable = sqliteTable(
-  "collection_mapping",
+export const influxTable = sqliteTable(
+  "influx",
   {
-    /** The user which owns both collections. */
+    /** The user which owns the influx. */
     userId: integer()
       .references(() => userTable.id, { onDelete: "cascade" })
       .notNull(),
+    /** The id which is unique within the user. */
+    id: integer().notNull(),
     /** The target collection receiving items. */
     collectionId: integer().notNull(),
     /** The source collection providing items. */
     sourceCollectionId: integer().notNull(),
     /**
-     * JSON array of filters to apply to items from this source.
+     * Schema snapshot at creation/last valid sync (MessagePack serialized).
+     * Used for validating filters against schema changes.
+     */
+    schema: blob({ mode: "buffer" }),
+    /**
+     * Filters to apply to items from this source (MessagePack serialized).
      * Format: [{property: string, operator: string, value?: unknown}]
      * Empty/null means no filtering (all items pass through).
      */
-    filters: text(),
+    filters: blob({ mode: "buffer" }),
     /**
      * Override Source.includeRef for this specific link.
      * null = use Source default, true/false = override.
      */
     includeRef: integer({ mode: "boolean" }),
-    /** The date the mapping was created. */
+    /** The date the influx was created. */
     createdAt: integer()
       .default(sql`(unixepoch())`)
       .notNull(),
+    /** The date the influx was last updated. */
+    updatedAt: integer(),
   },
   (table) => [
-    primaryKey({
-      columns: [table.userId, table.collectionId, table.sourceCollectionId],
-    }),
+    primaryKey({ columns: [table.userId, table.id] }),
     foreignKey({
       columns: [table.userId, table.collectionId],
       foreignColumns: [collectionTable.userId, collectionTable.id],
@@ -271,7 +283,13 @@ export const collectionMappingTable = sqliteTable(
   ],
 );
 
-export type CollectionMapping = typeof collectionMappingTable.$inferSelect;
+export type Influx = typeof influxTable.$inferSelect;
+
+/**
+ * @deprecated Use influxTable instead. Kept for migration compatibility.
+ */
+export const collectionMappingTable = influxTable;
+export type CollectionMapping = Influx;
 
 /** The connection of the consumer to the collection. */
 export const connectionTable = sqliteTable(
@@ -369,3 +387,46 @@ export const webhookLogTable = sqliteTable(
 
 export type WebhookLog = typeof webhookLogTable.$inferSelect;
 export type NewWebhookLog = typeof webhookLogTable.$inferInsert;
+
+// Incidents (sync failures due to schema incompatibility)
+
+export const incidentTable = sqliteTable(
+  "incident",
+  {
+    /** The user which owns the incident. */
+    userId: integer()
+      .references(() => userTable.id, { onDelete: "cascade" })
+      .notNull(),
+    /** The id which is unique within the user. */
+    id: integer().notNull(),
+    /** The influx that caused the incident. */
+    influxId: integer().notNull(),
+    /** The type of incident. */
+    type: integer().notNull(), // IncidentType enum
+    /** Human-readable description of the incident. */
+    message: text().notNull(),
+    /**
+     * Details about the incident (MessagePack serialized).
+     * For schema_incompatible: { oldSchema, newSchema, invalidFilters }
+     */
+    details: blob({ mode: "buffer" }),
+    /** Whether the incident has been resolved. */
+    resolved: integer({ mode: "boolean" }).notNull().default(false),
+    /** When the incident was created. */
+    createdAt: integer()
+      .default(sql`(unixepoch())`)
+      .notNull(),
+    /** When the incident was resolved. */
+    resolvedAt: integer(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.userId, table.id] }),
+    foreignKey({
+      columns: [table.userId, table.influxId],
+      foreignColumns: [influxTable.userId, influxTable.id],
+    }).onDelete("cascade"),
+  ],
+);
+
+export type Incident = typeof incidentTable.$inferSelect;
+export type NewIncident = typeof incidentTable.$inferInsert;

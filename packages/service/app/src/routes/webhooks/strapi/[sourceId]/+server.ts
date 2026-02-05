@@ -5,8 +5,8 @@ import {
   connectionTable,
   sourceTable,
   webhookLogTable,
-  collectionMappingTable,
 } from "@contfu/svc-backend/infra/db/schema";
+import { listInfluxesBySourceCollections } from "@contfu/svc-backend/features/influxes/listInfluxesBySourceCollections";
 import { getSSEServer } from "$lib/server/startup";
 import { genUid } from "@contfu/svc-backend/infra/util/ids/ids";
 import { SourceType, matchesFilters, type Filter, type UserSyncItem } from "@contfu/core";
@@ -277,30 +277,18 @@ export const POST: RequestHandler = async ({ request, params }) => {
 
     const sourceCollectionIds = sourceCollections.map((c) => c.id);
 
-    // Get collection mappings with filters for these source collections
-    const mappings = await db
-      .select({
-        sourceCollectionId: collectionMappingTable.sourceCollectionId,
-        collectionId: collectionMappingTable.collectionId,
-        filters: collectionMappingTable.filters,
-      })
-      .from(collectionMappingTable)
-      .where(
-        and(
-          eq(collectionMappingTable.userId, source.userId),
-          inArray(collectionMappingTable.sourceCollectionId, sourceCollectionIds),
-        ),
-      );
+    // Get influxes with unpacked filters for these source collections
+    const influxes = await listInfluxesBySourceCollections(source.userId, sourceCollectionIds);
 
-    if (mappings.length === 0) {
-      console.log(`[Strapi webhook] No collection mappings for source collections`);
+    if (influxes.length === 0) {
+      console.log(`[Strapi webhook] No influxes for source collections`);
       await logWebhookEvent(
         source.userId,
         source.id,
         eventType,
         payload.model,
         "success",
-        "No collection mappings",
+        "No influxes configured",
         0,
       );
       continue;
@@ -310,32 +298,29 @@ export const POST: RequestHandler = async ({ request, params }) => {
     const targetCollectionIds: number[] = [];
     let filteredOutCount = 0;
 
-    for (const mapping of mappings) {
-      // Parse and apply filters
-      const filters: Filter[] = mapping.filters ? JSON.parse(mapping.filters) : [];
-      
-      if (filters.length > 0) {
-        if (!matchesFilters(props, filters)) {
+    for (const influx of influxes) {
+      if (influx.filters.length > 0) {
+        if (!matchesFilters(props, influx.filters)) {
           filteredOutCount++;
           console.log(
-            `[Strapi webhook] Entry filtered out for collection ${mapping.collectionId} (${filters.length} filters)`,
+            `[Strapi webhook] Entry filtered out for collection ${influx.collectionId} (${influx.filters.length} filters)`,
           );
           continue;
         }
       }
-      
-      targetCollectionIds.push(mapping.collectionId);
+
+      targetCollectionIds.push(influx.collectionId);
     }
 
     if (targetCollectionIds.length === 0) {
-      console.log(`[Strapi webhook] All items filtered out (${filteredOutCount} mappings)`);
+      console.log(`[Strapi webhook] All items filtered out (${filteredOutCount} influxes)`);
       await logWebhookEvent(
         source.userId,
         source.id,
         eventType,
         payload.model,
         "success",
-        `All items filtered out (${filteredOutCount} mappings)`,
+        `All items filtered out (${filteredOutCount} influxes)`,
         0,
       );
       continue;

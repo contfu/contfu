@@ -1235,6 +1235,159 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow", () => {
     await consumerPage.close();
   });
 
+  test("should filter articles based on influx filters", async ({ page }) => {
+    // Skip if running in CI without proper setup
+    if (process.env.CI && !process.env.E2E_FULL_FLOW) {
+      test.skip();
+      return;
+    }
+
+    // Open consumer page early to establish SSE connection
+    console.log("[E2E Filter Test] Opening consumer app page...");
+    const consumerPage = await page.context().newPage();
+    await consumerPage.goto(CONSUMER_URL);
+    await consumerPage.waitForLoadState("networkidle");
+    await sleep(2000); // Let SSE connection establish
+
+    // First, update the influx to add a filter
+    // Filter: only articles where description contains "IMPORTANT"
+    const servicePage = await page.context().newPage();
+    console.log(`[E2E Filter Test] Navigating to ${SERVICE_URL}/login`);
+    await servicePage.goto(`${SERVICE_URL}/login`);
+    console.log(`[E2E Filter Test] Current URL after goto: ${servicePage.url()}`);
+    await servicePage.waitForLoadState("networkidle");
+    
+    // Check if we're on the login page
+    const emailField = servicePage.getByLabel(/Email/i);
+    const isLoginPage = await emailField.isVisible({ timeout: 5000 }).catch(() => false);
+    console.log(`[E2E Filter Test] Is login page visible: ${isLoginPage}`);
+    
+    if (!isLoginPage) {
+      // Maybe we're already logged in? Check current URL
+      console.log(`[E2E Filter Test] Not on login page. Current URL: ${servicePage.url()}`);
+      await servicePage.screenshot({ path: "debug-filter-test-login.png" });
+      
+      // If already on dashboard, skip login
+      if (servicePage.url().includes("/dashboard")) {
+        console.log("[E2E Filter Test] Already on dashboard, skipping login");
+      } else {
+        throw new Error(`Unexpected page state. URL: ${servicePage.url()}`);
+      }
+    } else {
+      await emailField.fill(TEST_USER.email);
+      await servicePage.getByLabel(/Password/i).fill(TEST_USER.password);
+      await servicePage.getByRole("button", { name: /Sign in|Log in|Login/i }).click();
+      console.log("[E2E Filter Test] Clicked login, waiting for dashboard...");
+      await servicePage.waitForURL(/\/dashboard/, { timeout: 15000 });
+    }
+    console.log(`[E2E Filter Test] Login complete, current URL: ${servicePage.url()}`);
+
+    // Navigate to the collection and configure filters
+    await servicePage.goto(`${SERVICE_URL}/collections/1`);
+    await servicePage.waitForLoadState("networkidle");
+
+    // Find and click edit filters button (if it exists in the UI)
+    // For now, we'll use the API directly to set filters
+    console.log("[E2E Filter Test] Setting up filter via API...");
+
+    // Update the influx filter via the service API using form submission
+    // The updateSourceCollectionMapping form action accepts filters as JSON string
+    // FilterOperator.CONTAINS = 7 (numeric enum from @contfu/core)
+    const filterPayload = JSON.stringify([
+      { property: "description", operator: 7, value: "IMPORTANT" },
+    ]);
+
+    // Use the form action endpoint - sourceCollectionId 1 is created during collection setup
+    const filterResponse = await fetch(`${SERVICE_URL}/collections/1?/updateSourceCollectionMapping`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Cookie: await servicePage.context().cookies().then(cookies => 
+          cookies.map(c => `${c.name}=${c.value}`).join("; ")
+        ),
+      },
+      body: new URLSearchParams({
+        sourceCollectionId: "1",
+        filters: filterPayload,
+      }),
+    });
+    console.log(`[E2E Filter Test] Filter update response: ${filterResponse.status}`);
+    await servicePage.close();
+
+    // Create articles - some matching filter, some not
+    const timestamp = Date.now();
+
+    // Article 1: SHOULD match filter (description contains "IMPORTANT")
+    const matchingArticle = await createArticleViaAPI(
+      strapiApiToken,
+      {
+        title: "Matching Filter Article",
+        slug: `matching-filter-${timestamp}`,
+        description: "This is an IMPORTANT article that should pass the filter",
+      },
+      true,
+    );
+
+    // Article 2: Should NOT match filter (no "IMPORTANT" in description)
+    const nonMatchingArticle = await createArticleViaAPI(
+      strapiApiToken,
+      {
+        title: "Non-Matching Article",
+        slug: `non-matching-${timestamp}`,
+        description: "This is a regular article without the keyword",
+      },
+      true,
+    );
+
+    // Send webhooks for both articles
+    await sendArticleWebhook(Number(strapiSourceId), "entry.create", {
+      id: matchingArticle.id,
+      documentId: matchingArticle.documentId,
+      title: "Matching Filter Article",
+      slug: `matching-filter-${timestamp}`,
+      description: "This is an IMPORTANT article that should pass the filter",
+    });
+
+    await sendArticleWebhook(Number(strapiSourceId), "entry.create", {
+      id: nonMatchingArticle.id,
+      documentId: nonMatchingArticle.documentId,
+      title: "Non-Matching Article",
+      slug: `non-matching-${timestamp}`,
+      description: "This is a regular article without the keyword",
+    });
+
+    // Wait for potential sync
+    await sleep(3000);
+    await consumerPage.reload();
+    await consumerPage.waitForLoadState("networkidle");
+
+    // Verify: matching article should appear
+    const matchingVisible = await consumerPage
+      .getByText("Matching Filter Article")
+      .isVisible()
+      .catch(() => false);
+
+    // Verify: non-matching article should NOT appear
+    const nonMatchingVisible = await consumerPage
+      .getByText("Non-Matching Article")
+      .isVisible()
+      .catch(() => false);
+
+    console.log(`[E2E Filter Test] Matching article visible: ${matchingVisible}`);
+    console.log(`[E2E Filter Test] Non-matching article visible: ${nonMatchingVisible}`);
+
+    // Assert filter works correctly
+    expect(matchingVisible).toBe(true);
+    expect(nonMatchingVisible).toBe(false);
+
+    console.log("[E2E Filter Test] Filter test passed!");
+
+    // Clean up: remove filters for subsequent tests
+    // (Leave this for now as subsequent tests may need clean state)
+
+    await consumerPage.close();
+  });
+
   // TODO: Re-enable once WebSocket live-updates from Strapi are fully implemented
   // This test verifies real-time content updates appear in the consumer app without page reload
   test.skip("should receive real-time updates via WebSocket", async ({ page }) => {

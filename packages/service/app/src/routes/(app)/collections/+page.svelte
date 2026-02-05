@@ -41,7 +41,7 @@
           <div>
             <h3 class="font-medium">{collection.name}</h3>
             <p class="text-sm text-muted-foreground">
-              {collection.sourceCollectionCount} source{collection.sourceCollectionCount === 1 ? "" : "s"} ·
+              {collection.influxCount} influx{collection.influxCount === 1 ? "" : "es"} ·
               {collection.connectionCount} client{collection.connectionCount === 1 ? "" : "s"}
             </p>
           </div>

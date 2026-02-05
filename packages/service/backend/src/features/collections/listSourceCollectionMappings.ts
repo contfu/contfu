@@ -1,9 +1,11 @@
 import { db } from "../../infra/db/db";
-import { collectionMappingTable, sourceCollectionTable } from "../../infra/db/schema";
+import { influxTable, sourceCollectionTable } from "../../infra/db/schema";
 import { and, eq } from "drizzle-orm";
+import { unpack } from "msgpackr";
 import type { Filter } from "@contfu/core";
 
 export interface SourceCollectionMappingWithDetails {
+  id: number;
   sourceCollectionId: number;
   sourceCollectionName: string;
   sourceId: number;
@@ -13,6 +15,7 @@ export interface SourceCollectionMappingWithDetails {
 
 /**
  * List all source collections mapped to an aggregation collection.
+ * @deprecated Use listInfluxes from features/influxes instead
  */
 export async function listSourceCollectionMappings(
   userId: number,
@@ -20,32 +23,30 @@ export async function listSourceCollectionMappings(
 ): Promise<SourceCollectionMappingWithDetails[]> {
   const mappings = await db
     .select({
-      sourceCollectionId: collectionMappingTable.sourceCollectionId,
+      id: influxTable.id,
+      sourceCollectionId: influxTable.sourceCollectionId,
       sourceCollectionName: sourceCollectionTable.name,
+      sourceCollectionDisplayName: sourceCollectionTable.displayName,
       sourceId: sourceCollectionTable.sourceId,
-      filters: collectionMappingTable.filters,
-      createdAt: collectionMappingTable.createdAt,
+      filters: influxTable.filters,
+      createdAt: influxTable.createdAt,
     })
-    .from(collectionMappingTable)
+    .from(influxTable)
     .innerJoin(
       sourceCollectionTable,
       and(
-        eq(collectionMappingTable.userId, sourceCollectionTable.userId),
-        eq(collectionMappingTable.sourceCollectionId, sourceCollectionTable.id),
+        eq(influxTable.userId, sourceCollectionTable.userId),
+        eq(influxTable.sourceCollectionId, sourceCollectionTable.id),
       ),
     )
-    .where(
-      and(
-        eq(collectionMappingTable.userId, userId),
-        eq(collectionMappingTable.collectionId, collectionId),
-      ),
-    );
+    .where(and(eq(influxTable.userId, userId), eq(influxTable.collectionId, collectionId)));
 
   return mappings.map((m) => ({
+    id: m.id,
     sourceCollectionId: m.sourceCollectionId,
-    sourceCollectionName: m.sourceCollectionName,
+    sourceCollectionName: m.sourceCollectionDisplayName || m.sourceCollectionName,
     sourceId: m.sourceId,
-    filters: m.filters ? JSON.parse(m.filters) : null,
+    filters: m.filters ? (unpack(m.filters) as Filter[]) : null,
     createdAt: m.createdAt,
   }));
 }

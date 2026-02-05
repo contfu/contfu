@@ -1,12 +1,12 @@
 import { db } from "../../infra/db/db";
-import { collectionTable, collectionMappingTable, connectionTable } from "../../infra/db/schema";
+import { collectionTable, influxTable, connectionTable } from "../../infra/db/schema";
 import { eq, sql } from "drizzle-orm";
 
 export interface Collection {
   id: number;
   userId: number;
   name: string;
-  sourceCollectionCount: number;
+  influxCount: number;
   connectionCount: number;
   createdAt: number;
   updatedAt: number | null;
@@ -16,28 +16,24 @@ export interface Collection {
  * List all Collections for a user with counts.
  * These are the collections that consumers can subscribe to.
  */
-export async function listCollections(
-  userId: number,
-): Promise<Collection[]> {
+export async function listCollections(userId: number): Promise<Collection[]> {
   const collections = await db
     .select()
     .from(collectionTable)
     .where(eq(collectionTable.userId, userId))
     .orderBy(collectionTable.createdAt);
 
-  // Get source collection counts per collection
-  const mappingCounts = await db
+  // Get influx counts per collection
+  const influxCounts = await db
     .select({
-      collectionId: collectionMappingTable.collectionId,
+      collectionId: influxTable.collectionId,
       count: sql<number>`count(*)`.as("count"),
     })
-    .from(collectionMappingTable)
-    .where(eq(collectionMappingTable.userId, userId))
-    .groupBy(collectionMappingTable.collectionId);
+    .from(influxTable)
+    .where(eq(influxTable.userId, userId))
+    .groupBy(influxTable.collectionId);
 
-  const mappingCountMap = new Map<number, number>(
-    mappingCounts.map((c) => [c.collectionId, c.count])
-  );
+  const influxCountMap = new Map<number, number>(influxCounts.map((c) => [c.collectionId, c.count]));
 
   // Get connection counts per collection
   const connectionCounts = await db
@@ -50,14 +46,14 @@ export async function listCollections(
     .groupBy(connectionTable.collectionId);
 
   const connectionCountMap = new Map<number, number>(
-    connectionCounts.map((c) => [c.collectionId, c.count])
+    connectionCounts.map((c) => [c.collectionId, c.count]),
   );
 
   return collections.map((c) => ({
     id: c.id,
     userId: c.userId,
     name: c.name,
-    sourceCollectionCount: mappingCountMap.get(c.id) ?? 0,
+    influxCount: influxCountMap.get(c.id) ?? 0,
     connectionCount: connectionCountMap.get(c.id) ?? 0,
     createdAt: c.createdAt,
     updatedAt: c.updatedAt,
