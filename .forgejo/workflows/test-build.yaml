@@ -10,7 +10,10 @@ jobs:
     name: Tests
     runs-on: ubuntu-latest
     timeout-minutes: 25
-    container: forgejo.rogge.vip/contfu/ci-runner:latest
+    container:
+      image: forgejo.rogge.vip/contfu/ci-runner:latest
+      volumes:
+        - /Users/jimbo/.bun:/root/.bun
     services:
       strapi:
         image: forgejo.rogge.vip/contfu/strapi-test:v2
