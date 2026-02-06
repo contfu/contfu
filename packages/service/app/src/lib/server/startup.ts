@@ -1,8 +1,10 @@
 import { SSEServer } from "@contfu/svc-backend/infra/sse/sse-server";
+import { WSServer } from "@contfu/svc-backend/infra/ws/ws-server";
 import { SyncWorkerManager } from "@contfu/svc-backend/infra/sync-worker/worker-manager";
 
 // Singleton instances - lazily initialized
 let sseServer: SSEServer | null = null;
+let wsServer: WSServer | null = null;
 let workerManager: SyncWorkerManager | null = null;
 let isInitialized = false;
 
@@ -15,6 +17,17 @@ export function getSSEServer(): SSEServer {
     sseServer = new SSEServer();
   }
   return sseServer;
+}
+
+/**
+ * Gets the WSServer singleton instance.
+ * Creates it lazily on first access.
+ */
+export function getWSServer(): WSServer {
+  if (!wsServer) {
+    wsServer = new WSServer();
+  }
+  return wsServer;
 }
 
 /**
@@ -42,21 +55,24 @@ export async function initialize(): Promise<void> {
   }
 
   const sse = getSSEServer();
+  const wss = getWSServer();
   const worker = getSyncWorkerManager();
 
-  // Wire the worker to the SSE server
+  // Wire the worker to both SSE and WebSocket servers
   sse.setWorker(worker);
+  wss.setWorker(worker);
 
   // Wire the onItems callback to broadcast items to connected clients
   worker.onItems((items, connections) => {
     sse.broadcast(items, connections);
+    wss.broadcast(items, connections);
   });
 
   // Start the worker
   await worker.start();
 
   isInitialized = true;
-  console.log("Server startup complete: SSE server and SyncWorkerManager initialized");
+  console.log("Server startup complete: SSE, WebSocket, and SyncWorkerManager initialized");
 }
 
 /**
@@ -77,6 +93,7 @@ export async function shutdown(): Promise<void> {
 
   // Clear singletons
   sseServer = null;
+  wsServer = null;
   workerManager = null;
   isInitialized = false;
 

@@ -1,0 +1,25 @@
+# E2E Test Environment - Strapi only
+# Tests run natively on host for speed
+#
+# Usage: ./scripts/run-e2e-local.sh
+
+services:
+  strapi:
+    image: forgejo.rogge.vip/contfu/strapi-test:v2
+    ports:
+      - "1337:1337"
+    environment:
+      NODE_ENV: development
+      HOST: 0.0.0.0
+      PORT: 1337
+      APP_KEYS: testkey1,testkey2
+      API_TOKEN_SALT: testsalt1
+      ADMIN_JWT_SECRET: testsecret1
+      TRANSFER_TOKEN_SALT: testsalt2
+      JWT_SECRET: testsecret2
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:1337/_health"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s

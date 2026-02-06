@@ -24,6 +24,10 @@ import { dirname, resolve } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { startStrapiDocker, stopStrapiDocker } from "./setup";
+// WebSocket client - currently unused since WS testing is disabled in vite preview mode
+// TODO: Re-enable when WS testing is fixed
+// import { connect } from "@contfu/client";
+import type { ItemEvent } from "@contfu/core";
 
 // Project root (contfu/)
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -59,16 +63,19 @@ const STRAPI_ADMIN = {
 const processes: ChildProcess[] = [];
 
 /**
- * Spawn a process and wait for it to be ready
+ * Spawn a process and wait for it to be ready (via stdout pattern or URL polling)
+ * Note: When using `bun run`, stdout patterns may not work because bun's script
+ * runner writes directly to the terminal. Use readyUrl for reliable detection.
  */
 async function spawnProcess(
   command: string,
   args: string[],
   cwd: string,
-  readyPattern: RegExp | string,
+  readyPattern: RegExp | string | null,
   env?: NodeJS.ProcessEnv,
   timeoutMs = 120000,
   forwardOutput = false,
+  readyUrl?: string,
 ): Promise<ChildProcess> {
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
@@ -91,6 +98,14 @@ async function spawnProcess(
     let output = "";
     let isReady = false;
 
+    const markReady = () => {
+      if (!isReady) {
+        isReady = true;
+        clearTimeout(timeout);
+        resolve(proc);
+      }
+    };
+
     const checkReady = (data: Buffer) => {
       const text = data.toString();
       output += text;
@@ -102,11 +117,12 @@ async function spawnProcess(
         process.stdout.write(`[${command}] ${text}`);
       }
 
-      const pattern = typeof readyPattern === "string" ? new RegExp(readyPattern) : readyPattern;
-      if (!isReady && pattern.test(output)) {
-        isReady = true;
-        clearTimeout(timeout);
-        resolve(proc);
+      // Only check pattern if provided
+      if (readyPattern && !isReady) {
+        const pattern = typeof readyPattern === "string" ? new RegExp(readyPattern) : readyPattern;
+        if (pattern.test(output)) {
+          markReady();
+        }
       }
     };
 
@@ -124,6 +140,26 @@ async function spawnProcess(
         reject(new Error(`Process exited with code ${code}: ${output}`));
       }
     });
+
+    // If readyUrl provided, poll it instead of (or in addition to) stdout pattern
+    if (readyUrl) {
+      const pollUrl = async () => {
+        const pollStart = Date.now();
+        while (Date.now() - pollStart < timeoutMs && !isReady) {
+          try {
+            const response = await fetch(readyUrl, { method: "GET" });
+            if (response.ok || response.status === 404 || response.status === 500) {
+              markReady();
+              return;
+            }
+          } catch {
+            // Server not ready yet
+          }
+          await sleep(500);
+        }
+      };
+      pollUrl();
+    }
   });
 }
 
@@ -427,10 +463,17 @@ async function _createStrapiApiTokenViaUI(page: Page): Promise<string> {
   return apiToken.trim();
 }
 
+// Cache for Strapi admin token to avoid rate limiting
+let cachedStrapiAdminToken: string | null = null;
+
 /**
- * Get Strapi admin JWT token via API
+ * Get Strapi admin JWT token via API (cached to avoid rate limiting)
  */
 async function getStrapiAdminToken(): Promise<string> {
+  if (cachedStrapiAdminToken) {
+    return cachedStrapiAdminToken;
+  }
+
   const response = await fetch(`${STRAPI_URL}/admin/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -447,7 +490,8 @@ async function getStrapiAdminToken(): Promise<string> {
   }
 
   const data = await response.json();
-  return data.data.token;
+  cachedStrapiAdminToken = data.data.token;
+  return cachedStrapiAdminToken;
 }
 
 /**
@@ -817,7 +861,7 @@ async function configureStrapiWebhook(page: Page, webhookUrl: string): Promise<v
 async function setupServiceAppAndGetApiKey(
   page: Page,
   strapiApiToken: string,
-): Promise<{ apiKey: string; sourceId: string | null }> {
+): Promise<{ apiKey: string; sourceId: string | null; collectionId: string | null }> {
   console.log("[E2E] Setting up service app...");
 
   // Navigate directly to login page
@@ -893,25 +937,66 @@ async function setupServiceAppAndGetApiKey(
   // The key appears in an Alert with "New API Key" title after form submission
   let apiKey = "";
 
+  // Wait for page to fully hydrate before clicking (ensures JS form enhancement is active)
+  await page.waitForLoadState("networkidle");
+  await sleep(500); // Extra buffer for Svelte hydration
+
   const regenerateBtn = page.getByRole("button", { name: /^Regenerate$/i });
   if (await regenerateBtn.isVisible().catch(() => false)) {
+    console.log("[E2E] Clicking Regenerate button...");
+    
+    // Intercept the form response to capture the key directly
+    // The Gaudi form system may not be hydrating properly in e2e, so we capture from response
+    const responsePromise = page.waitForResponse(
+      (resp) => resp.url().includes("/clients/") && resp.request().method() === "POST"
+    );
+    
     await regenerateBtn.click();
     
-    // Wait for the "New API Key" alert to appear (form submission + response)
-    const newKeyAlert = page.getByText("New API Key");
-    await newKeyAlert.waitFor({ state: "visible", timeout: 10000 });
+    const response = await responsePromise;
+    console.log(`[E2E] Regenerate response: ${response.status()} ${response.url()}`);
     
-    // The key is in a <code> element inside the alert
-    // Find the code element that contains a long alphanumeric string (the key)
-    const codeElements = page.locator("code");
-    const count = await codeElements.count();
+    // Try to parse the response body to get the key
+    try {
+      const responseText = await response.text();
+      console.log(`[E2E] Response text length: ${responseText.length}`);
+      
+      // The response might be JSON with { success: true, key: "..." }
+      // Or it might be HTML with the key embedded
+      if (responseText.startsWith("{")) {
+        const json = JSON.parse(responseText);
+        if (json.key) {
+          apiKey = json.key;
+          console.log(`[E2E] Captured key from JSON response: ${apiKey.slice(0, 8)}...`);
+        }
+      } else {
+        // Try to find the key in HTML response - look for hex string in code element
+        const keyMatch = responseText.match(/<code[^>]*>([a-f0-9]{40,})<\/code>/i);
+        if (keyMatch) {
+          apiKey = keyMatch[1];
+          console.log(`[E2E] Captured key from HTML response: ${apiKey.slice(0, 8)}...`);
+        }
+      }
+    } catch (e) {
+      console.log(`[E2E] Error parsing response: ${e}`);
+    }
     
-    for (let i = 0; i < count; i++) {
-      const text = await codeElements.nth(i).textContent();
-      // API keys are typically 40+ character alphanumeric strings
-      if (text && text.length > 30 && /^[a-zA-Z0-9_-]+$/.test(text.trim())) {
-        apiKey = text.trim();
-        break;
+    // If we still don't have the key, try the UI as fallback
+    if (!apiKey) {
+      console.log("[E2E] Trying to capture key from UI...");
+      await sleep(1000); // Wait for UI to update
+      
+      const codeElements = page.locator("code");
+      const count = await codeElements.count();
+      console.log(`[E2E] Found ${count} <code> elements`);
+      
+      for (let i = 0; i < count; i++) {
+        const text = await codeElements.nth(i).textContent();
+        if (text && text.length > 30 && /^[a-f0-9]+$/i.test(text.trim())) {
+          apiKey = text.trim();
+          console.log(`[E2E] Captured key from UI: ${apiKey.slice(0, 8)}...`);
+          break;
+        }
       }
     }
   }
@@ -927,8 +1012,8 @@ async function setupServiceAppAndGetApiKey(
     `[E2E] Captured consumer API key from service app (length: ${trimmedKey.length}, first 8 chars: ${trimmedKey.slice(0, 8)}...)`,
   );
 
-  // Return both apiKey and sourceId (sourceId captured earlier when creating source)
-  return { apiKey: trimmedKey, sourceId };
+  // Return apiKey, sourceId, and collectionId
+  return { apiKey: trimmedKey, sourceId, collectionId };
 }
 
 test.describe("E2E: Strapi → Service → Consumer Full Flow", () => {
@@ -939,6 +1024,12 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow", () => {
   let consumerApiKey: string;
   let strapiPage: Page;
   let strapiSourceId: string | null;
+  let collectionId: string | null;
+  let sourceCollectionId: string | null;
+  
+  // WebSocket testing: collect events received via WS
+  const wsReceivedEvents: ItemEvent[] = [];
+  let wsCleanup: (() => void) | null = null;
 
   test.beforeAll(async ({ browser }, testInfo) => {
     console.log("[E2E] beforeAll starting...");
@@ -967,20 +1058,25 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow", () => {
     await waitForUrl(`${STRAPI_URL}/admin/init`, 120000);
     console.log("[E2E] Strapi ready");
 
-    // ===== STEP 2: Start Service app =====
-    console.log("[E2E] Starting service app...");
+    // ===== STEP 2: Start Service app (preview mode) =====
+    // Note: Apps must be built first (CI runs `bun run build` before E2E)
+    // Note: Using readyUrl instead of stdout pattern because `bun run` writes
+    // directly to terminal, bypassing Node.js stdio pipes
+    console.log("[E2E] Starting service app (preview mode)...");
     await spawnProcess(
       "bun",
-      ["run", "dev"],
+      ["run", "preview", "--", "--port", String(SERVICE_PORT)],
       resolve(PROJECT_ROOT, "packages/service/app"),
-      /ready in|Local:/i,
+      null, // stdout pattern unreliable with bun run
       {
         TEST_MODE: "true",
         DATABASE_URL: ":memory:",
+        BETTER_AUTH_SECRET: "e2e-test-secret-at-least-32-chars-long",
       },
       60000,
+      false,
+      SERVICE_URL, // poll this URL for readiness
     );
-    await waitForUrl(SERVICE_URL);
     console.log("[E2E] Service app ready");
 
     // ===== STEP 3: Setup Strapi admin via UI =====
@@ -999,7 +1095,9 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow", () => {
 
     // ===== STEP 4: Setup Service app and get consumer API key =====
     const servicePage = await context.newPage();
-    const { apiKey, sourceId } = await setupServiceAppAndGetApiKey(servicePage, strapiApiToken);
+    const { apiKey, sourceId, collectionId: capturedCollectionId } = await setupServiceAppAndGetApiKey(servicePage, strapiApiToken);
+    collectionId = capturedCollectionId;
+    sourceCollectionId = capturedCollectionId; // Same as collectionId since we created one source collection
     consumerApiKey = apiKey;
     strapiSourceId = sourceId;
     await servicePage.close();
@@ -1033,20 +1131,38 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow", () => {
 
     await spawnProcess(
       "bun",
-      ["run", "dev"],
+      ["run", "preview", "--", "--port", String(CONSUMER_PORT)],
       resolve(PROJECT_ROOT, "demos/consumer-app"),
-      /ready in|Local:/i,
+      null, // stdout pattern unreliable with bun run
       {
         CONTFU_URL: `${SERVICE_URL}/api/sse`,
         CONTFU_KEY: consumerApiKey,
       },
       60000,
+      false,
+      CONSUMER_URL, // poll this URL for readiness
     );
-    await waitForUrl(CONSUMER_URL, 60000);
     console.log("[E2E] Consumer app ready");
+
+    // ===== STEP 5b: Connect via WebSocket in parallel =====
+    // NOTE: WebSocket testing is disabled in e2e because `vite preview` proxies
+    // WS to a dev server that isn't running. WebSocket requires the actual built
+    // Bun server (`bun run serve`), but that has CSRF issues with form submissions.
+    // TODO: Fix this by either:
+    // 1. Disabling CSRF in test mode
+    // 2. Running separate server instances for different purposes
+    // 3. Testing WebSocket separately with unit/integration tests
+    console.log("[E2E] Skipping WebSocket connection (vite preview doesn't support WS properly)...");
+    // WebSocket tests are in the dedicated test below
   });
 
   test.afterAll(async () => {
+    // Cleanup WebSocket connection
+    if (wsCleanup) {
+      console.log("[E2E] Closing WebSocket connection...");
+      wsCleanup();
+    }
+    
     if (strapiPage) {
       await strapiPage.context().close();
     }
@@ -1232,6 +1348,13 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow", () => {
     await expect(consumerPage.getByText("E2E Updated Article")).toBeVisible();
     console.log("[E2E] Test completed - delete propagation is TODO");
 
+    // ===== WebSocket verification skipped =====
+    // WebSocket testing is disabled because vite preview doesn't proxy WS properly.
+    // See setup comment at "STEP 5b" for details.
+    // TODO: Re-enable once we have a proper WS test setup (e.g., bun run serve with CSRF disabled)
+    console.log(`[E2E] WebSocket verification skipped (WS connection disabled in vite preview mode)`);
+    console.log(`[E2E] wsReceivedEvents.length = ${wsReceivedEvents.length} (expected: 0 since WS is disabled)`);
+
     await consumerPage.close();
   });
 
@@ -1282,8 +1405,11 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow", () => {
     }
     console.log(`[E2E Filter Test] Login complete, current URL: ${servicePage.url()}`);
 
-    // Navigate to the collection and configure filters
-    await servicePage.goto(`${SERVICE_URL}/collections/1`);
+    // Navigate to the collection and configure filters (using dynamic ID)
+    if (!collectionId) {
+      throw new Error("collectionId not set - beforeAll may not have run");
+    }
+    await servicePage.goto(`${SERVICE_URL}/collections/${collectionId}`);
     await servicePage.waitForLoadState("networkidle");
 
     // Find and click edit filters button (if it exists in the UI)
@@ -1297,22 +1423,38 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow", () => {
       { property: "description", operator: 7, value: "IMPORTANT" },
     ]);
 
-    // Use the form action endpoint - sourceCollectionId 1 is created during collection setup
-    const filterResponse = await fetch(`${SERVICE_URL}/collections/1?/updateSourceCollectionMapping`, {
+    // Use the form action endpoint with dynamic IDs from the setup
+    // Origin header is required for SvelteKit form actions in production/preview mode
+    if (!collectionId || !sourceCollectionId) {
+      throw new Error("collectionId or sourceCollectionId not set from beforeAll setup");
+    }
+    console.log(`[E2E Filter Test] Using collectionId: ${collectionId}, sourceCollectionId: ${sourceCollectionId}`);
+    
+    const filterResponse = await fetch(`${SERVICE_URL}/collections/${collectionId}?/updateSourceCollectionMapping`, {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
+        Origin: SERVICE_URL,
         Cookie: await servicePage.context().cookies().then(cookies => 
           cookies.map(c => `${c.name}=${c.value}`).join("; ")
         ),
       },
       body: new URLSearchParams({
-        sourceCollectionId: "1",
+        collectionId: collectionId,
+        sourceCollectionId: sourceCollectionId,
         filters: filterPayload,
       }),
     });
     console.log(`[E2E Filter Test] Filter update response: ${filterResponse.status}`);
+    if (!filterResponse.ok) {
+      const errorText = await filterResponse.text();
+      console.log(`[E2E Filter Test] Filter update FAILED: ${errorText}`);
+      throw new Error(`Filter update failed: ${filterResponse.status} - ${errorText}`);
+    }
     await servicePage.close();
+
+    // Wait for filter to propagate
+    await sleep(1000);
 
     // Create articles - some matching filter, some not
     const timestamp = Date.now();

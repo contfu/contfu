@@ -9,7 +9,7 @@ jobs:
   test:
     name: Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     container: forgejo.rogge.vip/contfu/ci-runner:latest
     services:
       strapi:
@@ -31,8 +31,15 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install dependencies
         run: bun install --frozen-lockfile --ignore-scripts
-      - name: Build backend
-        run: bun run -F '@contfu/*backend' build
+      - name: Lint
+        run: bun run lint
+      - name: Type check
+        run: bun run typecheck
+      - name: Build all packages
+        run: bun run build
+      - name: Build consumer demo app
+        run: bun run build
+        working-directory: demos/consumer-app
       - name: Run unit tests
         run: bun run test
       - name: Wait for Strapi

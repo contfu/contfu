@@ -25,7 +25,7 @@
 
   let open = $state(false);
 
-  const dataPromise = listNotionDataSources({ sourceId });
+  const dataPromise = $derived(listNotionDataSources({ sourceId }));
 
   function isUsed(usedIds: string[], ds: NotionDataSource): boolean {
     return usedIds.includes(ds.id);

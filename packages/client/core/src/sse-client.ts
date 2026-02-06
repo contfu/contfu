@@ -32,6 +32,8 @@ type Opts = {
   reconnect?: boolean;
   maxReconnectDelay?: number;
   initialReconnectDelay?: number;
+  /** Custom EventSource implementation (for SSR environments like Bun/Node) */
+  EventSource?: typeof EventSource;
 };
 
 export function connectToSSE(
@@ -50,6 +52,7 @@ export async function connectToSSE(
     reconnect = true,
     maxReconnectDelay = 30_000,
     initialReconnectDelay = 1_000,
+    EventSource: CustomEventSource,
   }: Opts = {},
 ) {
   // Encode key as base64 for URL parameter
@@ -79,7 +82,7 @@ export async function connectToSSE(
       eventSource.close();
     }
 
-    const EventSourceImpl = await getEventSourceClass();
+    const EventSourceImpl = CustomEventSource ?? (await getEventSourceClass());
     eventSource = new EventSourceImpl(sseUrl);
 
     // Setup event listeners for all event types
