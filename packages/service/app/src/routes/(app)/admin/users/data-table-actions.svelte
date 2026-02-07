@@ -22,8 +22,8 @@
     <DropdownMenu.Group>
       <DropdownMenu.Label>Actions</DropdownMenu.Label>
       {#if !user.approved}
-        <form method="post" action={approveUser.action}>
-          <input type="hidden" name="id" value={user.id} />
+        <form {...approveUser}>
+          <input {...approveUser.fields?.id.as("hidden")} value={user.id} />
           <DropdownMenu.Item>
             <button type="submit" class="w-full text-left">
               Approve user
@@ -31,8 +31,8 @@
           </DropdownMenu.Item>
         </form>
       {:else}
-        <form method="post" action={revokeUser.action}>
-          <input type="hidden" name="id" value={user.id} />
+        <form {...revokeUser}>
+          <input {...revokeUser.fields?.id.as("hidden")} value={user.id} />
           <DropdownMenu.Item>
             <button type="submit" class="w-full text-left">
               Revoke approval
@@ -45,8 +45,8 @@
     <DropdownMenu.Group>
       <DropdownMenu.Label>Role</DropdownMenu.Label>
       {#if user.role === UserRole.ADMIN}
-        <form method="post" action={demoteFromAdmin.action}>
-          <input type="hidden" name="id" value={user.id} />
+        <form {...demoteFromAdmin}>
+          <input {...demoteFromAdmin.fields?.id.as("hidden")} value={user.id} />
           <DropdownMenu.Item>
             <button type="submit" class="w-full text-left">
               Remove admin
@@ -54,8 +54,8 @@
           </DropdownMenu.Item>
         </form>
       {:else}
-        <form method="post" action={promoteToAdmin.action}>
-          <input type="hidden" name="id" value={user.id} />
+        <form {...promoteToAdmin}>
+          <input {...promoteToAdmin.fields?.id.as("hidden")} value={user.id} />
           <DropdownMenu.Item>
             <button type="submit" class="w-full text-left">
               Make admin

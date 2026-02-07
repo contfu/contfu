@@ -1,6 +1,6 @@
 import { SSEServer } from "@contfu/svc-backend/infra/sse/sse-server";
-import { WSServer } from "@contfu/svc-backend/infra/ws/ws-server";
 import { SyncWorkerManager } from "@contfu/svc-backend/infra/sync-worker/worker-manager";
+import { WSServer } from "@contfu/svc-backend/infra/ws/ws-server";
 
 // Singleton instances - lazily initialized
 let sseServer: SSEServer | null = null;
@@ -62,7 +62,7 @@ export async function initialize(): Promise<void> {
   sse.setWorker(worker);
   wss.setWorker(worker);
 
-  // Wire the onItems callback to broadcast items to connected clients
+  // Wire the onItems callback to broadcast items to connected consumers
   worker.onItems((items, connections) => {
     sse.broadcast(items, connections);
     wss.broadcast(items, connections);

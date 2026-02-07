@@ -64,8 +64,8 @@
                   {new Date(collection.createdAt * 1000).toLocaleDateString()}
                 </td>
                 <td class="px-4 py-3 text-right">
-                  <form method="post" action={deleteSourceCollection.action} class="inline">
-                    <input type="hidden" name="id" value={collection.id} />
+                  <form {...deleteSourceCollection} class="inline">
+                    <input {...deleteSourceCollection.fields?.id.as("hidden")} value={collection.id} />
                     <button
                       type="submit"
                       class="text-destructive hover:underline"

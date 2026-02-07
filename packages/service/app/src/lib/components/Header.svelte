@@ -38,7 +38,7 @@
     { href: "/dashboard", label: "Dashboard" },
     { href: "/sources", label: "Sources" },
     { href: "/collections", label: "Collections" },
-    { href: "/clients", label: "Clients" },
+    { href: "/consumers", label: "Consumers" },
   ];
 
   function isActiveLink(href: string): boolean {

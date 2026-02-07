@@ -1,9 +1,12 @@
 <script lang="ts">
   import { page } from "$app/state";
-  import { createCollection } from "$lib/remote/collections.remote";
   import { Button } from "$lib/components/ui/button";
   import { Input } from "$lib/components/ui/input";
   import { Label } from "$lib/components/ui/label";
+  import { createCollection } from "$lib/remote/collections.remote";
+  import { useId } from "bits-ui";
+
+  const nameId = useId();
 
   // Optional query params for implicit SourceCollection creation (used by E2E tests)
   const sourceId = page.url.searchParams.get("sourceId") ?? "";
@@ -26,18 +29,17 @@
 
   <form method="post" action={createCollection.action} class="space-y-5">
     <div class="space-y-1.5">
-      <Label for="name">Name</Label>
+      <Label for={nameId}>Name</Label>
       <Input
-        id="name"
+        id={nameId}
         name="name"
-        type="text"
         placeholder="My Collection"
         required
-        aria-invalid={!!createCollection.fields?.name?.issues()?.length}
+        aria-invalid={!!createCollection.error}
       />
-      {#if createCollection.fields?.name?.issues()?.length}
+      {#if createCollection.error}
         <p class="text-sm text-destructive">
-          {createCollection.fields?.name?.issues()?.[0]?.message}
+          {createCollection.error}
         </p>
       {/if}
     </div>

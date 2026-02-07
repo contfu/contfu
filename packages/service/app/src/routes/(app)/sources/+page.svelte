@@ -66,8 +66,8 @@
               <td class="px-4 py-3 text-right">
                 <div class="flex items-center justify-end gap-2">
                   <a href="/sources/{source.id}" class="text-primary hover:underline">Edit</a>
-                  <form method="post" action={deleteSource.action} class="inline">
-                    <input type="hidden" name="id" value={source.id} />
+                  <form {...deleteSource} class="inline">
+                    <input {...deleteSource.fields?.id.as("hidden")} value={source.id} />
                     <button
                       type="submit"
                       class="text-destructive hover:underline"

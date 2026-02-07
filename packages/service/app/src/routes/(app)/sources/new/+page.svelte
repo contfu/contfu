@@ -1,13 +1,20 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
-  import { createSource, testNewConnection, createNotionSourceFromOAuth } from "$lib/remote/sources.remote";
-  import { listLinkedAccounts } from "$lib/remote/accounts.remote";
-  import { authClient } from "$lib/auth-client";
+  import * as Alert from "$lib/components/ui/alert";
   import { Button } from "$lib/components/ui/button";
   import { Input } from "$lib/components/ui/input";
   import { Label } from "$lib/components/ui/label";
   import * as Select from "$lib/components/ui/select";
-  import * as Alert from "$lib/components/ui/alert";
+  import { listLinkedAccounts } from "$lib/remote/accounts.remote";
+  import { createSource, testNewConnection, createNotionSourceFromOAuth } from "$lib/remote/sources.remote";
+  import { authClient } from "$lib/auth-client";
+  import { useId } from "bits-ui";
+
+  const nameId = useId();
+  const typeId = useId();
+  const urlId = useId();
+  const authTypeId = useId();
+  const credentialsId = useId();
 
   const SOURCE_TYPES = [
     { value: "0", label: "Notion" },
@@ -138,17 +145,17 @@
     }
   }}>
     <div class="space-y-1.5">
-      <Label for="name">Name</Label>
-      <Input id="name" name="name" type="text" placeholder="My Content Source" required />
-      {#if createSource.fields?.name?.issues()?.length}
-        <p class="text-sm text-destructive">{createSource.fields?.name?.issues()?.[0]?.message}</p>
+      <Label for={nameId}>Name</Label>
+      <Input id={nameId} name="name" placeholder="My Content Source" required />
+      {#if createSource.error}
+        <p class="text-sm text-destructive">{createSource.error}</p>
       {/if}
     </div>
 
     <div class="space-y-1.5">
-      <Label for="type">Type</Label>
+      <Label for={typeId}>Type</Label>
       <Select.Root type="single" name="type" bind:value={selectedType}>
-        <Select.Trigger id="type" class="w-full">
+        <Select.Trigger id={typeId} class="w-full">
           {SOURCE_TYPES.find((t) => t.value === selectedType)?.label ?? "Select type"}
         </Select.Trigger>
         <Select.Content>
@@ -157,9 +164,8 @@
           {/each}
         </Select.Content>
       </Select.Root>
-      {#if createSource.fields?.type?.issues()?.length}
-        <p class="text-sm text-destructive">{createSource.fields?.type?.issues()?.[0]?.message}</p>
-      {/if}
+      <!-- validation errors handled server-side -->
+      <p class="text-sm text-destructive">{createSource.fields?.type?.issues()?.[0]?.message}</p>
     </div>
 
     {#if isNotionSource}
@@ -201,25 +207,22 @@
 
     {#if selectedType === "1" || selectedType === "2"}
       <div class="space-y-1.5">
-        <Label for="url">{selectedType === "1" ? "Strapi URL" : "Base URL"}</Label>
+        <Label for={urlId}>{selectedType === "1" ? "Strapi URL" : "Base URL"}</Label>
         <Input
-          id="url"
+          id={urlId}
           name="url"
           type="url"
           placeholder={selectedType === "1" ? "https://strapi.example.com" : "https://example.com"}
           required
         />
-        {#if createSource.fields?.url?.issues()?.length}
-          <p class="text-sm text-destructive">{createSource.fields?.url?.issues()?.[0]?.message}</p>
-        {/if}
       </div>
     {/if}
 
     {#if isWebSource}
       <div class="space-y-1.5">
-        <Label for="authType">Authentication</Label>
+        <Label for={authTypeId}>Authentication</Label>
         <Select.Root type="single" name="authType" bind:value={selectedAuthType}>
-          <Select.Trigger id="authType" class="w-full">
+          <Select.Trigger id={authTypeId} class="w-full">
             {AUTH_TYPES.find((t) => t.value === selectedAuthType)?.label ?? "Select auth"}
           </Select.Trigger>
           <Select.Content>
@@ -233,7 +236,7 @@
 
     {#if requiresCredentials}
       <div class="space-y-1.5">
-        <Label for="_credentials">
+        <Label for={credentialsId}>
           {#if isWebSource}
             {selectedAuthType === "1" ? "Bearer Token" : "Credentials"}
           {:else if isNotionSource}
@@ -243,7 +246,7 @@
           {/if}
         </Label>
         <Input
-          id="_credentials"
+          id={credentialsId}
           name="_credentials"
           type="password"
           placeholder={
@@ -262,9 +265,6 @@
             Format: username:password
           {/if}
         </p>
-        {#if createSource.fields?._credentials?.issues()?.length}
-          <p class="text-sm text-destructive">{createSource.fields?._credentials?.issues()?.[0]?.message}</p>
-        {/if}
       </div>
     {/if}
 

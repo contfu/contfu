@@ -194,7 +194,12 @@ async function waitForUrl(url: string, timeoutMs = 30000): Promise<void> {
     attempts++;
     try {
       const response = await fetch(url, { method: "GET" });
-      if (response.ok || response.status === 403 || response.status === 404 || response.status === 500) {
+      if (
+        response.ok ||
+        response.status === 403 ||
+        response.status === 404 ||
+        response.status === 500
+      ) {
         console.log(`[E2E] URL ${url} accessible (status ${response.status})`);
         return;
       }
@@ -512,7 +517,7 @@ async function _createArticleContentType(): Promise<void> {
   if (checkResponse.ok) {
     const existing = await checkResponse.json();
     const articleExists = existing.data?.some(
-      (ct: { uid: string }) => ct.uid === "api::article.article"
+      (ct: { uid: string }) => ct.uid === "api::article.article",
     );
     if (articleExists) {
       console.log("[E2E] Article content type already exists");
@@ -559,7 +564,9 @@ async function _createArticleContentType(): Promise<void> {
 
   if (!createResponse.ok) {
     const errorText = await createResponse.text();
-    throw new Error(`Failed to create Article content type: ${createResponse.status} - ${errorText}`);
+    throw new Error(
+      `Failed to create Article content type: ${createResponse.status} - ${errorText}`,
+    );
   }
 
   console.log("[E2E] Article content type created, waiting for Strapi to reload...");
@@ -905,32 +912,37 @@ async function setupServiceAppAndGetApiKey(
   await page.goto(`${SERVICE_URL}/collections/new?sourceId=${sourceId}&ref=api::article.article`);
   await page.getByLabel(/Name/i).fill("Articles");
   await page.getByRole("button", { name: /Create Collection/i }).click();
-  
+
   // Wait for redirect to collection detail page
   await page.waitForURL(/\/collections\/\d+/, { timeout: 15000 });
   const collectionUrl = page.url();
   const collectionIdMatch = collectionUrl.match(/\/collections\/(\d+)/);
   const collectionId = collectionIdMatch ? collectionIdMatch[1] : null;
-  console.log(`[E2E] Collection created with linked SourceCollection (ID: ${collectionId})`)
+  console.log(`[E2E] Collection created with linked SourceCollection (ID: ${collectionId})`);
 
   // Create a client for the consumer app
-  await page.goto(`${SERVICE_URL}/clients`);
-  await page.getByRole("link", { name: /Add Client/i }).click();
+  await page.goto(`${SERVICE_URL}/consumers`);
+  await page.getByRole("link", { name: /Add Consumer/i }).click();
   await page.locator('input[name="name"]').fill("E2E Consumer App");
-  await page.getByRole("button", { name: /Create Client/i }).click();
+  await page.getByRole("button", { name: /Create Consumer/i }).click();
 
   // Wait for client creation
-  await page.waitForURL(/\/clients\/\d+/, { timeout: 15000 });
-  console.log("[E2E] Client created");
+  await page.waitForURL(/\/consumers\/\d+/, { timeout: 15000 });
+  console.log("[E2E] Consumer created");
 
-  // Connect client to Articles collection
-  // The COLLECTIONS section has a dropdown to select a collection and Add button
+  // Connect consumer to Articles collection
+  // Wait for page hydration before interacting with dropdown
+  await page.waitForLoadState("networkidle");
+  await sleep(500);
+
   const collectionDropdown = page.locator("select").first();
   if (await collectionDropdown.isVisible().catch(() => false)) {
     await collectionDropdown.selectOption({ label: "Articles" });
     await page.getByRole("button", { name: /^Add$/i }).click();
     await sleep(1000);
-    console.log("[E2E] Connected client to Articles collection");
+    console.log("[E2E] Connected consumer to Articles collection");
+  } else {
+    throw new Error("Collection dropdown not visible - cannot connect consumer to collection");
   }
 
   // Click Regenerate to generate/show the API key
@@ -944,67 +956,30 @@ async function setupServiceAppAndGetApiKey(
   const regenerateBtn = page.getByRole("button", { name: /^Regenerate$/i });
   if (await regenerateBtn.isVisible().catch(() => false)) {
     console.log("[E2E] Clicking Regenerate button...");
-    
-    // Intercept the form response to capture the key directly
-    // The Gaudi form system may not be hydrating properly in e2e, so we capture from response
-    const responsePromise = page.waitForResponse(
-      (resp) => resp.url().includes("/clients/") && resp.request().method() === "POST"
-    );
-    
+
     await regenerateBtn.click();
+
+    // Wait for the "New API Key" alert to appear with the key
+    // Enhanced forms use fetch, so we just wait for UI to update
+    console.log("[E2E] Waiting for API key to appear in UI...");
     
-    const response = await responsePromise;
-    console.log(`[E2E] Regenerate response: ${response.status()} ${response.url()}`);
+    // Wait for the code element with the hex key to appear
+    const keyLocator = page.locator("code").filter({ hasText: /^[a-f0-9]{40,}$/i });
+    await keyLocator.waitFor({ state: "visible", timeout: 10000 });
     
-    // Try to parse the response body to get the key
-    try {
-      const responseText = await response.text();
-      console.log(`[E2E] Response text length: ${responseText.length}`);
-      
-      // The response might be JSON with { success: true, key: "..." }
-      // Or it might be HTML with the key embedded
-      if (responseText.startsWith("{")) {
-        const json = JSON.parse(responseText);
-        if (json.key) {
-          apiKey = json.key;
-          console.log(`[E2E] Captured key from JSON response: ${apiKey.slice(0, 8)}...`);
-        }
-      } else {
-        // Try to find the key in HTML response - look for hex string in code element
-        const keyMatch = responseText.match(/<code[^>]*>([a-f0-9]{40,})<\/code>/i);
-        if (keyMatch) {
-          apiKey = keyMatch[1];
-          console.log(`[E2E] Captured key from HTML response: ${apiKey.slice(0, 8)}...`);
-        }
-      }
-    } catch (e) {
-      console.log(`[E2E] Error parsing response: ${e}`);
-    }
-    
-    // If we still don't have the key, try the UI as fallback
-    if (!apiKey) {
-      console.log("[E2E] Trying to capture key from UI...");
-      await sleep(1000); // Wait for UI to update
-      
-      const codeElements = page.locator("code");
-      const count = await codeElements.count();
-      console.log(`[E2E] Found ${count} <code> elements`);
-      
-      for (let i = 0; i < count; i++) {
-        const text = await codeElements.nth(i).textContent();
-        if (text && text.length > 30 && /^[a-f0-9]+$/i.test(text.trim())) {
-          apiKey = text.trim();
-          console.log(`[E2E] Captured key from UI: ${apiKey.slice(0, 8)}...`);
-          break;
-        }
-      }
+    const keyText = await keyLocator.textContent();
+    if (keyText) {
+      apiKey = keyText.trim();
+      console.log(`[E2E] Captured key from UI: ${apiKey.slice(0, 8)}...`);
     }
   }
 
   if (!apiKey) {
     // Take a screenshot for debugging
     await page.screenshot({ path: "api-key-capture-debug.png" });
-    throw new Error("Could not capture API key from service app UI - see api-key-capture-debug.png");
+    throw new Error(
+      "Could not capture API key from service app UI - see api-key-capture-debug.png",
+    );
   }
 
   const trimmedKey = apiKey.trim();
@@ -1026,19 +1001,21 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow", () => {
   let strapiSourceId: string | null;
   let collectionId: string | null;
   let sourceCollectionId: string | null;
-  
+
   // WebSocket testing: collect events received via WS
   const wsReceivedEvents: ItemEvent[] = [];
   let wsCleanup: (() => void) | null = null;
 
   test.beforeAll(async ({ browser }, testInfo) => {
     console.log("[E2E] beforeAll starting...");
-    
+
     // Clean up any lingering processes from previous test attempts (e.g., retries)
     await killAllProcesses();
-    
-    console.log(`[E2E] CI=${process.env.CI}, E2E_FULL_FLOW=${process.env.E2E_FULL_FLOW}, STRAPI_HOST=${process.env.STRAPI_HOST}`);
-    
+
+    console.log(
+      `[E2E] CI=${process.env.CI}, E2E_FULL_FLOW=${process.env.E2E_FULL_FLOW}, STRAPI_HOST=${process.env.STRAPI_HOST}`,
+    );
+
     // Extend timeout for setup - starting 3 servers + UI automation takes time
     // Must be longer than Strapi spawn timeout (180s) + service/consumer startup
     testInfo.setTimeout(300000); // 5 minutes
@@ -1095,7 +1072,11 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow", () => {
 
     // ===== STEP 4: Setup Service app and get consumer API key =====
     const servicePage = await context.newPage();
-    const { apiKey, sourceId, collectionId: capturedCollectionId } = await setupServiceAppAndGetApiKey(servicePage, strapiApiToken);
+    const {
+      apiKey,
+      sourceId,
+      collectionId: capturedCollectionId,
+    } = await setupServiceAppAndGetApiKey(servicePage, strapiApiToken);
     collectionId = capturedCollectionId;
     sourceCollectionId = capturedCollectionId; // Same as collectionId since we created one source collection
     consumerApiKey = apiKey;
@@ -1152,7 +1133,9 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow", () => {
     // 1. Disabling CSRF in test mode
     // 2. Running separate server instances for different purposes
     // 3. Testing WebSocket separately with unit/integration tests
-    console.log("[E2E] Skipping WebSocket connection (vite preview doesn't support WS properly)...");
+    console.log(
+      "[E2E] Skipping WebSocket connection (vite preview doesn't support WS properly)...",
+    );
     // WebSocket tests are in the dedicated test below
   });
 
@@ -1162,12 +1145,12 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow", () => {
       console.log("[E2E] Closing WebSocket connection...");
       wsCleanup();
     }
-    
+
     if (strapiPage) {
       await strapiPage.context().close();
     }
     await killAllProcesses();
-    
+
     // Stop Strapi Docker container (unless using external Strapi in CI)
     stopStrapiDocker();
   });
@@ -1352,8 +1335,12 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow", () => {
     // WebSocket testing is disabled because vite preview doesn't proxy WS properly.
     // See setup comment at "STEP 5b" for details.
     // TODO: Re-enable once we have a proper WS test setup (e.g., bun run serve with CSRF disabled)
-    console.log(`[E2E] WebSocket verification skipped (WS connection disabled in vite preview mode)`);
-    console.log(`[E2E] wsReceivedEvents.length = ${wsReceivedEvents.length} (expected: 0 since WS is disabled)`);
+    console.log(
+      `[E2E] WebSocket verification skipped (WS connection disabled in vite preview mode)`,
+    );
+    console.log(
+      `[E2E] wsReceivedEvents.length = ${wsReceivedEvents.length} (expected: 0 since WS is disabled)`,
+    );
 
     await consumerPage.close();
   });
@@ -1379,17 +1366,17 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow", () => {
     await servicePage.goto(`${SERVICE_URL}/login`);
     console.log(`[E2E Filter Test] Current URL after goto: ${servicePage.url()}`);
     await servicePage.waitForLoadState("networkidle");
-    
+
     // Check if we're on the login page
     const emailField = servicePage.getByLabel(/Email/i);
     const isLoginPage = await emailField.isVisible({ timeout: 5000 }).catch(() => false);
     console.log(`[E2E Filter Test] Is login page visible: ${isLoginPage}`);
-    
+
     if (!isLoginPage) {
       // Maybe we're already logged in? Check current URL
       console.log(`[E2E Filter Test] Not on login page. Current URL: ${servicePage.url()}`);
       await servicePage.screenshot({ path: "debug-filter-test-login.png" });
-      
+
       // If already on dashboard, skip login
       if (servicePage.url().includes("/dashboard")) {
         console.log("[E2E Filter Test] Already on dashboard, skipping login");
@@ -1428,23 +1415,29 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow", () => {
     if (!collectionId || !sourceCollectionId) {
       throw new Error("collectionId or sourceCollectionId not set from beforeAll setup");
     }
-    console.log(`[E2E Filter Test] Using collectionId: ${collectionId}, sourceCollectionId: ${sourceCollectionId}`);
-    
-    const filterResponse = await fetch(`${SERVICE_URL}/collections/${collectionId}?/updateSourceCollectionMapping`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        Origin: SERVICE_URL,
-        Cookie: await servicePage.context().cookies().then(cookies => 
-          cookies.map(c => `${c.name}=${c.value}`).join("; ")
-        ),
+    console.log(
+      `[E2E Filter Test] Using collectionId: ${collectionId}, sourceCollectionId: ${sourceCollectionId}`,
+    );
+
+    const filterResponse = await fetch(
+      `${SERVICE_URL}/collections/${collectionId}?/updateSourceCollectionMapping`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Origin: SERVICE_URL,
+          Cookie: await servicePage
+            .context()
+            .cookies()
+            .then((cookies) => cookies.map((c) => `${c.name}=${c.value}`).join("; ")),
+        },
+        body: new URLSearchParams({
+          collectionId: collectionId,
+          sourceCollectionId: sourceCollectionId,
+          filters: filterPayload,
+        }),
       },
-      body: new URLSearchParams({
-        collectionId: collectionId,
-        sourceCollectionId: sourceCollectionId,
-        filters: filterPayload,
-      }),
-    });
+    );
     console.log(`[E2E Filter Test] Filter update response: ${filterResponse.status}`);
     if (!filterResponse.ok) {
       const errorText = await filterResponse.text();

@@ -115,6 +115,22 @@ cd tests
 E2E_FULL_FLOW=true bun test:e2e
 ```
 
+**E2E Testing Best Practices:**
+
+- **Write tests from user perspective** - Wait for UI changes, not network responses. Users see the UI, not the network tab.
+- **Don't intercept responses** - With enhanced forms (progressive enhancement), forms use fetch instead of navigation. Wait for visible UI changes after actions.
+- **Use locators over response parsing** - Instead of `page.waitForResponse()` + parsing, use `locator.waitFor()` to wait for elements to appear.
+
+```ts
+// ✅ Correct - wait for UI
+await button.click();
+await page.locator("text=Success").waitFor({ state: "visible" });
+
+// ❌ Wrong - intercept response
+const response = await page.waitForResponse(r => r.url().includes("/api"));
+const data = await response.json();
+```
+
 **Strapi E2E testing patterns:**
 
 - Tests interact with Strapi via **admin UI automation** (Playwright) for realistic user flows

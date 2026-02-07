@@ -1,12 +1,12 @@
 import { form, query } from "$app/server";
 import { getUserId } from "$lib/server/user";
+import type { BackendConsumerWithConnectionCount } from "@contfu/svc-backend/domain/types";
 import { createConsumer as createConsumerFeature } from "@contfu/svc-backend/features/consumers/createConsumer";
-import { listConsumers } from "@contfu/svc-backend/features/consumers/listConsumers";
+import { deleteConsumer as deleteConsumerFeature } from "@contfu/svc-backend/features/consumers/deleteConsumer";
 import { getConsumer as getConsumerFeature } from "@contfu/svc-backend/features/consumers/getConsumer";
 import { getConsumerWithConnectionCount } from "@contfu/svc-backend/features/consumers/getConsumerWithConnectionCount";
+import { listConsumers } from "@contfu/svc-backend/features/consumers/listConsumers";
 import { updateConsumer as updateConsumerFeature } from "@contfu/svc-backend/features/consumers/updateConsumer";
-import { deleteConsumer as deleteConsumerFeature } from "@contfu/svc-backend/features/consumers/deleteConsumer";
-import type { BackendConsumerWithConnectionCount } from "@contfu/svc-backend/domain/types";
 import { invalid, redirect } from "@sveltejs/kit";
 import * as v from "valibot";
 
@@ -57,7 +57,7 @@ export const createConsumer = form(
       key: Buffer.from(apiKey, "hex"),
     });
 
-    throw redirect(302, `/clients/${consumer.id}`);
+    throw redirect(302, `/consumers/${consumer.id}`);
   },
 );
 
@@ -98,11 +98,7 @@ export const updateConsumer = form(
  */
 export const regenerateKey = form(
   v.object({
-    id: v.pipe(
-      v.union([v.string(), v.number()]),
-      v.transform((val) => (typeof val === "string" ? Number.parseInt(val, 10) : val)),
-      v.number(),
-    ),
+    id: v.number(),
   }),
   async (data, issue) => {
     const userId = getUserId();
@@ -143,6 +139,6 @@ export const deleteConsumer = form(
       throw invalid(issue.id("Consumer not found"));
     }
 
-    throw redirect(302, "/clients");
+    throw redirect(302, "/consumers");
   },
 );

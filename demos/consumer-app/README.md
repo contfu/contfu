@@ -69,9 +69,9 @@ The demo app requires a `CONTFU_KEY` to connect to the Contfu sync service and r
 
 2. **Create a user account**: Visit http://localhost:3001 and register a new user account
 
-3. **Create a client**: Navigate to **Clients** > **New Client** in the app dashboard
+3. **Create a client**: Navigate to **Consumers** > **New Consumer** in the app dashboard
 
-4. **Copy the key**: After creating the client, copy the hex-encoded connection key
+4. **Copy the key**: After creating a client consumer, copy the hex-encoded connection key
 
 5. **Run the demo app with the key**:
    ```bash

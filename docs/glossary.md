@@ -46,9 +46,9 @@ A collection managed by Contfu. Configured on the service to aggregate filtered 
 An item within a Collection. Created when a SourceItem passes through filtering into a Collection.
 
 **Identity:**
-- `id` (6 bytes): Deterministic hash derived from SourceCollection ID + SourceItem ID, salted with an application secret. Opaque to clients — cannot be reverse-engineered to identify the source.
+- `id` (6 bytes): Deterministic hash derived from SourceCollection ID + SourceItem ID, salted with an application secret. Opaque to consumers — cannot be reverse-engineered to identify the source.
 - `collectionId` (integer): User-scoped collection identifier
-- `ref` (binary, optional): Deep link to the upstream SourceItem. Enables clients to trace back to the original CMS entry. Stored as binary blob.
+- `ref` (binary, optional): Deep link to the upstream SourceItem. Enables consumers to trace back to the original CMS entry. Stored as binary blob.
 
 **Ref format examples:**
 - Notion: `n:<uuid>`
@@ -60,7 +60,7 @@ An item within a Collection. Created when a SourceItem passes through filtering 
 2. Source setting (default for all its SourceCollections)
 3. Disabled by default (privacy-first)
 
-**Design rationale:** By default, clients only see opaque IDs — no knowledge of Sources or SourceCollections. Users who need traceability (e.g., linking back to CMS) can explicitly enable ref population.
+**Design rationale:** By default, consumers only see opaque IDs — no knowledge of Sources or SourceCollections. Users who need traceability (e.g., linking back to CMS) can explicitly enable ref population.
 
 ### ItemEvent
 An event notifying about an Item change or deletion. Emitted to Consumers when Collection data changes.

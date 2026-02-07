@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { getCollections } from "$lib/remote/collections.remote";
   import { Button } from "$lib/components/ui/button";
+  import { getCollections } from "$lib/remote/collections.remote";
   import { Plus } from "@lucide/svelte";
 
   const collections = await getCollections();
@@ -11,7 +11,7 @@
     <div>
       <h1 class="text-2xl font-semibold tracking-tight">Collections</h1>
       <p class="mt-1 text-sm text-muted-foreground">
-        Aggregation targets that clients subscribe to
+        Aggregation targets that consumers subscribe to
       </p>
     </div>
     <Button href="/collections/new">
@@ -41,8 +41,13 @@
           <div>
             <h3 class="font-medium">{collection.name}</h3>
             <p class="text-sm text-muted-foreground">
-              {collection.influxCount} influx{collection.influxCount === 1 ? "" : "es"} ·
-              {collection.connectionCount} client{collection.connectionCount === 1 ? "" : "s"}
+              {collection.influxCount} influx{collection.influxCount === 1
+                ? ""
+                : "es"} ·
+              {collection.connectionCount} client{collection.connectionCount ===
+              1
+                ? ""
+                : "s"}
             </p>
           </div>
           <span class="text-sm text-muted-foreground">→</span>

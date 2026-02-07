@@ -1,6 +1,12 @@
 <script lang="ts">
-  import { page } from "$app/state";
   import { goto } from "$app/navigation";
+  import { page } from "$app/state";
+  import * as Alert from "$lib/components/ui/alert";
+  import { Button, buttonVariants } from "$lib/components/ui/button";
+  import { Input } from "$lib/components/ui/input";
+  import { Label } from "$lib/components/ui/label";
+  import * as Popover from "$lib/components/ui/popover";
+  import { getSourceCollectionsBySource, createSourceCollection } from "$lib/remote/source-collections.remote";
   import {
     getSource,
     updateSource,
@@ -8,13 +14,17 @@
     testConnection,
     regenerateWebhookSecret,
   } from "$lib/remote/sources.remote";
-  import { getSourceCollectionsBySource, createSourceCollection } from "$lib/remote/source-collections.remote";
   import { getWebhookLogs, type WebhookLogEntry } from "$lib/remote/webhookLogs.remote";
+  import { cn } from "$lib/utils";
   import { SourceType } from "@contfu/svc-backend/features/sources/testSourceConnection";
-  import { Button } from "$lib/components/ui/button";
-  import { Input } from "$lib/components/ui/input";
-  import { Label } from "$lib/components/ui/label";
-  import * as Alert from "$lib/components/ui/alert";
+  import Pencil from "@lucide/svelte/icons/pencil";
+  import { useId } from "bits-ui";
+
+  const nameId = useId();
+  const urlId = useId();
+  const credentialsId = useId();
+  const webPathId = useId();
+  const collectionNameId = useId();
 
   const SOURCE_TYPE_LABELS: Record<number, string> = {
     [SourceType.NOTION]: "Notion",
@@ -43,6 +53,7 @@
   let testResult: { success: boolean; message: string } | null = $state(null);
   let testPending = $state(false);
   let updateSuccess = $state(false);
+  let namePopoverOpen = $state(false);
   let webhookLogs = $state(initialWebhookLogs);
   let webhookSecret = $state<string | null>(null);
   let regeneratingSecret = $state(false);
@@ -72,8 +83,13 @@
 
   function handleUpdateSuccess() {
     updateSuccess = true;
+    namePopoverOpen = false;
     setTimeout(() => { updateSuccess = false; }, 3000);
   }
+
+  $effect(() => {
+    if (updateSource.result?.success) handleUpdateSuccess();
+  });
 
   async function handleRegenerateSecret() {
     if (!source) return;
@@ -122,37 +138,71 @@
     </div>
 
     <div class="mb-8">
-      <div class="flex items-center gap-3">
+      <div class="flex items-center gap-2">
         <h1 class="text-2xl font-semibold tracking-tight">{source.name || "Unnamed Source"}</h1>
+        <Popover.Root bind:open={namePopoverOpen}>
+          <Popover.Trigger
+            class={cn(
+              buttonVariants({ variant: "ghost", size: "icon" }),
+              "rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground",
+            )}
+          >
+            <Pencil class="h-4 w-4" />
+          </Popover.Trigger>
+          <Popover.Portal>
+            <Popover.Content class="w-72" align="start">
+              <form {...updateSource} class="space-y-3">
+                <input {...updateSource.fields?.id.as("hidden")} value={source.id} />
+                <div class="space-y-1.5">
+                  <Label for={nameId}>Name</Label>
+                  <Input
+                    id={nameId}
+                    {...updateSource.fields?.name.as("text")}
+                    value={source.name ?? ""}
+                    placeholder="My Content Source"
+                    required
+                  />
+                </div>
+                <div class="flex justify-end gap-2">
+                  <Popover.Close>
+                    <Button type="button" variant="outline" size="sm">Cancel</Button>
+                  </Popover.Close>
+                  <Button type="submit" size="sm" disabled={!!updateSource.pending}>
+                    {updateSource.pending ? "Saving..." : "Save"}
+                  </Button>
+                </div>
+              </form>
+            </Popover.Content>
+          </Popover.Portal>
+        </Popover.Root>
         <span class="rounded-md bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
           {SOURCE_TYPE_LABELS[source.type] ?? "Unknown"}
         </span>
       </div>
-      <p class="mt-1 text-sm text-muted-foreground">Configure your content source</p>
+      <p class="mt-1 text-sm text-muted-foreground">
+        {source.collectionCount} collection{source.collectionCount === 1 ? "" : "s"} ·
+        Created {new Date(source.createdAt * 1000).toLocaleDateString()}
+      </p>
     </div>
 
-    <!-- Edit form -->
-    <section class="mb-8">
-      <form method="post" action={updateSource.action} class="space-y-4" onsubmit={() => {
-        if (updateSource.result?.success) handleUpdateSuccess();
-      }}>
-        <input type="hidden" name="id" value={source.id} />
+    {#if updateSuccess}
+      <Alert.Root class="mb-6">
+        <Alert.Description>Source updated successfully.</Alert.Description>
+      </Alert.Root>
+    {/if}
 
-        <div class="space-y-1.5">
-          <Label for="name">Name</Label>
-          <Input id="name" name="name" type="text" placeholder="My Content Source" value={source.name ?? ""} />
-          {#if updateSource.fields?.name?.issues()?.length}
-            <p class="text-sm text-destructive">{updateSource.fields?.name?.issues()?.[0]?.message}</p>
-          {/if}
-        </div>
+    <!-- Settings form -->
+    <section class="mb-8">
+      <h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-muted-foreground">Connection</h2>
+      <form {...updateSource} class="space-y-4">
+        <input {...updateSource.fields?.id.as("hidden")} value={source.id} />
 
         {#if source.type === SourceType.STRAPI || source.type === SourceType.WEB}
           <div class="space-y-1.5">
-            <Label for="url">{source.type === SourceType.STRAPI ? "Strapi URL" : "Base URL"}</Label>
+            <Label for={urlId}>{source.type === SourceType.STRAPI ? "Strapi URL" : "Base URL"}</Label>
             <Input
-              id="url"
-              name="url"
-              type="url"
+              id={urlId}
+              {...updateSource.fields?.url.as("url")}
               placeholder={source.type === SourceType.STRAPI ? "https://strapi.example.com" : "https://example.com"}
               value={source.url ?? ""}
             />
@@ -176,7 +226,7 @@
           {@const isWebWithAuth = source.type === SourceType.WEB && (source.webAuthType ?? 0) !== 0}
           {@const webAuthType = source.type === SourceType.WEB ? (source.webAuthType ?? 0) : null}
           <div class="space-y-1.5">
-            <Label for="_credentials">
+            <Label for={credentialsId}>
               {#if isWebWithAuth}
                 {webAuthType === 1 ? "Bearer Token" : "Credentials"}
               {:else}
@@ -184,9 +234,8 @@
               {/if}
             </Label>
             <Input
-              id="_credentials"
-              name="_credentials"
-              type="password"
+              id={credentialsId}
+              {...updateSource.fields?._credentials.as("password")}
               placeholder="Leave blank to keep current"
             />
             {#if updateSource.fields?._credentials?.issues()?.length}
@@ -195,30 +244,10 @@
           </div>
         {/if}
 
-        <!-- Info block -->
-        <div class="rounded-md border border-border bg-muted/30 p-4">
-          <dl class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-            <dt class="text-muted-foreground">Collections</dt>
-            <dd class="text-right font-mono">{source.collectionCount}</dd>
-            <dt class="text-muted-foreground">Created</dt>
-            <dd class="text-right">{new Date(source.createdAt * 1000).toLocaleDateString()}</dd>
-            {#if source.updatedAt}
-              <dt class="text-muted-foreground">Updated</dt>
-              <dd class="text-right">{new Date(source.updatedAt * 1000).toLocaleDateString()}</dd>
-            {/if}
-          </dl>
-        </div>
-
         {#if testResult}
           <Alert.Root variant={testResult.success ? "default" : "destructive"}>
             <Alert.Title>{testResult.success ? "Connection successful" : "Connection failed"}</Alert.Title>
             <Alert.Description>{testResult.message}</Alert.Description>
-          </Alert.Root>
-        {/if}
-
-        {#if updateSuccess}
-          <Alert.Root>
-            <Alert.Title>Changes saved</Alert.Title>
           </Alert.Root>
         {/if}
 
@@ -353,17 +382,17 @@
           <p class="mb-4 text-sm text-muted-foreground">
             Add a custom path or URL to create a new source collection.
           </p>
-          <form method="post" action={createSourceCollection.action} class="space-y-4">
-            <input type="hidden" name="sourceId" value={source.id} />
+          <form {...createSourceCollection} class="space-y-4">
+            <input {...createSourceCollection.fields?.sourceId.as("hidden")} value={source.id} />
 
             <div class="space-y-1.5">
-              <Label for="web-path">Path or URL</Label>
-              <Input id="web-path" name="ref" type="text" placeholder="/api/posts or full URL" required />
+              <Label for={webPathId}>Path or URL</Label>
+              <Input id={webPathId} {...createSourceCollection.fields?.ref.as("text")} placeholder="/api/posts or full URL" required />
             </div>
 
             <div class="space-y-1.5">
-              <Label for="collection-name">Collection Name</Label>
-              <Input id="collection-name" name="name" type="text" placeholder="e.g. Blog Posts" required />
+              <Label for={collectionNameId}>Collection Name</Label>
+              <Input id={collectionNameId} {...createSourceCollection.fields?.name.as("text")} placeholder="e.g. Blog Posts" required />
               {#if createSourceCollection.fields?.name?.issues()?.length}
                 <p class="text-sm text-destructive">{createSourceCollection.fields?.name?.issues()?.[0]?.message}</p>
               {/if}
@@ -419,8 +448,8 @@
           <h3 class="text-sm font-medium">Delete source</h3>
           <p class="text-sm text-muted-foreground">This will delete all collections.</p>
         </div>
-        <form method="post" action={deleteSource.action}>
-          <input type="hidden" name="id" value={source.id} />
+        <form {...deleteSource}>
+          <input {...deleteSource.fields?.id.as("hidden")} value={source.id} />
           <Button
             variant="destructive"
             size="sm"

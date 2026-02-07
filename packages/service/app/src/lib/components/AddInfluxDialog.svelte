@@ -139,8 +139,8 @@
 
     if (result.success) {
       open = false;
+      await onSuccess?.();
       await invalidateAll();
-      onSuccess?.();
     } else {
       submitError = result.error;
     }
