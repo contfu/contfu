@@ -962,11 +962,11 @@ async function setupServiceAppAndGetApiKey(
     // Wait for the "New API Key" alert to appear with the key
     // Enhanced forms use fetch, so we just wait for UI to update
     console.log("[E2E] Waiting for API key to appear in UI...");
-    
+
     // Wait for the code element with the hex key to appear
     const keyLocator = page.locator("code").filter({ hasText: /^[a-f0-9]{40,}$/i });
     await keyLocator.waitFor({ state: "visible", timeout: 10000 });
-    
+
     const keyText = await keyLocator.textContent();
     if (keyText) {
       apiKey = keyText.trim();
@@ -1404,7 +1404,7 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow", () => {
     console.log("[E2E Filter Test] Setting up filter via API...");
 
     // Update the influx filter via the service API using form submission
-    // The updateSourceCollectionMapping form action accepts filters as JSON string
+    // The updateInflux form action accepts filters as JSON string
     // FilterOperator.CONTAINS = 7 (numeric enum from @contfu/core)
     const filterPayload = JSON.stringify([
       { property: "description", operator: 7, value: "IMPORTANT" },
@@ -1419,25 +1419,22 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow", () => {
       `[E2E Filter Test] Using collectionId: ${collectionId}, sourceCollectionId: ${sourceCollectionId}`,
     );
 
-    const filterResponse = await fetch(
-      `${SERVICE_URL}/collections/${collectionId}?/updateSourceCollectionMapping`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          Origin: SERVICE_URL,
-          Cookie: await servicePage
-            .context()
-            .cookies()
-            .then((cookies) => cookies.map((c) => `${c.name}=${c.value}`).join("; ")),
-        },
-        body: new URLSearchParams({
-          collectionId: collectionId,
-          sourceCollectionId: sourceCollectionId,
-          filters: filterPayload,
-        }),
+    const filterResponse = await fetch(`${SERVICE_URL}/collections/${collectionId}?/updateInflux`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Origin: SERVICE_URL,
+        Cookie: await servicePage
+          .context()
+          .cookies()
+          .then((cookies) => cookies.map((c) => `${c.name}=${c.value}`).join("; ")),
       },
-    );
+      body: new URLSearchParams({
+        collectionId: collectionId,
+        sourceCollectionId: sourceCollectionId,
+        filters: filterPayload,
+      }),
+    });
     console.log(`[E2E Filter Test] Filter update response: ${filterResponse.status}`);
     if (!filterResponse.ok) {
       const errorText = await filterResponse.text();

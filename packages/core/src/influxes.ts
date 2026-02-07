@@ -9,8 +9,10 @@ export interface InfluxWithDetails {
   id: number;
   sourceCollectionId: number;
   sourceCollectionName: string;
+  sourceCollectionRef: string | null;
   sourceId: number;
   sourceName: string | null;
+  sourceType: number;
   schema: CollectionSchema | null;
   filters: Filter[] | null;
   includeRef: boolean | null;

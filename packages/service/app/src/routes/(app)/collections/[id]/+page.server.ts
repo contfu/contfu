@@ -41,7 +41,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 };
 
 export const actions: Actions = {
-  updateSourceCollectionMapping: async ({ request, locals, params }) => {
+  updateInflux: async ({ request, locals, params }) => {
     const user = locals.user;
     if (!user) {
       return fail(401, { error: "Unauthorized" });

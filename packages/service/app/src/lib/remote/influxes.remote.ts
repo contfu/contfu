@@ -1,4 +1,4 @@
-import { command, query } from "$app/server";
+import { command, form, query } from "$app/server";
 import { getUserId } from "$lib/server/user";
 import { listSources } from "@contfu/svc-backend/features/sources/listSources";
 import { getSourceWithCredentials } from "@contfu/svc-backend/features/sources/getSourceWithCredentials";
@@ -9,8 +9,14 @@ import {
 } from "@contfu/svc-backend/features/notion";
 import { listCollectionSummariesBySource } from "@contfu/svc-backend/features/source-collections/listCollectionSummariesBySource";
 import { addInfluxWithSourceCollection } from "@contfu/svc-backend/features/influxes";
+import { listInfluxes } from "@contfu/svc-backend/features/influxes/listInfluxes";
+import { deleteInfluxByMapping } from "@contfu/svc-backend/features/influxes/deleteInfluxByMapping";
+import { updateInflux as updateInfluxFeature } from "@contfu/svc-backend/features/influxes/updateInflux";
+import { db } from "@contfu/svc-backend/infra/db/db";
+import { influxTable } from "@contfu/svc-backend/infra/db/schema";
+import { and, eq } from "drizzle-orm";
 import { SourceType } from "@contfu/svc-backend/features/sources/testSourceConnection";
-import type { CollectionSchema, Filter } from "@contfu/core";
+import type { CollectionSchema, Filter, InfluxWithDetails } from "@contfu/core";
 import * as v from "valibot";
 
 // ============================================================
@@ -43,7 +49,9 @@ export interface SourceWithDataSources {
 // Helpers
 // ============================================================
 
-function parseNotionDataSource(ds: DataSourceResult): Omit<DataSourceInfo, "exists" | "sourceCollectionId"> {
+function parseNotionDataSource(
+  ds: DataSourceResult,
+): Omit<DataSourceInfo, "exists" | "sourceCollectionId"> {
   const title = ds.title?.[0]?.plain_text || "Untitled";
 
   let icon: DataSourceInfo["icon"] = null;
@@ -97,9 +105,7 @@ export const probeAllSources = query(async (): Promise<SourceWithDataSources[]> 
       // Get existing source collections for this source
       const existingCollections = await listCollectionSummariesBySource(userId, source.id);
       const existingRefMap = new Map(
-        existingCollections
-          .filter((c) => c.refString)
-          .map((c) => [c.refString!, c.id])
+        existingCollections.filter((c) => c.refString).map((c) => [c.refString!, c.id]),
       );
 
       if (source.type === SourceType.NOTION) {
@@ -176,7 +182,12 @@ export const addInflux = command(
     filters: v.optional(v.string()), // JSON string of Filter[]
     schema: v.optional(v.string()), // JSON string of CollectionSchema
   }),
-  async (data): Promise<{ success: true; sourceCollectionId: number; influxId: number } | { success: false; error: string }> => {
+  async (
+    data,
+  ): Promise<
+    | { success: true; sourceCollectionId: number; influxId: number }
+    | { success: false; error: string }
+  > => {
     const userId = getUserId();
 
     // Parse filters if provided
@@ -214,3 +225,107 @@ export const addInflux = command(
 
 // Keep old export name for backwards compatibility
 export const addInfluxWithAutoCreate = addInflux;
+
+// ============================================================
+// Get Influxes
+// ============================================================
+
+/**
+ * Get all influxes for a collection with source details.
+ */
+export const getInfluxes = query(
+  v.object({ collectionId: v.number() }),
+  async ({ collectionId }): Promise<InfluxWithDetails[]> => {
+    const userId = getUserId();
+    return listInfluxes(userId, collectionId);
+  },
+);
+
+// ============================================================
+// Remove Influx
+// ============================================================
+
+/**
+ * Remove an influx from a collection by source collection ID.
+ */
+export const removeInflux = form(
+  v.object({
+    collectionId: v.pipe(
+      v.union([v.string(), v.number()]),
+      v.transform((val) => (typeof val === "string" ? Number.parseInt(val, 10) : val)),
+      v.number(),
+    ),
+    sourceCollectionId: v.pipe(
+      v.union([v.string(), v.number()]),
+      v.transform((val) => (typeof val === "string" ? Number.parseInt(val, 10) : val)),
+      v.number(),
+    ),
+  }),
+  async (data) => {
+    const userId = getUserId();
+    await deleteInfluxByMapping(userId, data.collectionId, data.sourceCollectionId);
+    return { success: true };
+  },
+);
+
+// ============================================================
+// Update Influx
+// ============================================================
+
+/**
+ * Update an influx's filters by looking up via collectionId + sourceCollectionId.
+ */
+export const updateInfluxForm = form(
+  v.object({
+    collectionId: v.pipe(
+      v.union([v.string(), v.number()]),
+      v.transform((val) => (typeof val === "string" ? Number.parseInt(val, 10) : val)),
+      v.number(),
+    ),
+    sourceCollectionId: v.pipe(
+      v.union([v.string(), v.number()]),
+      v.transform((val) => (typeof val === "string" ? Number.parseInt(val, 10) : val)),
+      v.number(),
+    ),
+    filters: v.optional(v.string()), // JSON string of Filter[]
+  }),
+  async (data, issue) => {
+    const userId = getUserId();
+
+    let filters: Filter[] | null = null;
+    if (data.filters) {
+      try {
+        filters = JSON.parse(data.filters) as Filter[];
+      } catch {
+        throw issue("filters", "Invalid filters JSON");
+      }
+    }
+
+    // Find influx by collectionId + sourceCollectionId
+    const [influx] = await db
+      .select({ id: influxTable.id })
+      .from(influxTable)
+      .where(
+        and(
+          eq(influxTable.userId, userId),
+          eq(influxTable.collectionId, data.collectionId),
+          eq(influxTable.sourceCollectionId, data.sourceCollectionId),
+        ),
+      );
+
+    if (!influx) {
+      throw issue("sourceCollectionId", "Influx not found");
+    }
+
+    const result = await updateInfluxFeature(userId, {
+      id: influx.id,
+      filters,
+    });
+
+    if (!result) {
+      throw issue("sourceCollectionId", "Failed to update influx");
+    }
+
+    return { success: true };
+  },
+);

@@ -12,12 +12,14 @@
   import {
     deleteCollection,
     getCollection,
-    getSourceCollectionMappings,
     getSourceCollectionSchemaQuery,
-    removeSourceCollection,
     updateCollection,
-    updateSourceCollectionMapping,
   } from "$lib/remote/collections.remote";
+  import {
+    getInfluxes,
+    removeInflux,
+    updateInfluxForm,
+  } from "$lib/remote/influxes.remote";
   import {
     addConnection,
     getConnectionsByCollection,
@@ -41,29 +43,29 @@
     goto("/collections");
   }
 
-  // Make mappings reactive so they can be refreshed
-  let mappings = $state(
-    collection ? await getSourceCollectionMappings({ collectionId: id }) : [],
+  // Make influxes reactive so they can be refreshed
+  let influxes = $state(
+    collection ? await getInfluxes({ collectionId: id }) : [],
   );
 
   // Derived: linked source IDs for the dialog
   const linkedSourceIds = $derived(
-    new Set(mappings.map((m) => m.sourceCollectionId)),
+    new Set(influxes.map((m) => m.sourceCollectionId)),
   );
 
   // Derived: linked source refs for filtering "Add custom path" options
   const linkedSourceRefs = $derived(
     new Set(
-      mappings
+      influxes
         .map((m) => m.sourceCollectionRef)
         .filter((r): r is string => r !== null),
     ),
   );
 
-  // Refresh mappings after adding an influx
-  async function refreshMappings() {
+  // Refresh influxes after adding an influx
+  async function refreshInfluxes() {
     if (collection) {
-      mappings = await getSourceCollectionMappings({ collectionId: id });
+      influxes = await getInfluxes({ collectionId: id });
     }
   }
 
@@ -100,13 +102,13 @@
   let connectionSuccess = $state(false);
   let namePopoverOpen = $state(false);
 
-  // Track expanded mappings for filter editing
-  let expandedMappings = $state<Set<number>>(new Set());
+  // Track expanded influxes for filter editing
+  let expandedInfluxes = $state<Set<number>>(new Set());
 
   // Cache schemas for source collections
   let schemaCache = $state<Map<number, CollectionSchema | null>>(new Map());
 
-  // Track filter edits per mapping
+  // Track filter edits per influx
   let filterEdits = $state<Map<number, FilterType[]>>(new Map());
 
   function handleUpdateSuccess() {
@@ -131,7 +133,7 @@
   });
 
   $effect(() => {
-    if (updateSourceCollectionMapping.result?.success) {
+    if (updateInfluxForm.result?.success) {
       handleFilterUpdateSuccess();
       // Reset edit state after successful save
       filterEdits = new Map();
@@ -148,8 +150,8 @@
     }
   });
 
-  async function toggleMapping(sourceCollectionId: number) {
-    const newExpanded = new Set(expandedMappings);
+  async function toggleInflux(sourceCollectionId: number) {
+    const newExpanded = new Set(expandedInfluxes);
     if (newExpanded.has(sourceCollectionId)) {
       newExpanded.delete(sourceCollectionId);
       // Clear any unsaved edits
@@ -166,18 +168,18 @@
         schemaCache = new Map(schemaCache).set(sourceCollectionId, schema);
       }
     }
-    expandedMappings = newExpanded;
+    expandedInfluxes = newExpanded;
   }
 
-  function getFiltersForMapping(sourceCollectionId: number): FilterType[] {
+  function getFiltersForInflux(sourceCollectionId: number): FilterType[] {
     // Return edited filters if available, otherwise the original
     if (filterEdits.has(sourceCollectionId)) {
       return filterEdits.get(sourceCollectionId)!;
     }
-    const mapping = mappings.find(
+    const influx = influxes.find(
       (m) => m.sourceCollectionId === sourceCollectionId,
     );
-    return mapping?.filters ?? [];
+    return influx?.filters ?? [];
   }
 
   function handleFilterChange(
@@ -291,45 +293,45 @@
           collectionId={collection.id}
           linkedSourceCollectionIds={linkedSourceIds}
           linkedSourceCollectionRefs={linkedSourceRefs}
-          onSuccess={refreshMappings}
+          onSuccess={refreshInfluxes}
         />
       </div>
 
-      {#if mappings.length === 0}
+      {#if influxes.length === 0}
         <p class="mb-4 text-sm text-muted-foreground">
           No influxes configured yet. Add one to start receiving content.
         </p>
       {:else}
         <div class="mb-4 space-y-2">
-          {#each mappings as mapping}
-            {@const remove = removeSourceCollection.for(
-              mapping.sourceCollectionId,
+          {#each influxes as influx}
+            {@const remove = removeInflux.for(
+              influx.sourceCollectionId,
             )}
             <div class="rounded-md border border-border">
-              <!-- Mapping header -->
+              <!-- Influx header -->
               <div class="flex items-center justify-between px-4 py-3">
                 <div class="flex items-center gap-3">
                   <SourceTypeIcon
-                    type={mapping.sourceType}
+                    type={influx.sourceType}
                     class="h-4 w-4 text-muted-foreground"
                   />
                   <button
                     type="button"
                     class="flex items-center gap-2 text-sm font-medium hover:text-primary"
-                    onclick={() => toggleMapping(mapping.sourceCollectionId)}
+                    onclick={() => toggleInflux(influx.sourceCollectionId)}
                   >
-                    {#if expandedMappings.has(mapping.sourceCollectionId)}
+                    {#if expandedInfluxes.has(influx.sourceCollectionId)}
                       <ChevronUp class="h-4 w-4" />
                     {:else}
                       <ChevronDown class="h-4 w-4" />
                     {/if}
                     <span>
-                      {#if mapping.sourceName}
+                      {#if influx.sourceName}
                         <span class="text-muted-foreground"
-                          >{mapping.sourceName} /</span
+                          >{influx.sourceName} /</span
                         >
                       {/if}
-                      {mapping.sourceCollectionName}
+                      {influx.sourceCollectionName}
                     </span>
                   </button>
                   <span
@@ -337,7 +339,7 @@
                   >
                     <FilterIcon class="h-3 w-3" />
                     {formatFilterCount(
-                      getFiltersForMapping(mapping.sourceCollectionId),
+                      getFiltersForInflux(influx.sourceCollectionId),
                     )}
                   </span>
                 </div>
@@ -350,7 +352,7 @@
                   <input
                     {...remove.fields?.sourceCollectionId.as("number")}
                     type="hidden"
-                    value={mapping.sourceCollectionId}
+                    value={influx.sourceCollectionId}
                   />
                   <button
                     type="submit"
@@ -362,48 +364,48 @@
               </div>
 
               <!-- Expanded filter editor -->
-              {#if expandedMappings.has(mapping.sourceCollectionId)}
+              {#if expandedInfluxes.has(influx.sourceCollectionId)}
                 <div class="border-t border-border bg-muted/20 px-4 py-4">
                   <h3 class="mb-3 text-sm font-medium">Filters</h3>
                   <FilterEditor
-                    schema={schemaCache.get(mapping.sourceCollectionId) ?? null}
-                    filters={getFiltersForMapping(mapping.sourceCollectionId)}
+                    schema={schemaCache.get(influx.sourceCollectionId) ?? null}
+                    filters={getFiltersForInflux(influx.sourceCollectionId)}
                     onchange={(filters) =>
-                      handleFilterChange(mapping.sourceCollectionId, filters)}
+                      handleFilterChange(influx.sourceCollectionId, filters)}
                   />
 
-                  {#if hasUnsavedChanges(mapping.sourceCollectionId)}
+                  {#if hasUnsavedChanges(influx.sourceCollectionId)}
                     <div class="mt-4 flex gap-2">
-                      <form {...updateSourceCollectionMapping}>
+                      <form {...updateInfluxForm}>
                         <input
-                          {...updateSourceCollectionMapping.fields?.collectionId.as(
+                          {...updateInfluxForm.fields?.collectionId.as(
                             "number",
                           )}
                           type="hidden"
                           value={collection.id}
                         />
                         <input
-                          {...updateSourceCollectionMapping.fields?.sourceCollectionId.as(
+                          {...updateInfluxForm.fields?.sourceCollectionId.as(
                             "number",
                           )}
                           type="hidden"
-                          value={mapping.sourceCollectionId}
+                          value={influx.sourceCollectionId}
                         />
                         <input
-                          {...updateSourceCollectionMapping.fields?.filters.as(
+                          {...updateInfluxForm.fields?.filters.as(
                             "text",
                           )}
                           type="hidden"
                           value={JSON.stringify(
-                            filterEdits.get(mapping.sourceCollectionId) ?? [],
+                            filterEdits.get(influx.sourceCollectionId) ?? [],
                           )}
                         />
                         <Button
                           type="submit"
                           size="sm"
-                          disabled={!!updateSourceCollectionMapping.pending}
+                          disabled={!!updateInfluxForm.pending}
                         >
-                          {updateSourceCollectionMapping.pending
+                          {updateInfluxForm.pending
                             ? "Saving..."
                             : "Save Filters"}
                         </Button>
@@ -413,7 +415,7 @@
                         size="sm"
                         onclick={() => {
                           const newEdits = new Map(filterEdits);
-                          newEdits.delete(mapping.sourceCollectionId);
+                          newEdits.delete(influx.sourceCollectionId);
                           filterEdits = newEdits;
                         }}
                       >
@@ -524,7 +526,7 @@
         Danger Zone
       </h2>
       <p class="mb-3 text-sm text-muted-foreground">
-        Deleting this collection will remove all mappings and consumer
+        Deleting this collection will remove all influxes and consumer
         connections.
       </p>
       <form {...deleteCollection}>

@@ -3,7 +3,3 @@ export * from "./getCollection";
 export * from "./updateCollection";
 export * from "./deleteCollection";
 export * from "./listCollections";
-export * from "./addSourceCollectionMapping";
-export * from "./removeSourceCollectionMapping";
-export * from "./listSourceCollectionMappings";
-export * from "./updateSourceCollectionMapping";

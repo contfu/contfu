@@ -18,8 +18,10 @@ export async function listAllInfluxes(userId: number): Promise<InfluxWithDetails
       createdAt: influxTable.createdAt,
       sourceCollectionName: sourceCollectionTable.name,
       sourceCollectionDisplayName: sourceCollectionTable.displayName,
+      sourceCollectionRef: sourceCollectionTable.ref,
       sourceId: sourceCollectionTable.sourceId,
       sourceName: sourceTable.name,
+      sourceType: sourceTable.type,
     })
     .from(influxTable)
     .innerJoin(
@@ -42,8 +44,10 @@ export async function listAllInfluxes(userId: number): Promise<InfluxWithDetails
     id: r.id,
     sourceCollectionId: r.sourceCollectionId,
     sourceCollectionName: r.sourceCollectionDisplayName || r.sourceCollectionName,
+    sourceCollectionRef: r.sourceCollectionRef ? r.sourceCollectionRef.toString("utf-8") : null,
     sourceId: r.sourceId,
     sourceName: r.sourceName,
+    sourceType: r.sourceType,
     schema: r.schema ? (unpack(r.schema) as CollectionSchema) : null,
     filters: r.filters ? (unpack(r.filters) as Filter[]) : null,
     includeRef: r.includeRef,

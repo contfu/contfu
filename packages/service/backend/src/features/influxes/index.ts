@@ -5,4 +5,5 @@ export * from "./listInfluxes";
 export * from "./listInfluxesBySourceCollections";
 export * from "./updateInflux";
 export * from "./deleteInflux";
+export * from "./deleteInfluxByMapping";
 export * from "./validateFilters";
