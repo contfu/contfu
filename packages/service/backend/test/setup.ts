@@ -1,12 +1,15 @@
 import { db } from "../src/infra/db/db";
 import {
   accountTable,
-  sourceCollectionTable,
+  collectionTable,
   connectionTable,
   consumerTable,
+  incidentTable,
+  influxTable,
   itemIdConflictResolutionTable,
   quotaTable,
   sessionTable,
+  sourceCollectionTable,
   sourceTable,
   userTable,
   verificationTable,
@@ -21,7 +24,10 @@ export async function truncateAllTables(): Promise<void> {
   // Delete in reverse dependency order to respect foreign keys
   await db.delete(webhookLogTable);
   await db.delete(itemIdConflictResolutionTable);
+  await db.delete(incidentTable);
   await db.delete(connectionTable);
+  await db.delete(influxTable);
+  await db.delete(collectionTable);
   await db.delete(sourceCollectionTable);
   await db.delete(consumerTable);
   await db.delete(sourceTable);
