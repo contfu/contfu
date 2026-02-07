@@ -9,7 +9,7 @@ import {
 import { listInfluxesBySourceCollections } from "@contfu/svc-backend/features/influxes/listInfluxesBySourceCollections";
 import { getSSEServer } from "$lib/server/startup";
 import { genUid } from "@contfu/svc-backend/infra/util/ids/ids";
-import { SourceType, matchesFilters, type Filter, type UserSyncItem } from "@contfu/core";
+import { SourceType, matchesFilters, type UserSyncItem } from "@contfu/core";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import crypto from "node:crypto";
 import type { RequestHandler } from "./$types";

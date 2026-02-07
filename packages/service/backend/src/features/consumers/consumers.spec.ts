@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { truncateAllTables } from "../../../test/setup";
 import { db } from "../../infra/db/db";
-import { collectionTable, connectionTable, consumerTable, userTable } from "../../infra/db/schema";
+import { collectionTable, connectionTable, userTable } from "../../infra/db/schema";
 import { createConsumer } from "./createConsumer";
 import { deleteConsumer } from "./deleteConsumer";
 import { findConsumerByKey } from "./findConsumerByKey";
