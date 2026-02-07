@@ -6,15 +6,21 @@
   import { Input } from "$lib/components/ui/input";
   import { Label } from "$lib/components/ui/label";
   import * as Popover from "$lib/components/ui/popover";
-  import { getSourceCollectionsBySource, createSourceCollection } from "$lib/remote/source-collections.remote";
   import {
-    getSource,
-    updateSource,
+    createSourceCollection,
+    getSourceCollectionsBySource,
+  } from "$lib/remote/source-collections.remote";
+  import {
     deleteSource,
-    testConnection,
+    getSource,
     regenerateWebhookSecret,
+    testConnection,
+    updateSource,
   } from "$lib/remote/sources.remote";
-  import { getWebhookLogs, type WebhookLogEntry } from "$lib/remote/webhookLogs.remote";
+  import {
+    getWebhookLogs,
+    type WebhookLogEntry,
+  } from "$lib/remote/webhookLogs.remote";
   import { cn } from "$lib/utils";
   import { SourceType } from "@contfu/svc-backend/features/sources/testSourceConnection";
   import Pencil from "@lucide/svelte/icons/pencil";
@@ -40,7 +46,9 @@
 
   const id = Number.parseInt(page.params.id ?? "", 10);
   const source = Number.isNaN(id) ? null : await getSource({ id });
-  const collections = source ? await getSourceCollectionsBySource({ sourceId: id }) : [];
+  const collections = source
+    ? await getSourceCollectionsBySource({ sourceId: id })
+    : [];
 
   // Load webhook logs for Strapi sources
   const initialWebhookLogs: WebhookLogEntry[] =
@@ -84,7 +92,9 @@
   function handleUpdateSuccess() {
     updateSuccess = true;
     namePopoverOpen = false;
-    setTimeout(() => { updateSuccess = false; }, 3000);
+    setTimeout(() => {
+      updateSuccess = false;
+    }, 3000);
   }
 
   $effect(() => {
@@ -93,7 +103,10 @@
 
   async function handleRegenerateSecret() {
     if (!source) return;
-    if (!confirm("Regenerate webhook secret? You'll need to update it in Strapi.")) return;
+    if (
+      !confirm("Regenerate webhook secret? You'll need to update it in Strapi.")
+    )
+      return;
 
     regeneratingSecret = true;
     try {
@@ -134,12 +147,17 @@
 {#if source}
   <div class="mx-auto max-w-2xl px-4 py-8 sm:px-6">
     <div class="mb-6">
-      <a href="/sources" class="text-sm text-muted-foreground hover:text-foreground">← Sources</a>
+      <a
+        href="/sources"
+        class="text-sm text-muted-foreground hover:text-foreground">← Sources</a
+      >
     </div>
 
     <div class="mb-8">
       <div class="flex items-center gap-2">
-        <h1 class="text-2xl font-semibold tracking-tight">{source.name || "Unnamed Source"}</h1>
+        <h1 class="text-2xl font-semibold tracking-tight">
+          {source.name || "Unnamed Source"}
+        </h1>
         <Popover.Root bind:open={namePopoverOpen}>
           <Popover.Trigger
             class={cn(
@@ -152,7 +170,11 @@
           <Popover.Portal>
             <Popover.Content class="w-72" align="start">
               <form {...updateSource} class="space-y-3">
-                <input {...updateSource.fields?.id.as("hidden")} value={source.id} />
+                <input
+                  {...updateSource.fields?.id.as("number")}
+                  type="hidden"
+                  value={source.id}
+                />
                 <div class="space-y-1.5">
                   <Label for={nameId}>Name</Label>
                   <Input
@@ -165,9 +187,15 @@
                 </div>
                 <div class="flex justify-end gap-2">
                   <Popover.Close>
-                    <Button type="button" variant="outline" size="sm">Cancel</Button>
+                    <Button type="button" variant="outline" size="sm"
+                      >Cancel</Button
+                    >
                   </Popover.Close>
-                  <Button type="submit" size="sm" disabled={!!updateSource.pending}>
+                  <Button
+                    type="submit"
+                    size="sm"
+                    disabled={!!updateSource.pending}
+                  >
                     {updateSource.pending ? "Saving..." : "Save"}
                   </Button>
                 </div>
@@ -175,13 +203,18 @@
             </Popover.Content>
           </Popover.Portal>
         </Popover.Root>
-        <span class="rounded-md bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
+        <span
+          class="rounded-md bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground"
+        >
           {SOURCE_TYPE_LABELS[source.type] ?? "Unknown"}
         </span>
       </div>
       <p class="mt-1 text-sm text-muted-foreground">
-        {source.collectionCount} collection{source.collectionCount === 1 ? "" : "s"} ·
-        Created {new Date(source.createdAt * 1000).toLocaleDateString()}
+        {source.collectionCount} collection{source.collectionCount === 1
+          ? ""
+          : "s"} · Created {new Date(
+          source.createdAt * 1000,
+        ).toLocaleDateString()}
       </p>
     </div>
 
@@ -193,21 +226,37 @@
 
     <!-- Settings form -->
     <section class="mb-8">
-      <h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-muted-foreground">Connection</h2>
+      <h2
+        class="mb-3 text-sm font-medium uppercase tracking-wide text-muted-foreground"
+      >
+        Connection
+      </h2>
       <form {...updateSource} class="space-y-4">
-        <input {...updateSource.fields?.id.as("hidden")} value={source.id} />
+        <input
+          {...updateSource.fields?.id.as("number")}
+          type="hidden"
+          value={source.id}
+        />
 
         {#if source.type === SourceType.STRAPI || source.type === SourceType.WEB}
           <div class="space-y-1.5">
-            <Label for={urlId}>{source.type === SourceType.STRAPI ? "Strapi URL" : "Base URL"}</Label>
+            <Label for={urlId}
+              >{source.type === SourceType.STRAPI
+                ? "Strapi URL"
+                : "Base URL"}</Label
+            >
             <Input
               id={urlId}
               {...updateSource.fields?.url.as("url")}
-              placeholder={source.type === SourceType.STRAPI ? "https://strapi.example.com" : "https://example.com"}
+              placeholder={source.type === SourceType.STRAPI
+                ? "https://strapi.example.com"
+                : "https://example.com"}
               value={source.url ?? ""}
             />
             {#if updateSource.fields?.url?.issues()?.length}
-              <p class="text-sm text-destructive">{updateSource.fields?.url?.issues()?.[0]?.message}</p>
+              <p class="text-sm text-destructive">
+                {updateSource.fields?.url?.issues()?.[0]?.message}
+              </p>
             {/if}
           </div>
         {/if}
@@ -215,16 +264,22 @@
         {#if source.type === SourceType.WEB}
           <div class="space-y-1.5">
             <Label>Authentication</Label>
-            <div class="rounded-md border border-input bg-muted/50 px-3 py-2 text-sm">
+            <div
+              class="rounded-md border border-input bg-muted/50 px-3 py-2 text-sm"
+            >
               {AUTH_TYPE_LABELS[source.webAuthType ?? 0] ?? "Unknown"}
             </div>
-            <p class="text-xs text-muted-foreground">Create a new source to change auth method.</p>
+            <p class="text-xs text-muted-foreground">
+              Create a new source to change auth method.
+            </p>
           </div>
         {/if}
 
         {#if source.type !== 2 || (source.webAuthType ?? 0) !== 0}
-          {@const isWebWithAuth = source.type === SourceType.WEB && (source.webAuthType ?? 0) !== 0}
-          {@const webAuthType = source.type === SourceType.WEB ? (source.webAuthType ?? 0) : null}
+          {@const isWebWithAuth =
+            source.type === SourceType.WEB && (source.webAuthType ?? 0) !== 0}
+          {@const webAuthType =
+            source.type === SourceType.WEB ? (source.webAuthType ?? 0) : null}
           <div class="space-y-1.5">
             <Label for={credentialsId}>
               {#if isWebWithAuth}
@@ -239,14 +294,20 @@
               placeholder="Leave blank to keep current"
             />
             {#if updateSource.fields?._credentials?.issues()?.length}
-              <p class="text-sm text-destructive">{updateSource.fields?._credentials?.issues()?.[0]?.message}</p>
+              <p class="text-sm text-destructive">
+                {updateSource.fields?._credentials?.issues()?.[0]?.message}
+              </p>
             {/if}
           </div>
         {/if}
 
         {#if testResult}
           <Alert.Root variant={testResult.success ? "default" : "destructive"}>
-            <Alert.Title>{testResult.success ? "Connection successful" : "Connection failed"}</Alert.Title>
+            <Alert.Title
+              >{testResult.success
+                ? "Connection successful"
+                : "Connection failed"}</Alert.Title
+            >
             <Alert.Description>{testResult.message}</Alert.Description>
           </Alert.Root>
         {/if}
@@ -255,7 +316,12 @@
           <Button type="submit" disabled={!!updateSource.pending}>
             {updateSource.pending ? "Saving..." : "Save"}
           </Button>
-          <Button type="button" variant="outline" onclick={handleTestConnection} disabled={testPending}>
+          <Button
+            type="button"
+            variant="outline"
+            onclick={handleTestConnection}
+            disabled={testPending}
+          >
             {testPending ? "Testing..." : "Test Connection"}
           </Button>
         </div>
@@ -265,12 +331,21 @@
     <!-- Webhook configuration (Strapi only) -->
     {#if source.type === SourceType.STRAPI}
       <section class="mb-8">
-        <h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-muted-foreground">Webhook Configuration</h2>
+        <h2
+          class="mb-3 text-sm font-medium uppercase tracking-wide text-muted-foreground"
+        >
+          Webhook Configuration
+        </h2>
         <div class="rounded-lg border border-border p-4 space-y-4">
           <div class="space-y-1.5">
             <Label>Webhook URL</Label>
             <div class="flex gap-2">
-              <Input type="text" value={webhookUrl} readonly class="font-mono text-xs" />
+              <Input
+                type="text"
+                value={webhookUrl}
+                readonly
+                class="font-mono text-xs"
+              />
               <Button
                 type="button"
                 variant="outline"
@@ -280,28 +355,44 @@
                 Copy
               </Button>
             </div>
-            <p class="text-xs text-muted-foreground">Add this URL to your Strapi webhook configuration.</p>
+            <p class="text-xs text-muted-foreground">
+              Add this URL to your Strapi webhook configuration.
+            </p>
           </div>
 
           <div class="space-y-1.5">
             <Label>Webhook Secret</Label>
             {#if webhookSecret}
-              <div class="rounded-md border border-green-500/30 bg-green-50 dark:bg-green-950/30 p-3">
-                <p class="text-xs font-medium text-green-700 dark:text-green-400 mb-1">New secret generated! Copy it now — it won't be shown again.</p>
-                <code class="block text-xs font-mono break-all">{webhookSecret}</code>
+              <div
+                class="rounded-md border border-green-500/30 bg-green-50 dark:bg-green-950/30 p-3"
+              >
+                <p
+                  class="text-xs font-medium text-green-700 dark:text-green-400 mb-1"
+                >
+                  New secret generated! Copy it now — it won't be shown again.
+                </p>
+                <code class="block text-xs font-mono break-all"
+                  >{webhookSecret}</code
+                >
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   class="mt-2"
-                  onclick={() => navigator.clipboard.writeText(webhookSecret ?? "")}
+                  onclick={() =>
+                    navigator.clipboard.writeText(webhookSecret ?? "")}
                 >
                   Copy Secret
                 </Button>
               </div>
             {:else}
               <div class="flex gap-2 items-center">
-                <Input type="password" value="••••••••••••••••" readonly class="font-mono" />
+                <Input
+                  type="password"
+                  value="••••••••••••••••"
+                  readonly
+                  class="font-mono"
+                />
                 <Button
                   type="button"
                   variant="outline"
@@ -314,7 +405,8 @@
               </div>
             {/if}
             <p class="text-xs text-muted-foreground">
-              Add this secret as the "Authorization" header or use HMAC signing in Strapi.
+              Add this secret as the "Authorization" header or use HMAC signing
+              in Strapi.
             </p>
           </div>
         </div>
@@ -323,25 +415,50 @@
       <!-- Webhook Activity Log -->
       <section class="mb-8">
         <div class="mb-3 flex items-center justify-between">
-          <h2 class="text-sm font-medium uppercase tracking-wide text-muted-foreground">Webhook Activity</h2>
-          <Button size="sm" variant="ghost" onclick={refreshLogs}>Refresh</Button>
+          <h2
+            class="text-sm font-medium uppercase tracking-wide text-muted-foreground"
+          >
+            Webhook Activity
+          </h2>
+          <Button size="sm" variant="ghost" onclick={refreshLogs}
+            >Refresh</Button
+          >
         </div>
 
         {#if webhookLogs.length === 0}
-          <div class="rounded-lg border border-dashed border-border p-8 text-center">
+          <div
+            class="rounded-lg border border-dashed border-border p-8 text-center"
+          >
             <p class="text-sm text-muted-foreground">No webhook activity yet</p>
-            <p class="text-xs text-muted-foreground mt-1">Events will appear here when Strapi sends webhooks.</p>
+            <p class="text-xs text-muted-foreground mt-1">
+              Events will appear here when Strapi sends webhooks.
+            </p>
           </div>
         {:else}
           <div class="overflow-hidden rounded-lg border border-border">
             <table class="w-full text-sm">
               <thead>
                 <tr class="border-b border-border bg-muted/50">
-                  <th class="px-3 py-2 text-left font-medium text-muted-foreground">Time</th>
-                  <th class="px-3 py-2 text-left font-medium text-muted-foreground">Event</th>
-                  <th class="px-3 py-2 text-left font-medium text-muted-foreground">Model</th>
-                  <th class="px-3 py-2 text-center font-medium text-muted-foreground">Status</th>
-                  <th class="px-3 py-2 text-right font-medium text-muted-foreground">Broadcast</th>
+                  <th
+                    class="px-3 py-2 text-left font-medium text-muted-foreground"
+                    >Time</th
+                  >
+                  <th
+                    class="px-3 py-2 text-left font-medium text-muted-foreground"
+                    >Event</th
+                  >
+                  <th
+                    class="px-3 py-2 text-left font-medium text-muted-foreground"
+                    >Model</th
+                  >
+                  <th
+                    class="px-3 py-2 text-center font-medium text-muted-foreground"
+                    >Status</th
+                  >
+                  <th
+                    class="px-3 py-2 text-right font-medium text-muted-foreground"
+                    >Broadcast</th
+                  >
                 </tr>
               </thead>
               <tbody class="divide-y divide-border">
@@ -353,11 +470,16 @@
                     <td class="px-3 py-2 font-mono text-xs">{log.event}</td>
                     <td class="px-3 py-2 text-xs">{log.model || "-"}</td>
                     <td class="px-3 py-2 text-center">
-                      <span class="text-xs font-medium {getStatusColor(log.status)}">
+                      <span
+                        class="text-xs font-medium {getStatusColor(log.status)}"
+                      >
                         {log.status}
                       </span>
                       {#if log.errorMessage}
-                        <p class="text-xs text-muted-foreground truncate max-w-[150px]" title={log.errorMessage}>
+                        <p
+                          class="text-xs text-muted-foreground truncate max-w-[150px]"
+                          title={log.errorMessage}
+                        >
                           {log.errorMessage}
                         </p>
                       {/if}
@@ -377,29 +499,51 @@
     <!-- Add Source Collection section (Web sources only) -->
     {#if source.type === SourceType.WEB}
       <section class="mb-8">
-        <h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-muted-foreground">Add Source Collection</h2>
+        <h2
+          class="mb-3 text-sm font-medium uppercase tracking-wide text-muted-foreground"
+        >
+          Add Source Collection
+        </h2>
         <div class="rounded-lg border border-border p-4">
           <p class="mb-4 text-sm text-muted-foreground">
             Add a custom path or URL to create a new source collection.
           </p>
           <form {...createSourceCollection} class="space-y-4">
-            <input {...createSourceCollection.fields?.sourceId.as("hidden")} value={source.id} />
+            <input
+              {...createSourceCollection.fields?.sourceId.as("number")}
+              type="hidden"
+              value={source.id}
+            />
 
             <div class="space-y-1.5">
               <Label for={webPathId}>Path or URL</Label>
-              <Input id={webPathId} {...createSourceCollection.fields?.ref.as("text")} placeholder="/api/posts or full URL" required />
+              <Input
+                id={webPathId}
+                {...createSourceCollection.fields?.ref.as("text")}
+                placeholder="/api/posts or full URL"
+                required
+              />
             </div>
 
             <div class="space-y-1.5">
               <Label for={collectionNameId}>Collection Name</Label>
-              <Input id={collectionNameId} {...createSourceCollection.fields?.name.as("text")} placeholder="e.g. Blog Posts" required />
+              <Input
+                id={collectionNameId}
+                {...createSourceCollection.fields?.name.as("text")}
+                placeholder="e.g. Blog Posts"
+                required
+              />
               {#if createSourceCollection.fields?.name?.issues()?.length}
-                <p class="text-sm text-destructive">{createSourceCollection.fields?.name?.issues()?.[0]?.message}</p>
+                <p class="text-sm text-destructive">
+                  {createSourceCollection.fields?.name?.issues()?.[0]?.message}
+                </p>
               {/if}
             </div>
 
             <Button type="submit" disabled={!!createSourceCollection.pending}>
-              {createSourceCollection.pending ? "Creating..." : "Add Source Collection"}
+              {createSourceCollection.pending
+                ? "Creating..."
+                : "Add Source Collection"}
             </Button>
           </form>
         </div>
@@ -409,14 +553,26 @@
     <!-- Source Collections section -->
     <section class="mb-8">
       <div class="mb-3 flex items-center justify-between">
-        <h2 class="text-sm font-medium uppercase tracking-wide text-muted-foreground">Source Collections</h2>
-        <Button size="sm" variant="outline" href="/sources/{id}/collections">View All</Button>
+        <h2
+          class="text-sm font-medium uppercase tracking-wide text-muted-foreground"
+        >
+          Source Collections
+        </h2>
+        <Button size="sm" variant="outline" href="/sources/{id}/collections"
+          >View All</Button
+        >
       </div>
 
       {#if collections.length === 0}
-        <div class="rounded-lg border border-dashed border-border p-8 text-center">
-          <p class="text-sm text-muted-foreground">No source collections discovered yet</p>
-          <p class="text-xs text-muted-foreground mt-1">Source collections are auto-discovered when syncing.</p>
+        <div
+          class="rounded-lg border border-dashed border-border p-8 text-center"
+        >
+          <p class="text-sm text-muted-foreground">
+            No source collections discovered yet
+          </p>
+          <p class="text-xs text-muted-foreground mt-1">
+            Source collections are auto-discovered when syncing.
+          </p>
         </div>
       {:else}
         <div class="overflow-hidden rounded-lg border border-border">
@@ -429,14 +585,20 @@
           </ul>
           {#if collections.length > 5}
             <div class="border-t border-border px-4 py-2 text-center">
-              <a href="/sources/{id}/collections" class="text-sm text-primary hover:underline">
+              <a
+                href="/sources/{id}/collections"
+                class="text-sm text-primary hover:underline"
+              >
                 View all {collections.length} source collections →
               </a>
             </div>
           {/if}
         </div>
         <p class="mt-3 text-sm text-muted-foreground">
-          Use these in your <a href="/collections" class="text-primary hover:underline">Collections</a> to aggregate content.
+          Use these in your <a
+            href="/collections"
+            class="text-primary hover:underline">Collections</a
+          > to aggregate content.
         </p>
       {/if}
     </section>
@@ -446,16 +608,26 @@
       <div class="flex items-center justify-between">
         <div>
           <h3 class="text-sm font-medium">Delete source</h3>
-          <p class="text-sm text-muted-foreground">This will delete all collections.</p>
+          <p class="text-sm text-muted-foreground">
+            This will delete all collections.
+          </p>
         </div>
         <form {...deleteSource}>
-          <input {...deleteSource.fields?.id.as("hidden")} value={source.id} />
+          <input
+            {...deleteSource.fields?.id.as("number")}
+            type="hidden"
+            value={source.id}
+          />
           <Button
             variant="destructive"
             size="sm"
             type="submit"
             onclick={(e: MouseEvent) => {
-              if (!confirm(`Delete "${source.name || "this source"}"? This cannot be undone.`)) {
+              if (
+                !confirm(
+                  `Delete "${source.name || "this source"}"? This cannot be undone.`,
+                )
+              ) {
                 e.preventDefault();
               }
             }}

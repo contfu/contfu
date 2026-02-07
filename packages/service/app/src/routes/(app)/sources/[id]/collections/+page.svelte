@@ -1,10 +1,13 @@
 <script lang="ts">
-  import { page } from "$app/state";
   import { goto } from "$app/navigation";
-  import { getSource } from "$lib/remote/sources.remote";
-  import { getSourceCollectionsBySource, deleteSourceCollection } from "$lib/remote/source-collections.remote";
-  import { Button } from "$lib/components/ui/button";
+  import { page } from "$app/state";
   import * as Alert from "$lib/components/ui/alert";
+  import { Button } from "$lib/components/ui/button";
+  import {
+    deleteSourceCollection,
+    getSourceCollectionsBySource,
+  } from "$lib/remote/source-collections.remote";
+  import { getSource } from "$lib/remote/sources.remote";
 
   const SOURCE_TYPE_LABELS: Record<number, string> = {
     0: "Notion",
@@ -14,7 +17,9 @@
 
   const id = Number.parseInt(page.params.id ?? "", 10);
   const source = Number.isNaN(id) ? null : await getSource({ id });
-  const collections = source ? await getSourceCollectionsBySource({ sourceId: id }) : [];
+  const collections = source
+    ? await getSourceCollectionsBySource({ sourceId: id })
+    : [];
 
   if (!source) {
     goto("/sources");
@@ -24,34 +29,56 @@
 {#if source}
   <div class="mx-auto max-w-4xl px-4 py-8 sm:px-6">
     <div class="mb-6">
-      <a href="/sources/{id}" class="text-sm text-muted-foreground hover:text-foreground">← {source.name || "Source"}</a>
+      <a
+        href="/sources/{id}"
+        class="text-sm text-muted-foreground hover:text-foreground"
+        >← {source.name || "Source"}</a
+      >
     </div>
 
     <div class="mb-6">
       <div class="flex items-center gap-3">
-        <h1 class="text-2xl font-semibold tracking-tight">Source Collections</h1>
-        <span class="rounded-md bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
+        <h1 class="text-2xl font-semibold tracking-tight">
+          Source Collections
+        </h1>
+        <span
+          class="rounded-md bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground"
+        >
           {SOURCE_TYPE_LABELS[source.type] ?? "Unknown"}
         </span>
       </div>
       <p class="mt-1 text-sm text-muted-foreground">
-        Available data from {source.name || "this source"}. Use these in your Collections.
+        Available data from {source.name || "this source"}. Use these in your
+        Collections.
       </p>
     </div>
 
     {#if collections.length === 0}
-      <div class="rounded-lg border border-dashed border-border p-12 text-center">
-        <p class="text-muted-foreground">No source collections discovered yet.</p>
-        <p class="mt-2 text-sm text-muted-foreground">Source collections are automatically discovered when syncing with the upstream source.</p>
+      <div
+        class="rounded-lg border border-dashed border-border p-12 text-center"
+      >
+        <p class="text-muted-foreground">
+          No source collections discovered yet.
+        </p>
+        <p class="mt-2 text-sm text-muted-foreground">
+          Source collections are automatically discovered when syncing with the
+          upstream source.
+        </p>
       </div>
     {:else}
       <div class="overflow-hidden rounded-lg border border-border">
         <table class="w-full text-sm">
           <thead>
             <tr class="border-b border-border bg-muted/50">
-              <th class="px-4 py-3 text-left font-medium text-muted-foreground">Name</th>
-              <th class="hidden px-4 py-3 text-left font-medium text-muted-foreground sm:table-cell">Discovered</th>
-              <th class="px-4 py-3 text-right font-medium text-muted-foreground"></th>
+              <th class="px-4 py-3 text-left font-medium text-muted-foreground"
+                >Name</th
+              >
+              <th
+                class="hidden px-4 py-3 text-left font-medium text-muted-foreground sm:table-cell"
+                >Discovered</th
+              >
+              <th class="px-4 py-3 text-right font-medium text-muted-foreground"
+              ></th>
             </tr>
           </thead>
           <tbody class="divide-y divide-border">
@@ -60,12 +87,18 @@
                 <td class="px-4 py-3 font-medium">
                   {collection.name || "Unnamed"}
                 </td>
-                <td class="hidden px-4 py-3 text-muted-foreground sm:table-cell">
+                <td
+                  class="hidden px-4 py-3 text-muted-foreground sm:table-cell"
+                >
                   {new Date(collection.createdAt * 1000).toLocaleDateString()}
                 </td>
                 <td class="px-4 py-3 text-right">
                   <form {...deleteSourceCollection} class="inline">
-                    <input {...deleteSourceCollection.fields?.id.as("hidden")} value={collection.id} />
+                    <input
+                      {...deleteSourceCollection.fields?.id.as("number")}
+                      type="hidden"
+                      value={collection.id}
+                    />
                     <button
                       type="submit"
                       class="text-destructive hover:underline"
@@ -86,7 +119,10 @@
       </div>
 
       <p class="mt-4 text-sm text-muted-foreground">
-        To use these in your app, <a href="/collections" class="text-primary hover:underline">create a Collection</a> and link these source collections to it.
+        To use these in your app, <a
+          href="/collections"
+          class="text-primary hover:underline">create a Collection</a
+        > and link these source collections to it.
       </p>
     {/if}
   </div>

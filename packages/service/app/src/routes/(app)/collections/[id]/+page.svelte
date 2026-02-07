@@ -223,11 +223,12 @@
           </Popover.Trigger>
           <Popover.Portal>
             <Popover.Content class="w-72" align="start">
-              <form
-                {...updateCollection}
-                class="space-y-3"
-              >
-                <input {...updateCollection.fields?.id.as("hidden")} value={collection.id} />
+              <form {...updateCollection} class="space-y-3">
+                <input
+                  {...updateCollection.fields?.id.as("number")}
+                  type="hidden"
+                  value={collection.id}
+                />
                 <div class="space-y-1.5">
                   <Label for={nameId}>Name</Label>
                   <Input
@@ -301,6 +302,9 @@
       {:else}
         <div class="mb-4 space-y-2">
           {#each mappings as mapping}
+            {@const remove = removeSourceCollection.for(
+              mapping.sourceCollectionId,
+            )}
             <div class="rounded-md border border-border">
               <!-- Mapping header -->
               <div class="flex items-center justify-between px-4 py-3">
@@ -337,13 +341,15 @@
                     )}
                   </span>
                 </div>
-                <form {...removeSourceCollection}>
+                <form {...remove}>
                   <input
-                    {...removeSourceCollection.fields?.collectionId.as("hidden")}
+                    {...remove.fields?.collectionId.as("number")}
+                    type="hidden"
                     value={collection.id}
                   />
                   <input
-                    {...removeSourceCollection.fields?.sourceCollectionId.as("hidden")}
+                    {...remove.fields?.sourceCollectionId.as("number")}
+                    type="hidden"
                     value={mapping.sourceCollectionId}
                   />
                   <button
@@ -368,19 +374,26 @@
 
                   {#if hasUnsavedChanges(mapping.sourceCollectionId)}
                     <div class="mt-4 flex gap-2">
-                      <form
-                        {...updateSourceCollectionMapping}
-                      >
+                      <form {...updateSourceCollectionMapping}>
                         <input
-                          {...updateSourceCollectionMapping.fields?.collectionId.as("hidden")}
+                          {...updateSourceCollectionMapping.fields?.collectionId.as(
+                            "number",
+                          )}
+                          type="hidden"
                           value={collection.id}
                         />
                         <input
-                          {...updateSourceCollectionMapping.fields?.sourceCollectionId.as("hidden")}
+                          {...updateSourceCollectionMapping.fields?.sourceCollectionId.as(
+                            "number",
+                          )}
+                          type="hidden"
                           value={mapping.sourceCollectionId}
                         />
                         <input
-                          {...updateSourceCollectionMapping.fields?.filters.as("hidden")}
+                          {...updateSourceCollectionMapping.fields?.filters.as(
+                            "text",
+                          )}
+                          type="hidden"
                           value={JSON.stringify(
                             filterEdits.get(mapping.sourceCollectionId) ?? [],
                           )}
@@ -448,11 +461,13 @@
               </a>
               <form {...removeConnection}>
                 <input
-                  {...removeConnection.fields?.consumerId.as("hidden")}
+                  {...removeConnection.fields?.consumerId.as("number")}
+                  type="hidden"
                   value={connection.consumerId}
                 />
                 <input
-                  {...removeConnection.fields?.collectionId.as("hidden")}
+                  {...removeConnection.fields?.collectionId.as("number")}
+                  type="hidden"
                   value={collection.id}
                 />
                 <button
@@ -469,7 +484,11 @@
 
       {#if availableConsumers.length > 0}
         <form {...addConnection} class="flex gap-2">
-          <input {...addConnection.fields?.collectionId.as("hidden")} value={collection.id} />
+          <input
+            {...addConnection.fields?.collectionId.as("number")}
+            type="hidden"
+            value={collection.id}
+          />
           <select
             {...addConnection.fields?.consumerId.as("number")}
             class="flex-1 rounded-md border border-input bg-transparent px-3 py-2 text-sm"
@@ -509,7 +528,11 @@
         connections.
       </p>
       <form {...deleteCollection}>
-        <input {...deleteCollection.fields?.id.as("hidden")} value={collection.id} />
+        <input
+          {...deleteCollection.fields?.id.as("number")}
+          type="hidden"
+          value={collection.id}
+        />
         <Button type="submit" variant="destructive" size="sm"
           >Delete Collection</Button
         >
