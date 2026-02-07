@@ -2,10 +2,10 @@
  * E2E Test Setup Script
  *
  * Prepares the environment for E2E tests.
- * 
+ *
  * Strapi runs via Docker using our custom image (contfu-strapi-test:latest)
  * with a pre-configured article content type.
- * 
+ *
  * Build the test image: cd docker/strapi-test && docker build -t contfu-strapi-test:latest .
  *
  * Run automatically before tests or manually: bun tests/e2e/setup.ts
@@ -33,9 +33,12 @@ function isDockerAvailable(): boolean {
  */
 function isStrapiContainerRunning(): boolean {
   try {
-    const result = execSync(`docker inspect -f '{{.State.Running}}' ${STRAPI_CONTAINER_NAME} 2>/dev/null`, {
-      encoding: "utf-8",
-    });
+    const result = execSync(
+      `docker inspect -f '{{.State.Running}}' ${STRAPI_CONTAINER_NAME} 2>/dev/null`,
+      {
+        encoding: "utf-8",
+      },
+    );
     return result.trim() === "true";
   } catch {
     return false;
@@ -59,9 +62,9 @@ function cleanupStrapiContainer(): void {
 async function waitForStrapi(host: string, port: string, timeoutMs = 120000): Promise<void> {
   const url = `http://${host}:${port}/_health`;
   const start = Date.now();
-  
+
   console.log(`[Setup] Waiting for Strapi at ${url}...`);
-  
+
   while (Date.now() - start < timeoutMs) {
     try {
       const response = await fetch(url);
@@ -76,7 +79,7 @@ async function waitForStrapi(host: string, port: string, timeoutMs = 120000): Pr
     const elapsed = Math.round((Date.now() - start) / 1000);
     console.log(`[Setup] Waiting for Strapi... (${elapsed}s)`);
   }
-  
+
   throw new Error(`Strapi did not become ready within ${timeoutMs}ms`);
 }
 
@@ -108,18 +111,21 @@ export async function startStrapiDocker(): Promise<void> {
   // Use custom image from Forgejo registry (or local build via STRAPI_IMAGE env)
   const strapiImage = process.env.STRAPI_IMAGE || "forgejo.rogge.vip/contfu/strapi-test:latest";
   console.log(`[Setup] Starting Strapi via Docker (${strapiImage})...`);
-  
+
   // Pre-configured with article content type for E2E testing
   // Let Docker use native platform (arm64 on M1 Mac, amd64 in CI)
   const dockerArgs = [
-    "run", "-d",
-    "--name", STRAPI_CONTAINER_NAME,
-    "-p", `${STRAPI_PORT}:1337`,
+    "run",
+    "-d",
+    "--name",
+    STRAPI_CONTAINER_NAME,
+    "-p",
+    `${STRAPI_PORT}:1337`,
     strapiImage,
   ];
 
   execSync(`docker ${dockerArgs.join(" ")}`, { stdio: "inherit" });
-  
+
   await waitForStrapi("localhost", STRAPI_PORT);
 }
 
@@ -148,7 +154,7 @@ export async function setupStrapiDemo(): Promise<void> {
 // Run if executed directly
 if (import.meta.main) {
   const command = process.argv[2];
-  
+
   if (command === "stop") {
     stopStrapiDocker();
   } else {

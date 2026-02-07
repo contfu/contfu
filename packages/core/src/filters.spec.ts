@@ -11,7 +11,11 @@ import { PropertyType } from "./collections";
 describe("filters", () => {
   describe("matchesFilter", () => {
     test("eq operator", () => {
-      const filter: Filter = { property: "status", operator: FilterOperator.EQ, value: "published" };
+      const filter: Filter = {
+        property: "status",
+        operator: FilterOperator.EQ,
+        value: "published",
+      };
       expect(matchesFilter({ status: "published" }, filter)).toBe(true);
       expect(matchesFilter({ status: "draft" }, filter)).toBe(false);
     });
@@ -51,33 +55,53 @@ describe("filters", () => {
     });
 
     test("contains operator", () => {
-      const filter: Filter = { property: "title", operator: FilterOperator.CONTAINS, value: "hello" };
+      const filter: Filter = {
+        property: "title",
+        operator: FilterOperator.CONTAINS,
+        value: "hello",
+      };
       expect(matchesFilter({ title: "hello world" }, filter)).toBe(true);
       expect(matchesFilter({ title: "say hello there" }, filter)).toBe(true);
       expect(matchesFilter({ title: "goodbye" }, filter)).toBe(false);
     });
 
     test("startsWith operator", () => {
-      const filter: Filter = { property: "title", operator: FilterOperator.STARTS_WITH, value: "hello" };
+      const filter: Filter = {
+        property: "title",
+        operator: FilterOperator.STARTS_WITH,
+        value: "hello",
+      };
       expect(matchesFilter({ title: "hello world" }, filter)).toBe(true);
       expect(matchesFilter({ title: "say hello" }, filter)).toBe(false);
     });
 
     test("endsWith operator", () => {
-      const filter: Filter = { property: "title", operator: FilterOperator.ENDS_WITH, value: "world" };
+      const filter: Filter = {
+        property: "title",
+        operator: FilterOperator.ENDS_WITH,
+        value: "world",
+      };
       expect(matchesFilter({ title: "hello world" }, filter)).toBe(true);
       expect(matchesFilter({ title: "world hello" }, filter)).toBe(false);
     });
 
     test("in operator", () => {
-      const filter: Filter = { property: "status", operator: FilterOperator.IN, value: ["published", "archived"] };
+      const filter: Filter = {
+        property: "status",
+        operator: FilterOperator.IN,
+        value: ["published", "archived"],
+      };
       expect(matchesFilter({ status: "published" }, filter)).toBe(true);
       expect(matchesFilter({ status: "archived" }, filter)).toBe(true);
       expect(matchesFilter({ status: "draft" }, filter)).toBe(false);
     });
 
     test("notIn operator", () => {
-      const filter: Filter = { property: "status", operator: FilterOperator.NOT_IN, value: ["draft", "pending"] };
+      const filter: Filter = {
+        property: "status",
+        operator: FilterOperator.NOT_IN,
+        value: ["draft", "pending"],
+      };
       expect(matchesFilter({ status: "published" }, filter)).toBe(true);
       expect(matchesFilter({ status: "draft" }, filter)).toBe(false);
       expect(matchesFilter({ status: "pending" }, filter)).toBe(false);
@@ -135,16 +159,16 @@ describe("filters", () => {
         { property: "status", operator: FilterOperator.EQ, value: "published" },
         { property: "price", operator: FilterOperator.GT, value: 50 },
       ];
-      
+
       // Both match
       expect(matchesFilters({ status: "published", price: 100 }, filters)).toBe(true);
-      
+
       // First matches, second doesn't
       expect(matchesFilters({ status: "published", price: 30 }, filters)).toBe(false);
-      
+
       // Second matches, first doesn't
       expect(matchesFilters({ status: "draft", price: 100 }, filters)).toBe(false);
-      
+
       // Neither matches
       expect(matchesFilters({ status: "draft", price: 30 }, filters)).toBe(false);
     });
@@ -155,7 +179,7 @@ describe("filters", () => {
         { property: "title", operator: FilterOperator.IS_NOT_NULL },
         { property: "views", operator: FilterOperator.GTE, value: 100 },
       ];
-      
+
       expect(matchesFilters({ type: "article", title: "Test", views: 150 }, filters)).toBe(true);
       expect(matchesFilters({ type: "blog", title: "Test", views: 100 }, filters)).toBe(true);
       expect(matchesFilters({ type: "page", title: "Test", views: 150 }, filters)).toBe(false);

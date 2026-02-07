@@ -1,20 +1,10 @@
-import {
-  
-  
-  ConnectedEvent,
-  
-  ErrorEvent,
-  EventType,
-  Item,
-  ItemEvent,
-  
-} from "@contfu/core";
+import { ConnectedEvent, ErrorEvent, EventType, Item, ItemEvent } from "@contfu/core";
 import { unpack } from "msgpackr";
 
 /**
  * Wire format for WebSocket events (matches server).
  * Uses tuples for minimal MessagePack encoding size.
- * 
+ *
  * Format: [type, ...payload]
  * - CONNECTED: [0]
  * - CHANGED: [1, [ref, id, collection, publishedAt, createdAt, changedAt, props, content?]]

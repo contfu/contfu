@@ -133,7 +133,9 @@ describe("StrapiSource Integration", () => {
 
     if (!createResponse.ok) {
       const errorText = await createResponse.text();
-      throw new Error(`Failed to create Article content type: ${createResponse.status} ${errorText}`);
+      throw new Error(
+        `Failed to create Article content type: ${createResponse.status} ${errorText}`,
+      );
     }
 
     console.log("   Content type created, waiting for Strapi to reload...");

@@ -1,5 +1,10 @@
 import { db } from "../../infra/db/db";
-import { incidentTable, influxTable, collectionTable, sourceCollectionTable } from "../../infra/db/schema";
+import {
+  incidentTable,
+  influxTable,
+  collectionTable,
+  sourceCollectionTable,
+} from "../../infra/db/schema";
 import { and, eq, desc } from "drizzle-orm";
 import { unpack } from "msgpackr";
 import { IncidentType, type IncidentWithDetails } from "@contfu/core";

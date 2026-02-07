@@ -24,10 +24,13 @@ describe("createConnection", () => {
 
   it("should create a connection to a collection", async () => {
     // Create user
-    const [user] = await db.insert(userTable).values({
-      name: "Test User",
-      email: "test@example.com",
-    }).returning();
+    const [user] = await db
+      .insert(userTable)
+      .values({
+        name: "Test User",
+        email: "test@example.com",
+      })
+      .returning();
 
     // Create consumer
     await db.insert(consumerTable).values({
@@ -56,10 +59,13 @@ describe("createConnection", () => {
 
   it("should fail if collection does not exist (foreign key constraint)", async () => {
     // Create user
-    const [user] = await db.insert(userTable).values({
-      name: "Test User",
-      email: "test@example.com",
-    }).returning();
+    const [user] = await db
+      .insert(userTable)
+      .values({
+        name: "Test User",
+        email: "test@example.com",
+      })
+      .returning();
 
     // Create consumer
     await db.insert(consumerTable).values({
@@ -73,16 +79,19 @@ describe("createConnection", () => {
       createConnection(user.id, {
         consumerId: 1,
         collectionId: 999, // Non-existent collection
-      })
+      }),
     ).rejects.toThrow();
   });
 
   it("should work with collection that has mapped source collections", async () => {
     // Create user
-    const [user] = await db.insert(userTable).values({
-      name: "Test User",
-      email: "test@example.com",
-    }).returning();
+    const [user] = await db
+      .insert(userTable)
+      .values({
+        name: "Test User",
+        email: "test@example.com",
+      })
+      .returning();
 
     // Create source
     await db.insert(sourceTable).values({

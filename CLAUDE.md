@@ -127,7 +127,7 @@ await button.click();
 await page.locator("text=Success").waitFor({ state: "visible" });
 
 // ❌ Wrong - intercept response
-const response = await page.waitForResponse(r => r.url().includes("/api"));
+const response = await page.waitForResponse((r) => r.url().includes("/api"));
 const data = await response.json();
 ```
 

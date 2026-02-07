@@ -19,7 +19,7 @@ type ConnectOpts = {
 
 /**
  * Connect to the sync server using WebSocket (preferred) with SSE fallback.
- * 
+ *
  * Tries WebSocket first for binary MessagePack support.
  * Falls back to SSE if WebSocket connection fails.
  */
@@ -63,15 +63,11 @@ export async function connect(
 
   // Force specific transport if requested
   if (transport === "sse") {
-    return handle
-      ? connectToSSE(key, sseOpts as any)
-      : connectToSSE(key, sseOpts);
+    return handle ? connectToSSE(key, sseOpts as any) : connectToSSE(key, sseOpts);
   }
 
   if (transport === "ws") {
-    return handle
-      ? connectToWS(key, wsOpts as any)
-      : connectToWS(key, wsOpts);
+    return handle ? connectToWS(key, wsOpts as any) : connectToWS(key, wsOpts);
   }
 
   // Auto-detect: try WS first, fall back to SSE

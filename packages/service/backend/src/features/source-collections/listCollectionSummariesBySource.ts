@@ -19,7 +19,9 @@ export async function listCollectionSummariesBySource(
       createdAt: sourceCollectionTable.createdAt,
     })
     .from(sourceCollectionTable)
-    .where(and(eq(sourceCollectionTable.userId, userId), eq(sourceCollectionTable.sourceId, sourceId)))
+    .where(
+      and(eq(sourceCollectionTable.userId, userId), eq(sourceCollectionTable.sourceId, sourceId)),
+    )
     .orderBy(sourceCollectionTable.createdAt);
 
   const collectionIds = collections.map((c) => c.id);

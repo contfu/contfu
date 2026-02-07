@@ -371,7 +371,9 @@ export const POST: RequestHandler = async ({ request, params }) => {
         }));
 
       if (collectionConnections.length > 0) {
-        console.log(`[Strapi webhook] Broadcasting to ${collectionConnections.length} consumer(s) for collection ${collectionId}`);
+        console.log(
+          `[Strapi webhook] Broadcasting to ${collectionConnections.length} consumer(s) for collection ${collectionId}`,
+        );
         sseServer.broadcast([item], collectionConnections);
         itemsBroadcast += collectionConnections.length;
       }
@@ -380,9 +382,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
     _totalItemsBroadcast += itemsBroadcast;
 
     // Log successful webhook processing
-    const logMessage = filteredOutCount > 0 
-      ? `${filteredOutCount} items filtered out`
-      : undefined;
+    const logMessage = filteredOutCount > 0 ? `${filteredOutCount} items filtered out` : undefined;
     await logWebhookEvent(
       source.userId,
       source.id,

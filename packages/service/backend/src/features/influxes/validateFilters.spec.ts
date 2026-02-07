@@ -20,7 +20,9 @@ describe("validateFiltersAgainstSchema", () => {
   });
 
   it("should validate filter on existing string property", () => {
-    const filters: Filter[] = [{ property: "title", operator: FilterOperator.CONTAINS, value: "test" }];
+    const filters: Filter[] = [
+      { property: "title", operator: FilterOperator.CONTAINS, value: "test" },
+    ];
     const result = validateFiltersAgainstSchema(filters, schema);
     expect(result.valid).toBe(true);
   });
@@ -38,7 +40,9 @@ describe("validateFiltersAgainstSchema", () => {
   });
 
   it("should invalidate filter on non-existent property", () => {
-    const filters: Filter[] = [{ property: "category", operator: FilterOperator.EQ, value: "news" }];
+    const filters: Filter[] = [
+      { property: "category", operator: FilterOperator.EQ, value: "news" },
+    ];
     const result = validateFiltersAgainstSchema(filters, schema);
     expect(result.valid).toBe(false);
     expect(result.invalidFilters).toHaveLength(1);
@@ -46,7 +50,9 @@ describe("validateFiltersAgainstSchema", () => {
   });
 
   it("should invalidate string operator on number property", () => {
-    const filters: Filter[] = [{ property: "count", operator: FilterOperator.CONTAINS, value: "5" }];
+    const filters: Filter[] = [
+      { property: "count", operator: FilterOperator.CONTAINS, value: "5" },
+    ];
     const result = validateFiltersAgainstSchema(filters, schema);
     expect(result.valid).toBe(false);
     expect(result.errors[0]).toContain("not valid for property");
@@ -102,7 +108,9 @@ describe("isSchemaCompatible", () => {
   });
 
   it("should return valid when filtered property still exists", () => {
-    const filters: Filter[] = [{ property: "title", operator: FilterOperator.CONTAINS, value: "test" }];
+    const filters: Filter[] = [
+      { property: "title", operator: FilterOperator.CONTAINS, value: "test" },
+    ];
     const newSchema: CollectionSchema = {
       title: PropertyType.STRING,
       newField: PropertyType.STRING,
@@ -112,7 +120,9 @@ describe("isSchemaCompatible", () => {
   });
 
   it("should return invalid when filtered property is removed", () => {
-    const filters: Filter[] = [{ property: "category", operator: FilterOperator.EQ, value: "news" }];
+    const filters: Filter[] = [
+      { property: "category", operator: FilterOperator.EQ, value: "news" },
+    ];
     const newSchema: CollectionSchema = {
       title: PropertyType.STRING,
       // category removed!

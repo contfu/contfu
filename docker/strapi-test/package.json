@@ -1,16 +1,16 @@
 {
   "name": "contfu-strapi-test",
   "version": "1.0.0",
-  "description": "Strapi 5 test instance for contfu E2E testing",
   "private": true,
+  "description": "Strapi 5 test instance for contfu E2E testing",
   "scripts": {
     "develop": "strapi develop",
     "start": "strapi start",
     "build": "strapi build"
   },
   "dependencies": {
-    "@strapi/strapi": "^5.0.0",
     "@strapi/plugin-users-permissions": "^5.0.0",
+    "@strapi/strapi": "^5.0.0",
     "better-sqlite3": "^11.0.0",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",

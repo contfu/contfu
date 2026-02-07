@@ -1,4 +1,4 @@
-import { mergeConfig } from 'vite';
+import { mergeConfig } from "vite";
 
 export default (config) => {
   return mergeConfig(config, {

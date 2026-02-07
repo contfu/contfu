@@ -17,10 +17,12 @@ import * as v from "valibot";
 /**
  * Get all source collections for the current user.
  */
-export const getSourceCollections = query(async (): Promise<BackendCollectionWithConnectionCount[]> => {
-  const userId = getUserId();
-  return listCollections(userId);
-});
+export const getSourceCollections = query(
+  async (): Promise<BackendCollectionWithConnectionCount[]> => {
+    const userId = getUserId();
+    return listCollections(userId);
+  },
+);
 
 /**
  * Get source collections filtered by source ID (minimal summary data).

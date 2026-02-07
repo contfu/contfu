@@ -49,7 +49,7 @@ export const handle: Handle = async ({ event, resolve }) => {
     // Authenticate using headers before upgrade
     const wsServer = getWSServer();
     const authResult = await wsServer.authenticateUpgrade(request);
-    
+
     if (!authResult.success) {
       return new Response(authResult.message, { status: authResult.status });
     }
@@ -58,9 +58,7 @@ export const handle: Handle = async ({ event, resolve }) => {
     platform.server.upgrade(platform.request, {
       data: authResult.data,
       // Echo back the subprotocol if used (required for browser WebSocket)
-      headers: authResult.protocol
-        ? { "Sec-WebSocket-Protocol": authResult.protocol }
-        : undefined,
+      headers: authResult.protocol ? { "Sec-WebSocket-Protocol": authResult.protocol } : undefined,
     });
     return new Response(null, { status: 101 });
   }

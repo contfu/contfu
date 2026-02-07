@@ -1,5 +1,9 @@
 import { db } from "../../infra/db/db";
-import { sourceCollectionTable, connectionTable, type SourceCollection } from "../../infra/db/schema";
+import {
+  sourceCollectionTable,
+  connectionTable,
+  type SourceCollection,
+} from "../../infra/db/schema";
 import { and, eq, sql } from "drizzle-orm";
 import type { BackendCollection, BackendCollectionWithConnectionCount } from "../../domain/types";
 

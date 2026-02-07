@@ -1,7 +1,7 @@
 /**
  * E2E test for WebSocket transport.
  * Tests connection, authentication, and event flow.
- * 
+ *
  * Auth is done via Sec-WebSocket-Protocol header during upgrade:
  * - Client sends: Sec-WebSocket-Protocol: contfu.<base64-key>
  * - Server validates and echoes back the protocol
@@ -34,7 +34,7 @@ describe("WebSocket Transport", () => {
       ws.onmessage = (event) => {
         clearTimeout(timeout);
         const data = unpack(Buffer.from(event.data as ArrayBuffer));
-        
+
         if (data.t === EventType.CONNECTED) {
           resolve({ connected: true });
         } else if (data.t === EventType.ERROR) {

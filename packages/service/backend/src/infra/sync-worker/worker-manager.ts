@@ -292,14 +292,18 @@ async function addItemIds(userId: number, collectionId: number, toAdd: Buffer[])
   await db
     .update(sourceCollectionTable)
     .set({ itemIds: serializeIds(ids) })
-    .where(and(eq(sourceCollectionTable.userId, userId), eq(sourceCollectionTable.id, collectionId)));
+    .where(
+      and(eq(sourceCollectionTable.userId, userId), eq(sourceCollectionTable.id, collectionId)),
+    );
 }
 
 async function getItemIds(userId: number, collectionId: number) {
   const result = await db
     .select({ itemIds: sourceCollectionTable.itemIds })
     .from(sourceCollectionTable)
-    .where(and(eq(sourceCollectionTable.userId, userId), eq(sourceCollectionTable.id, collectionId)));
+    .where(
+      and(eq(sourceCollectionTable.userId, userId), eq(sourceCollectionTable.id, collectionId)),
+    );
   return new SortedSet<Buffer>({
     seed: deserializeIds(result[0]?.itemIds ?? NO_ITEM_IDS),
     isSorted: true,

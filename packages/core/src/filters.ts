@@ -110,11 +110,23 @@ export function matchesFilter(props: Record<string, unknown>, filter: Filter): b
     case FilterOperator.GTE:
       return typeof value === "number" && typeof filter.value === "number" && value >= filter.value;
     case FilterOperator.CONTAINS:
-      return typeof value === "string" && typeof filter.value === "string" && value.includes(filter.value);
+      return (
+        typeof value === "string" &&
+        typeof filter.value === "string" &&
+        value.includes(filter.value)
+      );
     case FilterOperator.STARTS_WITH:
-      return typeof value === "string" && typeof filter.value === "string" && value.startsWith(filter.value);
+      return (
+        typeof value === "string" &&
+        typeof filter.value === "string" &&
+        value.startsWith(filter.value)
+      );
     case FilterOperator.ENDS_WITH:
-      return typeof value === "string" && typeof filter.value === "string" && value.endsWith(filter.value);
+      return (
+        typeof value === "string" &&
+        typeof filter.value === "string" &&
+        value.endsWith(filter.value)
+      );
     case FilterOperator.IN:
       return Array.isArray(filter.value) && filter.value.includes(value);
     case FilterOperator.NOT_IN:

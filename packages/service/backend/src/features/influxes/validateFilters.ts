@@ -59,10 +59,14 @@ export function validateFiltersAgainstSchema(
 
     // Build valid operators based on property type flags
     let validOps: FilterOperator[] = [];
-    if (propType & PropertyType.STRING) validOps = [...validOps, ...operatorsByType[PropertyType.STRING]];
-    if (propType & PropertyType.NUMBER) validOps = [...validOps, ...operatorsByType[PropertyType.NUMBER]];
-    if (propType & PropertyType.BOOLEAN) validOps = [...validOps, ...operatorsByType[PropertyType.BOOLEAN]];
-    if (propType & PropertyType.DATE) validOps = [...validOps, ...operatorsByType[PropertyType.DATE]];
+    if (propType & PropertyType.STRING)
+      validOps = [...validOps, ...operatorsByType[PropertyType.STRING]];
+    if (propType & PropertyType.NUMBER)
+      validOps = [...validOps, ...operatorsByType[PropertyType.NUMBER]];
+    if (propType & PropertyType.BOOLEAN)
+      validOps = [...validOps, ...operatorsByType[PropertyType.BOOLEAN]];
+    if (propType & PropertyType.DATE)
+      validOps = [...validOps, ...operatorsByType[PropertyType.DATE]];
 
     // Remove duplicates
     validOps = [...new Set(validOps)];

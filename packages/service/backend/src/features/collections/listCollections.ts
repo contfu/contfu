@@ -33,7 +33,9 @@ export async function listCollections(userId: number): Promise<Collection[]> {
     .where(eq(influxTable.userId, userId))
     .groupBy(influxTable.collectionId);
 
-  const influxCountMap = new Map<number, number>(influxCounts.map((c) => [c.collectionId, c.count]));
+  const influxCountMap = new Map<number, number>(
+    influxCounts.map((c) => [c.collectionId, c.count]),
+  );
 
   // Get connection counts per collection
   const connectionCounts = await db

@@ -12,9 +12,5 @@
     "packages/client/media-optimizer/src/**/*.ts",
     "packages/service/sync/src/**/*.ts"
   ],
-  "exclude": [
-    "**/*.spec.ts",
-    "**/test/**",
-    "packages/client/app/**"
-  ]
+  "exclude": ["**/*.spec.ts", "**/test/**", "packages/client/app/**"]
 }

@@ -1,9 +1,6 @@
 import {
   EventType,
-  
-  
   type ConnectedEvent,
-  
   type ErrorEvent,
   type ItemEvent,
   type ListIdsEvent,
@@ -37,7 +34,7 @@ export type WSData = {
 /**
  * Wire format for WebSocket events.
  * Uses tuples for minimal MessagePack encoding size.
- * 
+ *
  * Format: [type, ...payload]
  * - CONNECTED: [0]
  * - CHANGED: [1, [ref, id, collection, publishedAt, createdAt, changedAt, props, content?]]
@@ -74,7 +71,6 @@ const connections = new Map<string, WSConnection>();
 /** Maps consumer key (hex) to connection ID. */
 const consumerToConnection = new Map<string, string>();
 
-
 export class WSServer {
   private worker: SyncWorkerManager | null = null;
 
@@ -87,30 +83,35 @@ export class WSServer {
   /**
    * Authenticate during WebSocket upgrade using HTTP headers.
    * Returns WSData if successful, or an error response.
-   * 
+   *
    * Supports (in order of priority):
    * - Sec-WebSocket-Protocol: contfu.<base64-key> (works in browsers)
    * - Authorization: Bearer <base64-key>
    * - X-Consumer-Key: <base64-key>
    */
-  async authenticateUpgrade(request: Request): Promise<
+  async authenticateUpgrade(
+    request: Request,
+  ): Promise<
     | { success: true; data: WSData; protocol?: string }
     | { success: false; status: number; message: string }
   > {
     // Extract key from headers
     let keyString: string | null = null;
     let protocol: string | undefined;
-    
+
     // Check Sec-WebSocket-Protocol first (browser-compatible)
     const protocols = request.headers.get("Sec-WebSocket-Protocol");
     if (protocols) {
-      const authProtocol = protocols.split(",").map(p => p.trim()).find(p => p.startsWith("contfu."));
+      const authProtocol = protocols
+        .split(",")
+        .map((p) => p.trim())
+        .find((p) => p.startsWith("contfu."));
       if (authProtocol) {
         keyString = authProtocol.slice(7); // Remove "contfu." prefix
         protocol = authProtocol; // Echo back to client
       }
     }
-    
+
     // Fallback to Authorization header
     if (!keyString) {
       const authHeader = request.headers.get("Authorization");
@@ -118,7 +119,7 @@ export class WSServer {
         keyString = authHeader.slice(7);
       }
     }
-    
+
     // Fallback to custom header
     if (!keyString) {
       keyString = request.headers.get("X-Consumer-Key");
@@ -320,18 +321,10 @@ function toWireEvent(event: ItemEvent | ErrorEvent | ConnectedEvent): WireEvent 
       return [EventType.DELETED, new Uint8Array(event.item)];
 
     case EventType.LIST_IDS:
-      return [
-        EventType.LIST_IDS,
-        event.collection,
-        event.ids.map((id) => new Uint8Array(id)),
-      ];
+      return [EventType.LIST_IDS, event.collection, event.ids.map((id) => new Uint8Array(id))];
 
     case EventType.CHECKSUM:
-      return [
-        EventType.CHECKSUM,
-        event.collection,
-        new Uint8Array(event.checksum),
-      ];
+      return [EventType.CHECKSUM, event.collection, new Uint8Array(event.checksum)];
 
     case EventType.ERROR:
       return [EventType.ERROR, event.code];
