@@ -1000,7 +1000,6 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow", () => {
   let strapiPage: Page;
   let strapiSourceId: string | null;
   let collectionId: string | null;
-  let sourceCollectionId: string | null;
 
   // WebSocket testing: collect events received via WS
   const wsReceivedEvents: ItemEvent[] = [];
@@ -1078,7 +1077,6 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow", () => {
       collectionId: capturedCollectionId,
     } = await setupServiceAppAndGetApiKey(servicePage, strapiApiToken);
     collectionId = capturedCollectionId;
-    sourceCollectionId = capturedCollectionId; // Same as collectionId since we created one source collection
     consumerApiKey = apiKey;
     strapiSourceId = sourceId;
     await servicePage.close();
@@ -1392,55 +1390,63 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow", () => {
     }
     console.log(`[E2E Filter Test] Login complete, current URL: ${servicePage.url()}`);
 
-    // Navigate to the collection and configure filters (using dynamic ID)
+    // Navigate to the collection and configure filters via UI
     if (!collectionId) {
       throw new Error("collectionId not set - beforeAll may not have run");
     }
     await servicePage.goto(`${SERVICE_URL}/collections/${collectionId}`);
     await servicePage.waitForLoadState("networkidle");
 
-    // Find and click edit filters button (if it exists in the UI)
-    // For now, we'll use the API directly to set filters
-    console.log("[E2E Filter Test] Setting up filter via API...");
+    console.log("[E2E Filter Test] Setting up filter via UI...");
 
-    // Update the influx filter via the service API using form submission
-    // The updateInflux form action accepts filters as JSON string
-    // FilterOperator.CONTAINS = 7 (numeric enum from @contfu/core)
-    const filterPayload = JSON.stringify([
-      { property: "description", operator: 7, value: "IMPORTANT" },
-    ]);
+    // Click the influx expand button (first chevron button in the influx list)
+    const influxExpandButton = servicePage
+      .locator("button")
+      .filter({ has: servicePage.locator("svg") })
+      .filter({ hasText: /.+/ })
+      .first();
+    await influxExpandButton.click();
+    console.log("[E2E Filter Test] Expanded influx");
 
-    // Use the form action endpoint with dynamic IDs from the setup
-    // Origin header is required for SvelteKit form actions in production/preview mode
-    if (!collectionId || !sourceCollectionId) {
-      throw new Error("collectionId or sourceCollectionId not set from beforeAll setup");
-    }
-    console.log(
-      `[E2E Filter Test] Using collectionId: ${collectionId}, sourceCollectionId: ${sourceCollectionId}`,
-    );
+    // Wait for the filter editor section to appear
+    await servicePage
+      .getByText("No filters configured")
+      .waitFor({ state: "visible", timeout: 5000 });
 
-    const filterResponse = await fetch(`${SERVICE_URL}/collections/${collectionId}?/updateInflux`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        Origin: SERVICE_URL,
-        Cookie: await servicePage
-          .context()
-          .cookies()
-          .then((cookies) => cookies.map((c) => `${c.name}=${c.value}`).join("; ")),
-      },
-      body: new URLSearchParams({
-        collectionId: collectionId,
-        sourceCollectionId: sourceCollectionId,
-        filters: filterPayload,
-      }),
-    });
-    console.log(`[E2E Filter Test] Filter update response: ${filterResponse.status}`);
-    if (!filterResponse.ok) {
-      const errorText = await filterResponse.text();
-      console.log(`[E2E Filter Test] Filter update FAILED: ${errorText}`);
-      throw new Error(`Filter update failed: ${filterResponse.status} - ${errorText}`);
-    }
+    // Click "Add filter" button
+    await servicePage.getByRole("button", { name: /Add filter/i }).click();
+    console.log("[E2E Filter Test] Added filter row");
+
+    // Select "description" property in the first Select dropdown
+    // The property selector trigger shows the default property name
+    const filterRow = servicePage.locator("[class*='border-border'][class*='bg-muted']").first();
+    const selectTriggers = filterRow.locator("[data-slot='select-trigger']");
+
+    // Click the property selector (first trigger)
+    await selectTriggers.first().click();
+    await servicePage.getByRole("option", { name: /description/i }).click();
+    console.log("[E2E Filter Test] Selected 'description' property");
+
+    // Click the operator selector (second trigger)
+    await selectTriggers.nth(1).click();
+    await servicePage.getByRole("option", { name: /contains/i }).click();
+    console.log("[E2E Filter Test] Selected 'contains' operator");
+
+    // Type "IMPORTANT" in the value input
+    const valueInput = filterRow.locator("input[placeholder='Value']");
+    await valueInput.fill("IMPORTANT");
+    console.log("[E2E Filter Test] Filled filter value 'IMPORTANT'");
+
+    // Click "Save Filters" button
+    await servicePage.getByRole("button", { name: /Save Filters/i }).click();
+    console.log("[E2E Filter Test] Clicked Save Filters");
+
+    // Wait for success message
+    await servicePage
+      .getByText("Filters updated successfully")
+      .waitFor({ state: "visible", timeout: 10000 });
+    console.log("[E2E Filter Test] Filter saved successfully via UI");
+
     await servicePage.close();
 
     // Wait for filter to propagate

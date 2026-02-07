@@ -1,8 +1,9 @@
 <script lang="ts">
   import { authClient } from "$lib/auth-client";
   import { Button } from "$lib/components/ui/button";
+  import { getQuota } from "$lib/remote/billing.remote";
 
-  let { data } = $props();
+  const quota = await getQuota();
 
   async function handleCheckout(productId: string) {
     const result = await authClient.checkout({ productId });
@@ -31,7 +32,7 @@
     </p>
   </div>
 
-  {#if data.quota?.subscriptionStatus === "active"}
+  {#if quota?.subscriptionStatus === "active"}
     <!-- Current subscription -->
     <section class="mb-8">
       <h2
@@ -48,10 +49,10 @@
                 Active
               </span>
             </div>
-            {#if data.quota.currentPeriodEnd}
+            {#if quota.currentPeriodEnd}
               <p class="mt-1 text-sm text-muted-foreground">
                 Renews {new Date(
-                  data.quota.currentPeriodEnd * 1000,
+                  quota.currentPeriodEnd * 1000,
                 ).toLocaleDateString()}
               </p>
             {/if}
@@ -74,15 +75,15 @@
         <div class="mb-1.5 flex justify-between text-sm">
           <span>Sources</span>
           <span class="font-mono"
-            >{data.quota?.sources ?? 0} / {data.quota?.maxSources ?? 1}</span
+            >{quota?.sources ?? 0} / {quota?.maxSources ?? 1}</span
           >
         </div>
         <div class="h-1.5 w-full rounded-full bg-secondary">
           <div
             class="h-1.5 rounded-full bg-primary transition-all"
             style="width: {progressWidth(
-              data.quota?.sources ?? 0,
-              data.quota?.maxSources ?? 1,
+              quota?.sources ?? 0,
+              quota?.maxSources ?? 1,
             )}"
           ></div>
         </div>
@@ -91,7 +92,7 @@
         <div class="mb-1.5 flex justify-between text-sm">
           <span>Collections</span>
           <span class="font-mono"
-            >{data.quota?.collections ?? 0} / {data.quota?.maxCollections ??
+            >{quota?.collections ?? 0} / {quota?.maxCollections ??
               5}</span
           >
         </div>
@@ -99,8 +100,8 @@
           <div
             class="h-1.5 rounded-full bg-primary transition-all"
             style="width: {progressWidth(
-              data.quota?.collections ?? 0,
-              data.quota?.maxCollections ?? 5,
+              quota?.collections ?? 0,
+              quota?.maxCollections ?? 5,
             )}"
           ></div>
         </div>
@@ -109,15 +110,15 @@
         <div class="mb-1.5 flex justify-between text-sm">
           <span>Items</span>
           <span class="font-mono"
-            >{data.quota?.items ?? 0} / {data.quota?.maxItems ?? 100}</span
+            >{quota?.items ?? 0} / {quota?.maxItems ?? 100}</span
           >
         </div>
         <div class="h-1.5 w-full rounded-full bg-secondary">
           <div
             class="h-1.5 rounded-full bg-primary transition-all"
             style="width: {progressWidth(
-              data.quota?.items ?? 0,
-              data.quota?.maxItems ?? 100,
+              quota?.items ?? 0,
+              quota?.maxItems ?? 100,
             )}"
           ></div>
         </div>
@@ -126,7 +127,7 @@
         <div class="mb-1.5 flex justify-between text-sm">
           <span>Consumers</span>
           <span class="font-mono"
-            >{data.quota?.consumers ?? 0} / {data.quota?.maxConsumers ??
+            >{quota?.consumers ?? 0} / {quota?.maxConsumers ??
               1}</span
           >
         </div>
@@ -134,8 +135,8 @@
           <div
             class="h-1.5 rounded-full bg-primary transition-all"
             style="width: {progressWidth(
-              data.quota?.consumers ?? 0,
-              data.quota?.maxConsumers ?? 1,
+              quota?.consumers ?? 0,
+              quota?.maxConsumers ?? 1,
             )}"
           ></div>
         </div>
@@ -164,7 +165,7 @@
           onclick={() => handleCheckout("pro_product_id")}
           class="mt-4 w-full"
         >
-          {data.quota?.subscriptionStatus === "active" ? "Switch" : "Upgrade"}
+          {quota?.subscriptionStatus === "active" ? "Switch" : "Upgrade"}
         </Button>
       </div>
 
@@ -181,7 +182,7 @@
           onclick={() => handleCheckout("enterprise_product_id")}
           class="mt-4 w-full"
         >
-          {data.quota?.subscriptionStatus === "active" ? "Switch" : "Upgrade"}
+          {quota?.subscriptionStatus === "active" ? "Switch" : "Upgrade"}
         </Button>
       </div>
     </div>
