@@ -1,10 +1,13 @@
 import {
   EventType,
+  WIRE_PING,
   type ConnectedEvent,
   type ErrorEvent,
   type ItemEvent,
   type ListIdsEvent,
   type UserSyncItem,
+  type WireEvent,
+  type WireItem,
 } from "@contfu/core";
 import { eq } from "drizzle-orm";
 import { pack as msgpack } from "msgpackr";
@@ -28,43 +31,6 @@ class ConnectionError extends Error {
     super(message);
   }
 }
-
-/**
- * Wire format for events.
- * Uses tuples for minimal MessagePack encoding size.
- *
- * Format: [type, ...payload] where type matches EventType enum:
- * - CONNECTED: [0] (EventType.CONNECTED)
- * - ERROR: [1, errorCode] (EventType.ERROR)
- * - CHANGED: [2, [ref, id, collection, publishedAt, createdAt, changedAt, props, content?]] (EventType.CHANGED)
- * - DELETED: [3, deletedItemId] (EventType.DELETED)
- * - LIST_IDS: [4, collection, ids[]] (EventType.LIST_IDS)
- * - CHECKSUM: [5, collection, checksum] (EventType.CHECKSUM)
- * - PING: [6] (keep-alive, no EventType)
- */
-type WireEvent =
-  | [EventType.CONNECTED]
-  | [EventType.CHANGED, WireItem]
-  | [EventType.DELETED, Uint8Array]
-  | [EventType.LIST_IDS, number, Uint8Array[]]
-  | [EventType.CHECKSUM, number, Uint8Array]
-  | [EventType.ERROR, string]
-  | [6]; // PING = 6
-
-/**
- * Wire item format as tuple:
- * [ref, id, collection, publishedAt, createdAt, changedAt, props, content?]
- */
-type WireItem = [
-  Uint8Array, // ref
-  Uint8Array, // id
-  number, // collection
-  number, // publishedAt
-  number, // createdAt
-  number, // changedAt
-  Record<string, unknown>, // props
-  unknown[]?, // content (optional)
-];
 
 /** Maps consumer key (hex) to stream connection. */
 const consumerToConnection = new Map<string, StreamConnection>();
@@ -178,7 +144,7 @@ export class StreamServer {
    * Send a ping to keep the connection alive.
    */
   sendPing(controller: ReadableStreamDefaultController<Uint8Array>) {
-    const wireEvent: WireEvent = [6]; // PING
+    const wireEvent: WireEvent = [WIRE_PING];
     this.sendBinary(controller, wireEvent);
   }
 

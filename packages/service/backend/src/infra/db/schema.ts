@@ -285,12 +285,6 @@ export const influxTable = sqliteTable(
 
 export type Influx = typeof influxTable.$inferSelect;
 
-/**
- * @deprecated Use influxTable instead. Kept for migration compatibility.
- */
-export const collectionMappingTable = influxTable;
-export type CollectionMapping = Influx;
-
 /** The connection of the consumer to the collection. */
 export const connectionTable = sqliteTable(
   "connection",

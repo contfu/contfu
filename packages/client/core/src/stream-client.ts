@@ -9,41 +9,11 @@ import {
   Item,
   ItemEvent,
   ListIdsEvent,
+  WireEvent,
+  WireItem,
+  WIRE_PING,
 } from "@contfu/core";
 import { unpack } from "msgpackr";
-
-/**
- * Wire format for events (matches server).
- * Uses tuples for minimal MessagePack encoding size.
- *
- * Format: [type, ...payload] where type matches EventType enum:
- * - CONNECTED: [0]
- * - ERROR: [1, errorCode]
- * - CHANGED: [2, [ref, id, collection, publishedAt, createdAt, changedAt, props, content?]]
- * - DELETED: [3, deletedItemId]
- * - LIST_IDS: [4, collection, ids[]]
- * - CHECKSUM: [5, collection, checksum]
- * - PING: [6] (keep-alive, ignored by client)
- */
-type WireEvent =
-  | [EventType.CONNECTED]
-  | [EventType.ERROR, string]
-  | [EventType.CHANGED, WireItem]
-  | [EventType.DELETED, Uint8Array]
-  | [EventType.LIST_IDS, number, Uint8Array[]]
-  | [EventType.CHECKSUM, number, Uint8Array]
-  | [6]; // PING
-
-type WireItem = [
-  Uint8Array, // ref
-  Uint8Array, // id
-  number, // collection
-  number, // publishedAt
-  number, // createdAt
-  number, // changedAt
-  Record<string, unknown>, // props
-  unknown[]?, // content (optional)
-];
 
 type Opts = {
   url?: string;
@@ -56,6 +26,9 @@ type Opts = {
 /**
  * Connect to the binary stream endpoint using fetch + ReadableStream.
  * Uses HTTP streaming with msgpack for efficient binary encoding.
+ *
+ * Returns an async generator that yields ItemEvent objects.
+ * Alternatively, pass a `handle` callback for push-based processing.
  */
 export function connectToStream(
   key: Buffer,
@@ -75,9 +48,9 @@ export async function connectToStream(
     initialReconnectDelay = 1_000,
   }: Opts = {},
 ) {
-  // Encode key as base64url for URL parameter
+  // base64url is already URL-safe, no encoding needed
   const keyBase64Url = key.toString("base64url");
-  const streamUrl = `${url}?key=${encodeURIComponent(keyBase64Url)}`;
+  const streamUrl = `${url}?key=${keyBase64Url}`;
 
   // Create event queue (persists across reconnections)
   const eventQueue: ItemEvent[] = [];
@@ -107,7 +80,6 @@ export async function connectToStream(
   };
 
   const connect = async (): Promise<void> => {
-    // Abort any existing connection
     if (abortController) {
       abortController.abort();
     }
@@ -130,17 +102,13 @@ export async function connectToStream(
     }
 
     const reader = response.body.getReader();
-
-    // Buffer for incomplete messages
     let buffer = new Uint8Array(0);
 
-    // Read and process chunks
     const processChunks = async () => {
       while (true) {
         const { value, done } = await reader.read();
 
         if (done) {
-          // Stream ended - attempt reconnect if enabled
           if (shouldReconnect && !isReconnecting) {
             isReconnecting = true;
             await new Promise((resolve) => setTimeout(resolve, reconnectDelay));
@@ -163,38 +131,31 @@ export async function connectToStream(
 
         // Process complete messages from buffer
         while (buffer.length >= 4) {
-          // Read length prefix (4 bytes, big-endian)
           const view = new DataView(buffer.buffer, buffer.byteOffset, 4);
           const messageLength = view.getUint32(0, false);
 
-          // Check if we have the complete message
           if (buffer.length < 4 + messageLength) {
-            break; // Wait for more data
+            break;
           }
 
-          // Extract message data
           const messageData = buffer.slice(4, 4 + messageLength);
           buffer = buffer.slice(4 + messageLength);
 
-          // Decode and process the message
           try {
             const wireEvent = unpack(messageData) as WireEvent;
             const event = fromWireEvent(wireEvent);
 
             if (event) {
               if (event.type === EventType.CONNECTED) {
-                // Reset backoff on successful connection
                 reconnectDelay = initialReconnectDelay;
                 console.log("CONNECTED");
               } else if (event.type === EventType.ERROR) {
-                // Error from server - stop reconnecting
                 shouldReconnect = false;
                 throw new Error(`Stream error: ${event.code}`);
               } else {
                 pushEvent(event);
               }
             }
-            // PING events (type 6) are ignored
           } catch (err) {
             console.error("Failed to decode stream message:", err);
           }
@@ -202,7 +163,6 @@ export async function connectToStream(
       }
     };
 
-    // Start processing in the background
     processChunks().catch((err) => {
       if (err.name !== "AbortError") {
         console.error("Stream processing error:", err);
@@ -210,7 +170,6 @@ export async function connectToStream(
     });
   };
 
-  // Initial connection
   await connect();
 
   if (handle) {
@@ -288,7 +247,7 @@ function fromWireEvent(wireEvent: WireEvent): ItemEvent | ErrorEvent | Connected
       } satisfies ChecksumEvent;
     }
 
-    case 6: // PING - ignore
+    case WIRE_PING:
       return null;
 
     default:
