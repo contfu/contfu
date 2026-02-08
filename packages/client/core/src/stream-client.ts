@@ -41,9 +41,8 @@ type OptsWithoutConnectionEvents = BaseOpts & { connectionEvents?: false };
 /**
  * Connect to the binary stream endpoint.
  *
- * Returns an async generator that yields events. Iteration blocks until
- * the first event is available. Connection and reconnection happen
- * automatically in the background.
+ * Returns an async generator that yields events directly as they arrive.
+ * Connection and reconnection are handled automatically.
  *
  * @example
  * ```ts
@@ -59,7 +58,6 @@ type OptsWithoutConnectionEvents = BaseOpts & { connectionEvents?: false };
  *   } else if (event.type === "stream:disconnected") {
  *     console.log("Disconnected:", event.reason);
  *   } else {
- *     // ItemEvent
  *     console.log(event.type, event);
  *   }
  * }
@@ -70,7 +68,7 @@ export function connectToStream(
   opts: OptsWithConnectionEvents,
 ): AsyncGenerator<ItemEvent | StreamEvent>;
 export function connectToStream(key: Buffer, opts?: OptsWithoutConnectionEvents): AsyncGenerator<ItemEvent>;
-export function connectToStream(
+export async function* connectToStream(
   key: Buffer,
   opts: BaseOpts & { connectionEvents?: boolean } = {},
 ): AsyncGenerator<ItemEvent | StreamEvent> {
@@ -82,154 +80,92 @@ export function connectToStream(
     connectionEvents = false,
   } = opts;
 
-  // base64url is already URL-safe
   const keyBase64Url = key.toString("base64url");
   const streamUrl = `${url}?key=${keyBase64Url}`;
 
-  return (async function* () {
-    const eventQueue: (ItemEvent | StreamEvent)[] = [];
-    let queueResolve: ((value: ItemEvent | StreamEvent) => void) | null = null;
-    let abortController: AbortController | null = null;
-    let reconnectDelay = initialReconnectDelay;
-    let shouldReconnect = reconnect;
-    let isRunning = true;
-    let _connectionPromise: Promise<void> | null = null;
+  let reconnectDelay = initialReconnectDelay;
+  let shouldReconnect = reconnect;
 
-    const pushEvent = (event: ItemEvent | StreamEvent) => {
-      if (queueResolve) {
-        queueResolve(event);
-        queueResolve = null;
-      } else {
-        eventQueue.push(event);
-      }
-    };
-
-    const getNextEvent = (): Promise<ItemEvent | StreamEvent> => {
-      if (eventQueue.length > 0) {
-        return Promise.resolve(eventQueue.shift()!);
-      }
-      return new Promise((res) => {
-        queueResolve = res;
+  while (shouldReconnect) {
+    try {
+      const response = await fetch(streamUrl, {
+        headers: { Accept: "application/octet-stream" },
       });
-    };
 
-    const connect = async (): Promise<void> => {
-      abortController?.abort();
-      abortController = new AbortController();
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`Stream connection failed: ${response.status} ${text}`);
+      }
 
-      try {
-        const response = await fetch(streamUrl, {
-          signal: abortController.signal,
-          headers: { Accept: "application/octet-stream" },
-        });
+      if (!response.body) {
+        throw new Error("Streaming not supported in this environment");
+      }
 
-        if (!response.ok) {
-          const text = await response.text();
-          throw new Error(`Stream connection failed: ${response.status} ${text}`);
-        }
+      const reader = response.body.getReader();
+      let buffer = new Uint8Array(0);
 
-        if (!response.body) {
-          throw new Error("Streaming not supported in this environment");
-        }
+      while (true) {
+        const { value, done } = await reader.read();
 
-        const reader = response.body.getReader();
-        let buffer = new Uint8Array(0);
-
-        while (isRunning) {
-          const { value, done } = await reader.read();
-
-          if (done) {
-            if (connectionEvents) {
-              pushEvent({ type: "stream:disconnected", reason: "Stream ended" });
-            }
-            break;
+        if (done) {
+          if (connectionEvents) {
+            yield { type: "stream:disconnected", reason: "Stream ended" };
           }
+          break;
+        }
 
-          // Append new data to buffer
-          const newBuffer = new Uint8Array(buffer.length + value.length);
-          newBuffer.set(buffer);
-          newBuffer.set(value, buffer.length);
-          buffer = newBuffer;
+        // Append to buffer
+        const newBuffer = new Uint8Array(buffer.length + value.length);
+        newBuffer.set(buffer);
+        newBuffer.set(value, buffer.length);
+        buffer = newBuffer;
 
-          // Process complete messages
-          while (buffer.length >= 4) {
-            const view = new DataView(buffer.buffer, buffer.byteOffset, 4);
-            const messageLength = view.getUint32(0, false);
+        // Process complete messages
+        while (buffer.length >= 4) {
+          const view = new DataView(buffer.buffer, buffer.byteOffset, 4);
+          const messageLength = view.getUint32(0, false);
 
-            if (buffer.length < 4 + messageLength) break;
+          if (buffer.length < 4 + messageLength) break;
 
-            const messageData = buffer.slice(4, 4 + messageLength);
-            buffer = buffer.slice(4 + messageLength);
+          const messageData = buffer.slice(4, 4 + messageLength);
+          buffer = buffer.slice(4 + messageLength);
 
-            try {
-              const wireEvent = unpack(messageData) as WireEvent;
-              const event = fromWireEvent(wireEvent);
+          const wireEvent = unpack(messageData) as WireEvent;
+          const event = fromWireEvent(wireEvent);
 
-              if (event) {
-                if (event.type === EventType.CONNECTED) {
-                  reconnectDelay = initialReconnectDelay;
-                  if (connectionEvents) {
-                    pushEvent({ type: "stream:connected" });
-                  }
-                } else if (event.type === EventType.ERROR) {
-                  shouldReconnect = false;
-                  throw new Error(`Stream error: ${event.code}`);
-                } else {
-                  pushEvent(event);
-                }
+          if (event) {
+            if (event.type === EventType.CONNECTED) {
+              reconnectDelay = initialReconnectDelay;
+              if (connectionEvents) {
+                yield { type: "stream:connected" };
               }
-            } catch (err) {
-              if (err instanceof Error && err.message.startsWith("Stream error:")) {
-                throw err;
-              }
-              console.error("Failed to decode stream message:", err);
+            } else if (event.type === EventType.ERROR) {
+              shouldReconnect = false;
+              throw new Error(`Stream error: ${event.code}`);
+            } else {
+              yield event;
             }
           }
         }
-      } catch (err) {
-        if (err instanceof Error && err.name === "AbortError") {
-          return;
-        }
-        if (connectionEvents) {
-          pushEvent({
-            type: "stream:disconnected",
-            reason: err instanceof Error ? err.message : "Unknown error",
-          });
-        }
+      }
+    } catch (err) {
+      if (connectionEvents && !(err instanceof Error && err.message.startsWith("Stream error:"))) {
+        yield {
+          type: "stream:disconnected",
+          reason: err instanceof Error ? err.message : "Unknown error",
+        };
+      }
+
+      if (!shouldReconnect) {
         throw err;
       }
-    };
-
-    const maintainConnection = async () => {
-      while (isRunning && shouldReconnect) {
-        try {
-          await connect();
-        } catch (err) {
-          if (!shouldReconnect || !isRunning) break;
-          console.error("Connection failed, reconnecting...", err);
-        }
-
-        if (!shouldReconnect || !isRunning) break;
-
-        await new Promise((r) => setTimeout(r, reconnectDelay));
-        reconnectDelay = Math.min(reconnectDelay * 2, maxReconnectDelay);
-      }
-    };
-
-    // Start connection in background
-    _connectionPromise = maintainConnection();
-
-    try {
-      while (isRunning) {
-        yield await getNextEvent();
-      }
-    } finally {
-      // Cleanup on generator return/throw
-      isRunning = false;
-      shouldReconnect = false;
-      abortController?.abort();
     }
-  })();
+
+    if (!shouldReconnect) break;
+
+    await new Promise((r) => setTimeout(r, reconnectDelay));
+    reconnectDelay = Math.min(reconnectDelay * 2, maxReconnectDelay);
+  }
 }
 
 /**
