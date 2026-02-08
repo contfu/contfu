@@ -48,34 +48,38 @@ export async function startSyncConnection(): Promise<void> {
 
   console.info(`[SYNC] Connecting to sync service via binary stream at ${CONTFU_URL}...`);
 
-  const eventHandler = async (event: any) => {
-    switch (event.type) {
-      case EventType.CHANGED:
-        handleChangedEvent(event);
-        console.info(
-          `Article updated: ${(event.item.props as { title?: string }).title || "Untitled"}`,
-        );
-        break;
-      case EventType.DELETED:
-        handleDeletedEvent(event);
-        console.info(`Article deleted: ${event.item.toString("hex")}`);
-        break;
-      case EventType.LIST_IDS:
-        console.info(`Received ${event.ids.length} IDs for collection ${event.collection}`);
-        break;
-      case EventType.CHECKSUM:
-        console.info(`Received checksum for collection ${event.collection}`);
-        break;
-    }
-  };
-
   try {
     console.info("[SYNC] Attempting connection...");
-    await connectToStream(key, {
-      url: CONTFU_URL,
-      handle: eventHandler,
-    });
-    console.info("[SYNC] Connection established successfully!");
+
+    for await (const event of connectToStream(key, { url: CONTFU_URL, connectionEvents: true })) {
+      if (event.type === "stream:connected") {
+        console.info("[SYNC] Connection established!");
+        continue;
+      }
+      if (event.type === "stream:disconnected") {
+        console.warn("[SYNC] Disconnected:", event.reason);
+        continue;
+      }
+
+      switch (event.type) {
+        case EventType.CHANGED:
+          handleChangedEvent(event);
+          console.info(
+            `Article updated: ${(event.item.props as { title?: string }).title || "Untitled"}`,
+          );
+          break;
+        case EventType.DELETED:
+          handleDeletedEvent(event);
+          console.info(`Article deleted: ${event.item.toString("hex")}`);
+          break;
+        case EventType.LIST_IDS:
+          console.info(`Received ${event.ids.length} IDs for collection ${event.collection}`);
+          break;
+        case EventType.CHECKSUM:
+          console.info(`Received checksum for collection ${event.collection}`);
+          break;
+      }
+    }
   } catch (error) {
     console.error("[SYNC] Connection error:", error);
     syncStarted = false;

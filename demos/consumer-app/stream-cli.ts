@@ -34,83 +34,82 @@ console.log("━━━━━━━━━━━━━━━━━━━━━━�
 // Convert hex key to Buffer
 const key = Buffer.from(CONTFU_KEY, "hex");
 
-// Event handler that logs all events
-const eventHandler = async (event: any) => {
-  const timestamp = new Date().toISOString();
+console.log("⏳ Establishing connection...\n");
 
-  switch (event.type) {
-    case EventType.CONNECTED:
+try {
+  for await (const event of connectToStream(key, { url: CONTFU_URL, connectionEvents: true })) {
+    const timestamp = new Date().toISOString();
+
+    if (event.type === "stream:connected") {
       console.log(`[${timestamp}] ✅ CONNECTED`);
       console.log("   Connection established successfully\n");
-      break;
+      continue;
+    }
 
-    case EventType.CHANGED:
-      console.log(`[${timestamp}] 📝 CHANGED`);
-      console.log(`   Collection: ${event.item.collection}`);
-      console.log(`   ID: ${event.item.id.toString("hex")}`);
-      console.log(`   Ref: ${event.item.ref.toString("hex")}`);
-      console.log(`   Created: ${event.item.createdAt}`);
-      console.log(`   Changed: ${event.item.changedAt}`);
-      if (event.item.publishedAt) {
-        console.log(`   Published: ${event.item.publishedAt}`);
-      }
-      if (event.item.props) {
-        console.log(`   Props: ${JSON.stringify(event.item.props, null, 2)}`);
-      }
-      if (event.item.content) {
-        console.log(`   Content blocks: ${event.item.content.length}`);
-      }
-      console.log("");
-      break;
+    if (event.type === "stream:disconnected") {
+      console.log(`[${timestamp}] ⚠️  DISCONNECTED`);
+      console.log(`   Reason: ${event.reason || "Unknown"}\n`);
+      continue;
+    }
 
-    case EventType.DELETED:
-      console.log(`[${timestamp}] 🗑️  DELETED`);
-      console.log(`   Item ID: ${event.item.toString("hex")}`);
-      console.log("");
-      break;
+    switch (event.type) {
+      case EventType.CHANGED:
+        console.log(`[${timestamp}] 📝 CHANGED`);
+        console.log(`   Collection: ${event.item.collection}`);
+        console.log(`   ID: ${event.item.id.toString("hex")}`);
+        console.log(`   Ref: ${event.item.ref.toString("hex")}`);
+        console.log(`   Created: ${event.item.createdAt}`);
+        console.log(`   Changed: ${event.item.changedAt}`);
+        if (event.item.publishedAt) {
+          console.log(`   Published: ${event.item.publishedAt}`);
+        }
+        if (event.item.props) {
+          console.log(`   Props: ${JSON.stringify(event.item.props, null, 2)}`);
+        }
+        if (event.item.content) {
+          console.log(`   Content blocks: ${event.item.content.length}`);
+        }
+        console.log("");
+        break;
 
-    case EventType.LIST_IDS:
-      console.log(`[${timestamp}] 📋 LIST_IDS`);
-      console.log(`   Collection: ${event.collection}`);
-      console.log(`   Count: ${event.ids.length} items`);
-      if (event.ids.length > 0 && event.ids.length <= 5) {
-        console.log(
-          `   IDs: ${event.ids.map((id: Buffer) => id.toString("hex").substring(0, 16) + "...").join(", ")}`,
-        );
-      }
-      console.log("");
-      break;
+      case EventType.DELETED:
+        console.log(`[${timestamp}] 🗑️  DELETED`);
+        console.log(`   Item ID: ${event.item.toString("hex")}`);
+        console.log("");
+        break;
 
-    case EventType.CHECKSUM:
-      console.log(`[${timestamp}] 🔢 CHECKSUM`);
-      console.log(`   Collection: ${event.collection}`);
-      console.log(`   Checksum: ${event.checksum.toString("hex")}`);
-      console.log("");
-      break;
+      case EventType.LIST_IDS:
+        console.log(`[${timestamp}] 📋 LIST_IDS`);
+        console.log(`   Collection: ${event.collection}`);
+        console.log(`   Count: ${event.ids.length} items`);
+        if (event.ids.length > 0 && event.ids.length <= 5) {
+          console.log(
+            `   IDs: ${event.ids.map((id: Buffer) => id.toString("hex").substring(0, 16) + "...").join(", ")}`,
+          );
+        }
+        console.log("");
+        break;
 
-    case EventType.ERROR:
-      console.log(`[${timestamp}] ❌ ERROR`);
-      console.log(`   Error code: ${event.code}`);
-      console.log("");
-      break;
+      case EventType.CHECKSUM:
+        console.log(`[${timestamp}] 🔢 CHECKSUM`);
+        console.log(`   Collection: ${event.collection}`);
+        console.log(`   Checksum: ${event.checksum.toString("hex")}`);
+        console.log("");
+        break;
 
-    default:
-      console.log(`[${timestamp}] ❓ UNKNOWN EVENT`);
-      console.log(`   Type: ${event.type}`);
-      console.log(`   Data: ${JSON.stringify(event, null, 2)}`);
-      console.log("");
+      case EventType.ERROR:
+        console.log(`[${timestamp}] ❌ ERROR`);
+        console.log(`   Error code: ${event.code}`);
+        console.log("");
+        break;
+
+      default:
+        console.log(`[${timestamp}] ❓ UNKNOWN EVENT`);
+        console.log(`   Type: ${(event as { type: unknown }).type}`);
+        console.log(`   Data: ${JSON.stringify(event, null, 2)}`);
+        console.log("");
+    }
   }
-};
-
-// Connect and log events
-try {
-  console.log("⏳ Establishing connection...\n");
-
-  await connectToStream(key, {
-    url: CONTFU_URL,
-    handle: eventHandler,
-    reconnect: true,
-  });
 
   console.log("🔌 Connection closed");
 } catch (error) {

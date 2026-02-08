@@ -15,175 +15,219 @@ import {
 } from "@contfu/core";
 import { unpack } from "msgpackr";
 
-type Opts = {
+/** Emitted when stream connection is established. */
+export type StreamConnectedEvent = { type: "stream:connected" };
+
+/** Emitted when stream connection is lost. */
+export type StreamDisconnectedEvent = { type: "stream:disconnected"; reason?: string };
+
+/** Connection lifecycle events. */
+export type StreamEvent = StreamConnectedEvent | StreamDisconnectedEvent;
+
+type BaseOpts = {
+  /** Stream endpoint URL (default: http://localhost:5173/api/stream) */
   url?: string;
-  handle?: (e: ItemEvent) => Promise<void>;
+  /** Enable automatic reconnection on disconnect (default: true) */
   reconnect?: boolean;
+  /** Maximum delay between reconnection attempts in ms (default: 30000) */
   maxReconnectDelay?: number;
+  /** Initial delay before first reconnection attempt in ms (default: 1000) */
   initialReconnectDelay?: number;
 };
 
+type OptsWithConnectionEvents = BaseOpts & { connectionEvents: true };
+type OptsWithoutConnectionEvents = BaseOpts & { connectionEvents?: false };
+
 /**
- * Connect to the binary stream endpoint using fetch + ReadableStream.
- * Uses HTTP streaming with msgpack for efficient binary encoding.
+ * Connect to the binary stream endpoint.
  *
- * Returns an async generator that yields ItemEvent objects.
- * Alternatively, pass a `handle` callback for push-based processing.
+ * Returns an async generator that yields events. Iteration blocks until
+ * the first event is available. Connection and reconnection happen
+ * automatically in the background.
+ *
+ * @example
+ * ```ts
+ * // Simple usage - just item events
+ * for await (const event of connectToStream(key)) {
+ *   console.log(event.type, event);
+ * }
+ *
+ * // With connection lifecycle events
+ * for await (const event of connectToStream(key, { connectionEvents: true })) {
+ *   if (event.type === "stream:connected") {
+ *     console.log("Connected!");
+ *   } else if (event.type === "stream:disconnected") {
+ *     console.log("Disconnected:", event.reason);
+ *   } else {
+ *     // ItemEvent
+ *     console.log(event.type, event);
+ *   }
+ * }
+ * ```
  */
 export function connectToStream(
   key: Buffer,
-  opts: Opts & { handle: (e: ItemEvent) => Promise<void> },
-): Promise<void>;
+  opts: OptsWithConnectionEvents,
+): AsyncGenerator<ItemEvent | StreamEvent>;
+export function connectToStream(key: Buffer, opts?: OptsWithoutConnectionEvents): AsyncGenerator<ItemEvent>;
 export function connectToStream(
   key: Buffer,
-  opts?: Omit<Opts, "handle">,
-): Promise<AsyncGenerator<ItemEvent>>;
-export async function connectToStream(
-  key: Buffer,
-  {
+  opts: BaseOpts & { connectionEvents?: boolean } = {},
+): AsyncGenerator<ItemEvent | StreamEvent> {
+  const {
     url = "http://localhost:5173/api/stream",
-    handle,
     reconnect = true,
     maxReconnectDelay = 30_000,
     initialReconnectDelay = 1_000,
-  }: Opts = {},
-) {
-  // base64url is already URL-safe, no encoding needed
+    connectionEvents = false,
+  } = opts;
+
+  // base64url is already URL-safe
   const keyBase64Url = key.toString("base64url");
   const streamUrl = `${url}?key=${keyBase64Url}`;
 
-  // Create event queue (persists across reconnections)
-  const eventQueue: ItemEvent[] = [];
-  let queueResolve: ((value: ItemEvent) => void) | null = null;
+  return (async function* () {
+    const eventQueue: (ItemEvent | StreamEvent)[] = [];
+    let queueResolve: ((value: ItemEvent | StreamEvent) => void) | null = null;
+    let abortController: AbortController | null = null;
+    let reconnectDelay = initialReconnectDelay;
+    let shouldReconnect = reconnect;
+    let isRunning = true;
+    let _connectionPromise: Promise<void> | null = null;
 
-  let abortController: AbortController | null = null;
-  let reconnectDelay = initialReconnectDelay;
-  let shouldReconnect = reconnect;
-  let isReconnecting = false;
-
-  const getNextEvent = (): Promise<ItemEvent> => {
-    if (eventQueue.length > 0) {
-      return Promise.resolve(eventQueue.shift()!);
-    }
-    return new Promise<ItemEvent>((res) => {
-      queueResolve = res;
-    });
-  };
-
-  const pushEvent = (event: ItemEvent) => {
-    if (queueResolve) {
-      queueResolve(event);
-      queueResolve = null;
-    } else {
-      eventQueue.push(event);
-    }
-  };
-
-  const connect = async (): Promise<void> => {
-    if (abortController) {
-      abortController.abort();
-    }
-    abortController = new AbortController();
-
-    const response = await fetch(streamUrl, {
-      signal: abortController.signal,
-      headers: {
-        Accept: "application/octet-stream",
-      },
-    });
-
-    if (!response.ok) {
-      const text = await response.text();
-      throw new Error(`Stream connection failed: ${response.status} ${text}`);
-    }
-
-    if (!response.body) {
-      throw new Error("Streaming not supported in this environment");
-    }
-
-    const reader = response.body.getReader();
-    let buffer = new Uint8Array(0);
-
-    const processChunks = async () => {
-      while (true) {
-        const { value, done } = await reader.read();
-
-        if (done) {
-          if (shouldReconnect && !isReconnecting) {
-            isReconnecting = true;
-            await new Promise((resolve) => setTimeout(resolve, reconnectDelay));
-            reconnectDelay = Math.min(reconnectDelay * 2, maxReconnectDelay);
-            try {
-              isReconnecting = false;
-              await connect();
-            } catch {
-              isReconnecting = false;
-            }
-          }
-          return;
-        }
-
-        // Append new data to buffer
-        const newBuffer = new Uint8Array(buffer.length + value.length);
-        newBuffer.set(buffer);
-        newBuffer.set(value, buffer.length);
-        buffer = newBuffer;
-
-        // Process complete messages from buffer
-        while (buffer.length >= 4) {
-          const view = new DataView(buffer.buffer, buffer.byteOffset, 4);
-          const messageLength = view.getUint32(0, false);
-
-          if (buffer.length < 4 + messageLength) {
-            break;
-          }
-
-          const messageData = buffer.slice(4, 4 + messageLength);
-          buffer = buffer.slice(4 + messageLength);
-
-          try {
-            const wireEvent = unpack(messageData) as WireEvent;
-            const event = fromWireEvent(wireEvent);
-
-            if (event) {
-              if (event.type === EventType.CONNECTED) {
-                reconnectDelay = initialReconnectDelay;
-                console.log("CONNECTED");
-              } else if (event.type === EventType.ERROR) {
-                shouldReconnect = false;
-                throw new Error(`Stream error: ${event.code}`);
-              } else {
-                pushEvent(event);
-              }
-            }
-          } catch (err) {
-            console.error("Failed to decode stream message:", err);
-          }
-        }
+    const pushEvent = (event: ItemEvent | StreamEvent) => {
+      if (queueResolve) {
+        queueResolve(event);
+        queueResolve = null;
+      } else {
+        eventQueue.push(event);
       }
     };
 
-    processChunks().catch((err) => {
-      if (err.name !== "AbortError") {
-        console.error("Stream processing error:", err);
+    const getNextEvent = (): Promise<ItemEvent | StreamEvent> => {
+      if (eventQueue.length > 0) {
+        return Promise.resolve(eventQueue.shift()!);
       }
-    });
-  };
+      return new Promise((res) => {
+        queueResolve = res;
+      });
+    };
 
-  await connect();
+    const connect = async (): Promise<void> => {
+      abortController?.abort();
+      abortController = new AbortController();
 
-  if (handle) {
-    return (async () => {
-      while (shouldReconnect || abortController) {
-        const event = await getNextEvent();
-        await handle(event);
+      try {
+        const response = await fetch(streamUrl, {
+          signal: abortController.signal,
+          headers: { Accept: "application/octet-stream" },
+        });
+
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(`Stream connection failed: ${response.status} ${text}`);
+        }
+
+        if (!response.body) {
+          throw new Error("Streaming not supported in this environment");
+        }
+
+        const reader = response.body.getReader();
+        let buffer = new Uint8Array(0);
+
+        while (isRunning) {
+          const { value, done } = await reader.read();
+
+          if (done) {
+            if (connectionEvents) {
+              pushEvent({ type: "stream:disconnected", reason: "Stream ended" });
+            }
+            break;
+          }
+
+          // Append new data to buffer
+          const newBuffer = new Uint8Array(buffer.length + value.length);
+          newBuffer.set(buffer);
+          newBuffer.set(value, buffer.length);
+          buffer = newBuffer;
+
+          // Process complete messages
+          while (buffer.length >= 4) {
+            const view = new DataView(buffer.buffer, buffer.byteOffset, 4);
+            const messageLength = view.getUint32(0, false);
+
+            if (buffer.length < 4 + messageLength) break;
+
+            const messageData = buffer.slice(4, 4 + messageLength);
+            buffer = buffer.slice(4 + messageLength);
+
+            try {
+              const wireEvent = unpack(messageData) as WireEvent;
+              const event = fromWireEvent(wireEvent);
+
+              if (event) {
+                if (event.type === EventType.CONNECTED) {
+                  reconnectDelay = initialReconnectDelay;
+                  if (connectionEvents) {
+                    pushEvent({ type: "stream:connected" });
+                  }
+                } else if (event.type === EventType.ERROR) {
+                  shouldReconnect = false;
+                  throw new Error(`Stream error: ${event.code}`);
+                } else {
+                  pushEvent(event);
+                }
+              }
+            } catch (err) {
+              if (err instanceof Error && err.message.startsWith("Stream error:")) {
+                throw err;
+              }
+              console.error("Failed to decode stream message:", err);
+            }
+          }
+        }
+      } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") {
+          return;
+        }
+        if (connectionEvents) {
+          pushEvent({
+            type: "stream:disconnected",
+            reason: err instanceof Error ? err.message : "Unknown error",
+          });
+        }
+        throw err;
       }
-    })();
-  }
+    };
 
-  return (async function* () {
-    while (shouldReconnect || abortController) {
-      yield await getNextEvent();
+    const maintainConnection = async () => {
+      while (isRunning && shouldReconnect) {
+        try {
+          await connect();
+        } catch (err) {
+          if (!shouldReconnect || !isRunning) break;
+          console.error("Connection failed, reconnecting...", err);
+        }
+
+        if (!shouldReconnect || !isRunning) break;
+
+        await new Promise((r) => setTimeout(r, reconnectDelay));
+        reconnectDelay = Math.min(reconnectDelay * 2, maxReconnectDelay);
+      }
+    };
+
+    // Start connection in background
+    _connectionPromise = maintainConnection();
+
+    try {
+      while (isRunning) {
+        yield await getNextEvent();
+      }
+    } finally {
+      // Cleanup on generator return/throw
+      isRunning = false;
+      shouldReconnect = false;
+      abortController?.abort();
     }
   })();
 }
