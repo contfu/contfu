@@ -24,7 +24,7 @@ import { dirname, resolve } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { startStrapiDocker, stopStrapiDocker } from "./setup";
-import type { ItemEvent } from "@contfu/core";
+// Import removed - no longer testing WebSocket in E2E tests
 // connect import removed - using stream-client directly for E2E tests
 
 // Project root (contfu/)
@@ -971,10 +971,6 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow", () => {
   let strapiPage: Page;
   let strapiSourceId: string | null;
 
-  // WebSocket testing: collect events received via WS
-  const wsReceivedEvents: ItemEvent[] = [];
-  let wsCleanup: (() => void) | null = null;
-
   test.beforeAll(async ({ browser }, testInfo) => {
     // Clean up any lingering processes from previous test attempts (e.g., retries)
     await killAllProcesses();
@@ -996,7 +992,6 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow", () => {
 
     // ===== STEP 2: Start Service app (built Bun server) =====
     // Note: Apps must be built first (CI runs `bun run build` before E2E)
-    // Uses svelte-adapter-bun output which includes WebSocket support
     await spawnProcess(
       "bun",
       ["build/index.js"],
@@ -1071,51 +1066,11 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow", () => {
       CONSUMER_URL, // poll this URL for readiness
     );
 
-    // ===== STEP 5b: Connect via WebSocket in parallel =====
-    // Tests that WebSocket transport works alongside stream transport
-    console.log("[E2E] Starting WebSocket connection in parallel to stream...");
-    try {
-      const { connect } = await import("@contfu/client");
-      const key = Buffer.from(consumerApiKey, "hex");
-
-      // Use handle mode to collect events
-      const controller = new AbortController();
-      wsCleanup = () => controller.abort();
-
-      // Start WebSocket connection (non-blocking)
-      connect(key, {
-        baseUrl: SERVICE_URL,
-        transport: "ws",
-        reconnect: false,
-        handle: async (event) => {
-          console.log(`[E2E] WebSocket received event: ${JSON.stringify(event).slice(0, 100)}...`);
-          wsReceivedEvents.push(event);
-        },
-      }).catch((err) => {
-        // Connection closed or failed - expected during cleanup
-        if (!controller.signal.aborted) {
-          console.log(`[E2E] WebSocket connection ended: ${err.message}`);
-        }
-      });
-
-      // Give WebSocket time to connect
-      await sleep(2000);
-      console.log("[E2E] WebSocket connection established");
-    } catch (err) {
-      console.error("[E2E] Failed to start WebSocket connection:", err);
-      // Don't fail the test - WebSocket is supplementary verification
-    }
   });
 
   test.afterAll(async () => {
     // Reset cached token to avoid stale tokens across test runs
     cachedStrapiAdminToken = null;
-
-    // Cleanup WebSocket connection
-    if (wsCleanup) {
-      console.log("[E2E] Closing WebSocket connection...");
-      wsCleanup();
-    }
 
     if (strapiPage) {
       await strapiPage.context().close();
@@ -1299,17 +1254,6 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow", () => {
     await consumerPage.waitForLoadState("networkidle");
     await expect(consumerPage.getByText("E2E Updated Article")).toBeVisible();
 
-    // ===== Verify WebSocket also received events =====
-    // WebSocket must receive at least CONNECTED event
-    expect(wsReceivedEvents.length).toBeGreaterThan(0);
-    // Log first event for debugging
-    const firstEvent = wsReceivedEvents[0];
-    if (firstEvent.type === 0) {
-      // EventType.CONNECTED
-    } else if (firstEvent.type === 2) {
-      // EventType.CHANGED
-    }
-
     await consumerPage.close();
   });
 
@@ -1460,14 +1404,14 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow", () => {
     await consumerPage.close();
   });
 
-  // TODO: Re-enable once WebSocket live-updates from Strapi are fully implemented
+  // TODO: Re-enable once live-updates from Strapi are fully implemented
   // This test verifies real-time content updates appear in the consumer app without page reload
-  test.skip("should receive real-time updates via WebSocket", async ({ page }) => {
+  test.skip("should receive real-time updates via streaming", async ({ page }) => {
     // Open consumer app
     await page.goto(CONSUMER_URL);
     await page.waitForLoadState("networkidle");
 
-    // Verify WebSocket connection status indicator (if present)
+    // Verify connection status indicator (if present)
     const connectionStatus = page.getByTestId("connection-status");
     if (await connectionStatus.isVisible().catch(() => false)) {
       await expect(connectionStatus).toHaveText(/connected/i);

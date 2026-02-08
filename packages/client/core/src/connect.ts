@@ -1,9 +1,8 @@
 import type { ItemEvent } from "@contfu/core";
-import { connectToWS } from "./ws-client";
 import { connectToStream } from "./stream-client";
 
 type ConnectOpts = {
-  /** Base URL (without /api/ws or /api/stream path) */
+  /** Base URL (without /api/stream path) */
   baseUrl?: string;
   /** Event handler callback */
   handle?: (e: ItemEvent) => Promise<void>;
@@ -13,16 +12,13 @@ type ConnectOpts = {
   maxReconnectDelay?: number;
   /** Initial reconnect delay in ms */
   initialReconnectDelay?: number;
-  /** Force a specific transport ('ws' | 'stream'), otherwise auto-detect */
-  transport?: "ws" | "stream";
 };
 
 /**
- * Connect to the sync server using WebSocket (preferred) with binary stream fallback.
+ * Connect to the sync server using binary streaming.
  *
- * Tries WebSocket first for optimal performance.
- * Falls back to HTTP binary stream if WebSocket connection fails.
- * Both use the same msgpack wire format for consistency.
+ * Uses HTTP binary stream with msgpack encoding for efficient,
+ * browser-compatible real-time sync.
  */
 export function connect(
   key: Buffer,
@@ -40,19 +36,9 @@ export async function connect(
     reconnect = true,
     maxReconnectDelay = 30_000,
     initialReconnectDelay = 1_000,
-    transport,
   }: ConnectOpts = {},
 ): Promise<void | AsyncGenerator<ItemEvent>> {
-  const wsUrl = baseUrl.replace(/^http/, "ws") + "/api/ws";
   const streamUrl = baseUrl + "/api/stream";
-
-  const wsOpts = {
-    url: wsUrl,
-    handle,
-    reconnect,
-    maxReconnectDelay,
-    initialReconnectDelay,
-  };
 
   const streamOpts = {
     url: streamUrl,
@@ -62,29 +48,8 @@ export async function connect(
     initialReconnectDelay,
   };
 
-  // Force specific transport if requested
-  if (transport === "stream") {
-    return handle ? connectToStream(key, streamOpts as any) : connectToStream(key, streamOpts);
+  if (handle) {
+    return connectToStream(key, streamOpts as Parameters<typeof connectToStream>[1] & { handle: (e: ItemEvent) => Promise<void> });
   }
-
-  if (transport === "ws") {
-    return handle ? connectToWS(key, wsOpts as any) : connectToWS(key, wsOpts);
-  }
-
-  // Auto-detect: try WS first, fall back to binary stream
-  try {
-    console.log("[connect] Trying WebSocket...");
-    if (handle) {
-      return await connectToWS(key, wsOpts as any);
-    } else {
-      return await connectToWS(key, wsOpts);
-    }
-  } catch (wsError) {
-    console.warn("[connect] WebSocket failed, falling back to binary stream:", wsError);
-    if (handle) {
-      return connectToStream(key, streamOpts as any);
-    } else {
-      return connectToStream(key, streamOpts);
-    }
-  }
+  return connectToStream(key, streamOpts);
 }

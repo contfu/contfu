@@ -30,7 +30,7 @@ class ConnectionError extends Error {
 }
 
 /**
- * Wire format for events (same as WebSocket for consistency).
+ * Wire format for events.
  * Uses tuples for minimal MessagePack encoding size.
  *
  * Format: [type, ...payload] where type matches EventType enum:
@@ -258,7 +258,6 @@ export class StreamServer {
 
 /**
  * Convert an event to wire format (tuples) for MessagePack encoding.
- * Same format as WebSocket for consistency.
  */
 function toWireEvent(event: ItemEvent | ErrorEvent | ConnectedEvent): WireEvent {
   switch (event.type) {

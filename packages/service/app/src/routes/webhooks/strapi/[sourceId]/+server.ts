@@ -7,7 +7,7 @@ import {
   webhookLogTable,
 } from "@contfu/svc-backend/infra/db/schema";
 import { listInfluxesBySourceCollections } from "@contfu/svc-backend/features/influxes/listInfluxesBySourceCollections";
-import { getWSServer, getStreamServer } from "$lib/server/startup";
+import { getStreamServer } from "$lib/server/startup";
 import { genUid } from "@contfu/svc-backend/infra/util/ids/ids";
 import { SourceType, matchesFilters, type UserSyncItem } from "@contfu/core";
 import { and, desc, eq, inArray } from "drizzle-orm";
@@ -199,7 +199,6 @@ export const POST: RequestHandler = async ({ request, params }) => {
     return new Response("Source not found", { status: 404 });
   }
 
-  const wsServer = getWSServer();
   const streamServer = getStreamServer();
   let _totalItemsBroadcast = 0;
 
@@ -375,7 +374,6 @@ export const POST: RequestHandler = async ({ request, params }) => {
         console.log(
           `[Strapi webhook] Broadcasting to ${collectionConnections.length} consumer(s) for collection ${collectionId}`,
         );
-        wsServer.broadcast([item], collectionConnections);
         streamServer.broadcast([item], collectionConnections);
         itemsBroadcast += collectionConnections.length;
       }

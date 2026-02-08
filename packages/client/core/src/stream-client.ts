@@ -13,7 +13,7 @@ import {
 import { unpack } from "msgpackr";
 
 /**
- * Wire format for events (same as WebSocket/Server).
+ * Wire format for events (matches server).
  * Uses tuples for minimal MessagePack encoding size.
  *
  * Format: [type, ...payload] where type matches EventType enum:
