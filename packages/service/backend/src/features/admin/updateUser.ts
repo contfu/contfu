@@ -39,7 +39,7 @@ export async function updateUser(dto: UpdateUserDto): Promise<UserSummary | null
     updateData.role = dto.role;
   }
 
-  const result = await db
+  const results = await db
     .update(userTable)
     .set(updateData)
     .where(eq(userTable.id, dto.id))
@@ -51,8 +51,7 @@ export async function updateUser(dto: UpdateUserDto): Promise<UserSummary | null
       role: userTable.role,
       approved: userTable.approved,
       createdAt: userTable.createdAt,
-    })
-    .get();
+    });
 
-  return result ?? null;
+  return results[0] ?? null;
 }

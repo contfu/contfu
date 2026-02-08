@@ -44,7 +44,7 @@ describe.skipIf(isDbMocked)("Consumer Features", () => {
       expect(consumer.userId).toBe(testUserId);
       expect(consumer.name).toBe("My App");
       expect(consumer.hasKey).toBe(false);
-      expect(consumer.createdAt).toBeGreaterThan(0);
+      expect(consumer.createdAt).toBeInstanceOf(Date);
     });
 
     it("should create a consumer with a key", async () => {

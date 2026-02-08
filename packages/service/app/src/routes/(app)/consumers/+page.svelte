@@ -60,8 +60,8 @@
                 {consumer.connectionCount}
               </td>
               <td class="hidden px-4 py-3 text-muted-foreground sm:table-cell">
-                {Number.isFinite(consumer.createdAt)
-                  ? new Date(consumer.createdAt * 1000).toLocaleDateString()
+                {consumer.createdAt
+                  ? new Date(consumer.createdAt).toLocaleDateString()
                   : "—"}
               </td>
               <td class="px-4 py-3 text-right">

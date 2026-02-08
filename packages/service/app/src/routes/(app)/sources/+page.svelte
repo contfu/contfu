@@ -65,7 +65,7 @@
                 </a>
                 <div class="mt-0.5 text-xs text-muted-foreground">
                   Created {new Date(
-                    source.createdAt * 1000,
+                    source.createdAt,
                   ).toLocaleDateString()}
                 </div>
               </td>

@@ -18,7 +18,7 @@ export async function updateCollection(
     .update(collectionTable)
     .set({
       name: input.name,
-      updatedAt: Math.floor(Date.now() / 1000),
+      updatedAt: new Date(),
     })
     .where(and(eq(collectionTable.userId, userId), eq(collectionTable.id, collectionId)))
     .returning();

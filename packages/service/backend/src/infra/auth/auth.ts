@@ -21,7 +21,7 @@ export const auth = betterAuth({
   basePath: "/api/auth",
   trustedOrigins: [process.env.ORIGIN ?? "http://localhost:8011", "http://localhost:4173"],
   database: drizzleAdapter(db, {
-    provider: "sqlite",
+    provider: "pg",
     schema: {
       user: schema.userTable,
       session: schema.sessionTable,

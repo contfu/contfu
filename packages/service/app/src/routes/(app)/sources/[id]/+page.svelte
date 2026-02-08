@@ -213,7 +213,7 @@
         {source.collectionCount} collection{source.collectionCount === 1
           ? ""
           : "s"} · Created {new Date(
-          source.createdAt * 1000,
+          source.createdAt,
         ).toLocaleDateString()}
       </p>
     </div>

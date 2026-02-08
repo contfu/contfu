@@ -19,8 +19,8 @@ export interface IncidentResult {
   message: string;
   details: Record<string, unknown> | null;
   resolved: boolean;
-  createdAt: number;
-  resolvedAt: number | null;
+  createdAt: Date;
+  resolvedAt: Date | null;
 }
 
 /**

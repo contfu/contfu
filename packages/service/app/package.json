@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "bun -b vite dev",
-    "build": "bun -b vite build",
+    "build": "SKIP_DB_INIT=true bun -b vite build",
     "preview": "bun -b vite preview",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "serve": "bun build/index.js",

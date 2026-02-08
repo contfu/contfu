@@ -1,76 +1,94 @@
 import { sql } from "drizzle-orm";
-import { blob, foreignKey, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import {
+  boolean,
+  bytea,
+  foreignKey,
+  index,
+  integer,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+} from "drizzle-orm/pg-core";
 import { UserRole, type UserRole as UserRoleType } from "./constants";
 
 // better-auth tables
 
-export const userTable = sqliteTable("user", {
-  id: integer().primaryKey(),
+export const userTable = pgTable("user", {
+  id: integer().primaryKey().generatedAlwaysAsIdentity(),
   name: text().notNull(),
   email: text().unique().notNull(),
-  emailVerified: integer({ mode: "boolean" }).notNull().default(false),
+  emailVerified: boolean().notNull().default(false),
   image: text(),
   role: integer().$type<UserRoleType>().notNull().default(UserRole.USER),
-  approved: integer({ mode: "boolean" }).notNull().default(false),
-  createdAt: integer({ mode: "timestamp" })
-    .default(sql`(unixepoch())`)
+  approved: boolean().notNull().default(false),
+  createdAt: timestamp({ withTimezone: true, mode: "date" })
+    .default(sql`now()`)
     .notNull(),
-  updatedAt: integer({ mode: "timestamp" })
-    .default(sql`(unixepoch())`)
+  updatedAt: timestamp({ withTimezone: true, mode: "date" })
+    .default(sql`now()`)
     .notNull(),
 });
 
 export type User = typeof userTable.$inferSelect;
 
-export const sessionTable = sqliteTable("session", {
-  id: integer().primaryKey(),
-  expiresAt: integer({ mode: "timestamp" }).notNull(),
-  token: text().unique().notNull(),
-  createdAt: integer({ mode: "timestamp" }).notNull(),
-  updatedAt: integer({ mode: "timestamp" }).notNull(),
-  ipAddress: text(),
-  userAgent: text(),
-  userId: integer()
-    .notNull()
-    .references(() => userTable.id, { onDelete: "cascade" }),
-});
+export const sessionTable = pgTable(
+  "session",
+  {
+    id: integer().primaryKey().generatedAlwaysAsIdentity(),
+    expiresAt: timestamp({ withTimezone: true, mode: "date" }).notNull(),
+    token: text().unique().notNull(),
+    createdAt: timestamp({ withTimezone: true, mode: "date" }).notNull(),
+    updatedAt: timestamp({ withTimezone: true, mode: "date" }).notNull(),
+    ipAddress: text(),
+    userAgent: text(),
+    userId: integer()
+      .notNull()
+      .references(() => userTable.id, { onDelete: "cascade" }),
+  },
+  (table) => [index("session_userId_idx").on(table.userId)],
+);
 
 export type Session = typeof sessionTable.$inferSelect;
 
-export const accountTable = sqliteTable("account", {
-  id: integer().primaryKey({ autoIncrement: true }),
-  accountId: text().notNull(),
-  providerId: text().notNull(),
-  userId: integer()
-    .notNull()
-    .references(() => userTable.id, { onDelete: "cascade" }),
-  accessToken: text(),
-  refreshToken: text(),
-  idToken: text(),
-  accessTokenExpiresAt: integer({ mode: "timestamp" }),
-  refreshTokenExpiresAt: integer({ mode: "timestamp" }),
-  scope: text(),
-  password: text(),
-  createdAt: integer({ mode: "timestamp" }).notNull(),
-  updatedAt: integer({ mode: "timestamp" }).notNull(),
-});
+export const accountTable = pgTable(
+  "account",
+  {
+    id: integer().primaryKey().generatedAlwaysAsIdentity(),
+    accountId: text().notNull(),
+    providerId: text().notNull(),
+    userId: integer()
+      .notNull()
+      .references(() => userTable.id, { onDelete: "cascade" }),
+    accessToken: text(),
+    refreshToken: text(),
+    idToken: text(),
+    accessTokenExpiresAt: timestamp({ withTimezone: true, mode: "date" }),
+    refreshTokenExpiresAt: timestamp({ withTimezone: true, mode: "date" }),
+    scope: text(),
+    password: text(),
+    createdAt: timestamp({ withTimezone: true, mode: "date" }).notNull(),
+    updatedAt: timestamp({ withTimezone: true, mode: "date" }).notNull(),
+  },
+  (table) => [index("account_userId_idx").on(table.userId)],
+);
 
 export type Account = typeof accountTable.$inferSelect;
 
-export const verificationTable = sqliteTable("verification", {
-  id: integer().primaryKey({ autoIncrement: true }),
+export const verificationTable = pgTable("verification", {
+  id: integer().primaryKey().generatedAlwaysAsIdentity(),
   identifier: text().notNull(),
   value: text().notNull(),
-  expiresAt: integer({ mode: "timestamp" }).notNull(),
-  createdAt: integer({ mode: "timestamp" }).$defaultFn(() => new Date()),
-  updatedAt: integer({ mode: "timestamp" }).$defaultFn(() => new Date()),
+  expiresAt: timestamp({ withTimezone: true, mode: "date" }).notNull(),
+  createdAt: timestamp({ withTimezone: true, mode: "date" }).$defaultFn(() => new Date()),
+  updatedAt: timestamp({ withTimezone: true, mode: "date" }).$defaultFn(() => new Date()),
 });
 
 export type Verification = typeof verificationTable.$inferSelect;
 
 // Application tables
 
-export const quotaTable = sqliteTable("quota", {
+export const quotaTable = pgTable("quota", {
   id: integer()
     .primaryKey()
     .references(() => userTable.id, { onDelete: "cascade" }),
@@ -81,7 +99,7 @@ export const quotaTable = sqliteTable("quota", {
   /** Subscription status (active, canceled, past_due, etc.) */
   subscriptionStatus: text(),
   /** Current billing period end timestamp */
-  currentPeriodEnd: integer(),
+  currentPeriodEnd: timestamp({ withTimezone: true, mode: "date" }),
   /** The number of sources. */
   sources: integer().notNull().default(0),
   /** The maximum number of sources. */
@@ -102,7 +120,7 @@ export const quotaTable = sqliteTable("quota", {
 
 export type Quota = typeof quotaTable.$inferSelect;
 
-export const consumerTable = sqliteTable(
+export const consumerTable = pgTable(
   "consumer",
   {
     /** The user id that the consumer belongs to. */
@@ -112,12 +130,12 @@ export const consumerTable = sqliteTable(
     /** The id of the consumer. */
     id: integer().notNull(),
     /** The key of the consumer. If null, the consumer is internal. */
-    key: blob({ mode: "buffer" }).unique(),
+    key: bytea().unique(),
     /** The name of the consumer. */
     name: text().notNull(),
     /** The time the consumer was created. */
-    createdAt: integer()
-      .default(sql`(unixepoch())`)
+    createdAt: timestamp({ withTimezone: true, mode: "date" })
+      .default(sql`now()`)
       .notNull(),
   },
   (t) => [primaryKey({ columns: [t.userId, t.id] })],
@@ -125,7 +143,7 @@ export const consumerTable = sqliteTable(
 
 export type Consumer = typeof consumerTable.$inferSelect;
 
-export const sourceTable = sqliteTable(
+export const sourceTable = pgTable(
   "source",
   {
     /** The user which owns the source. */
@@ -139,29 +157,29 @@ export const sourceTable = sqliteTable(
     /** The url of the upstream source. Can be empty, if it is a centralized SaaS source. */
     url: text(),
     /** An api key or other credentials for the source. Used to fetch data from the upstream source. */
-    credentials: blob({ mode: "buffer" }),
+    credentials: bytea(),
     /** The type of the source. */
     type: integer().notNull(),
     /** Webhook secret for validating incoming webhooks (optional). */
-    webhookSecret: blob({ mode: "buffer" }),
+    webhookSecret: bytea(),
     /**
      * Whether to include a ref field in Items linking back to the upstream SourceItem.
      * Default false (privacy-first). Can be overridden per SourceCollection→Collection link.
      */
-    includeRef: integer({ mode: "boolean" }).notNull().default(false),
+    includeRef: boolean().notNull().default(false),
     /** The date the source was created. */
-    createdAt: integer()
-      .default(sql`(unixepoch())`)
+    createdAt: timestamp({ withTimezone: true, mode: "date" })
+      .default(sql`now()`)
       .notNull(),
     /** The date the source was updated. */
-    updatedAt: integer(),
+    updatedAt: timestamp({ withTimezone: true, mode: "date" }),
   },
   (table) => [primaryKey({ columns: [table.userId, table.id] })],
 );
 
 export type Source = typeof sourceTable.$inferSelect;
 
-export const sourceCollectionTable = sqliteTable(
+export const sourceCollectionTable = pgTable(
   "source_collection",
   {
     /** The user which owns the source collection. */
@@ -180,17 +198,17 @@ export const sourceCollectionTable = sqliteTable(
      */
     displayName: text(),
     /** The reference to the upstream collection within the source. */
-    ref: blob({ mode: "buffer" }),
+    ref: bytea(),
     /** The schema of the source collection (MessagePack serialized CollectionSchema). */
-    schema: blob({ mode: "buffer" }),
+    schema: bytea(),
     /** The item ids that have been received for this source collection. **/
-    itemIds: blob({ mode: "buffer" }),
+    itemIds: bytea(),
     /** The date the source collection was created. */
-    createdAt: integer()
-      .default(sql`(unixepoch())`)
+    createdAt: timestamp({ withTimezone: true, mode: "date" })
+      .default(sql`now()`)
       .notNull(),
     /** The date the source collection was updated. */
-    updatedAt: integer(),
+    updatedAt: timestamp({ withTimezone: true, mode: "date" }),
   },
   (table) => [
     primaryKey({ columns: [table.userId, table.id] }),
@@ -198,6 +216,7 @@ export const sourceCollectionTable = sqliteTable(
       columns: [table.userId, table.sourceId],
       foreignColumns: [sourceTable.userId, sourceTable.id],
     }).onDelete("cascade"),
+    index("source_collection_source_idx").on(table.userId, table.sourceId),
   ],
 );
 
@@ -207,7 +226,7 @@ export type SourceCollection = typeof sourceCollectionTable.$inferSelect;
  * A collection is an aggregation target that consumers subscribe to.
  * It can receive items from multiple source collections via mappings.
  */
-export const collectionTable = sqliteTable(
+export const collectionTable = pgTable(
   "collection",
   {
     /** The user which owns the collection. */
@@ -219,11 +238,11 @@ export const collectionTable = sqliteTable(
     /** The name of the collection (displayed to users). */
     name: text().notNull(),
     /** The date the collection was created. */
-    createdAt: integer()
-      .default(sql`(unixepoch())`)
+    createdAt: timestamp({ withTimezone: true, mode: "date" })
+      .default(sql`now()`)
       .notNull(),
     /** The date the collection was last updated. */
-    updatedAt: integer(),
+    updatedAt: timestamp({ withTimezone: true, mode: "date" }),
   },
   (table) => [primaryKey({ columns: [table.userId, table.id] })],
 );
@@ -234,7 +253,7 @@ export type Collection = typeof collectionTable.$inferSelect;
  * An Influx defines data flowing from a SourceCollection into a Collection.
  * Includes optional filters and a schema snapshot for validation.
  */
-export const influxTable = sqliteTable(
+export const influxTable = pgTable(
   "influx",
   {
     /** The user which owns the influx. */
@@ -251,24 +270,24 @@ export const influxTable = sqliteTable(
      * Schema snapshot at creation/last valid sync (MessagePack serialized).
      * Used for validating filters against schema changes.
      */
-    schema: blob({ mode: "buffer" }),
+    schema: bytea(),
     /**
      * Filters to apply to items from this source (MessagePack serialized).
      * Format: [{property: string, operator: string, value?: unknown}]
      * Empty/null means no filtering (all items pass through).
      */
-    filters: blob({ mode: "buffer" }),
+    filters: bytea(),
     /**
      * Override Source.includeRef for this specific link.
      * null = use Source default, true/false = override.
      */
-    includeRef: integer({ mode: "boolean" }),
+    includeRef: boolean(),
     /** The date the influx was created. */
-    createdAt: integer()
-      .default(sql`(unixepoch())`)
+    createdAt: timestamp({ withTimezone: true, mode: "date" })
+      .default(sql`now()`)
       .notNull(),
     /** The date the influx was last updated. */
-    updatedAt: integer(),
+    updatedAt: timestamp({ withTimezone: true, mode: "date" }),
   },
   (table) => [
     primaryKey({ columns: [table.userId, table.id] }),
@@ -280,13 +299,15 @@ export const influxTable = sqliteTable(
       columns: [table.userId, table.sourceCollectionId],
       foreignColumns: [sourceCollectionTable.userId, sourceCollectionTable.id],
     }).onDelete("cascade"),
+    index("influx_collection_idx").on(table.userId, table.collectionId),
+    index("influx_source_collection_idx").on(table.userId, table.sourceCollectionId),
   ],
 );
 
 export type Influx = typeof influxTable.$inferSelect;
 
 /** The connection of the consumer to the collection. */
-export const connectionTable = sqliteTable(
+export const connectionTable = pgTable(
   "connection",
   {
     /** The user which owns the collection and consumer. */
@@ -298,9 +319,9 @@ export const connectionTable = sqliteTable(
     /** The collection which the consumer is connected to. */
     collectionId: integer().notNull(),
     /** The most recent item change that was received by the consumer. */
-    lastItemChanged: integer(),
+    lastItemChanged: timestamp({ withTimezone: true, mode: "date" }),
     /** The date the collection was last checked for deleted items. */
-    lastConsistencyCheck: integer(),
+    lastConsistencyCheck: timestamp({ withTimezone: true, mode: "date" }),
   },
   (table) => [
     primaryKey({
@@ -314,12 +335,14 @@ export const connectionTable = sqliteTable(
       columns: [table.userId, table.collectionId],
       foreignColumns: [collectionTable.userId, collectionTable.id],
     }).onDelete("cascade"),
+    index("connection_consumer_idx").on(table.userId, table.consumerId),
+    index("connection_collection_idx").on(table.userId, table.collectionId),
   ],
 );
 
 export type Connection = typeof connectionTable.$inferSelect;
 
-export const itemIdConflictResolutionTable = sqliteTable(
+export const itemIdConflictResolutionTable = pgTable(
   "item_id_conflict_resolution",
   {
     /** The user which owns the id mapping. */
@@ -329,7 +352,7 @@ export const itemIdConflictResolutionTable = sqliteTable(
     /** The source collection which the id mapping is connected to. */
     sourceCollectionId: integer().notNull(),
     /** The id which is unique within the source collection. */
-    sourceItemId: blob({ mode: "buffer" }).notNull(),
+    sourceItemId: bytea().notNull(),
     /** The 4 byte id which is unique within the source collection. */
     id: integer().notNull(),
   },
@@ -341,6 +364,7 @@ export const itemIdConflictResolutionTable = sqliteTable(
       columns: [table.userId, table.sourceCollectionId],
       foreignColumns: [sourceCollectionTable.userId, sourceCollectionTable.id],
     }).onDelete("cascade"),
+    index("item_id_conflict_source_collection_idx").on(table.userId, table.sourceCollectionId),
   ],
 );
 
@@ -348,10 +372,10 @@ export type ItemIdConflictResolution = typeof itemIdConflictResolutionTable.$inf
 
 // Webhook logging
 
-export const webhookLogTable = sqliteTable(
+export const webhookLogTable = pgTable(
   "webhook_log",
   {
-    id: integer().primaryKey(),
+    id: integer().primaryKey().generatedAlwaysAsIdentity(),
     /** The user who owns the source. */
     userId: integer().notNull(),
     /** The source that received the webhook. */
@@ -367,8 +391,8 @@ export const webhookLogTable = sqliteTable(
     /** Number of items broadcast to consumers. */
     itemsBroadcast: integer().notNull().default(0),
     /** When the webhook was received. */
-    timestamp: integer({ mode: "timestamp" })
-      .default(sql`(unixepoch())`)
+    timestamp: timestamp({ withTimezone: true, mode: "date" })
+      .default(sql`now()`)
       .notNull(),
   },
   (table) => [
@@ -376,6 +400,7 @@ export const webhookLogTable = sqliteTable(
       columns: [table.userId, table.sourceId],
       foreignColumns: [sourceTable.userId, sourceTable.id],
     }).onDelete("cascade"),
+    index("webhook_log_source_idx").on(table.userId, table.sourceId),
   ],
 );
 
@@ -384,7 +409,7 @@ export type NewWebhookLog = typeof webhookLogTable.$inferInsert;
 
 // Incidents (sync failures due to schema incompatibility)
 
-export const incidentTable = sqliteTable(
+export const incidentTable = pgTable(
   "incident",
   {
     /** The user which owns the incident. */
@@ -403,15 +428,15 @@ export const incidentTable = sqliteTable(
      * Details about the incident (MessagePack serialized).
      * For schema_incompatible: { oldSchema, newSchema, invalidFilters }
      */
-    details: blob({ mode: "buffer" }),
+    details: bytea(),
     /** Whether the incident has been resolved. */
-    resolved: integer({ mode: "boolean" }).notNull().default(false),
+    resolved: boolean().notNull().default(false),
     /** When the incident was created. */
-    createdAt: integer()
-      .default(sql`(unixepoch())`)
+    createdAt: timestamp({ withTimezone: true, mode: "date" })
+      .default(sql`now()`)
       .notNull(),
     /** When the incident was resolved. */
-    resolvedAt: integer(),
+    resolvedAt: timestamp({ withTimezone: true, mode: "date" }),
   },
   (table) => [
     primaryKey({ columns: [table.userId, table.id] }),
@@ -419,8 +444,54 @@ export const incidentTable = sqliteTable(
       columns: [table.userId, table.influxId],
       foreignColumns: [influxTable.userId, influxTable.id],
     }).onDelete("cascade"),
+    index("incident_influx_idx").on(table.userId, table.influxId),
   ],
 );
 
 export type Incident = typeof incidentTable.$inferSelect;
 export type NewIncident = typeof incidentTable.$inferInsert;
+
+// Sync job queue (SKIP LOCKED pattern)
+
+export const syncJobTable = pgTable(
+  "sync_job",
+  {
+    id: integer().primaryKey().generatedAlwaysAsIdentity(),
+    /** The user who owns the source collection being synced. */
+    userId: integer()
+      .notNull()
+      .references(() => userTable.id, { onDelete: "cascade" }),
+    /** The source collection to sync. */
+    sourceCollectionId: integer().notNull(),
+    /** Job status: pending | running | completed | failed */
+    status: text().notNull().default("pending"),
+    /** When the job is scheduled to run. */
+    scheduledAt: timestamp({ withTimezone: true, mode: "date" })
+      .default(sql`now()`)
+      .notNull(),
+    /** When the job started running. */
+    startedAt: timestamp({ withTimezone: true, mode: "date" }),
+    /** When the job completed or permanently failed. */
+    completedAt: timestamp({ withTimezone: true, mode: "date" }),
+    /** Error message from the last attempt. */
+    errorMessage: text(),
+    /** Number of attempts made. */
+    attempts: integer().notNull().default(0),
+    /** Maximum number of attempts before permanent failure. */
+    maxAttempts: integer().notNull().default(3),
+    /** The worker ID that claimed this job. */
+    workerId: text(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.userId, table.sourceCollectionId],
+      foreignColumns: [sourceCollectionTable.userId, sourceCollectionTable.id],
+    }).onDelete("cascade"),
+    index("sync_job_queue_idx").on(table.status, table.scheduledAt),
+    index("sync_job_status_idx").on(table.status, table.startedAt),
+    index("sync_job_source_collection_idx").on(table.userId, table.sourceCollectionId),
+  ],
+);
+
+export type SyncJob = typeof syncJobTable.$inferSelect;
+export type NewSyncJob = typeof syncJobTable.$inferInsert;

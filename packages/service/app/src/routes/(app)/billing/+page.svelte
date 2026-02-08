@@ -51,9 +51,7 @@
             </div>
             {#if quota.currentPeriodEnd}
               <p class="mt-1 text-sm text-muted-foreground">
-                Renews {new Date(
-                  quota.currentPeriodEnd * 1000,
-                ).toLocaleDateString()}
+                Renews {quota.currentPeriodEnd.toLocaleDateString()}
               </p>
             {/if}
           </div>

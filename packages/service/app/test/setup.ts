@@ -1,33 +1,28 @@
-import { db } from "$lib/server/db/db";
-import {
-  accountTable,
-  sourceCollectionTable,
-  connectionTable,
-  consumerTable,
-  itemIdConflictResolutionTable,
-  quotaTable,
-  sessionTable,
-  sourceTable,
-  userTable,
-  verificationTable,
-  webhookLogTable,
-} from "$lib/server/db/schema";
+import { sql } from "drizzle-orm";
+import { db } from "@contfu/svc-backend/infra/db/db";
 
 /**
- * Truncates all tables in the correct order (respecting foreign key constraints).
+ * Truncates all tables and resets identity sequences.
+ * Uses PostgreSQL TRUNCATE ... RESTART IDENTITY CASCADE for efficient cleanup.
  * Call this in beforeEach() to ensure test isolation.
  */
 export async function truncateAllTables(): Promise<void> {
-  // Delete in reverse dependency order to respect foreign keys
-  await db.delete(webhookLogTable);
-  await db.delete(itemIdConflictResolutionTable);
-  await db.delete(connectionTable);
-  await db.delete(sourceCollectionTable);
-  await db.delete(consumerTable);
-  await db.delete(sourceTable);
-  await db.delete(quotaTable);
-  await db.delete(sessionTable);
-  await db.delete(accountTable);
-  await db.delete(verificationTable);
-  await db.delete(userTable);
+  await db.execute(sql`
+    TRUNCATE TABLE
+      webhook_log,
+      item_id_conflict_resolution,
+      incident,
+      influx,
+      connection,
+      source_collection,
+      consumer,
+      collection,
+      source,
+      quota,
+      session,
+      account,
+      verification,
+      "user"
+    RESTART IDENTITY CASCADE
+  `);
 }

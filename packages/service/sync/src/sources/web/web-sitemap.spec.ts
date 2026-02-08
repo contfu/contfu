@@ -3,7 +3,13 @@ import { type SitemapEntry, buildSitemapUrl, extractUrlsFromEntries } from "./we
 import { WebAuthType } from "./web";
 
 // Mock Sitemapper module
-const mockFetchFn = mock(() => Promise.resolve({ sites: [], errors: [] }));
+type SitemapSite =
+  | string
+  | { loc: string; lastmod?: string; changefreq?: string; priority?: string };
+type SitemapError = { type: string; url: string };
+const mockFetchFn = mock(() =>
+  Promise.resolve({ sites: [] as SitemapSite[], errors: [] as SitemapError[] }),
+);
 
 const MockSitemapper = mock(() => ({
   fetch: mockFetchFn,

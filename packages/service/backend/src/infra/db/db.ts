@@ -1,28 +1,60 @@
-import { SQL } from "bun";
-import { drizzle } from "drizzle-orm/bun-sql/sqlite";
-import { migrate } from "drizzle-orm/bun-sql/sqlite/migrator";
-import { mkdir } from "fs/promises";
-import { dirname } from "path";
+import type { PgAsyncDatabase } from "drizzle-orm/pg-core/async/db";
 import * as schema from "./schema";
 
-const dbUrl: string = process.env.DATABASE_URL ?? ":memory:";
+const isTestMode = process.env.TEST_MODE === "true";
 
 // Use MIGRATIONS_PATH env var for flexibility, or resolve from import.meta.url for direct imports
 const migrationsFolder =
   process.env.MIGRATIONS_PATH ?? new URL("../../../db/migrations", import.meta.url).pathname;
-if (dbUrl.match(/^\.?\//)) {
-  mkdir(dirname(dbUrl), { recursive: true });
+
+/** Direct SQL client for raw queries (production only, undefined in test mode) */
+export let dbClient: import("bun").SQL | undefined;
+
+async function createDb() {
+  // Skip database initialization during SvelteKit build (no database available)
+  if (process.env.SKIP_DB_INIT === "true") {
+    return null as unknown as PgAsyncDatabase<any, typeof schema, any>;
+  }
+
+  if (isTestMode) {
+    const { PGlite } = await import("@electric-sql/pglite");
+    const { drizzle } = await import("drizzle-orm/pglite");
+    const client = new PGlite();
+    const database = drizzle({ client, schema });
+
+    // Apply schema via migrations (pushSchema has drizzle-kit import conflict)
+    const { migrate } = await import("drizzle-orm/pglite/migrator");
+    await migrate(database, { migrationsFolder });
+
+    return database;
+  }
+
+  // Production: Bun SQL with PostgreSQL
+  const { SQL } = await import("bun");
+  const { drizzle } = await import("drizzle-orm/bun-sql");
+  const { migrate } = await import("drizzle-orm/bun-sql/migrator");
+
+  const client = new SQL({
+    url: process.env.DATABASE_URL,
+    max: 50,
+    idleTimeout: 30,
+    connectionTimeout: 10,
+  });
+  dbClient = client;
+
+  const database = drizzle({ client, schema });
+  await migrate(database, { migrationsFolder });
+
+  return database;
 }
-export const dbClient = new SQL(dbUrl, { adapter: "sqlite" });
 
-await dbClient`PRAGMA foreign_keys = ON`;
-await dbClient`PRAGMA journal_mode = WAL`;
-
-export const db = drizzle({ client: dbClient, schema });
-await migrate(db, { migrationsFolder });
+export const db: PgAsyncDatabase<any, typeof schema, any> = await createDb();
 
 // Seed development test user (only in non-production mode or when TEST_MODE is set)
-if (process.env.NODE_ENV !== "production" || process.env.TEST_MODE) {
+if (
+  process.env.SKIP_DB_INIT !== "true" &&
+  (process.env.NODE_ENV !== "production" || process.env.TEST_MODE)
+) {
   const { seedDevUser } = await import("./seed-dev");
   await seedDevUser(db);
 }

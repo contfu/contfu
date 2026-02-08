@@ -1,6 +1,6 @@
 import { db } from "../../infra/db/db";
 import { sourceCollectionTable, type SourceCollection } from "../../infra/db/schema";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { BackendCollection, UpdateCollectionInput } from "../../domain/types";
 
 function countItemIds(itemIds: Buffer | null): number {
@@ -35,7 +35,7 @@ export async function updateCollection(
     .update(sourceCollectionTable)
     .set({
       ...input,
-      updatedAt: sql`(unixepoch())`,
+      updatedAt: new Date(),
     })
     .where(and(eq(sourceCollectionTable.userId, userId), eq(sourceCollectionTable.id, id)))
     .returning();

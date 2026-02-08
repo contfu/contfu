@@ -1,7 +1,7 @@
 import { db } from "../../infra/db/db";
 import { sourceTable, type Source } from "../../infra/db/schema";
 import { encryptCredentials } from "../../infra/crypto/credentials";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { BackendSource, UpdateSourceInput } from "../../domain/types";
 
 /** Source type: Web (for extracting auth type) */
@@ -62,7 +62,7 @@ export async function updateSource(
     url: input.url,
     credentials: encryptedCredentials,
     webhookSecret: encryptedWebhookSecret,
-    updatedAt: sql`(unixepoch())`,
+    updatedAt: new Date(),
   };
 
   // Remove undefined keys to avoid overwriting with undefined

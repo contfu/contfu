@@ -8,7 +8,7 @@ import {
   userTable,
 } from "../../infra/db/schema";
 import { pack } from "msgpackr";
-import { FilterOperator, type CollectionSchema, type Filter } from "@contfu/core";
+import { FilterOperator, PropertyType, type CollectionSchema, type Filter } from "@contfu/core";
 import { createInflux } from "./createInflux";
 import { getInflux } from "./getInflux";
 import { listInfluxes } from "./listInfluxes";
@@ -31,10 +31,8 @@ describe.skipIf(isDbMocked)("Influx Features", () => {
   let testCollectionId: number;
 
   const testSchema: CollectionSchema = {
-    fields: [
-      { key: "title", type: "string" },
-      { key: "content", type: "string" },
-    ],
+    title: PropertyType.STRING,
+    content: PropertyType.STRING,
   };
 
   beforeEach(async () => {
@@ -103,7 +101,7 @@ describe.skipIf(isDbMocked)("Influx Features", () => {
       expect(influx.userId).toBe(testUserId);
       expect(influx.collectionId).toBe(testCollectionId);
       expect(influx.sourceCollectionId).toBe(testSourceCollectionId);
-      expect(influx.createdAt).toBeGreaterThan(0);
+      expect(influx.createdAt).toBeInstanceOf(Date);
     });
 
     it("should auto-fetch schema from source collection if not provided", async () => {
@@ -117,7 +115,7 @@ describe.skipIf(isDbMocked)("Influx Features", () => {
 
     it("should use provided schema instead of fetching", async () => {
       const customSchema: CollectionSchema = {
-        fields: [{ key: "custom", type: "number" }],
+        custom: PropertyType.NUMBER,
       };
 
       const influx = await createInflux(testUserId, {
@@ -338,7 +336,7 @@ describe.skipIf(isDbMocked)("Influx Features", () => {
 
       expect(updated).toBeDefined();
       expect(updated!.filters).toEqual(filters);
-      expect(updated!.updatedAt).toBeGreaterThan(0);
+      expect(updated!.updatedAt).toBeInstanceOf(Date);
     });
 
     it("should update influx schema", async () => {
@@ -348,7 +346,7 @@ describe.skipIf(isDbMocked)("Influx Features", () => {
       });
 
       const newSchema: CollectionSchema = {
-        fields: [{ key: "newField", type: "boolean" }],
+        newField: PropertyType.BOOLEAN,
       };
       const updated = await updateInflux(testUserId, { id: 1, schema: newSchema });
 

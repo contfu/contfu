@@ -44,9 +44,6 @@ export async function initialize(): Promise<void> {
   const stream = getStreamServer();
   const worker = getSyncWorkerManager();
 
-  // Wire the worker to stream server
-  stream.setWorker(worker);
-
   // Wire the onItems callback to broadcast items to all connected clients
   worker.onItems((items, connections) => {
     stream.broadcast(items, connections);

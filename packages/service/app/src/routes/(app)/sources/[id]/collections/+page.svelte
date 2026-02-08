@@ -90,7 +90,7 @@
                 <td
                   class="hidden px-4 py-3 text-muted-foreground sm:table-cell"
                 >
-                  {new Date(collection.createdAt * 1000).toLocaleDateString()}
+                  {new Date(collection.createdAt).toLocaleDateString()}
                 </td>
                 <td class="px-4 py-3 text-right">
                   <form {...deleteSourceCollection} class="inline">

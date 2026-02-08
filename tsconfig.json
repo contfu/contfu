@@ -10,5 +10,15 @@
     "strict": true,
     "skipLibCheck": true,
     "noFallthroughCasesInSwitch": true
-  }
+  },
+  "files": [],
+  "references": [
+    { "path": "packages/core" },
+    { "path": "packages/client/core" },
+    { "path": "packages/client/contfu" },
+    { "path": "packages/client/bun-file-store" },
+    { "path": "packages/client/media-optimizer" },
+    { "path": "packages/service/backend" },
+    { "path": "packages/service/sync" }
+  ]
 }

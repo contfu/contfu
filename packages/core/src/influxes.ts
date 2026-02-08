@@ -16,7 +16,7 @@ export interface InfluxWithDetails {
   schema: CollectionSchema | null;
   filters: Filter[] | null;
   includeRef: boolean | null;
-  createdAt: number;
+  createdAt: Date;
 }
 
 /**
@@ -33,6 +33,6 @@ export interface InfluxDetails {
   schema: CollectionSchema | null;
   filters: Filter[] | null;
   includeRef: boolean | null;
-  createdAt: number;
-  updatedAt: number | null;
+  createdAt: Date;
+  updatedAt: Date | null;
 }

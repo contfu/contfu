@@ -19,8 +19,8 @@ export interface InfluxResult {
   schema: CollectionSchema | null;
   filters: Filter[] | null;
   includeRef: boolean | null;
-  createdAt: number;
-  updatedAt: number | null;
+  createdAt: Date;
+  updatedAt: Date | null;
 }
 
 /**

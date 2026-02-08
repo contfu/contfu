@@ -30,8 +30,8 @@ export interface BackendSource {
    * Undefined for non-web sources.
    */
   webAuthType?: number;
-  createdAt: number;
-  updatedAt: number | null;
+  createdAt: Date;
+  updatedAt: Date | null;
 }
 
 /** A source with its collection count */
@@ -63,8 +63,8 @@ export interface BackendCollection {
   refString: string | null;
   /** Number of item IDs stored (derived from itemIds buffer) */
   itemCount: number;
-  createdAt: number;
-  updatedAt: number | null;
+  createdAt: Date;
+  updatedAt: Date | null;
 }
 
 /** A collection with its connection count */
@@ -79,7 +79,7 @@ export interface BackendCollectionSummary {
   /** The ref as a string (e.g., Notion database ID) - useful for checking duplicates */
   refString: string | null;
   connectionCount: number;
-  createdAt: number;
+  createdAt: Date;
 }
 
 // =============================================================================
@@ -93,7 +93,7 @@ export interface BackendConsumer {
   name: string;
   /** Whether this consumer has an API key configured (internal consumers don't) */
   hasKey: boolean;
-  createdAt: number;
+  createdAt: Date;
 }
 
 /** A consumer with its connection count */
@@ -116,8 +116,8 @@ export interface BackendConnection {
   userId: number;
   consumerId: number;
   collectionId: number;
-  lastItemChanged: number | null;
-  lastConsistencyCheck: number | null;
+  lastItemChanged: Date | null;
+  lastConsistencyCheck: Date | null;
 }
 
 /** A connection with resolved consumer and collection names */
@@ -184,12 +184,12 @@ export interface UpdateConsumerInput {
 export interface CreateConnectionInput {
   consumerId: number;
   collectionId: number;
-  lastItemChanged?: number | null;
-  lastConsistencyCheck?: number | null;
+  lastItemChanged?: Date | null;
+  lastConsistencyCheck?: Date | null;
 }
 
 /** Input for updating a connection */
 export interface UpdateConnectionInput {
-  lastItemChanged?: number | null;
-  lastConsistencyCheck?: number | null;
+  lastItemChanged?: Date | null;
+  lastConsistencyCheck?: Date | null;
 }

@@ -123,7 +123,7 @@
       </div>
       <p class="mt-1 text-sm text-muted-foreground">
         {client.connectionCount} collection{client.connectionCount === 1 ? "" : "s"} ·
-        Created {new Date(client.createdAt * 1000).toLocaleDateString()}
+        Created {new Date(client.createdAt).toLocaleDateString()}
       </p>
     </div>
 

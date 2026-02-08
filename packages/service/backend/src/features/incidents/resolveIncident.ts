@@ -1,6 +1,6 @@
 import { db } from "../../infra/db/db";
 import { incidentTable } from "../../infra/db/schema";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 /**
  * Mark an incident as resolved and delete it (per design: delete after resolution).
@@ -12,7 +12,7 @@ export async function resolveIncident(userId: number, id: number): Promise<boole
     .update(incidentTable)
     .set({
       resolved: true,
-      resolvedAt: sql`(unixepoch())`,
+      resolvedAt: new Date(),
     })
     .where(and(eq(incidentTable.userId, userId), eq(incidentTable.id, id)));
 

@@ -8,5 +8,4 @@ export * from "./influxes";
 export * from "./items";
 export * from "./sources";
 export * from "./wire";
-export * from "./worker-bus";
 export * from "./worker-messages";

@@ -194,3 +194,4 @@ packages/service/app/data
 .security-key
 logs/security/
 .pnpm-store
+.planning

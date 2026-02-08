@@ -1,6 +1,6 @@
 import { db } from "../../infra/db/db";
 import { influxTable } from "../../infra/db/schema";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { pack, unpack } from "msgpackr";
 import type { CollectionSchema, Filter } from "@contfu/core";
 
@@ -19,8 +19,8 @@ export interface UpdateInfluxResult {
   schema: CollectionSchema | null;
   filters: Filter[] | null;
   includeRef: boolean | null;
-  createdAt: number;
-  updatedAt: number | null;
+  createdAt: Date;
+  updatedAt: Date | null;
 }
 
 /**
@@ -31,7 +31,7 @@ export async function updateInflux(
   input: UpdateInfluxInput,
 ): Promise<UpdateInfluxResult | null> {
   const updates: Record<string, unknown> = {
-    updatedAt: sql`(unixepoch())`,
+    updatedAt: new Date(),
   };
 
   if (input.filters !== undefined) {

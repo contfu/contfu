@@ -9,7 +9,13 @@ import {
   userTable,
 } from "../../infra/db/schema";
 import { pack } from "msgpackr";
-import { IncidentType, type CollectionSchema, type SchemaIncompatibleDetails } from "@contfu/core";
+import {
+  FilterOperator,
+  IncidentType,
+  PropertyType,
+  type CollectionSchema,
+  type SchemaIncompatibleDetails,
+} from "@contfu/core";
 import { createIncident } from "./createIncident";
 import { listIncidents } from "./listIncidents";
 import { getUnresolvedIncidentCount } from "./getUnresolvedIncidentCount";
@@ -30,10 +36,8 @@ describe.skipIf(isDbMocked)("Incident Features", () => {
   let testSourceCollectionId: number;
 
   const testSchema: CollectionSchema = {
-    fields: [
-      { key: "title", type: "string" },
-      { key: "content", type: "string" },
-    ],
+    title: PropertyType.STRING,
+    content: PropertyType.STRING,
   };
 
   beforeEach(async () => {
@@ -118,15 +122,15 @@ describe.skipIf(isDbMocked)("Incident Features", () => {
       expect(incident.type).toBe(IncidentType.SchemaIncompatible);
       expect(incident.message).toBe("Schema changed: field 'title' removed");
       expect(incident.resolved).toBe(false);
-      expect(incident.createdAt).toBeGreaterThan(0);
+      expect(incident.createdAt).toBeInstanceOf(Date);
       expect(incident.resolvedAt).toBeNull();
     });
 
     it("should store incident details", async () => {
       const details: SchemaIncompatibleDetails = {
         oldSchema: testSchema,
-        newSchema: { fields: [{ key: "title", type: "number" }] },
-        invalidFilters: [{ field: "content", operator: "contains", value: "test" }],
+        newSchema: { title: PropertyType.NUMBER },
+        invalidFilters: [{ property: "content", operator: FilterOperator.CONTAINS, value: "test" }],
       };
 
       const incident = await createIncident(testUserId, {
@@ -136,7 +140,7 @@ describe.skipIf(isDbMocked)("Incident Features", () => {
         details,
       });
 
-      expect(incident.details).toEqual(details);
+      expect(incident.details).toEqual(details as unknown as Record<string, unknown>);
     });
 
     it("should auto-increment incident IDs per user", async () => {

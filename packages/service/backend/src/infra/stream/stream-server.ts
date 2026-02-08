@@ -9,11 +9,11 @@ import {
   type WireEvent,
   type WireItem,
 } from "@contfu/core";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { pack as msgpack } from "msgpackr";
-import { consumerTable, db } from "../db/db";
+import { enqueueSyncJobs } from "../../features/sync-jobs/enqueueSyncJobs";
+import { connectionTable, consumerTable, db, influxTable } from "../db/db";
 import type { ConnectionInfo } from "../types";
-import type { SyncWorkerManager } from "../sync-worker/worker-manager";
 
 /**
  * Binary stream connection object that wraps a ReadableStreamDefaultController.
@@ -45,13 +45,7 @@ const preAuthCache = new Map<
 >();
 
 export class StreamServer {
-  private worker: SyncWorkerManager | null = null;
-
   constructor() {}
-
-  setWorker(worker: SyncWorkerManager) {
-    this.worker = worker;
-  }
 
   /**
    * Pre-authenticate a consumer key before creating the stream.
@@ -77,7 +71,7 @@ export class StreamServer {
 
   /**
    * Finalize the stream connection after pre-authentication passed.
-   * Sets up the connection and sends the CONNECTED event.
+   * Sets up the connection, enqueues sync jobs, and sends the CONNECTED event.
    */
   async finalizeConnection(
     key: Buffer,
@@ -105,10 +99,21 @@ export class StreamServer {
     const connection: StreamConnection = { id: connectionId, controller };
 
     try {
-      await this.worker?.activateConsumer(client.userId, client.id);
       consumerToConnection.set(consumerKey, connection);
       connectionToConsumer.set(connectionId, consumerKey);
       consumerInfo.set(consumerKey, { userId: client.userId, consumerId: client.id });
+
+      // Enqueue sync jobs for collections this consumer is connected to
+      const collectionIds = await getConsumerCollectionIds(client.userId, client.id);
+      if (collectionIds.length > 0) {
+        const sourceCollectionIds = await getSourceCollectionIdsForCollections(
+          client.userId,
+          collectionIds,
+        );
+        if (sourceCollectionIds.length > 0) {
+          await enqueueSyncJobs(db, client.userId, sourceCollectionIds);
+        }
+      }
 
       // Send CONNECTED event
       this.sendEvent(connection, { type: EventType.CONNECTED });
@@ -132,12 +137,7 @@ export class StreamServer {
 
     connectionToConsumer.delete(connectionId);
     consumerToConnection.delete(consumerKey);
-
-    const info = consumerInfo.get(consumerKey);
-    if (info) {
-      consumerInfo.delete(consumerKey);
-      this.worker?.deactivateConsumer(info.userId, info.consumerId);
-    }
+    consumerInfo.delete(consumerKey);
   }
 
   /**
@@ -180,7 +180,7 @@ export class StreamServer {
         if (
           event.type === EventType.CHANGED &&
           conn.lastItemChanged != null &&
-          event.item.changedAt < conn.lastItemChanged
+          event.item.changedAt < Math.floor(conn.lastItemChanged.getTime() / 1000)
         ) {
           continue;
         }
@@ -282,7 +282,29 @@ async function authenticateConsumer(key: Buffer) {
     .select()
     .from(consumerTable)
     .where(eq(consumerTable.key, key))
-    .limit(1)
-    .all();
+    .limit(1);
   return consumers[0] ?? null;
+}
+
+async function getConsumerCollectionIds(userId: number, consumerId: number): Promise<number[]> {
+  const rows = await db
+    .select({ collectionId: connectionTable.collectionId })
+    .from(connectionTable)
+    .where(and(eq(connectionTable.userId, userId), eq(connectionTable.consumerId, consumerId)));
+  return rows.map((r) => r.collectionId);
+}
+
+async function getSourceCollectionIdsForCollections(
+  userId: number,
+  collectionIds: number[],
+): Promise<number[]> {
+  const rows: { sourceCollectionId: number }[] = [];
+  for (const collectionId of collectionIds) {
+    const influxes = await db
+      .selectDistinct({ sourceCollectionId: influxTable.sourceCollectionId })
+      .from(influxTable)
+      .where(and(eq(influxTable.userId, userId), eq(influxTable.collectionId, collectionId)));
+    rows.push(...influxes);
+  }
+  return [...new Set(rows.map((r) => r.sourceCollectionId))];
 }

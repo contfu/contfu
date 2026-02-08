@@ -210,6 +210,7 @@
         "valibot": "latest",
       },
       "devDependencies": {
+        "@electric-sql/pglite": "^0.3.15",
         "@types/nodemailer": "^7.0.1",
         "drizzle-kit": "^1.0.0-beta.12-a5629fb",
         "typescript": "latest",
@@ -220,13 +221,16 @@
       "version": "0.0.1",
       "dependencies": {
         "@contfu/core": "workspace:*",
+        "@contfu/svc-backend": "workspace:*",
         "@notionhq/client": "^5.8.0",
+        "drizzle-orm": "^1.0.0-beta.12-a5629fb",
         "marked": "^17.0.1",
         "node-html-parser": "^7.0.2",
         "rxjs": "^7.8.1",
         "sitemapper": "^4.0.2",
       },
       "devDependencies": {
+        "@electric-sql/pglite": "^0.3.15",
         "@sinonjs/fake-timers": "^13.0.4",
         "@types/bun": "*",
         "@types/sinonjs__fake-timers": "^8.1.5",
@@ -331,6 +335,8 @@
     "@date-fns/tz": ["@date-fns/tz@1.4.1", "", {}, "sha512-P5LUNhtbj6YfI3iJjw5EL9eUAG6OitD0W3fWQcpQjDRc/QIsL0tRNuO1PcDvPccWL1fSTXXdE1ds+l95DV/OFA=="],
 
     "@drizzle-team/brocli": ["@drizzle-team/brocli@0.11.0", "", {}, "sha512-hD3pekGiPg0WPCCGAZmusBBJsDqGUR66Y452YgQsZOnkdQ7ViEPKuyP4huUGEZQefp8g34RRodXYmJ2TbCH+tg=="],
+
+    "@electric-sql/pglite": ["@electric-sql/pglite@0.3.15", "", {}, "sha512-Cj++n1Mekf9ETfdc16TlDi+cDDQF0W7EcbyRHYOAeZdsAe8M/FJg18itDTSwyHfar2WIezawM9o0EKaRGVKygQ=="],
 
     "@emnapi/core": ["@emnapi/core@1.8.1", "", { "dependencies": { "@emnapi/wasi-threads": "1.1.0", "tslib": "^2.4.0" } }, "sha512-AvT9QFpxK0Zd8J0jopedNm+w/2fIzvtPKPjqyw9jwvBaReTTqPBk9Hixaz7KbjimP+QNz605/XnjFcDAL2pqBg=="],
 

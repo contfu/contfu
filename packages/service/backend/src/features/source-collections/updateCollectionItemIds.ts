@@ -1,6 +1,6 @@
 import { db } from "../../infra/db/db";
 import { sourceCollectionTable } from "../../infra/db/schema";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 /**
  * Update collection's itemIds buffer directly.
@@ -15,7 +15,7 @@ export async function updateCollectionItemIds(
     .update(sourceCollectionTable)
     .set({
       itemIds,
-      updatedAt: sql`(unixepoch())`,
+      updatedAt: new Date(),
     })
     .where(and(eq(sourceCollectionTable.userId, userId), eq(sourceCollectionTable.id, id)))
     .returning({ id: sourceCollectionTable.id });

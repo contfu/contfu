@@ -8,8 +8,8 @@ export interface Collection {
   name: string;
   influxCount: number;
   connectionCount: number;
-  createdAt: number;
-  updatedAt: number | null;
+  createdAt: Date;
+  updatedAt: Date | null;
 }
 
 /**
