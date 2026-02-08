@@ -33,6 +33,8 @@ type BaseOpts = {
   maxReconnectDelay?: number;
   /** Initial delay before first reconnection attempt in ms (default: 1000) */
   initialReconnectDelay?: number;
+  /** @internal Fetch function for testing */
+  _fetch?: typeof fetch;
 };
 
 type OptsWithConnectionEvents = BaseOpts & { connectionEvents: true };
@@ -67,7 +69,10 @@ export function connectToStream(
   key: Buffer,
   opts: OptsWithConnectionEvents,
 ): AsyncGenerator<ItemEvent | StreamEvent>;
-export function connectToStream(key: Buffer, opts?: OptsWithoutConnectionEvents): AsyncGenerator<ItemEvent>;
+export function connectToStream(
+  key: Buffer,
+  opts?: OptsWithoutConnectionEvents,
+): AsyncGenerator<ItemEvent>;
 export async function* connectToStream(
   key: Buffer,
   opts: BaseOpts & { connectionEvents?: boolean } = {},
@@ -78,17 +83,19 @@ export async function* connectToStream(
     maxReconnectDelay = 30_000,
     initialReconnectDelay = 1_000,
     connectionEvents = false,
+    _fetch = fetch,
   } = opts;
 
   const keyBase64Url = key.toString("base64url");
   const streamUrl = `${url}?key=${keyBase64Url}`;
 
   let reconnectDelay = initialReconnectDelay;
-  let shouldReconnect = reconnect;
+  // Always try at least once; reconnect controls retries on failure
+  let shouldReconnect = true;
 
   while (shouldReconnect) {
     try {
-      const response = await fetch(streamUrl, {
+      const response = await _fetch(streamUrl, {
         headers: { Accept: "application/octet-stream" },
       });
 
@@ -156,11 +163,14 @@ export async function* connectToStream(
         };
       }
 
-      if (!shouldReconnect) {
+      // Don't reconnect if: (1) shouldReconnect is false (e.g., stream error), or (2) reconnect option is false
+      if (!shouldReconnect || !reconnect) {
         throw err;
       }
     }
 
+    // Exit if reconnection is disabled
+    if (!reconnect) break;
     if (!shouldReconnect) break;
 
     await new Promise((r) => setTimeout(r, reconnectDelay));
