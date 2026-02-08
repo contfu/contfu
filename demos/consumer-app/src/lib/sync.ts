@@ -1,19 +1,18 @@
 /**
  * Sync client for connecting to the Contfu service.
- * Uses Server-Sent Events (SSE) for content synchronization.
+ * Uses binary HTTP streaming for content synchronization.
  */
 
-import { connectToSSE } from "@contfu/client";
+import { connectToStream } from "@contfu/client";
 import { EventType } from "@contfu/core";
 import { handleChangedEvent, handleDeletedEvent } from "./state.svelte.js";
-// eventsource for SSR (Bun has built-in, but Vite needs the npm package)
-import { EventSource } from "eventsource";
 import { env } from "$env/dynamic/private";
 
 /** Get configuration from environment (using SvelteKit's dynamic env with process.env fallback) */
 function getConfig() {
   // Try SvelteKit's dynamic env first, then fall back to process.env
-  const CONTFU_URL = env?.CONTFU_URL ?? process.env.CONTFU_URL ?? "http://localhost:5173/api/sse";
+  const CONTFU_URL =
+    env?.CONTFU_URL ?? process.env.CONTFU_URL ?? "http://localhost:5173/api/stream";
   const CONTFU_KEY = env?.CONTFU_KEY ?? process.env.CONTFU_KEY ?? "";
   return { CONTFU_URL, CONTFU_KEY };
 }
@@ -23,7 +22,7 @@ let syncStarted = false;
 
 /**
  * Start the sync connection to the sync service.
- * Uses SSE for real-time content synchronization.
+ * Uses binary HTTP streaming for real-time content synchronization.
  * This should be called once when the server starts.
  */
 export async function startSyncConnection(): Promise<void> {
@@ -47,7 +46,7 @@ export async function startSyncConnection(): Promise<void> {
 
   const key = Buffer.from(CONTFU_KEY, "hex");
 
-  console.info(`[SYNC] Connecting to sync service via SSE at ${CONTFU_URL}...`);
+  console.info(`[SYNC] Connecting to sync service via binary stream at ${CONTFU_URL}...`);
 
   const eventHandler = async (event: any) => {
     switch (event.type) {
@@ -72,10 +71,9 @@ export async function startSyncConnection(): Promise<void> {
 
   try {
     console.info("[SYNC] Attempting connection...");
-    await connectToSSE(key, {
+    await connectToStream(key, {
       url: CONTFU_URL,
       handle: eventHandler,
-      EventSource: EventSource as any,
     });
     console.info("[SYNC] Connection established successfully!");
   } catch (error) {

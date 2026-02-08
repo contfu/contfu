@@ -1,31 +1,29 @@
 #!/usr/bin/env bun
 /**
- * CLI tool to test SSE connections
+ * CLI tool to test binary stream connections
  *
  * Usage:
- *   bun sse-cli.ts
+ *   bun stream-cli.ts
  *
  * Environment variables:
- *   CONTFU_URL  - SSE endpoint URL (default: http://localhost:5173/api/sse)
+ *   CONTFU_URL  - Stream endpoint URL (default: http://localhost:5173/api/stream)
  *   CONTFU_KEY  - Consumer key in hex format
  */
 
-import { connectToSSE } from "@contfu/client";
+import { connectToStream } from "@contfu/client";
 import { EventType } from "@contfu/core";
-// eventsource for SSR (Bun has built-in, but Vite needs the npm package)
-import { EventSource } from "eventsource";
 
 // Configuration from environment
-const CONTFU_URL = process.env.CONTFU_URL || "http://localhost:5173/api/sse";
+const CONTFU_URL = process.env.CONTFU_URL || "http://localhost:5173/api/stream";
 const CONTFU_KEY = process.env.CONTFU_KEY || "";
 
 if (!CONTFU_KEY) {
   console.error("❌ Error: CONTFU_KEY environment variable is required");
-  console.error("Usage: CONTFU_KEY=<hex_key> bun sse-cli.ts");
+  console.error("Usage: CONTFU_KEY=<hex_key> bun stream-cli.ts");
   process.exit(1);
 }
 
-console.log("🔌 SSE CLI Test Tool");
+console.log("🔌 Binary Stream CLI Test Tool");
 console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 console.log(`📡 Connecting to: ${CONTFU_URL}`);
 console.log(
@@ -108,10 +106,9 @@ const eventHandler = async (event: any) => {
 try {
   console.log("⏳ Establishing connection...\n");
 
-  await connectToSSE(key, {
+  await connectToStream(key, {
     url: CONTFU_URL,
     handle: eventHandler,
-    EventSource: EventSource as any,
     reconnect: true,
   });
 

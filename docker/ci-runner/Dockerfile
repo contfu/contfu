@@ -60,6 +60,11 @@ RUN apt-get update && apt-get install -y \
 # Install Playwright browsers (Chromium only for speed)
 RUN bunx playwright install chromium
 
+# Pre-install project dependencies to warm Bun cache
+# Copy package files from build context (built from repo root)
+COPY . /tmp/contfu/
+RUN cd /tmp/contfu && bun install && rm -rf /tmp/contfu
+
 # Verify installations
 RUN node --version && bun --version && docker --version
 

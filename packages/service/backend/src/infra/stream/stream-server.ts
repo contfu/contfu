@@ -1,6 +1,5 @@
 import {
   EventType,
-  type ChangedEvent,
   type ConnectedEvent,
   type ErrorEvent,
   type ItemEvent,
@@ -8,16 +7,17 @@ import {
   type UserSyncItem,
 } from "@contfu/core";
 import { eq } from "drizzle-orm";
+import { pack as msgpack } from "msgpackr";
 import { consumerTable, db } from "../db/db";
+import type { ConnectionInfo } from "../types";
 import type { SyncWorkerManager } from "../sync-worker/worker-manager";
 
 /**
- * SSE connection object that wraps a ReadableStreamDefaultController.
+ * Binary stream connection object that wraps a ReadableStreamDefaultController.
  */
-type SSEConnection = {
+type StreamConnection = {
   id: string;
   controller: ReadableStreamDefaultController<Uint8Array>;
-  encoder: TextEncoder;
 };
 
 class ConnectionError extends Error {
@@ -29,8 +29,45 @@ class ConnectionError extends Error {
   }
 }
 
-/** Maps consumer key (hex) to SSE connection. */
-const consumerToConnection = new Map<string, SSEConnection>();
+/**
+ * Wire format for events (same as WebSocket for consistency).
+ * Uses tuples for minimal MessagePack encoding size.
+ *
+ * Format: [type, ...payload] where type matches EventType enum:
+ * - CONNECTED: [0] (EventType.CONNECTED)
+ * - ERROR: [1, errorCode] (EventType.ERROR)
+ * - CHANGED: [2, [ref, id, collection, publishedAt, createdAt, changedAt, props, content?]] (EventType.CHANGED)
+ * - DELETED: [3, deletedItemId] (EventType.DELETED)
+ * - LIST_IDS: [4, collection, ids[]] (EventType.LIST_IDS)
+ * - CHECKSUM: [5, collection, checksum] (EventType.CHECKSUM)
+ * - PING: [6] (keep-alive, no EventType)
+ */
+type WireEvent =
+  | [EventType.CONNECTED]
+  | [EventType.CHANGED, WireItem]
+  | [EventType.DELETED, Uint8Array]
+  | [EventType.LIST_IDS, number, Uint8Array[]]
+  | [EventType.CHECKSUM, number, Uint8Array]
+  | [EventType.ERROR, string]
+  | [6]; // PING = 6
+
+/**
+ * Wire item format as tuple:
+ * [ref, id, collection, publishedAt, createdAt, changedAt, props, content?]
+ */
+type WireItem = [
+  Uint8Array, // ref
+  Uint8Array, // id
+  number, // collection
+  number, // publishedAt
+  number, // createdAt
+  number, // changedAt
+  Record<string, unknown>, // props
+  unknown[]?, // content (optional)
+];
+
+/** Maps consumer key (hex) to stream connection. */
+const consumerToConnection = new Map<string, StreamConnection>();
 /** Maps connection ID to consumer key (hex). */
 const connectionToConsumer = new Map<string, string>();
 /** Maps consumer key (hex) to consumer info. */
@@ -41,7 +78,7 @@ const preAuthCache = new Map<
   { client: { id: number; userId: number }; timestamp: number }
 >();
 
-export class SSEServer {
+export class StreamServer {
   private worker: SyncWorkerManager | null = null;
 
   constructor() {}
@@ -51,12 +88,8 @@ export class SSEServer {
   }
 
   /**
-   * Adds a new SSE connection with authentication.
-   * Returns the connection ID on success, or a ConnectionError on failure.
-   */
-  /**
-   * Pre-authenticate a consumer key before creating the SSE stream.
-   * This allows returning proper HTTP error codes (401, 409) instead of SSE error events.
+   * Pre-authenticate a consumer key before creating the stream.
+   * Returns proper HTTP error codes (401, 409) instead of stream errors.
    */
   async preAuthenticate(key: Buffer): Promise<{ error?: "E_AUTH" | "E_CONFLICT" | "E_ACCESS" }> {
     const client = await authenticateConsumer(key);
@@ -77,8 +110,8 @@ export class SSEServer {
   }
 
   /**
-   * Finalize the SSE connection after pre-authentication passed.
-   * This sets up the actual connection and sends the CONNECTED event.
+   * Finalize the stream connection after pre-authentication passed.
+   * Sets up the connection and sends the CONNECTED event.
    */
   async finalizeConnection(
     key: Buffer,
@@ -103,8 +136,7 @@ export class SSEServer {
     }
 
     const connectionId = crypto.randomUUID();
-    const encoder = new TextEncoder();
-    const connection: SSEConnection = { id: connectionId, controller, encoder };
+    const connection: StreamConnection = { id: connectionId, controller };
 
     try {
       await this.worker?.activateConsumer(client.userId, client.id);
@@ -112,12 +144,11 @@ export class SSEServer {
       connectionToConsumer.set(connectionId, consumerKey);
       consumerInfo.set(consumerKey, { userId: client.userId, consumerId: client.id });
 
-      // Send CONNECTED event - this is a custom event that clients can listen for
+      // Send CONNECTED event
       this.sendEvent(connection, { type: EventType.CONNECTED });
 
       return connectionId;
     } catch (error) {
-      // Clean up maps if activation or send fails
       consumerToConnection.delete(consumerKey);
       connectionToConsumer.delete(connectionId);
       consumerInfo.delete(consumerKey);
@@ -127,22 +158,7 @@ export class SSEServer {
   }
 
   /**
-   * Legacy method - use preAuthenticate + finalizeConnection instead.
-   * Kept for backwards compatibility with tests.
-   */
-  async addConnection(
-    key: Buffer,
-    controller: ReadableStreamDefaultController<Uint8Array>,
-  ): Promise<string | ConnectionError> {
-    const preAuthResult = await this.preAuthenticate(key);
-    if (preAuthResult.error) {
-      return new ConnectionError(preAuthResult.error);
-    }
-    return this.finalizeConnection(key, controller);
-  }
-
-  /**
-   * Removes an SSE connection and cleans up resources.
+   * Removes a stream connection and cleans up resources.
    */
   removeConnection(connectionId: string) {
     const consumerKey = connectionToConsumer.get(connectionId);
@@ -159,7 +175,15 @@ export class SSEServer {
   }
 
   /**
-   * Broadcasts items to connected SSE consumers.
+   * Send a ping to keep the connection alive.
+   */
+  sendPing(controller: ReadableStreamDefaultController<Uint8Array>) {
+    const wireEvent: WireEvent = [6]; // PING
+    this.sendBinary(controller, wireEvent);
+  }
+
+  /**
+   * Broadcasts items to connected stream consumers.
    */
   async broadcast(items: UserSyncItem[], connections: ConnectionInfo[]) {
     const collectionEvents = new Map<string, Exclude<ItemEvent, ListIdsEvent>[]>();
@@ -168,12 +192,12 @@ export class SSEServer {
       const collectionKey = `${item.user}:${item.collection}`;
       const events = collectionEvents.get(collectionKey) ?? [];
       if (events.length === 0) collectionEvents.set(collectionKey, events);
-      events.push(changedEvent(item));
+      events.push({ type: EventType.CHANGED, item });
     }
 
     for (const conn of connections) {
       // Find connection by looking up consumer info
-      let connection: SSEConnection | undefined;
+      let connection: StreamConnection | undefined;
       for (const [key, info] of consumerInfo.entries()) {
         if (info.userId === conn.userId && info.consumerId === conn.consumerId) {
           connection = consumerToConnection.get(key);
@@ -200,28 +224,91 @@ export class SSEServer {
   }
 
   /**
-   * Sends an SSE event to a specific connection.
+   * Sends an event to a specific connection using length-prefixed msgpack.
    */
-  private sendEvent(connection: SSEConnection, event: ItemEvent | ErrorEvent | ConnectedEvent) {
+  private sendEvent(connection: StreamConnection, event: ItemEvent | ErrorEvent | ConnectedEvent) {
     try {
-      const sseMessage = serializeEvent(event);
-      const encoded = connection.encoder.encode(sseMessage);
-      connection.controller.enqueue(encoded);
+      const wireEvent = toWireEvent(event);
+      this.sendBinary(connection.controller, wireEvent);
     } catch (error) {
-      console.error("Failed to send SSE event:", error);
+      console.error("Failed to send stream event:", error);
     }
+  }
+
+  /**
+   * Sends a binary message with length prefix.
+   * Format: [4-byte big-endian length][msgpack data]
+   */
+  private sendBinary(
+    controller: ReadableStreamDefaultController<Uint8Array>,
+    wireEvent: WireEvent,
+  ) {
+    const encoded = msgpack(wireEvent);
+
+    // Create length prefix (4 bytes, big-endian)
+    const lengthPrefix = new Uint8Array(4);
+    const view = new DataView(lengthPrefix.buffer);
+    view.setUint32(0, encoded.length, false); // big-endian
+
+    // Send length prefix + data
+    controller.enqueue(lengthPrefix);
+    controller.enqueue(encoded);
   }
 }
 
-export type ConnectionInfo = {
-  userId: number;
-  consumerId: number;
-  collectionId: number;
-  lastItemChanged: number | null;
-};
+/**
+ * Convert an event to wire format (tuples) for MessagePack encoding.
+ * Same format as WebSocket for consistency.
+ */
+function toWireEvent(event: ItemEvent | ErrorEvent | ConnectedEvent): WireEvent {
+  switch (event.type) {
+    case EventType.CONNECTED:
+      return [EventType.CONNECTED];
 
-function changedEvent(item: UserSyncItem): ChangedEvent {
-  return { type: EventType.CHANGED, item };
+    case EventType.CHANGED: {
+      const { item } = event;
+      const wireItem: WireItem = [
+        new Uint8Array(item.ref),
+        new Uint8Array(item.id),
+        item.collection,
+        item.publishedAt ?? 0,
+        item.createdAt,
+        item.changedAt,
+        serializeProps(item.props),
+      ];
+      if (item.content) {
+        wireItem.push(item.content);
+      }
+      return [EventType.CHANGED, wireItem];
+    }
+
+    case EventType.DELETED:
+      return [EventType.DELETED, new Uint8Array(event.item)];
+
+    case EventType.LIST_IDS:
+      return [EventType.LIST_IDS, event.collection, event.ids.map((id) => new Uint8Array(id))];
+
+    case EventType.CHECKSUM:
+      return [EventType.CHECKSUM, event.collection, new Uint8Array(event.checksum)];
+
+    case EventType.ERROR:
+      return [EventType.ERROR, event.code];
+  }
+}
+
+/**
+ * Serializes props, converting Buffer arrays to Uint8Array.
+ */
+function serializeProps(props: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(props)) {
+    if (Array.isArray(value) && value.length > 0 && value[0] instanceof Buffer) {
+      result[key] = (value as Buffer[]).map((buf) => new Uint8Array(buf));
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
 }
 
 async function authenticateConsumer(key: Buffer) {
@@ -233,80 +320,4 @@ async function authenticateConsumer(key: Buffer) {
     .limit(1)
     .all();
   return consumers[0] ?? null;
-}
-
-/**
- * Serializes an event to SSE format (text-based with JSON).
- * Format: event: <name>\ndata: <json>\n\n
- */
-function serializeEvent(event: ItemEvent | ErrorEvent | ConnectedEvent): string {
-  switch (event.type) {
-    case EventType.CONNECTED: {
-      return `event: connected\ndata: ${JSON.stringify({ type: EventType.CONNECTED })}\n\n`;
-    }
-    case EventType.CHANGED: {
-      const { item } = event;
-      const data = {
-        type: EventType.CHANGED,
-        item: {
-          ref: item.ref.toString("base64"),
-          id: item.id.toString("base64"),
-          collection: item.collection,
-          publishedAt: item.publishedAt,
-          createdAt: item.createdAt,
-          changedAt: item.changedAt,
-          props: serializeProps(item.props),
-          content: item.content,
-        },
-      };
-      return `event: changed\ndata: ${JSON.stringify(data)}\n\n`;
-    }
-    case EventType.DELETED: {
-      const data = {
-        type: EventType.DELETED,
-        item: event.item.toString("base64"),
-      };
-      return `event: deleted\ndata: ${JSON.stringify(data)}\n\n`;
-    }
-    case EventType.LIST_IDS: {
-      const data = {
-        type: EventType.LIST_IDS,
-        collection: event.collection,
-        ids: event.ids.map((id) => id.toString("base64")),
-      };
-      return `event: list_ids\ndata: ${JSON.stringify(data)}\n\n`;
-    }
-    case EventType.CHECKSUM: {
-      const data = {
-        type: EventType.CHECKSUM,
-        collection: event.collection,
-        checksum: event.checksum.toString("base64"),
-      };
-      return `event: checksum\ndata: ${JSON.stringify(data)}\n\n`;
-    }
-    case EventType.ERROR: {
-      const data = {
-        type: EventType.ERROR,
-        code: event.code,
-      };
-      // Use "auth_error" instead of "error" because the eventsource npm package
-      // intercepts "error" events and strips the data field
-      return `event: auth_error\ndata: ${JSON.stringify(data)}\n\n`;
-    }
-  }
-}
-
-/**
- * Serializes props, converting Buffer arrays to base64.
- */
-function serializeProps(props: Record<string, unknown>): Record<string, unknown> {
-  const result: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(props)) {
-    if (Array.isArray(value) && value.length > 0 && value[0] instanceof Buffer) {
-      result[key] = (value as Buffer[]).map((buf) => buf.toString("base64"));
-    } else {
-      result[key] = value;
-    }
-  }
-  return result;
 }

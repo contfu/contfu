@@ -1,9 +1,9 @@
-import { getSSEServer } from "$lib/server/startup";
+import { getStreamServer } from "$lib/server/startup";
 import type { RequestHandler } from "./$types";
 
 export const GET: RequestHandler = async ({ request, url }) => {
-  // Get the singleton SSE server instance (wired to SyncWorkerManager in startup)
-  const server = getSSEServer();
+  // Get the singleton stream server instance
+  const server = getStreamServer();
 
   // Extract consumer key from query param or Authorization header
   let keyString = url.searchParams.get("key");
@@ -18,15 +18,13 @@ export const GET: RequestHandler = async ({ request, url }) => {
     return new Response("Missing authentication key", { status: 401 });
   }
 
-  // Decode the key from base64 or hex
+  // Decode the key from base64url (consistent with WebSocket)
   let key: Buffer;
   try {
-    // Try base64 first (common for URLs)
-    key = Buffer.from(keyString, "base64");
-    // Consumer keys must be 32 bytes
+    key = Buffer.from(keyString, "base64url");
     if (key.length !== 32) {
-      // Try hex if base64 didn't produce 32 bytes
-      key = Buffer.from(keyString, "hex");
+      // Try standard base64 as fallback
+      key = Buffer.from(keyString, "base64");
       if (key.length !== 32) {
         return new Response("Invalid key format", { status: 401 });
       }
@@ -40,7 +38,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
     return new Response("Request aborted", { status: 499 });
   }
 
-  // Pre-authenticate before creating the stream (returns HTTP error codes, not SSE events)
+  // Pre-authenticate before creating the stream
   const authResult = await server.preAuthenticate(key);
   if (authResult.error) {
     switch (authResult.error) {
@@ -53,13 +51,12 @@ export const GET: RequestHandler = async ({ request, url }) => {
     }
   }
 
-  // Create SSE stream - auth already passed, now we just need to set up the connection
+  // Create binary stream
   const stream = new ReadableStream({
     async start(controller) {
       let connectionId: string | null = null;
       let keepAlive: ReturnType<typeof setInterval> | null = null;
 
-      // Cleanup function to be called on abort or cancel
       const cleanup = () => {
         if (keepAlive) {
           clearInterval(keepAlive);
@@ -76,30 +73,23 @@ export const GET: RequestHandler = async ({ request, url }) => {
         }
       };
 
-      // Register abort listener early
-      const onAbort = () => {
-        cleanup();
-      };
+      const onAbort = () => cleanup();
       request.signal.addEventListener("abort", onAbort, { once: true });
 
-      // Check if aborted during setup
       if (request.signal.aborted) {
         cleanup();
         return;
       }
 
-      // Finalize the connection (auth already passed in preAuthenticate)
+      // Finalize the connection
       const result = await server.finalizeConnection(key, controller);
 
-      // Check if aborted during async finalizeConnection
       if (request.signal.aborted) {
         cleanup();
         return;
       }
 
-      // Handle any errors during finalization (shouldn't happen after preAuth, but be safe)
       if (typeof result !== "string") {
-        // Close silently - the error was already handled or is a race condition
         controller.close();
         request.signal.removeEventListener("abort", onAbort);
         return;
@@ -107,29 +97,25 @@ export const GET: RequestHandler = async ({ request, url }) => {
 
       connectionId = result;
 
-      // Keep-alive ping mechanism - send ping every 25 seconds
+      // Keep-alive ping every 25 seconds
       keepAlive = setInterval(() => {
         try {
-          const pingEvent = `event: ping\ndata: {}\n\n`;
-          controller.enqueue(new TextEncoder().encode(pingEvent));
+          server.sendPing(controller);
         } catch {
-          // Controller may be closed, cleanup
           cleanup();
         }
       }, 25_000);
     },
 
-    // Handle stream cancellation
     cancel() {
-      // Stream cancelled by consumer - no additional cleanup needed
-      // as abort handler will be called automatically
+      // Stream cancelled by consumer
     },
   });
 
-  // Return SSE response with proper headers
+  // Return binary stream response
   return new Response(stream, {
     headers: {
-      "Content-Type": "text/event-stream; charset=utf-8",
+      "Content-Type": "application/octet-stream",
       "Cache-Control": "no-cache, no-transform",
       Connection: "keep-alive",
       "X-Accel-Buffering": "no",

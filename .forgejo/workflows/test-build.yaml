@@ -12,8 +12,6 @@ jobs:
     timeout-minutes: 25
     container:
       image: forgejo.rogge.vip/contfu/ci-runner:latest
-      volumes:
-        - /Users/jimbo/.bun/install/cache:/root/.bun/install/cache
     services:
       strapi:
         image: forgejo.rogge.vip/contfu/strapi-test:v2
@@ -45,23 +43,23 @@ jobs:
         working-directory: demos/consumer-app
       - name: Run unit tests
         run: bun run test
-      # - name: Wait for Strapi
-      #   run: |
-      #     echo "Waiting for Strapi..."
-      #     for i in $(seq 1 60); do
-      #       if curl -sf http://strapi:1337/_health > /dev/null 2>&1; then
-      #         echo "Strapi is ready!"
-      #         exit 0
-      #       fi
-      #       echo "Waiting... ($i/60)"
-      #       sleep 2
-      #     done
-      #     echo "Strapi failed to start"
-      #     exit 1
-      # - name: Run E2E tests
-      #   run: DEBUG=pw:api bun run test:e2e --reporter=list
-      #   env:
-      #     PWDEBUG: 0
+      - name: Wait for Strapi
+        run: |
+          echo "Waiting for Strapi..."
+          for i in $(seq 1 60); do
+            if curl -sf http://strapi:1337/_health > /dev/null 2>&1; then
+              echo "Strapi is ready!"
+              exit 0
+            fi
+            echo "Waiting... ($i/60)"
+            sleep 2
+          done
+          echo "Strapi failed to start"
+          exit 1
+      - name: Run E2E tests
+        run: DEBUG=pw:api bun run test:e2e --reporter=list
+        env:
+          PWDEBUG: 0
 
   build:
     name: Build image

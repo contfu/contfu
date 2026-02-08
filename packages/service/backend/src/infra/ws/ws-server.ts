@@ -9,7 +9,9 @@ import {
 import { eq } from "drizzle-orm";
 import { pack as msgpack } from "msgpackr";
 import { consumerTable, db } from "../db/db";
-import type { ConnectionInfo } from "../sse/sse-server";
+
+import type { ConnectionInfo } from "../types";
+
 import type { SyncWorkerManager } from "../sync-worker/worker-manager";
 
 /**

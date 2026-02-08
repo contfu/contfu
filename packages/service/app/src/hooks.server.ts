@@ -5,7 +5,7 @@ import type { WSData } from "@contfu/svc-backend/infra/ws/ws-server";
 import type { Handle } from "@sveltejs/kit";
 import { svelteKitHandler } from "better-auth/svelte-kit";
 
-// Initialize SSE server and SyncWorkerManager at startup
+// Initialize transport servers and SyncWorkerManager at startup
 // Skip during SSR build phase
 if (!building) {
   initialize().catch((error) => {
