@@ -13,7 +13,7 @@ export interface ItemEvent {
   action: "created" | "updated" | "deleted";
 }
 
-const ITEM_EVENTS_SUBJECT = "item.events";
+const ITEM_EVENTS_SUBJECT = "i";
 
 /**
  * Publish an item event to all subscribers

@@ -22,7 +22,8 @@ jobs:
         run: |
           docker run -d --name nats-test \
             -p 4222:4222 \
-            nats:2.11-alpine --jetstream
+            -p 8222:8222 \
+            nats:2.12-linux --jetstream
 
       - name: Start Strapi service
         run: |

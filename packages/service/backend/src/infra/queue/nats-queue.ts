@@ -1,4 +1,4 @@
-import { AckPolicy, type ConsumerCallbackFn } from "@nats-io/jetstream";
+import { AckPolicy, RetentionPolicy, type ConsumerCallbackFn } from "@nats-io/jetstream";
 import { getJetStreamManager } from "../nats/jsm";
 import { raceForLeader } from "../nats/leader-election";
 import type { Job, Queue } from "./queue";
@@ -19,9 +19,9 @@ async function ensureStream() {
     await jsm.streams.add({
       name: STREAM_NAME,
       subjects: ["job.*"],
-      retention: "workqueue" as unknown as undefined, // Work queue retention
-      max_msgs: 100000,
-      max_age: 1000 * 60 * 60 * 24, // 24h max age
+      retention: RetentionPolicy.Workqueue,
+      max_msgs: 100_000,
+      max_age: 1_000 * 60 * 60 * 24, // 24h max age
     });
   } catch {
     // Stream may already exist
@@ -85,7 +85,9 @@ export async function* isScheduler(): AsyncGenerator<boolean> {
 
 export const q: Queue = {
   push: (job) => {
-    push(job);
+    void push(job).catch((err) => {
+      console.error("Job publish error:", err);
+    });
   },
   handle,
   isScheduler,

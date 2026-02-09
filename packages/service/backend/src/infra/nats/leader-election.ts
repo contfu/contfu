@@ -1,5 +1,5 @@
-import { getKvManager } from "./kvm";
 import type { KV } from "@nats-io/kv";
+import { getKvManager } from "./kvm";
 
 const LEADER_TTL = 5000;
 const LEADER_RETRY_INTERVAL = 3000;
@@ -14,7 +14,7 @@ async function getLeaderKv(): Promise<KV> {
   if (leaderKv) return leaderKv;
 
   const kvm = await getKvManager();
-  const kv = await kvm.create("leader", { ttl: LEADER_TTL });
+  const kv = await kvm.create("leader", { ttl: LEADER_TTL, markerTTL: LEADER_TTL });
   leaderKv = kv;
   return kv;
 }

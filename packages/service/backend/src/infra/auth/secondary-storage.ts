@@ -2,13 +2,13 @@
 import type { KV } from "@nats-io/kv";
 import type { SecondaryStorage, Session, User } from "better-auth";
 import { lru, type LRU } from "tiny-lru";
-import { getKvManager } from "../nats/kvm";
 import { hasNats } from "../nats/connection";
+import { getKvManager } from "../nats/kvm";
 
 type SessionToken = { token: string; expiresAt: number };
 
 const SESSION_TTL = 1000 * 60 * 60 * 24 * 7; // 7 days
-const ACTIVE_SESSIONS_PREFIX = "active-sessions-";
+const SESSIONS_PREFIX = "s-";
 
 let sessionsBucket: KV | undefined;
 let userSessionsBucket: KV | undefined;
@@ -36,8 +36,8 @@ export async function getNatsKvSessionStorage(): Promise<SecondaryStorage | unde
 
   return {
     get: async (key) => {
-      if (key.startsWith(ACTIVE_SESSIONS_PREFIX)) {
-        const actualKey = key.slice(ACTIVE_SESSIONS_PREFIX.length);
+      if (key.startsWith(SESSIONS_PREFIX)) {
+        const actualKey = key.slice(SESSIONS_PREFIX.length);
         return await getFromCacheOrBucket(
           activeSessionsCache,
           await getUserSessionsBucket(),
@@ -53,8 +53,8 @@ export async function getNatsKvSessionStorage(): Promise<SecondaryStorage | unde
       );
     },
     set: async (key, value) => {
-      if (key.startsWith(ACTIVE_SESSIONS_PREFIX)) {
-        const actualKey = key.slice(ACTIVE_SESSIONS_PREFIX.length);
+      if (key.startsWith(SESSIONS_PREFIX)) {
+        const actualKey = key.slice(SESSIONS_PREFIX.length);
         const bucket = await getUserSessionsBucket();
         await bucket.put(actualKey, serializeActiveSessions(JSON.parse(value)));
         activeSessionsCache.set(actualKey, value);
@@ -65,6 +65,13 @@ export async function getNatsKvSessionStorage(): Promise<SecondaryStorage | unde
       sessionsCache.set(key, value);
     },
     delete: async (key) => {
+      if (key.startsWith(SESSIONS_PREFIX)) {
+        const actualKey = key.slice(SESSIONS_PREFIX.length);
+        const bucket = await getUserSessionsBucket();
+        await bucket.delete(actualKey);
+        activeSessionsCache.delete(actualKey);
+        return;
+      }
       const bucket = await getSessionsBucket();
       await bucket.delete(key);
       sessionsCache.delete(key);
