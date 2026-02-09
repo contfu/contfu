@@ -13,9 +13,16 @@ jobs:
     env:
       E2E_FULL_FLOW: true
       STRAPI_HOST: localhost
+      NATS_SERVER: nats://localhost:4222
       CI: true
     steps:
       - uses: actions/checkout@v4
+
+      - name: Start NATS service
+        run: |
+          docker run -d --name nats-test \
+            -p 4222:4222 \
+            nats:2.11-alpine --jetstream
 
       - name: Start Strapi service
         run: |
@@ -73,8 +80,8 @@ jobs:
       - name: Cleanup
         if: always()
         run: |
-          docker stop strapi-test || true
-          docker rm strapi-test || true
+          docker stop strapi-test nats-test || true
+          docker rm strapi-test nats-test || true
 
   build:
     name: Build Docker image
