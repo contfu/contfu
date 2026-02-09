@@ -78,7 +78,7 @@ jobs:
 
   build:
     name: Build Docker image
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, macOS, ARM64]
     steps:
       - uses: actions/checkout@v4
       - run: docker build .
