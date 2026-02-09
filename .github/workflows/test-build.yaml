@@ -4,37 +4,80 @@ on:
   pull_request:
     branches:
       - main
+
 jobs:
   test:
-    name: Run all tests
-    runs-on: ubuntu-latest
-    container: oven/bun:1.3.8
+    name: Tests
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 25
+    env:
+      E2E_FULL_FLOW: true
+      STRAPI_HOST: localhost
+      CI: true
     steps:
       - uses: actions/checkout@v4
-      - run: bun install --frozen-lockfile
-      - run: bun run build
-      - run: bun run test
-  # e2e-test:
-  #   timeout-minutes: 10
-  #   runs-on: ubuntu-latest
-  #   container: oven/bun:1.3.4
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - run: bun install --frozen-lockfile
-  #     - name: Install Playwright Browsers
-  #       working-directory: packages/app
-  #       run: bunx playwright install --with-deps --only-shell chromium
-  #     - name: Run Playwright tests
-  #       working-directory: packages/app
-  #       run: bunx playwright test
-  #     - uses: actions/upload-artifact@v4
-  #       if: ${{ !cancelled() }}
-  #       with:
-  #         name: playwright-report
-  #         path: packages/app/playwright-report/
-  #         retention-days: 7
+
+      - name: Start Strapi service
+        run: |
+          docker run -d --name strapi-test \
+            -p 1337:1337 \
+            -e NODE_ENV=development \
+            -e HOST=0.0.0.0 \
+            -e PORT=1337 \
+            -e APP_KEYS=testkey1,testkey2 \
+            -e API_TOKEN_SALT=testsalt1 \
+            -e ADMIN_JWT_SECRET=testsecret1 \
+            -e TRANSFER_TOKEN_SALT=testsalt2 \
+            -e JWT_SECRET=testsecret2 \
+            forgejo.rogge.vip/contfu/strapi-test:v2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile --ignore-scripts
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Type check
+        run: bun run typecheck
+
+      - name: Build all packages
+        run: bun run build
+
+      - name: Build consumer demo app
+        run: bun run build
+        working-directory: demos/consumer-app
+
+      - name: Run unit tests
+        run: bun run test
+
+      - name: Wait for Strapi
+        run: |
+          echo "Waiting for Strapi..."
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:1337/_health > /dev/null 2>&1; then
+              echo "Strapi is ready!"
+              exit 0
+            fi
+            echo "Waiting... ($i/60)"
+            sleep 2
+          done
+          echo "Strapi failed to start"
+          docker logs strapi-test
+          exit 1
+
+      - name: Run E2E tests
+        run: DEBUG=pw:api bun run test:e2e --reporter=list
+        env:
+          PWDEBUG: 0
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker stop strapi-test || true
+          docker rm strapi-test || true
+
   build:
-    name: Build image
+    name: Build Docker image
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
