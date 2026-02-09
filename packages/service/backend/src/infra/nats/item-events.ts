@@ -31,7 +31,7 @@ export async function publishItemEvent(event: ItemEvent): Promise<void> {
  * Returns an unsubscribe function
  */
 export async function subscribeToItemEvents(
-  handler: (event: ItemEvent) => void,
+  handler: (event: ItemEvent) => void | Promise<void>,
 ): Promise<() => void> {
   if (!hasNats()) {
     // No-op in local mode
@@ -46,7 +46,7 @@ export async function subscribeToItemEvents(
     for await (const msg of sub) {
       try {
         const event = JSON.parse(Buffer.from(msg.data).toString("utf8")) as ItemEvent;
-        handler(event);
+        await handler(event);
       } catch (error) {
         console.error("Error processing item event:", error);
       }

@@ -23,7 +23,22 @@ jobs:
           docker run -d --name nats-test \
             -p 4222:4222 \
             -p 8222:8222 \
-            nats:2.12-linux --jetstream
+            nats:2.12-linux --jetstream -m 8222
+
+      - name: Wait for NATS
+        run: |
+          echo "Waiting for NATS..."
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8222/healthz > /dev/null 2>&1; then
+              echo "NATS is ready!"
+              exit 0
+            fi
+            echo "Waiting... ($i/30)"
+            sleep 1
+          done
+          echo "NATS failed to start"
+          docker logs nats-test
+          exit 1
 
       - name: Start Strapi service
         run: |

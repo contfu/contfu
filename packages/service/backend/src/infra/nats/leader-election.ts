@@ -25,7 +25,7 @@ export function isLeader(subject: string): boolean {
 
 export async function* raceForLeader(
   subject: string,
-  { interval = LEADER_RETRY_INTERVAL, ttl: _ttl = LEADER_TTL } = {},
+  { interval = LEADER_RETRY_INTERVAL } = {},
 ): AsyncGenerator<boolean> {
   const kv = await getLeaderKv();
 
