@@ -13,14 +13,22 @@ import { EventType } from "./events";
  * - CHECKSUM: [5, collection, checksum] (EventType.CHECKSUM)
  * - PING: [6] (keep-alive)
  */
-export type WireEvent =
+
+/** Connection lifecycle events (not item-specific). */
+export type WireConnectionEvent =
   | [EventType.CONNECTED]
   | [EventType.ERROR, string]
+  | [6]; // PING = 6
+
+/** Item-related events that can be forwarded between servers. */
+export type WireItemEvent =
   | [EventType.CHANGED, WireItem]
   | [EventType.DELETED, Uint8Array]
   | [EventType.LIST_IDS, number, Uint8Array[]]
-  | [EventType.CHECKSUM, number, Uint8Array]
-  | [6]; // PING = 6
+  | [EventType.CHECKSUM, number, Uint8Array];
+
+/** Combined wire event type for client connections. */
+export type WireEvent = WireConnectionEvent | WireItemEvent;
 
 /**
  * Wire item format as tuple:

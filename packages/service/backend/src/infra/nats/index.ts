@@ -6,5 +6,5 @@ export {
   publishItemEvent,
   subscribeToItemEvents,
   subscribeToUserItemEvents,
-  type ItemEvent,
+  type NatsItemEvent,
 } from "./item-events";
