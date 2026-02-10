@@ -1,14 +1,18 @@
-import { db } from "../db/db";
-import * as schema from "../db/schema";
-import { UserRole } from "./user";
-import { sendEmail } from "../mail/mail";
+import { dev } from "$app/environment";
+import { getRequestEvent } from "$app/server";
 import { checkout, polar, portal, usage, webhooks } from "@polar-sh/better-auth";
 import { Polar } from "@polar-sh/sdk";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { createAuthMiddleware } from "better-auth/api";
+import { sveltekitCookies } from "better-auth/svelte-kit";
 import { count } from "drizzle-orm";
+import { db } from "../db/db";
+import * as schema from "../db/schema";
+import { sendEmail } from "../mail/mail";
 import { absolute, button, link } from "../mail/mail-rendering";
+import { hasNats } from "../nats";
+import { UserRole } from "./user";
 
 const polarClient = new Polar({
   accessToken: process.env.POLAR_ACCESS_TOKEN,
@@ -19,7 +23,10 @@ export const auth = betterAuth({
   secret: process.env.BETTER_AUTH_SECRET,
   baseURL: process.env.BETTER_AUTH_URL ?? process.env.ORIGIN ?? "http://localhost:8011",
   basePath: "/api/auth",
-  trustedOrigins: [process.env.ORIGIN ?? "http://localhost:8011", "http://localhost:4173"],
+  trustedOrigins: [
+    process.env.ORIGIN ?? "http://localhost:8011",
+    ...(dev ? ["http://localhost:4173"] : []),
+  ],
   database: drizzleAdapter(db, {
     provider: "pg",
     schema: {
@@ -82,6 +89,9 @@ export const auth = betterAuth({
       dont_remember: { name: "n" },
     },
   },
+  secondaryStorage: hasNats()
+    ? await import("./secondary-storage").then((m) => m.createNatsKvSessionStorage())
+    : undefined,
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: true,
@@ -241,6 +251,7 @@ export const auth = betterAuth({
           : []),
       ],
     }),
+    sveltekitCookies(getRequestEvent),
   ],
 });
 
