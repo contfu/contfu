@@ -1,0 +1,32 @@
+{{- if .Values.postgresql.enabled }}
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ include "contfu.postgresql.fullname" . }}
+  labels:
+    {{- include "contfu.labels" . | nindent 4 }}
+spec:
+  instances: {{ .Values.postgresql.instances }}
+  imageName: {{ .Values.postgresql.imageName }}
+
+  bootstrap:
+    initdb:
+      database: {{ .Values.postgresql.database }}
+      owner: {{ .Values.postgresql.owner }}
+
+  storage:
+    size: {{ .Values.postgresql.storage.size }}
+    {{- if .Values.postgresql.storage.storageClass }}
+    storageClassName: {{ .Values.postgresql.storage.storageClass }}
+    {{- end }}
+
+  {{- with .Values.postgresql.resources }}
+  resources:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+
+  {{- if .Values.postgresql.monitoring.enabled }}
+  monitoring:
+    enablePodMonitor: true
+  {{- end }}
+{{- end }}

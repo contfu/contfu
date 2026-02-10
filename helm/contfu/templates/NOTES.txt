@@ -1,0 +1,34 @@
+Contfu has been deployed!
+
+{{- if .Values.ingress.enabled }}
+
+Access the application at:
+{{- range .Values.ingress.hosts }}
+  http{{ if $.Values.ingress.tls }}s{{ end }}://{{ .host }}
+{{- end }}
+
+{{- else }}
+
+Access the application via port-forward:
+
+  kubectl port-forward svc/{{ include "contfu.fullname" . }} 3000:{{ .Values.service.port }}
+
+Then open http://localhost:3000 in your browser.
+
+{{- end }}
+
+{{- if .Values.postgresql.enabled }}
+
+PostgreSQL (CloudNativePG):
+  Cluster: {{ include "contfu.postgresql.fullname" . }}
+  Credentials secret: {{ include "contfu.postgresql.fullname" . }}-app
+  Services: {{ include "contfu.postgresql.fullname" . }}-rw (read-write)
+             {{ include "contfu.postgresql.fullname" . }}-ro (read-only replicas)
+             {{ include "contfu.postgresql.fullname" . }}-r  (any replica)
+
+  NOTE: The CNPG operator must be installed in the cluster.
+  If not installed, run:
+    kubectl apply --server-side -f \
+      https://raw.githubusercontent.com/cloudnative-pg/cloudnative-pg/main/releases/cnpg-1.25.1.yaml
+
+{{- end }}

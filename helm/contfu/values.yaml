@@ -1,0 +1,136 @@
+## Contfu Helm chart values
+
+## Container image
+image:
+  repository: ghcr.io/contfu/contfu-app
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion
+  tag: ""
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+## Application settings
+app:
+  origin: "http://localhost:3000"
+  betterAuthUrl: ""
+  migrationsPath: /app/packages/service/backend/db/migrations
+  syncWorkerPath: /app/packages/service/sync/src/worker.ts
+
+## Secrets configuration
+## Set existingSecret to use a pre-created Secret instead of the chart-managed one
+secrets:
+  existingSecret: ""
+  betterAuthSecret: ""
+  # OAuth credentials
+  googleClientId: ""
+  googleClientSecret: ""
+  githubClientId: ""
+  githubClientSecret: ""
+  # Polar billing
+  polarAccessToken: ""
+  polarWebhookSecret: ""
+
+## Service account
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  name: ""
+
+## Pod annotations and labels
+podAnnotations: {}
+podLabels: {}
+
+## Pod security context
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+## Container security context
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: false
+
+## Service
+service:
+  type: ClusterIP
+  port: 3000
+
+## Ingress
+ingress:
+  enabled: false
+  className: traefik
+  annotations: {}
+  hosts:
+    - host: contfu.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  #  - secretName: contfu-tls
+  #    hosts:
+  #      - contfu.local
+
+## Resources
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    memory: 512Mi
+
+## Autoscaling
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 80
+
+## Node selector, tolerations, affinity
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+## Additional environment variables
+extraEnv: []
+#  - name: MY_VAR
+#    value: "my-value"
+
+## Additional envFrom sources
+extraEnvFrom: []
+#  - secretRef:
+#      name: my-external-secret
+
+## PostgreSQL (CloudNativePG)
+postgresql:
+  enabled: true
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:17.4
+  database: contfu
+  owner: contfu
+  storage:
+    size: 5Gi
+    storageClass: ""
+  resources: {}
+  monitoring:
+    enabled: false
+
+## NATS subchart
+nats:
+  enabled: true
+  config:
+    jetstream:
+      enabled: true
+      fileStore:
+        pvc:
+          size: 2Gi
+    monitor:
+      port: 8222
+  natsBox:
+    enabled: false
