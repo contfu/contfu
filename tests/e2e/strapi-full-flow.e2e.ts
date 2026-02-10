@@ -1065,7 +1065,6 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow", () => {
       false,
       CONSUMER_URL, // poll this URL for readiness
     );
-
   });
 
   test.afterAll(async () => {

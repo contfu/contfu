@@ -5,6 +5,7 @@ Load this when understanding code structure or making architectural decisions.
 ## Monorepo Structure (Bun workspaces)
 
 **Core Packages** (`packages/`):
+
 - `@contfu/core` - Shared types (items, collections, commands, events, sources, blocks)
 - `@contfu/client` - SSE client for consuming synced data
 - `@contfu/client-core` - Client-side database utilities (Kysely)
@@ -12,6 +13,7 @@ Load this when understanding code structure or making architectural decisions.
 - `@contfu/media-optimizer` - Media optimization (Sharp)
 
 **Backend Services** (`packages/service/`):
+
 - `@contfu/svc-sync` - Sync service with RxJS; includes Notion adapter
 - `@contfu/svc-app` - SvelteKit web app with Bun adapter
 

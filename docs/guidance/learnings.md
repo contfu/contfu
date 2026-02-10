@@ -17,10 +17,10 @@ Load this to avoid repeating past mistakes.
 
 When modifying core code, update the corresponding skill:
 
-| Code Change | Update Skill |
-|-------------|--------------|
+| Code Change                | Update Skill              |
+| -------------------------- | ------------------------- |
 | `packages/core/src/` types | `contfu-content-modeling` |
-| Database schemas | `contfu-content-modeling` |
-| Source adapters | `contfu-source-adapter` |
-| UI components | `contfu-design` |
-| Dev workflow | `contfu-development` |
+| Database schemas           | `contfu-content-modeling` |
+| Source adapters            | `contfu-source-adapter`   |
+| UI components              | `contfu-design`           |
+| Dev workflow               | `contfu-development`      |

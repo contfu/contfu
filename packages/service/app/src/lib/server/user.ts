@@ -1,6 +1,6 @@
 import { getRequestEvent } from "$app/server";
 import { redirect } from "@sveltejs/kit";
-import type { User } from "@contfu/svc-backend/infra/auth/auth";
+import type { User } from "./auth";
 
 export function getUser(): User {
   const event = getRequestEvent();

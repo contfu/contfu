@@ -15,10 +15,7 @@ import type { EventType } from "./events";
  */
 
 /** Connection lifecycle events (not item-specific). */
-export type WireConnectionEvent =
-  | [EventType.CONNECTED]
-  | [EventType.ERROR, string]
-  | [6]; // PING = 6
+export type WireConnectionEvent = [EventType.CONNECTED] | [EventType.ERROR, string] | [6]; // PING = 6
 
 /** Item-related events that can be forwarded between servers. */
 export type WireItemEvent =

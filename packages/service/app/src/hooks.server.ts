@@ -1,5 +1,5 @@
 import { building } from "$app/environment";
-import { auth } from "@contfu/svc-backend/infra/auth/auth";
+import { auth } from "$lib/server/auth";
 import { initialize, shutdown } from "$lib/server/startup";
 import type { Handle } from "@sveltejs/kit";
 import { svelteKitHandler } from "better-auth/svelte-kit";

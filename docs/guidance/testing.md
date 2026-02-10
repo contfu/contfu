@@ -5,6 +5,7 @@ Load this when writing or debugging tests.
 ## Development Credentials
 
 **For local development and testing:**
+
 - **Email:** `test@test.com`
 - **Password:** `test`
 
@@ -24,6 +25,7 @@ This user is created by `packages/service/app/src/lib/server/db/seed-dev.ts`.
 ## E2E Tests
 
 Located in `/tests/e2e/`. Run with:
+
 ```bash
 cd tests
 E2E_FULL_FLOW=true bun test:e2e
@@ -40,7 +42,7 @@ E2E_FULL_FLOW=true bun test:e2e
 await button.click();
 await page.locator("text=Success").waitFor({ state: "visible" });
 
-// ❌ Wrong - intercept response  
+// ❌ Wrong - intercept response
 const response = await page.waitForResponse((r) => r.url().includes("/api"));
 ```
 
@@ -52,6 +54,7 @@ const response = await page.waitForResponse((r) => r.url().includes("/api"));
 - See `demos/strapi-demo/CLAUDE.md` for credentials
 
 **Key fixtures:**
+
 - `strapiPage` - Authenticated Strapi admin context
 - `syncServiceProcess` - Background sync service
 - `STRAPI_URL`, `SERVICE_URL`, `CONSUMER_URL` - Endpoints

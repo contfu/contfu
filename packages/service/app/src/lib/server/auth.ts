@@ -1,5 +1,12 @@
 import { dev } from "$app/environment";
 import { getRequestEvent } from "$app/server";
+import { createNatsKvSessionStorage } from "@contfu/svc-backend/infra/auth/secondary-storage";
+import { UserRole } from "@contfu/svc-backend/infra/auth/user";
+import { db } from "@contfu/svc-backend/infra/db/db";
+import * as schema from "@contfu/svc-backend/infra/db/schema";
+import { sendEmail } from "@contfu/svc-backend/infra/mail/mail";
+import { absolute, button, link } from "@contfu/svc-backend/infra/mail/mail-rendering";
+import { hasNats } from "@contfu/svc-backend/infra/nats/connection";
 import { checkout, polar, portal, usage, webhooks } from "@polar-sh/better-auth";
 import { Polar } from "@polar-sh/sdk";
 import { betterAuth } from "better-auth";
@@ -7,12 +14,6 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { createAuthMiddleware } from "better-auth/api";
 import { sveltekitCookies } from "better-auth/svelte-kit";
 import { count } from "drizzle-orm";
-import { db } from "../db/db";
-import * as schema from "../db/schema";
-import { sendEmail } from "../mail/mail";
-import { absolute, button, link } from "../mail/mail-rendering";
-import { hasNats } from "../nats";
-import { UserRole } from "./user";
 
 const polarClient = new Polar({
   accessToken: process.env.POLAR_ACCESS_TOKEN,
@@ -89,9 +90,7 @@ export const auth = betterAuth({
       dont_remember: { name: "n" },
     },
   },
-  secondaryStorage: hasNats()
-    ? await import("./secondary-storage").then((m) => m.createNatsKvSessionStorage())
-    : undefined,
+  secondaryStorage: hasNats() ? await createNatsKvSessionStorage() : undefined,
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: true,

@@ -12,12 +12,12 @@ Contfu ("content funnel") is a **proxy CMS** that aggregates content from multip
 
 Load these **only when relevant** to keep context focused:
 
-| Task | Load |
-|------|------|
-| Writing/debugging tests | `docs/guidance/testing.md` |
-| Understanding architecture | `docs/guidance/architecture.md` |
-| Creating features | `docs/guidance/vertical-slice.md` |
-| Avoiding past mistakes | `docs/guidance/learnings.md` |
+| Task                       | Load                              |
+| -------------------------- | --------------------------------- |
+| Writing/debugging tests    | `docs/guidance/testing.md`        |
+| Understanding architecture | `docs/guidance/architecture.md`   |
+| Creating features          | `docs/guidance/vertical-slice.md` |
+| Avoiding past mistakes     | `docs/guidance/learnings.md`      |
 
 ## Common Commands
 
@@ -36,6 +36,7 @@ cd packages/service/sync && bun test
 ## Before Creating a PR
 
 1. **Run quality checks:**
+
    ```bash
    bun test && bun run fmt && bun run lint
    ```

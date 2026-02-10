@@ -1,7 +1,6 @@
 import { db } from "../db/db";
 import { accountTable } from "../db/schema";
 import { and, eq } from "drizzle-orm";
-import { auth } from "./auth";
 
 export type LinkedAccount = {
   providerId: string;
@@ -42,17 +41,15 @@ export async function hasLinkedProvider(userId: number, providerId: string): Pro
 /**
  * Get the access token for a linked provider.
  * Returns null if the provider is not linked or has no token.
- * Uses better-auth API which handles automatic token refresh.
  */
 export async function getProviderAccessToken(
   userId: number,
   providerId: string,
 ): Promise<string | null> {
-  const result = await auth.api.getAccessToken({
-    body: {
-      providerId,
-      userId: String(userId),
-    },
-  });
-  return result?.accessToken ?? null;
+  const [account] = await db
+    .select({ accessToken: accountTable.accessToken })
+    .from(accountTable)
+    .where(and(eq(accountTable.userId, userId), eq(accountTable.providerId, providerId)))
+    .limit(1);
+  return account?.accessToken ?? null;
 }
