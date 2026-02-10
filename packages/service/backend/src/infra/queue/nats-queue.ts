@@ -1,7 +1,7 @@
 import { AckPolicy, RetentionPolicy } from "@nats-io/jetstream";
 import { getJetStreamManager } from "../nats/jsm";
 import { raceForLeader } from "../nats/leader-election";
-import type { Job, JobMessage, Queue } from "./queue";
+import type { Job, Queue } from "./queue";
 
 const STREAM_NAME = "sync-jobs";
 const CONSUMER_NAME = "sync-worker";
@@ -51,7 +51,7 @@ async function push(job: Job): Promise<void> {
   await jsm.jetstream().publish(`job.${job.type}`, payload, { retries: 10 });
 }
 
-async function* consume(): AsyncGenerator<JobMessage> {
+async function* consume(): AsyncGenerator<Job> {
   await ensureStream();
   const jsm = await getJetStreamManager();
 
@@ -59,24 +59,24 @@ async function* consume(): AsyncGenerator<JobMessage> {
   const consumer = await stream.getConsumer(CONSUMER_NAME);
 
   for await (const message of await consumer.consume()) {
+    let acked = false;
     try {
       const job = JSON.parse(Buffer.from(message.data).toString("utf8")) as Job;
-      yield {
-        job,
-        ack: () => message.ack(),
-        nack: () => {
-          if (message.redelivered) {
-            // Failed after retry, terminate
-            message.term();
-          } else {
-            // Retry after 1 second
-            message.nak(1000);
-          }
-        },
-      };
+      yield job;
+      // Resumed via .next() = success
+      message.ack();
+      acked = true;
     } catch (error) {
-      console.error("Error parsing job:", error);
-      message.term(); // Invalid message, don't retry
+      console.error("Error processing job:", error);
+    } finally {
+      if (!acked) {
+        // Resumed via .return()/.throw() or parse error = failure
+        if (message.redelivered) {
+          message.term(); // Max retries exceeded
+        } else {
+          message.nak(1000); // Retry after 1s
+        }
+      }
     }
   }
 }

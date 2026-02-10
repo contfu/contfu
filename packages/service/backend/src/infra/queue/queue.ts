@@ -28,14 +28,8 @@ export interface RefreshTokenJob {
 
 export type Job = SyncCollectionJob | SyncItemJob | RefreshTokenJob;
 
-export interface JobMessage {
-  job: Job;
-  ack: () => void;
-  nack: () => void;
-}
-
 export interface Queue {
   push(job: Job): void;
-  consume(): AsyncGenerator<JobMessage>;
+  consume(): AsyncGenerator<Job>;
   isScheduler(): AsyncGenerator<boolean>;
 }

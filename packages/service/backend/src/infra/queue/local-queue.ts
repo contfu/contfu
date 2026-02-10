@@ -1,4 +1,4 @@
-import type { Job, JobMessage, Queue } from "./queue";
+import type { Job, Queue } from "./queue";
 
 /**
  * Local in-memory queue for development and testing.
@@ -20,7 +20,7 @@ function push(job: Job): void {
   }
 }
 
-async function* consume(): AsyncGenerator<JobMessage> {
+async function* consume(): AsyncGenerator<Job> {
   while (true) {
     // Get next job from queue or wait for one
     const job = await new Promise<Job>((resolve) => {
@@ -32,14 +32,17 @@ async function* consume(): AsyncGenerator<JobMessage> {
       }
     });
 
-    yield {
-      job,
-      ack: () => {}, // No-op in local mode
-      nack: () => {
-        // Re-queue on failure
+    let acked = false;
+    try {
+      yield job;
+      // Resumed via .next() = success
+      acked = true;
+    } finally {
+      if (!acked) {
+        // Resumed via .return()/.throw() = failure, re-queue
         jobQueue.unshift(job);
-      },
-    };
+      }
+    }
   }
 }
 
