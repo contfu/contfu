@@ -1,7 +1,7 @@
-import { AckPolicy, RetentionPolicy, type ConsumerCallbackFn } from "@nats-io/jetstream";
+import { AckPolicy, RetentionPolicy } from "@nats-io/jetstream";
 import { getJetStreamManager } from "../nats/jsm";
 import { raceForLeader } from "../nats/leader-election";
-import type { Job, Queue } from "./queue";
+import type { Job, JobMessage, Queue } from "./queue";
 
 const STREAM_NAME = "sync-jobs";
 const CONSUMER_NAME = "sync-worker";
@@ -43,7 +43,7 @@ async function ensureStream() {
   initialized = true;
 }
 
-export async function push(job: Job): Promise<void> {
+async function push(job: Job): Promise<void> {
   await ensureStream();
   const jsm = await getJetStreamManager();
 
@@ -51,35 +51,37 @@ export async function push(job: Job): Promise<void> {
   await jsm.jetstream().publish(`job.${job.type}`, payload, { retries: 10 });
 }
 
-export async function handle(handler: (job: Job) => Promise<void>): Promise<void> {
+async function* consume(): AsyncGenerator<JobMessage> {
   await ensureStream();
   const jsm = await getJetStreamManager();
 
   const stream = await jsm.streams.get(STREAM_NAME);
   const consumer = await stream.getConsumer(CONSUMER_NAME);
 
-  consumer.consume({
-    callback: (async (message) => {
-      try {
-        const job = JSON.parse(Buffer.from(message.data).toString("utf8")) as Job;
-        await handler(job);
-        message.ack();
-      } catch (error) {
-        console.error("Job processing error:", error);
-        if (message.redelivered) {
-          // Failed after retry, terminate
-          message.term();
-        } else {
-          // Retry after 1 second
-          message.nak(1000);
-        }
-      }
-    }) as ConsumerCallbackFn,
-    max_messages: 10,
-  });
+  for await (const message of await consumer.consume()) {
+    try {
+      const job = JSON.parse(Buffer.from(message.data).toString("utf8")) as Job;
+      yield {
+        job,
+        ack: () => message.ack(),
+        nack: () => {
+          if (message.redelivered) {
+            // Failed after retry, terminate
+            message.term();
+          } else {
+            // Retry after 1 second
+            message.nak(1000);
+          }
+        },
+      };
+    } catch (error) {
+      console.error("Error parsing job:", error);
+      message.term(); // Invalid message, don't retry
+    }
+  }
 }
 
-export async function* isScheduler(): AsyncGenerator<boolean> {
+async function* isScheduler(): AsyncGenerator<boolean> {
   yield* raceForLeader(SCHEDULER_KEY);
 }
 
@@ -89,6 +91,6 @@ export const q: Queue = {
       console.error("Job publish error:", err);
     });
   },
-  handle,
+  consume,
   isScheduler,
 };

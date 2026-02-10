@@ -1,53 +1,55 @@
-import type { Job, Queue } from "./queue";
+import type { Job, JobMessage, Queue } from "./queue";
 
 /**
  * Local in-memory queue for development and testing.
- * Jobs are processed immediately in sequence.
+ * Jobs are processed via async generator pattern.
  */
 
 const jobQueue: Job[] = [];
-let handler: ((job: Job) => Promise<void>) | null = null;
-let processing = false;
+let resolveNext: ((job: Job) => void) | null = null;
 
-async function processQueue() {
-  if (processing || !handler) return;
-  processing = true;
+function push(job: Job): void {
+  if (resolveNext) {
+    // Consumer is waiting, deliver immediately
+    const resolve = resolveNext;
+    resolveNext = null;
+    resolve(job);
+  } else {
+    // Queue for later consumption
+    jobQueue.push(job);
+  }
+}
 
-  while (jobQueue.length > 0) {
-    const job = jobQueue.shift();
-    if (job) {
-      try {
-        await handler(job);
-      } catch (error) {
-        console.error("Local queue job error:", error);
+async function* consume(): AsyncGenerator<JobMessage> {
+  while (true) {
+    // Get next job from queue or wait for one
+    const job = await new Promise<Job>((resolve) => {
+      const queued = jobQueue.shift();
+      if (queued) {
+        resolve(queued);
+      } else {
+        resolveNext = resolve;
       }
-    }
-  }
+    });
 
-  processing = false;
-}
-
-export function push(job: Job): void {
-  jobQueue.push(job);
-  // Process asynchronously
-  setTimeout(() => processQueue(), 0);
-}
-
-export function handle(h: (job: Job) => Promise<void>): void {
-  handler = h;
-  // Start processing any queued jobs
-  if (jobQueue.length > 0) {
-    setTimeout(() => processQueue(), 0);
+    yield {
+      job,
+      ack: () => {}, // No-op in local mode
+      nack: () => {
+        // Re-queue on failure
+        jobQueue.unshift(job);
+      },
+    };
   }
 }
 
-export async function* isScheduler(): AsyncGenerator<boolean> {
+async function* isScheduler(): AsyncGenerator<boolean> {
   // In local mode, we're always the scheduler
   yield true;
 }
 
 export const q: Queue = {
   push,
-  handle,
+  consume,
   isScheduler,
 };
