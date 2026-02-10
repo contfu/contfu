@@ -26,7 +26,7 @@ async function getSessionsBucket(): Promise<KV> {
 async function getUserSessionsBucket(): Promise<KV> {
   if (userSessionsBucket) return userSessionsBucket;
   const kvm = await getKvManager();
-  const bucket = await kvm.create("user-session");
+  const bucket = await kvm.create("user-session", { ttl: SESSION_TTL });
   userSessionsBucket = bucket;
   return bucket;
 }
@@ -112,9 +112,9 @@ function deserializeActiveSessions(_: string, data: Uint8Array): SessionToken[] 
 }
 
 /**
- * User: [id, createdAt, updatedAt, email, name, image]
+ * User: [id, createdAt, updatedAt, email, name, image, emailVerified]
  */
-type WireUser = [number, number, number, string, string, string | null];
+type WireUser = [number, number, number, string, string, string | null, boolean];
 
 /**
  * Session: [expiresAt, createdAt, updatedAt, ipAddress, userAgent]
@@ -140,6 +140,7 @@ function serializeSessionAndUser({
     user.email,
     user.name,
     user.image ?? null,
+    !!user.emailVerified,
   ];
   const wireSession: WireSession = [
     new Date(session.expiresAt).getTime(),
@@ -164,7 +165,7 @@ function deserializeSessionAndUser(
     email: wireUser[3],
     name: wireUser[4],
     image: wireUser[5],
-    emailVerified: true,
+    emailVerified: wireUser[6],
   };
 
   const session: Omit<Session, "id"> = {

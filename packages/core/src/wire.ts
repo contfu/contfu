@@ -1,4 +1,4 @@
-import { EventType } from "./events";
+import type { EventType } from "./events";
 
 /**
  * Wire format for binary stream events.

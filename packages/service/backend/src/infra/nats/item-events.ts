@@ -27,47 +27,24 @@ export async function publishItemEvent(event: NatsItemEvent): Promise<void> {
 }
 
 /**
- * Subscribe to item events
- * Returns an unsubscribe function
+ * Subscribe to item events as an async generator.
+ * Use a map from userId to connections for efficient routing.
  */
-export async function subscribeToItemEvents(
-  handler: (event: NatsItemEvent) => void | Promise<void>,
-): Promise<() => void> {
-  if (!hasNats()) {
-    // No-op in local mode
-    return () => {};
-  }
+export async function* subscribeToItemEvents(): AsyncGenerator<NatsItemEvent, void, void> {
+  if (!hasNats()) return;
 
   const nc = await getNatsConnection();
   const sub = nc.subscribe(ITEM_EVENTS_SUBJECT);
 
-  // Process messages asynchronously
-  (async () => {
+  try {
     for await (const msg of sub) {
       try {
-        const event = unpack(msg.data) as NatsItemEvent;
-        await handler(event);
+        yield unpack(msg.data) as NatsItemEvent;
       } catch (error) {
-        console.error("Error processing item event:", error);
+        console.error("Error parsing item event:", error);
       }
     }
-  })();
-
-  return () => {
+  } finally {
     sub.unsubscribe();
-  };
-}
-
-/**
- * Subscribe to item events for a specific user
- */
-export async function subscribeToUserItemEvents(
-  userId: number,
-  handler: (event: NatsItemEvent) => void,
-): Promise<() => void> {
-  return subscribeToItemEvents((event) => {
-    if (event[0] === userId) {
-      handler(event);
-    }
-  });
+  }
 }

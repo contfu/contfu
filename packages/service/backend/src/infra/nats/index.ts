@@ -5,6 +5,5 @@ export { isLeader, raceForLeader } from "./leader-election";
 export {
   publishItemEvent,
   subscribeToItemEvents,
-  subscribeToUserItemEvents,
   type NatsItemEvent,
 } from "./item-events";
