@@ -1,4 +1,4 @@
-import type { KV } from "@nats-io/kv";
+import { KvWatchInclude, type KV } from "@nats-io/kv";
 import type { SecondaryStorage, Session, User } from "better-auth";
 import { pack, unpack } from "msgpackr";
 import { lru, type LRU } from "tiny-lru";
@@ -8,36 +8,32 @@ import { getKvManager } from "../nats/kvm";
 type SessionToken = { token: string; expiresAt: number };
 
 const SESSION_TTL = 1000 * 60 * 60 * 24 * 7; // 7 days
-const SESSIONS_PREFIX = "s-";
+const ACTIVE_SESSIONS_PREFIX = "active-sessions-";
 
-let sessionsBucket: KV | undefined;
-let userSessionsBucket: KV | undefined;
+let sessionsBucket: Promise<KV> | undefined;
+let userSessionsBucket: Promise<KV> | undefined;
 const sessionsCache: LRU<string> = lru(10_000);
 const activeSessionsCache: LRU<string> = lru(5_000);
 
 async function getSessionsBucket(): Promise<KV> {
-  if (sessionsBucket) return sessionsBucket;
-  const kvm = await getKvManager();
-  const bucket = await kvm.create("session", { ttl: SESSION_TTL });
-  sessionsBucket = bucket;
-  return bucket;
+  return (sessionsBucket ??= getKvManager().then((kvm) =>
+    kvm.create("session", { ttl: SESSION_TTL }),
+  ));
 }
 
 async function getUserSessionsBucket(): Promise<KV> {
-  if (userSessionsBucket) return userSessionsBucket;
-  const kvm = await getKvManager();
-  const bucket = await kvm.create("user-session", { ttl: SESSION_TTL });
-  userSessionsBucket = bucket;
-  return bucket;
+  return (userSessionsBucket ??= getKvManager().then((kvm) =>
+    kvm.create("user-session", { ttl: SESSION_TTL }),
+  ));
 }
 
-export async function getNatsKvSessionStorage(): Promise<SecondaryStorage | undefined> {
+export async function createNatsKvSessionStorage(): Promise<SecondaryStorage | undefined> {
   if (!hasNats()) return undefined;
-
+  void handleRemoteInvalidations();
   return {
     get: async (key) => {
-      if (key.startsWith(SESSIONS_PREFIX)) {
-        const actualKey = key.slice(SESSIONS_PREFIX.length);
+      if (key.startsWith(ACTIVE_SESSIONS_PREFIX)) {
+        const actualKey = key.slice(ACTIVE_SESSIONS_PREFIX.length);
         return await getFromCacheOrBucket(
           activeSessionsCache,
           await getUserSessionsBucket(),
@@ -53,8 +49,8 @@ export async function getNatsKvSessionStorage(): Promise<SecondaryStorage | unde
       );
     },
     set: async (key, value) => {
-      if (key.startsWith(SESSIONS_PREFIX)) {
-        const actualKey = key.slice(SESSIONS_PREFIX.length);
+      if (key.startsWith(ACTIVE_SESSIONS_PREFIX)) {
+        const actualKey = key.slice(ACTIVE_SESSIONS_PREFIX.length);
         const bucket = await getUserSessionsBucket();
         await bucket.put(actualKey, serializeActiveSessions(JSON.parse(value)));
         activeSessionsCache.set(actualKey, value);
@@ -65,8 +61,8 @@ export async function getNatsKvSessionStorage(): Promise<SecondaryStorage | unde
       sessionsCache.set(key, value);
     },
     delete: async (key) => {
-      if (key.startsWith(SESSIONS_PREFIX)) {
-        const actualKey = key.slice(SESSIONS_PREFIX.length);
+      if (key.startsWith(ACTIVE_SESSIONS_PREFIX)) {
+        const actualKey = key.slice(ACTIVE_SESSIONS_PREFIX.length);
         const bucket = await getUserSessionsBucket();
         await bucket.delete(actualKey);
         activeSessionsCache.delete(actualKey);
@@ -77,6 +73,27 @@ export async function getNatsKvSessionStorage(): Promise<SecondaryStorage | unde
       sessionsCache.delete(key);
     },
   };
+}
+
+async function handleRemoteInvalidations() {
+  const sessionsBucket = await getSessionsBucket();
+  const userSessionsBucket = await getUserSessionsBucket();
+  sessionsBucket.watch({ include: KvWatchInclude.UpdatesOnly }).then(async (watcher) => {
+    for await (const event of watcher) {
+      if (event.operation === "DEL") {
+        const { key } = event;
+        sessionsCache.delete(key);
+      }
+    }
+  });
+  userSessionsBucket.watch({ include: KvWatchInclude.UpdatesOnly }).then(async (watcher) => {
+    for await (const event of watcher) {
+      if (event.operation === "DEL") {
+        const { key } = event;
+        activeSessionsCache.delete(key);
+      }
+    }
+  });
 }
 
 async function getFromCacheOrBucket(
