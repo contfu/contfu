@@ -2,6 +2,7 @@ import { db } from "../../infra/db/db";
 import { sourceTable, type Source } from "../../infra/db/schema";
 import { encryptCredentials } from "../../infra/crypto/credentials";
 import { eq, sql } from "drizzle-orm";
+import crypto from "node:crypto";
 import type { BackendSource, CreateSourceInput } from "../../domain/types";
 
 /** Source type: Web (for extracting auth type) */
@@ -19,6 +20,7 @@ function extractWebAuthType(credentials: Buffer | null): number {
 function mapToBackendSource(source: Source): BackendSource {
   const baseSource = {
     id: source.id,
+    uid: source.uid,
     userId: source.userId,
     name: source.name,
     url: source.url,
@@ -73,6 +75,7 @@ export async function createSource(
       .values({
         userId,
         id: nextId,
+        uid: crypto.randomUUID(),
         name: input.name,
         type: input.type,
         url: input.url ?? null,

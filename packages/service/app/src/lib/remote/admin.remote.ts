@@ -1,6 +1,8 @@
 import { form, query } from "$app/server";
 import { listUsers, type UserSummary } from "@contfu/svc-backend/features/admin/listUsers";
 import { updateUser } from "@contfu/svc-backend/features/admin/updateUser";
+import { getSetting } from "@contfu/svc-backend/features/admin/getSetting";
+import { decryptCredentials } from "@contfu/svc-backend/infra/crypto/credentials";
 import { getUser } from "$lib/server/user";
 import { UserRole } from "@contfu/svc-backend/infra/db/constants";
 import { error, invalid } from "@sveltejs/kit";
@@ -117,3 +119,27 @@ export const demoteFromAdmin = form(
     return { success: true };
   },
 );
+
+// ============================================================
+// System Settings
+// ============================================================
+
+export interface SystemSettings {
+  notionOAuthVerificationToken: string | null;
+}
+
+/**
+ * Get system settings (admin only).
+ */
+export const getSystemSettings = query(async (): Promise<SystemSettings> => {
+  requireAdmin();
+
+  const encrypted = await getSetting("notion_oauth_verification_token");
+  let notionOAuthVerificationToken: string | null = null;
+  if (encrypted) {
+    const decrypted = await decryptCredentials(0, encrypted);
+    notionOAuthVerificationToken = decrypted?.toString("utf8") ?? null;
+  }
+
+  return { notionOAuthVerificationToken };
+});

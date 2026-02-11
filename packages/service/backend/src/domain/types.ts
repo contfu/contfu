@@ -15,6 +15,7 @@
 /** A source without sensitive credentials - safe to expose to the app */
 export interface BackendSource {
   id: number;
+  uid: string;
   userId: number;
   name: string | null;
   url: string | null;

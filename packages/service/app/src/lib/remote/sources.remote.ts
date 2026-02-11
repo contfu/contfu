@@ -3,9 +3,9 @@ import { getProviderAccessToken } from "@contfu/svc-backend/infra/auth/linked-ac
 import { getUserId } from "$lib/server/user";
 import {
   iterateDataSources,
+  resolveDataSourceId,
   type DataSourceResult,
-} from "@contfu/svc-backend/features/notion/iterateDataSources";
-import { resolveDataSourceId } from "@contfu/svc-backend/features/notion/resolveDataSourceId";
+} from "@contfu/svc-sources/notion";
 import { createSource as createSourceFeature } from "@contfu/svc-backend/features/sources/createSource";
 import { listSources } from "@contfu/svc-backend/features/sources/listSources";
 import { getSource as getSourceFeature } from "@contfu/svc-backend/features/sources/getSource";

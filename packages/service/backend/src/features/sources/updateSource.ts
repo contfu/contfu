@@ -19,6 +19,7 @@ function extractWebAuthType(credentials: Buffer | null): number {
 function mapToBackendSource(source: Source): BackendSource {
   const baseSource = {
     id: source.id,
+    uid: source.uid,
     userId: source.userId,
     name: source.name,
     url: source.url,

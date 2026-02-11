@@ -6,8 +6,7 @@
     "./domain/*": "./dist/domain/*.js",
     "./infra/*": "./dist/infra/*.js",
     "./features/*": "./dist/features/*.js",
-    "./features/influxes": "./dist/features/influxes/index.js",
-    "./features/notion": "./dist/features/notion/index.js"
+    "./features/influxes": "./dist/features/influxes/index.js"
   },
   "scripts": {
     "dev": "tsc -b --watch",
@@ -26,7 +25,6 @@
     "@nats-io/jetstream": "^3.3.0",
     "@nats-io/kv": "^3.3.0",
     "@nats-io/transport-node": "^3.3.0",
-    "@notionhq/client": "^5.9.0",
     "@polar-sh/better-auth": "^1.6.4",
     "@polar-sh/sdk": "^0.42.2",
     "better-auth": "^1.4.15",

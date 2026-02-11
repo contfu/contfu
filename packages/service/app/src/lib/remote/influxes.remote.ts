@@ -6,7 +6,7 @@ import {
   iterateDataSources,
   notionPropertiesToSchema,
   type DataSourceResult,
-} from "@contfu/svc-backend/features/notion";
+} from "@contfu/svc-sources/notion";
 import { listCollectionSummariesBySource } from "@contfu/svc-backend/features/source-collections/listCollectionSummariesBySource";
 import { addInfluxWithSourceCollection } from "@contfu/svc-backend/features/influxes";
 import { listInfluxes } from "@contfu/svc-backend/features/influxes/listInfluxes";

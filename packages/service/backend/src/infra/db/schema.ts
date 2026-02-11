@@ -152,6 +152,8 @@ export const sourceTable = pgTable(
       .notNull(),
     /** The id which is unique within the user. */
     id: integer().notNull(),
+    /** Globally unique identifier for webhook URLs. */
+    uid: text().unique().notNull(),
     /** The name of the source. */
     name: text(),
     /** The url of the upstream source. Can be empty, if it is a centralized SaaS source. */
@@ -495,3 +497,15 @@ export const syncJobTable = pgTable(
 
 export type SyncJob = typeof syncJobTable.$inferSelect;
 export type NewSyncJob = typeof syncJobTable.$inferInsert;
+
+// System settings
+
+export const settingTable = pgTable("setting", {
+  key: text().primaryKey(),
+  value: bytea(),
+  updatedAt: timestamp({ withTimezone: true, mode: "date" })
+    .default(sql`now()`)
+    .notNull(),
+});
+
+export type Setting = typeof settingTable.$inferSelect;

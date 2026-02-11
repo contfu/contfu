@@ -190,6 +190,23 @@ export class StreamServer {
   }
 
   /**
+   * Broadcasts DELETED events to connected stream consumers.
+   */
+  async broadcastDeleted(itemId: Buffer, connections: ConnectionInfo[]) {
+    for (const conn of connections) {
+      let connection: StreamConnection | undefined;
+      for (const [key, info] of consumerInfo.entries()) {
+        if (info.userId === conn.userId && info.consumerId === conn.consumerId) {
+          connection = consumerToConnection.get(key);
+          break;
+        }
+      }
+      if (!connection) continue;
+      this.sendEvent(connection, { type: EventType.DELETED, item: itemId });
+    }
+  }
+
+  /**
    * Sends an event to a specific connection using length-prefixed msgpack.
    */
   private sendEvent(connection: StreamConnection, event: ItemEvent | ErrorEvent | ConnectedEvent) {

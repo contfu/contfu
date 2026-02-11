@@ -10,11 +10,11 @@ import { sourceCollectionTable } from "@contfu/svc-backend/infra/db/schema";
 import { and, eq } from "drizzle-orm";
 import { combineLatest, defer, repeat, timer } from "rxjs";
 import { workerDb } from "./db/worker-db";
-import { NotionSource } from "./sources/notion";
-import { StrapiSource } from "./sources/strapi";
+import { NotionSource } from "@contfu/svc-sources/notion";
+import { StrapiSource } from "@contfu/svc-sources/strapi";
+import { WebSource } from "@contfu/svc-sources/web";
+import { ITEM_ID_SIZE } from "@contfu/svc-sources";
 import { SortedSet } from "./util/structures/sorted-set";
-import { WebSource } from "./sources/web";
-import { ITEM_ID_SIZE } from "./util/ids/ids";
 
 // Constants
 const MAX_COLLECTION_PULL_SIZE = Number(process.env.MAX_COLLECTION_PULL_SIZE ?? 10_000);

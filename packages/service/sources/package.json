@@ -1,5 +1,5 @@
 {
-  "name": "@contfu/svc-sync",
+  "name": "@contfu/svc-sources",
   "version": "0.0.1",
   "private": true,
   "files": [
@@ -7,22 +7,25 @@
   ],
   "type": "module",
   "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./notion": "./src/notion/index.ts",
+    "./strapi": "./src/strapi/index.ts",
+    "./web": "./src/web/index.ts"
+  },
   "scripts": {
     "test": "bun test",
     "clean": "rm -rf dist"
   },
   "dependencies": {
     "@contfu/core": "workspace:*",
-    "@contfu/svc-backend": "workspace:*",
-    "@contfu/svc-sources": "workspace:*",
-    "drizzle-orm": "^1.0.0-beta.12-a5629fb",
-    "rxjs": "^7.8.1"
+    "@notionhq/client": "^5.8.0",
+    "marked": "^17.0.1",
+    "node-html-parser": "^7.0.2",
+    "sitemapper": "^4.0.2"
   },
   "devDependencies": {
-    "@electric-sql/pglite": "^0.3.15",
-    "@sinonjs/fake-timers": "^13.0.4",
     "@types/bun": "*",
-    "@types/sinonjs__fake-timers": "^8.1.5",
     "testcontainers": "^10.16.0",
     "ts-essentials": "^10.0.2"
   },
