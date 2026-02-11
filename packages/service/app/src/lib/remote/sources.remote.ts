@@ -398,7 +398,6 @@ export const listNotionDataSources = query(
       // Extract used data source IDs from collection refs (now included in summary)
       const usedIds = collections.map((c) => c.refString).filter((id): id is string => !!id);
 
-      console.log("Listing Notion data sources for sourceId", data.sourceId, collections, usedIds);
       return { dataSources, usedIds };
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";

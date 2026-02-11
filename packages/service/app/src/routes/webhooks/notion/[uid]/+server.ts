@@ -241,13 +241,15 @@ export const POST: RequestHandler = async ({ request, params }) => {
   // ---- Signature validation ----
   if (isOAuthMode) {
     const encryptedToken = await getSetting(SETTING_OAUTH_TOKEN);
-    if (encryptedToken) {
-      const decrypted = await decryptCredentials(0, encryptedToken);
-      const secret = decrypted?.toString("utf8");
-      if (secret && !validateSignature(body, request.headers, secret)) {
-        console.error("[Notion webhook] Invalid OAuth signature");
-        return new Response("Unauthorized", { status: 401 });
-      }
+    if (!encryptedToken) {
+      console.error("[Notion webhook] OAuth token not configured");
+      return new Response("Unauthorized", { status: 401 });
+    }
+    const decrypted = await decryptCredentials(0, encryptedToken);
+    const secret = decrypted?.toString("utf8");
+    if (!secret || !validateSignature(body, request.headers, secret)) {
+      console.error("[Notion webhook] Invalid OAuth signature");
+      return new Response("Unauthorized", { status: 401 });
     }
   }
 
