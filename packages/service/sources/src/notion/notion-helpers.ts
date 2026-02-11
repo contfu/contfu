@@ -1,7 +1,7 @@
 import { Client, isFullDatabase, isFullPage, iteratePaginatedAPI } from "@notionhq/client";
 import type {
+  DataSourceObjectResponse,
   QueryDataSourceParameters,
-  SearchResponse,
 } from "@notionhq/client/build/src/api-endpoints";
 
 export const notion = new Client(
@@ -10,7 +10,7 @@ export const notion = new Client(
 
 export type DbQuery = Partial<Omit<QueryDataSourceParameters, "data_source_id" | "auth">>;
 
-export type DataSourceResult = SearchResponse["results"][number] & { object: "data_source" };
+export type DataSourceResult = DataSourceObjectResponse;
 
 /**
  * Search for all data sources accessible to the integration using pagination.

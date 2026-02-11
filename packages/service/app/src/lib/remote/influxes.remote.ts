@@ -1,22 +1,22 @@
 import { command, form, query } from "$app/server";
 import { getUserId } from "$lib/server/user";
-import { listSources } from "@contfu/svc-backend/features/sources/listSources";
+import type { CollectionSchema, Filter, InfluxWithDetails } from "@contfu/core";
+import { addInfluxWithSourceCollection } from "@contfu/svc-backend/features/influxes";
+import { deleteInfluxByMapping } from "@contfu/svc-backend/features/influxes/deleteInfluxByMapping";
+import { listInfluxes } from "@contfu/svc-backend/features/influxes/listInfluxes";
+import { updateInflux as updateInfluxFeature } from "@contfu/svc-backend/features/influxes/updateInflux";
+import { listCollectionSummariesBySource } from "@contfu/svc-backend/features/source-collections/listCollectionSummariesBySource";
 import { getSourceWithCredentials } from "@contfu/svc-backend/features/sources/getSourceWithCredentials";
+import { listSources } from "@contfu/svc-backend/features/sources/listSources";
+import { SourceType } from "@contfu/svc-backend/features/sources/testSourceConnection";
+import { db } from "@contfu/svc-backend/infra/db/db";
+import { influxTable } from "@contfu/svc-backend/infra/db/schema";
 import {
   iterateDataSources,
   notionPropertiesToSchema,
   type DataSourceResult,
 } from "@contfu/svc-sources/notion";
-import { listCollectionSummariesBySource } from "@contfu/svc-backend/features/source-collections/listCollectionSummariesBySource";
-import { addInfluxWithSourceCollection } from "@contfu/svc-backend/features/influxes";
-import { listInfluxes } from "@contfu/svc-backend/features/influxes/listInfluxes";
-import { deleteInfluxByMapping } from "@contfu/svc-backend/features/influxes/deleteInfluxByMapping";
-import { updateInflux as updateInfluxFeature } from "@contfu/svc-backend/features/influxes/updateInflux";
-import { db } from "@contfu/svc-backend/infra/db/db";
-import { influxTable } from "@contfu/svc-backend/infra/db/schema";
 import { and, eq } from "drizzle-orm";
-import { SourceType } from "@contfu/svc-backend/features/sources/testSourceConnection";
-import type { CollectionSchema, Filter, InfluxWithDetails } from "@contfu/core";
 import * as v from "valibot";
 
 // ============================================================
@@ -297,7 +297,7 @@ export const updateInfluxForm = form(
       try {
         filters = JSON.parse(data.filters) as Filter[];
       } catch {
-        throw issue("filters", "Invalid filters JSON");
+        throw issue.filters("Invalid filters JSON");
       }
     }
 
@@ -314,7 +314,7 @@ export const updateInfluxForm = form(
       );
 
     if (!influx) {
-      throw issue("sourceCollectionId", "Influx not found");
+      throw issue.sourceCollectionId("Influx not found");
     }
 
     const result = await updateInfluxFeature(userId, {
@@ -323,7 +323,7 @@ export const updateInfluxForm = form(
     });
 
     if (!result) {
-      throw issue("sourceCollectionId", "Failed to update influx");
+      throw issue.sourceCollectionId("Failed to update influx");
     }
 
     return { success: true };

@@ -1,26 +1,27 @@
+import { getStreamServer } from "$lib/server/startup";
+import { SourceType, matchesFilters, type UserSyncItem } from "@contfu/core";
+import { getSetting } from "@contfu/svc-backend/features/admin/getSetting";
+import { upsertSetting } from "@contfu/svc-backend/features/admin/upsertSetting";
+import { listInfluxesBySourceCollections } from "@contfu/svc-backend/features/influxes/listInfluxesBySourceCollections";
+import { enqueueSyncJobs } from "@contfu/svc-backend/features/sync-jobs/enqueueSyncJobs";
 import {
   decryptCredentials,
   encryptCredentials,
 } from "@contfu/svc-backend/infra/crypto/credentials";
 import { db } from "@contfu/svc-backend/infra/db/db";
 import {
-  sourceCollectionTable,
   connectionTable,
+  sourceCollectionTable,
   sourceTable,
   webhookLogTable,
 } from "@contfu/svc-backend/infra/db/schema";
-import { listInfluxesBySourceCollections } from "@contfu/svc-backend/features/influxes/listInfluxesBySourceCollections";
-import { enqueueSyncJobs } from "@contfu/svc-backend/features/sync-jobs/enqueueSyncJobs";
-import { getSetting } from "@contfu/svc-backend/features/admin/getSetting";
-import { upsertSetting } from "@contfu/svc-backend/features/admin/upsertSetting";
-import { getStreamServer } from "$lib/server/startup";
 import { genUid, uuidToBuffer } from "@contfu/svc-sources";
 import { fetchNotionPage, notionPropertiesToSchema } from "@contfu/svc-sources/notion";
-import { SourceType, matchesFilters, type UserSyncItem } from "@contfu/core";
 import { and, desc, eq, inArray } from "drizzle-orm";
+import { pack as msgpack } from "msgpackr";
 import crypto from "node:crypto";
 import { lru } from "tiny-lru";
-import { pack as msgpack } from "msgpackr";
+import * as v from "valibot";
 import type { RequestHandler } from "./$types";
 
 /** Maximum webhook logs to keep per source. */
@@ -35,19 +36,26 @@ const SETTING_OAUTH_TOKEN = "notion_oauth_verification_token";
 /** LRU cache for source collections by ref. */
 const sourceCollectionCache = lru<{ id: number; ref: Buffer | null }[]>(500, 5 * 60 * 1000);
 
-// ============================================================
-// Types
-// ============================================================
-
-interface NotionWebhookPayload {
-  verification_token?: string;
-  type?: string;
-  entity?: { id: string; type: string };
-  data?: {
-    parent?: { type: string; database_id?: string };
-    [key: string]: unknown;
-  };
-}
+const NotionWebhookPayloadSchema = v.looseObject({
+  verification_token: v.optional(v.string()),
+  type: v.optional(v.string()),
+  entity: v.optional(
+    v.object({
+      id: v.string(),
+      type: v.string(),
+    }),
+  ),
+  data: v.optional(
+    v.looseObject({
+      parent: v.optional(
+        v.looseObject({
+          type: v.string(),
+          database_id: v.optional(v.string()),
+        }),
+      ),
+    }),
+  ),
+});
 
 type SourceInfo = {
   userId: number;
@@ -55,10 +63,6 @@ type SourceInfo = {
   webhookSecret: Buffer | null;
   credentials: Buffer | null;
 };
-
-// ============================================================
-// Helpers
-// ============================================================
 
 async function logWebhookEvent(
   userId: number,
@@ -174,13 +178,20 @@ export const POST: RequestHandler = async ({ request, params }) => {
   const { uid } = params;
 
   const body = await request.text();
-  let payload: NotionWebhookPayload;
+  let parsed: unknown;
   try {
-    payload = JSON.parse(body);
+    parsed = JSON.parse(body);
   } catch {
     console.error("[Notion webhook] Invalid JSON payload");
     return new Response("Invalid payload", { status: 400 });
   }
+
+  const parseResult = v.safeParse(NotionWebhookPayloadSchema, parsed);
+  if (!parseResult.success) {
+    console.error("[Notion webhook] Invalid payload schema");
+    return new Response("Invalid payload", { status: 400 });
+  }
+  const payload = parseResult.output;
 
   // Determine mode: custom integration (uid matches a source) or OAuth (uid matches env var)
   const isOAuthMode = NOTION_WEBHOOK_SECRET && uid === NOTION_WEBHOOK_SECRET;
@@ -242,14 +253,17 @@ export const POST: RequestHandler = async ({ request, params }) => {
   if (isOAuthMode) {
     const encryptedToken = await getSetting(SETTING_OAUTH_TOKEN);
     if (!encryptedToken) {
-      console.error("[Notion webhook] OAuth token not configured");
-      return new Response("Unauthorized", { status: 401 });
-    }
-    const decrypted = await decryptCredentials(0, encryptedToken);
-    const secret = decrypted?.toString("utf8");
-    if (!secret || !validateSignature(body, request.headers, secret)) {
-      console.error("[Notion webhook] Invalid OAuth signature");
-      return new Response("Unauthorized", { status: 401 });
+      if (!payload.verification_token) {
+        console.error("[Notion webhook] OAuth token not configured");
+        return new Response("Unauthorized", { status: 401 });
+      }
+    } else {
+      const decrypted = await decryptCredentials(0, encryptedToken);
+      const secret = decrypted?.toString("utf8");
+      if (!secret || !validateSignature(body, request.headers, secret)) {
+        console.error("[Notion webhook] Invalid OAuth signature");
+        return new Response("Unauthorized", { status: 401 });
+      }
     }
   }
 
@@ -276,7 +290,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
     if (source.webhookSecret) {
       const decrypted = await decryptCredentials(source.userId, source.webhookSecret);
       const secret = decrypted?.toString("utf8");
-      if (secret && !validateSignature(body, request.headers, secret)) {
+      if (!secret || !validateSignature(body, request.headers, secret)) {
         console.error(
           `[Notion webhook] Invalid signature for source ${source.userId}:${source.id}`,
         );
@@ -290,6 +304,19 @@ export const POST: RequestHandler = async ({ request, params }) => {
         );
         return new Response("Unauthorized", { status: 401 });
       }
+    } else if (!payload.verification_token) {
+      console.error(
+        `[Notion webhook] Webhook secret not configured for source ${source.userId}:${source.id}`,
+      );
+      await logWebhookEvent(
+        source.userId,
+        source.id,
+        payload.type ?? "unknown",
+        null,
+        "unauthorized",
+        "Webhook secret not configured",
+      );
+      return new Response("Unauthorized", { status: 401 });
     }
   }
 
@@ -722,28 +749,53 @@ export const POST: RequestHandler = async ({ request, params }) => {
     }
 
     if (eventType === "data_source.content_updated") {
-      console.log(`[Notion webhook] Content updated for data source ${payload.entity.id}`);
+      const dataSourceId = payload.entity.id;
+      console.log(`[Notion webhook] Content updated for data source ${dataSourceId}`);
 
       if (source) {
-        // Find source collections for this source and enqueue sync jobs
-        const sourceCollections = await db
-          .select({ id: sourceCollectionTable.id })
-          .from(sourceCollectionTable)
-          .where(
-            and(
-              eq(sourceCollectionTable.userId, source.userId),
-              eq(sourceCollectionTable.sourceId, source.id),
-            ),
-          );
+        const credentials = source.credentials
+          ? await decryptCredentials(source.userId, source.credentials)
+          : null;
+        const token = credentials?.toString("utf8");
+        if (token) {
+          try {
+            const { notion } = await import("@contfu/svc-sources/notion");
+            const dataSource = await notion.dataSources.retrieve({
+              auth: token,
+              data_source_id: dataSourceId,
+            });
 
-        if (sourceCollections.length > 0) {
-          await enqueueSyncJobs(
-            db,
-            source.userId,
-            sourceCollections.map((c) => c.id),
-          );
+            const parentDbId =
+              "parent" in dataSource && dataSource.parent?.type === "database_id"
+                ? dataSource.parent.database_id
+                : null;
+
+            if (parentDbId) {
+              const ref = uuidToBuffer(parentDbId);
+              const sourceCollections = await db
+                .select({ id: sourceCollectionTable.id })
+                .from(sourceCollectionTable)
+                .where(
+                  and(
+                    eq(sourceCollectionTable.userId, source.userId),
+                    eq(sourceCollectionTable.sourceId, source.id),
+                    eq(sourceCollectionTable.ref, ref),
+                  ),
+                );
+
+              if (sourceCollections.length > 0) {
+                await enqueueSyncJobs(
+                  db,
+                  source.userId,
+                  sourceCollections.map((c) => c.id),
+                );
+              }
+            }
+          } catch (err) {
+            console.error(`[Notion webhook] Failed to retrieve data source:`, err);
+          }
         }
-        await logWebhookEvent(source.userId, source.id, eventType, payload.entity.id, "success");
+        await logWebhookEvent(source.userId, source.id, eventType, dataSourceId, "success");
       }
     }
 
