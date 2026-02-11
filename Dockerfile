@@ -21,6 +21,7 @@ WORKDIR /app
 COPY package.json bun.lock /app/
 COPY packages/core/package.json /app/packages/core/package.json
 COPY packages/service/backend/package.json /app/packages/service/backend/package.json
+COPY packages/service/sources/package.json /app/packages/service/sources/package.json
 COPY packages/service/sync/package.json /app/packages/service/sync/package.json
 COPY packages/service/app/package.json /app/packages/service/app/package.json
 COPY packages/client/core/package.json /app/packages/client/core/package.json
