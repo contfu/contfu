@@ -60,6 +60,8 @@ cd "$PROJECT_DIR"
 if [[ "$SKIP_BUILD" == "false" ]]; then
   echo "📦 Building packages..."
   bun run build
+  echo "📦 Building consumer app..."
+  bun run --filter 'demo-consumer-app' build
 else
   echo "⏭️  Skipping build (--skip-build)"
 fi

@@ -660,7 +660,7 @@ async function createArticleViaAPI(
  * (Strapi 5 only fires webhooks for Admin UI/API changes, not Content API)
  */
 async function sendArticleWebhook(
-  sourceId: number,
+  sourceUid: string,
   event: "entry.create" | "entry.update" | "entry.delete",
   article: {
     id: number;
@@ -688,7 +688,7 @@ async function sendArticleWebhook(
     },
   };
 
-  const webhookUrl = `${SERVICE_URL}/webhooks/strapi/${sourceId}`;
+  const webhookUrl = `${SERVICE_URL}/webhooks/strapi/${sourceUid}`;
   console.log(`[E2E] Sending ${event} webhook to ${webhookUrl} for article "${article.title}"`);
 
   const response = await fetch(webhookUrl, {
@@ -839,12 +839,12 @@ async function configureStrapiWebhook(page: Page, webhookUrl: string): Promise<v
 
 /**
  * Setup service app: login/register, create Strapi source, create client
- * Returns API key and sourceId for webhook configuration
+ * Returns API key and sourceUid for webhook configuration
  */
 async function setupServiceAppAndGetApiKey(
   page: Page,
   strapiApiToken: string,
-): Promise<{ apiKey: string; sourceId: string | null }> {
+): Promise<{ apiKey: string; sourceUid: string | null }> {
   console.log("[E2E] Setting up service app...");
 
   // Navigate directly to login page
@@ -869,15 +869,17 @@ async function setupServiceAppAndGetApiKey(
 
   await page.waitForURL(/\/sources\/\d+/, { timeout: 15000 });
 
-  // Capture source ID from URL for webhook configuration
+  // Capture source ID from URL and UID from the webhook URL input
   const sourceUrl = page.url();
   const sourceIdMatch = sourceUrl.match(/\/sources\/(\d+)/);
   const sourceId = sourceIdMatch ? sourceIdMatch[1] : null;
   console.log(`[E2E] Strapi source created (ID: ${sourceId})`);
 
-  // Configure Strapi webhook to notify service app of content changes
-  const webhookUrl = sourceId ? `${SERVICE_URL}/webhooks/strapi/${sourceId}` : "";
-  console.log(`[E2E] Webhook URL for this source: ${webhookUrl}`);
+  // Get source UID from test API (source detail page may not render in test mode)
+  const sourceResp = await fetch(`${SERVICE_URL}/api/test/source?id=${sourceId}`);
+  const sourceData = await sourceResp.json();
+  const sourceUid = sourceData.uid ?? null;
+  console.log(`[E2E] Webhook URL for this source: ${SERVICE_URL}/webhooks/strapi/${sourceUid}`);
 
   // Create a Collection with implicit SourceCollection creation via UI
   // Navigate to collections/new with sourceId and ref as query params
@@ -958,8 +960,8 @@ async function setupServiceAppAndGetApiKey(
     `[E2E] Captured consumer API key from service app (length: ${trimmedKey.length}, first 8 chars: ${trimmedKey.slice(0, 8)}...)`,
   );
 
-  // Return both apiKey and sourceId (sourceId captured earlier when creating source)
-  return { apiKey: trimmedKey, sourceId };
+  // Return both apiKey and sourceUid (sourceUid captured earlier when creating source)
+  return { apiKey: trimmedKey, sourceUid };
 }
 
 test.describe("E2E: Strapi → Service → Consumer Full Flow", () => {
@@ -969,7 +971,7 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow", () => {
   let strapiApiToken: string;
   let consumerApiKey: string;
   let strapiPage: Page;
-  let strapiSourceId: string | null;
+  let strapiSourceUid: string | null;
 
   test.beforeAll(async ({ browser }, testInfo) => {
     // Clean up any lingering processes from previous test attempts (e.g., retries)
@@ -1024,14 +1026,14 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow", () => {
 
     // ===== STEP 4: Setup Service app and get consumer API key =====
     const servicePage = await context.newPage();
-    const { apiKey, sourceId } = await setupServiceAppAndGetApiKey(servicePage, strapiApiToken);
+    const { apiKey, sourceUid } = await setupServiceAppAndGetApiKey(servicePage, strapiApiToken);
     consumerApiKey = apiKey;
-    strapiSourceId = sourceId;
+    strapiSourceUid = sourceUid;
     await servicePage.close();
 
     // ===== STEP 4b: Configure Strapi webhook to notify service app =====
-    if (sourceId) {
-      const webhookUrl = `${SERVICE_URL}/webhooks/strapi/${sourceId}`;
+    if (sourceUid) {
+      const webhookUrl = `${SERVICE_URL}/webhooks/strapi/${sourceUid}`;
       await configureStrapiWebhook(strapiPage, webhookUrl);
     }
 
@@ -1132,7 +1134,7 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow", () => {
     };
 
     try {
-      const webhookTestResponse = await fetch(`${SERVICE_URL}/webhooks/strapi/${strapiSourceId}`, {
+      const webhookTestResponse = await fetch(`${SERVICE_URL}/webhooks/strapi/${strapiSourceUid}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(testWebhookPayload),
@@ -1168,7 +1170,7 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow", () => {
 
     // Send webhook manually since Strapi 5 doesn't fire webhooks for Content API operations
     console.log("[E2E] Sending webhook for article1...");
-    await sendArticleWebhook(Number(strapiSourceId), "entry.create", {
+    await sendArticleWebhook(strapiSourceUid!, "entry.create", {
       id: article1.id,
       documentId: article1.documentId,
       title: "E2E Test Article",
@@ -1208,7 +1210,7 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow", () => {
     ); // true = publish immediately
 
     // Send webhook for second article
-    await sendArticleWebhook(Number(strapiSourceId), "entry.create", {
+    await sendArticleWebhook(strapiSourceUid!, "entry.create", {
       id: article2.id,
       documentId: article2.documentId,
       title: "E2E Second Article",
@@ -1226,7 +1228,7 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow", () => {
     });
 
     // Send webhook for article update
-    await sendArticleWebhook(Number(strapiSourceId), "entry.update", {
+    await sendArticleWebhook(strapiSourceUid!, "entry.update", {
       id: article1.id,
       documentId: article1.documentId,
       title: "E2E Updated Article",
@@ -1360,7 +1362,7 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow", () => {
     );
 
     // Send webhooks for both articles
-    await sendArticleWebhook(Number(strapiSourceId), "entry.create", {
+    await sendArticleWebhook(strapiSourceUid!, "entry.create", {
       id: matchingArticle.id,
       documentId: matchingArticle.documentId,
       title: "Matching Filter Article",
@@ -1368,7 +1370,7 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow", () => {
       description: "This is an IMPORTANT article that should pass the filter",
     });
 
-    await sendArticleWebhook(Number(strapiSourceId), "entry.create", {
+    await sendArticleWebhook(strapiSourceUid!, "entry.create", {
       id: nonMatchingArticle.id,
       documentId: nonMatchingArticle.documentId,
       title: "Non-Matching Article",

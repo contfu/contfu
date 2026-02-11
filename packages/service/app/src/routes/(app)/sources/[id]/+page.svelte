@@ -68,7 +68,7 @@
 
   // Generate webhook URL
   const webhookUrl = source
-    ? `${typeof window !== "undefined" ? window.location.origin : ""}/webhooks/strapi/${source.id}`
+    ? `${typeof window !== "undefined" ? window.location.origin : ""}/webhooks/strapi/${source.uid}`
     : "";
 
   async function handleTestConnection() {

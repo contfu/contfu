@@ -3,6 +3,7 @@
 Helm chart for deploying [Contfu](../../README.md) (proxy CMS) on a K3S/Kubernetes cluster.
 
 Manages three components:
+
 - **Contfu app** -- Deployment, Service, optional Ingress
 - **NATS** -- via official NATS Helm subchart (JetStream enabled)
 - **PostgreSQL** -- via CloudNativePG `Cluster` custom resource
@@ -47,70 +48,70 @@ All values are documented in [`values.yaml`](./values.yaml). Key sections:
 
 ### Image
 
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `image.repository` | Container image repository | `ghcr.io/contfu/contfu-app` |
-| `image.tag` | Image tag (defaults to chart `appVersion`) | `""` |
-| `image.pullPolicy` | Pull policy | `IfNotPresent` |
+| Parameter          | Description                                | Default                     |
+| ------------------ | ------------------------------------------ | --------------------------- |
+| `image.repository` | Container image repository                 | `ghcr.io/contfu/contfu-app` |
+| `image.tag`        | Image tag (defaults to chart `appVersion`) | `""`                        |
+| `image.pullPolicy` | Pull policy                                | `IfNotPresent`              |
 
 ### Application
 
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `app.origin` | Public URL of the app (`ORIGIN`) | `http://localhost:3000` |
-| `app.betterAuthUrl` | BetterAuth callback URL (defaults to `origin`) | `""` |
-| `app.migrationsPath` | Path to DB migrations inside the container | `/app/packages/service/backend/db/migrations` |
-| `app.syncWorkerPath` | Path to sync worker inside the container | `/app/packages/service/sync/src/worker.ts` |
+| Parameter            | Description                                    | Default                                       |
+| -------------------- | ---------------------------------------------- | --------------------------------------------- |
+| `app.origin`         | Public URL of the app (`ORIGIN`)               | `http://localhost:3000`                       |
+| `app.betterAuthUrl`  | BetterAuth callback URL (defaults to `origin`) | `""`                                          |
+| `app.migrationsPath` | Path to DB migrations inside the container     | `/app/packages/service/backend/db/migrations` |
+| `app.syncWorkerPath` | Path to sync worker inside the container       | `/app/packages/service/sync/src/worker.ts`    |
 
 ### Secrets
 
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `secrets.existingSecret` | Use a pre-created Secret instead of chart-managed one | `""` |
-| `secrets.betterAuthSecret` | BetterAuth signing secret | `""` |
-| `secrets.googleClientId` | Google OAuth client ID | `""` |
-| `secrets.googleClientSecret` | Google OAuth client secret | `""` |
-| `secrets.githubClientId` | GitHub OAuth client ID | `""` |
-| `secrets.githubClientSecret` | GitHub OAuth client secret | `""` |
-| `secrets.polarAccessToken` | Polar billing API token | `""` |
-| `secrets.polarWebhookSecret` | Polar webhook secret | `""` |
+| Parameter                    | Description                                           | Default |
+| ---------------------------- | ----------------------------------------------------- | ------- |
+| `secrets.existingSecret`     | Use a pre-created Secret instead of chart-managed one | `""`    |
+| `secrets.betterAuthSecret`   | BetterAuth signing secret                             | `""`    |
+| `secrets.googleClientId`     | Google OAuth client ID                                | `""`    |
+| `secrets.googleClientSecret` | Google OAuth client secret                            | `""`    |
+| `secrets.githubClientId`     | GitHub OAuth client ID                                | `""`    |
+| `secrets.githubClientSecret` | GitHub OAuth client secret                            | `""`    |
+| `secrets.polarAccessToken`   | Polar billing API token                               | `""`    |
+| `secrets.polarWebhookSecret` | Polar webhook secret                                  | `""`    |
 
 ### Ingress
 
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `ingress.enabled` | Enable Ingress resource | `false` |
-| `ingress.className` | Ingress class | `traefik` |
-| `ingress.hosts` | Host rules | `[{host: contfu.local, paths: [{path: /, pathType: Prefix}]}]` |
-| `ingress.tls` | TLS configuration | `[]` |
+| Parameter           | Description             | Default                                                        |
+| ------------------- | ----------------------- | -------------------------------------------------------------- |
+| `ingress.enabled`   | Enable Ingress resource | `false`                                                        |
+| `ingress.className` | Ingress class           | `traefik`                                                      |
+| `ingress.hosts`     | Host rules              | `[{host: contfu.local, paths: [{path: /, pathType: Prefix}]}]` |
+| `ingress.tls`       | TLS configuration       | `[]`                                                           |
 
 ### PostgreSQL (CloudNativePG)
 
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `postgresql.enabled` | Deploy a CNPG Cluster | `true` |
-| `postgresql.instances` | Number of PostgreSQL instances | `1` |
-| `postgresql.imageName` | PostgreSQL image | `ghcr.io/cloudnative-pg/postgresql:17.4` |
-| `postgresql.database` | Database name | `contfu` |
-| `postgresql.owner` | Database owner | `contfu` |
-| `postgresql.storage.size` | PVC size | `5Gi` |
-| `postgresql.storage.storageClass` | Storage class (empty = cluster default) | `""` |
+| Parameter                         | Description                             | Default                                  |
+| --------------------------------- | --------------------------------------- | ---------------------------------------- |
+| `postgresql.enabled`              | Deploy a CNPG Cluster                   | `true`                                   |
+| `postgresql.instances`            | Number of PostgreSQL instances          | `1`                                      |
+| `postgresql.imageName`            | PostgreSQL image                        | `ghcr.io/cloudnative-pg/postgresql:17.4` |
+| `postgresql.database`             | Database name                           | `contfu`                                 |
+| `postgresql.owner`                | Database owner                          | `contfu`                                 |
+| `postgresql.storage.size`         | PVC size                                | `5Gi`                                    |
+| `postgresql.storage.storageClass` | Storage class (empty = cluster default) | `""`                                     |
 
 ### NATS
 
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `nats.enabled` | Deploy NATS subchart | `true` |
-| `nats.config.jetstream.enabled` | Enable JetStream | `true` |
-| `nats.config.jetstream.fileStore.pvc.size` | JetStream PVC size | `2Gi` |
+| Parameter                                  | Description          | Default |
+| ------------------------------------------ | -------------------- | ------- |
+| `nats.enabled`                             | Deploy NATS subchart | `true`  |
+| `nats.config.jetstream.enabled`            | Enable JetStream     | `true`  |
+| `nats.config.jetstream.fileStore.pvc.size` | JetStream PVC size   | `2Gi`   |
 
 ### Resources
 
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `resources.requests.cpu` | CPU request | `100m` |
+| Parameter                   | Description    | Default |
+| --------------------------- | -------------- | ------- |
+| `resources.requests.cpu`    | CPU request    | `100m`  |
 | `resources.requests.memory` | Memory request | `256Mi` |
-| `resources.limits.memory` | Memory limit | `512Mi` |
+| `resources.limits.memory`   | Memory limit   | `512Mi` |
 
 ## Examples
 
@@ -141,7 +142,7 @@ app:
   origin: https://contfu.example.com
 
 secrets:
-  existingSecret: contfu-secrets  # managed by External Secrets Operator
+  existingSecret: contfu-secrets # managed by External Secrets Operator
 
 ingress:
   enabled: true
@@ -188,17 +189,17 @@ Your secret must contain at minimum the `BETTER_AUTH_SECRET` key.
 
 ## What Gets Created
 
-| Resource | Name | Notes |
-|----------|------|-------|
-| ServiceAccount | `<release>` | |
-| ConfigMap | `<release>` | Non-secret env vars |
-| Secret | `<release>` | Skipped if `existingSecret` is set |
-| Deployment | `<release>` | App container + init container |
-| Service | `<release>` | ClusterIP on port 3000 |
-| Ingress | `<release>` | Only if `ingress.enabled` |
-| CNPG Cluster | `<release>-pg` | Creates `-rw`, `-ro`, `-r` services and `<release>-pg-app` credentials secret |
-| NATS StatefulSet | `<release>-nats` | Via subchart |
-| HPA | `<release>` | Only if `autoscaling.enabled` |
+| Resource         | Name             | Notes                                                                         |
+| ---------------- | ---------------- | ----------------------------------------------------------------------------- |
+| ServiceAccount   | `<release>`      |                                                                               |
+| ConfigMap        | `<release>`      | Non-secret env vars                                                           |
+| Secret           | `<release>`      | Skipped if `existingSecret` is set                                            |
+| Deployment       | `<release>`      | App container + init container                                                |
+| Service          | `<release>`      | ClusterIP on port 3000                                                        |
+| Ingress          | `<release>`      | Only if `ingress.enabled`                                                     |
+| CNPG Cluster     | `<release>-pg`   | Creates `-rw`, `-ro`, `-r` services and `<release>-pg-app` credentials secret |
+| NATS StatefulSet | `<release>-nats` | Via subchart                                                                  |
+| HPA              | `<release>`      | Only if `autoscaling.enabled`                                                 |
 
 ## Deployment Flow
 
