@@ -1,11 +1,12 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: { { include "contfu.fullname" . } }
-  labels: { { - include "contfu.labels" . | nindent 4 } }
+  name: {{ include "contfu.fullname" . }}
+  labels:
+    {{- include "contfu.labels" . | nindent 4 }}
 data:
-  ORIGIN: { { .Values.app.origin | quote } }
-  BETTER_AUTH_URL: { { .Values.app.betterAuthUrl | default .Values.app.origin | quote } }
-  MIGRATIONS_PATH: { { .Values.app.migrationsPath | quote } }
-  SYNC_WORKER_PATH: { { .Values.app.syncWorkerPath | quote } }
-  NATS_SERVER: { { printf "nats://%s:4222" (include "contfu.nats.fullname" .) | quote } }
+  ORIGIN: {{ .Values.app.origin | quote }}
+  BETTER_AUTH_URL: {{ .Values.app.betterAuthUrl | default .Values.app.origin | quote }}
+  MIGRATIONS_PATH: {{ .Values.app.migrationsPath | quote }}
+  SYNC_WORKER_PATH: {{ .Values.app.syncWorkerPath | quote }}
+  NATS_SERVER: {{ printf "nats://%s:4222" (include "contfu.nats.fullname" .) | quote }}
