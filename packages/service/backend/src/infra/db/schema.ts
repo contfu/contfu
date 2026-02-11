@@ -9,6 +9,7 @@ import {
   primaryKey,
   text,
   timestamp,
+  uuid,
 } from "drizzle-orm/pg-core";
 import { UserRole, type UserRole as UserRoleType } from "./constants";
 
@@ -153,7 +154,7 @@ export const sourceTable = pgTable(
     /** The id which is unique within the user. */
     id: integer().notNull(),
     /** Globally unique identifier for webhook URLs. */
-    uid: text().unique().notNull(),
+    uid: uuid().unique().notNull(),
     /** The name of the source. */
     name: text(),
     /** The url of the upstream source. Can be empty, if it is a centralized SaaS source. */

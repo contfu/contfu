@@ -1,84 +1,55 @@
-import { db } from "@contfu/svc-backend/infra/db/db";
+/**
+ * Webhook E2E test seed data.
+ * Called by global-setup.ts before the server starts.
+ * Constants are shared with notion-webhooks.e2e.ts.
+ */
+import { SourceType } from "@contfu/core";
 import { encryptCredentials } from "@contfu/svc-backend/infra/crypto/credentials";
 import {
-  userTable,
-  sourceTable,
-  sourceCollectionTable,
   collectionTable,
-  influxTable,
-  consumerTable,
   connectionTable,
+  consumerTable,
+  influxTable,
+  sourceCollectionTable,
+  sourceTable,
+  userTable,
 } from "@contfu/svc-backend/infra/db/schema";
-import { SourceType } from "@contfu/core";
-import { uuidToBuffer } from "@contfu/svc-sources";
 import { and, eq, sql } from "drizzle-orm";
 import crypto from "node:crypto";
-import type { RequestHandler } from "./$types";
 
-const SOURCE_UID = "test-notion-webhook-uid";
+/** Well-known test source UID — must match the test file. */
+export const SOURCE_UID = "00000001-0000-4000-a000-000000000001";
+
 const MOCK_DATABASE_ID = "11111111-2222-3333-4444-555555555555";
 const MOCK_TOKEN = "mock-notion-token";
-const CONSUMER_KEY = crypto.randomBytes(32);
 
-export const POST: RequestHandler = async () => {
-  if (process.env.TEST_MODE !== "true") {
-    return new Response("Not available", { status: 403 });
-  }
-
-  // Find test user
+/**
+ * Seeds the full webhook test pipeline:
+ * source → source collection → collection → influx → consumer → connection.
+ */
+export async function seedWebhookData(db: any): Promise<void> {
   const [user] = await db
     .select({ id: userTable.id })
     .from(userTable)
     .where(eq(userTable.email, "test@test.com"))
     .limit(1);
 
-  if (!user) {
-    return Response.json({ error: "Test user not found" }, { status: 404 });
-  }
+  if (!user) return;
 
   const userId = user.id;
 
-  // Check if source already exists (idempotent)
-  const [existingSource] = await db
-    .select({ id: sourceTable.id, uid: sourceTable.uid })
+  // Idempotent — skip if already seeded
+  const [existing] = await db
+    .select({ id: sourceTable.id })
     .from(sourceTable)
     .where(and(eq(sourceTable.userId, userId), eq(sourceTable.uid, SOURCE_UID)))
     .limit(1);
 
-  if (existingSource) {
-    // Return existing data
-    const [sc] = await db
-      .select({ id: sourceCollectionTable.id })
-      .from(sourceCollectionTable)
-      .where(
-        and(
-          eq(sourceCollectionTable.userId, userId),
-          eq(sourceCollectionTable.sourceId, existingSource.id),
-        ),
-      )
-      .limit(1);
-    const [col] = await db
-      .select({ id: collectionTable.id })
-      .from(collectionTable)
-      .where(eq(collectionTable.userId, userId))
-      .limit(1);
-    const [con] = await db
-      .select({ key: consumerTable.key })
-      .from(consumerTable)
-      .where(eq(consumerTable.userId, userId))
-      .limit(1);
+  if (existing) return;
 
-    return Response.json({
-      sourceUid: SOURCE_UID,
-      consumerKey: con?.key ? Buffer.from(con.key).toString("base64url") : null,
-      collectionId: col?.id ?? null,
-      sourceCollectionId: sc?.id ?? null,
-    });
-  }
-
-  // Create source
   const encryptedCredentials = await encryptCredentials(userId, Buffer.from(MOCK_TOKEN, "utf8"));
 
+  // Source
   const maxSourceId = await db
     .select({ maxId: sql<number>`coalesce(max(id), 0)` })
     .from(sourceTable)
@@ -95,8 +66,8 @@ export const POST: RequestHandler = async () => {
     credentials: encryptedCredentials,
   });
 
-  // Create source collection with ref = MOCK_DATABASE_ID
-  const ref = uuidToBuffer(MOCK_DATABASE_ID);
+  // Source collection (ref = mock Notion database ID)
+  const ref = Buffer.from(MOCK_DATABASE_ID.replace(/-/g, ""), "hex");
   const maxScId = await db
     .select({ maxId: sql<number>`coalesce(max(id), 0)` })
     .from(sourceCollectionTable)
@@ -112,7 +83,7 @@ export const POST: RequestHandler = async () => {
     ref,
   });
 
-  // Create target collection
+  // Target collection
   const maxColId = await db
     .select({ maxId: sql<number>`coalesce(max(id), 0)` })
     .from(collectionTable)
@@ -126,7 +97,7 @@ export const POST: RequestHandler = async () => {
     name: "Test Webhook Collection",
   });
 
-  // Create influx: sourceCollection -> collection (no filters)
+  // Influx: source collection → collection
   const maxInfluxId = await db
     .select({ maxId: sql<number>`coalesce(max(id), 0)` })
     .from(influxTable)
@@ -141,7 +112,7 @@ export const POST: RequestHandler = async () => {
     sourceCollectionId: scId,
   });
 
-  // Create consumer with known key
+  // Consumer
   const maxConsumerId = await db
     .select({ maxId: sql<number>`coalesce(max(id), 0)` })
     .from(consumerTable)
@@ -152,21 +123,14 @@ export const POST: RequestHandler = async () => {
   await db.insert(consumerTable).values({
     userId,
     id: consumerId,
-    key: CONSUMER_KEY,
+    key: crypto.randomBytes(32),
     name: "Test Webhook Consumer",
   });
 
-  // Create connection: consumer -> collection
+  // Connection: consumer → collection
   await db.insert(connectionTable).values({
     userId,
     consumerId,
     collectionId: colId,
   });
-
-  return Response.json({
-    sourceUid: SOURCE_UID,
-    consumerKey: Buffer.from(CONSUMER_KEY).toString("base64url"),
-    collectionId: colId,
-    sourceCollectionId: scId,
-  });
-};
+}

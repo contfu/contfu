@@ -9,6 +9,7 @@ import {
   userTable,
 } from "../../infra/db/schema";
 import { pack } from "msgpackr";
+import crypto from "node:crypto";
 import {
   FilterOperator,
   IncidentType,
@@ -65,6 +66,7 @@ describe.skipIf(isDbMocked)("Incident Features", () => {
       .values({
         userId: testUserId,
         id: 1,
+        uid: crypto.randomUUID(),
         type: 1,
         name: "Test Source",
       })

@@ -125,7 +125,7 @@ CREATE TABLE "source_collection" (
 CREATE TABLE "source" (
 	"userId" integer,
 	"id" integer,
-	"uid" text NOT NULL UNIQUE,
+	"uid" uuid NOT NULL UNIQUE,
 	"name" text,
 	"url" text,
 	"credentials" bytea,

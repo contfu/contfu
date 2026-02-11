@@ -1,12 +1,17 @@
+import path from "node:path";
 import { defineConfig, devices } from "@playwright/test";
 
 // Use a different port for E2E tests to avoid conflicts with other services
 const TEST_PORT = 4173;
 const MOCK_NOTION_PORT = 4174;
 
+// File-based PGlite database shared between globalSetup (seeding) and the server
+const PGLITE_DATA_DIR = path.join(import.meta.dir, "tests/.pglite-e2e");
+
 export default defineConfig({
   testDir: "./tests",
   testMatch: "**/*.e2e.ts",
+  globalSetup: "./tests/global-setup.ts",
   fullyParallel: false, // Run tests sequentially for auth state
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
@@ -45,6 +50,7 @@ export default defineConfig({
       env: {
         ORIGIN: `http://localhost:${TEST_PORT}`,
         VITE_BETTER_AUTH_URL: `http://localhost:${TEST_PORT}`,
+        PGLITE_DATA_DIR,
       },
     },
   ],

@@ -179,6 +179,7 @@ dist
 /data
 build/
 playwright-report
+.pglite-e2e
 .svelte-kit
 test-results/
 packages/service/app/data

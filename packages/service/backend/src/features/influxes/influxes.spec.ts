@@ -8,6 +8,7 @@ import {
   userTable,
 } from "../../infra/db/schema";
 import { pack } from "msgpackr";
+import crypto from "node:crypto";
 import { FilterOperator, PropertyType, type CollectionSchema, type Filter } from "@contfu/core";
 import { createInflux } from "./createInflux";
 import { getInflux } from "./getInflux";
@@ -59,6 +60,7 @@ describe.skipIf(isDbMocked)("Influx Features", () => {
       .values({
         userId: testUserId,
         id: 1,
+        uid: crypto.randomUUID(),
         type: 1,
         name: "Test Source",
       })
@@ -173,6 +175,7 @@ describe.skipIf(isDbMocked)("Influx Features", () => {
       await db.insert(sourceTable).values({
         userId: user2.id,
         id: 1,
+        uid: crypto.randomUUID(),
         type: 1,
         name: "User2 Source",
       });

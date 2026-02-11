@@ -10,6 +10,17 @@ const migrationsFolder =
 /** Direct SQL client for raw queries (production only, undefined in test mode) */
 export let dbClient: import("bun").SQL | undefined;
 
+/** PGlite client reference (test mode only) — used by closeDb() */
+let pgliteClient: { close(): Promise<void> } | undefined;
+
+/** Close the underlying database connection. Needed in E2E globalSetup to release the file lock. */
+export async function closeDb() {
+  if (pgliteClient) {
+    await pgliteClient.close();
+    pgliteClient = undefined;
+  }
+}
+
 async function createDb() {
   // Skip database initialization during SvelteKit build (no database available)
   if (process.env.SKIP_DB_INIT === "true") {
@@ -19,7 +30,8 @@ async function createDb() {
   if (isTestMode) {
     const { PGlite } = await import("@electric-sql/pglite");
     const { drizzle } = await import("drizzle-orm/pglite");
-    const client = new PGlite();
+    const client = new PGlite(process.env.PGLITE_DATA_DIR);
+    pgliteClient = client;
     const database = drizzle({ client, schema });
 
     // Apply schema via migrations (pushSchema has drizzle-kit import conflict)

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "bun:test";
+import crypto from "node:crypto";
 import { truncateAllTables } from "../../../test/setup";
 import { db } from "./db";
 import { sourceTable, userTable, webhookLogTable } from "./schema";
@@ -35,6 +36,7 @@ describe.skipIf(isDbMocked)("Webhook Logging", () => {
         .values({
           userId: user.id,
           id: 1,
+          uid: crypto.randomUUID(),
           type: 1,
           name: "Test Source",
         })
@@ -72,6 +74,7 @@ describe.skipIf(isDbMocked)("Webhook Logging", () => {
         .values({
           userId: user.id,
           id: 1,
+          uid: crypto.randomUUID(),
           type: 1,
           name: "Test Source",
         })
@@ -106,6 +109,7 @@ describe.skipIf(isDbMocked)("Webhook Logging", () => {
         .values({
           userId: user.id,
           id: 1,
+          uid: crypto.randomUUID(),
           type: 1,
           name: "Test Source",
         })
@@ -140,6 +144,7 @@ describe.skipIf(isDbMocked)("Webhook Logging", () => {
         .values({
           userId: user.id,
           id: 1,
+          uid: crypto.randomUUID(),
           type: 1,
           name: "Test Source",
         })
@@ -174,6 +179,7 @@ describe.skipIf(isDbMocked)("Webhook Logging", () => {
         .values({
           userId: user.id,
           id: 1,
+          uid: crypto.randomUUID(),
           type: 1,
           name: "FK Test Source",
         })
