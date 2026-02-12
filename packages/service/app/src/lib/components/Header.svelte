@@ -87,6 +87,7 @@
                 )
                   ? 'text-foreground font-medium'
                   : 'text-muted-foreground hover:text-foreground'}"
+                title={label}
               >
                 <Icon class="size-4" />
                 {label}
@@ -107,7 +108,7 @@
                           >{user.name.charAt(0)}</Avatar.Fallback
                         >
                       </Avatar.Root>
-                      <div class="grid flex-1 text-start text-sm leading-tight">
+                      <div class="hidden flex-1 text-start text-sm leading-tight sm:grid">
                         <span class="truncate font-medium">{user.name}</span>
                         <span class="text-muted-foreground truncate text-xs">
                           {user.email}

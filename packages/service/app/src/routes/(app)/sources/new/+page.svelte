@@ -1,5 +1,6 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
+  import { page } from "$app/state";
   import * as Alert from "$lib/components/ui/alert";
   import { Button } from "$lib/components/ui/button";
   import { Input } from "$lib/components/ui/input";
@@ -8,6 +9,7 @@
   import { listLinkedAccounts } from "$lib/remote/accounts.remote";
   import { createSource, testNewConnection, createNotionSourceFromOAuth } from "$lib/remote/sources.remote";
   import { authClient } from "$lib/auth-client";
+  import { persistFormState, restoreFormState, clearFormState } from "$lib/utils/formState";
   import { useId } from "bits-ui";
 
   const nameId = useId();
@@ -52,6 +54,46 @@
     }
   });
 
+  // Restore form state after OAuth redirect
+  $effect(() => {
+    const params = page.url?.searchParams;
+    if (params?.get("type") === "notion" && params?.get("linked") === "1") {
+      // Restore persisted form state
+      const restored = restoreFormState();
+      if (restored) {
+        // Restore state variables
+        selectedType = restored.selectedType;
+        selectedAuthType = restored.selectedAuthType;
+        useOAuth = restored.useOAuth;
+
+        // Restore name input value
+        const nameInput = document.querySelector<HTMLInputElement>('input[name="name"]');
+        if (nameInput && restored.name) {
+          nameInput.value = restored.name;
+        }
+
+        // Restore url input if present
+        if (restored.url) {
+          const urlInput = document.querySelector<HTMLInputElement>('input[name="url"]');
+          if (urlInput) {
+            urlInput.value = restored.url;
+          }
+        }
+
+        // Restore credentials if present
+        if (restored._credentials) {
+          const credentialsInput = document.querySelector<HTMLInputElement>('input[name="_credentials"]');
+          if (credentialsInput) {
+            credentialsInput.value = restored._credentials;
+          }
+        }
+
+        // Update Notion linked status
+        notionLinked = true;
+      }
+    }
+  });
+
   async function checkNotionLinked() {
     try {
       const accounts = await listLinkedAccounts();
@@ -64,6 +106,21 @@
   async function handleConnectNotion() {
     oauthPending = true;
     oauthError = null;
+
+    // Persist form state before OAuth redirect
+    const nameInput = document.querySelector<HTMLInputElement>('input[name="name"]');
+    const urlInput = document.querySelector<HTMLInputElement>('input[name="url"]');
+    const credentialsInput = document.querySelector<HTMLInputElement>('input[name="_credentials"]');
+
+    persistFormState({
+      name: nameInput?.value || "",
+      selectedType,
+      selectedAuthType,
+      useOAuth,
+      url: urlInput?.value || undefined,
+      _credentials: credentialsInput?.value || undefined,
+    });
+
     try {
       await authClient.linkSocial({
         provider: "notion",
@@ -93,6 +150,7 @@
       if ("error" in result) {
         oauthError = result.error;
       } else {
+        clearFormState();
         goto(`/sources/${result.id}`);
       }
     } catch (error) {
