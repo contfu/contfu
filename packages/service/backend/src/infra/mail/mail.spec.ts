@@ -5,7 +5,7 @@ const mockSendMail = mock();
 Bun.env.SMTP_HOST = "foobar.com";
 Bun.env.SMTP_USER = "test@test.com";
 
-mock.module("nodemailer", () => {
+await mock.module("nodemailer", () => {
   return {
     createTransport: () => {
       return {

@@ -85,7 +85,7 @@ export async function startSyncConnection(): Promise<void> {
     syncStarted = false;
     // Retry connection after a delay
     console.info("[SYNC] Will retry in 5 seconds...");
-    setTimeout(startSyncConnection, 5000);
+    setTimeout(() => void startSyncConnection(), 5000);
   }
 }
 

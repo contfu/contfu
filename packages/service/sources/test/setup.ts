@@ -11,7 +11,7 @@ import { mockClient } from "../src/notion/__tests__/notion-mock-setup";
 Error.stackTraceLimit = Infinity;
 
 // Mock @notionhq/client module with real helpers
-mock.module("@notionhq/client", () => ({
+await mock.module("@notionhq/client", () => ({
   isFullPage,
   isFullBlock,
   isFullDatabase,

@@ -16,7 +16,7 @@ const MockSitemapper = mock(() => ({
 }));
 
 // Apply mock before importing the module under test
-mock.module("sitemapper", () => ({
+await mock.module("sitemapper", () => ({
   default: MockSitemapper,
 }));
 

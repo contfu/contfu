@@ -12,12 +12,12 @@ if (!building) {
   });
 
   // Register shutdown handler for graceful cleanup
-  process.on("SIGTERM", async () => {
-    await shutdown();
+  process.on("SIGTERM", () => {
+    void shutdown();
   });
 
-  process.on("SIGINT", async () => {
-    await shutdown();
+  process.on("SIGINT", () => {
+    void shutdown();
   });
 }
 

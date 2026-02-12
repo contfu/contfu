@@ -21,6 +21,7 @@
     "dev": "bun run --filter '@contfu/svc-backend' build && bun run --filter '@contfu/svc-backend' dev & bun run --parallel --filter '@contfu/*app' dev",
     "fmt": "oxfmt",
     "lint": "oxlint",
+    "lint:types": "oxlint --type-aware",
     "typecheck": "tsc -b"
   },
   "dependencies": {
@@ -35,6 +36,7 @@
     "@typescript/native-preview": "^7.0.0-dev.20260211.1",
     "oxfmt": "^0.31.0",
     "oxlint": "^1.46.0",
+    "oxlint-tsgolint": "^0.12.1",
     "playwright": "1.58.2"
   },
   "peerDependencies": {

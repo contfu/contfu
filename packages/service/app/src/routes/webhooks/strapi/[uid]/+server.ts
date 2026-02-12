@@ -371,7 +371,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
         console.log(
           `[Strapi webhook] Broadcasting to ${collectionConnections.length} consumer(s) for collection ${collectionId}`,
         );
-        streamServer.broadcast([item], collectionConnections);
+        void streamServer.broadcast([item], collectionConnections);
         itemsBroadcast += collectionConnections.length;
       }
     }

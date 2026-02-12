@@ -156,7 +156,7 @@ async function spawnProcess(
           await sleep(500);
         }
       };
-      pollUrl();
+      void pollUrl();
     }
   });
 }

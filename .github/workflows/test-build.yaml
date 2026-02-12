@@ -6,10 +6,34 @@ on:
       - main
 
 jobs:
-  test:
-    name: Tests
+  lint-and-test:
+    name: Lint & Unit Tests
     runs-on: [self-hosted, macOS, ARM64]
-    timeout-minutes: 25
+    timeout-minutes: 10
+    env:
+      CI: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile --ignore-scripts
+
+      - name: Generate SvelteKit types
+        run: |
+          for dir in packages/service/app packages/client/app demos/consumer-app; do
+            (cd $dir && bun svelte-kit sync)
+          done
+
+      - name: Lint (type-aware)
+        run: bun run lint:types
+
+      - name: Run unit tests
+        run: bun run test
+
+  e2e:
+    name: Build & E2E Tests
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 20
     env:
       E2E_FULL_FLOW: true
       STRAPI_HOST: localhost
@@ -20,29 +44,14 @@ jobs:
 
       - name: Start NATS service
         run: |
-          docker run -d --name nats-test \
+          docker run -d --name nats-e2e \
             -p 4222:4222 \
             -p 8222:8222 \
             nats:2.12-linux --jetstream -m 8222
 
-      - name: Wait for NATS
-        run: |
-          echo "Waiting for NATS..."
-          for i in $(seq 1 30); do
-            if curl -sf http://localhost:8222/healthz > /dev/null 2>&1; then
-              echo "NATS is ready!"
-              exit 0
-            fi
-            echo "Waiting... ($i/30)"
-            sleep 1
-          done
-          echo "NATS failed to start"
-          docker logs nats-test
-          exit 1
-
       - name: Start Strapi service
         run: |
-          docker run -d --name strapi-test \
+          docker run -d --name strapi-e2e \
             -p 1337:1337 \
             -e NODE_ENV=development \
             -e HOST=0.0.0.0 \
@@ -57,12 +66,6 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile --ignore-scripts
 
-      - name: Lint
-        run: bun run lint
-
-      - name: Type check
-        run: bun run typecheck
-
       - name: Build all packages
         run: bun run build
 
@@ -70,23 +73,19 @@ jobs:
         run: bun run build
         working-directory: demos/consumer-app
 
-      - name: Run unit tests
-        run: bun run test
-
-      - name: Wait for Strapi
+      - name: Wait for services
         run: |
+          echo "Waiting for NATS..."
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8222/healthz > /dev/null 2>&1 && break
+            sleep 1
+          done
           echo "Waiting for Strapi..."
           for i in $(seq 1 60); do
-            if curl -sf http://localhost:1337/_health > /dev/null 2>&1; then
-              echo "Strapi is ready!"
-              exit 0
-            fi
-            echo "Waiting... ($i/60)"
+            curl -sf http://localhost:1337/_health > /dev/null 2>&1 && exit 0
             sleep 2
           done
-          echo "Strapi failed to start"
-          docker logs strapi-test
-          exit 1
+          docker logs strapi-e2e && exit 1
 
       - name: Run E2E tests
         run: DEBUG=pw:api bun run test:e2e --reporter=list
@@ -96,8 +95,8 @@ jobs:
       - name: Cleanup
         if: always()
         run: |
-          docker stop strapi-test nats-test || true
-          docker rm strapi-test nats-test || true
+          docker stop strapi-e2e nats-e2e || true
+          docker rm strapi-e2e nats-e2e || true
 
   build:
     name: Build Docker image

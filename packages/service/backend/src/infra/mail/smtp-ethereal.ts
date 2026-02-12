@@ -11,7 +11,7 @@ export async function sendSmtp(opts: {
   const info = await transport.sendMail(opts);
   const link = getTestMessageUrl(info);
   if (link) {
-    Bun.write(".tmp/last-sent-email-link.txt", link);
+    void Bun.write(".tmp/last-sent-email-link.txt", link);
     console.log("Ethereal email link:", link);
   }
   return info;
@@ -19,7 +19,7 @@ export async function sendSmtp(opts: {
 
 console.warn("To send emails, provide SMTP configuration. Using ethereal.email for testing.");
 
-rm(".tmp/last-sent-email-link.txt", { force: true });
+void rm(".tmp/last-sent-email-link.txt", { force: true });
 
 const { user, pass } = await createTestAccount();
 

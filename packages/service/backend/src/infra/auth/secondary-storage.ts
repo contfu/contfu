@@ -78,22 +78,29 @@ export async function createNatsKvSessionStorage(): Promise<SecondaryStorage | u
 async function handleRemoteInvalidations() {
   const sessionsBucket = await getSessionsBucket();
   const userSessionsBucket = await getUserSessionsBucket();
-  sessionsBucket.watch({ include: KvWatchInclude.UpdatesOnly }).then(async (watcher) => {
-    for await (const event of watcher) {
-      if (event.operation === "DEL") {
-        const { key } = event;
-        sessionsCache.delete(key);
+  void sessionsBucket
+    .watch({ include: KvWatchInclude.UpdatesOnly })
+    .then(async (watcher) => {
+      for await (const event of watcher) {
+        if (event.operation === "DEL") {
+          const { key } = event;
+          sessionsCache.delete(key);
+        }
       }
-    }
-  });
-  userSessionsBucket.watch({ include: KvWatchInclude.UpdatesOnly }).then(async (watcher) => {
-    for await (const event of watcher) {
-      if (event.operation === "DEL") {
-        const { key } = event;
-        activeSessionsCache.delete(key);
+    })
+    .catch((err) => console.error("Session cache watcher error:", err));
+
+  void userSessionsBucket
+    .watch({ include: KvWatchInclude.UpdatesOnly })
+    .then(async (watcher) => {
+      for await (const event of watcher) {
+        if (event.operation === "DEL") {
+          const { key } = event;
+          activeSessionsCache.delete(key);
+        }
       }
-    }
-  });
+    })
+    .catch((err) => console.error("User sessions cache watcher error:", err));
 }
 
 async function getFromCacheOrBucket(
