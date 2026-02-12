@@ -6,9 +6,13 @@
   import * as DropdownMenu from "$lib/components/ui/dropdown-menu";
   import {
     CreditCardIcon,
+    DatabaseIcon,
     EllipsisVerticalIcon,
+    FoldersIcon,
+    LayoutDashboardIcon,
     LogOutIcon,
     UserCogIcon,
+    UsersIcon,
   } from "@lucide/svelte";
   import ThemeToggle from "./ThemeToggle.svelte";
 
@@ -35,10 +39,10 @@
   let isOpen = $state(false);
 
   const navLinks = [
-    { href: "/dashboard", label: "Dashboard" },
-    { href: "/sources", label: "Sources" },
-    { href: "/collections", label: "Collections" },
-    { href: "/consumers", label: "Consumers" },
+    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboardIcon },
+    { href: "/sources", label: "Sources", icon: DatabaseIcon },
+    { href: "/collections", label: "Collections", icon: FoldersIcon },
+    { href: "/consumers", label: "Consumers", icon: UsersIcon },
   ];
 
   function isActiveLink(href: string): boolean {
@@ -75,15 +79,16 @@
         <nav class="flex items-center gap-1">
           {#if user}
             <!-- Main nav links -->
-            {#each navLinks as { href, label }}
+            {#each navLinks as { href, label, icon: Icon }}
               <a
                 {href}
-                class="hidden px-3 py-1.5 text-sm transition-colors sm:block {isActiveLink(
+                class="hidden px-3 py-1.5 text-sm transition-colors sm:flex sm:items-center sm:gap-1.5 {isActiveLink(
                   href,
                 )
                   ? 'text-foreground font-medium'
                   : 'text-muted-foreground hover:text-foreground'}"
               >
+                <Icon class="size-4" />
                 {label}
               </a>
             {/each}

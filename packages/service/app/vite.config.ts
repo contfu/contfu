@@ -7,6 +7,11 @@ export default defineConfig({
   server: {
     port: 8011,
     host: true,
+    fs: {
+      // Allow serving files from project root and parent directories
+      // This fixes the Vite serving allow list error with bun's node_modules structure
+      allow: ["../..", "../../.."],
+    },
   },
   ssr: {
     noExternal: process.env.NODE_ENV === "production" ? true : undefined,

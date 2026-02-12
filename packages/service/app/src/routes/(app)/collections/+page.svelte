@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Button } from "$lib/components/ui/button";
   import { getCollections } from "$lib/remote/collections.remote";
-  import { Plus } from "@lucide/svelte";
+  import { FolderOpen, Plus } from "@lucide/svelte";
 
   const collections = await getCollections();
 </script>
@@ -9,7 +9,10 @@
 <div class="mx-auto max-w-4xl px-4 py-8 sm:px-6">
   <div class="mb-8 flex items-center justify-between">
     <div>
-      <h1 class="text-2xl font-semibold tracking-tight">Collections</h1>
+      <h1 class="flex items-center gap-2 text-2xl font-semibold tracking-tight">
+        <FolderOpen class="size-6" />
+        Collections
+      </h1>
       <p class="mt-1 text-sm text-muted-foreground">
         Aggregation targets that consumers subscribe to
       </p>

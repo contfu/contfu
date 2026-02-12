@@ -5,6 +5,12 @@
   import { getConnections } from "$lib/remote/connections.remote";
   import { getConsumers } from "$lib/remote/consumers.remote";
   import { getSources } from "$lib/remote/sources.remote";
+  import {
+    DatabaseIcon,
+    FoldersIcon,
+    Link2Icon,
+    UsersIcon,
+  } from "@lucide/svelte";
 
   const results = await Promise.allSettled([
     getSources(),
@@ -53,19 +59,31 @@
   <div class="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
     <div class="rounded-lg border border-border p-4">
       <div class="text-2xl font-semibold">{sources.length}</div>
-      <div class="text-sm text-muted-foreground">Sources</div>
+      <div class="flex items-center gap-1.5 text-sm text-muted-foreground">
+        <DatabaseIcon class="size-4" />
+        Sources
+      </div>
     </div>
     <div class="rounded-lg border border-border p-4">
       <div class="text-2xl font-semibold">{collections.length}</div>
-      <div class="text-sm text-muted-foreground">Collections</div>
+      <div class="flex items-center gap-1.5 text-sm text-muted-foreground">
+        <FoldersIcon class="size-4" />
+        Collections
+      </div>
     </div>
     <div class="rounded-lg border border-border p-4">
       <div class="text-2xl font-semibold">{consumers.length}</div>
-      <div class="text-sm text-muted-foreground">Consumers</div>
+      <div class="flex items-center gap-1.5 text-sm text-muted-foreground">
+        <UsersIcon class="size-4" />
+        Consumers
+      </div>
     </div>
     <div class="rounded-lg border border-border p-4">
       <div class="text-2xl font-semibold">{connections.length}</div>
-      <div class="text-sm text-muted-foreground">Connections</div>
+      <div class="flex items-center gap-1.5 text-sm text-muted-foreground">
+        <Link2Icon class="size-4" />
+        Connections
+      </div>
     </div>
   </div>
 
@@ -73,8 +91,9 @@
   <section class="mb-8">
     <div class="mb-3 flex items-center justify-between">
       <h2
-        class="text-sm font-medium uppercase tracking-wide text-muted-foreground"
+        class="flex items-center gap-1.5 text-sm font-medium uppercase tracking-wide text-muted-foreground"
       >
+        <DatabaseIcon class="size-4" />
         Sources
       </h2>
       <Button size="sm" href="/sources/new">Add Source</Button>
@@ -155,8 +174,9 @@
   <section class="mb-8">
     <div class="mb-3 flex items-center justify-between">
       <h2
-        class="text-sm font-medium uppercase tracking-wide text-muted-foreground"
+        class="flex items-center gap-1.5 text-sm font-medium uppercase tracking-wide text-muted-foreground"
       >
+        <FoldersIcon class="size-4" />
         Collections
       </h2>
       <Button size="sm" href="/collections/new">New Collection</Button>
@@ -239,8 +259,9 @@
   <section>
     <div class="mb-3 flex items-center justify-between">
       <h2
-        class="text-sm font-medium uppercase tracking-wide text-muted-foreground"
+        class="flex items-center gap-1.5 text-sm font-medium uppercase tracking-wide text-muted-foreground"
       >
+        <UsersIcon class="size-4" />
         Consumers
       </h2>
       <Button size="sm" href="/consumers/new">Add Consumer</Button>
