@@ -50,7 +50,11 @@
 
   let id = $derived(Number(params.id));
   const collection = $derived(await getCollection({ id }));
-  updateCollection.fields.set(collection);
+
+  // Sync form fields when collection changes
+  $effect(() => {
+    updateCollection.fields.set(collection);
+  });
 
   // Query objects - auto-refresh after form submissions
   const influxesQuery = $derived(

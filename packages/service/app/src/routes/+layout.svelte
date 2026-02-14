@@ -23,8 +23,12 @@
   }}
 />
 <ModeWatcher modeStorageKey="theme" defaultMode="system" />
-<div class="flex min-h-screen flex-col">
-  <Header user={data.user} isUnderConstruction={data.isUnderConstruction} />
-  <main class="flex-1">{@render children()}</main>
-  <Footer />
-</div>
+{#if data.user}
+  {@render children()}
+{:else}
+  <div class="flex min-h-screen flex-col">
+    <Header user={data.user} isUnderConstruction={data.isUnderConstruction} />
+    <main class="flex-1">{@render children()}</main>
+    <Footer />
+  </div>
+{/if}

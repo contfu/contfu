@@ -31,7 +31,11 @@
 
   let id = $derived(Number(params.id));
   const client = $derived(await getConsumer({ id }));
-  updateConsumer.fields.set(client);
+
+  // Sync form fields when client changes
+  $effect(() => {
+    updateConsumer.fields.set(client);
+  });
 
   // Query objects - auto-refresh after form submissions
   const connectionsQuery = $derived(

@@ -50,7 +50,11 @@
 
   let id = $derived(Number(params.id));
   const source = $derived(await getSource({ id }));
-  updateSource.fields.set(source);
+
+  // Sync form fields when source changes
+  $effect(() => {
+    updateSource.fields.set(source);
+  });
 
   // Query object - auto-refreshes after form submissions
   const collections = $derived(
@@ -58,21 +62,28 @@
   );
 
   // Load webhook logs for Strapi sources
-  const initialWebhookLogs: WebhookLogEntry[] = $derived(
+  const webhookLogsData = $derived(
     source?.type === 1 ? await getWebhookLogs({ sourceId: id, limit: 10 }) : [],
   );
 
   let testResult: { success: boolean; message: string } | null = $state(null);
   let testPending = $state(false);
   let namePopoverOpen = $state(false);
-  let webhookLogs = $state(initialWebhookLogs);
+  let webhookLogs = $state<WebhookLogEntry[]>([]);
   let webhookSecret = $state<string | null>(null);
   let regeneratingSecret = $state(false);
 
-  // Generate webhook URL
-  const webhookUrl = source
-    ? `${typeof window !== "undefined" ? window.location.origin : ""}/webhooks/strapi/${source.uid}`
-    : "";
+  // Sync webhook logs when data changes
+  $effect(() => {
+    webhookLogs = webhookLogsData;
+  });
+
+  // Generate webhook URL (reactive)
+  const webhookUrl = $derived(
+    source
+      ? `${typeof window !== "undefined" ? window.location.origin : ""}/webhooks/strapi/${source.uid}`
+      : "",
+  );
 
   async function handleTestConnection() {
     if (!source) return;

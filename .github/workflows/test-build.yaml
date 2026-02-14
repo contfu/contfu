@@ -31,45 +31,45 @@ jobs:
         run: bun run test
 
   # Build custom service images needed for E2E testing
-  build-ci-runner-image:
-    name: Build CI Runner Image
-    runs-on: [self-hosted, linux, X64]
-    steps:
-      - uses: actions/checkout@v4
+  # build-ci-runner-image:
+  #   name: Build CI Runner Image
+  #   runs-on: [self-hosted, linux, X64]
+  #   steps:
+  #     - uses: actions/checkout@v4
 
-      - name: Build CI Runner
-        run: docker build -t forgejo.rogge.vip/contfu/ci-runner:latest -f docker/ci-runner/Dockerfile .
-      - name: Push CI Runner
-        run: docker push forgejo.rogge.vip/contfu/ci-runner:latest
-  build-nats-jetstream-image:
-    name: Build NATS with JetStream Image
-    runs-on: [self-hosted, linux, X64]
-    steps:
-      - uses: actions/checkout@v4
+  #     - name: Build CI Runner
+  #       run: docker build -t forgejo.rogge.vip/contfu/ci-runner:latest -f docker/ci-runner/Dockerfile .
+  #     - name: Push CI Runner
+  #       run: docker push forgejo.rogge.vip/contfu/ci-runner:latest
+  # build-nats-jetstream-image:
+  #   name: Build NATS with JetStream Image
+  #   runs-on: [self-hosted, linux, X64]
+  #   steps:
+  #     - uses: actions/checkout@v4
 
-      - name: Build NATS with JetStream
-        working-directory: docker/nats-jetstream
-        run: docker build -t forgejo.rogge.vip/contfu/nats-jetstream:latest .
-      - name: Push NATS with JetStream
-        run: docker push forgejo.rogge.vip/contfu/nats-jetstream:latest
-  build-strapi-test-image:
-    name: Build Strapi Test Image
-    runs-on: [self-hosted, linux, X64]
-    steps:
-      - uses: actions/checkout@v4
-      - name: Build Strapi test
-        working-directory: docker/strapi-test
-        run: docker build -t forgejo.rogge.vip/contfu/strapi-test:latest .
-      - name: Push Strapi with JetStream
-        run: docker push forgejo.rogge.vip/contfu/strapi-test:latest
+  #     - name: Build NATS with JetStream
+  #       working-directory: docker/nats-jetstream
+  #       run: docker build -t forgejo.rogge.vip/contfu/nats-jetstream:latest .
+  #     - name: Push NATS with JetStream
+  #       run: docker push forgejo.rogge.vip/contfu/nats-jetstream:latest
+  # build-strapi-test-image:
+  #   name: Build Strapi Test Image
+  #   runs-on: [self-hosted, linux, X64]
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Build Strapi test
+  #       working-directory: docker/strapi-test
+  #       run: docker build -t forgejo.rogge.vip/contfu/strapi-test:latest .
+  #     - name: Push Strapi with JetStream
+  #       run: docker push forgejo.rogge.vip/contfu/strapi-test:latest
 
   e2e:
     name: Build & E2E Tests
     runs-on: [self-hosted, linux, X64]
-    needs:
-      - build-ci-runner-image
-      - build-nats-jetstream-image
-      - build-strapi-test-image
+    # needs:
+    #   - build-ci-runner-image
+    #   - build-nats-jetstream-image
+    #   - build-strapi-test-image
     timeout-minutes: 20
 
     # Run job in a container to enable automatic service networking
