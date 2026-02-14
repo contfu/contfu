@@ -30,38 +30,92 @@ jobs:
       - name: Run unit tests
         run: bun run test
 
-  e2e:
-    name: Build & E2E Tests
-    runs-on: [self-hosted, macOS, ARM64]
-    timeout-minutes: 20
-    env:
-      E2E_FULL_FLOW: true
-      STRAPI_HOST: localhost
-      NATS_SERVER: nats://localhost:4222
-      CI: true
+  # Build custom service images needed for E2E testing
+  build-ci-runner-image:
+    name: Build CI Runner Image
+    runs-on: [self-hosted, linux, X64]
     steps:
       - uses: actions/checkout@v4
 
-      - name: Start NATS service
-        run: |
-          docker run -d --name nats-e2e \
-            -p 4222:4222 \
-            -p 8222:8222 \
-            nats:2.12-linux --jetstream -m 8222
+      - name: Build CI Runner
+        run: docker build -t forgejo.rogge.vip/contfu/ci-runner:latest -f docker/ci-runner/Dockerfile .
+      - name: Push CI Runner
+        run: docker push forgejo.rogge.vip/contfu/ci-runner:latest
+  build-nats-jetstream-image:
+    name: Build NATS with JetStream Image
+    runs-on: [self-hosted, linux, X64]
+    steps:
+      - uses: actions/checkout@v4
 
-      - name: Start Strapi service
-        run: |
-          docker run -d --name strapi-e2e \
-            -p 1337:1337 \
-            -e NODE_ENV=development \
-            -e HOST=0.0.0.0 \
-            -e PORT=1337 \
-            -e APP_KEYS=testkey1,testkey2 \
-            -e API_TOKEN_SALT=testsalt1 \
-            -e ADMIN_JWT_SECRET=testsecret1 \
-            -e TRANSFER_TOKEN_SALT=testsalt2 \
-            -e JWT_SECRET=testsecret2 \
-            forgejo.rogge.vip/contfu/strapi-test:v2
+      - name: Build NATS with JetStream
+        working-directory: docker/nats-jetstream
+        run: docker build -t forgejo.rogge.vip/contfu/nats-jetstream:latest .
+      - name: Push NATS with JetStream
+        run: docker push forgejo.rogge.vip/contfu/nats-jetstream:latest
+  build-strapi-test-image:
+    name: Build Strapi Test Image
+    runs-on: [self-hosted, linux, X64]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Strapi test
+        working-directory: docker/strapi-test
+        run: docker build -t forgejo.rogge.vip/contfu/strapi-test:latest .
+      - name: Push Strapi with JetStream
+        run: docker push forgejo.rogge.vip/contfu/strapi-test:latest
+
+  e2e:
+    name: Build & E2E Tests
+    runs-on: [self-hosted, linux, X64]
+    needs:
+      - build-ci-runner-image
+      - build-nats-jetstream-image
+      - build-strapi-test-image
+    timeout-minutes: 20
+
+    # Run job in a container to enable automatic service networking
+    container:
+      image: forgejo.rogge.vip/contfu/ci-runner:latest
+
+    # Service containers run alongside the job container
+    # They are automatically networked and accessible via their service name
+    services:
+      nats:
+        image: forgejo.rogge.vip/contfu/nats-jetstream:latest
+        options: >-
+          --health-cmd "wget --spider -q http://localhost:8222/healthz"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      strapi:
+        image: forgejo.rogge.vip/contfu/strapi-test:latest
+        env:
+          NODE_ENV: development
+          HOST: 0.0.0.0
+          PORT: 1337
+          APP_KEYS: testkey1,testkey2
+          API_TOKEN_SALT: testsalt1
+          ADMIN_JWT_SECRET: testsecret1
+          TRANSFER_TOKEN_SALT: testsalt2
+          JWT_SECRET: testsecret2
+        options: >-
+          --health-cmd "curl -sf http://localhost:1337/_health"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 30
+          --health-start-period 10s
+
+    env:
+      # GitHub Actions overrides HOME to /github/home inside containers,
+      # but the CI runner image installed tools (Playwright, Bun) under /root.
+      HOME: /root
+      E2E_FULL_FLOW: true
+      STRAPI_HOST: strapi
+      NATS_SERVER: nats://nats:4222
+      CI: true
+
+    steps:
+      - uses: actions/checkout@v4
 
       - name: Install dependencies
         run: bun install --frozen-lockfile --ignore-scripts
@@ -73,30 +127,11 @@ jobs:
         run: bun run build
         working-directory: demos/consumer-app
 
-      - name: Wait for services
-        run: |
-          echo "Waiting for NATS..."
-          for i in $(seq 1 30); do
-            curl -sf http://localhost:8222/healthz > /dev/null 2>&1 && break
-            sleep 1
-          done
-          echo "Waiting for Strapi..."
-          for i in $(seq 1 60); do
-            curl -sf http://localhost:1337/_health > /dev/null 2>&1 && exit 0
-            sleep 2
-          done
-          docker logs strapi-e2e && exit 1
-
       - name: Run E2E tests
-        run: DEBUG=pw:api bun run test:e2e --reporter=list
+        run: bun run test:e2e --reporter=list
         env:
+          DEBUG: pw:api
           PWDEBUG: 0
-
-      - name: Cleanup
-        if: always()
-        run: |
-          docker stop strapi-e2e nats-e2e || true
-          docker rm strapi-e2e nats-e2e || true
 
   build:
     name: Build Docker image
