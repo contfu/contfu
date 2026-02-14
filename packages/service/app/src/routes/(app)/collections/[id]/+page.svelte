@@ -1,11 +1,10 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
-  import { page } from "$app/state";
   import AddInfluxDialog from "$lib/components/AddInfluxDialog.svelte";
   import FilterEditor from "$lib/components/FilterEditor.svelte";
   import SourceTypeIcon from "$lib/components/icons/SourceTypeIcon.svelte";
-  import * as Alert from "$lib/components/ui/alert";
   import { Button, buttonVariants } from "$lib/components/ui/button";
+  import * as Command from "$lib/components/ui/command";
   import { Input } from "$lib/components/ui/input";
   import { Label } from "$lib/components/ui/label";
   import * as Popover from "$lib/components/ui/popover";
@@ -15,92 +14,79 @@
     getSourceCollectionSchemaQuery,
     updateCollection,
   } from "$lib/remote/collections.remote";
-  import {
-    getInfluxes,
-    removeInflux,
-    updateInfluxForm,
-  } from "$lib/remote/influxes.remote";
+  import { updateCollectionNameSchema } from "$lib/remote/collections.schemas";
   import {
     addConnection,
     getConnectionsByCollection,
     removeConnection,
   } from "$lib/remote/connections.remote";
   import { getConsumers } from "$lib/remote/consumers.remote";
+  import {
+    getInfluxes,
+    removeInflux,
+    updateInfluxForm,
+  } from "$lib/remote/influxes.remote";
   import { cn } from "$lib/utils";
+  import { tcToast } from "$lib/utils/toast";
   import type { CollectionSchema, Filter as FilterType } from "@contfu/core";
+  import type { BackendConnectionWithDetails } from "@contfu/svc-backend/domain/types";
+  import {
+    Check,
+    ChevronsUpDown,
+    LoaderCircleIcon,
+    Plus,
+    TrashIcon,
+    UnlinkIcon,
+  } from "@lucide/svelte";
   import ChevronDown from "@lucide/svelte/icons/chevron-down";
   import ChevronUp from "@lucide/svelte/icons/chevron-up";
   import FilterIcon from "@lucide/svelte/icons/filter";
   import Pencil from "@lucide/svelte/icons/pencil";
   import { useId } from "bits-ui";
+  import { toast } from "svelte-sonner";
 
   const nameId = useId();
+  let { params } = $props();
 
-  const id = Number.parseInt(page.params.id ?? "", 10);
-  const collection = Number.isNaN(id) ? null : await getCollection({ id });
+  let id = $derived(Number(params.id));
+  const collection = $derived(await getCollection({ id }));
+  updateCollection.fields.set(collection);
 
-  if (!collection) {
-    goto("/collections");
-  }
-
-  // Make influxes reactive so they can be refreshed
-  let influxes = $state(
-    collection ? await getInfluxes({ collectionId: id }) : [],
+  // Query objects - auto-refresh after form submissions
+  const influxesQuery = $derived(
+    getInfluxes({ collectionId: Number(params.id) }),
   );
+  const connectionsQuery = $derived(
+    getConnectionsByCollection({ collectionId: Number(params.id) }),
+  );
+  const allConsumers = $derived(await getConsumers());
 
-  // Derived: linked source IDs for the dialog
+  // Derived from query.current
   const linkedSourceIds = $derived(
-    new Set(influxes.map((m) => m.sourceCollectionId)),
+    new Set((influxesQuery?.current ?? []).map((m) => m.sourceCollectionId)),
   );
-
-  // Derived: linked source refs for filtering "Add custom path" options
   const linkedSourceRefs = $derived(
     new Set(
-      influxes
+      (influxesQuery?.current ?? [])
         .map((m) => m.sourceCollectionRef)
         .filter((r): r is string => r !== null),
     ),
   );
-
-  // Refresh influxes after adding an influx
-  async function refreshInfluxes() {
-    if (collection) {
-      influxes = await getInfluxes({ collectionId: id });
-    }
-  }
-
-  // Consumer connections
-  let connections = $state(
-    collection ? await getConnectionsByCollection({ collectionId: id }) : [],
-  );
-  const allConsumers = collection ? await getConsumers() : [];
-
   const connectedConsumerIds = $derived(
-    new Set(connections.map((c) => c.consumerId)),
+    new Set((connectionsQuery?.current ?? []).map((c) => c.consumerId)),
   );
   const availableConsumers = $derived(
     allConsumers.filter((c) => !connectedConsumerIds.has(c.id)),
   );
 
-  let selectedConsumerId = $state<number | null>(null);
-
-  // Initialize selected consumer after availableConsumers is computed
-  $effect(() => {
-    if (selectedConsumerId === null && availableConsumers.length > 0) {
-      selectedConsumerId = availableConsumers[0].id;
-    }
-  });
-
-  async function refreshConnections() {
-    if (collection) {
-      connections = await getConnectionsByCollection({ collectionId: id });
-    }
+  // Refresh influxes after adding via dialog (command, not form - doesn't auto-refresh)
+  function refreshInfluxes() {
+    influxesQuery?.refresh();
   }
 
-  let updateSuccess = $state(false);
-  let filterUpdateSuccess = $state(false);
-  let connectionSuccess = $state(false);
+  let selectedConsumerId = $state<number | null>(null);
   let namePopoverOpen = $state(false);
+  let consumerComboboxOpen = $state(false);
 
   // Track expanded influxes for filter editing
   let expandedInfluxes = $state<Set<number>>(new Set());
@@ -110,45 +96,6 @@
 
   // Track filter edits per influx
   let filterEdits = $state<Map<number, FilterType[]>>(new Map());
-
-  function handleUpdateSuccess() {
-    updateSuccess = true;
-    setTimeout(() => {
-      updateSuccess = false;
-    }, 3000);
-  }
-
-  function handleFilterUpdateSuccess() {
-    filterUpdateSuccess = true;
-    setTimeout(() => {
-      filterUpdateSuccess = false;
-    }, 3000);
-  }
-
-  $effect(() => {
-    if (updateCollection.result?.success) {
-      handleUpdateSuccess();
-      namePopoverOpen = false;
-    }
-  });
-
-  $effect(() => {
-    if (updateInfluxForm.result?.success) {
-      handleFilterUpdateSuccess();
-      // Reset edit state after successful save
-      filterEdits = new Map();
-    }
-  });
-
-  $effect(() => {
-    if (addConnection.result?.success || removeConnection.result?.success) {
-      connectionSuccess = true;
-      refreshConnections();
-      setTimeout(() => {
-        connectionSuccess = false;
-      }, 3000);
-    }
-  });
 
   async function toggleInflux(sourceCollectionId: number) {
     const newExpanded = new Set(expandedInfluxes);
@@ -176,7 +123,7 @@
     if (filterEdits.has(sourceCollectionId)) {
       return filterEdits.get(sourceCollectionId)!;
     }
-    const influx = influxes.find(
+    const influx = (influxesQuery?.current ?? []).find(
       (m) => m.sourceCollectionId === sourceCollectionId,
     );
     return influx?.filters ?? [];
@@ -225,26 +172,44 @@
           </Popover.Trigger>
           <Popover.Portal>
             <Popover.Content class="w-72" align="start">
-              <form {...updateCollection} class="space-y-3">
+              <form
+                {...updateCollection
+                  .preflight(updateCollectionNameSchema)
+                  .enhance(async ({ submit, data }) => {
+                    namePopoverOpen = false;
+                    await tcToast(async () => {
+                      await submit().updates(
+                        getCollection({ id }).withOverride((c) => ({
+                          ...c!,
+                          ...data,
+                        })),
+                      );
+                      toast.success("Collection name updated successfully");
+                    });
+                  })}
+                class="space-y-3"
+              >
                 <input
-                  {...updateCollection.fields?.id.as("number")}
+                  {...updateCollection.fields.id.as("number")}
                   type="hidden"
-                  value={collection.id}
                 />
                 <div class="space-y-1.5">
                   <Label for={nameId}>Name</Label>
                   <Input
                     id={nameId}
-                    {...updateCollection.fields?.name.as("text")}
-                    value={collection.name}
-                    required
+                    {...updateCollection.fields.name.as("text")}
                   />
+                  {#each updateCollection.fields.name.issues() as issue}
+                    <p class="text-sm text-destructive">
+                      {issue.message}
+                    </p>
+                  {/each}
                 </div>
                 <div class="flex justify-end gap-2">
                   <Popover.Close>
-                    <Button type="button" variant="outline" size="sm"
-                      >Cancel</Button
-                    >
+                    <Button type="button" variant="outline" size="sm">
+                      Cancel
+                    </Button>
                   </Popover.Close>
                   <Button
                     type="submit"
@@ -269,18 +234,6 @@
       </p>
     </div>
 
-    {#if updateSuccess}
-      <Alert.Root class="mb-6">
-        <Alert.Description>Collection updated successfully.</Alert.Description>
-      </Alert.Root>
-    {/if}
-
-    {#if filterUpdateSuccess}
-      <Alert.Root class="mb-6">
-        <Alert.Description>Filters updated successfully.</Alert.Description>
-      </Alert.Root>
-    {/if}
-
     <!-- Influxes -->
     <section class="mb-8 rounded-lg border border-border p-4">
       <div class="mb-3 flex items-center justify-between">
@@ -297,16 +250,16 @@
         />
       </div>
 
-      {#if influxes.length === 0}
-        <p class="mb-4 text-sm text-muted-foreground">
-          No influxes configured yet. Add one to start receiving content.
-        </p>
-      {:else}
+      <svelte:boundary>
+        {#snippet pending()}
+          <p class="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
+            <LoaderCircleIcon class="size-4 animate-spin" /> Loading...
+          </p>
+        {/snippet}
+
         <div class="mb-4 space-y-2">
-          {#each influxes as influx}
-            {@const remove = removeInflux.for(
-              influx.sourceCollectionId,
-            )}
+          {#each await influxesQuery as influx (influx.id)}
+            {@const remove = removeInflux.for(influx.id)}
             <div class="rounded-md border border-border">
               <!-- Influx header -->
               <div class="flex items-center justify-between px-4 py-3">
@@ -343,23 +296,30 @@
                     )}
                   </span>
                 </div>
-                <form {...remove}>
+                <form
+                  {...remove.enhance(async ({ submit, data }) => {
+                    // For some reason, the form is submitting multiple times. when we remove influxes subsequently.
+                    if (remove.pending) return;
+                    await submit().updates(
+                      getInfluxes({
+                        collectionId: Number(params.id),
+                      }),
+                    );
+                  })}
+                >
                   <input
-                    {...remove.fields?.collectionId.as("number")}
+                    {...remove.fields.id.as("number")}
                     type="hidden"
-                    value={collection.id}
+                    value={influx.id}
                   />
-                  <input
-                    {...remove.fields?.sourceCollectionId.as("number")}
-                    type="hidden"
-                    value={influx.sourceCollectionId}
-                  />
-                  <button
+                  <Button
                     type="submit"
-                    class="text-sm text-destructive hover:underline"
+                    variant="destructive"
+                    size="sm"
+                    disabled={remove.pending > 0}
                   >
-                    Remove
-                  </button>
+                    <TrashIcon class="size-4" />
+                  </Button>
                 </form>
               </div>
 
@@ -376,25 +336,27 @@
 
                   {#if hasUnsavedChanges(influx.sourceCollectionId)}
                     <div class="mt-4 flex gap-2">
-                      <form {...updateInfluxForm}>
+                      <form
+                        {...updateInfluxForm.enhance(async ({ submit }) => {
+                          await submit();
+                          toast.success("Filters updated");
+                          filterEdits = new Map();
+                        })}
+                      >
                         <input
-                          {...updateInfluxForm.fields?.collectionId.as(
-                            "number",
-                          )}
+                          {...updateInfluxForm.fields.collectionId.as("number")}
                           type="hidden"
                           value={collection.id}
                         />
                         <input
-                          {...updateInfluxForm.fields?.sourceCollectionId.as(
+                          {...updateInfluxForm.fields.sourceCollectionId.as(
                             "number",
                           )}
                           type="hidden"
                           value={influx.sourceCollectionId}
                         />
                         <input
-                          {...updateInfluxForm.fields?.filters.as(
-                            "text",
-                          )}
+                          {...updateInfluxForm.fields.filters.as("text")}
                           type="hidden"
                           value={JSON.stringify(
                             filterEdits.get(influx.sourceCollectionId) ?? [],
@@ -426,9 +388,18 @@
                 </div>
               {/if}
             </div>
+          {:else}
+            <p class="mb-4 text-sm text-muted-foreground">
+              No influxes configured yet. Add one to start receiving content.
+            </p>
           {/each}
         </div>
-      {/if}
+        {#snippet failed(error)}
+          <p class="mb-4 text-sm text-muted-foreground">
+            Error loading influxes: {(error as any).message}
+          </p>
+        {/snippet}
+      </svelte:boundary>
     </section>
 
     <!-- Consumers -->
@@ -439,72 +410,158 @@
         Consumers
       </h2>
 
-      {#if connectionSuccess}
-        <Alert.Root class="mb-4">
-          <Alert.Description>Consumer connection updated.</Alert.Description>
-        </Alert.Root>
-      {/if}
-
-      {#if connections.length === 0}
-        <p class="mb-4 text-sm text-muted-foreground">
-          No consumers linked yet.
-        </p>
-      {:else}
-        <div
-          class="mb-4 divide-y divide-border rounded-md border border-border"
-        >
-          {#each connections as connection}
-            <div class="flex items-center justify-between px-4 py-3">
+      <svelte:boundary>
+        {#snippet pending()}
+          <p class="mb-4 text-sm text-muted-foreground">Loading...</p>
+        {/snippet}
+        <div class="mb-4 space-y-2">
+          {#each await connectionsQuery as connection}
+            {@const remove = removeConnection.for(connection.consumerId)}
+            <div
+              class="flex items-center justify-between rounded-md border border-border px-4 py-3"
+            >
               <a
                 href="/consumers/{connection.consumerId}"
                 class="text-sm font-medium hover:underline"
               >
                 {connection.consumerName || "Unnamed Consumer"}
               </a>
-              <form {...removeConnection}>
+              <form
+                {...remove.enhance(async ({ submit }) => {
+                  if (remove.pending) return;
+                  await submit().updates(
+                    connectionsQuery.withOverride((connections) =>
+                      connections.filter(
+                        (c) => c.consumerId !== connection.consumerId,
+                      ),
+                    ),
+                  );
+                  toast.success("Consumer unlinked");
+                })}
+              >
                 <input
-                  {...removeConnection.fields?.consumerId.as("number")}
+                  {...remove.fields.consumerId.as("number")}
                   type="hidden"
                   value={connection.consumerId}
                 />
                 <input
-                  {...removeConnection.fields?.collectionId.as("number")}
+                  {...remove.fields.collectionId.as("number")}
                   type="hidden"
                   value={collection.id}
                 />
-                <button
+                <Button
                   type="submit"
-                  class="text-sm text-destructive hover:underline"
+                  variant="destructive"
+                  size="sm"
+                  disabled={remove.pending > 0}
                 >
-                  Remove
-                </button>
+                  <UnlinkIcon class="size-4" />
+                </Button>
               </form>
             </div>
+          {:else}
+            <p class="text-sm text-muted-foreground">
+              No consumers linked yet.
+            </p>
           {/each}
         </div>
-      {/if}
+        {#snippet failed(error)}
+          <p class="mb-4 text-sm text-muted-foreground">
+            Error loading consumers: {(error as any).message}
+          </p>
+        {/snippet}
+      </svelte:boundary>
 
       {#if availableConsumers.length > 0}
-        <form {...addConnection} class="flex gap-2">
+        {@const selectedConsumer = availableConsumers.find(
+          (c) => c.id === selectedConsumerId,
+        )}
+        <form
+          {...addConnection.enhance(async ({ submit }) => {
+            await tcToast(async () => {
+              const override = {
+                collectionName: collection.name,
+                consumerName: selectedConsumer!.name,
+                consumerId: selectedConsumerId!,
+                collectionId: collection.id,
+              } as BackendConnectionWithDetails;
+              await submit().updates(
+                connectionsQuery.withOverride((connections) => [
+                  ...connections,
+                  override,
+                ]),
+              );
+              toast.success("Consumer linked");
+            });
+          })}
+          class="flex gap-2"
+        >
           <input
-            {...addConnection.fields?.collectionId.as("number")}
+            {...addConnection.fields.collectionId.as("number")}
             type="hidden"
             value={collection.id}
           />
-          <select
-            {...addConnection.fields?.consumerId.as("number")}
-            class="flex-1 rounded-md border border-input bg-transparent px-3 py-2 text-sm"
-            bind:value={selectedConsumerId}
+          <input
+            {...addConnection.fields.consumerId.as("number")}
+            type="hidden"
+            value={selectedConsumerId!}
+          />
+          <Popover.Root bind:open={consumerComboboxOpen}>
+            <Popover.Trigger
+              class="inline-flex flex-1 items-center justify-between gap-2 whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
+              role="combobox"
+              aria-expanded={consumerComboboxOpen}
+            >
+              {#if selectedConsumerId !== null}
+                {@const selected = availableConsumers.find(
+                  (c) => c.id === selectedConsumerId,
+                )}
+                {#if selected}
+                  {selected?.name ?? "Unnamed Consumer"}
+                {:else}
+                  Select consumer...
+                {/if}
+              {:else}
+                Select consumer...
+              {/if}
+              <ChevronsUpDown class="ml-2 size-4 shrink-0 opacity-50" />
+            </Popover.Trigger>
+            <Popover.Content
+              class="w-(--radix-popover-trigger-width) p-0"
+              align="start"
+            >
+              <Command.Root>
+                <Command.Input placeholder="Search consumers..." />
+                <Command.List>
+                  <Command.Empty>No consumer found.</Command.Empty>
+                  <Command.Group>
+                    {#each availableConsumers as consumer}
+                      <Command.Item
+                        value={`${consumer.name ?? "Unnamed Consumer"} ${consumer.id}`}
+                        onSelect={() => {
+                          selectedConsumerId = consumer.id;
+                          consumerComboboxOpen = false;
+                        }}
+                      >
+                        {consumer.name || "Unnamed Consumer"}
+                        {#if selectedConsumerId === consumer.id}
+                          <Check class="ml-auto size-4" />
+                        {/if}
+                      </Command.Item>
+                    {/each}
+                  </Command.Group>
+                </Command.List>
+              </Command.Root>
+            </Popover.Content>
+          </Popover.Root>
+          <Button
+            type="submit"
+            variant="outline"
+            disabled={selectedConsumerId === null}
           >
-            {#each availableConsumers as consumer}
-              <option value={consumer.id}
-                >{consumer.name || "Unnamed Consumer"}</option
-              >
-            {/each}
-          </select>
-          <Button type="submit" variant="outline" size="sm"
-            >Link Consumer</Button
-          >
+            <Plus class="size-4" />
+            Link Consumer
+          </Button>
         </form>
       {:else if allConsumers.length === 0}
         <p class="text-sm text-muted-foreground">
@@ -529,9 +586,14 @@
         Deleting this collection will remove all influxes and consumer
         connections.
       </p>
-      <form {...deleteCollection}>
+      <form
+        {...deleteCollection.enhance(async ({ submit }) => {
+          await submit();
+          goto("/collections");
+        })}
+      >
         <input
-          {...deleteCollection.fields?.id.as("number")}
+          {...deleteCollection.fields.id.as("number")}
           type="hidden"
           value={collection.id}
         />

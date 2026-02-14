@@ -2,7 +2,7 @@ import { command, form, query } from "$app/server";
 import { getUserId } from "$lib/server/user";
 import type { CollectionSchema, Filter, InfluxWithDetails } from "@contfu/core";
 import { addInfluxWithSourceCollection } from "@contfu/svc-backend/features/influxes";
-import { deleteInfluxByMapping } from "@contfu/svc-backend/features/influxes/deleteInfluxByMapping";
+import { deleteInflux as deleteInfluxFeature } from "@contfu/svc-backend/features/influxes/deleteInflux";
 import { listInfluxes } from "@contfu/svc-backend/features/influxes/listInfluxes";
 import { updateInflux as updateInfluxFeature } from "@contfu/svc-backend/features/influxes/updateInflux";
 import { listCollectionSummariesBySource } from "@contfu/svc-backend/features/source-collections/listCollectionSummariesBySource";
@@ -16,6 +16,7 @@ import {
   notionPropertiesToSchema,
   type DataSourceResult,
 } from "@contfu/svc-sources/notion";
+import { invalid } from "@sveltejs/kit";
 import { and, eq } from "drizzle-orm";
 import * as v from "valibot";
 
@@ -196,7 +197,7 @@ export const addInflux = command(
       try {
         filters = JSON.parse(data.filters) as Filter[];
       } catch {
-        return { success: false, error: "Invalid filters JSON" };
+        invalid("Invalid filters JSON");
       }
     }
 
@@ -206,7 +207,7 @@ export const addInflux = command(
       try {
         schema = JSON.parse(data.schema) as CollectionSchema;
       } catch {
-        return { success: false, error: "Invalid schema JSON" };
+        invalid("Invalid schema JSON");
       }
     }
 
@@ -249,21 +250,10 @@ export const getInfluxes = query(
  * Remove an influx from a collection by source collection ID.
  */
 export const removeInflux = form(
-  v.object({
-    collectionId: v.pipe(
-      v.union([v.string(), v.number()]),
-      v.transform((val) => (typeof val === "string" ? Number.parseInt(val, 10) : val)),
-      v.number(),
-    ),
-    sourceCollectionId: v.pipe(
-      v.union([v.string(), v.number()]),
-      v.transform((val) => (typeof val === "string" ? Number.parseInt(val, 10) : val)),
-      v.number(),
-    ),
-  }),
+  v.object({ id: v.pipe(v.number(), v.integer()) }),
   async (data) => {
     const userId = getUserId();
-    await deleteInfluxByMapping(userId, data.collectionId, data.sourceCollectionId);
+    await deleteInfluxFeature(userId, data.id);
     return { success: true };
   },
 );

@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { goto } from "$app/navigation";
   import { page } from "$app/state";
   import * as Alert from "$lib/components/ui/alert";
   import { Button } from "$lib/components/ui/button";
@@ -17,16 +16,13 @@
 
   const id = Number.parseInt(page.params.id ?? "", 10);
   const source = Number.isNaN(id) ? null : await getSource({ id });
-  const collections = source
-    ? await getSourceCollectionsBySource({ sourceId: id })
-    : [];
 
-  if (!source) {
-    goto("/sources");
-  }
+  // Query object - auto-refreshes after form submissions
+  const collections = source ? getSourceCollectionsBySource({ sourceId: id }) : null;
+
 </script>
 
-{#if source}
+{#if source && collections}
   <div class="mx-auto max-w-4xl px-4 py-8 sm:px-6">
     <div class="mb-6">
       <a
@@ -53,16 +49,13 @@
       </p>
     </div>
 
-    {#if collections.length === 0}
-      <div
-        class="rounded-lg border border-dashed border-border p-12 text-center"
-      >
-        <p class="text-muted-foreground">
-          No source collections discovered yet.
-        </p>
+    {#if collections.loading || !collections.current}
+      <p class="text-muted-foreground">Loading...</p>
+    {:else if collections.current.length === 0}
+      <div class="rounded-lg border border-dashed border-border p-12 text-center">
+        <p class="text-muted-foreground">No source collections discovered yet.</p>
         <p class="mt-2 text-sm text-muted-foreground">
-          Source collections are automatically discovered when syncing with the
-          upstream source.
+          Source collections are automatically discovered when syncing with the upstream source.
         </p>
       </div>
     {:else}
@@ -70,35 +63,21 @@
         <table class="w-full text-sm">
           <thead>
             <tr class="border-b border-border bg-muted/50">
-              <th class="px-4 py-3 text-left font-medium text-muted-foreground"
-                >Name</th
-              >
-              <th
-                class="hidden px-4 py-3 text-left font-medium text-muted-foreground sm:table-cell"
-                >Discovered</th
-              >
-              <th class="px-4 py-3 text-right font-medium text-muted-foreground"
-              ></th>
+              <th class="px-4 py-3 text-left font-medium text-muted-foreground">Name</th>
+              <th class="hidden px-4 py-3 text-left font-medium text-muted-foreground sm:table-cell">Discovered</th>
+              <th class="px-4 py-3 text-right font-medium text-muted-foreground"></th>
             </tr>
           </thead>
           <tbody class="divide-y divide-border">
-            {#each collections as collection}
+            {#each collections.current as collection}
               <tr>
-                <td class="px-4 py-3 font-medium">
-                  {collection.name || "Unnamed"}
-                </td>
-                <td
-                  class="hidden px-4 py-3 text-muted-foreground sm:table-cell"
-                >
+                <td class="px-4 py-3 font-medium">{collection.name || "Unnamed"}</td>
+                <td class="hidden px-4 py-3 text-muted-foreground sm:table-cell">
                   {new Date(collection.createdAt).toLocaleDateString()}
                 </td>
                 <td class="px-4 py-3 text-right">
                   <form {...deleteSourceCollection} class="inline">
-                    <input
-                      {...deleteSourceCollection.fields?.id.as("number")}
-                      type="hidden"
-                      value={collection.id}
-                    />
+                    <input {...deleteSourceCollection.fields.id.as("number")} type="hidden" value={collection.id} />
                     <button
                       type="submit"
                       class="text-destructive hover:underline"
@@ -119,10 +98,7 @@
       </div>
 
       <p class="mt-4 text-sm text-muted-foreground">
-        To use these in your app, <a
-          href="/collections"
-          class="text-primary hover:underline">create a Collection</a
-        > and link these source collections to it.
+        To use these in your app, <a href="/collections" class="text-primary hover:underline">create a Collection</a> and link these source collections to it.
       </p>
     {/if}
   </div>

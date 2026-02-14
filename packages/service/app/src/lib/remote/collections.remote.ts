@@ -1,18 +1,23 @@
 import { form, query } from "$app/server";
+import {
+  deleteCollectionSchema,
+  updateCollectionNameSchema,
+} from "$lib/remote/collections.schemas";
 import { getUserId } from "$lib/server/user";
+import type { CollectionSchema } from "@contfu/core";
+import { createCollection as createCollectionFeature } from "@contfu/svc-backend/features/collections/createCollection";
+import { deleteCollection as deleteCollectionFeature } from "@contfu/svc-backend/features/collections/deleteCollection";
+import { getCollection as getCollectionFeature } from "@contfu/svc-backend/features/collections/getCollection";
 import {
   listCollections as listCollectionsFeature,
   type Collection,
 } from "@contfu/svc-backend/features/collections/listCollections";
-import { getCollection as getCollectionFeature } from "@contfu/svc-backend/features/collections/getCollection";
-import { createCollection as createCollectionFeature } from "@contfu/svc-backend/features/collections/createCollection";
 import { updateCollection as updateCollectionFeature } from "@contfu/svc-backend/features/collections/updateCollection";
-import { deleteCollection as deleteCollectionFeature } from "@contfu/svc-backend/features/collections/deleteCollection";
-import { createCollection as createSourceCollectionFeature } from "@contfu/svc-backend/features/source-collections/createCollection";
 import { createInflux } from "@contfu/svc-backend/features/influxes/createInflux";
+import { createCollection as createSourceCollectionFeature } from "@contfu/svc-backend/features/source-collections/createCollection";
 import { getCollectionSchema } from "@contfu/svc-backend/features/source-collections/getCollectionSchema";
-import type { CollectionSchema } from "@contfu/core";
-import { redirect } from "@sveltejs/kit";
+import { error, redirect } from "@sveltejs/kit";
+import { omit } from "remeda";
 import * as v from "valibot";
 
 export type { Collection };
@@ -30,9 +35,11 @@ export const getCollections = query(async (): Promise<Collection[]> => {
  */
 export const getCollection = query(
   v.object({ id: v.number() }),
-  async ({ id }): Promise<Collection | null> => {
+  async ({ id }): Promise<Omit<Collection, "userId">> => {
     const userId = getUserId();
-    return getCollectionFeature(userId, id);
+    const collection = await getCollectionFeature(userId, id);
+    if (!collection) error(404, "Collection not found");
+    return omit(collection, ["userId"]);
   },
 );
 
@@ -70,46 +77,27 @@ export const createCollection = form(
       });
     }
 
-    throw redirect(302, `/collections/${collection.id}`);
+    redirect(303, `/collections/${collection.id}`);
   },
 );
 
 /**
  * Update a Collection.
  */
-export const updateCollection = form(
-  v.object({
-    id: v.pipe(
-      v.union([v.string(), v.number()]),
-      v.transform((val) => (typeof val === "string" ? Number.parseInt(val, 10) : val)),
-      v.number(),
-    ),
-    name: v.pipe(v.string(), v.nonEmpty("Name is required")),
-  }),
-  async (data) => {
-    const userId = getUserId();
-    await updateCollectionFeature(userId, data.id, { name: data.name });
-    return { success: true };
-  },
-);
+export const updateCollection = form(updateCollectionNameSchema, async (data) => {
+  const userId = getUserId();
+  await updateCollectionFeature(userId, data.id, { name: data.name });
+  return { success: true };
+});
 
 /**
  * Delete a Collection.
  */
-export const deleteCollection = form(
-  v.object({
-    id: v.pipe(
-      v.union([v.string(), v.number()]),
-      v.transform((val) => (typeof val === "string" ? Number.parseInt(val, 10) : val)),
-      v.number(),
-    ),
-  }),
-  async (data) => {
-    const userId = getUserId();
-    await deleteCollectionFeature(userId, data.id);
-    throw redirect(302, "/collections");
-  },
-);
+export const deleteCollection = form(deleteCollectionSchema, async (data) => {
+  const userId = getUserId();
+  await deleteCollectionFeature(userId, data.id);
+  return { success: true };
+});
 
 /**
  * Get the schema for a source collection.

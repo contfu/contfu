@@ -4,7 +4,7 @@ import * as schema from "@contfu/svc-backend/infra/db/schema";
 const isTestMode = process.env.TEST_MODE === "true";
 const migrationsFolder =
   process.env.MIGRATIONS_PATH ??
-  new URL("../../../../backend/db/migrations", import.meta.url).pathname;
+  new URL("../../../backend/db/migrations", import.meta.url).pathname;
 
 async function createWorkerDb() {
   if (isTestMode) {

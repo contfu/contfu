@@ -7,7 +7,7 @@ import { getConsumer as getConsumerFeature } from "@contfu/svc-backend/features/
 import { getConsumerWithConnectionCount } from "@contfu/svc-backend/features/consumers/getConsumerWithConnectionCount";
 import { listConsumers } from "@contfu/svc-backend/features/consumers/listConsumers";
 import { updateConsumer as updateConsumerFeature } from "@contfu/svc-backend/features/consumers/updateConsumer";
-import { invalid, redirect } from "@sveltejs/kit";
+import { error, invalid, redirect } from "@sveltejs/kit";
 import * as v from "valibot";
 
 /**
@@ -31,10 +31,11 @@ export const getConsumers = query(async (): Promise<BackendConsumerWithConnectio
  */
 export const getConsumer = query(
   v.object({ id: v.number() }),
-  async ({ id }): Promise<BackendConsumerWithConnectionCount | null> => {
+  async ({ id }): Promise<BackendConsumerWithConnectionCount> => {
     const userId = getUserId();
     const consumer = await getConsumerWithConnectionCount(userId, id);
-    return consumer ?? null;
+    if (!consumer) error(404, "Consumer not found");
+    return consumer;
   },
 );
 
@@ -57,7 +58,7 @@ export const createConsumer = form(
       key: Buffer.from(apiKey, "hex"),
     });
 
-    throw redirect(302, `/consumers/${consumer.id}`);
+    redirect(303, `/consumers/${consumer.id}`);
   },
 );
 
@@ -79,7 +80,7 @@ export const updateConsumer = form(
     // Verify consumer exists
     const existing = await getConsumerFeature(userId, data.id);
     if (!existing) {
-      throw invalid(issue.id("Consumer not found"));
+      invalid(issue.id("Consumer not found"));
     }
 
     // Build update object
@@ -106,7 +107,7 @@ export const regenerateKey = form(
     // Verify consumer exists
     const existing = await getConsumerFeature(userId, data.id);
     if (!existing) {
-      throw invalid(issue.id("Consumer not found"));
+      invalid(issue.id("Consumer not found"));
     }
 
     // Generate a new API key
@@ -136,9 +137,9 @@ export const deleteConsumer = form(
     const deleted = await deleteConsumerFeature(userId, data.id);
 
     if (!deleted) {
-      throw invalid(issue.id("Consumer not found"));
+      invalid(issue.id("Consumer not found"));
     }
 
-    throw redirect(302, "/consumers");
+    return { success: true };
   },
 );

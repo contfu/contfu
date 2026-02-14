@@ -34,7 +34,7 @@
       {#if !user.approved}
         <form {...approveUser}>
           <input
-            {...approveUser.fields?.id.as("number")}
+            {...approveUser.fields.id.as("number")}
             type="hidden"
             value={user.id}
           />
@@ -47,7 +47,7 @@
       {:else}
         <form {...revokeUser}>
           <input
-            {...revokeUser.fields?.id.as("number")}
+            {...revokeUser.fields.id.as("number")}
             type="hidden"
             value={user.id}
           />
@@ -65,7 +65,7 @@
       {#if user.role === UserRole.ADMIN}
         <form {...demoteFromAdmin}>
           <input
-            {...demoteFromAdmin.fields?.id.as("number")}
+            {...demoteFromAdmin.fields.id.as("number")}
             type="hidden"
             value={user.id}
           />
@@ -78,7 +78,7 @@
       {:else}
         <form {...promoteToAdmin}>
           <input
-            {...promoteToAdmin.fields?.id.as("number")}
+            {...promoteToAdmin.fields.id.as("number")}
             type="hidden"
             value={user.id}
           />

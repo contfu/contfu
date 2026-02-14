@@ -399,6 +399,67 @@ class Counter {
 }
 ```
 
+## Best Practices
+
+### Prefer `$derived` over `$effect` where possible
+
+`$effect` should be a last resort. Prefer declarative patterns:
+
+```svelte
+<!-- ❌ Avoid: Using $effect for computed values -->
+let doubled = $state(0);
+$effect(() => {
+  doubled = count * 2;
+});
+
+<!-- ✅ Better: Use $derived -->
+const doubled = $derived(count * 2);
+```
+
+### Reactive Queries with Remote Functions
+
+Use the query object pattern with `.current` for reactive data. **Queries auto-refresh after form submissions.**
+
+```svelte
+<script lang="ts">
+  import { getItems, deleteItem } from '$lib/remote/items.remote';
+
+  // Query object - auto-refreshes after any form submission on the page
+  const items = getItems({ collectionId: id });
+</script>
+
+<!-- Use query properties in template -->
+{#if items.loading}
+  <p>Loading...</p>
+{:else if items.current.length === 0}
+  <p>No items</p>
+{:else}
+  {#each items.current as item}
+    <div>{item.name}</div>
+  {/each}
+{/if}
+
+<!-- Forms auto-refresh queries - no $effect needed -->
+<form {...deleteItem}>
+  <button type="submit">Delete</button>
+</form>
+```
+
+**Key points:**
+
+- `query.current` — the data
+- `query.loading` — loading state
+- `query.error` — error state
+- `query.refresh()` — manual re-fetch (rarely needed, forms auto-refresh)
+
+Queries are cached: `getItems() === getItems()`. Form submissions auto-refresh all queries on the page.
+
+### When `$effect` is appropriate
+
+- Reacting to form submission results (showing success messages, closing dialogs)
+- Refreshing queries after mutations
+- Side effects that can't be expressed declaratively (DOM manipulation, external APIs)
+
 ## Common Mistakes
 
 ### Don't: Read state in async callbacks expecting reactivity

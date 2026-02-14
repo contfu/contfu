@@ -1,12 +1,12 @@
 import { form, query } from "$app/server";
 import { getUserId } from "$lib/server/user";
-import { createConnection as createConnectionFeature } from "@contfu/svc-backend/features/connections/createConnection";
-import { listConnections } from "@contfu/svc-backend/features/connections/listConnections";
-import { listConnectionsByConsumer } from "@contfu/svc-backend/features/connections/listConnectionsByConsumer";
-import { listConnectionsByCollection } from "@contfu/svc-backend/features/connections/listConnectionsByCollection";
-import { getConnection as getConnectionFeature } from "@contfu/svc-backend/features/connections/getConnection";
-import { deleteConnection as deleteConnectionFeature } from "@contfu/svc-backend/features/connections/deleteConnection";
 import type { BackendConnectionWithDetails } from "@contfu/svc-backend/domain/types";
+import { createConnection as createConnectionFeature } from "@contfu/svc-backend/features/connections/createConnection";
+import { deleteConnection as deleteConnectionFeature } from "@contfu/svc-backend/features/connections/deleteConnection";
+import { getConnection as getConnectionFeature } from "@contfu/svc-backend/features/connections/getConnection";
+import { listConnections } from "@contfu/svc-backend/features/connections/listConnections";
+import { listConnectionsByCollection } from "@contfu/svc-backend/features/connections/listConnectionsByCollection";
+import { listConnectionsByConsumer } from "@contfu/svc-backend/features/connections/listConnectionsByConsumer";
 import { invalid } from "@sveltejs/kit";
 import * as v from "valibot";
 
@@ -62,7 +62,7 @@ export const addConnection = form(
     // Check if connection already exists
     const existing = await getConnectionFeature(userId, data.consumerId, data.collectionId);
     if (existing) {
-      throw invalid(issue.consumerId("Connection already exists"));
+      invalid(issue.consumerId("Connection already exists"));
     }
 
     // Insert the new connection
@@ -80,23 +80,15 @@ export const addConnection = form(
  */
 export const removeConnection = form(
   v.object({
-    consumerId: v.pipe(
-      v.union([v.string(), v.number()]),
-      v.transform((val) => (typeof val === "string" ? Number.parseInt(val, 10) : val)),
-      v.number(),
-    ),
-    collectionId: v.pipe(
-      v.union([v.string(), v.number()]),
-      v.transform((val) => (typeof val === "string" ? Number.parseInt(val, 10) : val)),
-      v.number(),
-    ),
+    consumerId: v.pipe(v.number(), v.integer()),
+    collectionId: v.pipe(v.number(), v.integer()),
   }),
   async (data, issue) => {
     const userId = getUserId();
     const deleted = await deleteConnectionFeature(userId, data.consumerId, data.collectionId);
 
     if (!deleted) {
-      throw invalid(issue.consumerId("Connection not found"));
+      invalid(issue.consumerId("Connection not found"));
     }
 
     return { success: true };

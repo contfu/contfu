@@ -1,6 +1,5 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
-  import { page } from "$app/state";
   import * as Alert from "$lib/components/ui/alert";
   import { Button, buttonVariants } from "$lib/components/ui/button";
   import { Input } from "$lib/components/ui/input";
@@ -17,14 +16,17 @@
     testConnection,
     updateSource,
   } from "$lib/remote/sources.remote";
+  import { updateSourceNameSchema } from "$lib/remote/sources.schemas";
   import {
     getWebhookLogs,
     type WebhookLogEntry,
   } from "$lib/remote/webhookLogs.remote";
   import { cn } from "$lib/utils";
+  import { tcToast } from "$lib/utils/toast";
   import { SourceType } from "@contfu/svc-backend/features/sources/testSourceConnection";
   import Pencil from "@lucide/svelte/icons/pencil";
   import { useId } from "bits-ui";
+  import { toast } from "svelte-sonner";
 
   const nameId = useId();
   const urlId = useId();
@@ -44,23 +46,24 @@
     2: "Basic Auth",
   };
 
-  const id = Number.parseInt(page.params.id ?? "", 10);
-  const source = Number.isNaN(id) ? null : await getSource({ id });
-  const collections = source
-    ? await getSourceCollectionsBySource({ sourceId: id })
-    : [];
+  let { params } = $props();
+
+  let id = $derived(Number(params.id));
+  const source = $derived(await getSource({ id }));
+  updateSource.fields.set(source);
+
+  // Query object - auto-refreshes after form submissions
+  const collections = $derived(
+    getSourceCollectionsBySource({ sourceId: Number(params.id) }),
+  );
 
   // Load webhook logs for Strapi sources
-  const initialWebhookLogs: WebhookLogEntry[] =
-    source?.type === 1 ? await getWebhookLogs({ sourceId: id, limit: 10 }) : [];
-
-  if (!source) {
-    goto("/sources");
-  }
+  const initialWebhookLogs: WebhookLogEntry[] = $derived(
+    source?.type === 1 ? await getWebhookLogs({ sourceId: id, limit: 10 }) : [],
+  );
 
   let testResult: { success: boolean; message: string } | null = $state(null);
   let testPending = $state(false);
-  let updateSuccess = $state(false);
   let namePopoverOpen = $state(false);
   let webhookLogs = $state(initialWebhookLogs);
   let webhookSecret = $state<string | null>(null);
@@ -88,18 +91,6 @@
       testPending = false;
     }
   }
-
-  function handleUpdateSuccess() {
-    updateSuccess = true;
-    namePopoverOpen = false;
-    setTimeout(() => {
-      updateSuccess = false;
-    }, 3000);
-  }
-
-  $effect(() => {
-    if (updateSource.result?.success) handleUpdateSuccess();
-  });
 
   async function handleRegenerateSecret() {
     if (!source) return;
@@ -169,21 +160,39 @@
           </Popover.Trigger>
           <Popover.Portal>
             <Popover.Content class="w-72" align="start">
-              <form {...updateSource} class="space-y-3">
+              <form
+                {...updateSource
+                  .preflight(updateSourceNameSchema)
+                  .enhance(async ({ submit, data }) => {
+                    namePopoverOpen = false;
+                    await tcToast(async () => {
+                      await submit().updates(
+                        getSource({ id }).withOverride((s) => ({
+                          ...s!,
+                          ...data,
+                        })),
+                      );
+                      toast.success("Source name updated successfully");
+                    });
+                  })}
+                class="space-y-3"
+              >
                 <input
-                  {...updateSource.fields?.id.as("number")}
+                  {...updateSource.fields.id.as("number")}
                   type="hidden"
-                  value={source.id}
                 />
                 <div class="space-y-1.5">
                   <Label for={nameId}>Name</Label>
                   <Input
                     id={nameId}
-                    {...updateSource.fields?.name.as("text")}
-                    value={source.name ?? ""}
+                    {...updateSource.fields.name.as("text")}
                     placeholder="My Content Source"
-                    required
                   />
+                  {#each updateSource.fields.name.issues() as issue}
+                    <p class="text-sm text-destructive">
+                      {issue.message}
+                    </p>
+                  {/each}
                 </div>
                 <div class="flex justify-end gap-2">
                   <Popover.Close>
@@ -218,12 +227,6 @@
       </p>
     </div>
 
-    {#if updateSuccess}
-      <Alert.Root class="mb-6">
-        <Alert.Description>Source updated successfully.</Alert.Description>
-      </Alert.Root>
-    {/if}
-
     <!-- Settings form -->
     <section class="mb-8">
       <h2
@@ -231,11 +234,18 @@
       >
         Connection
       </h2>
-      <form {...updateSource} class="space-y-4">
+      <form
+        {...updateSource.enhance(async ({ submit }) => {
+          await tcToast(async () => {
+            await submit();
+            toast.success("Source settings updated");
+          });
+        })}
+        class="space-y-4"
+      >
         <input
-          {...updateSource.fields?.id.as("number")}
+          {...updateSource.fields.id.as("number")}
           type="hidden"
-          value={source.id}
         />
 
         {#if source.type === SourceType.STRAPI || source.type === SourceType.WEB}
@@ -247,17 +257,17 @@
             >
             <Input
               id={urlId}
-              {...updateSource.fields?.url.as("url")}
+              name="url"
+              type="url"
               placeholder={source.type === SourceType.STRAPI
                 ? "https://strapi.example.com"
                 : "https://example.com"}
-              value={source.url ?? ""}
             />
-            {#if updateSource.fields?.url?.issues()?.length}
+            {#each updateSource.fields.url.issues() as issue}
               <p class="text-sm text-destructive">
-                {updateSource.fields?.url?.issues()?.[0]?.message}
+                {issue.message}
               </p>
-            {/if}
+            {/each}
           </div>
         {/if}
 
@@ -290,14 +300,15 @@
             </Label>
             <Input
               id={credentialsId}
-              {...updateSource.fields?._credentials.as("password")}
+              name="_credentials"
+              type="password"
               placeholder="Leave blank to keep current"
             />
-            {#if updateSource.fields?._credentials?.issues()?.length}
+            {#each updateSource.fields._credentials.issues() as issue}
               <p class="text-sm text-destructive">
-                {updateSource.fields?._credentials?.issues()?.[0]?.message}
+                {issue.message}
               </p>
-            {/if}
+            {/each}
           </div>
         {/if}
 
@@ -508,9 +519,16 @@
           <p class="mb-4 text-sm text-muted-foreground">
             Add a custom path or URL to create a new source collection.
           </p>
-          <form {...createSourceCollection} class="space-y-4">
+          <form
+            {...createSourceCollection.enhance(async ({ submit }) => {
+              await submit();
+              collections?.refresh();
+              toast.success("Source collection added");
+            })}
+            class="space-y-4"
+          >
             <input
-              {...createSourceCollection.fields?.sourceId.as("number")}
+              {...createSourceCollection.fields.sourceId.as("number")}
               type="hidden"
               value={source.id}
             />
@@ -519,7 +537,8 @@
               <Label for={webPathId}>Path or URL</Label>
               <Input
                 id={webPathId}
-                {...createSourceCollection.fields?.ref.as("text")}
+                name="ref"
+                type="text"
                 placeholder="/api/posts or full URL"
                 required
               />
@@ -529,15 +548,16 @@
               <Label for={collectionNameId}>Collection Name</Label>
               <Input
                 id={collectionNameId}
-                {...createSourceCollection.fields?.name.as("text")}
+                name="name"
+                type="text"
                 placeholder="e.g. Blog Posts"
                 required
               />
-              {#if createSourceCollection.fields?.name?.issues()?.length}
+              {#each createSourceCollection.fields.name.issues() as issue}
                 <p class="text-sm text-destructive">
-                  {createSourceCollection.fields?.name?.issues()?.[0]?.message}
+                  {issue.message}
                 </p>
-              {/if}
+              {/each}
             </div>
 
             <Button type="submit" disabled={!!createSourceCollection.pending}>
@@ -563,44 +583,36 @@
         >
       </div>
 
-      {#if collections.length === 0}
-        <div
-          class="rounded-lg border border-dashed border-border p-8 text-center"
-        >
-          <p class="text-sm text-muted-foreground">
-            No source collections discovered yet
-          </p>
-          <p class="text-xs text-muted-foreground mt-1">
-            Source collections are auto-discovered when syncing.
-          </p>
-        </div>
-      {:else}
-        <div class="overflow-hidden rounded-lg border border-border">
-          <ul class="divide-y divide-border">
-            {#each collections.slice(0, 5) as collection}
-              <li class="px-4 py-3 text-sm font-medium">
-                {collection.name || "Unnamed"}
-              </li>
-            {/each}
-          </ul>
-          {#if collections.length > 5}
-            <div class="border-t border-border px-4 py-2 text-center">
-              <a
-                href="/sources/{id}/collections"
-                class="text-sm text-primary hover:underline"
-              >
-                View all {collections.length} source collections →
-              </a>
+      <svelte:boundary>
+        {#snippet pending()}
+          <p class="text-sm text-muted-foreground">Loading...</p>
+        {/snippet}
+        {#each await collections as collection, i}
+          {#if i < 5}
+            <div
+              class="rounded-md border border-border px-4 py-3 text-sm font-medium"
+            >
+              {collection.name || "Unnamed"}
             </div>
           {/if}
-        </div>
-        <p class="mt-3 text-sm text-muted-foreground">
-          Use these in your <a
-            href="/collections"
-            class="text-primary hover:underline">Collections</a
-          > to aggregate content.
-        </p>
-      {/if}
+        {:else}
+          <div
+            class="rounded-lg border border-dashed border-border p-8 text-center"
+          >
+            <p class="text-sm text-muted-foreground">
+              No source collections discovered yet
+            </p>
+            <p class="text-xs text-muted-foreground mt-1">
+              Source collections are auto-discovered when syncing.
+            </p>
+          </div>
+        {/each}
+        {#snippet failed(error)}
+          <p class="text-sm text-muted-foreground">
+            Error loading source collections: {(error as any).message}
+          </p>
+        {/snippet}
+      </svelte:boundary>
     </section>
 
     <!-- Danger zone -->
@@ -612,9 +624,14 @@
             This will delete all collections.
           </p>
         </div>
-        <form {...deleteSource}>
+        <form
+          {...deleteSource.enhance(async ({ submit }) => {
+            await submit();
+            goto("/sources");
+          })}
+        >
           <input
-            {...deleteSource.fields?.id.as("number")}
+            {...deleteSource.fields.id.as("number")}
             type="hidden"
             value={source.id}
           />
@@ -637,12 +654,5 @@
         </form>
       </div>
     </section>
-  </div>
-{:else}
-  <div class="mx-auto max-w-2xl px-4 py-8 sm:px-6">
-    <Alert.Root variant="destructive">
-      <Alert.Title>Source not found</Alert.Title>
-    </Alert.Root>
-    <Button href="/sources" class="mt-4">Back to Sources</Button>
   </div>
 {/if}

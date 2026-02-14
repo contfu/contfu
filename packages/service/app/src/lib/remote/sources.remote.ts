@@ -1,25 +1,25 @@
 import { command, form, query } from "$app/server";
-import { getProviderAccessToken } from "@contfu/svc-backend/infra/auth/linked-accounts";
 import { getUserId } from "$lib/server/user";
+import type { BackendSourceWithCollectionCount } from "@contfu/svc-backend/domain/types";
+import { createSource as createSourceFeature } from "@contfu/svc-backend/features/sources/createSource";
+import { deleteSource as deleteSourceFeature } from "@contfu/svc-backend/features/sources/deleteSource";
+import { getSource as getSourceFeature } from "@contfu/svc-backend/features/sources/getSource";
+import { getSourceWithCollectionCount } from "@contfu/svc-backend/features/sources/getSourceWithCollectionCount";
+import { getSourceWithCredentials } from "@contfu/svc-backend/features/sources/getSourceWithCredentials";
+import { listSources } from "@contfu/svc-backend/features/sources/listSources";
+import {
+  SourceType,
+  testSourceConnection,
+  type ConnectionTestResult,
+} from "@contfu/svc-backend/features/sources/testSourceConnection";
+import { updateSource as updateSourceFeature } from "@contfu/svc-backend/features/sources/updateSource";
+import { validateSourceData } from "@contfu/svc-backend/features/sources/validateSourceData";
+import { getProviderAccessToken } from "@contfu/svc-backend/infra/auth/linked-accounts";
 import {
   iterateDataSources,
   resolveDataSourceId,
   type DataSourceResult,
 } from "@contfu/svc-sources/notion";
-import { createSource as createSourceFeature } from "@contfu/svc-backend/features/sources/createSource";
-import { listSources } from "@contfu/svc-backend/features/sources/listSources";
-import { getSource as getSourceFeature } from "@contfu/svc-backend/features/sources/getSource";
-import { getSourceWithCollectionCount } from "@contfu/svc-backend/features/sources/getSourceWithCollectionCount";
-import { updateSource as updateSourceFeature } from "@contfu/svc-backend/features/sources/updateSource";
-import { deleteSource as deleteSourceFeature } from "@contfu/svc-backend/features/sources/deleteSource";
-import { getSourceWithCredentials } from "@contfu/svc-backend/features/sources/getSourceWithCredentials";
-import {
-  testSourceConnection,
-  SourceType,
-  type ConnectionTestResult,
-} from "@contfu/svc-backend/features/sources/testSourceConnection";
-import { validateSourceData } from "@contfu/svc-backend/features/sources/validateSourceData";
-import type { BackendSourceWithCollectionCount } from "@contfu/svc-backend/domain/types";
 import { error, invalid, redirect } from "@sveltejs/kit";
 import * as v from "valibot";
 
@@ -36,10 +36,11 @@ export const getSources = query(async (): Promise<BackendSourceWithCollectionCou
  */
 export const getSource = query(
   v.object({ id: v.number() }),
-  async ({ id }): Promise<BackendSourceWithCollectionCount | null> => {
+  async ({ id }): Promise<BackendSourceWithCollectionCount> => {
     const userId = getUserId();
     const source = await getSourceWithCollectionCount(userId, id);
-    return source ?? null;
+    if (!source) error(404, "Source not found");
+    return source;
   },
 );
 
@@ -75,10 +76,10 @@ export const createSource = form(
     const errors = validateSourceData(data.type, data.url, data._credentials ?? "", data.authType);
     for (const error of errors) {
       if (error.field === "url") {
-        throw invalid(issue.url(error.message));
+        invalid(issue.url(error.message));
       }
       if (error.field === "credentials") {
-        throw invalid(issue._credentials(error.message));
+        invalid(issue._credentials(error.message));
       }
     }
 
@@ -106,7 +107,7 @@ export const createSource = form(
       credentials: credentialsBuffer,
     });
 
-    throw redirect(302, `/sources/${source.id}`);
+    redirect(303, `/sources/${source.id}`);
   },
 );
 
@@ -118,19 +119,19 @@ export const createNotionSourceFromOAuth = command(
   v.object({
     name: v.pipe(v.string(), v.nonEmpty("Name is required")),
   }),
-  async (data): Promise<{ id: number } | { error: string }> => {
+  async (data): Promise<{ id: number }> => {
     const userId = getUserId();
 
     // Get the Notion access token from linked accounts
     const accessToken = await getProviderAccessToken(userId, "notion");
     if (!accessToken) {
-      return { error: "No Notion account linked. Please connect Notion first." };
+      error(400, "No Notion account linked. Please connect Notion first.");
     }
 
     // Test the connection
     const testResult = await testSourceConnection(SourceType.NOTION, undefined, accessToken);
     if (!testResult.success) {
-      return { error: `Notion connection failed: ${testResult.message}` };
+      error(400, `Notion connection failed: ${testResult.message}`);
     }
 
     // Insert the source
@@ -165,7 +166,7 @@ export const updateSource = form(
     // Fetch existing source to get the type (with credentials for validation)
     const existing = await getSourceWithCredentials(userId, data.id);
     if (!existing) {
-      throw invalid(issue.id("Source not found"));
+      invalid(issue.id("Source not found"));
     }
 
     // Validate type-specific requirements if credentials or url are being updated
@@ -175,10 +176,10 @@ export const updateSource = form(
       const errors = validateSourceData(existing.type, newUrl, newCredentials);
       for (const error of errors) {
         if (error.field === "url") {
-          throw invalid(issue.url(error.message));
+          invalid(issue.url(error.message));
         }
         if (error.field === "credentials") {
-          throw invalid(issue._credentials(error.message));
+          invalid(issue._credentials(error.message));
         }
       }
     }
@@ -216,10 +217,10 @@ export const deleteSource = form(
     const deleted = await deleteSourceFeature(userId, data.id);
 
     if (!deleted) {
-      throw invalid(issue.id("Source not found"));
+      invalid(issue.id("Source not found"));
     }
 
-    throw redirect(302, "/sources");
+    return { success: true };
   },
 );
 
@@ -293,11 +294,11 @@ export const regenerateWebhookSecret = command(
     const source = await getSourceFeature(userId, data.id);
 
     if (!source) {
-      return { success: false, message: "Source not found" };
+      error(404, "Source not found");
     }
 
     if (source.type !== SourceType.STRAPI) {
-      return { success: false, message: "Webhook secrets are only available for Strapi sources" };
+      error(400, "Webhook secrets are only available for Strapi sources");
     }
 
     // Generate new secret
@@ -367,16 +368,14 @@ export const listNotionDataSources = query(
     const source = await getSourceWithCredentials(userId, data.sourceId);
 
     if (!source) {
-      return error(404, "Source not found");
+      error(404, "Source not found");
     }
-
     if (source.type !== SourceType.NOTION) {
-      return error(400, "Not a Notion source");
+      error(400, "Not a Notion source");
     }
-
     const token = source.credentials?.toString("utf-8");
     if (!token) {
-      return error(400, "No API token configured");
+      error(400, "No API token configured");
     }
 
     try {
@@ -402,12 +401,12 @@ export const listNotionDataSources = query(
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
       if (message.includes("401") || message.includes("unauthorized")) {
-        return error(401, "Invalid or expired Notion token");
+        error(401, "Invalid or expired Notion token");
       }
       if (message.includes("403") || message.includes("forbidden")) {
-        return error(403, "No data sources found. Make sure your integration has access.");
+        error(403, "No data sources found. Make sure your integration has access.");
       }
-      return error(500, message);
+      error(500, message);
     }
   },
 );
@@ -432,16 +431,15 @@ export const resolveNotionId = command(
     const source = await getSourceWithCredentials(userId, data.sourceId);
 
     if (!source) {
-      return { success: false, error: "Source not found" };
+      error(404, "Source not found");
     }
-
     if (source.type !== SourceType.NOTION) {
-      return { success: false, error: "Not a Notion source" };
+      error(400, "Not a Notion source");
     }
 
     const token = source.credentials?.toString("utf-8");
     if (!token) {
-      return { success: false, error: "No API token configured" };
+      error(400, "No API token configured");
     }
 
     try {
@@ -450,9 +448,9 @@ export const resolveNotionId = command(
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
       if (message.includes("401") || message.includes("unauthorized")) {
-        return { success: false, error: "Invalid or expired Notion token" };
+        error(401, "Invalid or expired Notion token");
       }
-      return { success: false, error: "Could not find database or data source with this ID" };
+      error(404, "Could not find database or data source with this ID");
     }
   },
 );

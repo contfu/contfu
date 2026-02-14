@@ -1,23 +1,27 @@
 <script lang="ts">
-  import { invalidateAll } from "$app/navigation";
-  import { Button } from "$lib/components/ui/button";
-  import * as Dialog from "$lib/components/ui/dialog";
-  import * as Command from "$lib/components/ui/command";
   import FilterEditor from "$lib/components/FilterEditor.svelte";
   import SourceTypeIcon from "$lib/components/icons/SourceTypeIcon.svelte";
+  import { Button } from "$lib/components/ui/button";
+  import * as Command from "$lib/components/ui/command";
+  import * as Dialog from "$lib/components/ui/dialog";
+  import { getSourceCollectionSchemaQuery } from "$lib/remote/collections.remote";
   import {
-    probeAllSources,
     addInfluxWithAutoCreate,
+    getInfluxes,
+    probeAllSources,
     type DataSourceInfo,
     type SourceWithDataSources,
   } from "$lib/remote/influxes.remote";
-  import { getSourceCollectionSchemaQuery } from "$lib/remote/collections.remote";
+  import type {
+    CollectionSchema,
+    Filter,
+    InfluxWithDetails,
+  } from "@contfu/core";
   import { SourceType } from "@contfu/svc-backend/features/sources/testSourceConnection";
-  import type { Filter, CollectionSchema } from "@contfu/core";
-  import LoaderCircle from "@lucide/svelte/icons/loader-circle";
-  import Check from "@lucide/svelte/icons/check";
   import AlertCircle from "@lucide/svelte/icons/alert-circle";
+  import Check from "@lucide/svelte/icons/check";
   import ChevronLeft from "@lucide/svelte/icons/chevron-left";
+  import LoaderCircle from "@lucide/svelte/icons/loader-circle";
   import Plus from "@lucide/svelte/icons/plus";
 
   interface Props {
@@ -29,7 +33,12 @@
     onSuccess?: () => void;
   }
 
-  let { collectionId, linkedSourceCollectionIds, linkedSourceCollectionRefs, onSuccess }: Props = $props();
+  let {
+    collectionId,
+    linkedSourceCollectionIds,
+    linkedSourceCollectionRefs,
+    onSuccess,
+  }: Props = $props();
 
   // Dialog state
   let open = $state(false);
@@ -75,10 +84,17 @@
   }
 
   function isAlreadyLinked(ds: DataSourceInfo): boolean {
-    return ds.exists && ds.sourceCollectionId !== undefined && linkedSourceCollectionIds.has(ds.sourceCollectionId);
+    return (
+      ds.exists &&
+      ds.sourceCollectionId !== undefined &&
+      linkedSourceCollectionIds.has(ds.sourceCollectionId)
+    );
   }
 
-  async function handleSelectDataSource(source: SourceWithDataSources, ds: DataSourceInfo) {
+  async function handleSelectDataSource(
+    source: SourceWithDataSources,
+    ds: DataSourceInfo,
+  ) {
     if (isAlreadyLinked(ds)) return;
 
     selectedSource = source;
@@ -94,7 +110,9 @@
       // For existing source collections without inline schema, fetch from DB
       loadingSchema = true;
       try {
-        schema = await getSourceCollectionSchemaQuery({ sourceCollectionId: ds.sourceCollectionId });
+        schema = await getSourceCollectionSchemaQuery({
+          sourceCollectionId: ds.sourceCollectionId,
+        });
       } catch {
         schema = null;
       }
@@ -125,22 +143,38 @@
     submitting = true;
     submitError = null;
 
+    const override = {
+      sourceType: selectedSource.sourceType,
+      filters,
+      schema,
+      sourceCollectionId: 0,
+      sourceCollectionName: selectedDataSource?.title!,
+      sourceCollectionRef: selectedDataSource?.id!,
+      sourceName: selectedSource!.sourceName!,
+    } as InfluxWithDetails;
+
     const result = await addInfluxWithAutoCreate({
       collectionId,
       sourceId: selectedSource.sourceId,
       ref: selectedDataSource.id,
       name: selectedDataSource.title,
-      existingSourceCollectionId: selectedDataSource.exists ? selectedDataSource.sourceCollectionId : undefined,
+      existingSourceCollectionId: selectedDataSource.exists
+        ? selectedDataSource.sourceCollectionId
+        : undefined,
       filters: filters.length > 0 ? JSON.stringify(filters) : undefined,
       schema: schema ? JSON.stringify(schema) : undefined,
-    });
+    }).updates(
+      getInfluxes({ collectionId }).withOverride((influxes) => [
+        ...influxes,
+        override,
+      ]),
+    );
 
     submitting = false;
 
     if (result.success) {
       open = false;
-      await onSuccess?.();
-      await invalidateAll();
+      onSuccess?.();
     } else {
       submitError = result.error;
     }
@@ -171,9 +205,12 @@
     const filter = searchFilter.trim().toLowerCase();
     if (!filter) return false;
     // Check against data sources from probe
-    if (source.dataSources.some(
-      (ds) => ds.id.toLowerCase() === filter || ds.title.toLowerCase() === filter
-    )) {
+    if (
+      source.dataSources.some(
+        (ds) =>
+          ds.id.toLowerCase() === filter || ds.title.toLowerCase() === filter,
+      )
+    ) {
       return true;
     }
     // Also check against already-linked refs (for custom paths that aren't in probe results)
@@ -181,7 +218,12 @@
   }
 </script>
 
-<Dialog.Root bind:open onOpenChange={(isOpen) => { if (!isOpen) handleClose(); }}>
+<Dialog.Root
+  bind:open
+  onOpenChange={(isOpen) => {
+    if (!isOpen) handleClose();
+  }}
+>
   <Dialog.Trigger
     class="inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
     onclick={handleOpen}
@@ -214,7 +256,9 @@
         {#await sourcesPromise}
           <div class="flex items-center justify-center py-12">
             <LoaderCircle class="h-6 w-6 animate-spin text-muted-foreground" />
-            <span class="ml-2 text-sm text-muted-foreground">Loading data sources...</span>
+            <span class="ml-2 text-sm text-muted-foreground"
+              >Loading data sources...</span
+            >
           </div>
         {:then sources}
           {#if sources.length === 0}
@@ -224,28 +268,45 @@
             </div>
           {:else}
             <Command.Root class="border rounded-lg" shouldFilter={false}>
-              <Command.Input placeholder="Search data sources..." bind:value={searchFilter} />
+              <Command.Input
+                placeholder="Search data sources..."
+                bind:value={searchFilter}
+              />
               <Command.List class="max-h-[300px]">
                 <Command.Empty>No data sources found.</Command.Empty>
 
                 {#each sources as source}
                   {@const hasDataSources = source.dataSources.length > 0}
-                  {@const showAddCustom = source.allowCustomPath && searchFilter.trim() && !filterMatchesExisting(source)}
+                  {@const showAddCustom =
+                    source.allowCustomPath &&
+                    searchFilter.trim() &&
+                    !filterMatchesExisting(source)}
                   {@const filter = searchFilter.trim().toLowerCase()}
-                  {@const filteredDataSources = filter ? source.dataSources.filter(ds => 
-                    ds.id.toLowerCase().includes(filter) || 
-                    ds.title.toLowerCase().includes(filter)
-                  ) : source.dataSources}
+                  {@const filteredDataSources = filter
+                    ? source.dataSources.filter(
+                        (ds) =>
+                          ds.id.toLowerCase().includes(filter) ||
+                          ds.title.toLowerCase().includes(filter),
+                      )
+                    : source.dataSources}
 
                   <Command.Group>
                     <!-- Custom heading with icon -->
-                    <div class="flex items-center gap-2 px-2 py-1.5 text-xs font-medium text-muted-foreground">
-                      <SourceTypeIcon type={source.sourceType} class="h-4 w-4" />
-                      {source.sourceName ?? SOURCE_TYPE_LABELS[source.sourceType]}
+                    <div
+                      class="flex items-center gap-2 px-2 py-1.5 text-xs font-medium text-muted-foreground"
+                    >
+                      <SourceTypeIcon
+                        type={source.sourceType}
+                        class="h-4 w-4"
+                      />
+                      {source.sourceName ??
+                        SOURCE_TYPE_LABELS[source.sourceType]}
                     </div>
 
                     {#if source.error}
-                      <div class="flex items-center gap-2 px-2 py-3 text-sm text-destructive">
+                      <div
+                        class="flex items-center gap-2 px-2 py-3 text-sm text-destructive"
+                      >
                         <AlertCircle class="h-4 w-4" />
                         {source.error}
                       </div>
@@ -265,16 +326,23 @@
                           {#if ds.icon?.type === "emoji"}
                             <span class="mr-2">{ds.icon.value}</span>
                           {:else}
-                            <SourceTypeIcon type={source.sourceType} class="mr-2 h-4 w-4 text-muted-foreground" />
+                            <SourceTypeIcon
+                              type={source.sourceType}
+                              class="mr-2 h-4 w-4 text-muted-foreground"
+                            />
                           {/if}
                           <span class="flex-1 truncate">{ds.title}</span>
                           {#if linked}
-                            <span class="ml-2 flex items-center gap-1 text-xs text-muted-foreground">
+                            <span
+                              class="ml-2 flex items-center gap-1 text-xs text-muted-foreground"
+                            >
                               <Check class="h-3 w-3" />
                               linked
                             </span>
                           {:else if ds.exists}
-                            <span class="ml-2 text-xs text-muted-foreground">existing</span>
+                            <span class="ml-2 text-xs text-muted-foreground"
+                              >existing</span
+                            >
                           {/if}
                         </Command.Item>
                       {/each}
@@ -286,7 +354,8 @@
                           onSelect={() => handleAddCustomWebPath(source)}
                         >
                           <Plus class="mr-2 h-4 w-4 text-muted-foreground" />
-                          <span class="flex-1">Add "{searchFilter.trim()}"</span>
+                          <span class="flex-1">Add "{searchFilter.trim()}"</span
+                          >
                           <span class="text-xs text-muted-foreground">new</span>
                         </Command.Item>
                       {/if}
@@ -322,11 +391,16 @@
               {#if selectedDataSource.icon?.type === "emoji"}
                 <span>{selectedDataSource.icon.value}</span>
               {:else if selectedSource}
-                <SourceTypeIcon type={selectedSource.sourceType} class="h-4 w-4 text-muted-foreground" />
+                <SourceTypeIcon
+                  type={selectedSource.sourceType}
+                  class="h-4 w-4 text-muted-foreground"
+                />
               {/if}
               <span class="font-medium">{selectedDataSource.title}</span>
               {#if !selectedDataSource.exists}
-                <span class="ml-auto text-xs text-muted-foreground">New source collection</span>
+                <span class="ml-auto text-xs text-muted-foreground"
+                  >New source collection</span
+                >
               {/if}
             </div>
           </div>
@@ -340,16 +414,14 @@
               <span class="text-sm">Loading schema...</span>
             </div>
           {:else}
-            <FilterEditor
-              {schema}
-              {filters}
-              onchange={handleFilterChange}
-            />
+            <FilterEditor {schema} {filters} onchange={handleFilterChange} />
           {/if}
         </div>
 
         {#if submitError}
-          <div class="flex items-center gap-2 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+          <div
+            class="flex items-center gap-2 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive"
+          >
             <AlertCircle class="h-4 w-4 shrink-0" />
             {submitError}
           </div>

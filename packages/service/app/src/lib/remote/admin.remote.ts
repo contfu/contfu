@@ -1,9 +1,9 @@
 import { form, query } from "$app/server";
+import { getUser } from "$lib/server/user";
+import { getSetting } from "@contfu/svc-backend/features/admin/getSetting";
 import { listUsers, type UserSummary } from "@contfu/svc-backend/features/admin/listUsers";
 import { updateUser } from "@contfu/svc-backend/features/admin/updateUser";
-import { getSetting } from "@contfu/svc-backend/features/admin/getSetting";
 import { decryptCredentials } from "@contfu/svc-backend/infra/crypto/credentials";
-import { getUser } from "$lib/server/user";
 import { UserRole } from "@contfu/svc-backend/infra/db/constants";
 import { error, invalid } from "@sveltejs/kit";
 import * as v from "valibot";
@@ -15,7 +15,7 @@ import * as v from "valibot";
 function requireAdmin() {
   const user = getUser();
   if (user.role !== UserRole.ADMIN) {
-    throw error(403, "Admin access required");
+    error(403, "Admin access required");
   }
   return user;
 }
@@ -44,7 +44,7 @@ export const approveUser = form(
 
     const result = await updateUser({ id: data.id, approved: true });
     if (!result) {
-      throw invalid(issue.id("User not found"));
+      invalid(issue.id("User not found"));
     }
 
     return { success: true };
@@ -67,7 +67,7 @@ export const revokeUser = form(
 
     const result = await updateUser({ id: data.id, approved: false });
     if (!result) {
-      throw invalid(issue.id("User not found"));
+      invalid(issue.id("User not found"));
     }
 
     return { success: true };
@@ -90,7 +90,7 @@ export const promoteToAdmin = form(
 
     const result = await updateUser({ id: data.id, role: UserRole.ADMIN });
     if (!result) {
-      throw invalid(issue.id("User not found"));
+      invalid(issue.id("User not found"));
     }
 
     return { success: true };
@@ -113,7 +113,7 @@ export const demoteFromAdmin = form(
 
     const result = await updateUser({ id: data.id, role: UserRole.USER });
     if (!result) {
-      throw invalid(issue.id("User not found"));
+      invalid(issue.id("User not found"));
     }
 
     return { success: true };

@@ -21,21 +21,27 @@ Every issue must follow this structure:
 
 ```markdown
 ## Context
+
 [Why this matters, what problem it solves]
 
 ## Relevant files
+
 - `path/to/file.ts` — role description
 
 ## Current behavior
+
 [What happens now, if applicable]
 
 ## Expected behavior
+
 [What should happen after implementation]
 
 ## Acceptance criteria
+
 - [ ] Concrete, testable criterion
 
 ## Suggested approach
+
 [Which files to modify, patterns to follow, gotchas]
 ```
 

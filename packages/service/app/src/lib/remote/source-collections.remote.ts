@@ -1,17 +1,17 @@
 import { form, query } from "$app/server";
 import { getUserId } from "$lib/server/user";
+import type {
+  BackendCollectionSummary,
+  BackendCollectionWithConnectionCount,
+} from "@contfu/svc-backend/domain/types";
 import { createCollection as createCollectionFeature } from "@contfu/svc-backend/features/source-collections/createCollection";
-import { listCollections } from "@contfu/svc-backend/features/source-collections/listCollections";
-import { listCollectionSummariesBySource } from "@contfu/svc-backend/features/source-collections/listCollectionSummariesBySource";
+import { deleteCollection as deleteCollectionFeature } from "@contfu/svc-backend/features/source-collections/deleteCollection";
 import { getCollection as getCollectionFeature } from "@contfu/svc-backend/features/source-collections/getCollection";
 import { getCollectionWithConnectionCount } from "@contfu/svc-backend/features/source-collections/getCollectionWithConnectionCount";
+import { listCollections } from "@contfu/svc-backend/features/source-collections/listCollections";
+import { listCollectionSummariesBySource } from "@contfu/svc-backend/features/source-collections/listCollectionSummariesBySource";
 import { updateCollection as updateCollectionFeature } from "@contfu/svc-backend/features/source-collections/updateCollection";
-import { deleteCollection as deleteCollectionFeature } from "@contfu/svc-backend/features/source-collections/deleteCollection";
-import type {
-  BackendCollectionWithConnectionCount,
-  BackendCollectionSummary,
-} from "@contfu/svc-backend/domain/types";
-import { invalid, redirect } from "@sveltejs/kit";
+import { invalid } from "@sveltejs/kit";
 import * as v from "valibot";
 
 /**
@@ -65,13 +65,13 @@ export const createSourceCollection = form(
     const userId = getUserId();
 
     // Insert into database
-    const collection = await createCollectionFeature(userId, {
+    await createCollectionFeature(userId, {
       name: data.name,
       sourceId: data.sourceId,
       ref: data.ref ? Buffer.from(data.ref, "utf-8") : null,
     });
 
-    throw redirect(302, `/sources/${collection.sourceId}/collections/${collection.id}`);
+    return { success: true };
   },
 );
 
@@ -94,7 +94,7 @@ export const updateSourceCollection = form(
     // Verify collection exists
     const existing = await getCollectionFeature(userId, data.id);
     if (!existing) {
-      throw invalid(issue.id("Source collection not found"));
+      invalid(issue.id("Source collection not found"));
     }
 
     // Build update object
@@ -125,18 +125,11 @@ export const deleteSourceCollection = form(
   async (data, issue) => {
     const userId = getUserId();
 
-    // Get collection to find sourceId before deleting
-    const existing = await getCollectionFeature(userId, data.id);
-    if (!existing) {
-      throw invalid(issue.id("Source collection not found"));
-    }
-    const sourceId = existing.sourceId;
-
     const deleted = await deleteCollectionFeature(userId, data.id);
     if (!deleted) {
-      throw invalid(issue.id("Source collection not found"));
+      invalid(issue.id("Source collection not found"));
     }
 
-    throw redirect(302, `/sources/${sourceId}/collections`);
+    return { success: true };
   },
 );

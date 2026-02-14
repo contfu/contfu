@@ -20,11 +20,11 @@ Implement a GitHub issue from start to PR.
 
 ## Branch Naming
 
-| Issue label   | Branch prefix |
-| ------------- | ------------- |
-| `enhancement` | `feat/`       |
-| `bug`         | `fix/`        |
-| `documentation` | `docs/`     |
+| Issue label     | Branch prefix |
+| --------------- | ------------- |
+| `enhancement`   | `feat/`       |
+| `bug`           | `fix/`        |
+| `documentation` | `docs/`       |
 
 Format: `<prefix><number>-short-name` (e.g. `feat/42-webhook-retries`).
 
