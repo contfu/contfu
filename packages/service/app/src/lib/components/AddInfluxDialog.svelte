@@ -9,6 +9,7 @@
     addInfluxWithAutoCreate,
     getInfluxes,
     probeAllSources,
+    refreshSourceDataSources,
     type DataSourceInfo,
     type SourceWithDataSources,
   } from "$lib/remote/influxes.remote";
@@ -23,6 +24,7 @@
   import ChevronLeft from "@lucide/svelte/icons/chevron-left";
   import LoaderCircle from "@lucide/svelte/icons/loader-circle";
   import Plus from "@lucide/svelte/icons/plus";
+  import RefreshCw from "@lucide/svelte/icons/refresh-cw";
 
   interface Props {
     collectionId: number;
@@ -59,6 +61,8 @@
 
   // Data loading
   let sourcesPromise = $state<Promise<SourceWithDataSources[]> | null>(null);
+  let refreshingSourceId = $state<number | null>(null);
+  let refreshErrorBySourceId = $state<Map<number, string>>(new Map());
 
   const SOURCE_TYPE_LABELS: Record<number, string> = {
     [SourceType.NOTION]: "Notion",
@@ -74,6 +78,7 @@
     schema = null;
     filters = [];
     submitError = null;
+    refreshErrorBySourceId = new Map();
 
     // Start probing sources
     sourcesPromise = probeAllSources();
@@ -216,6 +221,41 @@
     // Also check against already-linked refs (for custom paths that aren't in probe results)
     return linkedSourceCollectionRefs.has(searchFilter.trim());
   }
+
+  // Refresh collections for a specific source
+  async function handleRefreshSource(sourceId: number) {
+    // Prevent concurrent refresh requests for same source
+    if (refreshingSourceId === sourceId) {
+      return;
+    }
+
+    refreshingSourceId = sourceId;
+    // Clear any previous error for this source
+    refreshErrorBySourceId.delete(sourceId);
+    refreshErrorBySourceId = refreshErrorBySourceId;
+
+    try {
+      // Try to refresh cache with fresh data
+      const result = await refreshSourceDataSources({ sourceId });
+
+      if (result.success) {
+        // Refresh succeeded - re-probe to show updated data
+        sourcesPromise = probeAllSources();
+        await sourcesPromise;
+      } else {
+        // Refresh failed - show error, keep existing cached data
+        refreshErrorBySourceId.set(sourceId, result.error);
+        refreshErrorBySourceId = refreshErrorBySourceId;
+      }
+    } catch (err) {
+      // Network or other error
+      const errorMsg = err instanceof Error ? err.message : "Failed to refresh";
+      refreshErrorBySourceId.set(sourceId, errorMsg);
+      refreshErrorBySourceId = refreshErrorBySourceId;
+    } finally {
+      refreshingSourceId = null;
+    }
+  }
 </script>
 
 <Dialog.Root
@@ -299,8 +339,27 @@
                         type={source.sourceType}
                         class="h-4 w-4"
                       />
-                      {source.sourceName ??
-                        SOURCE_TYPE_LABELS[source.sourceType]}
+                      <span class="flex-1"
+                        >{source.sourceName ??
+                          SOURCE_TYPE_LABELS[source.sourceType]}</span
+                      >
+                      {#if source.sourceType === SourceType.NOTION}
+                        {@const isRefreshing =
+                          refreshingSourceId === source.sourceId}
+                        <button
+                          type="button"
+                          onclick={() => handleRefreshSource(source.sourceId)}
+                          disabled={isRefreshing}
+                          title="Refresh collections from source"
+                          class="inline-flex items-center justify-center rounded-sm p-1 hover:bg-accent hover:text-accent-foreground disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {#if isRefreshing}
+                            <LoaderCircle class="h-3.5 w-3.5 animate-spin" />
+                          {:else}
+                            <RefreshCw class="h-3.5 w-3.5" />
+                          {/if}
+                        </button>
+                      {/if}
                     </div>
 
                     {#if source.error}
@@ -310,8 +369,23 @@
                         <AlertCircle class="h-4 w-4" />
                         {source.error}
                       </div>
-                    {:else if filteredDataSources.length === 0 && !showAddCustom}
-                      <div class="px-2 py-3 text-sm text-muted-foreground">
+                    {/if}
+
+                    {@const refreshError = refreshErrorBySourceId.get(source.sourceId)}
+                    {#if refreshError}
+                      <div class="flex items-center gap-2 px-2 py-3 text-sm text-destructive bg-destructive/10 border-l-2 border-destructive">
+                        <AlertCircle class="h-4 w-4" />
+                        <span>Failed to refresh: {refreshError}</span>
+                      </div>
+                    {/if}
+
+                    {#if refreshingSourceId === source.sourceId}
+                      <div class="flex items-center gap-2 py-3 pl-6 pr-2 text-sm text-muted-foreground">
+                        <LoaderCircle class="h-4 w-4 animate-spin" />
+                        Refreshing collections...
+                      </div>
+                    {:else if !source.error && filteredDataSources.length === 0 && !showAddCustom}
+                      <div class="py-3 pl-6 pr-2 text-sm text-muted-foreground">
                         No data sources found.
                       </div>
                     {:else}
@@ -321,14 +395,14 @@
                           value={`${source.sourceName} ${ds.title} ${ds.id}`}
                           disabled={linked}
                           onSelect={() => handleSelectDataSource(source, ds)}
-                          class={linked ? "opacity-50" : ""}
+                          class="{linked ? 'opacity-50' : ''} pl-6"
                         >
                           {#if ds.icon?.type === "emoji"}
-                            <span class="mr-2">{ds.icon.value}</span>
+                            <span>{ds.icon.value}</span>
                           {:else}
                             <SourceTypeIcon
                               type={source.sourceType}
-                              class="mr-2 h-4 w-4 text-muted-foreground"
+                              class="h-4 w-4 text-muted-foreground"
                             />
                           {/if}
                           <span class="flex-1 truncate">{ds.title}</span>
@@ -352,8 +426,9 @@
                         <Command.Item
                           value={`add-custom-${source.sourceId}`}
                           onSelect={() => handleAddCustomWebPath(source)}
+                          class="pl-6"
                         >
-                          <Plus class="mr-2 h-4 w-4 text-muted-foreground" />
+                          <Plus class="h-4 w-4 text-muted-foreground" />
                           <span class="flex-1">Add "{searchFilter.trim()}"</span
                           >
                           <span class="text-xs text-muted-foreground">new</span>

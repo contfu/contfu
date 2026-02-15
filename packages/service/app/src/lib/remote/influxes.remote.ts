@@ -18,7 +18,18 @@ import {
 } from "@contfu/svc-sources/notion";
 import { invalid } from "@sveltejs/kit";
 import { and, eq } from "drizzle-orm";
+import { lru } from "tiny-lru";
 import * as v from "valibot";
+
+// ============================================================
+// Cache
+// ============================================================
+
+/** LRU cache for Notion data sources by userId:sourceId. */
+const notionDataSourcesCache = lru<Omit<DataSourceInfo, "exists" | "sourceCollectionId">[]>(
+  100,
+  5 * 60 * 1000,
+);
 
 // ============================================================
 // Types
@@ -110,25 +121,42 @@ export const probeAllSources = query(async (): Promise<SourceWithDataSources[]> 
       );
 
       if (source.type === SourceType.NOTION) {
-        // Fetch Notion databases from API
-        const sourceWithCreds = await getSourceWithCredentials(userId, source.id);
-        const token = sourceWithCreds?.credentials?.toString("utf-8");
+        // Check cache first
+        const cacheKey = `notion-ds:${userId}:${source.id}`;
+        const cached = notionDataSourcesCache.get(cacheKey);
 
-        if (token) {
-          const notionDatabases: DataSourceInfo[] = [];
-          for await (const ds of iterateDataSources(token)) {
-            const parsed = parseNotionDataSource(ds);
-            const existingId = existingRefMap.get(ds.id);
-            notionDatabases.push({
-              ...parsed,
-              exists: existingId !== undefined,
-              sourceCollectionId: existingId,
-            });
-          }
-          result.dataSources = notionDatabases;
+        let parsedDataSources: Omit<DataSourceInfo, "exists" | "sourceCollectionId">[];
+
+        if (cached) {
+          // Cache hit - use cached data
+          parsedDataSources = cached;
         } else {
-          result.error = "No API token configured";
+          // Cache miss - fetch from Notion API
+          const sourceWithCreds = await getSourceWithCredentials(userId, source.id);
+          const token = sourceWithCreds?.credentials?.toString("utf-8");
+
+          if (token) {
+            parsedDataSources = [];
+            for await (const ds of iterateDataSources(token)) {
+              parsedDataSources.push(parseNotionDataSource(ds));
+            }
+            // Store in cache
+            notionDataSourcesCache.set(cacheKey, parsedDataSources);
+          } else {
+            result.error = "No API token configured";
+            parsedDataSources = [];
+          }
         }
+
+        // Enrich with exists/sourceCollectionId from DB
+        result.dataSources = parsedDataSources.map((ds) => {
+          const existingId = existingRefMap.get(ds.id);
+          return {
+            ...ds,
+            exists: existingId !== undefined,
+            sourceCollectionId: existingId,
+          };
+        });
       } else {
         // Strapi and Web: Show existing source collections
         // (Strapi collections are auto-discovered via webhooks)
@@ -150,6 +178,67 @@ export const probeAllSources = query(async (): Promise<SourceWithDataSources[]> 
 
   return results;
 });
+
+// ============================================================
+// Refresh Source Data Sources
+// ============================================================
+
+/**
+ * Refresh cached data sources for a specific source.
+ * Fetches fresh data from the API and updates cache only on success.
+ * Returns error if fetch fails (preserving existing cache).
+ */
+export const refreshSourceDataSources = command(
+  v.object({
+    sourceId: v.pipe(
+      v.union([v.string(), v.number()]),
+      v.transform((val) => (typeof val === "string" ? Number.parseInt(val, 10) : val)),
+      v.number(),
+    ),
+  }),
+  async (data): Promise<{ success: true } | { success: false; error: string }> => {
+    const userId = getUserId();
+    const cacheKey = `notion-ds:${userId}:${data.sourceId}`;
+
+    try {
+      // Get source to check type
+      const sources = await listSources(userId);
+      const source = sources.find((s) => s.id === data.sourceId);
+
+      if (!source) {
+        return { success: false, error: "Source not found" };
+      }
+
+      // Only Notion sources have cached data sources
+      if (source.type !== SourceType.NOTION) {
+        return { success: true };
+      }
+
+      // Fetch fresh data from Notion API
+      const sourceWithCreds = await getSourceWithCredentials(userId, source.id);
+      const token = sourceWithCreds?.credentials?.toString("utf-8");
+
+      if (!token) {
+        return { success: false, error: "No API token configured" };
+      }
+
+      const parsedDataSources: Omit<DataSourceInfo, "exists" | "sourceCollectionId">[] = [];
+      for await (const ds of iterateDataSources(token)) {
+        parsedDataSources.push(parseNotionDataSource(ds));
+      }
+
+      // Only update cache if fetch succeeded
+      notionDataSourcesCache.set(cacheKey, parsedDataSources);
+      return { success: true };
+    } catch (err) {
+      // On error, preserve existing cache
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Failed to refresh data sources",
+      };
+    }
+  },
+);
 
 // ============================================================
 // Add Influx
