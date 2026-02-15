@@ -68,7 +68,8 @@ export function isAnchor(text?: Inline | null): text is Anchor {
   return text?.[0] === "a";
 }
 export function isMonospace(text?: Inline | null): text is Code {
-  return text?.[0] === "m";
+  // Check for "c" discriminant AND length of 2 to distinguish from CodeBlock (length 3)
+  return Array.isArray(text) && text[0] === "c" && text.length === 2;
 }
 export function isBold(text?: Inline | null): text is Bold {
   return text?.[0] === "b";
@@ -90,7 +91,7 @@ export function toPlainText(inlines: Inline[]) {
 
 export function getText(block: Block): Inline[] {
   if (isCustom(block)) {
-    return (block.slice(3) as Block[]).flatMap(getText);
+    return (block[3] as Block[]).flatMap(getText);
   }
   if (isP(block) || isH1(block) || isH2(block) || isH3(block)) return block[1];
   if (isQuote(block)) return block[1].filter(isInline);
