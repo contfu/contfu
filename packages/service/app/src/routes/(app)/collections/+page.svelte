@@ -1,27 +1,25 @@
 <script lang="ts">
+  import SiteHeader from "$lib/components/layout/site-header.svelte";
   import { Button } from "$lib/components/ui/button";
   import { getCollections } from "$lib/remote/collections.remote";
-  import { FolderOpen, Plus } from "@lucide/svelte";
+  import { FoldersIcon, Plus } from "@lucide/svelte";
 
   const collections = await getCollections();
 </script>
 
-<div class="mx-auto max-w-4xl px-4 py-8 sm:px-6">
-  <div class="mb-8 flex items-center justify-between">
-    <div>
-      <h1 class="flex items-center gap-2 text-2xl font-semibold tracking-tight">
-        <FolderOpen class="size-6" />
-        Collections
-      </h1>
-      <p class="mt-1 text-sm text-muted-foreground">
-        Aggregation targets that consumers subscribe to
-      </p>
-    </div>
+<SiteHeader icon={FoldersIcon} title="Collections">
+  <div class="ml-auto">
     <Button href="/collections/new">
       <Plus class="mr-2 size-4" />
       Add Collection
     </Button>
   </div>
+</SiteHeader>
+
+<div class="mx-auto max-w-4xl px-4 py-8 sm:px-6">
+  <p class="mb-8 text-sm text-muted-foreground">
+    Aggregation targets that consumers subscribe to
+  </p>
 
   {#if collections.length === 0}
     <div class="rounded-lg border border-dashed p-12 text-center">

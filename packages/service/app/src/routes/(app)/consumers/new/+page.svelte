@@ -1,4 +1,5 @@
 <script lang="ts">
+  import SiteHeader from "$lib/components/layout/site-header.svelte";
   import { Button } from "$lib/components/ui/button";
   import { Input } from "$lib/components/ui/input";
   import { Label } from "$lib/components/ui/label";
@@ -8,20 +9,19 @@
   const nameId = useId();
 </script>
 
-<div class="mx-auto max-w-xl px-4 py-8 sm:px-6">
-  <div class="mb-6">
-    <a
-      href="/consumers"
-      class="text-sm text-muted-foreground hover:text-foreground">← Consumers</a
-    >
-  </div>
+<SiteHeader title="Add Consumer">
+  <a
+    href="/consumers"
+    class="ml-auto text-sm text-muted-foreground hover:text-foreground"
+  >
+    ← Consumers
+  </a>
+</SiteHeader>
 
-  <div class="mb-8">
-    <h1 class="text-2xl font-semibold tracking-tight">Add Consumer</h1>
-    <p class="mt-1 text-sm text-muted-foreground">
-      Create a consumer to get an API key
-    </p>
-  </div>
+<div class="mx-auto max-w-xl px-4 py-8 sm:px-6">
+  <p class="mb-8 text-sm text-muted-foreground">
+    Create a consumer to get an API key
+  </p>
 
   <form {...createConsumer} class="space-y-5">
     <div class="space-y-1.5">

@@ -1,27 +1,25 @@
 <script lang="ts">
+  import SiteHeader from "$lib/components/layout/site-header.svelte";
   import { Button } from "$lib/components/ui/button";
   import { deleteConsumer, getConsumers } from "$lib/remote/consumers.remote";
   import { tcToast } from "$lib/utils/toast";
-  import { Monitor } from "@lucide/svelte";
+  import { UsersIcon } from "@lucide/svelte";
   import { toast } from "svelte-sonner";
 
   // Query object - auto-refreshes after form submissions
   const consumers = getConsumers();
 </script>
 
-<div class="mx-auto max-w-4xl px-4 py-8 sm:px-6">
-  <div class="mb-6 flex items-center justify-between">
-    <div>
-      <h1 class="flex items-center gap-2 text-2xl font-semibold tracking-tight">
-        <Monitor class="size-6" />
-        Consumers
-      </h1>
-      <p class="mt-1 text-sm text-muted-foreground">
-        Manage API access for your applications
-      </p>
-    </div>
+<SiteHeader icon={UsersIcon} title="Consumers">
+  <div class="ml-auto">
     <Button href="/consumers/new">Add Consumer</Button>
   </div>
+</SiteHeader>
+
+<div class="mx-auto max-w-4xl px-4 py-8 sm:px-6">
+  <p class="mb-6 text-sm text-muted-foreground">
+    Manage API access for your applications
+  </p>
 
   {#if consumers.loading || !consumers.current}
     <p class="text-muted-foreground">Loading...</p>

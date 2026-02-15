@@ -6,7 +6,7 @@
   let { children, data } = $props();
 </script>
 
-<Sidebar.Provider style="--sidebar-width: calc(var(--spacing) * 54);">
+<Sidebar.Provider style="--sidebar-width: calc(var(--spacing) * 54); --header-height: calc(var(--spacing) * 12);">
   <AppSidebar currentPath={page.url.pathname} user={data.user} />
   <Sidebar.Inset class="@container/main">
     {@render children()}

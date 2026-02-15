@@ -1,4 +1,5 @@
 <script lang="ts">
+  import SiteHeader from "$lib/components/layout/site-header.svelte";
   import * as Alert from "$lib/components/ui/alert";
   import { Button } from "$lib/components/ui/button";
   import { getCollections } from "$lib/remote/collections.remote";
@@ -8,6 +9,7 @@
   import {
     DatabaseIcon,
     FoldersIcon,
+    LayoutDashboardIcon,
     Link2Icon,
     UsersIcon,
   } from "@lucide/svelte";
@@ -38,13 +40,12 @@
   };
 </script>
 
+<SiteHeader icon={LayoutDashboardIcon} title="Dashboard" />
+
 <div class="mx-auto max-w-4xl px-4 py-8 sm:px-6">
-  <div class="mb-8">
-    <h1 class="text-2xl font-semibold tracking-tight">Dashboard</h1>
-    <p class="mt-1 text-sm text-muted-foreground">
-      Overview of your content sync status
-    </p>
-  </div>
+  <p class="mb-8 text-sm text-muted-foreground">
+    Overview of your content sync status
+  </p>
 
   {#if hasLoadErrors}
     <Alert.Root class="mb-6" variant="destructive">

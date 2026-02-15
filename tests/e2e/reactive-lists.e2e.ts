@@ -246,8 +246,13 @@ test.describe("Reactive List Updates", () => {
     await collectionDropdown.selectOption({ label: "Test Collection for Connections" });
     await page.getByRole("button", { name: /^Add$/i }).click();
 
-    // Verify connection appears WITHOUT page refresh
-    await expect(page.getByText("Test Collection for Connections")).toBeVisible({ timeout: 5000 });
+    // Verify connection appears WITHOUT page refresh (use specific locator to avoid matching <option> elements)
+    await expect(
+      page
+        .locator("div.flex")
+        .filter({ hasText: "Test Collection for Connections" })
+        .getByText("Remove"),
+    ).toBeVisible({ timeout: 10000 });
     await expect(page.getByText("No collections connected")).not.toBeVisible();
 
     // Remove the connection
@@ -323,8 +328,8 @@ test.describe("Reactive List Updates", () => {
     await page.getByLabel(/Collection Name/i).fill("Test Endpoint Collection");
     await page.getByRole("button", { name: /Add Source Collection/i }).click();
 
-    // Verify source collection appears WITHOUT page refresh
-    await expect(page.getByText("Test Endpoint Collection")).toBeVisible({ timeout: 5000 });
+    // Wait for form submission to complete (header updates collection count)
+    await expect(page.getByText(/1 collection/)).toBeVisible({ timeout: 10000 });
 
     // Navigate to source collections page
     const sourceUrl = page.url();

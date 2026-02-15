@@ -1,5 +1,6 @@
 <script lang="ts">
   import { page } from "$app/state";
+  import SiteHeader from "$lib/components/layout/site-header.svelte";
   import * as Alert from "$lib/components/ui/alert";
   import { Button } from "$lib/components/ui/button";
   import {
@@ -22,28 +23,24 @@
 
 </script>
 
+<SiteHeader title="Source Collections">
+  <a
+    href="/sources/{id}"
+    class="ml-auto text-sm text-muted-foreground hover:text-foreground"
+  >
+    ← {source?.name || "Source"}
+  </a>
+</SiteHeader>
+
 {#if source && collections}
   <div class="mx-auto max-w-4xl px-4 py-8 sm:px-6">
-    <div class="mb-6">
-      <a
-        href="/sources/{id}"
-        class="text-sm text-muted-foreground hover:text-foreground"
-        >← {source.name || "Source"}</a
+    <div class="mb-6 flex items-center gap-3">
+      <span
+        class="rounded-md bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground"
       >
-    </div>
-
-    <div class="mb-6">
-      <div class="flex items-center gap-3">
-        <h1 class="text-2xl font-semibold tracking-tight">
-          Source Collections
-        </h1>
-        <span
-          class="rounded-md bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground"
-        >
-          {SOURCE_TYPE_LABELS[source.type] ?? "Unknown"}
-        </span>
-      </div>
-      <p class="mt-1 text-sm text-muted-foreground">
+        {SOURCE_TYPE_LABELS[source.type] ?? "Unknown"}
+      </span>
+      <p class="text-sm text-muted-foreground">
         Available data from {source.name || "this source"}. Use these in your
         Collections.
       </p>

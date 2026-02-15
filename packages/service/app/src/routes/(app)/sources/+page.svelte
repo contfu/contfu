@@ -1,4 +1,5 @@
 <script lang="ts">
+  import SiteHeader from "$lib/components/layout/site-header.svelte";
   import { Button } from "$lib/components/ui/button";
   import { deleteSource, getSources } from "$lib/remote/sources.remote";
   import { DatabaseIcon } from "@lucide/svelte";
@@ -13,19 +14,16 @@
   };
 </script>
 
-<div class="mx-auto max-w-4xl px-4 py-8 sm:px-6">
-  <div class="mb-6 flex items-center justify-between">
-    <div>
-      <h1 class="flex items-center gap-2 text-2xl font-semibold tracking-tight">
-        <DatabaseIcon class="size-6" />
-        Sources
-      </h1>
-      <p class="mt-1 text-sm text-muted-foreground">
-        Manage your content sources
-      </p>
-    </div>
+<SiteHeader icon={DatabaseIcon} title="Sources">
+  <div class="ml-auto">
     <Button href="/sources/new">Add Source</Button>
   </div>
+</SiteHeader>
+
+<div class="mx-auto max-w-4xl px-4 py-8 sm:px-6">
+  <p class="mb-6 text-sm text-muted-foreground">
+    Manage your content sources
+  </p>
 
   {#if sources.loading || !sources.current}
     <p class="text-muted-foreground">Loading...</p>

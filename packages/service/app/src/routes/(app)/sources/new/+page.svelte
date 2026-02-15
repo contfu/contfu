@@ -1,6 +1,7 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
+  import SiteHeader from "$lib/components/layout/site-header.svelte";
   import * as Alert from "$lib/components/ui/alert";
   import { Button } from "$lib/components/ui/button";
   import { Input } from "$lib/components/ui/input";
@@ -186,15 +187,19 @@
   }
 </script>
 
-<div class="mx-auto max-w-xl px-4 py-8 sm:px-6">
-  <div class="mb-6">
-    <a href="/sources" class="text-sm text-muted-foreground hover:text-foreground">← Sources</a>
-  </div>
+<SiteHeader title="Add Source">
+  <a
+    href="/sources"
+    class="ml-auto text-sm text-muted-foreground hover:text-foreground"
+  >
+    ← Sources
+  </a>
+</SiteHeader>
 
-  <div class="mb-8">
-    <h1 class="text-2xl font-semibold tracking-tight">Add Source</h1>
-    <p class="mt-1 text-sm text-muted-foreground">Connect a content source to start syncing</p>
-  </div>
+<div class="mx-auto max-w-xl px-4 py-8 sm:px-6">
+  <p class="mb-8 text-sm text-muted-foreground">
+    Connect a content source to start syncing
+  </p>
 
   <form method="post" action={createSource.action} class="space-y-5" onsubmit={(e) => {
     if (isNotionSource && useOAuth) {

@@ -1,5 +1,7 @@
 <script lang="ts">
+  import SiteHeader from "$lib/components/layout/site-header.svelte";
   import { getSystemSettings } from "$lib/remote/admin.remote";
+  import { SettingsIcon } from "@lucide/svelte";
 
   const settings = await getSystemSettings();
 </script>
@@ -8,11 +10,12 @@
   <title>Settings - Contfu Admin</title>
 </svelte:head>
 
+<SiteHeader icon={SettingsIcon} title="System Settings" />
+
 <div class="p-6">
-  <div class="mb-6">
-    <h1 class="text-2xl font-semibold">System Settings</h1>
-    <p class="text-muted-foreground">Manage system-wide configuration</p>
-  </div>
+  <p class="mb-6 text-sm text-muted-foreground">
+    Manage system-wide configuration
+  </p>
 
   <div class="space-y-6">
     <div class="rounded-lg border border-border p-4">

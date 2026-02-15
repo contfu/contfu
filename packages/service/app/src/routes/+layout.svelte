@@ -27,7 +27,7 @@
   {@render children()}
 {:else}
   <div class="flex min-h-screen flex-col">
-    <Header user={data.user} isUnderConstruction={data.isUnderConstruction} />
+    <Header isUnderConstruction={data.isUnderConstruction} />
     <main class="flex-1">{@render children()}</main>
     <Footer />
   </div>

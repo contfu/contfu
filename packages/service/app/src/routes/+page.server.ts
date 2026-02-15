@@ -6,6 +6,10 @@ export const load: PageServerLoad = async ({ locals }) => {
     throw redirect(302, "/under-construction");
   }
 
+  if (locals.user) {
+    throw redirect(302, "/dashboard");
+  }
+
   return {
     user: locals.user,
   };

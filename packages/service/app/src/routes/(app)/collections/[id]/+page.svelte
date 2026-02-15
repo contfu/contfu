@@ -1,5 +1,6 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
+  import SiteHeader from "$lib/components/layout/site-header.svelte";
   import AddInfluxDialog from "$lib/components/AddInfluxDialog.svelte";
   import FilterEditor from "$lib/components/FilterEditor.svelte";
   import SourceTypeIcon from "$lib/components/icons/SourceTypeIcon.svelte";
@@ -151,17 +152,17 @@
   }
 </script>
 
+<SiteHeader>
+  <a
+    href="/collections"
+    class="text-sm text-muted-foreground hover:text-foreground"
+  >
+    ← Collections
+  </a>
+</SiteHeader>
+
 {#if collection}
   <div class="mx-auto max-w-xl px-4 py-8 sm:px-6">
-    <div class="mb-6">
-      <a
-        href="/collections"
-        class="text-sm text-muted-foreground hover:text-foreground"
-      >
-        ← Collections
-      </a>
-    </div>
-
     <div class="mb-8">
       <div class="flex items-center gap-2">
         <h1 class="text-2xl font-semibold tracking-tight">{collection.name}</h1>

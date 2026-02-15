@@ -1,7 +1,9 @@
 <script lang="ts">
   import { authClient } from "$lib/auth-client";
+  import SiteHeader from "$lib/components/layout/site-header.svelte";
   import { Button } from "$lib/components/ui/button";
   import { getQuota } from "$lib/remote/billing.remote";
+  import { CreditCardIcon } from "@lucide/svelte";
 
   const quota = await getQuota();
 
@@ -24,13 +26,12 @@
   }
 </script>
 
+<SiteHeader icon={CreditCardIcon} title="Billing" />
+
 <div class="mx-auto max-w-3xl px-4 py-8 sm:px-6">
-  <div class="mb-8">
-    <h1 class="text-2xl font-semibold tracking-tight">Billing</h1>
-    <p class="mt-1 text-sm text-muted-foreground">
-      Manage your subscription and usage
-    </p>
-  </div>
+  <p class="mb-8 text-sm text-muted-foreground">
+    Manage your subscription and usage
+  </p>
 
   {#if quota?.subscriptionStatus === "active"}
     <!-- Current subscription -->

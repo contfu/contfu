@@ -1,5 +1,6 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
+  import SiteHeader from "$lib/components/layout/site-header.svelte";
   import * as Alert from "$lib/components/ui/alert";
   import { Button, buttonVariants } from "$lib/components/ui/button";
   import { Input } from "$lib/components/ui/input";
@@ -66,16 +67,17 @@
   }
 </script>
 
+<SiteHeader>
+  <a
+    href="/consumers"
+    class="text-sm text-muted-foreground hover:text-foreground"
+  >
+    ← Consumers
+  </a>
+</SiteHeader>
+
 {#if client}
   <div class="mx-auto max-w-2xl px-4 py-8 sm:px-6">
-    <div class="mb-6">
-      <a
-        href="/consumers"
-        class="text-sm text-muted-foreground hover:text-foreground"
-        >← Consumers</a
-      >
-    </div>
-
     <div class="mb-8">
       <div class="flex items-center gap-2">
         <h1 class="text-2xl font-semibold tracking-tight">
