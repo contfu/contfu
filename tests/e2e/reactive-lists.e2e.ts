@@ -120,6 +120,9 @@ test.describe("Reactive List Updates", () => {
   test.beforeAll(async () => {
     await killAllProcesses();
 
+    // Use a unique temp directory for each test run to ensure fresh database
+    const uniqueDbDir = `/tmp/contfu-e2e-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
     // Start service app
     await spawnProcess(
       "bun",
@@ -129,7 +132,7 @@ test.describe("Reactive List Updates", () => {
         PORT: String(SERVICE_PORT),
         ORIGIN: SERVICE_URL,
         TEST_MODE: "true",
-        DATABASE_URL: ":memory:",
+        PGLITE_DATA_DIR: uniqueDbDir,
         BETTER_AUTH_SECRET: "e2e-test-secret-at-least-32-chars-long",
       },
       60000,

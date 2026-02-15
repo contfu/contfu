@@ -1003,7 +1003,7 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow", () => {
         PORT: String(SERVICE_PORT),
         ORIGIN: SERVICE_URL,
         TEST_MODE: "true",
-        DATABASE_URL: ":memory:",
+        PGLITE_DATA_DIR: ":memory:",
         BETTER_AUTH_SECRET: "e2e-test-secret-at-least-32-chars-long",
       },
       60000,

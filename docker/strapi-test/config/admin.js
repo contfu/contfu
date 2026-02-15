@@ -10,4 +10,8 @@ module.exports = ({ env }) => ({
       salt: env("TRANSFER_TOKEN_SALT", "testsalt2"),
     },
   },
+  // Disable rate limiting for E2E tests
+  rateLimit: {
+    enabled: false,
+  },
 });

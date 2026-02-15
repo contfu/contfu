@@ -17,7 +17,7 @@ export async function claimJobs(
   workerId: string,
   limit = 10,
 ): Promise<SyncJob[]> {
-  const rows = await db.execute<SyncJob>(sql`
+  const result = await db.execute<SyncJob>(sql`
     UPDATE sync_job
     SET status = 'running',
         "startedAt" = now(),
@@ -34,5 +34,7 @@ export async function claimJobs(
     )
     RETURNING *
   `);
-  return rows as unknown as SyncJob[];
+  // db.execute returns { rows: SyncJob[] } in PGlite
+  const rows = Array.isArray(result) ? result : (result as { rows: SyncJob[] }).rows ?? [];
+  return rows;
 }

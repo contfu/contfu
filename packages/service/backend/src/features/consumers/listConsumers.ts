@@ -1,6 +1,6 @@
 import { db } from "../../infra/db/db";
 import { connectionTable, consumerTable, type Consumer } from "../../infra/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import type { BackendConsumer, BackendConsumerWithConnectionCount } from "../../domain/types";
 
 function mapToBackendConsumer(consumer: Consumer): BackendConsumer {
@@ -33,13 +33,16 @@ export async function listConsumers(userId: number): Promise<BackendConsumerWith
     .where(eq(consumerTable.userId, userId))
     .orderBy(consumerTable.createdAt);
 
+  if (consumers.length === 0) return [];
+
+  const consumerIds = consumers.map((c) => c.id);
   const connectionCounts = await db
     .select({
       consumerId: connectionTable.consumerId,
       count: sql<number>`count(*)`.as("count"),
     })
     .from(connectionTable)
-    .where(eq(connectionTable.userId, userId))
+    .where(inArray(connectionTable.consumerId, consumerIds))
     .groupBy(connectionTable.consumerId);
 
   const countMap = new Map<number, number>(connectionCounts.map((c) => [c.consumerId, c.count]));

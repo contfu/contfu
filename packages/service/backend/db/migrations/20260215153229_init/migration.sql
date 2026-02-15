@@ -15,64 +15,59 @@ CREATE TABLE "account" (
 );
 --> statement-breakpoint
 CREATE TABLE "collection" (
-	"userId" integer,
-	"id" integer,
+	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "collection_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
+	"userId" integer NOT NULL,
 	"name" text NOT NULL,
 	"createdAt" timestamp with time zone DEFAULT now() NOT NULL,
-	"updatedAt" timestamp with time zone,
-	CONSTRAINT "collection_pkey" PRIMARY KEY("userId","id")
+	"updatedAt" timestamp with time zone
 );
 --> statement-breakpoint
 CREATE TABLE "connection" (
-	"userId" integer,
+	"userId" integer NOT NULL,
 	"consumerId" integer,
 	"collectionId" integer,
 	"lastItemChanged" timestamp with time zone,
 	"lastConsistencyCheck" timestamp with time zone,
-	CONSTRAINT "connection_pkey" PRIMARY KEY("userId","consumerId","collectionId")
+	CONSTRAINT "connection_pkey" PRIMARY KEY("consumerId","collectionId")
 );
 --> statement-breakpoint
 CREATE TABLE "consumer" (
-	"userId" integer,
-	"id" integer,
+	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "consumer_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
+	"userId" integer NOT NULL,
 	"key" bytea UNIQUE,
 	"name" text NOT NULL,
-	"createdAt" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "consumer_pkey" PRIMARY KEY("userId","id")
+	"createdAt" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "incident" (
-	"userId" integer,
-	"id" integer,
+	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "incident_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
+	"userId" integer NOT NULL,
 	"influxId" integer NOT NULL,
 	"type" integer NOT NULL,
 	"message" text NOT NULL,
 	"details" bytea,
 	"resolved" boolean DEFAULT false NOT NULL,
 	"createdAt" timestamp with time zone DEFAULT now() NOT NULL,
-	"resolvedAt" timestamp with time zone,
-	CONSTRAINT "incident_pkey" PRIMARY KEY("userId","id")
+	"resolvedAt" timestamp with time zone
 );
 --> statement-breakpoint
 CREATE TABLE "influx" (
-	"userId" integer,
-	"id" integer,
+	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "influx_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
+	"userId" integer NOT NULL,
 	"collectionId" integer NOT NULL,
 	"sourceCollectionId" integer NOT NULL,
 	"schema" bytea,
 	"filters" bytea,
 	"includeRef" boolean,
 	"createdAt" timestamp with time zone DEFAULT now() NOT NULL,
-	"updatedAt" timestamp with time zone,
-	CONSTRAINT "influx_pkey" PRIMARY KEY("userId","id")
+	"updatedAt" timestamp with time zone
 );
 --> statement-breakpoint
 CREATE TABLE "item_id_conflict_resolution" (
-	"userId" integer,
 	"sourceCollectionId" integer,
 	"sourceItemId" bytea,
 	"id" integer NOT NULL,
-	CONSTRAINT "item_id_conflict_resolution_pkey" PRIMARY KEY("userId","sourceCollectionId","sourceItemId")
+	CONSTRAINT "item_id_conflict_resolution_pkey" PRIMARY KEY("sourceCollectionId","sourceItemId")
 );
 --> statement-breakpoint
 CREATE TABLE "quota" (
@@ -109,22 +104,21 @@ CREATE TABLE "setting" (
 );
 --> statement-breakpoint
 CREATE TABLE "source_collection" (
-	"userId" integer,
+	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "source_collection_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
+	"userId" integer NOT NULL,
 	"sourceId" integer NOT NULL,
-	"id" integer,
 	"name" text NOT NULL,
 	"displayName" text,
 	"ref" bytea,
 	"schema" bytea,
 	"itemIds" bytea,
 	"createdAt" timestamp with time zone DEFAULT now() NOT NULL,
-	"updatedAt" timestamp with time zone,
-	CONSTRAINT "source_collection_pkey" PRIMARY KEY("userId","id")
+	"updatedAt" timestamp with time zone
 );
 --> statement-breakpoint
 CREATE TABLE "source" (
-	"userId" integer,
-	"id" integer,
+	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "source_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
+	"userId" integer NOT NULL,
 	"uid" uuid NOT NULL UNIQUE,
 	"name" text,
 	"url" text,
@@ -133,13 +127,11 @@ CREATE TABLE "source" (
 	"webhookSecret" bytea,
 	"includeRef" boolean DEFAULT false NOT NULL,
 	"createdAt" timestamp with time zone DEFAULT now() NOT NULL,
-	"updatedAt" timestamp with time zone,
-	CONSTRAINT "source_pkey" PRIMARY KEY("userId","id")
+	"updatedAt" timestamp with time zone
 );
 --> statement-breakpoint
 CREATE TABLE "sync_job" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "sync_job_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
-	"userId" integer NOT NULL,
 	"sourceCollectionId" integer NOT NULL,
 	"status" text DEFAULT 'pending' NOT NULL,
 	"scheduledAt" timestamp with time zone DEFAULT now() NOT NULL,
@@ -174,7 +166,6 @@ CREATE TABLE "verification" (
 --> statement-breakpoint
 CREATE TABLE "webhook_log" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "webhook_log_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
-	"userId" integer NOT NULL,
 	"sourceId" integer NOT NULL,
 	"event" text NOT NULL,
 	"model" text,
@@ -185,36 +176,41 @@ CREATE TABLE "webhook_log" (
 );
 --> statement-breakpoint
 CREATE INDEX "account_userId_idx" ON "account" ("userId");--> statement-breakpoint
-CREATE INDEX "connection_consumer_idx" ON "connection" ("userId","consumerId");--> statement-breakpoint
-CREATE INDEX "connection_collection_idx" ON "connection" ("userId","collectionId");--> statement-breakpoint
-CREATE INDEX "incident_influx_idx" ON "incident" ("userId","influxId");--> statement-breakpoint
-CREATE INDEX "influx_collection_idx" ON "influx" ("userId","collectionId");--> statement-breakpoint
-CREATE INDEX "influx_source_collection_idx" ON "influx" ("userId","sourceCollectionId");--> statement-breakpoint
-CREATE INDEX "item_id_conflict_source_collection_idx" ON "item_id_conflict_resolution" ("userId","sourceCollectionId");--> statement-breakpoint
+CREATE INDEX "collection_userId_idx" ON "collection" ("userId");--> statement-breakpoint
+CREATE INDEX "connection_userId_idx" ON "connection" ("userId");--> statement-breakpoint
+CREATE INDEX "connection_consumerId_idx" ON "connection" ("consumerId");--> statement-breakpoint
+CREATE INDEX "connection_collectionId_idx" ON "connection" ("collectionId");--> statement-breakpoint
+CREATE INDEX "consumer_userId_idx" ON "consumer" ("userId");--> statement-breakpoint
+CREATE INDEX "incident_userId_idx" ON "incident" ("userId");--> statement-breakpoint
+CREATE INDEX "incident_influxId_idx" ON "incident" ("influxId");--> statement-breakpoint
+CREATE INDEX "influx_userId_idx" ON "influx" ("userId");--> statement-breakpoint
+CREATE INDEX "influx_collectionId_idx" ON "influx" ("collectionId");--> statement-breakpoint
+CREATE INDEX "influx_sourceCollectionId_idx" ON "influx" ("sourceCollectionId");--> statement-breakpoint
+CREATE INDEX "item_id_conflict_sourceCollectionId_idx" ON "item_id_conflict_resolution" ("sourceCollectionId");--> statement-breakpoint
 CREATE INDEX "session_userId_idx" ON "session" ("userId");--> statement-breakpoint
-CREATE INDEX "source_collection_source_idx" ON "source_collection" ("userId","sourceId");--> statement-breakpoint
+CREATE INDEX "source_collection_userId_idx" ON "source_collection" ("userId");--> statement-breakpoint
+CREATE INDEX "source_collection_sourceId_idx" ON "source_collection" ("sourceId");--> statement-breakpoint
+CREATE INDEX "source_userId_idx" ON "source" ("userId");--> statement-breakpoint
+CREATE INDEX "sync_job_sourceCollectionId_idx" ON "sync_job" ("sourceCollectionId");--> statement-breakpoint
 CREATE INDEX "sync_job_queue_idx" ON "sync_job" ("status","scheduledAt");--> statement-breakpoint
 CREATE INDEX "sync_job_status_idx" ON "sync_job" ("status","startedAt");--> statement-breakpoint
-CREATE INDEX "sync_job_source_collection_idx" ON "sync_job" ("userId","sourceCollectionId");--> statement-breakpoint
-CREATE INDEX "webhook_log_source_idx" ON "webhook_log" ("userId","sourceId");--> statement-breakpoint
+CREATE INDEX "webhook_log_sourceId_idx" ON "webhook_log" ("sourceId");--> statement-breakpoint
 ALTER TABLE "account" ADD CONSTRAINT "account_userId_user_id_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE;--> statement-breakpoint
 ALTER TABLE "collection" ADD CONSTRAINT "collection_userId_user_id_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE;--> statement-breakpoint
 ALTER TABLE "connection" ADD CONSTRAINT "connection_userId_user_id_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE;--> statement-breakpoint
-ALTER TABLE "connection" ADD CONSTRAINT "connection_userId_consumerId_consumer_userId_id_fkey" FOREIGN KEY ("userId","consumerId") REFERENCES "consumer"("userId","id") ON DELETE CASCADE;--> statement-breakpoint
-ALTER TABLE "connection" ADD CONSTRAINT "connection_userId_collectionId_collection_userId_id_fkey" FOREIGN KEY ("userId","collectionId") REFERENCES "collection"("userId","id") ON DELETE CASCADE;--> statement-breakpoint
+ALTER TABLE "connection" ADD CONSTRAINT "connection_consumerId_consumer_id_fkey" FOREIGN KEY ("consumerId") REFERENCES "consumer"("id") ON DELETE CASCADE;--> statement-breakpoint
+ALTER TABLE "connection" ADD CONSTRAINT "connection_collectionId_collection_id_fkey" FOREIGN KEY ("collectionId") REFERENCES "collection"("id") ON DELETE CASCADE;--> statement-breakpoint
 ALTER TABLE "consumer" ADD CONSTRAINT "consumer_userId_user_id_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE;--> statement-breakpoint
 ALTER TABLE "incident" ADD CONSTRAINT "incident_userId_user_id_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE;--> statement-breakpoint
-ALTER TABLE "incident" ADD CONSTRAINT "incident_userId_influxId_influx_userId_id_fkey" FOREIGN KEY ("userId","influxId") REFERENCES "influx"("userId","id") ON DELETE CASCADE;--> statement-breakpoint
+ALTER TABLE "incident" ADD CONSTRAINT "incident_influxId_influx_id_fkey" FOREIGN KEY ("influxId") REFERENCES "influx"("id") ON DELETE CASCADE;--> statement-breakpoint
 ALTER TABLE "influx" ADD CONSTRAINT "influx_userId_user_id_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE;--> statement-breakpoint
-ALTER TABLE "influx" ADD CONSTRAINT "influx_userId_collectionId_collection_userId_id_fkey" FOREIGN KEY ("userId","collectionId") REFERENCES "collection"("userId","id") ON DELETE CASCADE;--> statement-breakpoint
-ALTER TABLE "influx" ADD CONSTRAINT "influx_J0R1QpvdqmFg_fkey" FOREIGN KEY ("userId","sourceCollectionId") REFERENCES "source_collection"("userId","id") ON DELETE CASCADE;--> statement-breakpoint
-ALTER TABLE "item_id_conflict_resolution" ADD CONSTRAINT "item_id_conflict_resolution_userId_user_id_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE;--> statement-breakpoint
-ALTER TABLE "item_id_conflict_resolution" ADD CONSTRAINT "item_id_conflict_resolution_GZtleFy7dHPJ_fkey" FOREIGN KEY ("userId","sourceCollectionId") REFERENCES "source_collection"("userId","id") ON DELETE CASCADE;--> statement-breakpoint
+ALTER TABLE "influx" ADD CONSTRAINT "influx_collectionId_collection_id_fkey" FOREIGN KEY ("collectionId") REFERENCES "collection"("id") ON DELETE CASCADE;--> statement-breakpoint
+ALTER TABLE "influx" ADD CONSTRAINT "influx_sourceCollectionId_source_collection_id_fkey" FOREIGN KEY ("sourceCollectionId") REFERENCES "source_collection"("id") ON DELETE CASCADE;--> statement-breakpoint
+ALTER TABLE "item_id_conflict_resolution" ADD CONSTRAINT "item_id_conflict_resolution_3laooM9Jrtn7_fkey" FOREIGN KEY ("sourceCollectionId") REFERENCES "source_collection"("id") ON DELETE CASCADE;--> statement-breakpoint
 ALTER TABLE "quota" ADD CONSTRAINT "quota_id_user_id_fkey" FOREIGN KEY ("id") REFERENCES "user"("id") ON DELETE CASCADE;--> statement-breakpoint
 ALTER TABLE "session" ADD CONSTRAINT "session_userId_user_id_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE;--> statement-breakpoint
 ALTER TABLE "source_collection" ADD CONSTRAINT "source_collection_userId_user_id_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE;--> statement-breakpoint
-ALTER TABLE "source_collection" ADD CONSTRAINT "source_collection_userId_sourceId_source_userId_id_fkey" FOREIGN KEY ("userId","sourceId") REFERENCES "source"("userId","id") ON DELETE CASCADE;--> statement-breakpoint
+ALTER TABLE "source_collection" ADD CONSTRAINT "source_collection_sourceId_source_id_fkey" FOREIGN KEY ("sourceId") REFERENCES "source"("id") ON DELETE CASCADE;--> statement-breakpoint
 ALTER TABLE "source" ADD CONSTRAINT "source_userId_user_id_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE;--> statement-breakpoint
-ALTER TABLE "sync_job" ADD CONSTRAINT "sync_job_userId_user_id_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE;--> statement-breakpoint
-ALTER TABLE "sync_job" ADD CONSTRAINT "sync_job_pKABs5XCpwoT_fkey" FOREIGN KEY ("userId","sourceCollectionId") REFERENCES "source_collection"("userId","id") ON DELETE CASCADE;--> statement-breakpoint
-ALTER TABLE "webhook_log" ADD CONSTRAINT "webhook_log_userId_sourceId_source_userId_id_fkey" FOREIGN KEY ("userId","sourceId") REFERENCES "source"("userId","id") ON DELETE CASCADE;
+ALTER TABLE "sync_job" ADD CONSTRAINT "sync_job_sourceCollectionId_source_collection_id_fkey" FOREIGN KEY ("sourceCollectionId") REFERENCES "source_collection"("id") ON DELETE CASCADE;--> statement-breakpoint
+ALTER TABLE "webhook_log" ADD CONSTRAINT "webhook_log_sourceId_source_id_fkey" FOREIGN KEY ("sourceId") REFERENCES "source"("id") ON DELETE CASCADE;

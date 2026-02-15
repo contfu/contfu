@@ -14,6 +14,7 @@ export type InternalSourceWithCredentials = Source & {
  * INTERNAL USE ONLY - never expose to the SvelteKit app.
  *
  * Used by sync workers and webhook handlers that need actual credentials.
+ * Returns undefined if not found or not owned by the user.
  */
 export async function getSourceWithCredentials(
   userId: number,
@@ -22,14 +23,14 @@ export async function getSourceWithCredentials(
   const [source] = await db
     .select()
     .from(sourceTable)
-    .where(and(eq(sourceTable.userId, userId), eq(sourceTable.id, id)))
+    .where(and(eq(sourceTable.id, id), eq(sourceTable.userId, userId)))
     .limit(1);
 
   if (!source) return undefined;
 
   const [credentials, webhookSecret] = await Promise.all([
-    decryptCredentials(userId, source.credentials),
-    decryptCredentials(userId, source.webhookSecret),
+    decryptCredentials(source.userId, source.credentials),
+    decryptCredentials(source.userId, source.webhookSecret),
   ]);
 
   return {

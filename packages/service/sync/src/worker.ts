@@ -7,7 +7,7 @@ import { completeJob } from "@contfu/svc-backend/features/sync-jobs/completeJob"
 import { failJob } from "@contfu/svc-backend/features/sync-jobs/failJob";
 import { getJobConfig } from "@contfu/svc-backend/features/sync-jobs/getJobConfig";
 import { sourceCollectionTable } from "@contfu/svc-backend/infra/db/schema";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { combineLatest, defer, repeat, timer } from "rxjs";
 import { workerDb } from "./db/worker-db";
 import { NotionSource } from "@contfu/svc-sources/notion";
@@ -42,11 +42,13 @@ async function syncLoop() {
 
   for (const job of jobs) {
     try {
-      const config = await getJobConfig(workerDb, job);
+      const config = await getJobConfig(workerDb, { sourceCollectionId: job.sourceCollectionId });
       if (!config) {
         await failJob(workerDb, job.id, "Source collection config not found");
         continue;
       }
+
+      const userId = config.userId;
 
       // Dispatch to appropriate source adapter
       const fetchedItems: UserSyncItem[] = [];
@@ -58,7 +60,7 @@ async function syncLoop() {
           credentials: config.credentials?.toString("utf-8") ?? "",
         };
         for await (const item of notionSource.fetch(opts)) {
-          fetchedItems.push({ ...item, user: job.userId });
+          fetchedItems.push({ ...item, user: userId });
         }
       } else if (config.sourceType === SourceType.STRAPI) {
         const opts = {
@@ -68,7 +70,7 @@ async function syncLoop() {
           credentials: config.credentials!,
         };
         for await (const item of strapiSource.fetch(opts)) {
-          fetchedItems.push({ ...item, user: job.userId });
+          fetchedItems.push({ ...item, user: userId });
         }
       } else {
         const opts = {
@@ -78,7 +80,7 @@ async function syncLoop() {
           credentials: config.credentials ?? undefined,
         };
         for await (const item of webSource.fetch(opts)) {
-          fetchedItems.push({ ...item, user: job.userId });
+          fetchedItems.push({ ...item, user: userId });
         }
       }
 
@@ -87,7 +89,7 @@ async function syncLoop() {
         self.postMessage({
           type: SyncMessageType.ITEMS_FETCHED,
           items: fetchedItems,
-          userId: job.userId,
+          userId,
           sourceCollectionId: job.sourceCollectionId,
         });
       }
@@ -95,7 +97,6 @@ async function syncLoop() {
       // Update item IDs in source_collection directly
       if (fetchedItems.length > 0) {
         await updateItemIds(
-          job.userId,
           job.sourceCollectionId,
           fetchedItems.map((i) => i.id),
         );
@@ -121,16 +122,11 @@ function deserializeIds(ids: Buffer): Buffer[] {
   return result;
 }
 
-async function updateItemIds(userId: number, sourceCollectionId: number, newIds: Buffer[]) {
+async function updateItemIds(sourceCollectionId: number, newIds: Buffer[]) {
   const [row] = await workerDb
     .select({ itemIds: sourceCollectionTable.itemIds })
     .from(sourceCollectionTable)
-    .where(
-      and(
-        eq(sourceCollectionTable.userId, userId),
-        eq(sourceCollectionTable.id, sourceCollectionId),
-      ),
-    );
+    .where(eq(sourceCollectionTable.id, sourceCollectionId));
 
   const existingIds = row?.itemIds ? deserializeIds(row.itemIds as Buffer) : [];
 
@@ -145,12 +141,7 @@ async function updateItemIds(userId: number, sourceCollectionId: number, newIds:
   await workerDb
     .update(sourceCollectionTable)
     .set({ itemIds: Buffer.concat(ids as unknown as Uint8Array[]) })
-    .where(
-      and(
-        eq(sourceCollectionTable.userId, userId),
-        eq(sourceCollectionTable.id, sourceCollectionId),
-      ),
-    );
+    .where(eq(sourceCollectionTable.id, sourceCollectionId));
 }
 
 // RxJS sync loop with MIN_FETCH_INTERVAL between iterations

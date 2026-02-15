@@ -2,7 +2,6 @@ import { sql } from "drizzle-orm";
 import {
   boolean,
   bytea,
-  foreignKey,
   index,
   integer,
   pgTable,
@@ -124,12 +123,12 @@ export type Quota = typeof quotaTable.$inferSelect;
 export const consumerTable = pgTable(
   "consumer",
   {
+    /** The globally unique id of the consumer. */
+    id: integer().primaryKey().generatedAlwaysAsIdentity(),
     /** The user id that the consumer belongs to. */
     userId: integer()
       .notNull()
       .references(() => userTable.id, { onDelete: "cascade" }),
-    /** The id of the consumer. */
-    id: integer().notNull(),
     /** The key of the consumer. If null, the consumer is internal. */
     key: bytea().unique(),
     /** The name of the consumer. */
@@ -139,7 +138,7 @@ export const consumerTable = pgTable(
       .default(sql`now()`)
       .notNull(),
   },
-  (t) => [primaryKey({ columns: [t.userId, t.id] })],
+  (table) => [index("consumer_userId_idx").on(table.userId)],
 );
 
 export type Consumer = typeof consumerTable.$inferSelect;
@@ -147,12 +146,12 @@ export type Consumer = typeof consumerTable.$inferSelect;
 export const sourceTable = pgTable(
   "source",
   {
+    /** The globally unique id of the source. */
+    id: integer().primaryKey().generatedAlwaysAsIdentity(),
     /** The user which owns the source. */
     userId: integer()
       .references(() => userTable.id, { onDelete: "cascade" })
       .notNull(),
-    /** The id which is unique within the user. */
-    id: integer().notNull(),
     /** Globally unique identifier for webhook URLs. */
     uid: uuid().unique().notNull(),
     /** The name of the source. */
@@ -177,7 +176,7 @@ export const sourceTable = pgTable(
     /** The date the source was updated. */
     updatedAt: timestamp({ withTimezone: true, mode: "date" }),
   },
-  (table) => [primaryKey({ columns: [table.userId, table.id] })],
+  (table) => [index("source_userId_idx").on(table.userId)],
 );
 
 export type Source = typeof sourceTable.$inferSelect;
@@ -185,14 +184,16 @@ export type Source = typeof sourceTable.$inferSelect;
 export const sourceCollectionTable = pgTable(
   "source_collection",
   {
+    /** The globally unique id of the source collection. */
+    id: integer().primaryKey().generatedAlwaysAsIdentity(),
     /** The user which owns the source collection. */
     userId: integer()
       .references(() => userTable.id, { onDelete: "cascade" })
       .notNull(),
     /** The source which the source collection is connected to. */
-    sourceId: integer().notNull(),
-    /** The id which is unique within the user. */
-    id: integer().notNull(),
+    sourceId: integer()
+      .notNull()
+      .references(() => sourceTable.id, { onDelete: "cascade" }),
     /** The name of the source collection (from upstream, may be fetched fresh). */
     name: text().notNull(),
     /**
@@ -214,12 +215,8 @@ export const sourceCollectionTable = pgTable(
     updatedAt: timestamp({ withTimezone: true, mode: "date" }),
   },
   (table) => [
-    primaryKey({ columns: [table.userId, table.id] }),
-    foreignKey({
-      columns: [table.userId, table.sourceId],
-      foreignColumns: [sourceTable.userId, sourceTable.id],
-    }).onDelete("cascade"),
-    index("source_collection_source_idx").on(table.userId, table.sourceId),
+    index("source_collection_userId_idx").on(table.userId),
+    index("source_collection_sourceId_idx").on(table.sourceId),
   ],
 );
 
@@ -232,12 +229,12 @@ export type SourceCollection = typeof sourceCollectionTable.$inferSelect;
 export const collectionTable = pgTable(
   "collection",
   {
+    /** The globally unique id of the collection. */
+    id: integer().primaryKey().generatedAlwaysAsIdentity(),
     /** The user which owns the collection. */
     userId: integer()
       .references(() => userTable.id, { onDelete: "cascade" })
       .notNull(),
-    /** The id which is unique within the user. */
-    id: integer().notNull(),
     /** The name of the collection (displayed to users). */
     name: text().notNull(),
     /** The date the collection was created. */
@@ -247,7 +244,7 @@ export const collectionTable = pgTable(
     /** The date the collection was last updated. */
     updatedAt: timestamp({ withTimezone: true, mode: "date" }),
   },
-  (table) => [primaryKey({ columns: [table.userId, table.id] })],
+  (table) => [index("collection_userId_idx").on(table.userId)],
 );
 
 export type Collection = typeof collectionTable.$inferSelect;
@@ -259,16 +256,20 @@ export type Collection = typeof collectionTable.$inferSelect;
 export const influxTable = pgTable(
   "influx",
   {
+    /** The globally unique id of the influx. */
+    id: integer().primaryKey().generatedAlwaysAsIdentity(),
     /** The user which owns the influx. */
     userId: integer()
       .references(() => userTable.id, { onDelete: "cascade" })
       .notNull(),
-    /** The id which is unique within the user. */
-    id: integer().notNull(),
     /** The target collection receiving items. */
-    collectionId: integer().notNull(),
+    collectionId: integer()
+      .notNull()
+      .references(() => collectionTable.id, { onDelete: "cascade" }),
     /** The source collection providing items. */
-    sourceCollectionId: integer().notNull(),
+    sourceCollectionId: integer()
+      .notNull()
+      .references(() => sourceCollectionTable.id, { onDelete: "cascade" }),
     /**
      * Schema snapshot at creation/last valid sync (MessagePack serialized).
      * Used for validating filters against schema changes.
@@ -293,17 +294,9 @@ export const influxTable = pgTable(
     updatedAt: timestamp({ withTimezone: true, mode: "date" }),
   },
   (table) => [
-    primaryKey({ columns: [table.userId, table.id] }),
-    foreignKey({
-      columns: [table.userId, table.collectionId],
-      foreignColumns: [collectionTable.userId, collectionTable.id],
-    }).onDelete("cascade"),
-    foreignKey({
-      columns: [table.userId, table.sourceCollectionId],
-      foreignColumns: [sourceCollectionTable.userId, sourceCollectionTable.id],
-    }).onDelete("cascade"),
-    index("influx_collection_idx").on(table.userId, table.collectionId),
-    index("influx_source_collection_idx").on(table.userId, table.sourceCollectionId),
+    index("influx_userId_idx").on(table.userId),
+    index("influx_collectionId_idx").on(table.collectionId),
+    index("influx_sourceCollectionId_idx").on(table.sourceCollectionId),
   ],
 );
 
@@ -318,28 +311,23 @@ export const connectionTable = pgTable(
       .references(() => userTable.id, { onDelete: "cascade" })
       .notNull(),
     /** The consumer id. */
-    consumerId: integer().notNull(),
+    consumerId: integer()
+      .notNull()
+      .references(() => consumerTable.id, { onDelete: "cascade" }),
     /** The collection which the consumer is connected to. */
-    collectionId: integer().notNull(),
+    collectionId: integer()
+      .notNull()
+      .references(() => collectionTable.id, { onDelete: "cascade" }),
     /** The most recent item change that was received by the consumer. */
     lastItemChanged: timestamp({ withTimezone: true, mode: "date" }),
     /** The date the collection was last checked for deleted items. */
     lastConsistencyCheck: timestamp({ withTimezone: true, mode: "date" }),
   },
   (table) => [
-    primaryKey({
-      columns: [table.userId, table.consumerId, table.collectionId],
-    }),
-    foreignKey({
-      columns: [table.userId, table.consumerId],
-      foreignColumns: [consumerTable.userId, consumerTable.id],
-    }).onDelete("cascade"),
-    foreignKey({
-      columns: [table.userId, table.collectionId],
-      foreignColumns: [collectionTable.userId, collectionTable.id],
-    }).onDelete("cascade"),
-    index("connection_consumer_idx").on(table.userId, table.consumerId),
-    index("connection_collection_idx").on(table.userId, table.collectionId),
+    primaryKey({ columns: [table.consumerId, table.collectionId] }),
+    index("connection_userId_idx").on(table.userId),
+    index("connection_consumerId_idx").on(table.consumerId),
+    index("connection_collectionId_idx").on(table.collectionId),
   ],
 );
 
@@ -348,26 +336,18 @@ export type Connection = typeof connectionTable.$inferSelect;
 export const itemIdConflictResolutionTable = pgTable(
   "item_id_conflict_resolution",
   {
-    /** The user which owns the id mapping. */
-    userId: integer()
-      .references(() => userTable.id, { onDelete: "cascade" })
-      .notNull(),
     /** The source collection which the id mapping is connected to. */
-    sourceCollectionId: integer().notNull(),
+    sourceCollectionId: integer()
+      .notNull()
+      .references(() => sourceCollectionTable.id, { onDelete: "cascade" }),
     /** The id which is unique within the source collection. */
     sourceItemId: bytea().notNull(),
     /** The 4 byte id which is unique within the source collection. */
     id: integer().notNull(),
   },
   (table) => [
-    primaryKey({
-      columns: [table.userId, table.sourceCollectionId, table.sourceItemId],
-    }),
-    foreignKey({
-      columns: [table.userId, table.sourceCollectionId],
-      foreignColumns: [sourceCollectionTable.userId, sourceCollectionTable.id],
-    }).onDelete("cascade"),
-    index("item_id_conflict_source_collection_idx").on(table.userId, table.sourceCollectionId),
+    primaryKey({ columns: [table.sourceCollectionId, table.sourceItemId] }),
+    index("item_id_conflict_sourceCollectionId_idx").on(table.sourceCollectionId),
   ],
 );
 
@@ -379,10 +359,10 @@ export const webhookLogTable = pgTable(
   "webhook_log",
   {
     id: integer().primaryKey().generatedAlwaysAsIdentity(),
-    /** The user who owns the source. */
-    userId: integer().notNull(),
     /** The source that received the webhook. */
-    sourceId: integer().notNull(),
+    sourceId: integer()
+      .notNull()
+      .references(() => sourceTable.id, { onDelete: "cascade" }),
     /** The webhook event type (e.g., entry.create, entry.update). */
     event: text().notNull(),
     /** The content type/model affected. */
@@ -398,13 +378,7 @@ export const webhookLogTable = pgTable(
       .default(sql`now()`)
       .notNull(),
   },
-  (table) => [
-    foreignKey({
-      columns: [table.userId, table.sourceId],
-      foreignColumns: [sourceTable.userId, sourceTable.id],
-    }).onDelete("cascade"),
-    index("webhook_log_source_idx").on(table.userId, table.sourceId),
-  ],
+  (table) => [index("webhook_log_sourceId_idx").on(table.sourceId)],
 );
 
 export type WebhookLog = typeof webhookLogTable.$inferSelect;
@@ -415,14 +389,16 @@ export type NewWebhookLog = typeof webhookLogTable.$inferInsert;
 export const incidentTable = pgTable(
   "incident",
   {
+    /** The globally unique id of the incident. */
+    id: integer().primaryKey().generatedAlwaysAsIdentity(),
     /** The user which owns the incident. */
     userId: integer()
       .references(() => userTable.id, { onDelete: "cascade" })
       .notNull(),
-    /** The id which is unique within the user. */
-    id: integer().notNull(),
     /** The influx that caused the incident. */
-    influxId: integer().notNull(),
+    influxId: integer()
+      .notNull()
+      .references(() => influxTable.id, { onDelete: "cascade" }),
     /** The type of incident. */
     type: integer().notNull(), // IncidentType enum
     /** Human-readable description of the incident. */
@@ -442,12 +418,8 @@ export const incidentTable = pgTable(
     resolvedAt: timestamp({ withTimezone: true, mode: "date" }),
   },
   (table) => [
-    primaryKey({ columns: [table.userId, table.id] }),
-    foreignKey({
-      columns: [table.userId, table.influxId],
-      foreignColumns: [influxTable.userId, influxTable.id],
-    }).onDelete("cascade"),
-    index("incident_influx_idx").on(table.userId, table.influxId),
+    index("incident_userId_idx").on(table.userId),
+    index("incident_influxId_idx").on(table.influxId),
   ],
 );
 
@@ -460,12 +432,10 @@ export const syncJobTable = pgTable(
   "sync_job",
   {
     id: integer().primaryKey().generatedAlwaysAsIdentity(),
-    /** The user who owns the source collection being synced. */
-    userId: integer()
-      .notNull()
-      .references(() => userTable.id, { onDelete: "cascade" }),
     /** The source collection to sync. */
-    sourceCollectionId: integer().notNull(),
+    sourceCollectionId: integer()
+      .notNull()
+      .references(() => sourceCollectionTable.id, { onDelete: "cascade" }),
     /** Job status: pending | running | completed | failed */
     status: text().notNull().default("pending"),
     /** When the job is scheduled to run. */
@@ -486,13 +456,9 @@ export const syncJobTable = pgTable(
     workerId: text(),
   },
   (table) => [
-    foreignKey({
-      columns: [table.userId, table.sourceCollectionId],
-      foreignColumns: [sourceCollectionTable.userId, sourceCollectionTable.id],
-    }).onDelete("cascade"),
+    index("sync_job_sourceCollectionId_idx").on(table.sourceCollectionId),
     index("sync_job_queue_idx").on(table.status, table.scheduledAt),
     index("sync_job_status_idx").on(table.status, table.startedAt),
-    index("sync_job_source_collection_idx").on(table.userId, table.sourceCollectionId),
   ],
 );
 

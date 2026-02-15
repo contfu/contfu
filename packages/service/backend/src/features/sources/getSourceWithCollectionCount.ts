@@ -53,6 +53,7 @@ function mapToBackendSourceWithCollectionCount(
 /**
  * Get a single source by ID with collection count.
  * Does NOT include credentials.
+ * Returns undefined if not found or not owned by the user.
  */
 export async function getSourceWithCollectionCount(
   userId: number,
@@ -61,7 +62,7 @@ export async function getSourceWithCollectionCount(
   const [source] = await db
     .select()
     .from(sourceTable)
-    .where(and(eq(sourceTable.userId, userId), eq(sourceTable.id, id)))
+    .where(and(eq(sourceTable.id, id), eq(sourceTable.userId, userId)))
     .limit(1);
 
   if (!source) return undefined;
@@ -69,7 +70,7 @@ export async function getSourceWithCollectionCount(
   const [countResult] = await db
     .select({ count: sql<number>`count(*)` })
     .from(sourceCollectionTable)
-    .where(and(eq(sourceCollectionTable.userId, userId), eq(sourceCollectionTable.sourceId, id)));
+    .where(eq(sourceCollectionTable.sourceId, id));
 
   return mapToBackendSourceWithCollectionCount(source, countResult?.count ?? 0);
 }

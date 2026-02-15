@@ -43,12 +43,13 @@ function mapToBackendSource(source: Source): BackendSource {
 /**
  * Get a single source by ID.
  * Does NOT include credentials.
+ * Returns undefined if not found or not owned by the user.
  */
 export async function getSource(userId: number, id: number): Promise<BackendSource | undefined> {
   const [source] = await db
     .select()
     .from(sourceTable)
-    .where(and(eq(sourceTable.userId, userId), eq(sourceTable.id, id)))
+    .where(and(eq(sourceTable.id, id), eq(sourceTable.userId, userId)))
     .limit(1);
 
   if (!source) return undefined;

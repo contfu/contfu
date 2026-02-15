@@ -15,6 +15,7 @@ function mapToBackendConsumer(consumer: Consumer): BackendConsumer {
 
 /**
  * Update a consumer.
+ * Returns undefined if not found or not owned by the user.
  */
 export async function updateConsumer(
   userId: number,
@@ -24,7 +25,7 @@ export async function updateConsumer(
   const [updated] = await db
     .update(consumerTable)
     .set(input)
-    .where(and(eq(consumerTable.userId, userId), eq(consumerTable.id, id)))
+    .where(and(eq(consumerTable.id, id), eq(consumerTable.userId, userId)))
     .returning();
 
   if (!updated) return undefined;

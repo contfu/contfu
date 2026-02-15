@@ -1,7 +1,7 @@
 {
   "version": "8",
   "dialect": "postgres",
-  "id": "6079e694-2e5e-412c-ac70-1ab981693a2a",
+  "id": "aa66a5a4-a971-4e52-879a-692ecc667915",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
@@ -287,8 +287,17 @@
       "dimensions": 0,
       "default": null,
       "generated": null,
-      "identity": null,
-      "name": "userId",
+      "identity": {
+        "type": "always",
+        "name": "collection_id_seq",
+        "increment": "1",
+        "startWith": "1",
+        "minValue": "1",
+        "maxValue": "2147483647",
+        "cache": 1,
+        "cycle": false
+      },
+      "name": "id",
       "entityType": "columns",
       "schema": "public",
       "table": "collection"
@@ -301,7 +310,7 @@
       "default": null,
       "generated": null,
       "identity": null,
-      "name": "id",
+      "name": "userId",
       "entityType": "columns",
       "schema": "public",
       "table": "collection"
@@ -417,8 +426,17 @@
       "dimensions": 0,
       "default": null,
       "generated": null,
-      "identity": null,
-      "name": "userId",
+      "identity": {
+        "type": "always",
+        "name": "consumer_id_seq",
+        "increment": "1",
+        "startWith": "1",
+        "minValue": "1",
+        "maxValue": "2147483647",
+        "cache": 1,
+        "cycle": false
+      },
+      "name": "id",
       "entityType": "columns",
       "schema": "public",
       "table": "consumer"
@@ -431,7 +449,7 @@
       "default": null,
       "generated": null,
       "identity": null,
-      "name": "id",
+      "name": "userId",
       "entityType": "columns",
       "schema": "public",
       "table": "consumer"
@@ -482,8 +500,17 @@
       "dimensions": 0,
       "default": null,
       "generated": null,
-      "identity": null,
-      "name": "userId",
+      "identity": {
+        "type": "always",
+        "name": "incident_id_seq",
+        "increment": "1",
+        "startWith": "1",
+        "minValue": "1",
+        "maxValue": "2147483647",
+        "cache": 1,
+        "cycle": false
+      },
+      "name": "id",
       "entityType": "columns",
       "schema": "public",
       "table": "incident"
@@ -496,7 +523,7 @@
       "default": null,
       "generated": null,
       "identity": null,
-      "name": "id",
+      "name": "userId",
       "entityType": "columns",
       "schema": "public",
       "table": "incident"
@@ -599,8 +626,17 @@
       "dimensions": 0,
       "default": null,
       "generated": null,
-      "identity": null,
-      "name": "userId",
+      "identity": {
+        "type": "always",
+        "name": "influx_id_seq",
+        "increment": "1",
+        "startWith": "1",
+        "minValue": "1",
+        "maxValue": "2147483647",
+        "cache": 1,
+        "cycle": false
+      },
+      "name": "id",
       "entityType": "columns",
       "schema": "public",
       "table": "influx"
@@ -613,7 +649,7 @@
       "default": null,
       "generated": null,
       "identity": null,
-      "name": "id",
+      "name": "userId",
       "entityType": "columns",
       "schema": "public",
       "table": "influx"
@@ -708,19 +744,6 @@
       "entityType": "columns",
       "schema": "public",
       "table": "influx"
-    },
-    {
-      "type": "integer",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "userId",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "item_id_conflict_resolution"
     },
     {
       "type": "integer",
@@ -1089,6 +1112,28 @@
       "dimensions": 0,
       "default": null,
       "generated": null,
+      "identity": {
+        "type": "always",
+        "name": "source_collection_id_seq",
+        "increment": "1",
+        "startWith": "1",
+        "minValue": "1",
+        "maxValue": "2147483647",
+        "cache": 1,
+        "cycle": false
+      },
+      "name": "id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "source_collection"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
       "identity": null,
       "name": "userId",
       "entityType": "columns",
@@ -1104,19 +1149,6 @@
       "generated": null,
       "identity": null,
       "name": "sourceId",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "source_collection"
-    },
-    {
-      "type": "integer",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "id",
       "entityType": "columns",
       "schema": "public",
       "table": "source_collection"
@@ -1219,8 +1251,17 @@
       "dimensions": 0,
       "default": null,
       "generated": null,
-      "identity": null,
-      "name": "userId",
+      "identity": {
+        "type": "always",
+        "name": "source_id_seq",
+        "increment": "1",
+        "startWith": "1",
+        "minValue": "1",
+        "maxValue": "2147483647",
+        "cache": 1,
+        "cycle": false
+      },
+      "name": "id",
       "entityType": "columns",
       "schema": "public",
       "table": "source"
@@ -1233,13 +1274,13 @@
       "default": null,
       "generated": null,
       "identity": null,
-      "name": "id",
+      "name": "userId",
       "entityType": "columns",
       "schema": "public",
       "table": "source"
     },
     {
-      "type": "text",
+      "type": "uuid",
       "typeSchema": null,
       "notNull": true,
       "dimensions": 0,
@@ -1373,19 +1414,6 @@
         "cycle": false
       },
       "name": "id",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "sync_job"
-    },
-    {
-      "type": "integer",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "userId",
       "entityType": "columns",
       "schema": "public",
       "table": "sync_job"
@@ -1750,19 +1778,6 @@
       "default": null,
       "generated": null,
       "identity": null,
-      "name": "userId",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "webhook_log"
-    },
-    {
-      "type": "integer",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
       "name": "sourceId",
       "entityType": "columns",
       "schema": "public",
@@ -1876,7 +1891,42 @@
           "asc": true,
           "nullsFirst": false,
           "opclass": null
-        },
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "collection_userId_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "collection"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "userId",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "connection_userId_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "connection"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
         {
           "value": "consumerId",
           "isExpression": false,
@@ -1890,7 +1940,7 @@
       "with": "",
       "method": "btree",
       "concurrently": false,
-      "name": "connection_consumer_idx",
+      "name": "connection_consumerId_idx",
       "entityType": "indexes",
       "schema": "public",
       "table": "connection"
@@ -1898,13 +1948,6 @@
     {
       "nameExplicit": true,
       "columns": [
-        {
-          "value": "userId",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        },
         {
           "value": "collectionId",
           "isExpression": false,
@@ -1918,7 +1961,7 @@
       "with": "",
       "method": "btree",
       "concurrently": false,
-      "name": "connection_collection_idx",
+      "name": "connection_collectionId_idx",
       "entityType": "indexes",
       "schema": "public",
       "table": "connection"
@@ -1932,7 +1975,42 @@
           "asc": true,
           "nullsFirst": false,
           "opclass": null
-        },
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "consumer_userId_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "consumer"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "userId",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "incident_userId_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "incident"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
         {
           "value": "influxId",
           "isExpression": false,
@@ -1946,7 +2024,7 @@
       "with": "",
       "method": "btree",
       "concurrently": false,
-      "name": "incident_influx_idx",
+      "name": "incident_influxId_idx",
       "entityType": "indexes",
       "schema": "public",
       "table": "incident"
@@ -1960,7 +2038,21 @@
           "asc": true,
           "nullsFirst": false,
           "opclass": null
-        },
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "influx_userId_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "influx"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
         {
           "value": "collectionId",
           "isExpression": false,
@@ -1974,7 +2066,7 @@
       "with": "",
       "method": "btree",
       "concurrently": false,
-      "name": "influx_collection_idx",
+      "name": "influx_collectionId_idx",
       "entityType": "indexes",
       "schema": "public",
       "table": "influx"
@@ -1982,13 +2074,6 @@
     {
       "nameExplicit": true,
       "columns": [
-        {
-          "value": "userId",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        },
         {
           "value": "sourceCollectionId",
           "isExpression": false,
@@ -2002,7 +2087,7 @@
       "with": "",
       "method": "btree",
       "concurrently": false,
-      "name": "influx_source_collection_idx",
+      "name": "influx_sourceCollectionId_idx",
       "entityType": "indexes",
       "schema": "public",
       "table": "influx"
@@ -2010,13 +2095,6 @@
     {
       "nameExplicit": true,
       "columns": [
-        {
-          "value": "userId",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        },
         {
           "value": "sourceCollectionId",
           "isExpression": false,
@@ -2030,7 +2108,7 @@
       "with": "",
       "method": "btree",
       "concurrently": false,
-      "name": "item_id_conflict_source_collection_idx",
+      "name": "item_id_conflict_sourceCollectionId_idx",
       "entityType": "indexes",
       "schema": "public",
       "table": "item_id_conflict_resolution"
@@ -2065,7 +2143,21 @@
           "asc": true,
           "nullsFirst": false,
           "opclass": null
-        },
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "source_collection_userId_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "source_collection"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
         {
           "value": "sourceId",
           "isExpression": false,
@@ -2079,10 +2171,52 @@
       "with": "",
       "method": "btree",
       "concurrently": false,
-      "name": "source_collection_source_idx",
+      "name": "source_collection_sourceId_idx",
       "entityType": "indexes",
       "schema": "public",
       "table": "source_collection"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "userId",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "source_userId_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "source"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "sourceCollectionId",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "sync_job_sourceCollectionId_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "sync_job"
     },
     {
       "nameExplicit": true,
@@ -2144,41 +2278,6 @@
       "nameExplicit": true,
       "columns": [
         {
-          "value": "userId",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        },
-        {
-          "value": "sourceCollectionId",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
-      ],
-      "isUnique": false,
-      "where": null,
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "name": "sync_job_source_collection_idx",
-      "entityType": "indexes",
-      "schema": "public",
-      "table": "sync_job"
-    },
-    {
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "userId",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        },
-        {
           "value": "sourceId",
           "isExpression": false,
           "asc": true,
@@ -2191,7 +2290,7 @@
       "with": "",
       "method": "btree",
       "concurrently": false,
-      "name": "webhook_log_source_idx",
+      "name": "webhook_log_sourceId_idx",
       "entityType": "indexes",
       "schema": "public",
       "table": "webhook_log"
@@ -2250,18 +2349,16 @@
     {
       "nameExplicit": false,
       "columns": [
-        "userId",
         "consumerId"
       ],
       "schemaTo": "public",
       "tableTo": "consumer",
       "columnsTo": [
-        "userId",
         "id"
       ],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
-      "name": "connection_userId_consumerId_consumer_userId_id_fkey",
+      "name": "connection_consumerId_consumer_id_fkey",
       "entityType": "fks",
       "schema": "public",
       "table": "connection"
@@ -2269,18 +2366,16 @@
     {
       "nameExplicit": false,
       "columns": [
-        "userId",
         "collectionId"
       ],
       "schemaTo": "public",
       "tableTo": "collection",
       "columnsTo": [
-        "userId",
         "id"
       ],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
-      "name": "connection_userId_collectionId_collection_userId_id_fkey",
+      "name": "connection_collectionId_collection_id_fkey",
       "entityType": "fks",
       "schema": "public",
       "table": "connection"
@@ -2322,18 +2417,16 @@
     {
       "nameExplicit": false,
       "columns": [
-        "userId",
         "influxId"
       ],
       "schemaTo": "public",
       "tableTo": "influx",
       "columnsTo": [
-        "userId",
         "id"
       ],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
-      "name": "incident_userId_influxId_influx_userId_id_fkey",
+      "name": "incident_influxId_influx_id_fkey",
       "entityType": "fks",
       "schema": "public",
       "table": "incident"
@@ -2358,18 +2451,16 @@
     {
       "nameExplicit": false,
       "columns": [
-        "userId",
         "collectionId"
       ],
       "schemaTo": "public",
       "tableTo": "collection",
       "columnsTo": [
-        "userId",
         "id"
       ],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
-      "name": "influx_userId_collectionId_collection_userId_id_fkey",
+      "name": "influx_collectionId_collection_id_fkey",
       "entityType": "fks",
       "schema": "public",
       "table": "influx"
@@ -2377,18 +2468,16 @@
     {
       "nameExplicit": false,
       "columns": [
-        "userId",
         "sourceCollectionId"
       ],
       "schemaTo": "public",
       "tableTo": "source_collection",
       "columnsTo": [
-        "userId",
         "id"
       ],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
-      "name": "influx_J0R1QpvdqmFg_fkey",
+      "name": "influx_sourceCollectionId_source_collection_id_fkey",
       "entityType": "fks",
       "schema": "public",
       "table": "influx"
@@ -2396,35 +2485,16 @@
     {
       "nameExplicit": false,
       "columns": [
-        "userId"
-      ],
-      "schemaTo": "public",
-      "tableTo": "user",
-      "columnsTo": [
-        "id"
-      ],
-      "onUpdate": "NO ACTION",
-      "onDelete": "CASCADE",
-      "name": "item_id_conflict_resolution_userId_user_id_fkey",
-      "entityType": "fks",
-      "schema": "public",
-      "table": "item_id_conflict_resolution"
-    },
-    {
-      "nameExplicit": false,
-      "columns": [
-        "userId",
         "sourceCollectionId"
       ],
       "schemaTo": "public",
       "tableTo": "source_collection",
       "columnsTo": [
-        "userId",
         "id"
       ],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
-      "name": "item_id_conflict_resolution_GZtleFy7dHPJ_fkey",
+      "name": "item_id_conflict_resolution_3laooM9Jrtn7_fkey",
       "entityType": "fks",
       "schema": "public",
       "table": "item_id_conflict_resolution"
@@ -2483,18 +2553,16 @@
     {
       "nameExplicit": false,
       "columns": [
-        "userId",
         "sourceId"
       ],
       "schemaTo": "public",
       "tableTo": "source",
       "columnsTo": [
-        "userId",
         "id"
       ],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
-      "name": "source_collection_userId_sourceId_source_userId_id_fkey",
+      "name": "source_collection_sourceId_source_id_fkey",
       "entityType": "fks",
       "schema": "public",
       "table": "source_collection"
@@ -2519,35 +2587,16 @@
     {
       "nameExplicit": false,
       "columns": [
-        "userId"
-      ],
-      "schemaTo": "public",
-      "tableTo": "user",
-      "columnsTo": [
-        "id"
-      ],
-      "onUpdate": "NO ACTION",
-      "onDelete": "CASCADE",
-      "name": "sync_job_userId_user_id_fkey",
-      "entityType": "fks",
-      "schema": "public",
-      "table": "sync_job"
-    },
-    {
-      "nameExplicit": false,
-      "columns": [
-        "userId",
         "sourceCollectionId"
       ],
       "schemaTo": "public",
       "tableTo": "source_collection",
       "columnsTo": [
-        "userId",
         "id"
       ],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
-      "name": "sync_job_pKABs5XCpwoT_fkey",
+      "name": "sync_job_sourceCollectionId_source_collection_id_fkey",
       "entityType": "fks",
       "schema": "public",
       "table": "sync_job"
@@ -2555,36 +2604,22 @@
     {
       "nameExplicit": false,
       "columns": [
-        "userId",
         "sourceId"
       ],
       "schemaTo": "public",
       "tableTo": "source",
       "columnsTo": [
-        "userId",
         "id"
       ],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
-      "name": "webhook_log_userId_sourceId_source_userId_id_fkey",
+      "name": "webhook_log_sourceId_source_id_fkey",
       "entityType": "fks",
       "schema": "public",
       "table": "webhook_log"
     },
     {
       "columns": [
-        "userId",
-        "id"
-      ],
-      "nameExplicit": false,
-      "name": "collection_pkey",
-      "entityType": "pks",
-      "schema": "public",
-      "table": "collection"
-    },
-    {
-      "columns": [
-        "userId",
         "consumerId",
         "collectionId"
       ],
@@ -2596,40 +2631,6 @@
     },
     {
       "columns": [
-        "userId",
-        "id"
-      ],
-      "nameExplicit": false,
-      "name": "consumer_pkey",
-      "entityType": "pks",
-      "schema": "public",
-      "table": "consumer"
-    },
-    {
-      "columns": [
-        "userId",
-        "id"
-      ],
-      "nameExplicit": false,
-      "name": "incident_pkey",
-      "entityType": "pks",
-      "schema": "public",
-      "table": "incident"
-    },
-    {
-      "columns": [
-        "userId",
-        "id"
-      ],
-      "nameExplicit": false,
-      "name": "influx_pkey",
-      "entityType": "pks",
-      "schema": "public",
-      "table": "influx"
-    },
-    {
-      "columns": [
-        "userId",
         "sourceCollectionId",
         "sourceItemId"
       ],
@@ -2641,34 +2642,52 @@
     },
     {
       "columns": [
-        "userId",
-        "id"
-      ],
-      "nameExplicit": false,
-      "name": "source_collection_pkey",
-      "entityType": "pks",
-      "schema": "public",
-      "table": "source_collection"
-    },
-    {
-      "columns": [
-        "userId",
-        "id"
-      ],
-      "nameExplicit": false,
-      "name": "source_pkey",
-      "entityType": "pks",
-      "schema": "public",
-      "table": "source"
-    },
-    {
-      "columns": [
         "id"
       ],
       "nameExplicit": false,
       "name": "account_pkey",
       "schema": "public",
       "table": "account",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "collection_pkey",
+      "schema": "public",
+      "table": "collection",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "consumer_pkey",
+      "schema": "public",
+      "table": "consumer",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "incident_pkey",
+      "schema": "public",
+      "table": "incident",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "influx_pkey",
+      "schema": "public",
+      "table": "influx",
       "entityType": "pks"
     },
     {
@@ -2699,6 +2718,26 @@
       "name": "setting_pkey",
       "schema": "public",
       "table": "setting",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "source_collection_pkey",
+      "schema": "public",
+      "table": "source_collection",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "source_pkey",
+      "schema": "public",
+      "table": "source",
       "entityType": "pks"
     },
     {

@@ -15,6 +15,7 @@ function mapToBackendConsumer(consumer: Consumer): BackendConsumer {
 
 /**
  * Get a single consumer by ID.
+ * Returns undefined if not found or not owned by the user.
  */
 export async function getConsumer(
   userId: number,
@@ -23,7 +24,7 @@ export async function getConsumer(
   const [consumer] = await db
     .select()
     .from(consumerTable)
-    .where(and(eq(consumerTable.userId, userId), eq(consumerTable.id, id)))
+    .where(and(eq(consumerTable.id, id), eq(consumerTable.userId, userId)))
     .limit(1);
 
   if (!consumer) return undefined;

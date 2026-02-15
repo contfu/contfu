@@ -117,7 +117,7 @@ export class StreamServer {
           collectionIds,
         );
         if (sourceCollectionIds.length > 0) {
-          await enqueueSyncJobs(db, client.userId, sourceCollectionIds);
+          await enqueueSyncJobs(db, sourceCollectionIds);
         }
       }
 

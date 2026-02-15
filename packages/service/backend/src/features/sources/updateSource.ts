@@ -44,6 +44,7 @@ function mapToBackendSource(source: Source): BackendSource {
 /**
  * Update a source.
  * Credentials and webhookSecret are encrypted before storage.
+ * Returns undefined if not found or not owned by the user.
  *
  * @returns The updated source without credentials
  */
@@ -74,7 +75,7 @@ export async function updateSource(
   const [updated] = await db
     .update(sourceTable)
     .set(setValues)
-    .where(and(eq(sourceTable.userId, userId), eq(sourceTable.id, id)))
+    .where(and(eq(sourceTable.id, id), eq(sourceTable.userId, userId)))
     .returning();
 
   if (!updated) return undefined;

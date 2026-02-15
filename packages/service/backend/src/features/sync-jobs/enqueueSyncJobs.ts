@@ -1,4 +1,4 @@
-import { and, eq, inArray, or } from "drizzle-orm";
+import { and, inArray, or, eq } from "drizzle-orm";
 import type { PgAsyncDatabase } from "drizzle-orm/pg-core/async/db";
 import type * as schema from "../../infra/db/schema";
 import { syncJobTable } from "../../infra/db/schema";
@@ -9,13 +9,11 @@ import { syncJobTable } from "../../infra/db/schema";
  * to prevent duplicate work.
  *
  * @param db - Database connection (main thread or worker)
- * @param userId - The user who owns the source collections
  * @param sourceCollectionIds - IDs of source collections to sync
  * @returns Number of jobs enqueued
  */
 export async function enqueueSyncJobs(
   db: PgAsyncDatabase<any, typeof schema, any>,
-  userId: number,
   sourceCollectionIds: number[],
 ): Promise<number> {
   if (sourceCollectionIds.length === 0) return 0;
@@ -26,7 +24,6 @@ export async function enqueueSyncJobs(
     .from(syncJobTable)
     .where(
       and(
-        eq(syncJobTable.userId, userId),
         inArray(syncJobTable.sourceCollectionId, sourceCollectionIds),
         or(eq(syncJobTable.status, "pending"), eq(syncJobTable.status, "running")),
       ),
@@ -39,7 +36,6 @@ export async function enqueueSyncJobs(
 
   await db.insert(syncJobTable).values(
     toEnqueue.map((sourceCollectionId) => ({
-      userId,
       sourceCollectionId,
     })),
   );

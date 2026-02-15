@@ -25,6 +25,7 @@ function mapToBackendConsumerWithConnectionCount(
 
 /**
  * Get a single consumer by ID with connection count.
+ * Returns undefined if not found or not owned by the user.
  */
 export async function getConsumerWithConnectionCount(
   userId: number,
@@ -33,7 +34,7 @@ export async function getConsumerWithConnectionCount(
   const [consumer] = await db
     .select()
     .from(consumerTable)
-    .where(and(eq(consumerTable.userId, userId), eq(consumerTable.id, id)))
+    .where(and(eq(consumerTable.id, id), eq(consumerTable.userId, userId)))
     .limit(1);
 
   if (!consumer) return undefined;
@@ -41,7 +42,7 @@ export async function getConsumerWithConnectionCount(
   const [countResult] = await db
     .select({ count: sql<number>`count(*)` })
     .from(connectionTable)
-    .where(and(eq(connectionTable.userId, userId), eq(connectionTable.consumerId, id)));
+    .where(eq(connectionTable.consumerId, id));
 
   return mapToBackendConsumerWithConnectionCount(consumer, countResult?.count ?? 0);
 }
