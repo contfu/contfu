@@ -1,3 +1,5 @@
+import { ensureEventStream } from "@contfu/svc-backend/infra/nats/event-stream";
+import { hasNats } from "@contfu/svc-backend/infra/nats/connection";
 import { StreamServer } from "@contfu/svc-backend/infra/stream/stream-server";
 import { SyncWorkerManager } from "@contfu/svc-backend/infra/sync-worker/worker-manager";
 
@@ -43,6 +45,11 @@ export async function initialize(): Promise<void> {
 
   const stream = getStreamServer();
   const worker = getSyncWorkerManager();
+
+  // Initialize JetStream event stream if NATS is available
+  if (hasNats()) {
+    await ensureEventStream();
+  }
 
   // Wire the onItems callback to broadcast items to all connected clients
   worker.onItems((items, connections) => {

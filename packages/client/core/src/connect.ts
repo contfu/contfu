@@ -4,6 +4,8 @@ import { connectToStream, type StreamEvent } from "./stream-client";
 type BaseOpts = {
   /** Base URL (without /api/stream path) */
   baseUrl?: string;
+  /** Event index to replay from. Events since this index will be replayed before live events. */
+  from?: number;
   /** Enable automatic reconnection on disconnect (default: true) */
   reconnect?: boolean;
   /** Maximum delay between reconnection attempts in ms (default: 30000) */
@@ -55,11 +57,11 @@ export function connect(
   key: Buffer,
   opts: BaseOpts & { connectionEvents?: boolean } = {},
 ): AsyncGenerator<ItemEvent | StreamEvent> {
-  const { baseUrl = "https://contfu.com", connectionEvents, ...rest } = opts;
+  const { baseUrl = "https://contfu.com", from, connectionEvents, ...rest } = opts;
   const streamUrl = baseUrl + "/api/stream";
 
   if (connectionEvents) {
-    return connectToStream(key, { url: streamUrl, connectionEvents: true, ...rest });
+    return connectToStream(key, { url: streamUrl, from, connectionEvents: true, ...rest });
   }
-  return connectToStream(key, { url: streamUrl, ...rest });
+  return connectToStream(key, { url: streamUrl, from, ...rest });
 }

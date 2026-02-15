@@ -1,17 +1,12 @@
 import {
   Block,
   ChangedEvent,
-  ChecksumEvent,
-  ConnectedEvent,
-  DeletedEvent,
-  ErrorEvent,
   EventType,
   Item,
   ItemEvent,
-  ListIdsEvent,
+  WIRE_PING,
   WireEvent,
   WireItem,
-  WIRE_PING,
 } from "@contfu/core";
 import { unpack } from "msgpackr";
 
@@ -24,17 +19,28 @@ export type StreamDisconnectedEvent = { type: "stream:disconnected"; reason?: st
 /** Connection lifecycle events. */
 export type StreamEvent = StreamConnectedEvent | StreamDisconnectedEvent;
 
+/** Item event extended with event index from JetStream replay. */
+export type IndexedItemEvent = ItemEvent & { eventIndex: number };
+
+/** Thrown when the event index has expired (410 Gone). Consumer should full resync. */
+export class IndexExpiredError extends Error {
+  constructor() {
+    super("Event index expired, full resync required");
+    this.name = "IndexExpiredError";
+  }
+}
+
 type BaseOpts = {
   /** Stream endpoint URL (default: http://localhost:5173/api/stream) */
   url?: string;
+  /** Event index to replay from. Events since this index will be replayed before live events. */
+  from?: number;
   /** Enable automatic reconnection on disconnect (default: true) */
   reconnect?: boolean;
   /** Maximum delay between reconnection attempts in ms (default: 30000) */
   maxReconnectDelay?: number;
   /** Initial delay before first reconnection attempt in ms (default: 1000) */
   initialReconnectDelay?: number;
-  /** @internal Fetch function for testing */
-  _fetch?: typeof fetch;
 };
 
 type OptsWithConnectionEvents = BaseOpts & { connectionEvents: true };
@@ -79,15 +85,19 @@ export async function* connectToStream(
 ): AsyncGenerator<ItemEvent | StreamEvent> {
   const {
     url = "http://localhost:5173/api/stream",
+    from,
     reconnect = true,
     maxReconnectDelay = 30_000,
     initialReconnectDelay = 1_000,
     connectionEvents = false,
-    _fetch = fetch,
   } = opts;
 
-  const keyBase64Url = key.toString("base64url");
-  const streamUrl = `${url}?key=${keyBase64Url}`;
+  const params = new URLSearchParams();
+  params.set("key", key.toString("base64url"));
+  if (from != null) {
+    params.set("from", from.toString());
+  }
+  const streamUrl = `${url}?${params.toString()}`;
 
   let reconnectDelay = initialReconnectDelay;
   // Always try at least once; reconnect controls retries on failure
@@ -95,17 +105,26 @@ export async function* connectToStream(
 
   while (shouldReconnect) {
     try {
-      const response = await _fetch(streamUrl, {
+      const response = await fetch(streamUrl, {
         headers: { Accept: "application/octet-stream" },
       });
 
       if (!response.ok) {
+        if (response.status === 410) {
+          throw new IndexExpiredError();
+        }
         const text = await response.text();
         throw new Error(`Stream connection failed: ${response.status} ${text}`);
       }
 
       if (!response.body) {
         throw new Error("Streaming not supported in this environment");
+      }
+
+      // HTTP 200 = connected — reset reconnect delay and emit lifecycle event
+      reconnectDelay = initialReconnectDelay;
+      if (connectionEvents) {
+        yield { type: "stream:connected" };
       }
 
       const reader = response.body.getReader();
@@ -141,21 +160,14 @@ export async function* connectToStream(
           const event = fromWireEvent(wireEvent);
 
           if (event) {
-            if (event.type === EventType.CONNECTED) {
-              reconnectDelay = initialReconnectDelay;
-              if (connectionEvents) {
-                yield { type: "stream:connected" };
-              }
-            } else if (event.type === EventType.ERROR) {
-              shouldReconnect = false;
-              throw new Error(`Stream error: ${event.code}`);
-            } else {
-              yield event;
-            }
+            yield event;
           }
         }
       }
     } catch (err) {
+      if (err instanceof IndexExpiredError) {
+        throw err;
+      }
       if (connectionEvents && !(err instanceof Error && err.message.startsWith("Stream error:"))) {
         yield {
           type: "stream:disconnected",
@@ -163,7 +175,7 @@ export async function* connectToStream(
         };
       }
 
-      // Don't reconnect if: (1) shouldReconnect is false (e.g., stream error), or (2) reconnect option is false
+      // Don't reconnect if reconnect option is false
       if (!shouldReconnect || !reconnect) {
         throw err;
       }
@@ -181,19 +193,10 @@ export async function* connectToStream(
 /**
  * Convert wire format back to typed events.
  */
-function fromWireEvent(wireEvent: WireEvent): ItemEvent | ErrorEvent | ConnectedEvent | null {
+function fromWireEvent(wireEvent: WireEvent): ItemEvent | null {
   const type = wireEvent[0];
 
   switch (type) {
-    case EventType.CONNECTED:
-      return { type: EventType.CONNECTED } satisfies ConnectedEvent;
-
-    case EventType.ERROR:
-      return {
-        type: EventType.ERROR,
-        code: wireEvent[1] as string,
-      } satisfies ErrorEvent;
-
     case EventType.CHANGED: {
       const wireItem = wireEvent[1] as WireItem;
       const [ref, id, collection, publishedAt, createdAt, changedAt, props, content] = wireItem;
@@ -210,31 +213,24 @@ function fromWireEvent(wireEvent: WireEvent): ItemEvent | ErrorEvent | Connected
       if (content) {
         item.content = content as Block[];
       }
-      return { type: EventType.CHANGED, item } satisfies ChangedEvent;
+      const event: ChangedEvent = { type: EventType.CHANGED, item };
+      const eventIndex = wireEvent[2] as number | undefined;
+      if (eventIndex != null) {
+        return { ...event, eventIndex } as IndexedItemEvent;
+      }
+      return event;
     }
 
-    case EventType.DELETED:
-      return {
-        type: EventType.DELETED,
+    case EventType.DELETED: {
+      const event = {
+        type: EventType.DELETED as const,
         item: Buffer.from(wireEvent[1] as Uint8Array),
-      } satisfies DeletedEvent;
-
-    case EventType.LIST_IDS: {
-      const [, collection, ids] = wireEvent as [number, number, Uint8Array[]];
-      return {
-        type: EventType.LIST_IDS,
-        collection,
-        ids: ids.map((id) => Buffer.from(id)),
-      } satisfies ListIdsEvent;
-    }
-
-    case EventType.CHECKSUM: {
-      const [, collection, checksum] = wireEvent as [number, number, Uint8Array];
-      return {
-        type: EventType.CHECKSUM,
-        collection,
-        checksum: Buffer.from(checksum),
-      } satisfies ChecksumEvent;
+      };
+      const eventIndex = wireEvent[2] as number | undefined;
+      if (eventIndex != null) {
+        return { ...event, eventIndex } as IndexedItemEvent;
+      }
+      return event;
     }
 
     case WIRE_PING:

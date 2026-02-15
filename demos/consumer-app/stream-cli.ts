@@ -6,7 +6,7 @@
  *   bun stream-cli.ts
  *
  * Environment variables:
- *   CONTFU_URL  - Stream endpoint URL (default: http://localhost:5173/api/stream)
+ *   CONTFU_URL  - Stream endpoint URL (default: https://contfu.com/api/stream)
  *   CONTFU_KEY  - Consumer key in hex format
  */
 
@@ -14,7 +14,7 @@ import { connectToStream } from "@contfu/client";
 import { EventType } from "@contfu/core";
 
 // Configuration from environment
-const CONTFU_URL = process.env.CONTFU_URL || "http://localhost:5173/api/stream";
+const CONTFU_URL = process.env.CONTFU_URL || "https://contfu.com/api/stream";
 const CONTFU_KEY = process.env.CONTFU_KEY || "";
 
 if (!CONTFU_KEY) {
@@ -75,31 +75,6 @@ try {
       case EventType.DELETED:
         console.log(`[${timestamp}] 🗑️  DELETED`);
         console.log(`   Item ID: ${event.item.toString("hex")}`);
-        console.log("");
-        break;
-
-      case EventType.LIST_IDS:
-        console.log(`[${timestamp}] 📋 LIST_IDS`);
-        console.log(`   Collection: ${event.collection}`);
-        console.log(`   Count: ${event.ids.length} items`);
-        if (event.ids.length > 0 && event.ids.length <= 5) {
-          console.log(
-            `   IDs: ${event.ids.map((id: Buffer) => id.toString("hex").substring(0, 16) + "...").join(", ")}`,
-          );
-        }
-        console.log("");
-        break;
-
-      case EventType.CHECKSUM:
-        console.log(`[${timestamp}] 🔢 CHECKSUM`);
-        console.log(`   Collection: ${event.collection}`);
-        console.log(`   Checksum: ${event.checksum.toString("hex")}`);
-        console.log("");
-        break;
-
-      case EventType.ERROR:
-        console.log(`[${timestamp}] ❌ ERROR`);
-        console.log(`   Error code: ${event.code}`);
         console.log("");
         break;
 

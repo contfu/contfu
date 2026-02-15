@@ -1,10 +1,4 @@
-import type {
-  ChangedEvent,
-  ChecksumEvent,
-  DeletedEvent,
-  ItemEvent,
-  ListIdsEvent,
-} from "@contfu/core";
+import type { ChangedEvent, DeletedEvent, ItemEvent } from "@contfu/core";
 import { EventType } from "@contfu/core";
 
 /**
@@ -21,10 +15,6 @@ export interface HookOptions {
   onChanged?: (event: ChangedEvent) => Promise<void>;
   /** Called when an item is deleted */
   onDeleted?: (event: DeletedEvent) => Promise<void>;
-  /** Called when a list of item IDs in a collection is received */
-  onListIds?: (event: ListIdsEvent) => Promise<void>;
-  /** Called when a checksum for a collection is received */
-  onChecksum?: (event: ChecksumEvent) => Promise<void>;
 }
 
 /**
@@ -58,12 +48,6 @@ export function createEventHandler(hooks: HookOptions): EventHandler {
         break;
       case EventType.DELETED:
         await hooks.onDeleted?.(event);
-        break;
-      case EventType.LIST_IDS:
-        await hooks.onListIds?.(event);
-        break;
-      case EventType.CHECKSUM:
-        await hooks.onChecksum?.(event);
         break;
     }
   };

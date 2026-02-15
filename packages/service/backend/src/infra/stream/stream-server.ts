@@ -1,18 +1,17 @@
 import {
   EventType,
   WIRE_PING,
-  type ConnectedEvent,
-  type ErrorEvent,
-  type ItemEvent,
-  type ListIdsEvent,
+  type Item,
   type UserSyncItem,
   type WireEvent,
   type WireItem,
+  type WireItemEvent,
 } from "@contfu/core";
 import { and, eq } from "drizzle-orm";
 import { pack as msgpack } from "msgpackr";
 import { enqueueSyncJobs } from "../../features/sync-jobs/enqueueSyncJobs";
 import { connectionTable, consumerTable, db, influxTable } from "../db/db";
+import { publishEvent } from "../nats/event-stream";
 import type { ConnectionInfo } from "../types";
 
 /**
@@ -21,6 +20,8 @@ import type { ConnectionInfo } from "../types";
 type StreamConnection = {
   id: string;
   controller: ReadableStreamDefaultController<Uint8Array>;
+  /** Whether this connection wants indexed events (connected with ?from). */
+  indexed: boolean;
 };
 
 class ConnectionError extends Error {
@@ -71,11 +72,12 @@ export class StreamServer {
 
   /**
    * Finalize the stream connection after pre-authentication passed.
-   * Sets up the connection, enqueues sync jobs, and sends the CONNECTED event.
+   * Sets up the connection and enqueues sync jobs.
    */
   async finalizeConnection(
     key: Buffer,
     controller: ReadableStreamDefaultController<Uint8Array>,
+    opts?: { indexed?: boolean },
   ): Promise<string | ConnectionError> {
     const consumerKey = key.toString("hex");
 
@@ -96,7 +98,11 @@ export class StreamServer {
     }
 
     const connectionId = crypto.randomUUID();
-    const connection: StreamConnection = { id: connectionId, controller };
+    const connection: StreamConnection = {
+      id: connectionId,
+      controller,
+      indexed: opts?.indexed ?? false,
+    };
 
     try {
       consumerToConnection.set(consumerKey, connection);
@@ -115,9 +121,6 @@ export class StreamServer {
         }
       }
 
-      // Send CONNECTED event
-      this.sendEvent(connection, { type: EventType.CONNECTED });
-
       return connectionId;
     } catch (error) {
       consumerToConnection.delete(consumerKey);
@@ -126,6 +129,15 @@ export class StreamServer {
       console.error("Failed to connect consumer:", error);
       return new ConnectionError("E_ACCESS");
     }
+  }
+
+  /**
+   * Get the consumer info (userId, consumerId) for a given connection ID.
+   */
+  getConnectionConsumerInfo(connectionId: string): { userId: number; consumerId: number } | null {
+    const consumerKey = connectionToConsumer.get(connectionId);
+    if (!consumerKey) return null;
+    return consumerInfo.get(consumerKey) ?? null;
   }
 
   /**
@@ -150,15 +162,28 @@ export class StreamServer {
 
   /**
    * Broadcasts items to connected stream consumers.
+   * Also publishes each item event to JetStream for replay.
    */
   async broadcast(items: UserSyncItem[], connections: ConnectionInfo[]) {
-    const collectionEvents = new Map<string, Exclude<ItemEvent, ListIdsEvent>[]>();
+    // Publish to JetStream and collect sequences per item (keyed by Item reference)
+    const itemSequences = new Map<Item, number>();
+    await Promise.all(
+      items.map((item) => {
+        const wireEvent: WireItemEvent = [EventType.CHANGED, toWireItem(item)];
+        return publishEvent(item.user, item.collection, wireEvent).then(
+          (seq) => itemSequences.set(item, seq),
+          (err) => console.error("JetStream publish error:", err),
+        );
+      }),
+    );
+
+    const collectionItems = new Map<string, Item[]>();
 
     for (const item of items) {
       const collectionKey = `${item.user}:${item.collection}`;
-      const events = collectionEvents.get(collectionKey) ?? [];
-      if (events.length === 0) collectionEvents.set(collectionKey, events);
-      events.push({ type: EventType.CHANGED, item });
+      const list = collectionItems.get(collectionKey) ?? [];
+      if (list.length === 0) collectionItems.set(collectionKey, list);
+      list.push(item);
     }
 
     for (const conn of connections) {
@@ -173,26 +198,46 @@ export class StreamServer {
       if (!connection) continue;
 
       const collectionKey = `${conn.userId}:${conn.collectionId}`;
-      const events = collectionEvents.get(collectionKey);
-      if (!events) continue;
+      const changedItems = collectionItems.get(collectionKey);
+      if (!changedItems) continue;
 
-      for (const event of events) {
+      for (const item of changedItems) {
         if (
-          event.type === EventType.CHANGED &&
           conn.lastItemChanged != null &&
-          event.item.changedAt < Math.floor(conn.lastItemChanged.getTime() / 1000)
+          item.changedAt < Math.floor(conn.lastItemChanged.getTime() / 1000)
         ) {
           continue;
         }
-        this.sendEvent(connection, event);
+        const wireItem = toWireItem(item);
+        if (connection.indexed) {
+          const seq = itemSequences.get(item);
+          if (seq) {
+            this.sendBinary(connection.controller, [EventType.CHANGED, wireItem, seq]);
+            continue;
+          }
+        }
+        this.sendBinary(connection.controller, [EventType.CHANGED, wireItem]);
       }
     }
   }
 
   /**
    * Broadcasts DELETED events to connected stream consumers.
+   * Also publishes the delete event to JetStream.
    */
   async broadcastDeleted(itemId: Buffer, connections: ConnectionInfo[]) {
+    // Publish DELETED to JetStream for each affected collection
+    const deletedWire: WireItemEvent = [EventType.DELETED, new Uint8Array(itemId)];
+    const seqByCollection = new Map<number, number>();
+    for (const conn of connections) {
+      if (!seqByCollection.has(conn.collectionId)) {
+        publishEvent(conn.userId, conn.collectionId, deletedWire).then(
+          (seq) => seqByCollection.set(conn.collectionId, seq),
+          (err) => console.error("JetStream publish error:", err),
+        );
+      }
+    }
+
     for (const conn of connections) {
       let connection: StreamConnection | undefined;
       for (const [key, info] of consumerInfo.entries()) {
@@ -202,20 +247,34 @@ export class StreamServer {
         }
       }
       if (!connection) continue;
-      this.sendEvent(connection, { type: EventType.DELETED, item: itemId });
+      if (connection.indexed) {
+        const seq = seqByCollection.get(conn.collectionId);
+        if (seq) {
+          this.sendBinary(connection.controller, [EventType.DELETED, new Uint8Array(itemId), seq]);
+          continue;
+        }
+      }
+      this.sendBinary(connection.controller, [EventType.DELETED, new Uint8Array(itemId)]);
     }
   }
 
   /**
-   * Sends an event to a specific connection using length-prefixed msgpack.
+   * Send a single wire item event (used by /api/sync endpoint).
    */
-  private sendEvent(connection: StreamConnection, event: ItemEvent | ErrorEvent | ConnectedEvent) {
-    try {
-      const wireEvent = toWireEvent(event);
-      this.sendBinary(connection.controller, wireEvent);
-    } catch (error) {
-      console.error("Failed to send stream event:", error);
-    }
+  sendItem(controller: ReadableStreamDefaultController<Uint8Array>, wireEvent: WireItemEvent) {
+    this.sendBinary(controller, wireEvent);
+  }
+
+  /**
+   * Send a wire item event with an appended sequence number (used by /api/stream replay).
+   */
+  sendIndexedItem(
+    controller: ReadableStreamDefaultController<Uint8Array>,
+    seq: number,
+    wireEvent: WireItemEvent,
+  ) {
+    const [type, payload] = wireEvent;
+    this.sendBinary(controller, [type, payload, seq] as WireItemEvent);
   }
 
   /**
@@ -240,42 +299,22 @@ export class StreamServer {
 }
 
 /**
- * Convert an event to wire format (tuples) for MessagePack encoding.
+ * Convert an Item to wire item format.
  */
-function toWireEvent(event: ItemEvent | ErrorEvent | ConnectedEvent): WireEvent {
-  switch (event.type) {
-    case EventType.CONNECTED:
-      return [EventType.CONNECTED];
-
-    case EventType.CHANGED: {
-      const { item } = event;
-      const wireItem: WireItem = [
-        new Uint8Array(item.ref),
-        new Uint8Array(item.id),
-        item.collection,
-        item.publishedAt ?? 0,
-        item.createdAt,
-        item.changedAt,
-        serializeProps(item.props),
-      ];
-      if (item.content) {
-        wireItem.push(item.content);
-      }
-      return [EventType.CHANGED, wireItem];
-    }
-
-    case EventType.DELETED:
-      return [EventType.DELETED, new Uint8Array(event.item)];
-
-    case EventType.LIST_IDS:
-      return [EventType.LIST_IDS, event.collection, event.ids.map((id) => new Uint8Array(id))];
-
-    case EventType.CHECKSUM:
-      return [EventType.CHECKSUM, event.collection, new Uint8Array(event.checksum)];
-
-    case EventType.ERROR:
-      return [EventType.ERROR, event.code];
+export function toWireItem(item: Item): WireItem {
+  const wireItem: WireItem = [
+    new Uint8Array(item.ref),
+    new Uint8Array(item.id),
+    item.collection,
+    item.publishedAt ?? 0,
+    item.createdAt,
+    item.changedAt,
+    serializeProps(item.props),
+  ];
+  if (item.content) {
+    wireItem.push(item.content);
   }
+  return wireItem;
 }
 
 /**
@@ -303,7 +342,10 @@ async function authenticateConsumer(key: Buffer) {
   return consumers[0] ?? null;
 }
 
-async function getConsumerCollectionIds(userId: number, consumerId: number): Promise<number[]> {
+export async function getConsumerCollectionIds(
+  userId: number,
+  consumerId: number,
+): Promise<number[]> {
   const rows = await db
     .select({ collectionId: connectionTable.collectionId })
     .from(connectionTable)

@@ -72,12 +72,6 @@ export async function startSyncConnection(): Promise<void> {
           handleDeletedEvent(event);
           console.info(`Article deleted: ${event.item.toString("hex")}`);
           break;
-        case EventType.LIST_IDS:
-          console.info(`Received ${event.ids.length} IDs for collection ${event.collection}`);
-          break;
-        case EventType.CHECKSUM:
-          console.info(`Received checksum for collection ${event.collection}`);
-          break;
       }
     }
   } catch (error) {

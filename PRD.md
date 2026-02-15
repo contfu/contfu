@@ -370,14 +370,13 @@ wss://<host>/ws
 
 **Events (Server → Client):**
 
-| Event     | Code | Payload                                                          |
-| --------- | ---- | ---------------------------------------------------------------- |
-| CONNECTED | 0    | `{ consumerId: Buffer }`                                         |
-| CHANGED   | 1    | `[collection, id, createdAt, changedAt, [ref, props, content?]]` |
-| DELETED   | 2    | `[collection, id]`                                               |
-| LIST_IDS  | 3    | `[collection, ids[]]`                                            |
-| CHECKSUM  | 4    | `[collection, checksum]`                                         |
-| ERROR     | 5    | `{ code: number, message: string }`                              |
+Wire format uses length-prefixed MessagePack tuples. Connection/error states use HTTP status codes (200, 401, 403, 409, 410).
+
+| Event   | Code | Payload                                                         |
+| ------- | ---- | --------------------------------------------------------------- |
+| PING    | 0    | `[]` (keep-alive)                                               |
+| CHANGED | 1    | `[wireItem]` or `[wireItem, eventIndex]` (with replay sequence) |
+| DELETED | 2    | `[itemId]` or `[itemId, eventIndex]` (with replay sequence)     |
 
 ### Client Query API
 

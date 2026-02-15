@@ -15,7 +15,7 @@ This package contains no runtime code—only TypeScript type definitions and int
 ### Module Structure
 
 - `src/items.ts` - Item type definition with props and content blocks
-- `src/events.ts` - Event types (CONNECTED, CHANGED, DELETED, LIST_IDS, CHECKSUM, ERROR)
+- `src/events.ts` - Event types (CHANGED, DELETED)
 - `src/blocks.ts` - Rich content block structures (paragraphs, headings, quotes, code, tables, images, custom blocks)
 - `src/collections.ts` - Collection schema with PropertyType enum
 - `src/commands.ts` - Command types (CONNECT, ACK)
@@ -24,17 +24,19 @@ This package contains no runtime code—only TypeScript type definitions and int
 
 ### Design Patterns
 
-- **Compact enum-based representation:** Event types use numbers 0-5 for efficient binary serialization
+- **Compact enum-based representation:** Event types use numbers 1-2 (CHANGED, DELETED); PING=0 is a wire-only constant
 - **PropertyType bitwise operations:** PropertyType enum uses power-of-2 values enabling bitwise operations
 - **Binary serialization-friendly:** Data structures use Buffers and number arrays for msgpackr compatibility
 
-### Event Format
+### Wire Format
 
-Events are transmitted as JSON over SSE:
+Events are transmitted as length-prefixed MessagePack tuples over HTTP binary streams:
 
-```typescript
-{ type: EventType, item: { collection, id, createdAt, changedAt, ref, props, content? } }
-```
+- `[0]` — PING (keep-alive)
+- `[1, wireItem]` or `[1, wireItem, eventIndex]` — CHANGED
+- `[2, itemId]` or `[2, itemId, eventIndex]` — DELETED
+
+Connection lifecycle uses HTTP status codes (200=connected, 401/403/409/410=errors).
 
 ## Libraries
 

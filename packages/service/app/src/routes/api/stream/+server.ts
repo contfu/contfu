@@ -1,36 +1,32 @@
+import { extractConsumerKey } from "$lib/server/consumer-auth";
 import { getStreamServer } from "$lib/server/startup";
+import { hasNats } from "@contfu/svc-backend/infra/nats/connection";
+import { isSequenceAvailable, replayEvents } from "@contfu/svc-backend/infra/nats/event-stream";
 import type { RequestHandler } from "./$types";
 
 export const GET: RequestHandler = async ({ request, url }) => {
   // Get the singleton stream server instance
   const server = getStreamServer();
 
-  // Extract consumer key from query param or Authorization header
-  let keyString = url.searchParams.get("key");
-  if (!keyString) {
-    const authHeader = request.headers.get("Authorization");
-    if (authHeader?.startsWith("Bearer ")) {
-      keyString = authHeader.slice(7);
-    }
-  }
+  // Extract and validate consumer key
+  const auth = extractConsumerKey(url, request);
+  if ("error" in auth) return auth.error;
+  const { key } = auth;
 
-  if (!keyString) {
-    return new Response("Missing authentication key", { status: 401 });
-  }
+  // Parse optional `from` query parameter for event replay
+  const fromParam = url.searchParams.get("from");
+  const fromSeq = fromParam != null ? Number.parseInt(fromParam, 10) : null;
 
-  // Decode the key from base64url (consistent with WebSocket)
-  let key: Buffer;
-  try {
-    key = Buffer.from(keyString, "base64url");
-    if (key.length !== 32) {
-      // Try standard base64 as fallback
-      key = Buffer.from(keyString, "base64");
-      if (key.length !== 32) {
-        return new Response("Invalid key format", { status: 401 });
-      }
+  if (fromSeq != null) {
+    if (!Number.isFinite(fromSeq) || fromSeq < 0) {
+      return new Response("Invalid 'from' parameter", { status: 400 });
     }
-  } catch {
-    return new Response("Invalid key encoding", { status: 401 });
+    if (!hasNats()) {
+      return new Response("Event replay unavailable", { status: 500 });
+    }
+    if (!(await isSequenceAvailable(fromSeq))) {
+      return new Response("Event index expired, full resync required", { status: 410 });
+    }
   }
 
   // Check if request is already aborted
@@ -81,8 +77,10 @@ export const GET: RequestHandler = async ({ request, url }) => {
         return;
       }
 
-      // Finalize the connection
-      const result = await server.finalizeConnection(key, controller);
+      // Finalize the connection (indexed if replay requested)
+      const result = await server.finalizeConnection(key, controller, {
+        indexed: fromSeq != null,
+      });
 
       if (request.signal.aborted) {
         cleanup();
@@ -96,6 +94,30 @@ export const GET: RequestHandler = async ({ request, url }) => {
       }
 
       connectionId = result;
+
+      // Replay events from JetStream if `from` was specified
+      if (fromSeq != null) {
+        const info = server.getConnectionConsumerInfo(connectionId);
+        if (info) {
+          const { getConsumerCollectionIds } =
+            await import("@contfu/svc-backend/infra/stream/stream-server");
+          const collectionIds = await getConsumerCollectionIds(info.userId, info.consumerId);
+          if (collectionIds.length > 0 && !request.signal.aborted) {
+            try {
+              for await (const { seq, event } of replayEvents({
+                fromSeq,
+                userId: info.userId,
+                collectionIds,
+              })) {
+                if (request.signal.aborted) break;
+                server.sendIndexedItem(controller, seq, event);
+              }
+            } catch (error) {
+              console.error("Event replay error:", error);
+            }
+          }
+        }
+      }
 
       // Keep-alive ping every 25 seconds
       keepAlive = setInterval(() => {
