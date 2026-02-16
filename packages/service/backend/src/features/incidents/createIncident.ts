@@ -1,7 +1,8 @@
 import { db } from "../../infra/db/db";
-import { incidentTable } from "../../infra/db/schema";
+import { incidentTable, influxTable } from "../../infra/db/schema";
 import { pack, unpack } from "msgpackr";
 import { IncidentType, type SchemaIncompatibleDetails } from "@contfu/core";
+import { and, eq } from "drizzle-orm";
 
 export interface CreateIncidentInput {
   influxId: number;
@@ -30,6 +31,16 @@ export async function createIncident(
   userId: number,
   input: CreateIncidentInput,
 ): Promise<IncidentResult> {
+  const [influx] = await db
+    .select({ id: influxTable.id })
+    .from(influxTable)
+    .where(and(eq(influxTable.id, input.influxId), eq(influxTable.userId, userId)))
+    .limit(1);
+
+  if (!influx) {
+    throw new Error("Influx not found");
+  }
+
   const [inserted] = await db
     .insert(incidentTable)
     .values({

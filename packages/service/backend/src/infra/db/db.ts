@@ -1,7 +1,10 @@
+import { AsyncLocalStorage } from "node:async_hooks";
+import { sql } from "drizzle-orm";
 import type { PgAsyncDatabase } from "drizzle-orm/pg-core/async/db";
 import * as schema from "./schema";
 
 const isTestMode = process.env.TEST_MODE === "true";
+const dbContext = new AsyncLocalStorage<PgAsyncDatabase<any, typeof schema, any>>();
 
 // Use MIGRATIONS_PATH env var for flexibility, or resolve from import.meta.url for direct imports
 const migrationsFolder =
@@ -60,7 +63,37 @@ async function createDb() {
   return database;
 }
 
-export const db: PgAsyncDatabase<any, typeof schema, any> = await createDb();
+const rootDb: PgAsyncDatabase<any, typeof schema, any> = await createDb();
+
+function getActiveDb(): PgAsyncDatabase<any, typeof schema, any> {
+  return dbContext.getStore() ?? rootDb;
+}
+
+export async function withUserDbContext<T>(userId: number, fn: () => Promise<T>): Promise<T> {
+  if (isTestMode) {
+    return dbContext.run(rootDb, fn);
+  }
+
+  return rootDb.transaction(async (tx) => {
+    await tx.execute(sql`SET LOCAL ROLE app_user`);
+    await tx.execute(sql`SET LOCAL app.current_user_id = ${String(userId)}`);
+    return dbContext.run(tx as PgAsyncDatabase<any, typeof schema, any>, fn);
+  });
+}
+
+export const db: PgAsyncDatabase<any, typeof schema, any> = new Proxy(
+  {} as PgAsyncDatabase<any, typeof schema, any>,
+  {
+    get(_target, prop, receiver) {
+      const currentDb = getActiveDb() as unknown as Record<PropertyKey, unknown>;
+      const value = Reflect.get(currentDb, prop, receiver);
+      if (typeof value === "function") {
+        return value.bind(currentDb);
+      }
+      return value;
+    },
+  },
+);
 
 // Seed development test user (only in non-production mode or when TEST_MODE is set)
 if (

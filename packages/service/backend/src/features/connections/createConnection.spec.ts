@@ -34,28 +34,32 @@ describe("createConnection", () => {
       .returning();
 
     // Create consumer
-    await db.insert(consumerTable).values({
-      userId: user.id,
-      id: 1,
-      name: "Test Consumer",
-    });
+    const [consumer] = await db
+      .insert(consumerTable)
+      .values({
+        userId: user.id,
+        name: "Test Consumer",
+      })
+      .returning();
 
     // Create collection (the new aggregation target)
-    await db.insert(collectionTable).values({
-      userId: user.id,
-      id: 1,
-      name: "Test Collection",
-    });
+    const [collection] = await db
+      .insert(collectionTable)
+      .values({
+        userId: user.id,
+        name: "Test Collection",
+      })
+      .returning();
 
     // Create connection to the collection
     const connection = await createConnection(user.id, {
-      consumerId: 1,
-      collectionId: 1,
+      consumerId: consumer.id,
+      collectionId: collection.id,
     });
 
     expect(connection.userId).toBe(user.id);
-    expect(connection.consumerId).toBe(1);
-    expect(connection.collectionId).toBe(1);
+    expect(connection.consumerId).toBe(consumer.id);
+    expect(connection.collectionId).toBe(collection.id);
   });
 
   it("should fail if collection does not exist (foreign key constraint)", async () => {
@@ -69,16 +73,18 @@ describe("createConnection", () => {
       .returning();
 
     // Create consumer
-    await db.insert(consumerTable).values({
-      userId: user.id,
-      id: 1,
-      name: "Test Consumer",
-    });
+    const [consumer] = await db
+      .insert(consumerTable)
+      .values({
+        userId: user.id,
+        name: "Test Consumer",
+      })
+      .returning();
 
     // Note: No collection created - this should fail with FK constraint
     await expect(
       createConnection(user.id, {
-        consumerId: 1,
+        consumerId: consumer.id,
         collectionId: 999, // Non-existent collection
       }),
     ).rejects.toThrow();
@@ -95,53 +101,138 @@ describe("createConnection", () => {
       .returning();
 
     // Create source
-    await db.insert(sourceTable).values({
+    const [source] = await db
+      .insert(sourceTable)
+      .values({
       userId: user.id,
-      id: 1,
       uid: crypto.randomUUID(),
       name: "Test Source",
       type: SourceType.STRAPI,
-    });
+      })
+      .returning();
 
     // Create source collection
-    await db.insert(sourceCollectionTable).values({
-      userId: user.id,
-      sourceId: 1,
-      id: 1,
-      name: "Articles",
-      ref: Buffer.from("api::article.article"),
-    });
+    const [sourceCollection] = await db
+      .insert(sourceCollectionTable)
+      .values({
+        userId: user.id,
+        sourceId: source.id,
+        name: "Articles",
+        ref: Buffer.from("api::article.article"),
+      })
+      .returning();
 
     // Create collection (aggregation target)
-    await db.insert(collectionTable).values({
-      userId: user.id,
-      id: 1,
-      name: "Articles Collection",
-    });
+    const [collection] = await db
+      .insert(collectionTable)
+      .values({
+        userId: user.id,
+        name: "Articles Collection",
+      })
+      .returning();
 
     // Create influx from source collection to collection
     await db.insert(influxTable).values({
-      id: 1,
       userId: user.id,
-      collectionId: 1,
-      sourceCollectionId: 1,
+      collectionId: collection.id,
+      sourceCollectionId: sourceCollection.id,
       schema: null,
       filters: null,
     });
 
     // Create consumer
-    await db.insert(consumerTable).values({
-      userId: user.id,
-      id: 1,
-      name: "Test Consumer",
-    });
+    const [consumer] = await db
+      .insert(consumerTable)
+      .values({
+        userId: user.id,
+        name: "Test Consumer",
+      })
+      .returning();
 
     // Create connection to the collection
     const connection = await createConnection(user.id, {
-      consumerId: 1,
-      collectionId: 1,
+      consumerId: consumer.id,
+      collectionId: collection.id,
     });
 
-    expect(connection.collectionId).toBe(1);
+    expect(connection.collectionId).toBe(collection.id);
+  });
+
+  it("should reject connecting to another user's consumer", async () => {
+    const [user1] = await db
+      .insert(userTable)
+      .values({
+        name: "User 1",
+        email: "user1@example.com",
+      })
+      .returning();
+    const [user2] = await db
+      .insert(userTable)
+      .values({
+        name: "User 2",
+        email: "user2@example.com",
+      })
+      .returning();
+
+    const [collection] = await db
+      .insert(collectionTable)
+      .values({
+        userId: user1.id,
+        name: "User1 Collection",
+      })
+      .returning();
+    const [consumer] = await db
+      .insert(consumerTable)
+      .values({
+        userId: user2.id,
+        name: "User2 Consumer",
+      })
+      .returning();
+
+    await expect(
+      createConnection(user1.id, {
+        consumerId: consumer.id,
+        collectionId: collection.id,
+      }),
+    ).rejects.toThrow("Consumer not found");
+  });
+
+  it("should reject connecting to another user's collection", async () => {
+    const [user1] = await db
+      .insert(userTable)
+      .values({
+        name: "User 1",
+        email: "user1-2@example.com",
+      })
+      .returning();
+    const [user2] = await db
+      .insert(userTable)
+      .values({
+        name: "User 2",
+        email: "user2-2@example.com",
+      })
+      .returning();
+
+    const [consumer] = await db
+      .insert(consumerTable)
+      .values({
+        userId: user1.id,
+        name: "User1 Consumer",
+      })
+      .returning();
+    const [collection] = await db
+      .insert(collectionTable)
+      .values({
+        userId: user2.id,
+        name: "User2 Collection",
+      })
+      .returning();
+
+    await expect(
+      createConnection(user1.id, {
+        consumerId: consumer.id,
+        collectionId: collection.id,
+      }),
+    ).rejects.toThrow("Collection not found");
   });
 });

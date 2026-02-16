@@ -65,7 +65,6 @@ describe.skipIf(isDbMocked)("Incident Features", () => {
       .insert(sourceTable)
       .values({
         userId: testUserId,
-        id: 1,
         uid: crypto.randomUUID(),
         type: 1,
         name: "Test Source",
@@ -78,7 +77,6 @@ describe.skipIf(isDbMocked)("Incident Features", () => {
       .values({
         userId: testUserId,
         sourceId: source.id,
-        id: 1,
         name: "Articles",
         schema: pack(testSchema),
       })
@@ -90,7 +88,6 @@ describe.skipIf(isDbMocked)("Incident Features", () => {
       .insert(collectionTable)
       .values({
         userId: testUserId,
-        id: 1,
         name: "My Collection",
       })
       .returning();
@@ -101,7 +98,6 @@ describe.skipIf(isDbMocked)("Incident Features", () => {
       .insert(influxTable)
       .values({
         userId: testUserId,
-        id: 1,
         collectionId: testCollectionId,
         sourceCollectionId: testSourceCollectionId,
         schema: pack(testSchema),
@@ -118,7 +114,7 @@ describe.skipIf(isDbMocked)("Incident Features", () => {
         message: "Schema changed: field 'title' removed",
       });
 
-      expect(incident.id).toBe(1);
+      expect(incident.id).toBeGreaterThan(0);
       expect(incident.userId).toBe(testUserId);
       expect(incident.influxId).toBe(testInfluxId);
       expect(incident.type).toBe(IncidentType.SchemaIncompatible);
@@ -157,8 +153,7 @@ describe.skipIf(isDbMocked)("Incident Features", () => {
         message: "Second incident",
       });
 
-      expect(incident1.id).toBe(1);
-      expect(incident2.id).toBe(2);
+      expect(incident2.id).toBeGreaterThan(incident1.id);
     });
 
     it("should support different incident types", async () => {
@@ -181,6 +176,54 @@ describe.skipIf(isDbMocked)("Incident Features", () => {
       expect(schemaIncident.type).toBe(IncidentType.SchemaIncompatible);
       expect(filterIncident.type).toBe(IncidentType.FilterInvalid);
       expect(syncIncident.type).toBe(IncidentType.SyncError);
+    });
+
+    it("should reject creating an incident for another user's influx", async () => {
+      const [user2] = await db
+        .insert(userTable)
+        .values({ name: "User 2", email: "user2-z@test.com" })
+        .returning();
+
+      const [source2] = await db
+        .insert(sourceTable)
+        .values({
+          userId: user2.id,
+          uid: crypto.randomUUID(),
+          type: 1,
+          name: "User2 Source",
+        })
+        .returning();
+      const [sourceCollection2] = await db
+        .insert(sourceCollectionTable)
+        .values({
+          userId: user2.id,
+          sourceId: source2.id,
+          name: "User2 Source Collection",
+        })
+        .returning();
+      const [collection2] = await db
+        .insert(collectionTable)
+        .values({
+          userId: user2.id,
+          name: "User2 Collection",
+        })
+        .returning();
+      const [influx2] = await db
+        .insert(influxTable)
+        .values({
+          userId: user2.id,
+          collectionId: collection2.id,
+          sourceCollectionId: sourceCollection2.id,
+        })
+        .returning();
+
+      await expect(
+        createIncident(testUserId, {
+          influxId: influx2.id,
+          type: IncidentType.SyncError,
+          message: "Cross-tenant write attempt",
+        }),
+      ).rejects.toThrow("Influx not found");
     });
   });
 
@@ -290,13 +333,13 @@ describe.skipIf(isDbMocked)("Incident Features", () => {
 
   describe("resolveIncident", () => {
     it("should resolve and delete an incident", async () => {
-      await createIncident(testUserId, {
+      const incident = await createIncident(testUserId, {
         influxId: testInfluxId,
         type: IncidentType.SchemaIncompatible,
         message: "To resolve",
       });
 
-      const resolved = await resolveIncident(testUserId, 1);
+      const resolved = await resolveIncident(testUserId, incident.id);
 
       expect(resolved).toBe(true);
 
@@ -312,7 +355,7 @@ describe.skipIf(isDbMocked)("Incident Features", () => {
     });
 
     it("should not resolve another user's incident", async () => {
-      await createIncident(testUserId, {
+      const incident = await createIncident(testUserId, {
         influxId: testInfluxId,
         type: IncidentType.SchemaIncompatible,
         message: "Protected",
@@ -323,7 +366,7 @@ describe.skipIf(isDbMocked)("Incident Features", () => {
         .values({ name: "User 2", email: "user2@test.com" })
         .returning();
 
-      const resolved = await resolveIncident(user2.id, 1);
+      const resolved = await resolveIncident(user2.id, incident.id);
 
       expect(resolved).toBe(false);
 
@@ -363,12 +406,14 @@ describe.skipIf(isDbMocked)("Incident Features", () => {
 
     it("should only resolve incidents for the specified influx", async () => {
       // Create second influx
-      await db.insert(influxTable).values({
-        userId: testUserId,
-        id: 2,
-        collectionId: testCollectionId,
-        sourceCollectionId: testSourceCollectionId,
-      });
+      const [influx2] = await db
+        .insert(influxTable)
+        .values({
+          userId: testUserId,
+          collectionId: testCollectionId,
+          sourceCollectionId: testSourceCollectionId,
+        })
+        .returning();
 
       await createIncident(testUserId, {
         influxId: testInfluxId,
@@ -376,7 +421,7 @@ describe.skipIf(isDbMocked)("Incident Features", () => {
         message: "Influx 1 incident",
       });
       await createIncident(testUserId, {
-        influxId: 2,
+        influxId: influx2.id,
         type: IncidentType.SchemaIncompatible,
         message: "Influx 2 incident",
       });
@@ -388,7 +433,7 @@ describe.skipIf(isDbMocked)("Incident Features", () => {
       // Verify influx 2's incident still exists
       const incidents = await listIncidents(testUserId);
       expect(incidents.length).toBe(1);
-      expect(incidents[0].influxId).toBe(2);
+      expect(incidents[0].influxId).toBe(influx2.id);
     });
   });
 });

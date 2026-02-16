@@ -1,5 +1,5 @@
 import { db } from "../../infra/db/db";
-import { influxTable, sourceCollectionTable } from "../../infra/db/schema";
+import { collectionTable, influxTable, sourceCollectionTable } from "../../infra/db/schema";
 import { and, eq } from "drizzle-orm";
 import { pack, unpack } from "msgpackr";
 import type { CollectionSchema, Filter } from "@contfu/core";
@@ -32,6 +32,31 @@ export async function createInflux(
   userId: number,
   input: CreateInfluxInput,
 ): Promise<InfluxResult> {
+  const [collection, sourceCollection] = await Promise.all([
+    db
+      .select({ id: collectionTable.id })
+      .from(collectionTable)
+      .where(and(eq(collectionTable.id, input.collectionId), eq(collectionTable.userId, userId)))
+      .limit(1),
+    db
+      .select({ id: sourceCollectionTable.id })
+      .from(sourceCollectionTable)
+      .where(
+        and(
+          eq(sourceCollectionTable.id, input.sourceCollectionId),
+          eq(sourceCollectionTable.userId, userId),
+        ),
+      )
+      .limit(1),
+  ]);
+
+  if (!collection[0]) {
+    throw new Error("Collection not found");
+  }
+  if (!sourceCollection[0]) {
+    throw new Error("Source collection not found");
+  }
+
   // If no schema provided, fetch from source collection
   let schema = input.schema;
   if (!schema) {

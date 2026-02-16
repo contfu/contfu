@@ -59,7 +59,6 @@ describe.skipIf(isDbMocked)("Influx Features", () => {
       .insert(sourceTable)
       .values({
         userId: testUserId,
-        id: 1,
         uid: crypto.randomUUID(),
         type: 1,
         name: "Test Source",
@@ -73,7 +72,6 @@ describe.skipIf(isDbMocked)("Influx Features", () => {
       .values({
         userId: testUserId,
         sourceId: testSourceId,
-        id: 1,
         name: "Articles",
         schema: pack(testSchema),
       })
@@ -85,7 +83,6 @@ describe.skipIf(isDbMocked)("Influx Features", () => {
       .insert(collectionTable)
       .values({
         userId: testUserId,
-        id: 1,
         name: "My Collection",
       })
       .returning();
@@ -99,7 +96,7 @@ describe.skipIf(isDbMocked)("Influx Features", () => {
         sourceCollectionId: testSourceCollectionId,
       });
 
-      expect(influx.id).toBe(1);
+      expect(influx.id).toBeGreaterThan(0);
       expect(influx.userId).toBe(testUserId);
       expect(influx.collectionId).toBe(testCollectionId);
       expect(influx.sourceCollectionId).toBe(testSourceCollectionId);
@@ -145,12 +142,14 @@ describe.skipIf(isDbMocked)("Influx Features", () => {
 
     it("should auto-increment influx IDs per user", async () => {
       // Create second source collection for another influx
-      await db.insert(sourceCollectionTable).values({
-        userId: testUserId,
-        sourceId: testSourceId,
-        id: 2,
-        name: "Posts",
-      });
+      const [sourceCollection2] = await db
+        .insert(sourceCollectionTable)
+        .values({
+          userId: testUserId,
+          sourceId: testSourceId,
+          name: "Posts",
+        })
+        .returning();
 
       const influx1 = await createInflux(testUserId, {
         collectionId: testCollectionId,
@@ -158,64 +157,123 @@ describe.skipIf(isDbMocked)("Influx Features", () => {
       });
       const influx2 = await createInflux(testUserId, {
         collectionId: testCollectionId,
-        sourceCollectionId: 2,
+        sourceCollectionId: sourceCollection2.id,
       });
 
-      expect(influx1.id).toBe(1);
-      expect(influx2.id).toBe(2);
+      expect(influx2.id).toBeGreaterThan(influx1.id);
     });
 
-    it("should maintain separate ID sequences per user", async () => {
+    it("should allow creating influxes for different users", async () => {
       // Create second user with their own source/collection setup
       const [user2] = await db
         .insert(userTable)
         .values({ name: "User 2", email: "user2@test.com" })
         .returning();
 
-      await db.insert(sourceTable).values({
-        userId: user2.id,
-        id: 1,
-        uid: crypto.randomUUID(),
-        type: 1,
-        name: "User2 Source",
-      });
-      await db.insert(sourceCollectionTable).values({
-        userId: user2.id,
-        sourceId: 1,
-        id: 1,
-        name: "User2 Articles",
-      });
-      await db.insert(collectionTable).values({
-        userId: user2.id,
-        id: 1,
-        name: "User2 Collection",
-      });
+      const [source2] = await db
+        .insert(sourceTable)
+        .values({
+          userId: user2.id,
+          uid: crypto.randomUUID(),
+          type: 1,
+          name: "User2 Source",
+        })
+        .returning();
+      const [sourceCollection2] = await db
+        .insert(sourceCollectionTable)
+        .values({
+          userId: user2.id,
+          sourceId: source2.id,
+          name: "User2 Articles",
+        })
+        .returning();
+      const [collection2] = await db
+        .insert(collectionTable)
+        .values({
+          userId: user2.id,
+          name: "User2 Collection",
+        })
+        .returning();
 
       const influx1 = await createInflux(testUserId, {
         collectionId: testCollectionId,
         sourceCollectionId: testSourceCollectionId,
       });
       const influx2 = await createInflux(user2.id, {
-        collectionId: 1,
-        sourceCollectionId: 1,
+        collectionId: collection2.id,
+        sourceCollectionId: sourceCollection2.id,
       });
 
-      expect(influx1.id).toBe(1);
-      expect(influx2.id).toBe(1); // Separate sequence
+      expect(influx1.userId).toBe(testUserId);
+      expect(influx2.userId).toBe(user2.id);
+    });
+
+    it("should reject creating an influx for another user's collection", async () => {
+      const [user2] = await db
+        .insert(userTable)
+        .values({ name: "User 2", email: "user2-x@test.com" })
+        .returning();
+
+      const [otherCollection] = await db
+        .insert(collectionTable)
+        .values({
+          userId: user2.id,
+          name: "Other User Collection",
+        })
+        .returning();
+
+      await expect(
+        createInflux(testUserId, {
+          collectionId: otherCollection.id,
+          sourceCollectionId: testSourceCollectionId,
+        }),
+      ).rejects.toThrow("Collection not found");
+    });
+
+    it("should reject creating an influx for another user's source collection", async () => {
+      const [user2] = await db
+        .insert(userTable)
+        .values({ name: "User 2", email: "user2-y@test.com" })
+        .returning();
+
+      const [otherSource] = await db
+        .insert(sourceTable)
+        .values({
+          userId: user2.id,
+          uid: crypto.randomUUID(),
+          type: 1,
+          name: "Other Source",
+        })
+        .returning();
+      const [otherSourceCollection] = await db
+        .insert(sourceCollectionTable)
+        .values({
+          userId: user2.id,
+          sourceId: otherSource.id,
+          name: "Other Source Collection",
+        })
+        .returning();
+
+      await expect(
+        createInflux(testUserId, {
+          collectionId: testCollectionId,
+          sourceCollectionId: otherSourceCollection.id,
+        }),
+      ).rejects.toThrow("Source collection not found");
     });
   });
 
   describe("getInflux", () => {
     it("should return influx with source details", async () => {
-      await createInflux(testUserId, {
+      const created = await createInflux(testUserId, {
         collectionId: testCollectionId,
         sourceCollectionId: testSourceCollectionId,
       });
 
-      const influx = await getInflux(testUserId, 1);
+      const influx = await getInflux(testUserId, created.id);
 
       expect(influx).toBeDefined();
-      expect(influx!.id).toBe(1);
+      expect(influx!.id).toBe(created.id);
       expect(influx!.sourceCollectionName).toBe("Articles");
       expect(influx!.sourceName).toBe("Test Source");
       expect(influx!.sourceId).toBe(testSourceId);
@@ -228,7 +286,7 @@ describe.skipIf(isDbMocked)("Influx Features", () => {
     });
 
     it("should not return another user's influx", async () => {
-      await createInflux(testUserId, {
+      const created = await createInflux(testUserId, {
         collectionId: testCollectionId,
         sourceCollectionId: testSourceCollectionId,
       });
@@ -239,7 +297,7 @@ describe.skipIf(isDbMocked)("Influx Features", () => {
         .values({ name: "User 2", email: "user2@test.com" })
         .returning();
 
-      const influx = await getInflux(user2.id, 1);
+      const influx = await getInflux(user2.id, created.id);
 
       expect(influx).toBeNull();
     });
@@ -254,12 +312,14 @@ describe.skipIf(isDbMocked)("Influx Features", () => {
 
     it("should return all influxes for a collection", async () => {
       // Create second source collection
-      await db.insert(sourceCollectionTable).values({
-        userId: testUserId,
-        sourceId: testSourceId,
-        id: 2,
-        name: "Posts",
-      });
+      const [sourceCollection2] = await db
+        .insert(sourceCollectionTable)
+        .values({
+          userId: testUserId,
+          sourceId: testSourceId,
+          name: "Posts",
+        })
+        .returning();
 
       await createInflux(testUserId, {
         collectionId: testCollectionId,
@@ -267,7 +327,7 @@ describe.skipIf(isDbMocked)("Influx Features", () => {
       });
       await createInflux(testUserId, {
         collectionId: testCollectionId,
-        sourceCollectionId: 2,
+        sourceCollectionId: sourceCollection2.id,
       });
 
       const influxes = await listInfluxes(testUserId, testCollectionId);
@@ -279,43 +339,47 @@ describe.skipIf(isDbMocked)("Influx Features", () => {
 
     it("should only return influxes for the specified collection", async () => {
       // Create second collection
-      await db.insert(collectionTable).values({
-        userId: testUserId,
-        id: 2,
-        name: "Other Collection",
-      });
+      const [collection2] = await db
+        .insert(collectionTable)
+        .values({
+          userId: testUserId,
+          name: "Other Collection",
+        })
+        .returning();
 
-      await createInflux(testUserId, {
+      const created = await createInflux(testUserId, {
         collectionId: testCollectionId,
         sourceCollectionId: testSourceCollectionId,
       });
       await createInflux(testUserId, {
-        collectionId: 2,
+        collectionId: collection2.id,
         sourceCollectionId: testSourceCollectionId,
       });
 
       const influxes = await listInfluxes(testUserId, testCollectionId);
 
       expect(influxes.length).toBe(1);
-      expect(influxes[0].id).toBe(1);
+      expect(influxes[0].id).toBe(created.id);
     });
   });
 
   describe("listAllInfluxes", () => {
     it("should return all influxes across all collections", async () => {
       // Create second collection
-      await db.insert(collectionTable).values({
-        userId: testUserId,
-        id: 2,
-        name: "Other Collection",
-      });
+      const [collection2] = await db
+        .insert(collectionTable)
+        .values({
+          userId: testUserId,
+          name: "Other Collection",
+        })
+        .returning();
 
       await createInflux(testUserId, {
         collectionId: testCollectionId,
         sourceCollectionId: testSourceCollectionId,
       });
       await createInflux(testUserId, {
-        collectionId: 2,
+        collectionId: collection2.id,
         sourceCollectionId: testSourceCollectionId,
       });
 
@@ -327,7 +391,7 @@ describe.skipIf(isDbMocked)("Influx Features", () => {
 
   describe("updateInflux", () => {
     it("should update influx filters", async () => {
-      await createInflux(testUserId, {
+      const created = await createInflux(testUserId, {
         collectionId: testCollectionId,
         sourceCollectionId: testSourceCollectionId,
       });
@@ -335,7 +399,7 @@ describe.skipIf(isDbMocked)("Influx Features", () => {
       const filters: Filter[] = [
         { property: "title", operator: FilterOperator.EQ, value: "updated" },
       ];
-      const updated = await updateInflux(testUserId, { id: 1, filters });
+      const updated = await updateInflux(testUserId, { id: created.id, filters });
 
       expect(updated).toBeDefined();
       expect(updated!.filters).toEqual(filters);
@@ -343,7 +407,7 @@ describe.skipIf(isDbMocked)("Influx Features", () => {
     });
 
     it("should update influx schema", async () => {
-      await createInflux(testUserId, {
+      const created = await createInflux(testUserId, {
         collectionId: testCollectionId,
         sourceCollectionId: testSourceCollectionId,
       });
@@ -351,19 +415,19 @@ describe.skipIf(isDbMocked)("Influx Features", () => {
       const newSchema: CollectionSchema = {
         newField: PropertyType.BOOLEAN,
       };
-      const updated = await updateInflux(testUserId, { id: 1, schema: newSchema });
+      const updated = await updateInflux(testUserId, { id: created.id, schema: newSchema });
 
       expect(updated).toBeDefined();
       expect(updated!.schema).toEqual(newSchema);
     });
 
     it("should update includeRef setting", async () => {
-      await createInflux(testUserId, {
+      const created = await createInflux(testUserId, {
         collectionId: testCollectionId,
         sourceCollectionId: testSourceCollectionId,
       });
 
-      const updated = await updateInflux(testUserId, { id: 1, includeRef: true });
+      const updated = await updateInflux(testUserId, { id: created.id, includeRef: true });
 
       expect(updated).toBeDefined();
       expect(updated!.includeRef).toBe(true);
@@ -379,7 +443,8 @@ describe.skipIf(isDbMocked)("Influx Features", () => {
         filters,
       });
 
-      const updated = await updateInflux(testUserId, { id: 1, filters: null });
+      const existing = await listInfluxes(testUserId, testCollectionId);
+      const updated = await updateInflux(testUserId, { id: existing[0].id, filters: null });
 
       expect(updated).toBeDefined();
       expect(updated!.filters).toBeNull();
@@ -392,7 +457,7 @@ describe.skipIf(isDbMocked)("Influx Features", () => {
     });
 
     it("should not update another user's influx", async () => {
-      await createInflux(testUserId, {
+      const created = await createInflux(testUserId, {
         collectionId: testCollectionId,
         sourceCollectionId: testSourceCollectionId,
       });
@@ -402,7 +467,7 @@ describe.skipIf(isDbMocked)("Influx Features", () => {
         .values({ name: "User 2", email: "user2@test.com" })
         .returning();
 
-      const result = await updateInflux(user2.id, { id: 1, includeRef: true });
+      const result = await updateInflux(user2.id, { id: created.id, includeRef: true });
 
       expect(result).toBeNull();
     });
@@ -410,16 +475,16 @@ describe.skipIf(isDbMocked)("Influx Features", () => {
 
   describe("deleteInflux", () => {
     it("should delete an influx by ID", async () => {
-      await createInflux(testUserId, {
+      const created = await createInflux(testUserId, {
         collectionId: testCollectionId,
         sourceCollectionId: testSourceCollectionId,
       });
 
-      const deleted = await deleteInflux(testUserId, 1);
+      const deleted = await deleteInflux(testUserId, created.id);
 
       expect(deleted).toBe(true);
 
-      const check = await getInflux(testUserId, 1);
+      const check = await getInflux(testUserId, created.id);
       expect(check).toBeNull();
     });
 
@@ -430,7 +495,7 @@ describe.skipIf(isDbMocked)("Influx Features", () => {
     });
 
     it("should not delete another user's influx", async () => {
-      await createInflux(testUserId, {
+      const created = await createInflux(testUserId, {
         collectionId: testCollectionId,
         sourceCollectionId: testSourceCollectionId,
       });
@@ -440,19 +505,19 @@ describe.skipIf(isDbMocked)("Influx Features", () => {
         .values({ name: "User 2", email: "user2@test.com" })
         .returning();
 
-      const deleted = await deleteInflux(user2.id, 1);
+      const deleted = await deleteInflux(user2.id, created.id);
 
       expect(deleted).toBe(false);
 
       // Verify original exists
-      const original = await getInflux(testUserId, 1);
+      const original = await getInflux(testUserId, created.id);
       expect(original).toBeDefined();
     });
   });
 
   describe("deleteInfluxByMapping", () => {
     it("should delete an influx by collection and source collection IDs", async () => {
-      await createInflux(testUserId, {
+      const created = await createInflux(testUserId, {
         collectionId: testCollectionId,
         sourceCollectionId: testSourceCollectionId,
       });
@@ -465,7 +530,7 @@ describe.skipIf(isDbMocked)("Influx Features", () => {
 
       expect(deleted).toBe(true);
 
-      const check = await getInflux(testUserId, 1);
+      const check = await getInflux(testUserId, created.id);
       expect(check).toBeNull();
     });
 

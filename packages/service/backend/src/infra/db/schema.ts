@@ -4,6 +4,8 @@ import {
   bytea,
   index,
   integer,
+  pgPolicy,
+  pgRole,
   pgTable,
   primaryKey,
   text,
@@ -11,6 +13,11 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { UserRole, type UserRole as UserRoleType } from "./constants";
+
+export const appUserRole = pgRole("app_user");
+export const serviceRole = pgRole("service_role");
+
+const currentUserIdSql = sql`current_setting('app.current_user_id', true)::integer`;
 
 // better-auth tables
 
@@ -120,7 +127,7 @@ export const quotaTable = pgTable("quota", {
 
 export type Quota = typeof quotaTable.$inferSelect;
 
-export const consumerTable = pgTable(
+export const consumerTable = pgTable.withRLS(
   "consumer",
   {
     /** The globally unique id of the consumer. */
@@ -138,12 +145,20 @@ export const consumerTable = pgTable(
       .default(sql`now()`)
       .notNull(),
   },
-  (table) => [index("consumer_userId_idx").on(table.userId)],
+  (table) => [
+    index("consumer_userId_idx").on(table.userId),
+    pgPolicy("consumer_user_isolation", {
+      for: "all",
+      to: appUserRole,
+      using: sql`${table.userId} = ${currentUserIdSql}`,
+      withCheck: sql`${table.userId} = ${currentUserIdSql}`,
+    }),
+  ],
 );
 
 export type Consumer = typeof consumerTable.$inferSelect;
 
-export const sourceTable = pgTable(
+export const sourceTable = pgTable.withRLS(
   "source",
   {
     /** The globally unique id of the source. */
@@ -176,12 +191,20 @@ export const sourceTable = pgTable(
     /** The date the source was updated. */
     updatedAt: timestamp({ withTimezone: true, mode: "date" }),
   },
-  (table) => [index("source_userId_idx").on(table.userId)],
+  (table) => [
+    index("source_userId_idx").on(table.userId),
+    pgPolicy("source_user_isolation", {
+      for: "all",
+      to: appUserRole,
+      using: sql`${table.userId} = ${currentUserIdSql}`,
+      withCheck: sql`${table.userId} = ${currentUserIdSql}`,
+    }),
+  ],
 );
 
 export type Source = typeof sourceTable.$inferSelect;
 
-export const sourceCollectionTable = pgTable(
+export const sourceCollectionTable = pgTable.withRLS(
   "source_collection",
   {
     /** The globally unique id of the source collection. */
@@ -217,6 +240,12 @@ export const sourceCollectionTable = pgTable(
   (table) => [
     index("source_collection_userId_idx").on(table.userId),
     index("source_collection_sourceId_idx").on(table.sourceId),
+    pgPolicy("source_collection_user_isolation", {
+      for: "all",
+      to: appUserRole,
+      using: sql`${table.userId} = ${currentUserIdSql}`,
+      withCheck: sql`${table.userId} = ${currentUserIdSql}`,
+    }),
   ],
 );
 
@@ -226,7 +255,7 @@ export type SourceCollection = typeof sourceCollectionTable.$inferSelect;
  * A collection is an aggregation target that consumers subscribe to.
  * It can receive items from multiple source collections via mappings.
  */
-export const collectionTable = pgTable(
+export const collectionTable = pgTable.withRLS(
   "collection",
   {
     /** The globally unique id of the collection. */
@@ -244,7 +273,15 @@ export const collectionTable = pgTable(
     /** The date the collection was last updated. */
     updatedAt: timestamp({ withTimezone: true, mode: "date" }),
   },
-  (table) => [index("collection_userId_idx").on(table.userId)],
+  (table) => [
+    index("collection_userId_idx").on(table.userId),
+    pgPolicy("collection_user_isolation", {
+      for: "all",
+      to: appUserRole,
+      using: sql`${table.userId} = ${currentUserIdSql}`,
+      withCheck: sql`${table.userId} = ${currentUserIdSql}`,
+    }),
+  ],
 );
 
 export type Collection = typeof collectionTable.$inferSelect;
@@ -253,7 +290,7 @@ export type Collection = typeof collectionTable.$inferSelect;
  * An Influx defines data flowing from a SourceCollection into a Collection.
  * Includes optional filters and a schema snapshot for validation.
  */
-export const influxTable = pgTable(
+export const influxTable = pgTable.withRLS(
   "influx",
   {
     /** The globally unique id of the influx. */
@@ -297,13 +334,19 @@ export const influxTable = pgTable(
     index("influx_userId_idx").on(table.userId),
     index("influx_collectionId_idx").on(table.collectionId),
     index("influx_sourceCollectionId_idx").on(table.sourceCollectionId),
+    pgPolicy("influx_user_isolation", {
+      for: "all",
+      to: appUserRole,
+      using: sql`${table.userId} = ${currentUserIdSql}`,
+      withCheck: sql`${table.userId} = ${currentUserIdSql}`,
+    }),
   ],
 );
 
 export type Influx = typeof influxTable.$inferSelect;
 
 /** The connection of the consumer to the collection. */
-export const connectionTable = pgTable(
+export const connectionTable = pgTable.withRLS(
   "connection",
   {
     /** The user which owns the collection and consumer. */
@@ -328,6 +371,12 @@ export const connectionTable = pgTable(
     index("connection_userId_idx").on(table.userId),
     index("connection_consumerId_idx").on(table.consumerId),
     index("connection_collectionId_idx").on(table.collectionId),
+    pgPolicy("connection_user_isolation", {
+      for: "all",
+      to: appUserRole,
+      using: sql`${table.userId} = ${currentUserIdSql}`,
+      withCheck: sql`${table.userId} = ${currentUserIdSql}`,
+    }),
   ],
 );
 
@@ -355,7 +404,7 @@ export type ItemIdConflictResolution = typeof itemIdConflictResolutionTable.$inf
 
 // Webhook logging
 
-export const webhookLogTable = pgTable(
+export const webhookLogTable = pgTable.withRLS(
   "webhook_log",
   {
     id: integer().primaryKey().generatedAlwaysAsIdentity(),
@@ -378,7 +427,29 @@ export const webhookLogTable = pgTable(
       .default(sql`now()`)
       .notNull(),
   },
-  (table) => [index("webhook_log_sourceId_idx").on(table.sourceId)],
+  (table) => [
+    index("webhook_log_sourceId_idx").on(table.sourceId),
+    pgPolicy("webhook_log_user_isolation", {
+      for: "all",
+      to: appUserRole,
+      using: sql`
+        exists (
+          select 1
+          from "source" s
+          where s.id = ${table.sourceId}
+            and s."userId" = ${currentUserIdSql}
+        )
+      `,
+      withCheck: sql`
+        exists (
+          select 1
+          from "source" s
+          where s.id = ${table.sourceId}
+            and s."userId" = ${currentUserIdSql}
+        )
+      `,
+    }),
+  ],
 );
 
 export type WebhookLog = typeof webhookLogTable.$inferSelect;
@@ -386,7 +457,7 @@ export type NewWebhookLog = typeof webhookLogTable.$inferInsert;
 
 // Incidents (sync failures due to schema incompatibility)
 
-export const incidentTable = pgTable(
+export const incidentTable = pgTable.withRLS(
   "incident",
   {
     /** The globally unique id of the incident. */
@@ -420,6 +491,12 @@ export const incidentTable = pgTable(
   (table) => [
     index("incident_userId_idx").on(table.userId),
     index("incident_influxId_idx").on(table.influxId),
+    pgPolicy("incident_user_isolation", {
+      for: "all",
+      to: appUserRole,
+      using: sql`${table.userId} = ${currentUserIdSql}`,
+      withCheck: sql`${table.userId} = ${currentUserIdSql}`,
+    }),
   ],
 );
 
@@ -428,7 +505,7 @@ export type NewIncident = typeof incidentTable.$inferInsert;
 
 // Sync job queue (SKIP LOCKED pattern)
 
-export const syncJobTable = pgTable(
+export const syncJobTable = pgTable.withRLS(
   "sync_job",
   {
     id: integer().primaryKey().generatedAlwaysAsIdentity(),
@@ -459,6 +536,26 @@ export const syncJobTable = pgTable(
     index("sync_job_sourceCollectionId_idx").on(table.sourceCollectionId),
     index("sync_job_queue_idx").on(table.status, table.scheduledAt),
     index("sync_job_status_idx").on(table.status, table.startedAt),
+    pgPolicy("sync_job_user_isolation", {
+      for: "all",
+      to: appUserRole,
+      using: sql`
+        exists (
+          select 1
+          from "source_collection" sc
+          where sc.id = ${table.sourceCollectionId}
+            and sc."userId" = ${currentUserIdSql}
+        )
+      `,
+      withCheck: sql`
+        exists (
+          select 1
+          from "source_collection" sc
+          where sc.id = ${table.sourceCollectionId}
+            and sc."userId" = ${currentUserIdSql}
+        )
+      `,
+    }),
   ],
 );
 
