@@ -1,5 +1,6 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
+  import ChangeNotionTokenDialog from "$lib/components/ChangeNotionTokenDialog.svelte";
   import SiteHeader from "$lib/components/layout/site-header.svelte";
   import * as Alert from "$lib/components/ui/alert";
   import { Button, buttonVariants } from "$lib/components/ui/button";
@@ -23,6 +24,7 @@
   } from "$lib/remote/webhookLogs.remote";
   import { cn } from "$lib/utils";
   import { tcToast } from "$lib/utils/toast";
+  import { CredentialsSource } from "@contfu/svc-core";
   import { SourceType } from "@contfu/svc-backend/features/sources/testSourceConnection";
   import Pencil from "@lucide/svelte/icons/pencil";
   import { useId } from "bits-ui";
@@ -296,7 +298,7 @@
           </div>
         {/if}
 
-        {#if source.type !== 2 || (source.webAuthType ?? 0) !== 0}
+        {#if source.type !== SourceType.NOTION && (source.type !== 2 || (source.webAuthType ?? 0) !== 0)}
           {@const isWebWithAuth =
             source.type === SourceType.WEB && (source.webAuthType ?? 0) !== 0}
           {@const webAuthType =
@@ -626,9 +628,45 @@
       </svelte:boundary>
     </section>
 
+    <!-- Integration info (Notion only) -->
+    {#if source.type === SourceType.NOTION}
+      <section class="mb-8">
+        <h2
+          class="mb-3 text-sm font-medium uppercase tracking-wide text-muted-foreground"
+        >
+          Integration
+        </h2>
+        <div class="rounded-lg border border-border p-4">
+          <p class="text-sm text-muted-foreground">
+            {#if source.credentialsSource === CredentialsSource.OAUTH}
+              Connected via OAuth
+            {:else if source.credentialsSource === CredentialsSource.USER_PROVIDED}
+              Custom integration token
+            {:else}
+              Unknown (legacy)
+            {/if}
+          </p>
+        </div>
+      </section>
+    {/if}
+
     <!-- Danger zone -->
     <section class="rounded-lg border border-destructive/30 p-4">
-      <div class="flex items-center justify-between">
+      {#if source.type === SourceType.NOTION}
+        <div class="flex items-center justify-between mb-4 gap-2">
+          <div>
+            <h3 class="text-sm font-medium">Change API Token</h3>
+            <p class="text-sm text-muted-foreground">
+              This will replace the current Notion integration connection.
+            </p>
+          </div>
+          <ChangeNotionTokenDialog
+            sourceId={source.id}
+            onsuccess={() => toast.success("API token updated")}
+          />
+        </div>
+      {/if}
+      <div class="flex items-center justify-between gap-2">
         <div>
           <h3 class="text-sm font-medium">Delete source</h3>
           <p class="text-sm text-muted-foreground">

@@ -31,6 +31,9 @@ bun run lint             # Lint code (oxlint)
 
 # Package-specific tests
 cd packages/service/sync && bun test
+
+# Database migrations (run from packages/service/backend)
+cd packages/service/backend && bun run db:generate   # Generate migration from schema changes
 ```
 
 ## Before Creating a PR

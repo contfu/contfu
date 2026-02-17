@@ -1,3 +1,4 @@
+import { CredentialsSource } from "@contfu/svc-core";
 import { sql } from "drizzle-orm";
 import {
   boolean,
@@ -190,6 +191,8 @@ export const sourceTable = pgTable.withRLS(
       .notNull(),
     /** The date the source was updated. */
     updatedAt: timestamp({ withTimezone: true, mode: "date" }),
+    /** How credentials were provided: 0 = USER_PROVIDED, 1 = OAUTH */
+    credentialsSource: integer().$type<CredentialsSource>(),
   },
   (table) => [
     index("source_userId_idx").on(table.userId),

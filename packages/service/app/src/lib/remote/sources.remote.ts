@@ -112,6 +112,8 @@ export const createSource = form(
       type: data.type,
       url: data.type === SourceType.STRAPI || data.type === SourceType.WEB ? data.url : null,
       credentials: credentialsBuffer,
+      credentialsSource:
+        data.type === SourceType.NOTION ? CredentialsSource.USER_PROVIDED : undefined,
     });
 
     redirect(303, `/sources/${encodeId("source", source.id)}`);
@@ -147,6 +149,7 @@ export const createNotionSourceFromOAuth = command(
       type: SourceType.NOTION,
       url: null,
       credentials: Buffer.from(accessToken, "utf-8"),
+      credentialsSource: CredentialsSource.OAUTH,
     });
 
     return { id: encodeId("source", source.id) };

@@ -9,6 +9,7 @@
  */
 
 import type {
+  CredentialsSource,
   ServiceCollection,
   ServiceIncidentWithDetails,
   ServiceInfluxDetails,
@@ -48,6 +49,11 @@ export interface BackendSource {
    * Undefined for non-web sources.
    */
   webAuthType?: number;
+  /**
+   * How credentials were provided.
+   * Null for legacy sources.
+   */
+  credentialsSource?: CredentialsSource | null;
   createdAt: Date;
   updatedAt: Date | null;
 }
@@ -191,6 +197,8 @@ export interface CreateSourceInput {
   credentials?: Buffer | null;
   /** Raw webhook secret (will be encrypted by the feature) */
   webhookSecret?: Buffer | null;
+  /** How credentials were provided */
+  credentialsSource?: CredentialsSource | null;
 }
 
 /** Input for updating a source */

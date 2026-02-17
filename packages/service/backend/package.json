@@ -13,7 +13,7 @@
     "build": "[ -d dist ] || rm -f tsconfig.tsbuildinfo && tsc -b",
     "check": "tsc -p tsconfig-typecheck.json",
     "clean": "rm -rf dist tsconfig.tsbuildinfo",
-    "db:generate": "rm -rf db/migrations && drizzle-kit generate --name init",
+    "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio"

@@ -107,4 +107,46 @@ describe.skipIf(isDbMocked)("Source Features Happy Path", () => {
     expect(one).toBeDefined();
     expect(one!.collectionCount).toBe(2);
   });
+
+  it("should set credentialsSource to USER_PROVIDED for Notion source with custom token", async () => {
+    const source = await createSource(userId, {
+      name: "N",
+      type: SourceType.NOTION,
+      credentialsSource: 0,
+    });
+
+    expect(source.credentialsSource).toBe(0);
+  });
+
+  it("should set credentialsSource to OAUTH for Notion source via OAuth", async () => {
+    const source = await createSource(userId, {
+      name: "N",
+      type: SourceType.NOTION,
+      credentialsSource: 1,
+    });
+
+    expect(source.credentialsSource).toBe(1);
+  });
+
+  it("should return credentialsSource when fetching a source", async () => {
+    const created = await createSource(userId, {
+      name: "N",
+      type: SourceType.NOTION,
+      credentialsSource: 0,
+    });
+
+    const fetched = await getSource(userId, created.id);
+    expect(fetched).toBeDefined();
+    expect(fetched!.credentialsSource).toBe(0);
+  });
+
+  it("should return null credentialsSource when not set", async () => {
+    const source = await createSource(userId, {
+      name: "My Strapi",
+      type: SourceType.STRAPI,
+      url: "https://strapi.example.com",
+    });
+
+    expect(source.credentialsSource).toBeNull();
+  });
 });
