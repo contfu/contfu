@@ -67,14 +67,15 @@
           </thead>
           <tbody class="divide-y divide-border">
             {#each collections.current as collection}
+              {@const del = deleteSourceCollection.for(collection.id)}
               <tr>
                 <td class="px-4 py-3 font-medium">{collection.name || "Unnamed"}</td>
                 <td class="hidden px-4 py-3 text-muted-foreground sm:table-cell">
                   {new Date(collection.createdAt).toLocaleDateString()}
                 </td>
                 <td class="px-4 py-3 text-right">
-                  <form {...deleteSourceCollection} class="inline">
-                    <input {...deleteSourceCollection.fields.id.as("text")} type="hidden" value={collection.id} />
+                  <form {...del} class="inline">
+                    <input {...del.fields.id.as("text")} type="hidden" value={collection.id} />
                     <button
                       type="submit"
                       class="text-destructive hover:underline"

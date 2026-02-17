@@ -50,6 +50,7 @@
         </thead>
         <tbody class="divide-y divide-border">
           {#each sources.current as source}
+            {@const del = deleteSource.for(source.id)}
             <tr class="hover:bg-muted/30">
               <td class="px-4 py-3">
                 <a href="/sources/{source.id}" class="font-medium hover:underline">
@@ -73,8 +74,8 @@
               <td class="px-4 py-3 text-right">
                 <div class="flex items-center justify-end gap-2">
                   <a href="/sources/{source.id}" class="text-primary hover:underline">Edit</a>
-                  <form {...deleteSource} class="inline">
-                    <input {...deleteSource.fields.id.as("text")} type="hidden" value={source.id} />
+                  <form {...del} class="inline">
+                    <input {...del.fields.id.as("text")} type="hidden" value={source.id} />
                     <button
                       type="submit"
                       class="text-destructive hover:underline"
