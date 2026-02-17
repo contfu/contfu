@@ -1,6 +1,6 @@
 import { eq, inArray, notInArray } from "drizzle-orm";
-import { db } from "../db/db";
-import { assetTable, itemsTable, type DbAsset, type NewAsset } from "../db/schema";
+import { db } from "../../infra/db/db";
+import { assetTable, itemsTable, type DbAsset, type NewAsset } from "../../infra/db/schema";
 import type { AssetData } from "./asset-types";
 
 export async function createAsset<T extends AssetData>(asset: T, ctx = db): Promise<T> {
@@ -8,24 +8,24 @@ export async function createAsset<T extends AssetData>(asset: T, ctx = db): Prom
   return asset;
 }
 
-export async function getAssetsByPage(pageId: string, ctx = db): Promise<AssetData[]> {
+export async function getAssetsByItem(itemId: string, ctx = db): Promise<AssetData[]> {
   const dbos = await ctx
     .select()
     .from(assetTable)
-    .where(eq(assetTable.pageId, fromHex(pageId)))
+    .where(eq(assetTable.itemId, fromHex(itemId)))
     .all();
   return dbos.map((dbo) => assetFromDb(dbo));
 }
 
-export async function deleteAssetsByPage(pageId: string, ctx = db): Promise<void> {
-  await ctx.delete(assetTable).where(eq(assetTable.pageId, fromHex(pageId)));
+export async function deleteAssetsByItem(itemId: string, ctx = db): Promise<void> {
+  await ctx.delete(assetTable).where(eq(assetTable.itemId, fromHex(itemId)));
 }
 
 export async function getOrphanAssets(ctx = db): Promise<AssetData[]> {
-  const pages = await ctx.select().from(itemsTable).all();
-  const pageIds = pages.map((p) => p.id);
+  const items = await ctx.select().from(itemsTable).all();
+  const itemIds = items.map((item) => item.id);
 
-  if (pageIds.length === 0) {
+  if (itemIds.length === 0) {
     const allAssets = await ctx.select().from(assetTable).all();
     return allAssets.map((dbo) => assetFromDb(dbo));
   }
@@ -33,13 +33,14 @@ export async function getOrphanAssets(ctx = db): Promise<AssetData[]> {
   const dbos = await ctx
     .select()
     .from(assetTable)
-    .where(notInArray(assetTable.pageId, pageIds))
+    .where(notInArray(assetTable.itemId, itemIds))
     .all();
   return dbos.map((dbo) => assetFromDb(dbo));
 }
 
 export async function deleteAssets(ids: string[], ctx = db): Promise<void> {
   if (ids.length === 0) return;
+
   await ctx.delete(assetTable).where(
     inArray(
       assetTable.id,
@@ -63,9 +64,12 @@ export async function getAssetByCanonical(canonical: string, ctx = db): Promise<
 }
 
 function assetToDb(asset: AssetData): NewAsset {
+  const itemId = asset.itemId ?? asset.pageId;
+  if (!itemId) throw new Error("Asset itemId is required");
+
   return {
     id: fromHex(asset.id),
-    pageId: fromHex(asset.pageId),
+    itemId: fromHex(itemId),
     canonical: asset.canonical,
     originalUrl: asset.originalUrl,
     format: asset.format,
@@ -75,9 +79,11 @@ function assetToDb(asset: AssetData): NewAsset {
 }
 
 function assetFromDb(dbo: DbAsset): AssetData {
+  const itemId = toHex(dbo.itemId);
   return {
     id: toHex(dbo.id),
-    pageId: toHex(dbo.pageId),
+    itemId,
+    pageId: itemId,
     canonical: dbo.canonical,
     originalUrl: dbo.originalUrl,
     format: dbo.format,
@@ -96,3 +102,8 @@ function fromHex(hex: string): Buffer {
 function toHex(buffer: Buffer): string {
   return buffer.toString("hex");
 }
+
+/** @deprecated Use getAssetsByItem instead. */
+export const getAssetsByPage = getAssetsByItem;
+/** @deprecated Use deleteAssetsByItem instead. */
+export const deleteAssetsByPage = deleteAssetsByItem;

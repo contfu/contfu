@@ -1,33 +1,37 @@
 import type { ImageBlock } from "@contfu/core";
 import { extname } from "path";
-import { createAsset, deleteAssetsByPage } from "../assets/asset-datasource";
-import type { AssetData, AssetSyncProgress, OnAssetProgress } from "../assets/asset-types";
-import type { Source, SyncOptions } from "../connections/connections";
-import { hashId } from "../util/crypto";
-import type { PageData } from "../pages/pages";
+import { createAsset, deleteAssetsByItem } from "../../features/assets/asset-datasource";
+import type { AssetData, AssetSyncProgress, OnAssetProgress } from "../../features/assets/asset-types";
+import type { Source, SyncOptions } from "../../features/connections/connections";
+import { hashId } from "../../util/crypto";
+import type { ItemData } from "../../features/items/item-types";
 import {
-  createOrUpdatePage,
-  createPageLink,
-  deleteOutgoingPageLinks,
-  deletePageLinksByRef,
-  deletePagesByIds,
-  getPage,
-  getPageIdsByCollection,
-} from "../pages/page-datasource";
+  createItemLink,
+  createOrUpdateItem,
+  deleteItemLinksByRef,
+  deleteItemsByIds,
+  deleteOutgoingItemLinks,
+  getItem,
+  getItemIdsByCollection,
+} from "../../features/items/item-datasource";
 
 export function sync(sources: Source[], options?: SyncOptions) {
-  return Promise.all(sources.flatMap((c) => [pull(c, options), removeOrphans(c)]));
+  return Promise.all(sources.flatMap((source) => [pull(source, options), removeOrphans(source)]));
 }
 
 async function pull(source: Source, options?: SyncOptions) {
   const transientLinks = new Map<string, Set<[string, string]>>();
+
   for (const collection of source.collectionNames) {
-    for await (const { page, assets } of source.pull(collection)) {
-      const id = hashId(`${source.id}|${page.ref}`);
-      const fullPage = { ...page, id };
-      await createOrUpdatePage(fullPage);
-      await deleteOutgoingPageLinks(id);
-      await createLinks(page, id, transientLinks);
+    for await (const payload of source.pull(collection)) {
+      const item = "item" in payload ? payload.item : payload.page;
+      const { assets } = payload;
+      const id = hashId(`${source.id}|${item.ref}`);
+      const fullItem = { ...item, id };
+
+      await createOrUpdateItem(fullItem);
+      await deleteOutgoingItemLinks(id);
+      await createLinks(item, id, transientLinks);
       await processAssets(source, id, assets, options?.onProgress);
     }
   }
@@ -36,48 +40,55 @@ async function pull(source: Source, options?: SyncOptions) {
 async function removeOrphans(source: Source) {
   for (const collection of source.collectionNames) {
     for await (const upstreamIds of source.pullCollectionRefs(collection)) {
-      const existingIds = await getPageIdsByCollection(collection);
+      const existingIds = await getItemIdsByCollection(collection);
       const idsToDelete = new Set(existingIds);
+
       for (const id of upstreamIds) idsToDelete.delete(id);
       if (idsToDelete.size === 0) continue;
-      for (const id of idsToDelete) await deletePageLinksByRef(id);
+
+      for (const id of idsToDelete) await deleteItemLinksByRef(id);
+
       for (const ref of idsToDelete) {
-        const pageId = hashId(`${source.id}|${ref}`);
-        await deleteAssetsByPage(pageId);
+        const itemId = hashId(`${source.id}|${ref}`);
+        await deleteAssetsByItem(itemId);
       }
-      await deletePagesByIds([...idsToDelete]);
+
+      await deleteItemsByIds([...idsToDelete]);
     }
   }
 }
 
 async function createLinks(
-  page: Omit<PageData, "id">,
+  item: Omit<ItemData, "id">,
   id: string,
   transientLinks: Map<string, Set<[string, string]>>,
 ) {
-  for (const type in page.links) {
-    for (const targetRef of page.links[type]) {
-      const target = await getPage({ id: targetRef });
-      if (target) await createPageLink({ type, from: id, to: target.id });
-      else {
+  for (const type in item.links) {
+    for (const targetRef of item.links[type]) {
+      const target = await getItem({ id: targetRef });
+
+      if (target) {
+        await createItemLink({ type, from: id, to: target.id });
+      } else {
         const outgoing = transientLinks.get(targetRef) ?? new Set();
         outgoing.add([type, id]);
         if (!transientLinks.has(targetRef)) transientLinks.set(targetRef, outgoing);
       }
     }
   }
+
   const incoming = transientLinks.get(id);
-  if (incoming) {
-    for (const [type, incomingId] of incoming) {
-      await createPageLink({ type, from: incomingId, to: id });
-    }
-    transientLinks.delete(id);
+  if (!incoming) return;
+
+  for (const [type, incomingId] of incoming) {
+    await createItemLink({ type, from: incomingId, to: id });
   }
+  transientLinks.delete(id);
 }
 
 async function processAssets(
   source: Source,
-  pageId: string,
+  itemId: string,
   assets: { block: ImageBlock; ref: string }[],
   onProgress?: OnAssetProgress,
 ) {
@@ -94,7 +105,6 @@ async function processAssets(
     }
   };
 
-  // Report initial progress if we have assets to process
   if (total > 0) {
     reportProgress(null);
   }
@@ -114,33 +124,28 @@ async function processAssets(
         return;
       }
 
-      // Report start of download
       reportProgress({ url, name });
 
       const stream = await source.fetchAsset(url);
 
-      // Stream the asset to storage or optimizer
       if (!source.mediaOptimizer) {
         await source.mediaStore.write(canonical, stream);
       } else {
         await source.mediaOptimizer.optimizeImage(source.mediaStore, canonical, stream);
       }
 
-      // Note: With streaming, we can't easily track byte progress
-      // The asset is recorded with size 0; actual size tracking would require
-      // a tee stream or post-processing
       const assetData: AssetData = {
         id: hash,
-        pageId,
+        itemId,
+        pageId: itemId,
         canonical,
         originalUrl: url,
         format: ext.replace(".", ""),
-        size: 0, // Size unknown with streaming; can be updated post-write if needed
+        size: 0,
         createdAt: Date.now(),
       };
       await createAsset(assetData);
 
-      // Report asset completed
       completed++;
       reportProgress(null);
     }),

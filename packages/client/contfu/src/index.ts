@@ -1,69 +1,68 @@
 /**
  * @contfu/contfu - Main entry point
- *
- * This package provides the core functionality for the Contfu client,
- * including database management, sync, pages, assets, and connections.
  */
 
 // Database exports
-export { db } from "./db/db";
+export { db } from "./infra/db/db";
 export {
   assetTable,
-  linkTable as pageLinkTable,
-  itemsTable as pageTable,
+  linkTable as itemLinkTable,
+  itemsTable as itemTable,
   type AssetUpdate,
   type DbAsset,
-  type DbItem as DbPage,
-  type DbPageLink,
+  type DbItem,
+  type DbItemLink,
+  type ItemLinkUpdate,
+  type ItemUpdate,
   type NewAsset,
-  type NewItem as NewPage,
-  type NewPageLink,
-  type PageLinkUpdate,
-  type ItemUpdate as PageUpdate,
-} from "./db/schema";
+  type NewItem,
+  type NewItemLink,
+} from "./infra/db/schema";
 
 // Sync exports
-export { sync } from "./sync/sync";
+export { sync } from "./infra/sync/sync";
 
-// Pages exports
+// Item exports
 export {
-  createOrUpdatePage,
-  createPage,
-  createPageLink,
-  deleteOutgoingPageLinks,
-  deletePage,
-  deletePageLinksByRef,
-  deletePagesByIds,
-  getLastChangedPage,
-  getPage,
-  getPageIdsByCollection,
-  getPageLinks,
-  getPages,
-  updatePage,
-} from "./pages/page-datasource";
-export { type PageData } from "./pages/pages";
+  createItem,
+  createItemLink,
+  createOrUpdateItem,
+  deleteItem,
+  deleteItemLinksByRef,
+  deleteItemsByIds,
+  deleteOutgoingItemLinks,
+  getItem,
+  getItemIdsByCollection,
+  getItemLinks,
+  getItems,
+  getLastChangedItem,
+  updateItem,
+} from "./features/items/item-datasource";
+export { type ItemData } from "./features/items/item-types";
 
-// Assets exports
+// Asset exports
 export {
   createAsset,
   deleteAssets,
+  deleteAssetsByItem,
   deleteAssetsByPage,
   getAsset,
   getAssetByCanonical,
+  getAssetsByItem,
   getAssetsByPage,
   getOrphanAssets,
-} from "./assets/asset-datasource";
+} from "./features/assets/asset-datasource";
 export {
   type Asset,
   type AssetData,
   type AssetReference,
   type AssetSyncProgress,
   type OnAssetProgress,
-} from "./assets/asset-types";
+} from "./features/assets/asset-types";
 
-// Connections exports
-export { createConnection } from "./connections/connection-datasource";
-export { type Connection, type Source, type SyncOptions } from "./connections/connections";
+// Connection exports
+export { createConnection } from "./features/connections/connection-datasource";
+export { type Connection, type PullPayload, type Source, type SyncOptions } from "./features/connections/connections";
 
 // Media exports
 export {
@@ -71,7 +70,7 @@ export {
   type MediaOptimizer,
   type MediaStore,
   type OptimizeImageOpts,
-} from "./media/media";
+} from "./features/media/media";
 
 // Hooks exports
 export {
@@ -79,7 +78,7 @@ export {
   createEventHandler,
   type EventHandler,
   type HookOptions,
-} from "./hooks/event-hooks";
+} from "./infra/hooks/event-hooks";
 
 // Utility exports
 export { countAssets } from "./features/assets/countAssets";
@@ -93,3 +92,49 @@ export { countItems } from "./features/items/countItems";
 export { hashId } from "./util/crypto";
 export { deleteNulls } from "./util/object-helpers";
 export { detectRuntime } from "./util/runtime";
+
+/** @deprecated Use itemTable instead. */
+export { itemsTable as pageTable } from "./infra/db/schema";
+/** @deprecated Use itemLinkTable instead. */
+export { linkTable as pageLinkTable } from "./infra/db/schema";
+/** @deprecated Use DbItem instead. */
+export type { DbItem as DbPage } from "./infra/db/schema";
+/** @deprecated Use NewItem instead. */
+export type { NewItem as NewPage } from "./infra/db/schema";
+/** @deprecated Use ItemUpdate instead. */
+export type { ItemUpdate as PageUpdate } from "./infra/db/schema";
+/** @deprecated Use DbItemLink instead. */
+export type { DbItemLink as DbPageLink } from "./infra/db/schema";
+/** @deprecated Use NewItemLink instead. */
+export type { NewItemLink as NewPageLink } from "./infra/db/schema";
+/** @deprecated Use ItemLinkUpdate instead. */
+export type { ItemLinkUpdate as PageLinkUpdate } from "./infra/db/schema";
+/** @deprecated Use ItemData instead. */
+export type { ItemData as PageData } from "./features/items/item-types";
+
+/** @deprecated Use getItems instead. */
+export { getItems as getPages } from "./features/items/item-datasource";
+/** @deprecated Use getItem instead. */
+export { getItem as getPage } from "./features/items/item-datasource";
+/** @deprecated Use getLastChangedItem instead. */
+export { getLastChangedItem as getLastChangedPage } from "./features/items/item-datasource";
+/** @deprecated Use createOrUpdateItem instead. */
+export { createOrUpdateItem as createOrUpdatePage } from "./features/items/item-datasource";
+/** @deprecated Use createItem instead. */
+export { createItem as createPage } from "./features/items/item-datasource";
+/** @deprecated Use updateItem instead. */
+export { updateItem as updatePage } from "./features/items/item-datasource";
+/** @deprecated Use deleteItem instead. */
+export { deleteItem as deletePage } from "./features/items/item-datasource";
+/** @deprecated Use deleteItemsByIds instead. */
+export { deleteItemsByIds as deletePagesByIds } from "./features/items/item-datasource";
+/** @deprecated Use getItemIdsByCollection instead. */
+export { getItemIdsByCollection as getPageIdsByCollection } from "./features/items/item-datasource";
+/** @deprecated Use getItemLinks instead. */
+export { getItemLinks as getPageLinks } from "./features/items/item-datasource";
+/** @deprecated Use createItemLink instead. */
+export { createItemLink as createPageLink } from "./features/items/item-datasource";
+/** @deprecated Use deleteOutgoingItemLinks instead. */
+export { deleteOutgoingItemLinks as deleteOutgoingPageLinks } from "./features/items/item-datasource";
+/** @deprecated Use deleteItemLinksByRef instead. */
+export { deleteItemLinksByRef as deletePageLinksByRef } from "./features/items/item-datasource";

@@ -1,15 +1,15 @@
 import type { ImageBlock } from "@contfu/core";
 import type { OnAssetProgress } from "../assets/asset-types";
 import type { MediaStore } from "../media/media";
-import type { PageData } from "../pages/pages";
+import type { ItemData } from "../items/item-types";
 
-/**
- * Options for sync operations.
- */
 export interface SyncOptions {
-  /** Optional callback to receive progress updates during asset sync */
   onProgress?: OnAssetProgress;
 }
+
+export type PullPayload =
+  | { item: Omit<ItemData, "id">; assets: { block: ImageBlock; ref: string }[] }
+  | { page: Omit<ItemData, "id">; assets: { block: ImageBlock; ref: string }[] };
 
 export interface Source<C extends string = string> {
   id: string;
@@ -18,9 +18,7 @@ export interface Source<C extends string = string> {
   mediaOptimizer?: {
     optimizeImage(store: MediaStore, name: string, asset: ReadableStream): Promise<void>;
   };
-  pull(
-    collection: C,
-  ): AsyncGenerator<{ page: Omit<PageData, "id">; assets: { block: ImageBlock; ref: string }[] }>;
+  pull(collection: C): AsyncGenerator<PullPayload>;
   pullCollectionRefs(collection: C): AsyncGenerator<string[]>;
   fetchAsset(url: string): Promise<ReadableStream>;
 }

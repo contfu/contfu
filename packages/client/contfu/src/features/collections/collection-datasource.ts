@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
-import { db } from "../../db/db";
-import { collectionTable } from "../../db/schema";
+import { db } from "../../infra/db/db";
+import { collectionTable } from "../../infra/db/schema";
 
 export async function getOrCreateCollection(name: string, ctx = db): Promise<number> {
   const existing = await ctx
@@ -16,7 +16,7 @@ export async function getOrCreateCollection(name: string, ctx = db): Promise<num
 
   const [{ id }] = await ctx
     .insert(collectionTable)
-    .values({ name, createdAt: Date.now() })
+    .values({ ref: name, name, createdAt: Date.now() })
     .returning();
   return id;
 }

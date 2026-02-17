@@ -26,12 +26,19 @@ export const linkTable = sqliteTable(
       .notNull()
       .references(() => itemsTable.id, { onDelete: "cascade" }),
   },
-  (t) => [primaryKey({ columns: [t.type, t.from, t.to] })],
+  (table) => [primaryKey({ columns: [table.type, table.from, table.to] })],
 );
 
-export type DbPageLink = typeof linkTable.$inferSelect;
-export type NewPageLink = typeof linkTable.$inferInsert;
-export type PageLinkUpdate = Partial<NewPageLink>;
+export type DbItemLink = typeof linkTable.$inferSelect;
+export type NewItemLink = typeof linkTable.$inferInsert;
+export type ItemLinkUpdate = Partial<NewItemLink>;
+
+/** @deprecated Use DbItemLink instead. */
+export type DbPageLink = DbItemLink;
+/** @deprecated Use NewItemLink instead. */
+export type NewPageLink = NewItemLink;
+/** @deprecated Use ItemLinkUpdate instead. */
+export type PageLinkUpdate = ItemLinkUpdate;
 
 export const collectionTable = sqliteTable("collection", {
   id: integer().primaryKey(),
@@ -43,7 +50,7 @@ export const collectionTable = sqliteTable("collection", {
 
 export const assetTable = sqliteTable("asset", {
   id: blob({ mode: "buffer" }).primaryKey(),
-  pageId: blob({ mode: "buffer" })
+  itemId: blob("pageId", { mode: "buffer" })
     .notNull()
     .references(() => itemsTable.id, { onDelete: "cascade" }),
   canonical: text().unique().notNull(),

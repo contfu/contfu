@@ -2,7 +2,7 @@ import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import type { BunSQLiteDatabase } from "drizzle-orm/bun-sql/sqlite";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
-import { detectRuntime } from "../util/runtime";
+import { detectRuntime } from "../../util/runtime";
 import * as schema from "./schema";
 
 type Database = BunSQLiteDatabase<typeof schema> | BetterSQLite3Database<typeof schema>;
@@ -13,7 +13,7 @@ export const db: Database = await createDatabaseClient(dbUrl);
 
 async function createDatabaseClient(url: string) {
   const runtime = detectRuntime();
-  const migrationsFolder = join(dirname(fileURLToPath(import.meta.url)), "../../db/migrations");
+  const migrationsFolder = join(dirname(fileURLToPath(import.meta.url)), "../../../db/migrations");
 
   if (runtime === "bun") {
     const { Database } = await import("bun:sqlite");

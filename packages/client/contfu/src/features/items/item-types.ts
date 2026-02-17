@@ -1,6 +1,6 @@
 import type { Block } from "@contfu/core";
 
-export interface PageData {
+export interface ItemData {
   id: string;
   ref: string;
   collection: string;
@@ -9,3 +9,6 @@ export interface PageData {
   content?: Block[];
   links: Record<string, string[]> & { content: string[] };
 }
+
+/** @deprecated Use ItemData instead. */
+export type PageData = ItemData;

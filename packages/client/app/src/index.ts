@@ -1,50 +1,48 @@
 /**
  * @contfu/app - Full application wrapper
- *
- * This package wraps the contfu package and provides application-level features.
- * All core functionality is re-exported from contfu for backward compatibility.
  */
 
-// Re-export everything from contfu for backward compatibility
 export {
   // Database exports
   db,
-  pageTable,
-  pageLinkTable,
+  itemTable,
+  itemLinkTable,
   assetTable,
-  type DbPage,
-  type NewPage,
-  type PageUpdate,
-  type DbPageLink,
-  type NewPageLink,
-  type PageLinkUpdate,
+  type DbItem,
+  type NewItem,
+  type ItemUpdate,
+  type DbItemLink,
+  type NewItemLink,
+  type ItemLinkUpdate,
   type DbAsset,
   type NewAsset,
   type AssetUpdate,
   // Sync exports
   sync,
-  // Pages exports
-  type PageData,
-  getPages,
-  getPage,
-  getLastChangedPage,
-  createOrUpdatePage,
-  createPage,
-  updatePage,
-  deletePage,
-  deletePagesByIds,
-  getPageIdsByCollection,
-  getPageLinks,
-  createPageLink,
-  deleteOutgoingPageLinks,
-  deletePageLinksByRef,
-  // Assets exports
+  // Item exports
+  type ItemData,
+  getItems,
+  getItem,
+  getLastChangedItem,
+  createOrUpdateItem,
+  createItem,
+  updateItem,
+  deleteItem,
+  deleteItemsByIds,
+  getItemIdsByCollection,
+  getItemLinks,
+  createItemLink,
+  deleteOutgoingItemLinks,
+  deleteItemLinksByRef,
+  // Asset exports
   type Asset,
   type AssetData,
   type AssetReference,
   type AssetSyncProgress,
   type OnAssetProgress,
   createAsset,
+  getAssetsByItem,
+  deleteAssetsByItem,
   getAssetsByPage,
   deleteAssetsByPage,
   getOrphanAssets,
@@ -67,7 +65,29 @@ export {
   detectRuntime,
   deleteNulls,
   hashId,
+  // Deprecated compatibility exports
+  pageTable,
+  pageLinkTable,
+  type DbPage,
+  type NewPage,
+  type PageUpdate,
+  type DbPageLink,
+  type NewPageLink,
+  type PageLinkUpdate,
+  type PageData,
+  getPages,
+  getPage,
+  getLastChangedPage,
+  createOrUpdatePage,
+  createPage,
+  updatePage,
+  deletePage,
+  deletePagesByIds,
+  getPageIdsByCollection,
+  getPageLinks,
+  createPageLink,
+  deleteOutgoingPageLinks,
+  deletePageLinksByRef,
 } from "contfu";
 
-// App-specific functionality
 export { connectPush } from "./core/connection";
