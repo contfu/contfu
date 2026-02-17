@@ -2,6 +2,12 @@
   import SiteHeader from "$lib/components/layout/site-header.svelte";
   import * as Alert from "$lib/components/ui/alert";
   import { Button } from "$lib/components/ui/button";
+  import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+  } from "$lib/components/ui/tooltip";
   import { getCollections } from "$lib/remote/collections.remote";
   import { getConnections } from "$lib/remote/connections.remote";
   import { getConsumers } from "$lib/remote/consumers.remote";
@@ -11,6 +17,8 @@
     FoldersIcon,
     LayoutDashboardIcon,
     Link2Icon,
+    PencilIcon,
+    PlusIcon,
     UsersIcon,
   } from "@lucide/svelte";
 
@@ -97,7 +105,10 @@
         <DatabaseIcon class="size-4" />
         Sources
       </h2>
-      <Button size="sm" href="/sources/new">Add Source</Button>
+      <Button size="sm" href="/sources/new">
+        <PlusIcon class="size-4" />
+        <span class="hidden sm:inline">Add Source</span>
+      </Button>
     </div>
 
     {#if sources.length === 0}
@@ -151,10 +162,16 @@
                   {source.collectionCount}
                 </td>
                 <td class="px-4 py-3 text-right">
-                  <a
-                    href="/sources/{source.id}"
-                    class="text-primary hover:underline">Edit</a
-                  >
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <Button href="/sources/{source.id}" variant="ghost" size="icon-sm">
+                          <PencilIcon class="size-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Edit</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </td>
               </tr>
             {/each}
@@ -180,7 +197,10 @@
         <FoldersIcon class="size-4" />
         Collections
       </h2>
-      <Button size="sm" href="/collections/new">New Collection</Button>
+      <Button size="sm" href="/collections/new">
+        <PlusIcon class="size-4" />
+        <span class="hidden sm:inline">New Collection</span>
+      </Button>
     </div>
 
     {#if collections.length === 0}
@@ -236,10 +256,16 @@
                   {collection.connectionCount}
                 </td>
                 <td class="px-4 py-3 text-right">
-                  <a
-                    href="/collections/{collection.id}"
-                    class="text-primary hover:underline">Edit</a
-                  >
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <Button href="/collections/{collection.id}" variant="ghost" size="icon-sm">
+                          <PencilIcon class="size-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Edit</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </td>
               </tr>
             {/each}
@@ -265,7 +291,10 @@
         <UsersIcon class="size-4" />
         Consumers
       </h2>
-      <Button size="sm" href="/consumers/new">Add Consumer</Button>
+      <Button size="sm" href="/consumers/new">
+        <PlusIcon class="size-4" />
+        <span class="hidden sm:inline">Add Consumer</span>
+      </Button>
     </div>
 
     {#if consumers.length === 0}
@@ -312,10 +341,16 @@
                   {consumer.connectionCount}
                 </td>
                 <td class="px-4 py-3 text-right">
-                  <a
-                    href="/consumers/{consumer.id}"
-                    class="text-primary hover:underline">Edit</a
-                  >
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <Button href="/consumers/{consumer.id}" variant="ghost" size="icon-sm">
+                          <PencilIcon class="size-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Edit</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </td>
               </tr>
             {/each}

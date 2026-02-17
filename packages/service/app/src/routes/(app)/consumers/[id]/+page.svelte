@@ -20,7 +20,13 @@
   } from "$lib/remote/consumers.remote";
   import { cn } from "$lib/utils";
   import { tcToast } from "$lib/utils/toast";
-  import { ClipboardIcon } from "@lucide/svelte";
+  import {
+    TooltipProvider,
+    TooltipTrigger,
+    TooltipContent,
+    Tooltip,
+  } from "$lib/components/ui/tooltip";
+  import { ClipboardIcon, LinkIcon, TrashIcon, UnlinkIcon } from "@lucide/svelte";
   import Pencil from "@lucide/svelte/icons/pencil";
   import { useId } from "bits-ui";
   import { toast } from "svelte-sonner";
@@ -240,8 +246,9 @@
               <form
                 {...removeConnection.enhance(async ({ submit }) => {
                   await submit();
-                  toast.success("Collection unlinked");
+                  toast.success("Collection disconnected");
                 })}
+                class="inline"
               >
                 <input
                   {...removeConnection.fields.consumerId.as("text")}
@@ -253,12 +260,16 @@
                   type="hidden"
                   value={connection.collectionId}
                 />
-                <button
-                  type="submit"
-                  class="text-sm text-destructive hover:underline"
-                >
-                  Remove
-                </button>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <Button type="submit" variant="ghost" size="icon-sm">
+                        <UnlinkIcon />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Disconnect</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </form>
             </div>
           {:else}
@@ -278,7 +289,7 @@
         <form
           {...addConnection.enhance(async ({ submit }) => {
             await submit();
-            toast.success("Collection linked");
+            toast.success("Collection connected");
           })}
           class="flex gap-2"
         >
@@ -296,7 +307,10 @@
               <option value={collection.id}>{collection.name}</option>
             {/each}
           </select>
-          <Button type="submit" variant="outline" size="sm">Add</Button>
+          <Button type="submit" variant="outline" size="sm">
+            <LinkIcon />
+            <span class="hidden sm:inline">Connect</span>
+          </Button>
         </form>
       {:else if allCollections.length === 0}
         <p class="text-sm text-muted-foreground">
@@ -337,6 +351,7 @@
               }
             }}
           >
+            <TrashIcon class="size-4" />
             Delete
           </Button>
         </form>

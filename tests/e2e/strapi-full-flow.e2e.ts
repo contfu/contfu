@@ -247,7 +247,7 @@ async function registerStrapiAdmin(page: Page): Promise<void> {
     await page.getByRole("button", { name: /Let's start/i }).click();
 
     // Wait for redirect away from auth
-    await page.waitForURL(/\/admin(?!\/auth)/, { timeout: 30000 });
+    await page.waitForURL(/\/admin(?!\/auth)/, { timeout: 15000 });
 
     // Handle onboarding questionnaire ("Tell us a bit more about yourself")
     // This appears on first registration and needs to be skipped
@@ -279,7 +279,7 @@ async function loginStrapiAdmin(page: Page): Promise<void> {
   await page.getByRole("button", { name: /Login/i }).click();
 
   // Wait for redirect to dashboard
-  await page.waitForURL(/\/admin(?!\/auth)/, { timeout: 30000 });
+  await page.waitForURL(/\/admin(?!\/auth)/, { timeout: 15000 });
 }
 
 /**
@@ -400,7 +400,7 @@ async function _createStrapiApiTokenViaUI(page: Page): Promise<string> {
   await page.getByRole("button", { name: /Save/i }).click();
 
   // Wait for the token to be displayed - Strapi shows a warning message about copying
-  await page.waitForSelector("text=/Make sure to copy this token/i", { timeout: 15000 });
+  await page.waitForSelector("text=/Make sure to copy this token/i", { timeout: 10000 });
 
   // Give UI time to render the token display
   await sleep(1000);
@@ -856,7 +856,7 @@ async function setupServiceAppAndGetApiKey(
   await page.getByLabel(/Password/i).fill(TEST_USER.password);
   await page.getByRole("button", { name: /Sign in|Log in|Login/i }).click();
 
-  await page.waitForURL(/\/dashboard/, { timeout: 15000 });
+  await page.waitForURL(/\/dashboard/, { timeout: 10000 });
 
   // Create a Strapi source
   await page.getByRole("link", { name: /Add Source/i }).click();
@@ -867,7 +867,7 @@ async function setupServiceAppAndGetApiKey(
   await page.getByLabel(/API Token/i).fill(strapiApiToken);
   await page.getByRole("button", { name: /Create Source/i }).click();
 
-  await page.waitForURL(/\/sources\/\d+/, { timeout: 15000 });
+  await page.waitForURL(/\/sources\/\d+/, { timeout: 10000 });
 
   // Capture source ID from URL and UID from the webhook URL input
   const sourceUrl = page.url();
@@ -889,7 +889,7 @@ async function setupServiceAppAndGetApiKey(
   await page.getByRole("button", { name: /Create Collection/i }).click();
 
   // Wait for redirect to collection detail page
-  await page.waitForURL(/\/collections\/\d+/, { timeout: 15000 });
+  await page.waitForURL(/\/collections\/\d+/, { timeout: 10000 });
   const collectionUrl = page.url();
   const collectionIdMatch = collectionUrl.match(/\/collections\/(\d+)/);
   const collectionId = collectionIdMatch ? collectionIdMatch[1] : null;
@@ -902,18 +902,18 @@ async function setupServiceAppAndGetApiKey(
   await page.getByRole("button", { name: /Create Consumer/i }).click();
 
   // Wait for client creation
-  await page.waitForURL(/\/consumers\/\d+/, { timeout: 15000 });
+  await page.waitForURL(/\/consumers\/\d+/, { timeout: 10000 });
 
   // Connect client to Articles collection
   // Wait for page to hydrate and load collections
   await page.waitForLoadState("networkidle");
   await sleep(500);
 
-  // The COLLECTIONS section has a dropdown to select a collection and Add button
+  // The COLLECTIONS section has a dropdown to select a collection and Connect button
   const collectionDropdown = page.locator("select").first();
   await collectionDropdown.waitFor({ state: "visible", timeout: 10000 });
   await collectionDropdown.selectOption({ label: "Articles" });
-  await page.getByRole("button", { name: /^Add$/i }).click();
+  await page.getByRole("button", { name: /^Connect$/i }).click();
   await sleep(1000);
   console.log("[E2E] Connected consumer to Articles collection");
 
@@ -966,7 +966,7 @@ async function setupServiceAppAndGetApiKey(
 
 test.describe("E2E: Strapi → Service → Consumer Full Flow", () => {
   // Extend timeout for setup - starting 3 servers + UI automation takes time
-  test.describe.configure({ timeout: 300000 }); // 5 minutes
+  test.describe.configure({ timeout: 180000 }); // 3 minutes
 
   let strapiApiToken: string;
   let consumerApiKey: string;
@@ -979,7 +979,7 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow", () => {
 
     // Extend timeout for setup - starting 3 servers + UI automation takes time
     // Must be longer than Strapi spawn timeout (180s) + service/consumer startup
-    testInfo.setTimeout(300000); // 5 minutes
+    testInfo.setTimeout(180000); // 3 minutes
 
     // Skip if running in CI without proper setup
     if (process.env.CI && !process.env.E2E_FULL_FLOW) {
@@ -1298,7 +1298,7 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow", () => {
       await emailField.fill(TEST_USER.email);
       await servicePage.getByLabel(/Password/i).fill(TEST_USER.password);
       await servicePage.getByRole("button", { name: /Sign in|Log in|Login/i }).click();
-      await servicePage.waitForURL(/\/dashboard/, { timeout: 15000 });
+      await servicePage.waitForURL(/\/dashboard/, { timeout: 10000 });
     }
 
     // Navigate to the collection and configure filters
@@ -1429,7 +1429,7 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow", () => {
     await page.bringToFront();
 
     // Wait for real-time update to appear (no page reload needed)
-    await expect(page.getByText("Realtime Test Article")).toBeVisible({ timeout: 30000 });
+    await expect(page.getByText("Realtime Test Article")).toBeVisible({ timeout: 15000 });
 
     // Verify the article content
     await expect(page.getByText("Testing real-time sync")).toBeVisible();

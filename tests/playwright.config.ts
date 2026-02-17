@@ -22,7 +22,7 @@ export default defineConfig({
   reporter: [["html", { outputFolder: "playwright-report" }]],
   outputDir: "test-results",
   timeout: 180_000, // 3 minutes per test - servers take time
-  globalTimeout: 600_000, // 10 minutes total for all tests
+  globalTimeout: 300_000, // 5 minutes total for all tests
   use: {
     trace: "on-first-retry",
     screenshot: "only-on-failure",

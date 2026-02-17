@@ -1,9 +1,15 @@
 <script lang="ts">
   import SiteHeader from "$lib/components/layout/site-header.svelte";
   import { Button } from "$lib/components/ui/button";
+  import {
+    TooltipProvider,
+    TooltipTrigger,
+    TooltipContent,
+    Tooltip,
+  } from "$lib/components/ui/tooltip";
   import { deleteConsumer, getConsumers } from "$lib/remote/consumers.remote";
   import { tcToast } from "$lib/utils/toast";
-  import { UsersIcon } from "@lucide/svelte";
+  import { PencilIcon, PlusIcon, TrashIcon, UsersIcon } from "@lucide/svelte";
   import { toast } from "svelte-sonner";
 
   // Query object - auto-refreshes after form submissions
@@ -12,7 +18,10 @@
 
 <SiteHeader icon={UsersIcon} title="Consumers">
   <div class="ml-auto">
-    <Button href="/consumers/new">Add Consumer</Button>
+    <Button href="/consumers/new">
+      <PlusIcon class="size-4" />
+      <span class="hidden sm:inline">Add Consumer</span>
+    </Button>
   </div>
 </SiteHeader>
 
@@ -74,45 +83,58 @@
               </td>
               <td class="px-4 py-3 text-right">
                 <div class="flex items-center justify-end gap-2">
-                  <a
-                    href="/consumers/{consumer.id}"
-                    class="text-primary hover:underline">Edit</a
-                  >
-                  <form
-                    {...del.enhance(async ({ submit }) => {
-                      if (del.pending) return;
-                      await tcToast(async () => {
-                        await submit().updates(
-                          consumers.withOverride((consumers) =>
-                            consumers.filter((c) => c.id !== consumer.id),
-                          ),
-                        );
-                        toast.success("Consumer deleted");
-                      });
-                    })}
-                    class="inline"
-                  >
-                    <input
-                      {...deleteConsumer.fields.id.as("text")}
-                      type="hidden"
-                      value={consumer.id}
-                    />
-                    <button
-                      type="submit"
-                      class="text-destructive hover:underline"
-                      onclick={(e: MouseEvent) => {
-                        if (
-                          !confirm(
-                            "Delete this consumer? The API key will be revoked.",
-                          )
-                        ) {
-                          e.preventDefault();
-                        }
-                      }}
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <Button href="/consumers/{consumer.id}" variant="ghost" size="icon-sm">
+                          <PencilIcon />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Edit</TooltipContent>
+                    </Tooltip>
+                    <form
+                      {...del.enhance(async ({ submit }) => {
+                        if (del.pending) return;
+                        await tcToast(async () => {
+                          await submit().updates(
+                            consumers.withOverride((consumers) =>
+                              consumers.filter((c) => c.id !== consumer.id),
+                            ),
+                          );
+                          toast.success("Consumer deleted");
+                        });
+                      })}
+                      class="inline"
                     >
-                      Delete
-                    </button>
-                  </form>
+                      <input
+                        {...deleteConsumer.fields.id.as("text")}
+                        type="hidden"
+                        value={consumer.id}
+                      />
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <Button
+                            type="submit"
+                            variant="ghost"
+                            size="icon-sm"
+                            class="text-destructive hover:text-destructive"
+                            onclick={(e: MouseEvent) => {
+                              if (
+                                !confirm(
+                                  "Delete this consumer? The API key will be revoked.",
+                                )
+                              ) {
+                                e.preventDefault();
+                              }
+                            }}
+                          >
+                            <TrashIcon />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Delete</TooltipContent>
+                      </Tooltip>
+                    </form>
+                  </TooltipProvider>
                 </div>
               </td>
             </tr>

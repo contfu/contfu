@@ -1,8 +1,14 @@
 <script lang="ts">
   import SiteHeader from "$lib/components/layout/site-header.svelte";
   import { Button } from "$lib/components/ui/button";
+  import {
+    TooltipProvider,
+    TooltipTrigger,
+    TooltipContent,
+    Tooltip,
+  } from "$lib/components/ui/tooltip";
   import { deleteSource, getSources } from "$lib/remote/sources.remote";
-  import { DatabaseIcon } from "@lucide/svelte";
+  import { DatabaseIcon, PencilIcon, PlusIcon, TrashIcon } from "@lucide/svelte";
 
   // Query object - auto-refreshes after form submissions
   const sources = getSources();
@@ -16,7 +22,10 @@
 
 <SiteHeader icon={DatabaseIcon} title="Sources">
   <div class="ml-auto">
-    <Button href="/sources/new">Add Source</Button>
+    <Button href="/sources/new">
+      <PlusIcon class="size-4" />
+      <span class="hidden sm:inline">Add Source</span>
+    </Button>
   </div>
 </SiteHeader>
 
@@ -50,7 +59,6 @@
         </thead>
         <tbody class="divide-y divide-border">
           {#each sources.current as source}
-            {@const del = deleteSource.for(source.id)}
             <tr class="hover:bg-muted/30">
               <td class="px-4 py-3">
                 <a href="/sources/{source.id}" class="font-medium hover:underline">
@@ -73,21 +81,37 @@
               </td>
               <td class="px-4 py-3 text-right">
                 <div class="flex items-center justify-end gap-2">
-                  <a href="/sources/{source.id}" class="text-primary hover:underline">Edit</a>
-                  <form {...del} class="inline">
-                    <input {...del.fields.id.as("text")} type="hidden" value={source.id} />
-                    <button
-                      type="submit"
-                      class="text-destructive hover:underline"
-                      onclick={(e: MouseEvent) => {
-                        if (!confirm("Delete this source? All collections will also be deleted.")) {
-                          e.preventDefault();
-                        }
-                      }}
-                    >
-                      Delete
-                    </button>
-                  </form>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <Button href="/sources/{source.id}" variant="ghost" size="icon-sm">
+                          <PencilIcon />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Edit</TooltipContent>
+                    </Tooltip>
+                    <form {...deleteSource} class="inline">
+                      <input {...deleteSource.fields.id.as("text")} type="hidden" value={source.id} />
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <Button
+                            type="submit"
+                            variant="ghost"
+                            size="icon-sm"
+                            class="text-destructive hover:text-destructive"
+                            onclick={(e: MouseEvent) => {
+                              if (!confirm("Delete this source? All collections will also be deleted.")) {
+                                e.preventDefault();
+                              }
+                            }}
+                          >
+                            <TrashIcon />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Delete</TooltipContent>
+                      </Tooltip>
+                    </form>
+                  </TooltipProvider>
                 </div>
               </td>
             </tr>

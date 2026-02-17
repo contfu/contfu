@@ -350,7 +350,7 @@ async function createStrapiApiTokenViaUI(page: Page): Promise<string> {
   await page.getByRole("button", { name: /Save/i }).click();
 
   // Wait for the token to be displayed - Strapi shows a warning message about copying
-  await page.waitForSelector("text=/Make sure to copy this token/i", { timeout: 15000 });
+  await page.waitForSelector("text=/Make sure to copy this token/i", { timeout: 10000 });
 
   // Give UI time to render the token display
   await sleep(1000);
@@ -612,7 +612,7 @@ async function setupServiceAppAndGetApiKey(
   await page.getByLabel(/Password/i).fill(TEST_USER.password);
   await page.getByRole("button", { name: /Sign in|Log in|Login/i }).click();
 
-  await page.waitForURL(/\/dashboard/, { timeout: 15000 });
+  await page.waitForURL(/\/dashboard/, { timeout: 10000 });
   console.log("[E2E] Logged into service app");
 
   // Create a Strapi source
@@ -624,7 +624,7 @@ async function setupServiceAppAndGetApiKey(
   await page.getByLabel(/API Token/i).fill(strapiApiToken);
   await page.getByRole("button", { name: /Create Source/i }).click();
 
-  await page.waitForURL(/\/sources\/\d+/, { timeout: 15000 });
+  await page.waitForURL(/\/sources\/\d+/, { timeout: 10000 });
 
   // Capture source ID from URL for webhook configuration
   const sourceUrl = page.url();
@@ -655,7 +655,7 @@ async function setupServiceAppAndGetApiKey(
   await page.getByRole("button", { name: /Create Client/i }).click();
 
   // Wait for client creation
-  await page.waitForURL(/\/clients\/\d+/, { timeout: 15000 });
+  await page.waitForURL(/\/clients\/\d+/, { timeout: 10000 });
   console.log("[E2E] Client created");
 
   // Connect client to Articles collection
@@ -723,7 +723,7 @@ async function setupServiceAppAndGetApiKey(
 
 test.describe("E2E: Strapi → Service → Consumer Full Flow", () => {
   // Extend timeout for setup - starting 3 servers + UI automation takes time
-  test.describe.configure({ timeout: 300000 }); // 5 minutes
+  test.describe.configure({ timeout: 180000 }); // 3 minutes
 
   let strapiApiToken: string;
   let consumerApiKey: string;
@@ -731,7 +731,7 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow", () => {
 
   test.beforeAll(async ({ browser }, testInfo) => {
     // Extend timeout for setup - starting 3 servers + UI automation takes time
-    testInfo.setTimeout(120000); // 2 minutes
+    testInfo.setTimeout(90000); // 90 seconds
 
     // Skip if running in CI without proper setup
     if (process.env.CI && !process.env.E2E_FULL_FLOW) {
@@ -865,7 +865,7 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow", () => {
       .catch(() => "not found");
     console.log(`[E2E] Article count: ${articleCount1}`);
 
-    await expect(consumerPage.getByText("E2E Test Article")).toBeVisible({ timeout: 15000 });
+    await expect(consumerPage.getByText("E2E Test Article")).toBeVisible({ timeout: 10000 });
     await expect(
       consumerPage.getByText("This article was created during e2e testing"),
     ).toBeVisible();
@@ -887,7 +887,7 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow", () => {
     // Reload and verify second article appears
     await consumerPage.reload();
     await consumerPage.waitForLoadState("networkidle");
-    await expect(consumerPage.getByText("E2E Second Article")).toBeVisible({ timeout: 15000 });
+    await expect(consumerPage.getByText("E2E Second Article")).toBeVisible({ timeout: 10000 });
     console.log("[E2E] Second article visible in consumer app");
 
     // ===== STEP 9: Update first article via API =====
@@ -903,7 +903,7 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow", () => {
     await consumerPage.reload();
     await consumerPage.waitForLoadState("networkidle");
 
-    await expect(consumerPage.getByText("E2E Updated Article")).toBeVisible({ timeout: 15000 });
+    await expect(consumerPage.getByText("E2E Updated Article")).toBeVisible({ timeout: 10000 });
     await expect(
       consumerPage.getByText("This article was updated during e2e testing"),
     ).toBeVisible();

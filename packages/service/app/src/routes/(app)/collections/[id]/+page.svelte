@@ -9,6 +9,7 @@
   import { Input } from "$lib/components/ui/input";
   import { Label } from "$lib/components/ui/label";
   import * as Popover from "$lib/components/ui/popover";
+  import * as Tooltip from "$lib/components/ui/tooltip";
   import {
     deleteCollection,
     getCollection,
@@ -36,8 +37,8 @@
   import {
     Check,
     ChevronsUpDown,
+    LinkIcon,
     LoaderCircleIcon,
-    Plus,
     TrashIcon,
     UnlinkIcon,
   } from "@lucide/svelte";
@@ -323,14 +324,24 @@
                     type="hidden"
                     value={influx.id}
                   />
-                  <Button
-                    type="submit"
-                    variant="destructive"
-                    size="sm"
-                    disabled={remove.pending > 0}
-                  >
-                    <TrashIcon class="size-4" />
-                  </Button>
+                  <Tooltip.Provider>
+                    <Tooltip.Root>
+                      <Tooltip.Trigger>
+                        {#snippet child({ props })}
+                          <Button
+                            {...props}
+                            type="submit"
+                            variant="destructive"
+                            size="sm"
+                            disabled={remove.pending > 0}
+                          >
+                            <TrashIcon class="size-4" />
+                          </Button>
+                        {/snippet}
+                      </Tooltip.Trigger>
+                      <Tooltip.Content>Remove</Tooltip.Content>
+                    </Tooltip.Root>
+                  </Tooltip.Provider>
                 </form>
               </div>
 
@@ -447,7 +458,7 @@
                       ),
                     ),
                   );
-                  toast.success("Consumer unlinked");
+                  toast.success("Consumer disconnected");
                 })}
               >
                 <input
@@ -460,19 +471,29 @@
                   type="hidden"
                   value={collection.id}
                 />
-                <Button
-                  type="submit"
-                  variant="destructive"
-                  size="sm"
-                  disabled={remove.pending > 0}
-                >
-                  <UnlinkIcon class="size-4" />
-                </Button>
+                <Tooltip.Provider>
+                  <Tooltip.Root>
+                    <Tooltip.Trigger>
+                      {#snippet child({ props })}
+                        <Button
+                          {...props}
+                          type="submit"
+                          variant="destructive"
+                          size="sm"
+                          disabled={remove.pending > 0}
+                        >
+                          <UnlinkIcon class="size-4" />
+                        </Button>
+                      {/snippet}
+                    </Tooltip.Trigger>
+                    <Tooltip.Content>Disconnect</Tooltip.Content>
+                  </Tooltip.Root>
+                </Tooltip.Provider>
               </form>
             </div>
           {:else}
             <p class="text-sm text-muted-foreground">
-              No consumers linked yet.
+              No consumers connected yet.
             </p>
           {/each}
         </div>
@@ -502,7 +523,7 @@
                   override,
                 ]),
               );
-              toast.success("Consumer linked");
+              toast.success("Consumer connected");
             });
           })}
           class="flex gap-2"
@@ -570,8 +591,8 @@
             variant="outline"
             disabled={selectedConsumerId === null}
           >
-            <Plus class="size-4" />
-            Link Consumer
+            <LinkIcon class="size-4" />
+            Connect Consumer
           </Button>
         </form>
       {:else if allConsumers.length === 0}
@@ -582,7 +603,7 @@
           > first.
         </p>
       {:else}
-        <p class="text-sm text-muted-foreground">All consumers are linked.</p>
+        <p class="text-sm text-muted-foreground">All consumers are connected.</p>
       {/if}
     </section>
 
@@ -608,9 +629,10 @@
           type="hidden"
           value={collection.id}
         />
-        <Button type="submit" variant="destructive" size="sm"
-          >Delete Collection</Button
-        >
+        <Button type="submit" variant="destructive" size="sm">
+          <TrashIcon class="size-4" />
+          Delete Collection
+        </Button>
       </form>
     </section>
   </div>

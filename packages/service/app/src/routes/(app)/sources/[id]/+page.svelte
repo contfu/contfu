@@ -27,6 +27,7 @@
   import { CredentialsSource } from "@contfu/svc-core";
   import { SourceType } from "@contfu/svc-backend/features/sources/testSourceConnection";
   import Pencil from "@lucide/svelte/icons/pencil";
+  import { ChevronRightIcon, SaveIcon, TrashIcon, ZapIcon } from "@lucide/svelte";
   import { useId } from "bits-ui";
   import { toast } from "svelte-sonner";
   import * as v from "valibot";
@@ -338,7 +339,8 @@
 
         <div class="flex gap-2">
           <Button type="submit" disabled={!!updateSource.pending}>
-            {updateSource.pending ? "Saving..." : "Save"}
+            <SaveIcon class="size-4" />
+            <span class="hidden sm:inline">{updateSource.pending ? "Saving..." : "Save"}</span>
           </Button>
           <Button
             type="button"
@@ -346,7 +348,8 @@
             onclick={handleTestConnection}
             disabled={testPending}
           >
-            {testPending ? "Testing..." : "Test Connection"}
+            <ZapIcon class="size-4" />
+            <span class="hidden sm:inline">{testPending ? "Testing..." : "Test Connection"}</span>
           </Button>
         </div>
       </form>
@@ -591,41 +594,34 @@
         >
           Source Collections
         </h2>
-        <Button size="sm" variant="outline" href="/sources/{id}/collections"
-          >View All</Button
-        >
+        <Button size="sm" variant="outline" href="/sources/{id}/collections">
+          <ChevronRightIcon class="size-4" />
+          <span class="hidden sm:inline">View All</span>
+        </Button>
       </div>
 
-      <svelte:boundary>
-        {#snippet pending()}
-          <p class="text-sm text-muted-foreground">Loading...</p>
-        {/snippet}
-        {#each await collections as collection, i}
-          {#if i < 5}
-            <div
-              class="rounded-md border border-border px-4 py-3 text-sm font-medium"
-            >
-              {collection.name || "Unnamed"}
-            </div>
-          {/if}
-        {:else}
+      {#if collections?.loading || !collections?.current}
+        <p class="text-sm text-muted-foreground">Loading...</p>
+      {:else if collections.current.length === 0}
+        <div
+          class="rounded-lg border border-dashed border-border p-8 text-center"
+        >
+          <p class="text-sm text-muted-foreground">
+            No source collections discovered yet
+          </p>
+          <p class="text-xs text-muted-foreground mt-1">
+            Source collections are auto-discovered when syncing.
+          </p>
+        </div>
+      {:else}
+        {#each collections.current.slice(0, 5) as collection}
           <div
-            class="rounded-lg border border-dashed border-border p-8 text-center"
+            class="rounded-md border border-border px-4 py-3 text-sm font-medium"
           >
-            <p class="text-sm text-muted-foreground">
-              No source collections discovered yet
-            </p>
-            <p class="text-xs text-muted-foreground mt-1">
-              Source collections are auto-discovered when syncing.
-            </p>
+            {collection.name || "Unnamed"}
           </div>
         {/each}
-        {#snippet failed(error)}
-          <p class="text-sm text-muted-foreground">
-            Error loading source collections: {(error as any).message}
-          </p>
-        {/snippet}
-      </svelte:boundary>
+      {/if}
     </section>
 
     <!-- Integration info (Notion only) -->
@@ -698,6 +694,7 @@
               }
             }}
           >
+            <TrashIcon class="size-4" />
             Delete
           </Button>
         </form>

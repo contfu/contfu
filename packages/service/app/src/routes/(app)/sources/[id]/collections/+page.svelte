@@ -4,10 +4,17 @@
   import * as Alert from "$lib/components/ui/alert";
   import { Button } from "$lib/components/ui/button";
   import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+  } from "$lib/components/ui/tooltip";
+  import {
     deleteSourceCollection,
     getSourceCollectionsBySource,
   } from "$lib/remote/source-collections.remote";
   import { getSource } from "$lib/remote/sources.remote";
+  import { TrashIcon } from "@lucide/svelte";
 
   const SOURCE_TYPE_LABELS: Record<number, string> = {
     0: "Notion",
@@ -67,27 +74,34 @@
           </thead>
           <tbody class="divide-y divide-border">
             {#each collections.current as collection}
-              {@const del = deleteSourceCollection.for(collection.id)}
               <tr>
                 <td class="px-4 py-3 font-medium">{collection.name || "Unnamed"}</td>
                 <td class="hidden px-4 py-3 text-muted-foreground sm:table-cell">
                   {new Date(collection.createdAt).toLocaleDateString()}
                 </td>
                 <td class="px-4 py-3 text-right">
-                  <form {...del} class="inline">
-                    <input {...del.fields.id.as("text")} type="hidden" value={collection.id} />
-                    <button
-                      type="submit"
-                      class="text-destructive hover:underline"
-                      onclick={(e: MouseEvent) => {
-                        if (!confirm("Remove this source collection?")) {
-                          e.preventDefault();
-                        }
-                      }}
-                    >
-                      Remove
-                    </button>
-                  </form>
+                  <TooltipProvider>
+                    <form {...deleteSourceCollection} class="inline">
+                      <input {...deleteSourceCollection.fields.id.as("text")} type="hidden" value={collection.id} />
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <Button
+                            type="submit"
+                            variant="ghost"
+                            size="icon-sm"
+                            onclick={(e: MouseEvent) => {
+                              if (!confirm("Remove this source collection?")) {
+                                e.preventDefault();
+                              }
+                            }}
+                          >
+                            <TrashIcon />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Remove</TooltipContent>
+                      </Tooltip>
+                    </form>
+                  </TooltipProvider>
                 </td>
               </tr>
             {/each}
