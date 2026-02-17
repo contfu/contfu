@@ -3,103 +3,17 @@
  *
  * Tests that lists update immediately after add/remove/edit operations
  * without requiring page refresh (using SvelteKit remote function auto-refresh).
+ *
+ * Uses the shared service app started by global-setup.ts.
  */
 import { expect, test, type Page } from "@playwright/test";
-import { spawn, type ChildProcess } from "node:child_process";
-import { dirname, resolve } from "node:path";
-import { setTimeout as sleep } from "node:timers/promises";
-import { fileURLToPath } from "node:url";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const PROJECT_ROOT = resolve(__dirname, "../..");
-
-const SERVICE_PORT = 8012; // Different port to avoid conflicts
-const SERVICE_URL = `http://localhost:${SERVICE_PORT}`;
+const SERVICE_URL = process.env.E2E_SERVICE_URL || "http://localhost:8011";
 
 const TEST_USER = {
   email: "test@test.com",
   password: "test",
 };
-
-const processes: ChildProcess[] = [];
-
-async function spawnProcess(
-  command: string,
-  args: string[],
-  cwd: string,
-  env?: NodeJS.ProcessEnv,
-  timeoutMs = 60000,
-  readyUrl?: string,
-): Promise<ChildProcess> {
-  return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      reject(new Error(`Process did not become ready within ${timeoutMs}ms`));
-    }, timeoutMs);
-
-    const proc = spawn(command, args, {
-      cwd,
-      env: { ...process.env, ...env },
-      stdio: ["pipe", "pipe", "pipe"],
-      shell: true,
-    });
-
-    processes.push(proc);
-    let isReady = false;
-
-    const markReady = () => {
-      if (!isReady) {
-        isReady = true;
-        clearTimeout(timeout);
-        resolve(proc);
-      }
-    };
-
-    proc.stdout?.on("data", (data) => {
-      if (process.env.CI) process.stdout.write(`[service] ${data}`);
-    });
-    proc.stderr?.on("data", (data) => {
-      if (process.env.CI) process.stderr.write(`[service] ${data}`);
-    });
-
-    proc.on("error", (err) => {
-      clearTimeout(timeout);
-      reject(err);
-    });
-
-    if (readyUrl) {
-      const pollUrl = async () => {
-        const pollStart = Date.now();
-        while (Date.now() - pollStart < timeoutMs && !isReady) {
-          try {
-            const response = await fetch(readyUrl);
-            if (response.ok || response.status === 404 || response.status === 500) {
-              markReady();
-              return;
-            }
-          } catch {
-            // Server not ready
-          }
-          await sleep(500);
-        }
-      };
-      void pollUrl();
-    }
-  });
-}
-
-async function killAllProcesses(): Promise<void> {
-  for (const proc of processes) {
-    if (proc.pid && !proc.killed) {
-      try {
-        process.kill(-proc.pid, "SIGTERM");
-      } catch {
-        proc.kill("SIGTERM");
-      }
-    }
-  }
-  processes.length = 0;
-  await sleep(1000);
-}
 
 async function login(page: Page): Promise<void> {
   await page.goto(`${SERVICE_URL}/login`);
@@ -116,33 +30,6 @@ async function login(page: Page): Promise<void> {
 
 test.describe("Reactive List Updates", () => {
   test.describe.configure({ timeout: 60000 });
-
-  test.beforeAll(async () => {
-    await killAllProcesses();
-
-    // Use a unique temp directory for each test run to ensure fresh database
-    const uniqueDbDir = `/tmp/contfu-e2e-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-
-    // Start service app
-    await spawnProcess(
-      "bun",
-      ["build/index.js"],
-      resolve(PROJECT_ROOT, "packages/service/app"),
-      {
-        PORT: String(SERVICE_PORT),
-        ORIGIN: SERVICE_URL,
-        TEST_MODE: "true",
-        PGLITE_DATA_DIR: uniqueDbDir,
-        BETTER_AUTH_SECRET: "e2e-test-secret-at-least-32-chars-long",
-      },
-      30000,
-      SERVICE_URL,
-    );
-  });
-
-  test.afterAll(async () => {
-    await killAllProcesses();
-  });
 
   test("consumers list updates after delete without page refresh", async ({ page }) => {
     await login(page);
@@ -337,10 +224,10 @@ test.describe("Reactive List Updates", () => {
     // Set up dialog handler BEFORE clicking
     page.on("dialog", (dialog) => dialog.accept());
 
-    // Delete the source collection
+    // Delete the source collection (icon-only submit button)
     const removeButton = page
       .locator("tr", { hasText: "Test Endpoint Collection" })
-      .getByRole("button", { name: /Disconnect/i });
+      .locator("button[type='submit']");
     await removeButton.click();
 
     // Wait for the row to disappear

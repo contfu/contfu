@@ -1,12 +1,7 @@
 <script lang="ts">
   import SiteHeader from "$lib/components/layout/site-header.svelte";
   import { Button } from "$lib/components/ui/button";
-  import {
-    TooltipProvider,
-    TooltipTrigger,
-    TooltipContent,
-    Tooltip,
-  } from "$lib/components/ui/tooltip";
+  import * as Tooltip from "$lib/components/ui/tooltip";
   import { deleteConsumer, getConsumers } from "$lib/remote/consumers.remote";
   import { tcToast } from "$lib/utils/toast";
   import { PencilIcon, PlusIcon, TrashIcon, UsersIcon } from "@lucide/svelte";
@@ -83,15 +78,17 @@
               </td>
               <td class="px-4 py-3 text-right">
                 <div class="flex items-center justify-end gap-2">
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger>
-                        <Button href="/consumers/{consumer.id}" variant="ghost" size="icon-sm">
-                          <PencilIcon />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>Edit</TooltipContent>
-                    </Tooltip>
+                  <Tooltip.Provider>
+                    <Tooltip.Root>
+                      <Tooltip.Trigger>
+                        {#snippet child({ props })}
+                          <Button {...props} href="/consumers/{consumer.id}" variant="ghost" size="icon-sm">
+                            <PencilIcon />
+                          </Button>
+                        {/snippet}
+                      </Tooltip.Trigger>
+                      <Tooltip.Content>Edit</Tooltip.Content>
+                    </Tooltip.Root>
                     <form
                       {...del.enhance(async ({ submit }) => {
                         if (del.pending) return;
@@ -111,30 +108,33 @@
                         type="hidden"
                         value={consumer.id}
                       />
-                      <Tooltip>
-                        <TooltipTrigger>
-                          <Button
-                            type="submit"
-                            variant="ghost"
-                            size="icon-sm"
-                            class="text-destructive hover:text-destructive"
-                            onclick={(e: MouseEvent) => {
-                              if (
-                                !confirm(
-                                  "Delete this consumer? The API key will be revoked.",
-                                )
-                              ) {
-                                e.preventDefault();
-                              }
-                            }}
-                          >
-                            <TrashIcon />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Delete</TooltipContent>
-                      </Tooltip>
+                      <Tooltip.Root>
+                        <Tooltip.Trigger>
+                          {#snippet child({ props })}
+                            <Button
+                              {...props}
+                              type="submit"
+                              variant="ghost"
+                              size="icon-sm"
+                              class="text-destructive hover:text-destructive"
+                              onclick={(e: MouseEvent) => {
+                                if (
+                                  !confirm(
+                                    "Delete this consumer? The API key will be revoked.",
+                                  )
+                                ) {
+                                  e.preventDefault();
+                                }
+                              }}
+                            >
+                              <TrashIcon />
+                            </Button>
+                          {/snippet}
+                        </Tooltip.Trigger>
+                        <Tooltip.Content>Delete</Tooltip.Content>
+                      </Tooltip.Root>
                     </form>
-                  </TooltipProvider>
+                  </Tooltip.Provider>
                 </div>
               </td>
             </tr>

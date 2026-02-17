@@ -87,30 +87,11 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
-      strapi:
-        image: forgejo.rogge.vip/contfu/strapi-test:latest
-        env:
-          NODE_ENV: development
-          HOST: 0.0.0.0
-          PORT: 1337
-          APP_KEYS: testkey1,testkey2
-          API_TOKEN_SALT: testsalt1
-          ADMIN_JWT_SECRET: testsecret1
-          TRANSFER_TOKEN_SALT: testsalt2
-          JWT_SECRET: testsecret2
-        options: >-
-          --health-cmd "curl -sf http://localhost:1337/_health"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 30
-          --health-start-period 10s
-
     env:
       # GitHub Actions overrides HOME to /github/home inside containers,
       # but the CI runner image installed tools (Playwright, Bun) under /root.
       HOME: /root
       E2E_FULL_FLOW: true
-      STRAPI_HOST: strapi
       NATS_SERVER: nats://nats:4222
       CI: true
 

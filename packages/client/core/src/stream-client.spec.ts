@@ -106,10 +106,15 @@ describe("stream-client", () => {
     test("parses CHANGED event with full item", async () => {
       const ref = new Uint8Array([0x01, 0x02]);
       const id = new Uint8Array([0x03, 0x04]);
-      const props = { title: "Test", tags: [new Uint8Array([1]), new Uint8Array([2])] };
       const content: Block[] = [{ type: "paragraph", children: [{ type: "text", text: "Hello" }] }];
 
-      const wireItem = [ref, id, 1, 1700000000, 1699000000, 1700500000, props, content];
+      const props = {
+        title: "Test",
+        tags: [new Uint8Array([1]), new Uint8Array([2])],
+        publishedAt: 1700000000,
+        createdAt: 1699000000,
+      };
+      const wireItem = [ref, id, "article", 1700500000, props, content];
       mockFetch(createMockStream([createBinaryMessage([EventType.CHANGED, wireItem])]));
 
       const events: unknown[] = [];
@@ -123,7 +128,7 @@ describe("stream-client", () => {
       expect(events).toHaveLength(1);
       const changedEvent = events[0] as { type: number; item: Record<string, unknown> };
       expect(changedEvent.type).toBe(EventType.CHANGED);
-      expect(changedEvent.item.collection).toBe(1);
+      expect(changedEvent.item.collection).toBe("article");
       const itemProps = changedEvent.item.props as Record<string, unknown>;
       expect(itemProps.publishedAt).toBe(1700000000);
       expect(itemProps.createdAt).toBe(1699000000);
@@ -139,9 +144,7 @@ describe("stream-client", () => {
       const wireItem = [
         new Uint8Array([0x01]),
         new Uint8Array([0x02]),
-        2,
-        0, // no publishedAt
-        1699000000,
+        "draft-collection",
         1700500000,
         { status: "draft" },
       ];
@@ -316,7 +319,7 @@ describe("stream-client", () => {
     test("parses CHANGED event with eventIndex", async () => {
       const ref = new Uint8Array([0x01, 0x02]);
       const id = new Uint8Array([0x03, 0x04]);
-      const wireItem = [ref, id, 1, 1700000000, 1699000000, 1700500000, { title: "Test" }];
+      const wireItem = [ref, id, "article", 1700500000, { title: "Test" }];
 
       mockFetch(createMockStream([createBinaryMessage([EventType.CHANGED, wireItem, 42])]));
 
@@ -336,7 +339,7 @@ describe("stream-client", () => {
       };
       expect(indexed.type).toBe(EventType.CHANGED);
       expect(indexed.eventIndex).toBe(42);
-      expect(indexed.item.collection).toBe(1);
+      expect(indexed.item.collection).toBe("article");
     });
 
     test("parses DELETED event with eventIndex", async () => {

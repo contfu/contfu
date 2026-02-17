@@ -15,6 +15,7 @@ import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   testDir: ".",
   testMatch: "**/*.e2e.ts",
+  globalSetup: "./e2e/global-setup.ts",
   fullyParallel: false, // Must run sequentially - servers are shared
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
@@ -34,5 +35,4 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
     },
   ],
-  // No webServer config - tests spawn their own servers
 });

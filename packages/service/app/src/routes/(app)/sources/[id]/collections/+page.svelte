@@ -89,6 +89,7 @@
                             type="submit"
                             variant="ghost"
                             size="icon-sm"
+                            aria-label="Remove"
                             onclick={(e: MouseEvent) => {
                               if (!confirm("Remove this source collection?")) {
                                 e.preventDefault();

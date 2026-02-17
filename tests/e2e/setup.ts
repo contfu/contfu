@@ -1,6 +1,19 @@
 /**
  * E2E Test Setup Script
  *
+ * DEPRECATED: Strapi startup functions are deprecated in favor of using
+ * captured webhook fixtures for E2E tests.
+ *
+ * These functions are kept for:
+ * 1. Running the fixture capture script (tests/e2e/scripts/capture-strapi-fixtures.ts)
+ * 2. Any future tests that require real Strapi
+ *
+ * For normal E2E test runs, Strapi is no longer started automatically.
+ *
+ * ---
+ *
+ * Original documentation:
+ *
  * Prepares the environment for E2E tests.
  *
  * Strapi runs via Docker using our custom image (contfu-strapi-test:latest)
@@ -85,6 +98,8 @@ async function waitForStrapi(host: string, port: string, timeoutMs = 120000): Pr
 
 /**
  * Start Strapi via Docker
+ *
+ * @deprecated Use fixtures instead. Only use for fixture capture script.
  */
 export async function startStrapiDocker(): Promise<void> {
   // In CI with STRAPI_HOST set, Strapi is managed externally (service container)
@@ -131,6 +146,8 @@ export async function startStrapiDocker(): Promise<void> {
 
 /**
  * Stop Strapi Docker container
+ *
+ * @deprecated Use fixtures instead. Only use for fixture capture script.
  */
 export function stopStrapiDocker(): void {
   // Don't stop if using external Strapi (CI service container)
@@ -145,19 +162,20 @@ export function stopStrapiDocker(): void {
 
 /**
  * Legacy function for backwards compatibility
+ *
+ * @deprecated Use fixtures instead. Only use for fixture capture script.
  * Now just starts Docker-based Strapi
  */
 export async function setupStrapiDemo(): Promise<void> {
   await startStrapiDocker();
 }
 
-// Run if executed directly
+// Run if executed directly — no-op, fixtures are used now
 if (import.meta.main) {
-  const command = process.argv[2];
-
-  if (command === "stop") {
-    stopStrapiDocker();
-  } else {
-    await startStrapiDocker();
-  }
+  console.log(
+    "[Setup] E2E tests now use captured fixtures. Strapi Docker is no longer started automatically.",
+  );
+  console.log(
+    "[Setup] To capture new fixtures, use: bun tests/e2e/scripts/capture-strapi-fixtures.ts",
+  );
 }

@@ -1,12 +1,7 @@
 <script lang="ts">
   import SiteHeader from "$lib/components/layout/site-header.svelte";
   import { Button } from "$lib/components/ui/button";
-  import {
-    TooltipProvider,
-    TooltipTrigger,
-    TooltipContent,
-    Tooltip,
-  } from "$lib/components/ui/tooltip";
+  import * as Tooltip from "$lib/components/ui/tooltip";
   import { deleteSource, getSources } from "$lib/remote/sources.remote";
   import { DatabaseIcon, PencilIcon, PlusIcon, TrashIcon } from "@lucide/svelte";
 
@@ -81,37 +76,42 @@
               </td>
               <td class="px-4 py-3 text-right">
                 <div class="flex items-center justify-end gap-2">
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger>
-                        <Button href="/sources/{source.id}" variant="ghost" size="icon-sm">
-                          <PencilIcon />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>Edit</TooltipContent>
-                    </Tooltip>
+                  <Tooltip.Provider>
+                    <Tooltip.Root>
+                      <Tooltip.Trigger>
+                        {#snippet child({ props })}
+                          <Button {...props} href="/sources/{source.id}" variant="ghost" size="icon-sm">
+                            <PencilIcon />
+                          </Button>
+                        {/snippet}
+                      </Tooltip.Trigger>
+                      <Tooltip.Content>Edit</Tooltip.Content>
+                    </Tooltip.Root>
                     <form {...deleteSource} class="inline">
                       <input {...deleteSource.fields.id.as("text")} type="hidden" value={source.id} />
-                      <Tooltip>
-                        <TooltipTrigger>
-                          <Button
-                            type="submit"
-                            variant="ghost"
-                            size="icon-sm"
-                            class="text-destructive hover:text-destructive"
-                            onclick={(e: MouseEvent) => {
-                              if (!confirm("Delete this source? All collections will also be deleted.")) {
-                                e.preventDefault();
-                              }
-                            }}
-                          >
-                            <TrashIcon />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Delete</TooltipContent>
-                      </Tooltip>
+                      <Tooltip.Root>
+                        <Tooltip.Trigger>
+                          {#snippet child({ props })}
+                            <Button
+                              {...props}
+                              type="submit"
+                              variant="ghost"
+                              size="icon-sm"
+                              class="text-destructive hover:text-destructive"
+                              onclick={(e: MouseEvent) => {
+                                if (!confirm("Delete this source? All collections will also be deleted.")) {
+                                  e.preventDefault();
+                                }
+                              }}
+                            >
+                              <TrashIcon />
+                            </Button>
+                          {/snippet}
+                        </Tooltip.Trigger>
+                        <Tooltip.Content>Delete</Tooltip.Content>
+                      </Tooltip.Root>
                     </form>
-                  </TooltipProvider>
+                  </Tooltip.Provider>
                 </div>
               </td>
             </tr>
