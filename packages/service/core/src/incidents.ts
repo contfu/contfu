@@ -1,4 +1,4 @@
-import type { CollectionSchema } from "./collections";
+import type { CollectionSchema } from "./schemas";
 import type { Filter } from "./filters";
 
 /**
@@ -6,11 +6,8 @@ import type { Filter } from "./filters";
  * Values are integers stored in the database.
  */
 export const IncidentType = {
-  /** Schema changed in a way that invalidates existing filters */
   SchemaIncompatible: 1,
-  /** Filter references a field that no longer exists */
   FilterInvalid: 2,
-  /** General sync error */
   SyncError: 3,
 } as const;
 
@@ -27,13 +24,14 @@ export interface SchemaIncompatibleDetails {
 
 /**
  * Incident record returned from list operations.
+ * All ID fields are encoded strings (public-facing).
  */
-export interface IncidentWithDetails {
-  id: number;
-  influxId: number;
-  collectionId: number;
+export interface ServiceIncidentWithDetails {
+  id: string;
+  influxId: string;
+  collectionId: string;
   collectionName: string;
-  sourceCollectionId: number;
+  sourceCollectionId: string;
   sourceCollectionName: string;
   type: IncidentType;
   message: string;

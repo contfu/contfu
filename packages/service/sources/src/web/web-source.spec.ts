@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
-import { PropertyType, type PageProps } from "@contfu/core";
+import type { PageProps } from "@contfu/core";
+import { PropertyType } from "@contfu/svc-core";
 import { genUid } from "../util/ids";
 import type { WebFetchOpts } from "./web";
 import { WebAuthType } from "./web";
@@ -388,7 +389,7 @@ describe("WebSource", () => {
       );
 
       expect(items).toHaveLength(1);
-      expect(items[0].createdAt).toBe(expectedTimestamp);
+      expect(items[0].props.createdAt).toBe(expectedTimestamp);
       expect(items[0].changedAt).toBe(expectedTimestamp);
     });
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { validateFiltersAgainstSchema, isSchemaCompatible } from "./validateFilters";
-import type { CollectionSchema, Filter } from "@contfu/core";
-import { FilterOperator, PropertyType } from "@contfu/core";
+import type { CollectionSchema, Filter } from "@contfu/svc-core";
+import { FilterOperator, PropertyType } from "@contfu/svc-core";
 
 describe("validateFiltersAgainstSchema", () => {
   // CollectionSchema is Record<string, number> mapping property name to PropertyType

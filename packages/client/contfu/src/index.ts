@@ -41,7 +41,7 @@ export {
   getPages,
   updatePage,
 } from "./pages/page-datasource";
-export { type Page, type PageData } from "./pages/pages";
+export { type PageData } from "./pages/pages";
 
 // Assets exports
 export {

@@ -7,25 +7,28 @@ import { getConnection as getConnectionFeature } from "@contfu/svc-backend/featu
 import { listConnections } from "@contfu/svc-backend/features/connections/listConnections";
 import { listConnectionsByCollection } from "@contfu/svc-backend/features/connections/listConnectionsByCollection";
 import { listConnectionsByConsumer } from "@contfu/svc-backend/features/connections/listConnectionsByConsumer";
+import { encodeId, idSchema } from "@contfu/svc-backend/infra/ids";
 import { invalid } from "@sveltejs/kit";
 import * as v from "valibot";
 
 /**
  * Get all connections for the current user.
  */
-export const getConnections = query(async (): Promise<BackendConnectionWithDetails[]> => {
+export const getConnections = query(async () => {
   const userId = getUserId();
-  return listConnections(userId);
+  const connections = await listConnections(userId);
+  return connections.map(encodeConnection);
 });
 
 /**
  * Get connections filtered by consumer ID.
  */
 export const getConnectionsByConsumer = query(
-  v.object({ consumerId: v.number() }),
-  async ({ consumerId }): Promise<BackendConnectionWithDetails[]> => {
+  v.object({ consumerId: idSchema("consumer") }),
+  async ({ consumerId }) => {
     const userId = getUserId();
-    return listConnectionsByConsumer(userId, consumerId);
+    const connections = await listConnectionsByConsumer(userId, consumerId);
+    return connections.map(encodeConnection);
   },
 );
 
@@ -33,10 +36,11 @@ export const getConnectionsByConsumer = query(
  * Get connections filtered by collection ID.
  */
 export const getConnectionsByCollection = query(
-  v.object({ collectionId: v.number() }),
-  async ({ collectionId }): Promise<BackendConnectionWithDetails[]> => {
+  v.object({ collectionId: idSchema("collection") }),
+  async ({ collectionId }) => {
     const userId = getUserId();
-    return listConnectionsByCollection(userId, collectionId);
+    const connections = await listConnectionsByCollection(userId, collectionId);
+    return connections.map(encodeConnection);
   },
 );
 
@@ -45,16 +49,8 @@ export const getConnectionsByCollection = query(
  */
 export const addConnection = form(
   v.object({
-    consumerId: v.pipe(
-      v.union([v.string(), v.number()]),
-      v.transform((val) => (typeof val === "string" ? Number.parseInt(val, 10) : val)),
-      v.number(),
-    ),
-    collectionId: v.pipe(
-      v.union([v.string(), v.number()]),
-      v.transform((val) => (typeof val === "string" ? Number.parseInt(val, 10) : val)),
-      v.number(),
-    ),
+    consumerId: idSchema("consumer"),
+    collectionId: idSchema("collection"),
   }),
   async (data, issue) => {
     const userId = getUserId();
@@ -80,8 +76,8 @@ export const addConnection = form(
  */
 export const removeConnection = form(
   v.object({
-    consumerId: v.pipe(v.number(), v.integer()),
-    collectionId: v.pipe(v.number(), v.integer()),
+    consumerId: idSchema("consumer"),
+    collectionId: idSchema("collection"),
   }),
   async (data, issue) => {
     const userId = getUserId();
@@ -94,3 +90,16 @@ export const removeConnection = form(
     return { success: true };
   },
 );
+
+// =============================================================================
+// Helpers
+// =============================================================================
+
+function encodeConnection(c: BackendConnectionWithDetails) {
+  return {
+    ...c,
+    userId: encodeId("user", c.userId),
+    consumerId: encodeId("consumer", c.consumerId),
+    collectionId: encodeId("collection", c.collectionId),
+  };
+}

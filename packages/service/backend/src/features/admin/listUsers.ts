@@ -1,22 +1,12 @@
+import type { BackendUserSummary } from "../../domain/types";
 import { db } from "../../infra/db/db";
 import { userTable } from "../../infra/db/schema";
-import type { UserRole } from "../../infra/db/constants";
 import { desc } from "drizzle-orm";
-
-export interface UserSummary {
-  id: number;
-  name: string;
-  email: string;
-  emailVerified: boolean;
-  role: UserRole;
-  approved: boolean;
-  createdAt: Date;
-}
 
 /**
  * List all users with summary info.
  */
-export async function listUsers(): Promise<UserSummary[]> {
+export async function listUsers(): Promise<BackendUserSummary[]> {
   const users = await db
     .select({
       id: userTable.id,

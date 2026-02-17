@@ -93,7 +93,7 @@
                     class="inline"
                   >
                     <input
-                      {...deleteConsumer.fields.id.as("number")}
+                      {...deleteConsumer.fields.id.as("text")}
                       type="hidden"
                       value={consumer.id}
                     />

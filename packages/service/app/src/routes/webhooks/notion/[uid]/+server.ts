@@ -1,5 +1,5 @@
 import { getStreamServer } from "$lib/server/startup";
-import { SourceType, matchesFilters, type UserSyncItem } from "@contfu/core";
+import { SourceType, matchesFilters, type UserSyncItem } from "@contfu/svc-core";
 import { getSetting } from "@contfu/svc-backend/features/admin/getSetting";
 import { upsertSetting } from "@contfu/svc-backend/features/admin/upsertSetting";
 import { listInfluxesBySourceCollections } from "@contfu/svc-backend/features/influxes/listInfluxesBySourceCollections";

@@ -35,6 +35,6 @@ export async function claimJobs(
     RETURNING *
   `);
   // db.execute returns { rows: SyncJob[] } in PGlite
-  const rows = Array.isArray(result) ? result : (result as { rows: SyncJob[] }).rows ?? [];
+  const rows = Array.isArray(result) ? result : ((result as { rows: SyncJob[] }).rows ?? []);
   return rows;
 }

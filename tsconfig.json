@@ -18,6 +18,7 @@
     { "path": "packages/client/contfu" },
     { "path": "packages/client/bun-file-store" },
     { "path": "packages/client/media-optimizer" },
+    { "path": "packages/service/core" },
     { "path": "packages/service/backend" },
     { "path": "packages/service/sync" }
   ]

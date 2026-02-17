@@ -1,5 +1,10 @@
 import { db } from "../../infra/db/db";
-import { collectionTable, connectionTable, consumerTable, type Connection } from "../../infra/db/schema";
+import {
+  collectionTable,
+  connectionTable,
+  consumerTable,
+  type Connection,
+} from "../../infra/db/schema";
 import { and, eq } from "drizzle-orm";
 import type { BackendConnection, CreateConnectionInput } from "../../domain/types";
 

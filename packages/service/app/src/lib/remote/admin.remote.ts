@@ -1,10 +1,11 @@
 import { form, query } from "$app/server";
 import { getUser } from "$lib/server/user";
+import type { BackendUserSummary } from "@contfu/svc-backend/domain/types";
+import { UserRole } from "@contfu/svc-backend/domain/types";
 import { getSetting } from "@contfu/svc-backend/features/admin/getSetting";
-import { listUsers, type UserSummary } from "@contfu/svc-backend/features/admin/listUsers";
+import { listUsers } from "@contfu/svc-backend/features/admin/listUsers";
 import { updateUser } from "@contfu/svc-backend/features/admin/updateUser";
 import { decryptCredentials } from "@contfu/svc-backend/infra/crypto/credentials";
-import { UserRole } from "@contfu/svc-backend/infra/db/constants";
 import { error, invalid } from "@sveltejs/kit";
 import * as v from "valibot";
 
@@ -23,7 +24,7 @@ function requireAdmin() {
 /**
  * Get all users (admin only).
  */
-export const getUsers = query(async (): Promise<UserSummary[]> => {
+export const getUsers = query(async (): Promise<BackendUserSummary[]> => {
   requireAdmin();
   return listUsers();
 });

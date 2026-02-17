@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 declare const self: Worker;
 
-import { SourceType, SyncMessageType, type UserSyncItem } from "@contfu/core";
+import { SourceType, SyncMessageType, type UserSyncItem } from "@contfu/svc-core";
 import { claimJobs } from "@contfu/svc-backend/features/sync-jobs/claimJobs";
 import { completeJob } from "@contfu/svc-backend/features/sync-jobs/completeJob";
 import { failJob } from "@contfu/svc-backend/features/sync-jobs/failJob";

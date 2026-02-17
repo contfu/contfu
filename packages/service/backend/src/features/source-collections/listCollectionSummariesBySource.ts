@@ -1,7 +1,7 @@
-import { db } from "../../infra/db/db";
-import { sourceCollectionTable, connectionTable } from "../../infra/db/schema";
 import { and, eq, inArray, sql } from "drizzle-orm";
-import type { BackendCollectionSummary } from "../../domain/types";
+import type { BackendSourceCollectionSummary } from "../../domain/types";
+import { db } from "../../infra/db/db";
+import { connectionTable, sourceCollectionTable } from "../../infra/db/schema";
 
 /**
  * Get all collections for a user filtered by source ID with connection counts.
@@ -10,7 +10,7 @@ import type { BackendCollectionSummary } from "../../domain/types";
 export async function listCollectionSummariesBySource(
   userId: number,
   sourceId: number,
-): Promise<BackendCollectionSummary[]> {
+): Promise<BackendSourceCollectionSummary[]> {
   const collections = await db
     .select({
       id: sourceCollectionTable.id,

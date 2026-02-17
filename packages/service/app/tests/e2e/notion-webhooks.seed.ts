@@ -3,7 +3,7 @@
  * Called by global-setup.ts before the server starts.
  * Constants are shared with notion-webhooks.e2e.ts.
  */
-import { SourceType } from "@contfu/core";
+import { SourceType } from "@contfu/svc-core";
 import { encryptCredentials } from "@contfu/svc-backend/infra/crypto/credentials";
 import {
   collectionTable,

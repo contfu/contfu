@@ -24,7 +24,7 @@ async function pull(source: Source, options?: SyncOptions) {
   for (const collection of source.collectionNames) {
     for await (const { page, assets } of source.pull(collection)) {
       const id = hashId(`${source.id}|${page.ref}`);
-      const fullPage = { ...page, id, connection: source.id };
+      const fullPage = { ...page, id };
       await createOrUpdatePage(fullPage);
       await deleteOutgoingPageLinks(id);
       await createLinks(page, id, transientLinks);
@@ -36,7 +36,7 @@ async function pull(source: Source, options?: SyncOptions) {
 async function removeOrphans(source: Source) {
   for (const collection of source.collectionNames) {
     for await (const upstreamIds of source.pullCollectionRefs(collection)) {
-      const existingIds = await getPageIdsByCollection(source.id, collection);
+      const existingIds = await getPageIdsByCollection(collection);
       const idsToDelete = new Set(existingIds);
       for (const id of upstreamIds) idsToDelete.delete(id);
       if (idsToDelete.size === 0) continue;
@@ -45,7 +45,7 @@ async function removeOrphans(source: Source) {
         const pageId = hashId(`${source.id}|${ref}`);
         await deleteAssetsByPage(pageId);
       }
-      await deletePagesByIds(source.id, [...idsToDelete]);
+      await deletePagesByIds([...idsToDelete]);
     }
   }
 }

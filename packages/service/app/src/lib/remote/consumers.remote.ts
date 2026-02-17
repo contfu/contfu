@@ -7,6 +7,7 @@ import { getConsumer as getConsumerFeature } from "@contfu/svc-backend/features/
 import { getConsumerWithConnectionCount } from "@contfu/svc-backend/features/consumers/getConsumerWithConnectionCount";
 import { listConsumers } from "@contfu/svc-backend/features/consumers/listConsumers";
 import { updateConsumer as updateConsumerFeature } from "@contfu/svc-backend/features/consumers/updateConsumer";
+import { encodeId, idSchema } from "@contfu/svc-backend/infra/ids";
 import { error, invalid, redirect } from "@sveltejs/kit";
 import * as v from "valibot";
 
@@ -18,26 +19,32 @@ function generateApiKey(): string {
   return Buffer.from(bytes).toString("hex");
 }
 
+function encodeConsumer(c: BackendConsumerWithConnectionCount) {
+  return {
+    ...c,
+    id: encodeId("consumer", c.id),
+    userId: encodeId("user", c.userId),
+  };
+}
+
 /**
  * Get all consumers for the current user.
  */
-export const getConsumers = query(async (): Promise<BackendConsumerWithConnectionCount[]> => {
+export const getConsumers = query(async () => {
   const userId = getUserId();
-  return listConsumers(userId);
+  const consumers = await listConsumers(userId);
+  return consumers.map(encodeConsumer);
 });
 
 /**
  * Get a single consumer by ID.
  */
-export const getConsumer = query(
-  v.object({ id: v.number() }),
-  async ({ id }): Promise<BackendConsumerWithConnectionCount> => {
-    const userId = getUserId();
-    const consumer = await getConsumerWithConnectionCount(userId, id);
-    if (!consumer) error(404, "Consumer not found");
-    return consumer;
-  },
-);
+export const getConsumer = query(v.object({ id: idSchema("consumer") }), async ({ id }) => {
+  const userId = getUserId();
+  const consumer = await getConsumerWithConnectionCount(userId, id);
+  if (!consumer) error(404, "Consumer not found");
+  return encodeConsumer(consumer);
+});
 
 /**
  * Create a new consumer with an auto-generated API key.
@@ -58,7 +65,7 @@ export const createConsumer = form(
       key: Buffer.from(apiKey, "hex"),
     });
 
-    redirect(303, `/consumers/${consumer.id}`);
+    redirect(303, `/consumers/${encodeId("consumer", consumer.id)}`);
   },
 );
 
@@ -67,11 +74,7 @@ export const createConsumer = form(
  */
 export const updateConsumer = form(
   v.object({
-    id: v.pipe(
-      v.union([v.string(), v.number()]),
-      v.transform((val) => (typeof val === "string" ? Number.parseInt(val, 10) : val)),
-      v.number(),
-    ),
+    id: idSchema("consumer"),
     name: v.optional(v.pipe(v.string(), v.nonEmpty("Name cannot be empty"))),
   }),
   async (data, issue) => {
@@ -99,7 +102,7 @@ export const updateConsumer = form(
  */
 export const regenerateKey = form(
   v.object({
-    id: v.number(),
+    id: idSchema("consumer"),
   }),
   async (data, issue) => {
     const userId = getUserId();
@@ -126,11 +129,7 @@ export const regenerateKey = form(
  */
 export const deleteConsumer = form(
   v.object({
-    id: v.pipe(
-      v.union([v.string(), v.number()]),
-      v.transform((val) => (typeof val === "string" ? Number.parseInt(val, 10) : val)),
-      v.number(),
-    ),
+    id: idSchema("consumer"),
   }),
   async (data, issue) => {
     const userId = getUserId();

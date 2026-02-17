@@ -1,14 +1,25 @@
 import {
   Block,
-  ChangedEvent,
   EventType,
-  Item,
-  ItemEvent,
   WIRE_PING,
   WireEvent,
   WireItem,
+  type Item as InternalItem,
+  type PageProps,
 } from "@contfu/core";
 import { unpack } from "msgpackr";
+
+/** Item as received by consumers — collection is an encoded string ID */
+export type Item<T extends PageProps = Record<never, never>> = Omit<
+  InternalItem<T>,
+  "collection"
+> & {
+  collection: string;
+};
+
+export type ChangedEvent = { type: typeof EventType.CHANGED; item: Item };
+export type DeletedEvent = { type: typeof EventType.DELETED; item: Buffer };
+export type ItemEvent = ChangedEvent | DeletedEvent;
 
 /** Emitted when stream connection is established. */
 export type StreamConnectedEvent = { type: "stream:connected" };
@@ -199,14 +210,12 @@ function fromWireEvent(wireEvent: WireEvent): ItemEvent | null {
   switch (type) {
     case EventType.CHANGED: {
       const wireItem = wireEvent[1] as WireItem;
-      const [ref, id, collection, publishedAt, createdAt, changedAt, props, content] = wireItem;
+      const [ref, id, collection, changedAt, props, content] = wireItem;
 
       const item: Item = {
         ref: Buffer.from(ref),
         id: Buffer.from(id),
         collection,
-        publishedAt: publishedAt || undefined,
-        createdAt,
         changedAt,
         props: deserializeProps(props),
       };
@@ -222,8 +231,8 @@ function fromWireEvent(wireEvent: WireEvent): ItemEvent | null {
     }
 
     case EventType.DELETED: {
-      const event = {
-        type: EventType.DELETED as const,
+      const event: DeletedEvent = {
+        type: EventType.DELETED,
         item: Buffer.from(wireEvent[1] as Uint8Array),
       };
       const eventIndex = wireEvent[2] as number | undefined;

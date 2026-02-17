@@ -2,7 +2,7 @@ import { db } from "../../infra/db/db";
 import { influxTable } from "../../infra/db/schema";
 import { and, eq, inArray } from "drizzle-orm";
 import { unpack } from "msgpackr";
-import type { Filter } from "@contfu/core";
+import type { Filter } from "@contfu/svc-core";
 
 export interface InfluxForWebhook {
   sourceCollectionId: number;

@@ -15,6 +15,7 @@ import {
 import { updateSource as updateSourceFeature } from "@contfu/svc-backend/features/sources/updateSource";
 import { validateSourceData } from "@contfu/svc-backend/features/sources/validateSourceData";
 import { getProviderAccessToken } from "@contfu/svc-backend/infra/auth/linked-accounts";
+import { encodeId, idSchema } from "@contfu/svc-backend/infra/ids";
 import {
   iterateDataSources,
   resolveDataSourceId,
@@ -23,26 +24,32 @@ import {
 import { error, invalid, redirect } from "@sveltejs/kit";
 import * as v from "valibot";
 
+function encodeSource(source: BackendSourceWithCollectionCount) {
+  return {
+    ...source,
+    id: encodeId("source", source.id),
+    userId: encodeId("user", source.userId),
+  };
+}
+
 /**
  * Get all sources for the current user.
  */
-export const getSources = query(async (): Promise<BackendSourceWithCollectionCount[]> => {
+export const getSources = query(async () => {
   const userId = getUserId();
-  return listSources(userId);
+  const sources = await listSources(userId);
+  return sources.map(encodeSource);
 });
 
 /**
  * Get a single source by ID.
  */
-export const getSource = query(
-  v.object({ id: v.number() }),
-  async ({ id }): Promise<BackendSourceWithCollectionCount> => {
-    const userId = getUserId();
-    const source = await getSourceWithCollectionCount(userId, id);
-    if (!source) error(404, "Source not found");
-    return source;
-  },
-);
+export const getSource = query(v.object({ id: idSchema("source") }), async ({ id }) => {
+  const userId = getUserId();
+  const source = await getSourceWithCollectionCount(userId, id);
+  if (!source) error(404, "Source not found");
+  return encodeSource(source);
+});
 
 /**
  * Create a new source.
@@ -107,7 +114,7 @@ export const createSource = form(
       credentials: credentialsBuffer,
     });
 
-    redirect(303, `/sources/${source.id}`);
+    redirect(303, `/sources/${encodeId("source", source.id)}`);
   },
 );
 
@@ -119,7 +126,7 @@ export const createNotionSourceFromOAuth = command(
   v.object({
     name: v.pipe(v.string(), v.nonEmpty("Name is required")),
   }),
-  async (data): Promise<{ id: number }> => {
+  async (data): Promise<{ id: string }> => {
     const userId = getUserId();
 
     // Get the Notion access token from linked accounts
@@ -142,7 +149,7 @@ export const createNotionSourceFromOAuth = command(
       credentials: Buffer.from(accessToken, "utf-8"),
     });
 
-    return { id: source.id };
+    return { id: encodeId("source", source.id) };
   },
 );
 
@@ -151,11 +158,7 @@ export const createNotionSourceFromOAuth = command(
  */
 export const updateSource = form(
   v.object({
-    id: v.pipe(
-      v.union([v.string(), v.number()]),
-      v.transform((val) => (typeof val === "string" ? Number.parseInt(val, 10) : val)),
-      v.number(),
-    ),
+    id: idSchema("source"),
     name: v.optional(v.pipe(v.string(), v.nonEmpty("Name cannot be empty"))),
     url: v.optional(v.string()),
     _credentials: v.optional(v.string()),
@@ -206,11 +209,7 @@ export const updateSource = form(
  */
 export const deleteSource = form(
   v.object({
-    id: v.pipe(
-      v.union([v.string(), v.number()]),
-      v.transform((val) => (typeof val === "string" ? Number.parseInt(val, 10) : val)),
-      v.number(),
-    ),
+    id: idSchema("source"),
   }),
   async (data, issue) => {
     const userId = getUserId();
@@ -229,11 +228,7 @@ export const deleteSource = form(
  */
 export const testConnection = command(
   v.object({
-    id: v.pipe(
-      v.union([v.string(), v.number()]),
-      v.transform((val) => (typeof val === "string" ? Number.parseInt(val, 10) : val)),
-      v.number(),
-    ),
+    id: idSchema("source"),
   }),
   async (data): Promise<ConnectionTestResult> => {
     const userId = getUserId();
@@ -282,11 +277,7 @@ export const testNewConnection = command(
  */
 export const regenerateWebhookSecret = command(
   v.object({
-    id: v.pipe(
-      v.union([v.string(), v.number()]),
-      v.transform((val) => (typeof val === "string" ? Number.parseInt(val, 10) : val)),
-      v.number(),
-    ),
+    id: idSchema("source"),
   }),
   async (data): Promise<{ success: boolean; secret?: string; message?: string }> => {
     const userId = getUserId();
@@ -356,11 +347,7 @@ function parseDataSource(ds: DataSourceResult): NotionDataSource {
  */
 export const listNotionDataSources = query(
   v.object({
-    sourceId: v.pipe(
-      v.union([v.string(), v.number()]),
-      v.transform((val) => (typeof val === "string" ? Number.parseInt(val, 10) : val)),
-      v.number(),
-    ),
+    sourceId: idSchema("source"),
   }),
   async (data) => {
     const userId = getUserId();
@@ -416,11 +403,7 @@ export const listNotionDataSources = query(
  */
 export const resolveNotionId = command(
   v.object({
-    sourceId: v.pipe(
-      v.union([v.string(), v.number()]),
-      v.transform((val) => (typeof val === "string" ? Number.parseInt(val, 10) : val)),
-      v.number(),
-    ),
+    sourceId: idSchema("source"),
     id: v.string(),
   }),
   async (

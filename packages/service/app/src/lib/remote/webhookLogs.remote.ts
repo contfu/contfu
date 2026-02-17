@@ -1,7 +1,8 @@
 import { query } from "$app/server";
 import { getUserId } from "$lib/server/user";
 import { db } from "@contfu/svc-backend/infra/db/db";
-import { webhookLogTable, type WebhookLog } from "@contfu/svc-backend/infra/db/schema";
+import { webhookLogTable } from "@contfu/svc-backend/infra/db/schema";
+import { idSchema } from "@contfu/svc-backend/infra/ids";
 import { and, desc, eq } from "drizzle-orm";
 import * as v from "valibot";
 
@@ -23,7 +24,7 @@ export interface WebhookLogEntry {
  */
 export const getWebhookLogs = query(
   v.object({
-    sourceId: v.number(),
+    sourceId: idSchema("source"),
     limit: v.optional(v.number(), 20),
   }),
   async ({ sourceId, limit }): Promise<WebhookLogEntry[]> => {
@@ -32,7 +33,7 @@ export const getWebhookLogs = query(
     const logs = await db
       .select()
       .from(webhookLogTable)
-      .where(and(eq(webhookLogTable.userId, userId), eq(webhookLogTable.sourceId, sourceId)))
+      .where(and(eq(webhookLogTable.sourceId, sourceId)))
       .orderBy(desc(webhookLogTable.timestamp))
       .limit(limit ?? 20);
 

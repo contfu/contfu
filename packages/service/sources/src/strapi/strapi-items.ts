@@ -12,7 +12,7 @@ import { convertStrapiBlocks, isStrapiBlocks } from "./strapi-blocks";
 import { getMediaUrl, iterateEntries, StrapiQueryParams } from "./strapi-helpers";
 
 /** Reserved fields that should not be treated as properties. */
-const RESERVED_FIELDS = new Set(["id", "documentId", "createdAt", "updatedAt", "publishedAt"]);
+const RESERVED_FIELDS = new Set(["id", "documentId", "updatedAt"]);
 
 /**
  * Iterate through Strapi entries and convert them to Items.
@@ -31,24 +31,22 @@ export async function* iterateItems(
  */
 function parseItem(entry: StrapiEntry, collection: number, baseUrl: string): Item {
   const ref = documentIdToBuffer(entry.documentId);
-  const createdAt = new Date(entry.createdAt).getTime();
   const changedAt = new Date(entry.updatedAt).getTime();
-  const publishedAt = entry.publishedAt ? new Date(entry.publishedAt).getTime() : undefined;
 
   const { props, content } = parseFields(entry, baseUrl);
+
+  props.createdAt = new Date(entry.createdAt).getTime();
+  if (entry.publishedAt) {
+    props.publishedAt = new Date(entry.publishedAt).getTime();
+  }
 
   const item: Item = {
     id: genUid(ref),
     ref,
     collection,
-    createdAt,
     changedAt,
     props,
   };
-
-  if (publishedAt) {
-    item.publishedAt = publishedAt;
-  }
 
   if (content && content.length > 0) {
     item.content = content;

@@ -15,8 +15,8 @@
     2: "Web",
   };
 
-  const id = Number.parseInt(page.params.id ?? "", 10);
-  const source = Number.isNaN(id) ? null : await getSource({ id });
+  const id = page.params.id ?? "";
+  const source = id ? await getSource({ id }) : null;
 
   // Query object - auto-refreshes after form submissions
   const collections = source ? getSourceCollectionsBySource({ sourceId: id }) : null;
@@ -74,7 +74,7 @@
                 </td>
                 <td class="px-4 py-3 text-right">
                   <form {...deleteSourceCollection} class="inline">
-                    <input {...deleteSourceCollection.fields.id.as("number")} type="hidden" value={collection.id} />
+                    <input {...deleteSourceCollection.fields.id.as("text")} type="hidden" value={collection.id} />
                     <button
                       type="submit"
                       class="text-destructive hover:underline"

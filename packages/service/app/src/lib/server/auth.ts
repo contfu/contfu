@@ -1,7 +1,7 @@
 import { dev } from "$app/environment";
 import { getRequestEvent } from "$app/server";
+import { UserRole } from "@contfu/svc-backend/domain/types";
 import { createNatsKvSessionStorage } from "@contfu/svc-backend/infra/auth/secondary-storage";
-import { UserRole } from "@contfu/svc-backend/infra/auth/user";
 import { db } from "@contfu/svc-backend/infra/db/db";
 import * as schema from "@contfu/svc-backend/infra/db/schema";
 import { sendEmail } from "@contfu/svc-backend/infra/mail/mail";

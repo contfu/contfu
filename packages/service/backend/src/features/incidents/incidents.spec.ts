@@ -10,13 +10,8 @@ import {
 } from "../../infra/db/schema";
 import { pack } from "msgpackr";
 import crypto from "node:crypto";
-import {
-  FilterOperator,
-  IncidentType,
-  PropertyType,
-  type CollectionSchema,
-  type SchemaIncompatibleDetails,
-} from "@contfu/core";
+import { FilterOperator, PropertyType, type CollectionSchema } from "@contfu/svc-core";
+import { IncidentType, type SchemaIncompatibleDetails } from "@contfu/svc-core";
 import { createIncident } from "./createIncident";
 import { listIncidents } from "./listIncidents";
 import { getUnresolvedIncidentCount } from "./getUnresolvedIncidentCount";

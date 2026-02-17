@@ -18,19 +18,19 @@
     regenerateKey,
     updateConsumer,
   } from "$lib/remote/consumers.remote";
-  import { updateConsumerNameSchema } from "$lib/remote/consumers.schemas";
   import { cn } from "$lib/utils";
   import { tcToast } from "$lib/utils/toast";
   import { ClipboardIcon } from "@lucide/svelte";
   import Pencil from "@lucide/svelte/icons/pencil";
   import { useId } from "bits-ui";
   import { toast } from "svelte-sonner";
+  import * as v from "valibot";
 
   const nameId = useId();
 
   let { params } = $props();
 
-  let id = $derived(Number(params.id));
+  let id = $derived(params.id);
   const client = $derived(await getConsumer({ id }));
 
   // Sync form fields when client changes
@@ -40,7 +40,7 @@
 
   // Query objects - auto-refresh after form submissions
   const connectionsQuery = $derived(
-    getConnectionsByConsumer({ consumerId: Number(params.id) }),
+    getConnectionsByConsumer({ consumerId: params.id }),
   );
   const allCollections = $derived(await getCollections());
 
@@ -96,7 +96,12 @@
             <Popover.Content class="w-72" align="start">
               <form
                 {...updateConsumer
-                  .preflight(updateConsumerNameSchema)
+                  .preflight(
+                    v.object({
+                      id: v.string(),
+                      name: v.pipe(v.string(), v.nonEmpty("Name is required")),
+                    }),
+                  )
                   .enhance(async ({ submit, data }) => {
                     namePopoverOpen = false;
                     await tcToast(async () => {
@@ -111,10 +116,7 @@
                   })}
                 class="space-y-3"
               >
-                <input
-                  {...updateConsumer.fields.id.as("number")}
-                  type="hidden"
-                />
+                <input {...updateConsumer.fields.id.as("text")} type="hidden" />
                 <div class="space-y-1.5">
                   <Label for={nameId}>Name</Label>
                   <Input
@@ -130,9 +132,15 @@
                 </div>
                 <div class="flex justify-end gap-2">
                   <Popover.Close>
-                    <Button type="button" variant="outline" size="sm">Cancel</Button>
+                    <Button type="button" variant="outline" size="sm"
+                      >Cancel</Button
+                    >
                   </Popover.Close>
-                  <Button type="submit" size="sm" disabled={!!updateConsumer.pending}>
+                  <Button
+                    type="submit"
+                    size="sm"
+                    disabled={!!updateConsumer.pending}
+                  >
                     {updateConsumer.pending ? "Saving..." : "Save"}
                   </Button>
                 </div>
@@ -142,14 +150,17 @@
         </Popover.Root>
       </div>
       <p class="mt-1 text-sm text-muted-foreground">
-        {client.connectionCount} collection{client.connectionCount === 1 ? "" : "s"} ·
-        Created {new Date(client.createdAt).toLocaleDateString()}
+        {client.connectionCount} collection{client.connectionCount === 1
+          ? ""
+          : "s"} · Created {new Date(client.createdAt).toLocaleDateString()}
       </p>
     </div>
 
     <!-- API Key -->
     <section class="mb-8">
-      <h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-muted-foreground">
+      <h2
+        class="mb-3 text-sm font-medium uppercase tracking-wide text-muted-foreground"
+      >
         API Key
       </h2>
 
@@ -157,9 +168,13 @@
         <Alert.Root class="mb-4">
           <Alert.Title>New API Key</Alert.Title>
           <Alert.Description>
-            <p class="mb-2 text-xs">Copy this key now. It won't be shown again.</p>
+            <p class="mb-2 text-xs">
+              Copy this key now. It won't be shown again.
+            </p>
             <div class="flex items-center gap-2 w-full">
-              <code class="flex-1 rounded bg-muted p-2 font-mono text-xs break-all">
+              <code
+                class="flex-1 rounded bg-muted p-2 font-mono text-xs break-all"
+              >
                 {regenerateKey.result?.key}
               </code>
               <Button
@@ -175,14 +190,27 @@
         </Alert.Root>
       {/if}
 
-      <div class="flex items-center justify-between rounded-md border border-border p-4">
+      <div
+        class="flex items-center justify-between rounded-md border border-border p-4"
+      >
         <div>
           <p class="text-sm font-medium">Regenerate key</p>
-          <p class="text-xs text-muted-foreground">Current key will be revoked</p>
+          <p class="text-xs text-muted-foreground">
+            Current key will be revoked
+          </p>
         </div>
         <form {...regenerateKey}>
-          <input {...regenerateKey.fields.id.as("number")} type="hidden" value={client.id} />
-          <Button variant="outline" size="sm" disabled={!!regenerateKey.pending} type="submit">
+          <input
+            {...regenerateKey.fields.id.as("text")}
+            type="hidden"
+            value={client.id}
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!!regenerateKey.pending}
+            type="submit"
+          >
             {regenerateKey.pending ? "..." : "Regenerate"}
           </Button>
         </form>
@@ -191,7 +219,9 @@
 
     <!-- Connections -->
     <section class="mb-8">
-      <h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-muted-foreground">
+      <h2
+        class="mb-3 text-sm font-medium uppercase tracking-wide text-muted-foreground"
+      >
         Collections
       </h2>
 
@@ -201,23 +231,40 @@
         {/snippet}
         <div class="mb-4 space-y-2">
           {#each await connectionsQuery as connection}
-            <div class="flex items-center justify-between rounded-md border border-border px-4 py-3">
-              <span class="text-sm font-medium">{connection.collectionName}</span>
+            <div
+              class="flex items-center justify-between rounded-md border border-border px-4 py-3"
+            >
+              <span class="text-sm font-medium"
+                >{connection.collectionName}</span
+              >
               <form
                 {...removeConnection.enhance(async ({ submit }) => {
                   await submit();
                   toast.success("Collection unlinked");
                 })}
               >
-                <input {...removeConnection.fields.consumerId.as("number")} type="hidden" value={client.id} />
-                <input {...removeConnection.fields.collectionId.as("number")} type="hidden" value={connection.collectionId} />
-                <button type="submit" class="text-sm text-destructive hover:underline">
+                <input
+                  {...removeConnection.fields.consumerId.as("text")}
+                  type="hidden"
+                  value={client.id}
+                />
+                <input
+                  {...removeConnection.fields.collectionId.as("text")}
+                  type="hidden"
+                  value={connection.collectionId}
+                />
+                <button
+                  type="submit"
+                  class="text-sm text-destructive hover:underline"
+                >
                   Remove
                 </button>
               </form>
             </div>
           {:else}
-            <p class="text-sm text-muted-foreground">No collections connected.</p>
+            <p class="text-sm text-muted-foreground">
+              No collections connected.
+            </p>
           {/each}
         </div>
         {#snippet failed(error)}
@@ -235,7 +282,11 @@
           })}
           class="flex gap-2"
         >
-          <input {...addConnection.fields.consumerId.as("number")} type="hidden" value={client.id} />
+          <input
+            {...addConnection.fields.consumerId.as("text")}
+            type="hidden"
+            value={client.id}
+          />
           <select
             name="collectionId"
             class="flex-1 rounded-md border border-input bg-transparent px-3 py-2 text-sm"
@@ -252,7 +303,9 @@
           No collections available. Create collections in your sources first.
         </p>
       {:else}
-        <p class="text-sm text-muted-foreground">All collections are connected.</p>
+        <p class="text-sm text-muted-foreground">
+          All collections are connected.
+        </p>
       {/if}
     </section>
 
@@ -269,7 +322,11 @@
             goto("/consumers");
           })}
         >
-          <input {...deleteConsumer.fields.id.as("number")} type="hidden" value={client.id} />
+          <input
+            {...deleteConsumer.fields.id.as("text")}
+            type="hidden"
+            value={client.id}
+          />
           <Button
             variant="destructive"
             size="sm"

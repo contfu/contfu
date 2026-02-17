@@ -1,11 +1,14 @@
+import { and, eq, sql } from "drizzle-orm";
+import type {
+  BackendSourceCollection,
+  BackendSourceCollectionWithConnectionCount,
+} from "../../domain/types";
 import { db } from "../../infra/db/db";
 import {
-  sourceCollectionTable,
   connectionTable,
+  sourceCollectionTable,
   type SourceCollection,
 } from "../../infra/db/schema";
-import { and, eq, sql } from "drizzle-orm";
-import type { BackendCollection, BackendCollectionWithConnectionCount } from "../../domain/types";
 
 function countItemIds(itemIds: Buffer | null): number {
   if (!itemIds) return 0;
@@ -13,7 +16,7 @@ function countItemIds(itemIds: Buffer | null): number {
   return Math.floor(itemIds.length / 4);
 }
 
-function mapToBackendCollection(collection: SourceCollection): BackendCollection {
+function mapToBackendSourceCollection(collection: SourceCollection): BackendSourceCollection {
   return {
     id: collection.id,
     userId: collection.userId,
@@ -27,12 +30,12 @@ function mapToBackendCollection(collection: SourceCollection): BackendCollection
   };
 }
 
-function mapToBackendCollectionWithConnectionCount(
+function mapToBackendSourceCollectionWithConnectionCount(
   collection: SourceCollection,
   connectionCount: number,
-): BackendCollectionWithConnectionCount {
+): BackendSourceCollectionWithConnectionCount {
   return {
-    ...mapToBackendCollection(collection),
+    ...mapToBackendSourceCollection(collection),
     connectionCount,
   };
 }
@@ -43,7 +46,7 @@ function mapToBackendCollectionWithConnectionCount(
 export async function getCollectionWithConnectionCount(
   userId: number,
   id: number,
-): Promise<BackendCollectionWithConnectionCount | undefined> {
+): Promise<BackendSourceCollectionWithConnectionCount | undefined> {
   const [collection] = await db
     .select()
     .from(sourceCollectionTable)
@@ -57,5 +60,5 @@ export async function getCollectionWithConnectionCount(
     .from(connectionTable)
     .where(and(eq(connectionTable.userId, userId), eq(connectionTable.collectionId, id)));
 
-  return mapToBackendCollectionWithConnectionCount(collection, countResult?.count ?? 0);
+  return mapToBackendSourceCollectionWithConnectionCount(collection, countResult?.count ?? 0);
 }

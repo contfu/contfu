@@ -161,6 +161,7 @@
       "dependencies": {
         "@contfu/core": "workspace:*",
         "@contfu/svc-backend": "workspace:*",
+        "@contfu/svc-core": "workspace:*",
         "@contfu/svc-sources": "workspace:*",
         "@tanstack/table-core": "^8.21.3",
         "bits-ui": "^2.15.5",
@@ -204,6 +205,7 @@
       "version": "0.0.1",
       "dependencies": {
         "@contfu/core": "workspace:*",
+        "@contfu/svc-core": "workspace:*",
         "@contfu/svc-sources": "workspace:*",
         "@css-inline/css-inline": "^0.20.0",
         "@msgpack/msgpack": "^3.1.3",
@@ -216,6 +218,7 @@
         "drizzle-orm": "^1.0.0-beta.12-a5629fb",
         "msgpackr": "^1.11.8",
         "nodemailer": "^8.0.1",
+        "sqids": "^0.3.0",
         "tiny-lru": "^11.4.7",
         "valibot": "^1.2.0",
       },
@@ -223,6 +226,17 @@
         "@electric-sql/pglite": "^0.3.15",
         "@types/nodemailer": "^7.0.9",
         "drizzle-kit": "^1.0.0-beta.12-a5629fb",
+        "type-fest": "^5.4.4",
+        "typescript": "^5.9.3",
+      },
+    },
+    "packages/service/core": {
+      "name": "@contfu/svc-core",
+      "version": "0.0.1",
+      "dependencies": {
+        "@contfu/core": "workspace:*",
+      },
+      "devDependencies": {
         "typescript": "^5.9.3",
       },
     },
@@ -231,6 +245,7 @@
       "version": "0.0.1",
       "dependencies": {
         "@contfu/core": "workspace:*",
+        "@contfu/svc-core": "workspace:*",
         "@notionhq/client": "^5.9.0",
         "marked": "^17.0.2",
         "node-html-parser": "^7.0.2",
@@ -251,6 +266,7 @@
       "dependencies": {
         "@contfu/core": "workspace:*",
         "@contfu/svc-backend": "workspace:*",
+        "@contfu/svc-core": "workspace:*",
         "@contfu/svc-sources": "workspace:*",
         "drizzle-orm": "^1.0.0-beta.12-a5629fb",
         "rxjs": "^7.8.2",
@@ -331,6 +347,8 @@
     "@contfu/svc-app": ["@contfu/svc-app@workspace:packages/service/app"],
 
     "@contfu/svc-backend": ["@contfu/svc-backend@workspace:packages/service/backend"],
+
+    "@contfu/svc-core": ["@contfu/svc-core@workspace:packages/service/core"],
 
     "@contfu/svc-sources": ["@contfu/svc-sources@workspace:packages/service/sources"],
 
@@ -1596,6 +1614,8 @@
 
     "sprintf-js": ["sprintf-js@1.1.3", "", {}, "sha512-Oo+0REFV59/rz3gfJNKQiBlwfHaSESl1pcGyABQsnnIfWOFt6JNj5gCog2U6MLZ//IGYD+nA8nI+mTShREReaA=="],
 
+    "sqids": ["sqids@0.3.0", "", {}, "sha512-lOQK1ucVg+W6n3FhRwwSeUijxe93b51Bfz5PMRMihVf1iVkl82ePQG7V5vwrhzB11v0NtsR25PSZRGiSomJaJw=="],
+
     "ssh-remote-port-forward": ["ssh-remote-port-forward@1.0.4", "", { "dependencies": { "@types/ssh2": "^0.5.48", "ssh2": "^1.4.0" } }, "sha512-x0LV1eVDwjf1gmG7TTnfqIzf+3VPRz7vrNIjX6oYLbeCrf/PeVY6hkT68Mg+q02qXxQhrLjB0jfgvhevoCRmLQ=="],
 
     "ssh2": ["ssh2@1.17.0", "", { "dependencies": { "asn1": "^0.2.6", "bcrypt-pbkdf": "^1.0.2" }, "optionalDependencies": { "cpu-features": "~0.0.10", "nan": "^2.23.0" } }, "sha512-wPldCk3asibAjQ/kziWQQt1Wh3PgDFpC0XpwclzKcdT1vql6KeYxf5LIt4nlFkUeR8WuphYMKqUA56X4rjbfgQ=="],
@@ -1633,6 +1653,8 @@
     "svelte-toolbelt": ["svelte-toolbelt@0.7.1", "", { "dependencies": { "clsx": "^2.1.1", "runed": "^0.23.2", "style-to-object": "^1.0.8" }, "peerDependencies": { "svelte": "^5.0.0" } }, "sha512-HcBOcR17Vx9bjaOceUvxkY3nGmbBmCBBbuWLLEWO6jtmWH8f/QoWmbyUfQZrpDINH39en1b8mptfPQT9VKQ1xQ=="],
 
     "tabbable": ["tabbable@6.4.0", "", {}, "sha512-05PUHKSNE8ou2dwIxTngl4EzcnsCDZGJ/iCLtDflR/SHB/ny14rXc+qU5P4mG9JkusiV7EivzY9Mhm55AzAvCg=="],
+
+    "tagged-tag": ["tagged-tag@1.0.0", "", {}, "sha512-yEFYrVhod+hdNyx7g5Bnkkb0G6si8HJurOoOEgC8B/O0uXLHlaey/65KRv6cuWBNhBgHKAROVpc7QyYqE5gFng=="],
 
     "tailwind-merge": ["tailwind-merge@3.4.0", "", {}, "sha512-uSaO4gnW+b3Y2aWoWfFpX62vn2sR3skfhbjsEnaBI81WD1wBLlHZe5sWf0AqjksNdYTbGBEd0UasQMT3SNV15g=="],
 
@@ -1679,6 +1701,8 @@
     "tweetnacl": ["tweetnacl@1.0.3", "", {}, "sha512-6rt+RN7aOi1nGMyC4Xa5DdYiukl2UWCbcJft7YhxReBGQD7OAM8Pbxw6YMo4r2diNEA8FEmu32YOn9rhaiE5yw=="],
 
     "type-detect": ["type-detect@4.0.8", "", {}, "sha512-0fr/mIH1dlO+x7TlcMy+bIDqKPsw/70tVyeHW787goQjhmqaZe10uwLujubK9q9Lg6Fiho1KUKDYz0Z7k7g5/g=="],
+
+    "type-fest": ["type-fest@5.4.4", "", { "dependencies": { "tagged-tag": "^1.0.0" } }, "sha512-JnTrzGu+zPV3aXIUhnyWJj4z/wigMsdYajGLIYakqyOW1nPllzXEJee0QQbHj+CTIQtXGlAjuK0UY+2xTyjVAw=="],
 
     "typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
 

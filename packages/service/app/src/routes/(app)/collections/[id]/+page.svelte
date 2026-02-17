@@ -1,9 +1,9 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
-  import SiteHeader from "$lib/components/layout/site-header.svelte";
   import AddInfluxDialog from "$lib/components/AddInfluxDialog.svelte";
   import FilterEditor from "$lib/components/FilterEditor.svelte";
   import SourceTypeIcon from "$lib/components/icons/SourceTypeIcon.svelte";
+  import SiteHeader from "$lib/components/layout/site-header.svelte";
   import { Button, buttonVariants } from "$lib/components/ui/button";
   import * as Command from "$lib/components/ui/command";
   import { Input } from "$lib/components/ui/input";
@@ -15,7 +15,6 @@
     getSourceCollectionSchemaQuery,
     updateCollection,
   } from "$lib/remote/collections.remote";
-  import { updateCollectionNameSchema } from "$lib/remote/collections.schemas";
   import {
     addConnection,
     getConnectionsByCollection,
@@ -29,8 +28,11 @@
   } from "$lib/remote/influxes.remote";
   import { cn } from "$lib/utils";
   import { tcToast } from "$lib/utils/toast";
-  import type { CollectionSchema, Filter as FilterType } from "@contfu/core";
-  import type { BackendConnectionWithDetails } from "@contfu/svc-backend/domain/types";
+  import type {
+    CollectionSchema,
+    Filter as FilterType,
+    ServiceConnectionWithDetails,
+  } from "@contfu/svc-core";
   import {
     Check,
     ChevronsUpDown,
@@ -45,11 +47,12 @@
   import Pencil from "@lucide/svelte/icons/pencil";
   import { useId } from "bits-ui";
   import { toast } from "svelte-sonner";
+  import * as v from "valibot";
 
   const nameId = useId();
   let { params } = $props();
 
-  let id = $derived(Number(params.id));
+  let id = $derived(params.id);
   const collection = $derived(await getCollection({ id }));
 
   // Sync form fields when collection changes
@@ -58,11 +61,9 @@
   });
 
   // Query objects - auto-refresh after form submissions
-  const influxesQuery = $derived(
-    getInfluxes({ collectionId: Number(params.id) }),
-  );
+  const influxesQuery = $derived(getInfluxes({ collectionId: params.id }));
   const connectionsQuery = $derived(
-    getConnectionsByCollection({ collectionId: Number(params.id) }),
+    getConnectionsByCollection({ collectionId: params.id }),
   );
   const allConsumers = $derived(await getConsumers());
 
@@ -179,7 +180,12 @@
             <Popover.Content class="w-72" align="start">
               <form
                 {...updateCollection
-                  .preflight(updateCollectionNameSchema)
+                  .preflight(
+                    v.object({
+                      id: v.string(),
+                      name: v.pipe(v.string(), v.nonEmpty("Name is required")),
+                    }),
+                  )
                   .enhance(async ({ submit, data }) => {
                     namePopoverOpen = false;
                     await tcToast(async () => {
@@ -195,7 +201,7 @@
                 class="space-y-3"
               >
                 <input
-                  {...updateCollection.fields.id.as("number")}
+                  {...updateCollection.fields.id.as("text")}
                   type="hidden"
                 />
                 <div class="space-y-1.5">
@@ -307,13 +313,13 @@
                     if (remove.pending) return;
                     await submit().updates(
                       getInfluxes({
-                        collectionId: Number(params.id),
+                        collectionId: params.id,
                       }),
                     );
                   })}
                 >
                   <input
-                    {...remove.fields.id.as("number")}
+                    {...remove.fields.id.as("text")}
                     type="hidden"
                     value={influx.id}
                   />
@@ -349,13 +355,13 @@
                         })}
                       >
                         <input
-                          {...updateInfluxForm.fields.collectionId.as("number")}
+                          {...updateInfluxForm.fields.collectionId.as("text")}
                           type="hidden"
                           value={collection.id}
                         />
                         <input
                           {...updateInfluxForm.fields.sourceCollectionId.as(
-                            "number",
+                            "text",
                           )}
                           type="hidden"
                           value={influx.sourceCollectionId}
@@ -445,12 +451,12 @@
                 })}
               >
                 <input
-                  {...remove.fields.consumerId.as("number")}
+                  {...remove.fields.consumerId.as("text")}
                   type="hidden"
                   value={connection.consumerId}
                 />
                 <input
-                  {...remove.fields.collectionId.as("number")}
+                  {...remove.fields.collectionId.as("text")}
                   type="hidden"
                   value={collection.id}
                 />
@@ -489,7 +495,7 @@
                 consumerName: selectedConsumer!.name,
                 consumerId: selectedConsumerId!,
                 collectionId: collection.id,
-              } as BackendConnectionWithDetails;
+              } as ServiceConnectionWithDetails;
               await submit().updates(
                 connectionsQuery.withOverride((connections) => [
                   ...connections,
@@ -502,12 +508,12 @@
           class="flex gap-2"
         >
           <input
-            {...addConnection.fields.collectionId.as("number")}
+            {...addConnection.fields.collectionId.as("text")}
             type="hidden"
             value={collection.id}
           />
           <input
-            {...addConnection.fields.consumerId.as("number")}
+            {...addConnection.fields.consumerId.as("text")}
             type="hidden"
             value={selectedConsumerId!}
           />
@@ -598,7 +604,7 @@
         })}
       >
         <input
-          {...deleteCollection.fields.id.as("number")}
+          {...deleteCollection.fields.id.as("text")}
           type="hidden"
           value={collection.id}
         />

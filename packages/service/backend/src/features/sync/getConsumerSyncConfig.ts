@@ -1,4 +1,4 @@
-import type { Filter } from "@contfu/core";
+import type { Filter } from "@contfu/svc-core";
 import { and, eq, inArray } from "drizzle-orm";
 import { unpack } from "msgpackr";
 import { decryptCredentials } from "../../infra/crypto/credentials";

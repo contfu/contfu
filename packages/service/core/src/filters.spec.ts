@@ -6,7 +6,7 @@ import {
   getOperatorsForType,
   type Filter,
 } from "./filters";
-import { PropertyType } from "./collections";
+import { PropertyType } from "./schemas";
 
 describe("filters", () => {
   describe("matchesFilter", () => {

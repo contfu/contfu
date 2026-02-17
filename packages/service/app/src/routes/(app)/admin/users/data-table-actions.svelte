@@ -1,17 +1,17 @@
 <script lang="ts">
   import { Button } from "$lib/components/ui/button";
   import * as DropdownMenu from "$lib/components/ui/dropdown-menu";
-  import { UserRole } from "$lib/constants/user";
   import {
     approveUser,
     demoteFromAdmin,
     promoteToAdmin,
     revokeUser,
   } from "$lib/remote/admin.remote";
-  import type { UserSummary } from "@contfu/svc-backend/features/admin/listUsers";
+  import type { BackendUserSummary } from "@contfu/svc-backend/domain/types";
+  import { UserRole } from "@contfu/svc-backend/domain/types";
   import EllipsisIcon from "@lucide/svelte/icons/ellipsis";
 
-  let { user }: { user: UserSummary } = $props();
+  let { user }: { user: BackendUserSummary } = $props();
 </script>
 
 <DropdownMenu.Root>

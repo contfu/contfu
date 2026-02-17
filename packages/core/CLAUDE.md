@@ -79,6 +79,7 @@ bun run build
 
 - Event types must remain numeric for binary serialization efficiency
 - PropertyType values are powers of 2 for bitwise combination support
+- `WireItem[2]` (collection) is a `string` (encoded collection ID), not a number. The internal `Item.collection` remains `number`.
 
 ## Related Skills
 

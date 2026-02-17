@@ -1,22 +1,13 @@
+import type { BackendCollection } from "../../domain/types";
 import { db } from "../../infra/db/db";
 import { collectionTable, influxTable, connectionTable } from "../../infra/db/schema";
 import { eq, sql } from "drizzle-orm";
-
-export interface Collection {
-  id: number;
-  userId: number;
-  name: string;
-  influxCount: number;
-  connectionCount: number;
-  createdAt: Date;
-  updatedAt: Date | null;
-}
 
 /**
  * List all Collections for a user with counts.
  * These are the collections that consumers can subscribe to.
  */
-export async function listCollections(userId: number): Promise<Collection[]> {
+export async function listCollections(userId: number): Promise<BackendCollection[]> {
   const collections = await db
     .select()
     .from(collectionTable)

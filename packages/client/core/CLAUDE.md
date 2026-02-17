@@ -89,3 +89,4 @@ bun run tsc --noEmit
 - Interfaces should support both sync (Buffer) and async (ReadableStream) inputs
 - Keep interfaces minimal to allow flexible implementations
 - Kysely provides excellent TypeScript inference for database operations
+- The `Item` type exported from `stream-client.ts` has `collection: string` (encoded ID from server), not `number`. The core `@contfu/core` `Item` has `collection: number` (internal server type).

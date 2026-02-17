@@ -9,7 +9,7 @@ import {
 } from "../../infra/db/schema";
 import { pack } from "msgpackr";
 import crypto from "node:crypto";
-import { FilterOperator, PropertyType, type CollectionSchema, type Filter } from "@contfu/core";
+import { FilterOperator, PropertyType, type CollectionSchema, type Filter } from "@contfu/svc-core";
 import { createInflux } from "./createInflux";
 import { getInflux } from "./getInflux";
 import { listInfluxes } from "./listInfluxes";

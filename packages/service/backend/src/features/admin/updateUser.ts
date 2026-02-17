@@ -1,17 +1,7 @@
+import { eq } from "drizzle-orm";
+import type { BackendUserSummary, UserRole } from "../../domain/types";
 import { db } from "../../infra/db/db";
 import { userTable } from "../../infra/db/schema";
-import type { UserRole } from "../../infra/db/constants";
-import { eq } from "drizzle-orm";
-
-export interface UserSummary {
-  id: number;
-  name: string;
-  email: string;
-  emailVerified: boolean;
-  role: UserRole;
-  approved: boolean;
-  createdAt: Date;
-}
 
 export interface UpdateUserDto {
   id: number;
@@ -22,7 +12,7 @@ export interface UpdateUserDto {
 /**
  * Update a user's approval status or role.
  */
-export async function updateUser(dto: UpdateUserDto): Promise<UserSummary | null> {
+export async function updateUser(dto: UpdateUserDto): Promise<BackendUserSummary | null> {
   const updateData: {
     approved?: boolean;
     role?: UserRole;

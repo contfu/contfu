@@ -1,5 +1,5 @@
-import type { CollectionSchema, Filter } from "@contfu/core";
-import { FilterOperator, PropertyType } from "@contfu/core";
+import type { CollectionSchema, Filter } from "@contfu/svc-core";
+import { FilterOperator, PropertyType } from "@contfu/svc-core";
 
 export interface FilterValidationResult {
   valid: boolean;

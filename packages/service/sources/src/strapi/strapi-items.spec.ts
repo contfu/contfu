@@ -60,9 +60,9 @@ describe("strapi-items", () => {
       expect(item.collection).toBe(1);
       expect(item.ref).toEqual(Buffer.from("abc123def456", "utf8"));
       expect(item.id).toEqual(genUid(Buffer.from("abc123def456", "utf8")));
-      expect(item.createdAt).toBe(new Date("2024-01-10T08:00:00.000Z").getTime());
+      expect(item.props.createdAt).toBe(new Date("2024-01-10T08:00:00.000Z").getTime());
       expect(item.changedAt).toBe(new Date("2024-01-15T10:30:00.000Z").getTime());
-      expect(item.publishedAt).toBe(new Date("2024-01-15T10:30:00.000Z").getTime());
+      expect(item.props.publishedAt).toBe(new Date("2024-01-15T10:30:00.000Z").getTime());
 
       // Check props
       expect(getProps(item).title).toBe("Getting Started with Strapi");
@@ -90,7 +90,7 @@ describe("strapi-items", () => {
       const items = await Array.fromAsync(iterateItems(testOpts));
 
       expect(items).toHaveLength(1);
-      expect(items[0].publishedAt).toBeUndefined();
+      expect(items[0].props.publishedAt).toBeUndefined();
     });
 
     it("should convert media fields to URLs", async () => {
@@ -191,9 +191,9 @@ describe("strapi-items", () => {
       // Reserved fields should not be in props
       expect(item.props).not.toHaveProperty("id");
       expect(item.props).not.toHaveProperty("documentId");
-      expect(item.props).not.toHaveProperty("createdAt");
+      expect(item.props).toHaveProperty("createdAt");
       expect(item.props).not.toHaveProperty("updatedAt");
-      expect(item.props).not.toHaveProperty("publishedAt");
+      expect(item.props).toHaveProperty("publishedAt");
     });
 
     it("should pass query parameters to API", async () => {

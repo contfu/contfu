@@ -2,7 +2,8 @@ import { db } from "../../infra/db/db";
 import { influxTable, sourceCollectionTable, sourceTable } from "../../infra/db/schema";
 import { and, eq } from "drizzle-orm";
 import { unpack } from "msgpackr";
-import type { CollectionSchema, Filter, InfluxWithDetails } from "@contfu/core";
+import type { CollectionSchema, Filter } from "@contfu/svc-core";
+import type { BackendInfluxWithDetails } from "../../domain/types";
 
 /**
  * List all influxes for a collection with source details.
@@ -10,7 +11,7 @@ import type { CollectionSchema, Filter, InfluxWithDetails } from "@contfu/core";
 export async function listInfluxes(
   userId: number,
   collectionId: number,
-): Promise<InfluxWithDetails[]> {
+): Promise<BackendInfluxWithDetails[]> {
   const results = await db
     .select({
       id: influxTable.id,

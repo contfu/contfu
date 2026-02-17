@@ -1,15 +1,10 @@
-export enum PropertyType {
-  NULL = 0,
-  STRING = 2,
-  STRINGS = 4,
-  NUMBER = 8,
-  NUMBERS = 16,
-  BOOLEAN = 32,
-  REF = 64,
-  REFS = 128,
-  FILE = 256,
-  FILES = 512,
-  DATE = 1024,
+/**
+ * A collection of items.
+ *
+ * A collection is a logical grouping of items. It is the target of influxes.
+ * It can be shared with consumers.
+ **/
+export interface Collection {
+  id: string;
+  name: string;
 }
-
-export type CollectionSchema = Record<string, number>;

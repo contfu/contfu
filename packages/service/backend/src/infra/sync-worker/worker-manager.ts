@@ -3,7 +3,7 @@ import {
   type ItemsFetchedMessage,
   type UserSyncItem,
   type WorkerToAppMessage,
-} from "@contfu/core";
+} from "@contfu/svc-core";
 import { and, eq } from "drizzle-orm";
 import { connectionTable, db, influxTable } from "../db/db";
 import type { ConnectionInfo } from "../types";

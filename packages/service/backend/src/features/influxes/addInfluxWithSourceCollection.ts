@@ -2,7 +2,7 @@ import { db } from "../../infra/db/db";
 import { sourceCollectionTable, influxTable } from "../../infra/db/schema";
 import { and, eq } from "drizzle-orm";
 import { pack, unpack } from "msgpackr";
-import type { CollectionSchema, Filter } from "@contfu/core";
+import type { CollectionSchema, Filter } from "@contfu/svc-core";
 
 export interface AddInfluxInput {
   /** Target collection ID */

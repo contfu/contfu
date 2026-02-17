@@ -20,6 +20,7 @@ FROM base AS deps
 WORKDIR /app
 COPY package.json bun.lock /app/
 COPY packages/core/package.json /app/packages/core/package.json
+COPY packages/service/core/package.json /app/packages/service/core/package.json
 COPY packages/service/backend/package.json /app/packages/service/backend/package.json
 COPY packages/service/sources/package.json /app/packages/service/sources/package.json
 COPY packages/service/sync/package.json /app/packages/service/sync/package.json
@@ -43,6 +44,7 @@ COPY --from=deps /app/ /app/
 COPY --from=build /app/packages/service/app/build/ /app/packages/service/app/build/
 COPY --from=build /app/packages/service/backend/dist/ /app/packages/service/backend/dist/
 COPY --from=build /app/packages/core/src/ /app/packages/core/src/
+COPY --from=build /app/packages/service/core/src/ /app/packages/service/core/src/
 COPY --from=build /app/packages/service/sync/src/ /app/packages/service/sync/src/
 COPY --from=build /app/packages/service/sync/node_modules/ /app/packages/service/sync/node_modules/
 # Copy database migrations

@@ -3,19 +3,11 @@ import { blob, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite
 export const itemsTable = sqliteTable("items", {
   id: blob({ mode: "buffer" }).primaryKey(),
   ref: text().notNull(),
-  path: text().unique().notNull(),
   collection: integer()
     .notNull()
     .references(() => collectionTable.id, { onDelete: "cascade" }),
-  title: text().notNull(),
-  description: text().notNull(),
-  content: text(),
   props: text(),
-  author: text(),
-  connection: blob({ mode: "buffer" }).notNull(),
-  publishedAt: integer().notNull(),
-  createdAt: integer().notNull(),
-  updatedAt: integer(),
+  content: text(),
   changedAt: integer().notNull(),
 });
 
@@ -43,6 +35,7 @@ export type PageLinkUpdate = Partial<NewPageLink>;
 
 export const collectionTable = sqliteTable("collection", {
   id: integer().primaryKey(),
+  ref: text().unique().notNull(),
   name: text().notNull(),
   createdAt: integer().notNull(),
   updatedAt: integer(),

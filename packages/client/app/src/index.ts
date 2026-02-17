@@ -24,7 +24,6 @@ export {
   // Sync exports
   sync,
   // Pages exports
-  type Page,
   type PageData,
   getPages,
   getPage,

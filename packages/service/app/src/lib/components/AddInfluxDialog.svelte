@@ -13,11 +13,8 @@
     type DataSourceInfo,
     type SourceWithDataSources,
   } from "$lib/remote/influxes.remote";
-  import type {
-    CollectionSchema,
-    Filter,
-    InfluxWithDetails,
-  } from "@contfu/core";
+  import type { CollectionSchema, Filter } from "@contfu/svc-core";
+  import type { ServiceInfluxWithDetails } from "@contfu/svc-core";
   import { SourceType } from "@contfu/svc-backend/features/sources/testSourceConnection";
   import AlertCircle from "@lucide/svelte/icons/alert-circle";
   import Check from "@lucide/svelte/icons/check";
@@ -156,7 +153,7 @@
       sourceCollectionName: selectedDataSource?.title!,
       sourceCollectionRef: selectedDataSource?.id!,
       sourceName: selectedSource!.sourceName!,
-    } as InfluxWithDetails;
+    } as ServiceInfluxWithDetails;
 
     const result = await addInfluxWithAutoCreate({
       collectionId,

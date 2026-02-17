@@ -124,13 +124,13 @@ describe("stream-client", () => {
       const changedEvent = events[0] as { type: number; item: Record<string, unknown> };
       expect(changedEvent.type).toBe(EventType.CHANGED);
       expect(changedEvent.item.collection).toBe(1);
-      expect(changedEvent.item.publishedAt).toBe(1700000000);
-      expect(changedEvent.item.createdAt).toBe(1699000000);
+      const itemProps = changedEvent.item.props as Record<string, unknown>;
+      expect(itemProps.publishedAt).toBe(1700000000);
+      expect(itemProps.createdAt).toBe(1699000000);
       expect(changedEvent.item.changedAt).toBe(1700500000);
       expect(changedEvent.item.content).toEqual(content);
 
       // Check props with deserialized Buffer arrays
-      const itemProps = changedEvent.item.props as Record<string, unknown>;
       expect(itemProps.title).toBe("Test");
       expect(Array.isArray(itemProps.tags)).toBe(true);
     });
@@ -157,7 +157,7 @@ describe("stream-client", () => {
 
       expect(events).toHaveLength(1);
       const changedEvent = events[0] as { type: number; item: Record<string, unknown> };
-      expect(changedEvent.item.publishedAt).toBeUndefined();
+      expect((changedEvent.item.props as Record<string, unknown>).publishedAt).toBeUndefined();
       expect(changedEvent.item.content).toBeUndefined();
     });
 

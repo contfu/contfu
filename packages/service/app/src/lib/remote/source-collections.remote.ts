@@ -1,8 +1,8 @@
 import { form, query } from "$app/server";
 import { getUserId } from "$lib/server/user";
 import type {
-  BackendCollectionSummary,
-  BackendCollectionWithConnectionCount,
+  BackendSourceCollectionSummary,
+  BackendSourceCollectionWithConnectionCount,
 } from "@contfu/svc-backend/domain/types";
 import { createCollection as createCollectionFeature } from "@contfu/svc-backend/features/source-collections/createCollection";
 import { deleteCollection as deleteCollectionFeature } from "@contfu/svc-backend/features/source-collections/deleteCollection";
@@ -11,28 +11,44 @@ import { getCollectionWithConnectionCount } from "@contfu/svc-backend/features/s
 import { listCollections } from "@contfu/svc-backend/features/source-collections/listCollections";
 import { listCollectionSummariesBySource } from "@contfu/svc-backend/features/source-collections/listCollectionSummariesBySource";
 import { updateCollection as updateCollectionFeature } from "@contfu/svc-backend/features/source-collections/updateCollection";
+import { encodeId, idSchema } from "@contfu/svc-backend/infra/ids";
 import { invalid } from "@sveltejs/kit";
 import * as v from "valibot";
+
+function encodeSourceCollection(c: BackendSourceCollectionWithConnectionCount) {
+  return {
+    ...c,
+    id: encodeId("sourceCollection", c.id),
+    userId: encodeId("user", c.userId),
+    sourceId: encodeId("source", c.sourceId),
+  };
+}
+
+function encodeSourceCollectionSummary(c: BackendSourceCollectionSummary) {
+  return {
+    ...c,
+    id: encodeId("sourceCollection", c.id),
+  };
+}
 
 /**
  * Get all source collections for the current user.
  */
-export const getSourceCollections = query(
-  async (): Promise<BackendCollectionWithConnectionCount[]> => {
-    const userId = getUserId();
-    return listCollections(userId);
-  },
-);
+export const getSourceCollections = query(async () => {
+  const userId = getUserId();
+  const collections = await listCollections(userId);
+  return collections.map(encodeSourceCollection);
+});
 
 /**
  * Get source collections filtered by source ID (minimal summary data).
  */
 export const getSourceCollectionsBySource = query(
-  v.object({ sourceId: v.number() }),
-  async ({ sourceId }): Promise<BackendCollectionSummary[]> => {
-    console.log("Getting source collections by sourceId", sourceId);
+  v.object({ sourceId: idSchema("source") }),
+  async ({ sourceId }) => {
     const userId = getUserId();
-    return listCollectionSummariesBySource(userId, sourceId);
+    const collections = await listCollectionSummariesBySource(userId, sourceId);
+    return collections.map(encodeSourceCollectionSummary);
   },
 );
 
@@ -40,11 +56,11 @@ export const getSourceCollectionsBySource = query(
  * Get a single source collection by ID.
  */
 export const getSourceCollection = query(
-  v.object({ id: v.number() }),
-  async ({ id }): Promise<BackendCollectionWithConnectionCount | null> => {
+  v.object({ id: idSchema("sourceCollection") }),
+  async ({ id }) => {
     const userId = getUserId();
     const collection = await getCollectionWithConnectionCount(userId, id);
-    return collection ?? null;
+    return collection ? encodeSourceCollection(collection) : null;
   },
 );
 
@@ -54,11 +70,7 @@ export const getSourceCollection = query(
 export const createSourceCollection = form(
   v.object({
     name: v.pipe(v.string(), v.nonEmpty("Name is required")),
-    sourceId: v.pipe(
-      v.union([v.string(), v.number()]),
-      v.transform((val) => (typeof val === "string" ? Number.parseInt(val, 10) : val)),
-      v.number(),
-    ),
+    sourceId: idSchema("source"),
     ref: v.optional(v.string()),
   }),
   async (data) => {
@@ -80,11 +92,7 @@ export const createSourceCollection = form(
  */
 export const updateSourceCollection = form(
   v.object({
-    id: v.pipe(
-      v.union([v.string(), v.number()]),
-      v.transform((val) => (typeof val === "string" ? Number.parseInt(val, 10) : val)),
-      v.number(),
-    ),
+    id: idSchema("sourceCollection"),
     name: v.optional(v.pipe(v.string(), v.nonEmpty("Name cannot be empty"))),
     ref: v.optional(v.string()),
   }),
@@ -116,11 +124,7 @@ export const updateSourceCollection = form(
  */
 export const deleteSourceCollection = form(
   v.object({
-    id: v.pipe(
-      v.union([v.string(), v.number()]),
-      v.transform((val) => (typeof val === "string" ? Number.parseInt(val, 10) : val)),
-      v.number(),
-    ),
+    id: idSchema("sourceCollection"),
   }),
   async (data, issue) => {
     const userId = getUserId();

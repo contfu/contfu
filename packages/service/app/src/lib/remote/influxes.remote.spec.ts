@@ -8,7 +8,7 @@ import {
 } from "@contfu/svc-backend/infra/db/schema";
 import { pack } from "msgpackr";
 import crypto from "node:crypto";
-import { PropertyType, type CollectionSchema } from "@contfu/core";
+import { PropertyType, type CollectionSchema } from "@contfu/svc-core";
 import { truncateAllTables } from "../../../test/setup";
 
 /**

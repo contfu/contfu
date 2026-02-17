@@ -2,12 +2,13 @@ import { db } from "../../infra/db/db";
 import { influxTable, sourceCollectionTable, sourceTable } from "../../infra/db/schema";
 import { and, eq } from "drizzle-orm";
 import { unpack } from "msgpackr";
-import type { CollectionSchema, Filter, InfluxWithDetails } from "@contfu/core";
+import type { CollectionSchema, Filter } from "@contfu/svc-core";
+import type { BackendInfluxWithDetails } from "../../domain/types";
 
 /**
  * List all influxes for a user (across all collections).
  */
-export async function listAllInfluxes(userId: number): Promise<InfluxWithDetails[]> {
+export async function listAllInfluxes(userId: number): Promise<BackendInfluxWithDetails[]> {
   const results = await db
     .select({
       id: influxTable.id,

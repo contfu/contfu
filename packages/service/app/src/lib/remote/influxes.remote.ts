@@ -1,6 +1,7 @@
 import { command, form, query } from "$app/server";
 import { getUserId } from "$lib/server/user";
-import type { CollectionSchema, Filter, InfluxWithDetails } from "@contfu/core";
+import type { CollectionSchema, Filter } from "@contfu/svc-core";
+import type { BackendInfluxWithDetails } from "@contfu/svc-backend/domain/types";
 import { addInfluxWithSourceCollection } from "@contfu/svc-backend/features/influxes";
 import { deleteInflux as deleteInfluxFeature } from "@contfu/svc-backend/features/influxes/deleteInflux";
 import { listInfluxes } from "@contfu/svc-backend/features/influxes/listInfluxes";
@@ -11,6 +12,7 @@ import { listSources } from "@contfu/svc-backend/features/sources/listSources";
 import { SourceType } from "@contfu/svc-backend/features/sources/testSourceConnection";
 import { db } from "@contfu/svc-backend/infra/db/db";
 import { influxTable } from "@contfu/svc-backend/infra/db/schema";
+import { encodeId, idSchema } from "@contfu/svc-backend/infra/ids";
 import {
   iterateDataSources,
   notionPropertiesToSchema,
@@ -43,12 +45,12 @@ export interface DataSourceInfo {
   schema: CollectionSchema | null;
   /** True if already exists as a SourceCollection */
   exists: boolean;
-  /** If exists, the source collection ID */
-  sourceCollectionId?: number;
+  /** If exists, the source collection ID (encoded) */
+  sourceCollectionId?: string | number;
 }
 
 export interface SourceWithDataSources {
-  sourceId: number;
+  sourceId: string | number;
   sourceName: string | null;
   sourceType: number;
   dataSources: DataSourceInfo[];
@@ -106,7 +108,7 @@ export const probeAllSources = query(async (): Promise<SourceWithDataSources[]> 
 
   for (const source of sources) {
     const result: SourceWithDataSources = {
-      sourceId: source.id,
+      sourceId: encodeId("source", source.id),
       sourceName: source.name,
       sourceType: source.type,
       dataSources: [],
@@ -154,7 +156,8 @@ export const probeAllSources = query(async (): Promise<SourceWithDataSources[]> 
           return {
             ...ds,
             exists: existingId !== undefined,
-            sourceCollectionId: existingId,
+            sourceCollectionId:
+              existingId !== undefined ? encodeId("sourceCollection", existingId) : undefined,
           };
         });
       } else {
@@ -166,7 +169,7 @@ export const probeAllSources = query(async (): Promise<SourceWithDataSources[]> 
           icon: null,
           schema: null, // Will be fetched from source collection
           exists: true,
-          sourceCollectionId: c.id,
+          sourceCollectionId: encodeId("sourceCollection", c.id),
         }));
       }
     } catch (err) {
@@ -190,11 +193,7 @@ export const probeAllSources = query(async (): Promise<SourceWithDataSources[]> 
  */
 export const refreshSourceDataSources = command(
   v.object({
-    sourceId: v.pipe(
-      v.union([v.string(), v.number()]),
-      v.transform((val) => (typeof val === "string" ? Number.parseInt(val, 10) : val)),
-      v.number(),
-    ),
+    sourceId: idSchema("source"),
   }),
   async (data): Promise<{ success: true } | { success: false; error: string }> => {
     const userId = getUserId();
@@ -250,32 +249,18 @@ export const refreshSourceDataSources = command(
  */
 export const addInflux = command(
   v.object({
-    collectionId: v.pipe(
-      v.union([v.string(), v.number()]),
-      v.transform((val) => (typeof val === "string" ? Number.parseInt(val, 10) : val)),
-      v.number(),
-    ),
-    sourceId: v.pipe(
-      v.union([v.string(), v.number()]),
-      v.transform((val) => (typeof val === "string" ? Number.parseInt(val, 10) : val)),
-      v.number(),
-    ),
+    collectionId: idSchema("collection"),
+    sourceId: idSchema("source"),
     ref: v.string(),
     name: v.string(),
-    existingSourceCollectionId: v.optional(
-      v.pipe(
-        v.union([v.string(), v.number()]),
-        v.transform((val) => (typeof val === "string" ? Number.parseInt(val, 10) : val)),
-        v.number(),
-      ),
-    ),
+    existingSourceCollectionId: v.optional(idSchema("sourceCollection")),
     filters: v.optional(v.string()), // JSON string of Filter[]
     schema: v.optional(v.string()), // JSON string of CollectionSchema
   }),
   async (
     data,
   ): Promise<
-    | { success: true; sourceCollectionId: number; influxId: number }
+    | { success: true; sourceCollectionId: string; influxId: string }
     | { success: false; error: string }
   > => {
     const userId = getUserId();
@@ -301,7 +286,7 @@ export const addInflux = command(
     }
 
     // Call backend feature
-    return addInfluxWithSourceCollection(userId, {
+    const result = await addInfluxWithSourceCollection(userId, {
       collectionId: data.collectionId,
       sourceId: data.sourceId,
       ref: data.ref,
@@ -310,6 +295,13 @@ export const addInflux = command(
       filters,
       schema,
     });
+
+    if (!result.success) return result;
+    return {
+      success: true as const,
+      sourceCollectionId: encodeId("sourceCollection", result.sourceCollectionId),
+      influxId: encodeId("influx", result.influxId),
+    };
   },
 );
 
@@ -323,11 +315,21 @@ export const addInfluxWithAutoCreate = addInflux;
 /**
  * Get all influxes for a collection with source details.
  */
+function encodeInflux(influx: BackendInfluxWithDetails) {
+  return {
+    ...influx,
+    id: encodeId("influx", influx.id),
+    sourceCollectionId: encodeId("sourceCollection", influx.sourceCollectionId),
+    sourceId: encodeId("source", influx.sourceId),
+  };
+}
+
 export const getInfluxes = query(
-  v.object({ collectionId: v.number() }),
-  async ({ collectionId }): Promise<InfluxWithDetails[]> => {
+  v.object({ collectionId: idSchema("collection") }),
+  async ({ collectionId }) => {
     const userId = getUserId();
-    return listInfluxes(userId, collectionId);
+    const influxes = await listInfluxes(userId, collectionId);
+    return influxes.map(encodeInflux);
   },
 );
 
@@ -338,14 +340,11 @@ export const getInfluxes = query(
 /**
  * Remove an influx from a collection by source collection ID.
  */
-export const removeInflux = form(
-  v.object({ id: v.pipe(v.number(), v.integer()) }),
-  async (data) => {
-    const userId = getUserId();
-    await deleteInfluxFeature(userId, data.id);
-    return { success: true };
-  },
-);
+export const removeInflux = form(v.object({ id: idSchema("influx") }), async (data) => {
+  const userId = getUserId();
+  await deleteInfluxFeature(userId, data.id);
+  return { success: true };
+});
 
 // ============================================================
 // Update Influx
@@ -356,16 +355,8 @@ export const removeInflux = form(
  */
 export const updateInfluxForm = form(
   v.object({
-    collectionId: v.pipe(
-      v.union([v.string(), v.number()]),
-      v.transform((val) => (typeof val === "string" ? Number.parseInt(val, 10) : val)),
-      v.number(),
-    ),
-    sourceCollectionId: v.pipe(
-      v.union([v.string(), v.number()]),
-      v.transform((val) => (typeof val === "string" ? Number.parseInt(val, 10) : val)),
-      v.number(),
-    ),
+    collectionId: idSchema("collection"),
+    sourceCollectionId: idSchema("sourceCollection"),
     filters: v.optional(v.string()), // JSON string of Filter[]
   }),
   async (data, issue) => {

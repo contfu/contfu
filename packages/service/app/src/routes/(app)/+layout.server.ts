@@ -1,9 +1,9 @@
-import type { LayoutServerLoad } from "./$types";
-import { redirect } from "@sveltejs/kit";
-import { UserRole } from "@contfu/svc-backend/infra/db/constants";
+import { UserRole } from "@contfu/svc-backend/domain/types";
 import { db } from "@contfu/svc-backend/infra/db/db";
 import { userTable } from "@contfu/svc-backend/infra/db/schema";
+import { redirect } from "@sveltejs/kit";
 import { eq } from "drizzle-orm";
+import type { LayoutServerLoad } from "./$types";
 
 export const load: LayoutServerLoad = async ({ url, locals }) => {
   if (!locals.user) {

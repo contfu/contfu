@@ -1,7 +1,7 @@
+import type { BackendCollection } from "../../domain/types";
 import { db } from "../../infra/db/db";
 import { collectionTable, influxTable, connectionTable } from "../../infra/db/schema";
 import { and, eq, sql } from "drizzle-orm";
-import type { Collection } from "./listCollections";
 
 /**
  * Get a single Collection by ID.
@@ -9,7 +9,7 @@ import type { Collection } from "./listCollections";
 export async function getCollection(
   userId: number,
   collectionId: number,
-): Promise<Collection | null> {
+): Promise<BackendCollection | null> {
   const [collection] = await db
     .select()
     .from(collectionTable)

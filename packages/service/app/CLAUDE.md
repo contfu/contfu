@@ -294,3 +294,4 @@ bun run db:generate
 - Argon2 is the recommended password hashing algorithm
 - Stripe webhooks need signature verification
 - Bun adapter provides fastest runtime for SvelteKit
+- Remote functions use `idSchema(entity)` from `@contfu/svc-backend/infra/ids` to decode incoming encoded IDs, and `encodeId(entity, id)` to encode outgoing numeric IDs. Frontend hidden inputs use `.as("text")` for ID fields (not `.as("number")`), since IDs are encoded strings.

@@ -1,11 +1,11 @@
 <script lang="ts" module>
-  import type { UserRole as UserRoleType } from "$lib/constants/user";
+  import type { UserRole } from "@contfu/svc-backend/domain/types";
 
   export type DisplayUser = {
     email: string;
     name: string;
     image?: string;
-    role?: UserRoleType;
+    role?: UserRole;
   };
 </script>
 

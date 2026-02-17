@@ -104,11 +104,11 @@ function parseHtmlItem(html: string, url: string, collection: number, lastModifi
     props["description"] = description;
   }
 
+  props.createdAt = lastModified ?? now;
   const item: Item = {
     id: genUid(ref),
     ref,
     collection,
-    createdAt: lastModified ?? now,
     changedAt: lastModified ?? now,
     props,
   };
@@ -148,11 +148,11 @@ function parseMarkdownItem(
     props["description"] = description;
   }
 
+  props.createdAt = lastModified ?? now;
   const item: Item = {
     id: genUid(ref),
     ref,
     collection,
-    createdAt: lastModified ?? now,
     changedAt: lastModified ?? now,
     props,
   };
@@ -186,11 +186,11 @@ function parseJsonItem(json: string, url: string, collection: number, lastModifi
     data: JSON.stringify(data),
   };
 
+  props.createdAt = lastModified ?? now;
   const item: Item = {
     id: genUid(ref),
     ref,
     collection,
-    createdAt: lastModified ?? now,
     changedAt: lastModified ?? now,
     props,
   };

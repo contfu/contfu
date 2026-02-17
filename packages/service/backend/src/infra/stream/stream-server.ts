@@ -2,15 +2,16 @@ import {
   EventType,
   WIRE_PING,
   type Item,
-  type UserSyncItem,
   type WireEvent,
   type WireItem,
   type WireItemEvent,
 } from "@contfu/core";
+import type { UserSyncItem } from "@contfu/svc-core";
 import { and, eq } from "drizzle-orm";
 import { pack as msgpack } from "msgpackr";
 import { enqueueSyncJobs } from "../../features/sync-jobs/enqueueSyncJobs";
 import { connectionTable, consumerTable, db, influxTable } from "../db/db";
+import { encodeId } from "../ids";
 import { publishEvent } from "../nats/event-stream";
 import type { ConnectionInfo } from "../types";
 
@@ -305,11 +306,9 @@ export function toWireItem(item: Item): WireItem {
   const wireItem: WireItem = [
     new Uint8Array(item.ref),
     new Uint8Array(item.id),
-    item.collection,
-    item.publishedAt ?? 0,
-    item.createdAt,
+    encodeId("collection", item.collection),
     item.changedAt,
-    serializeProps(item.props),
+    serializeProps(item.props as Record<string, unknown>),
   ];
   if (item.content) {
     wireItem.push(item.content);

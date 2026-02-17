@@ -1,11 +1,11 @@
+import type { BackendSourceCollection, CreateSourceCollectionInput } from "../../domain/types";
 import { db } from "../../infra/db/db";
 import {
-  sourceCollectionTable,
   collectionTable,
   influxTable,
+  sourceCollectionTable,
   type SourceCollection,
 } from "../../infra/db/schema";
-import type { BackendCollection, CreateCollectionInput } from "../../domain/types";
 
 function countItemIds(itemIds: Buffer | null): number {
   if (!itemIds) return 0;
@@ -13,7 +13,7 @@ function countItemIds(itemIds: Buffer | null): number {
   return Math.floor(itemIds.length / 4);
 }
 
-function mapToBackendCollection(collection: SourceCollection): BackendCollection {
+function mapToBackendSourceCollection(collection: SourceCollection): BackendSourceCollection {
   return {
     id: collection.id,
     userId: collection.userId,
@@ -39,8 +39,8 @@ function mapToBackendCollection(collection: SourceCollection): BackendCollection
  */
 export async function createCollection(
   userId: number,
-  input: CreateCollectionInput,
-): Promise<BackendCollection> {
+  input: CreateSourceCollectionInput,
+): Promise<BackendSourceCollection> {
   // Use transaction to atomically create related records
   const inserted = await db.transaction(async (tx) => {
     // Create the source collection
@@ -76,5 +76,5 @@ export async function createCollection(
     return sourceCollection;
   });
 
-  return mapToBackendCollection(inserted);
+  return mapToBackendSourceCollection(inserted);
 }

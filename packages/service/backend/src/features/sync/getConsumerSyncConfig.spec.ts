@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import { FilterOperator, SourceType, type Filter } from "@contfu/core";
+import { FilterOperator, SourceType, type Filter } from "@contfu/svc-core";
 import { pack } from "msgpackr";
 import crypto from "node:crypto";
 import { encryptCredentials } from "../../infra/crypto/credentials";

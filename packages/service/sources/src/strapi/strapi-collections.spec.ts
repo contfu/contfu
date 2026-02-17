@@ -1,5 +1,5 @@
 import { describe, expect, it, mock, beforeEach } from "bun:test";
-import { PropertyType } from "@contfu/core";
+import { PropertyType } from "@contfu/svc-core";
 import { articleSchema } from "./__fixtures__/strapi-api-results";
 
 // Mock fetch globally

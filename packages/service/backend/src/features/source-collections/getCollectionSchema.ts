@@ -2,7 +2,7 @@ import { db } from "../../infra/db/db";
 import { sourceCollectionTable } from "../../infra/db/schema";
 import { and, eq } from "drizzle-orm";
 import { decode } from "@msgpack/msgpack";
-import type { CollectionSchema } from "@contfu/core";
+import type { CollectionSchema } from "@contfu/svc-core";
 
 /**
  * Get the schema for a source collection.

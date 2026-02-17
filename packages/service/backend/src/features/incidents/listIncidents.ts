@@ -7,7 +7,8 @@ import {
 } from "../../infra/db/schema";
 import { and, eq, desc } from "drizzle-orm";
 import { unpack } from "msgpackr";
-import { IncidentType, type IncidentWithDetails } from "@contfu/core";
+import { IncidentType } from "@contfu/svc-core";
+import type { BackendIncidentWithDetails } from "../../domain/types";
 
 /**
  * List all incidents for a user, optionally filtered by resolved status.
@@ -16,7 +17,7 @@ import { IncidentType, type IncidentWithDetails } from "@contfu/core";
 export async function listIncidents(
   userId: number,
   options?: { resolved?: boolean },
-): Promise<IncidentWithDetails[]> {
+): Promise<BackendIncidentWithDetails[]> {
   let query = db
     .select({
       id: incidentTable.id,

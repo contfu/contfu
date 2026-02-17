@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import { PropertyType, SourceType } from "@contfu/core";
+import { PropertyType, SourceType } from "@contfu/svc-core";
 import { encode } from "@msgpack/msgpack";
 import crypto from "node:crypto";
 import { eq } from "drizzle-orm";

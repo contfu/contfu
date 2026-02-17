@@ -1,5 +1,4 @@
 import { and, desc, eq, or } from "drizzle-orm";
-import type { MarkOptional } from "ts-essentials";
 import { db } from "../db/db";
 import { itemsTable, linkTable, type DbItem, type ItemUpdate, type NewItem } from "../db/schema";
 import {
@@ -16,24 +15,18 @@ export async function getPages(ctx = db): Promise<PageData[]> {
 }
 
 export async function getPage(
-  { id, path }: { id?: string; path?: string },
+  { id }: { id: string },
   ctx = db,
 ): Promise<Omit<PageData, "links"> | null> {
   const dbos = await ctx
     .select()
     .from(itemsTable)
-    .where(
-      and(
-        id ? eq(itemsTable.id, fromHex(id)) : undefined,
-        path ? eq(itemsTable.path, path) : undefined,
-      ),
-    )
+    .where(eq(itemsTable.id, fromHex(id)))
     .all();
   return dbos.length > 0 ? pageFromDb(dbos[0], undefined, ctx) : null;
 }
 
 export async function getLastChangedPage(
-  connection: string,
   collection: string,
   ctx = db,
 ): Promise<Omit<PageData, "links"> | null> {
@@ -43,9 +36,7 @@ export async function getLastChangedPage(
   const dbo = await ctx
     .select()
     .from(itemsTable)
-    .where(
-      and(eq(itemsTable.connection, fromHex(connection)), eq(itemsTable.collection, collectionId)),
-    )
+    .where(eq(itemsTable.collection, collectionId))
     .orderBy(desc(itemsTable.changedAt))
     .limit(1)
     .all();
@@ -84,38 +75,25 @@ export async function updatePage<T extends Omit<PageData, "links">>(page: T, ctx
   return page;
 }
 
-export async function deletePage(
-  { id, path }: Partial<Pick<PageData, "id" | "path">>,
-  ctx = db,
-): Promise<void> {
-  if (id) {
-    await ctx.delete(itemsTable).where(eq(itemsTable.id, fromHex(id)));
-  } else if (path) {
-    await ctx.delete(itemsTable).where(eq(itemsTable.path, path));
-  }
+export async function deletePage(id: string, ctx = db): Promise<void> {
+  await ctx.delete(itemsTable).where(eq(itemsTable.id, fromHex(id)));
 }
 
-export async function deletePagesByIds(connection: string, ids: string[], ctx = db): Promise<void> {
+export async function deletePagesByIds(ids: string[], ctx = db): Promise<void> {
   if (ids.length === 0) return;
-
-  const connectionBlob = fromHex(connection);
   for (const id of ids) {
-    await ctx
-      .delete(itemsTable)
-      .where(and(eq(itemsTable.connection, connectionBlob), eq(itemsTable.id, fromHex(id))));
+    await ctx.delete(itemsTable).where(eq(itemsTable.id, fromHex(id)));
   }
 }
 
-export async function getPageIdsByCollection(connection: string, collection: string, ctx = db) {
+export async function getPageIdsByCollection(collection: string, ctx = db) {
   const collectionId = await getCollectionId(collection, ctx);
   if (collectionId === null) return [];
 
   const dbos = await ctx
     .select()
     .from(itemsTable)
-    .where(
-      and(eq(itemsTable.connection, fromHex(connection)), eq(itemsTable.collection, collectionId)),
-    )
+    .where(eq(itemsTable.collection, collectionId))
     .all();
   return dbos.map((dbo) => toHex(dbo.id));
 }
@@ -163,21 +141,18 @@ export async function deletePageLinksByRef(id: string, ctx = db) {
   await ctx.delete(linkTable).where(or(eq(linkTable.from, idBlob), eq(linkTable.to, idBlob)));
 }
 
-async function pageToDb<T extends PageData | MarkOptional<PageData, "links">>(
+async function pageToDb<T extends PageData | Omit<PageData, "links">>(
   page: T,
   ctx = db,
 ): Promise<ItemUpdate | NewItem> {
-  const { links: _links, ...rest } = page;
   const collectionId = page.collection ? await getOrCreateCollection(page.collection, ctx) : null;
   return {
-    ...rest,
     id: fromHex(page.id),
-    connection: fromHex(page.connection),
+    ref: page.ref,
     collection: collectionId,
-    content: page.content ? JSON.stringify(page.content) : null,
     props: page.props ? JSON.stringify(page.props) : null,
-    author: page.author ? JSON.stringify(page.author) : null,
-    updatedAt: page.updatedAt ?? null,
+    content: page.content ? JSON.stringify(page.content) : null,
+    changedAt: page.changedAt,
   } satisfies ItemUpdate as any;
 }
 
@@ -188,13 +163,12 @@ async function pageFromDb(
 ): Promise<PageData> {
   const collectionName = dbo.collection ? await getCollectionName(dbo.collection, ctx) : "";
   return deleteNulls({
-    ...dbo,
     id: toHex(dbo.id),
-    connection: toHex(dbo.connection),
+    ref: dbo.ref,
     collection: collectionName,
-    content: dbo.content && JSON.parse(dbo.content),
-    props: dbo.props && JSON.parse(dbo.props),
-    author: dbo.author && JSON.parse(dbo.author),
+    props: dbo.props ? JSON.parse(dbo.props) : {},
+    content: dbo.content ? JSON.parse(dbo.content) : undefined,
+    changedAt: dbo.changedAt,
     links: links ?? { content: [] },
   });
 }

@@ -25,11 +25,11 @@ export function parseItem(
   const ref = uuidToBuffer(id);
   if (icon && (icon.type === "file" || icon.type === "external")) props.icon = getImageUrl(icon);
   if (cover) props.cover = getImageUrl(cover);
+  props.createdAt = createdAt;
   const item: Item = {
     id: genUid(ref),
     ref,
     collection,
-    createdAt,
     changedAt: new Date(last_edited_time).getTime(),
     props,
   };

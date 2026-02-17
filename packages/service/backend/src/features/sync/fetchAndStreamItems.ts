@@ -1,4 +1,4 @@
-import { SourceType, matchesFilters, type UserSyncItem } from "@contfu/core";
+import { SourceType, matchesFilters, type UserSyncItem } from "@contfu/svc-core";
 import { NotionSource } from "@contfu/svc-sources/notion";
 import { StrapiSource } from "@contfu/svc-sources/strapi";
 import { WebSource } from "@contfu/svc-sources/web";

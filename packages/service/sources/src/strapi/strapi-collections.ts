@@ -1,4 +1,4 @@
-import { CollectionSchema, PropertyType } from "@contfu/core";
+import { CollectionSchema, PropertyType } from "@contfu/svc-core";
 import { fetchContentTypeSchema } from "./strapi-helpers";
 import type { StrapiSchemaAttribute } from "./strapi";
 

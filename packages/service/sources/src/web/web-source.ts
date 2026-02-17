@@ -1,4 +1,5 @@
-import { CollectionSchema, PropertyType, type Item } from "@contfu/core";
+import type { Item } from "@contfu/core";
+import { CollectionSchema, PropertyType } from "@contfu/svc-core";
 import { Source } from "../source";
 import type { WebFetchOpts } from "./web";
 import { iterateItems } from "./web-items";

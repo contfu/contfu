@@ -10,7 +10,7 @@ import {
 } from "../../infra/db/schema";
 import { createConnection } from "./createConnection";
 import crypto from "node:crypto";
-import { SourceType } from "@contfu/core";
+import { SourceType } from "@contfu/svc-core";
 
 describe("createConnection", () => {
   beforeEach(async () => {
@@ -104,10 +104,10 @@ describe("createConnection", () => {
     const [source] = await db
       .insert(sourceTable)
       .values({
-      userId: user.id,
-      uid: crypto.randomUUID(),
-      name: "Test Source",
-      type: SourceType.STRAPI,
+        userId: user.id,
+        uid: crypto.randomUUID(),
+        name: "Test Source",
+        type: SourceType.STRAPI,
       })
       .returning();
 

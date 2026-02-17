@@ -22,14 +22,12 @@ export type WireEvent = [typeof WIRE_PING] | WireItemEvent;
 
 /**
  * Wire item format as tuple:
- * [ref, id, collection, publishedAt, createdAt, changedAt, props, content?]
+ * [ref, id, collection, changedAt, props, content?]
  */
 export type WireItem = [
   Uint8Array, // ref
   Uint8Array, // id
-  number, // collection
-  number, // publishedAt
-  number, // createdAt
+  string, // collection (encoded ID)
   number, // changedAt
   Record<string, unknown>, // props
   unknown[]?, // content (optional)

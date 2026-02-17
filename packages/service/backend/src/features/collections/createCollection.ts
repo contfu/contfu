@@ -1,6 +1,6 @@
+import type { BackendCollection } from "../../domain/types";
 import { db } from "../../infra/db/db";
 import { collectionTable } from "../../infra/db/schema";
-import type { Collection } from "./listCollections";
 
 export interface CreateCollectionInput {
   name: string;
@@ -14,7 +14,7 @@ export interface CreateCollectionInput {
 export async function createCollection(
   userId: number,
   input: CreateCollectionInput,
-): Promise<Collection> {
+): Promise<BackendCollection> {
   const [inserted] = await db
     .insert(collectionTable)
     .values({

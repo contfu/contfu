@@ -1,4 +1,4 @@
-import { CollectionSchema, PropertyType } from "@contfu/core";
+import { CollectionSchema, PropertyType } from "@contfu/svc-core";
 import { isFullDatabase, isFullDataSource } from "@notionhq/client";
 import { notion } from "./notion-helpers";
 

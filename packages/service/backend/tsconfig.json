@@ -15,5 +15,5 @@
   },
   "include": ["src/**/*.ts"],
   "exclude": ["src/**/*.spec.ts"],
-  "references": [{ "path": "../../core" }, { "path": "../sources" }]
+  "references": [{ "path": "../../core" }, { "path": "../core" }, { "path": "../sources" }]
 }

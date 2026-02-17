@@ -19,6 +19,7 @@
   "dependencies": {
     "@contfu/core": "workspace:*",
     "@contfu/svc-backend": "workspace:*",
+    "@contfu/svc-core": "workspace:*",
     "@contfu/svc-sources": "workspace:*",
     "@tanstack/table-core": "^8.21.3",
     "bits-ui": "^2.15.5",

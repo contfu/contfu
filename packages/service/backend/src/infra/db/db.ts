@@ -76,7 +76,7 @@ export async function withUserDbContext<T>(userId: number, fn: () => Promise<T>)
 
   return rootDb.transaction(async (tx) => {
     await tx.execute(sql`SET LOCAL ROLE app_user`);
-    await tx.execute(sql`SET LOCAL app.current_user_id = ${String(userId)}`);
+    await tx.execute(sql`SET LOCAL app.current_user_id = '${sql.raw(String(userId))}'`);
     return dbContext.run(tx as PgAsyncDatabase<any, typeof schema, any>, fn);
   });
 }

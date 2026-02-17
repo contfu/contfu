@@ -1,2 +1,2 @@
-// Re-export UserRole from db constants for server-side usage
-export * from "../db/constants";
+// Re-export UserRole from domain types for server-side usage
+export * from "../../domain/types";

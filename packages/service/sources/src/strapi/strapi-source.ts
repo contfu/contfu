@@ -1,4 +1,5 @@
-import type { CollectionSchema, Item } from "@contfu/core";
+import type { Item } from "@contfu/core";
+import type { CollectionSchema } from "@contfu/svc-core";
 import { Source } from "../source";
 import type { StrapiFetchOpts } from "./strapi";
 import { getCollectionSchema } from "./strapi-collections";

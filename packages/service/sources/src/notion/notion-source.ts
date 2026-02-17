@@ -1,4 +1,5 @@
-import { CollectionSchema, Item } from "@contfu/core";
+import type { Item } from "@contfu/core";
+import { CollectionSchema } from "@contfu/svc-core";
 import { Source } from "../source";
 import { NotionFetchOpts } from "./notion";
 import { getCollectionSchema } from "./notion-collections";

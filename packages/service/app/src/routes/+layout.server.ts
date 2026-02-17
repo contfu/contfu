@@ -1,4 +1,4 @@
-import type { UserRole } from "$lib/constants/user";
+import type { UserRole } from "@contfu/svc-backend/domain/types";
 import type { LayoutServerLoad } from "./$types";
 
 export const load: LayoutServerLoad = async ({ locals }) => {

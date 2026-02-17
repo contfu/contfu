@@ -1,7 +1,7 @@
 import { db } from "../../infra/db/db";
 import { incidentTable, influxTable } from "../../infra/db/schema";
 import { pack, unpack } from "msgpackr";
-import { IncidentType, type SchemaIncompatibleDetails } from "@contfu/core";
+import { IncidentType, type SchemaIncompatibleDetails } from "@contfu/svc-core";
 import { and, eq } from "drizzle-orm";
 
 export interface CreateIncidentInput {

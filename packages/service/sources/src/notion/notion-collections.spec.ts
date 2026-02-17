@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach } from "bun:test";
-import { PropertyType } from "@contfu/core";
+import { PropertyType } from "@contfu/svc-core";
 import { mockClient } from "./__tests__/notion-mock-setup";
 
 // Import after mock setup

@@ -12,7 +12,7 @@ import {
   timestamp,
   uuid,
 } from "drizzle-orm/pg-core";
-import { UserRole, type UserRole as UserRoleType } from "./constants";
+import { UserRole, type UserRole as UserRoleType } from "../../domain/types";
 
 export const appUserRole = pgRole("app_user");
 export const serviceRole = pgRole("service_role");

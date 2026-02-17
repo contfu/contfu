@@ -1,13 +1,13 @@
-import type { ColumnDef } from "@tanstack/table-core";
-import type { UserSummary } from "@contfu/svc-backend/features/admin/listUsers";
-import { UserRole } from "$lib/constants/user";
 import { renderComponent, renderSnippet } from "$lib/components/ui/data-table/index.js";
+import type { BackendUserSummary } from "@contfu/svc-backend/domain/types";
+import { UserRole } from "@contfu/svc-backend/domain/types";
+import type { ColumnDef } from "@tanstack/table-core";
 import { createRawSnippet } from "svelte";
 import DataTableActions from "./data-table-actions.svelte";
-import DataTableStatusBadge from "./data-table-status-badge.svelte";
 import DataTableRoleBadge from "./data-table-role-badge.svelte";
+import DataTableStatusBadge from "./data-table-status-badge.svelte";
 
-export const columns: ColumnDef<UserSummary>[] = [
+export const columns: ColumnDef<BackendUserSummary>[] = [
   {
     accessorKey: "name",
     header: "User",

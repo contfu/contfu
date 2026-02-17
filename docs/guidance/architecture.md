@@ -44,6 +44,19 @@ Load this when understanding code structure or making architectural decisions.
 - **Avoid N+1:** Batch related queries
 - **Filter aggregations:** Scope counts to specific IDs
 
+## ID Encoding
+
+Entity IDs (user, source, collection, consumer, sourceCollection, influx) are globally unique auto-increment integers internally, but encoded as compact alphanumeric strings at HTTP and wire boundaries using the `infra/ids` module (`packages/service/backend/src/infra/ids.ts`).
+
+- **Encoding**: `encodeId(entity, numericId)` → string (e.g., `"k3Pd9x"`)
+- **Decoding**: `decodeId(entity, encoded)` → number or null
+- **Validation schema**: `idSchema(entity)` — Valibot schema that accepts string input and outputs a decoded number
+- **Per-entity alphabets**: Each entity type gets a unique Sqids alphabet shuffled via HMAC-SHA256 of `CONTFU_SECRET`, preventing cross-entity ID confusion
+- **Passthrough mode**: When `CONTFU_SECRET` is unset (dev/tests), IDs pass through as numeric strings (`"5"` ↔ `5`)
+- **Item IDs are NOT encoded** — they use Buffer/Uint8Array and are collection-scoped
+
+Encoding happens in remote functions (SvelteKit layer). Backend features always work with numeric IDs.
+
 ## Docker Targets
 
 - `migrator` - Runs database migrations

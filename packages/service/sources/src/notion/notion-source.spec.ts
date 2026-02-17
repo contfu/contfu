@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach, setSystemTime, afterAll } from "bun:test";
-import { PropertyType } from "@contfu/core";
+import { PropertyType } from "@contfu/svc-core";
 import type { NotionFetchOpts } from ".";
 import { genUid, uuidToBuffer } from "../util/ids";
 import { dbQueryPage1, dbQueryResult1, dbQueryResult2 } from "./__fixtures__/notion-query-results";
@@ -50,13 +50,13 @@ describe("NotionSource", () => {
             ref: ref1,
             collection: 1,
             changedAt: 1716353760000,
-            createdAt: 1711864560000,
             props: {
               Color: "red",
               Description: "A",
               "Other Reference": [otherId.toString("base64url")],
               "Self Reference": [id2.toString("base64url")],
               Title: "Foo",
+              createdAt: 1711864560000,
             },
           },
           {
@@ -64,7 +64,6 @@ describe("NotionSource", () => {
             ref: ref2,
             collection: 1,
             changedAt: 1716353820000,
-            createdAt: 1711864560000,
             props: {
               Color: "blue",
               Description: "B",
@@ -72,6 +71,7 @@ describe("NotionSource", () => {
               "Self Reference": [id1.toString("base64url")],
               Slug: "/bar",
               Title: "Bar",
+              createdAt: 1711864560000,
             },
           },
         ]);

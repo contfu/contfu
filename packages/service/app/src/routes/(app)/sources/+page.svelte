@@ -74,7 +74,7 @@
                 <div class="flex items-center justify-end gap-2">
                   <a href="/sources/{source.id}" class="text-primary hover:underline">Edit</a>
                   <form {...deleteSource} class="inline">
-                    <input {...deleteSource.fields.id.as("number")} type="hidden" value={source.id} />
+                    <input {...deleteSource.fields.id.as("text")} type="hidden" value={source.id} />
                     <button
                       type="submit"
                       class="text-destructive hover:underline"

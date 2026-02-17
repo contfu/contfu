@@ -17,7 +17,6 @@
     testConnection,
     updateSource,
   } from "$lib/remote/sources.remote";
-  import { updateSourceNameSchema } from "$lib/remote/sources.schemas";
   import {
     getWebhookLogs,
     type WebhookLogEntry,
@@ -28,6 +27,7 @@
   import Pencil from "@lucide/svelte/icons/pencil";
   import { useId } from "bits-ui";
   import { toast } from "svelte-sonner";
+  import * as v from "valibot";
 
   const nameId = useId();
   const urlId = useId();
@@ -49,7 +49,7 @@
 
   let { params } = $props();
 
-  let id = $derived(Number(params.id));
+  let id = $derived(params.id);
   const source = $derived(await getSource({ id }));
 
   // Sync form fields when source changes
@@ -59,7 +59,7 @@
 
   // Query object - auto-refreshes after form submissions
   const collections = $derived(
-    getSourceCollectionsBySource({ sourceId: Number(params.id) }),
+    getSourceCollectionsBySource({ sourceId: params.id }),
   );
 
   // Load webhook logs for Strapi sources
@@ -176,7 +176,12 @@
             <Popover.Content class="w-72" align="start">
               <form
                 {...updateSource
-                  .preflight(updateSourceNameSchema)
+                  .preflight(
+                    v.object({
+                      id: v.string(),
+                      name: v.pipe(v.string(), v.nonEmpty("Name is required")),
+                    }),
+                  )
                   .enhance(async ({ submit, data }) => {
                     namePopoverOpen = false;
                     await tcToast(async () => {
@@ -191,10 +196,7 @@
                   })}
                 class="space-y-3"
               >
-                <input
-                  {...updateSource.fields.id.as("number")}
-                  type="hidden"
-                />
+                <input {...updateSource.fields.id.as("text")} type="hidden" />
                 <div class="space-y-1.5">
                   <Label for={nameId}>Name</Label>
                   <Input
@@ -235,9 +237,7 @@
       <p class="mt-1 text-sm text-muted-foreground">
         {source.collectionCount} collection{source.collectionCount === 1
           ? ""
-          : "s"} · Created {new Date(
-          source.createdAt,
-        ).toLocaleDateString()}
+          : "s"} · Created {new Date(source.createdAt).toLocaleDateString()}
       </p>
     </div>
 
@@ -257,10 +257,7 @@
         })}
         class="space-y-4"
       >
-        <input
-          {...updateSource.fields.id.as("number")}
-          type="hidden"
-        />
+        <input {...updateSource.fields.id.as("text")} type="hidden" />
 
         {#if source.type === SourceType.STRAPI || source.type === SourceType.WEB}
           <div class="space-y-1.5">
@@ -542,7 +539,7 @@
             class="space-y-4"
           >
             <input
-              {...createSourceCollection.fields.sourceId.as("number")}
+              {...createSourceCollection.fields.sourceId.as("text")}
               type="hidden"
               value={source.id}
             />
@@ -645,7 +642,7 @@
           })}
         >
           <input
-            {...deleteSource.fields.id.as("number")}
+            {...deleteSource.fields.id.as("text")}
             type="hidden"
             value={source.id}
           />

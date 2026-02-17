@@ -8,6 +8,23 @@
  * feature functions.
  */
 
+import type {
+  ServiceCollection,
+  ServiceIncidentWithDetails,
+  ServiceInfluxDetails,
+  ServiceInfluxWithDetails,
+  ServiceSourceCollection,
+  ServiceSourceCollectionSummary,
+  ServiceSourceCollectionWithConnectionCount,
+} from "@contfu/svc-core";
+import { type Simplify } from "type-fest";
+
+type DecodedIds<T, Ids extends keyof T & string> = Simplify<
+  Omit<T, Ids> & {
+    [K in Ids]: number;
+  }
+>;
+
 // =============================================================================
 // Source Types
 // =============================================================================
@@ -49,37 +66,70 @@ export interface BackendSourceSummary {
 }
 
 // =============================================================================
-// Collection Types
+// Collection Types (consumer-facing aggregation targets)
 // =============================================================================
 
-/** A collection without internal buffer fields - safe to expose to the app */
-export interface BackendCollection {
-  id: number;
-  userId: number;
-  sourceId: number;
-  name: string;
-  /** Whether this collection has a ref configured */
-  hasRef: boolean;
-  /** The ref as a string (e.g., Notion database ID) - safe to expose */
-  refString: string | null;
-  /** Number of item IDs stored (derived from itemIds buffer) */
-  itemCount: number;
-  createdAt: Date;
-  updatedAt: Date | null;
-}
+/** A collection with numeric IDs (internal) */
+export type BackendCollection = Simplify<DecodedIds<ServiceCollection, "id"> & { userId: number }>;
 
-/** A collection with its connection count */
-export interface BackendCollectionWithConnectionCount extends BackendCollection {
-  connectionCount: number;
-}
+// =============================================================================
+// Source Collection Types (source-side collections)
+// =============================================================================
 
-/** Minimal collection summary for lists/dropdowns */
-export interface BackendCollectionSummary {
+/** A source collection with numeric IDs (internal) */
+export type BackendSourceCollection = Simplify<
+  DecodedIds<ServiceSourceCollection, "id" | "sourceId"> & { userId: number }
+>;
+
+/** A source collection with its connection count */
+export type BackendSourceCollectionWithConnectionCount = Simplify<
+  DecodedIds<ServiceSourceCollectionWithConnectionCount, "id" | "sourceId"> & { userId: number }
+>;
+
+/** Minimal source collection summary */
+export type BackendSourceCollectionSummary = DecodedIds<ServiceSourceCollectionSummary, "id">;
+
+// =============================================================================
+// Influx Types
+// =============================================================================
+
+/** Influx with resolved source details, numeric IDs */
+export type BackendInfluxWithDetails = DecodedIds<
+  ServiceInfluxWithDetails,
+  "id" | "sourceCollectionId" | "sourceId"
+>;
+
+/** Full influx details including collection info, numeric IDs */
+export type BackendInfluxDetails = DecodedIds<
+  ServiceInfluxDetails,
+  "id" | "userId" | "collectionId" | "sourceCollectionId" | "sourceId"
+>;
+
+// =============================================================================
+// Incident Types
+// =============================================================================
+
+/** Incident with resolved details, numeric IDs */
+export type BackendIncidentWithDetails = DecodedIds<
+  ServiceIncidentWithDetails,
+  "id" | "influxId" | "collectionId" | "sourceCollectionId"
+>;
+
+// =============================================================================
+// User Types
+// =============================================================================
+
+/**
+ * User summary for admin views.
+ * Uses numeric ID since it's only exposed to admins.
+ */
+export interface BackendUserSummary {
   id: number;
   name: string;
-  /** The ref as a string (e.g., Notion database ID) - useful for checking duplicates */
-  refString: string | null;
-  connectionCount: number;
+  email: string;
+  emailVerified: boolean;
+  role: UserRole;
+  approved: boolean;
   createdAt: Date;
 }
 
@@ -153,16 +203,16 @@ export interface UpdateSourceInput {
   webhookSecret?: Buffer | null;
 }
 
-/** Input for creating a new collection */
-export interface CreateCollectionInput {
+/** Input for creating a new source collection */
+export interface CreateSourceCollectionInput {
   sourceId: number;
   name: string;
   ref?: Buffer | null;
   itemIds?: Buffer | null;
 }
 
-/** Input for updating a collection */
-export interface UpdateCollectionInput {
+/** Input for updating a source collection */
+export interface UpdateSourceCollectionInput {
   name?: string;
   ref?: Buffer | null;
   itemIds?: Buffer | null;
@@ -194,3 +244,11 @@ export interface UpdateConnectionInput {
   lastItemChanged?: Date | null;
   lastConsistencyCheck?: Date | null;
 }
+
+/** User roles: 0 = user, 1 = admin */
+export const UserRole = {
+  USER: 0,
+  ADMIN: 1,
+} as const;
+
+export type UserRole = (typeof UserRole)[keyof typeof UserRole];

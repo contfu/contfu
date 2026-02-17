@@ -1,4 +1,5 @@
-import { CollectionSchema, Item } from "@contfu/core";
+import type { Item } from "@contfu/core";
+import type { CollectionSchema } from "@contfu/svc-core";
 
 export type CollectionFetchOpts = {
   /** The database id of the collection. */
