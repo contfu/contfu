@@ -1,4 +1,5 @@
-import { SourceType, matchesFilters, type UserSyncItem } from "@contfu/svc-core";
+import { SourceType, matchesFilters } from "@contfu/svc-core";
+import type { UserSyncItem } from "../../infra/sync-worker/messages";
 import { NotionSource } from "@contfu/svc-sources/notion";
 import { StrapiSource } from "@contfu/svc-sources/strapi";
 import { WebSource } from "@contfu/svc-sources/web";

@@ -9,7 +9,8 @@ import {
 import { listInfluxesBySourceCollections } from "@contfu/svc-backend/features/influxes/listInfluxesBySourceCollections";
 import { getStreamServer } from "$lib/server/startup";
 import { genUid } from "@contfu/svc-sources";
-import { SourceType, matchesFilters, type UserSyncItem } from "@contfu/svc-core";
+import { SourceType, matchesFilters } from "@contfu/svc-core";
+import type { UserSyncItem } from "@contfu/svc-backend/infra/sync-worker/messages";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import crypto from "node:crypto";
 import type { RequestHandler } from "./$types";

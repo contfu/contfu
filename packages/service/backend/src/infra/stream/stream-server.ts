@@ -6,7 +6,7 @@ import {
   type WireItem,
   type WireItemEvent,
 } from "@contfu/core";
-import type { UserSyncItem } from "@contfu/svc-core";
+import type { UserSyncItem } from "../sync-worker/messages";
 import { and, eq } from "drizzle-orm";
 import { pack as msgpack } from "msgpackr";
 import { enqueueSyncJobs } from "../../features/sync-jobs/enqueueSyncJobs";
