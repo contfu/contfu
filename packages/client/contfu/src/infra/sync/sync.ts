@@ -1,31 +1,56 @@
+import type { AssetData, AssetSyncProgress, ItemData, OnAssetProgress } from "../types/content-types";
 import type { ImageBlock } from "@contfu/core";
 import { extname } from "path";
-import { createAsset, deleteAssetsByItem } from "../../features/assets/asset-datasource";
-import type { AssetData, AssetSyncProgress, OnAssetProgress } from "../../features/assets/asset-types";
-import type { Source, SyncOptions } from "../../features/connections/connections";
+import { createAsset } from "../../features/assets/createAsset";
+import { deleteAssetsByItem } from "../../features/assets/deleteAssetsByItem";
+import { createItemLink } from "../../features/items/createItemLink";
+import { createOrUpdateItem } from "../../features/items/createOrUpdateItem";
+import { deleteItemLinksByRef } from "../../features/items/deleteItemLinksByRef";
+import { deleteItemsByIds } from "../../features/items/deleteItemsByIds";
+import { deleteOutgoingItemLinks } from "../../features/items/deleteOutgoingItemLinks";
+import { getItem } from "../../features/items/getItem";
+import { getItemIdsByCollection } from "../../features/items/getItemIdsByCollection";
 import { hashId } from "../../util/crypto";
-import type { ItemData } from "../../features/items/item-types";
-import {
-  createItemLink,
-  createOrUpdateItem,
-  deleteItemLinksByRef,
-  deleteItemsByIds,
-  deleteOutgoingItemLinks,
-  getItem,
-  getItemIdsByCollection,
-} from "../../features/items/item-datasource";
 
-export function sync(sources: Source[], options?: SyncOptions) {
+export interface SyncOptions {
+  onProgress?: OnAssetProgress;
+}
+
+export interface SyncSource<C extends string = string> {
+  id: string;
+  collectionNames: C[];
+  mediaStore: {
+    write(canonical: string, data: Buffer | ReadableStream): Promise<void>;
+    read(canonical: string): Promise<Buffer | null>;
+    exists(canonical: string): Promise<boolean>;
+  };
+  mediaOptimizer?: {
+    optimizeImage(
+      store: {
+        write(canonical: string, data: Buffer | ReadableStream): Promise<void>;
+        read(canonical: string): Promise<Buffer | null>;
+        exists(canonical: string): Promise<boolean>;
+      },
+      canonical: string,
+      asset: ReadableStream,
+    ): Promise<void>;
+  };
+  pull(
+    collection: C,
+  ): AsyncGenerator<{ item: Omit<ItemData, "id">; assets: { block: ImageBlock; ref: string }[] }>;
+  pullCollectionRefs(collection: C): AsyncGenerator<string[]>;
+  fetchAsset(url: string): Promise<ReadableStream>;
+}
+
+export function sync(sources: SyncSource[], options?: SyncOptions) {
   return Promise.all(sources.flatMap((source) => [pull(source, options), removeOrphans(source)]));
 }
 
-async function pull(source: Source, options?: SyncOptions) {
+async function pull(source: SyncSource, options?: SyncOptions) {
   const transientLinks = new Map<string, Set<[string, string]>>();
 
   for (const collection of source.collectionNames) {
-    for await (const payload of source.pull(collection)) {
-      const item = "item" in payload ? payload.item : payload.page;
-      const { assets } = payload;
+    for await (const { item, assets } of source.pull(collection)) {
       const id = hashId(`${source.id}|${item.ref}`);
       const fullItem = { ...item, id };
 
@@ -37,7 +62,7 @@ async function pull(source: Source, options?: SyncOptions) {
   }
 }
 
-async function removeOrphans(source: Source) {
+async function removeOrphans(source: SyncSource) {
   for (const collection of source.collectionNames) {
     for await (const upstreamIds of source.pullCollectionRefs(collection)) {
       const existingIds = await getItemIdsByCollection(collection);
@@ -87,7 +112,7 @@ async function createLinks(
 }
 
 async function processAssets(
-  source: Source,
+  source: SyncSource,
   itemId: string,
   assets: { block: ImageBlock; ref: string }[],
   onProgress?: OnAssetProgress,
@@ -137,7 +162,6 @@ async function processAssets(
       const assetData: AssetData = {
         id: hash,
         itemId,
-        pageId: itemId,
         canonical,
         originalUrl: url,
         format: ext.replace(".", ""),

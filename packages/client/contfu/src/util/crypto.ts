@@ -1,7 +1,7 @@
 import { createHash } from "crypto";
 
 export function hashId(str: string): string {
-  const hasher = createHash("sha1");
-  hasher.update(str);
-  return hasher.digest("hex").slice(0, 32);
+  const digest = createHash("sha1").update(str).digest();
+  // Keep 128-bit identifiers, encoded as URL-safe base64.
+  return digest.subarray(0, 16).toString("base64url");
 }

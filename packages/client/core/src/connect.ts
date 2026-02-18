@@ -1,5 +1,4 @@
-import type { ItemEvent } from "@contfu/core";
-import { connectToStream, type StreamEvent } from "./stream-client";
+import { connectToStream, type ItemEvent, type StreamEvent } from "./stream-client";
 
 type BaseOpts = {
   /** Base URL (without /api/stream path) */

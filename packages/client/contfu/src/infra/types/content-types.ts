@@ -1,4 +1,16 @@
-import type { ImageBlock } from "@contfu/core";
+import type { ImageBlock, Block } from "@contfu/core";
+
+export type ItemLinks = Record<string, string[]> & { content: string[] };
+
+export interface ItemData {
+  id: string;
+  ref: string;
+  collection: string;
+  props: Record<string, unknown>;
+  changedAt: number;
+  content?: Block[];
+  links: ItemLinks;
+}
 
 export interface Asset<T extends { format?: string } = { format: string }> {
   format: T extends { format: infer F } ? F : string;
@@ -7,8 +19,6 @@ export interface Asset<T extends { format?: string } = { format: string }> {
 export interface AssetData<A extends Asset = Asset> {
   id: string;
   itemId: string;
-  /** @deprecated Use itemId instead. */
-  pageId?: string;
   canonical: string;
   originalUrl: string;
   format: A["format"];

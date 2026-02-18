@@ -33,13 +33,6 @@ export type DbItemLink = typeof linkTable.$inferSelect;
 export type NewItemLink = typeof linkTable.$inferInsert;
 export type ItemLinkUpdate = Partial<NewItemLink>;
 
-/** @deprecated Use DbItemLink instead. */
-export type DbPageLink = DbItemLink;
-/** @deprecated Use NewItemLink instead. */
-export type NewPageLink = NewItemLink;
-/** @deprecated Use ItemLinkUpdate instead. */
-export type PageLinkUpdate = ItemLinkUpdate;
-
 export const collectionTable = sqliteTable("collection", {
   id: integer().primaryKey(),
   ref: text().unique().notNull(),
@@ -50,7 +43,7 @@ export const collectionTable = sqliteTable("collection", {
 
 export const assetTable = sqliteTable("asset", {
   id: blob({ mode: "buffer" }).primaryKey(),
-  itemId: blob("pageId", { mode: "buffer" })
+  itemId: blob({ mode: "buffer" })
     .notNull()
     .references(() => itemsTable.id, { onDelete: "cascade" }),
   canonical: text().unique().notNull(),

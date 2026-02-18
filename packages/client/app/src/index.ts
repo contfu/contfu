@@ -19,8 +19,11 @@ export {
   type AssetUpdate,
   // Sync exports
   sync,
+  type SyncOptions,
+  type SyncSource,
   // Item exports
   type ItemData,
+  type ItemLinks,
   getItems,
   getItem,
   getLastChangedItem,
@@ -43,17 +46,10 @@ export {
   createAsset,
   getAssetsByItem,
   deleteAssetsByItem,
-  getAssetsByPage,
-  deleteAssetsByPage,
   getOrphanAssets,
   deleteAssets,
   getAsset,
   getAssetByCanonical,
-  // Connections exports
-  type SyncOptions,
-  type Source,
-  type Connection,
-  createConnection,
   // Media exports
   type MediaStore,
   // Hooks exports
@@ -65,29 +61,6 @@ export {
   detectRuntime,
   deleteNulls,
   hashId,
-  // Deprecated compatibility exports
-  pageTable,
-  pageLinkTable,
-  type DbPage,
-  type NewPage,
-  type PageUpdate,
-  type DbPageLink,
-  type NewPageLink,
-  type PageLinkUpdate,
-  type PageData,
-  getPages,
-  getPage,
-  getLastChangedPage,
-  createOrUpdatePage,
-  createPage,
-  updatePage,
-  deletePage,
-  deletePagesByIds,
-  getPageIdsByCollection,
-  getPageLinks,
-  createPageLink,
-  deleteOutgoingPageLinks,
-  deletePageLinksByRef,
 } from "contfu";
 
 export { connectPush } from "./core/connection";

@@ -1,16 +1,17 @@
 CREATE TABLE `asset` (
 	`id` blob PRIMARY KEY,
-	`pageId` blob NOT NULL,
+	`itemId` blob NOT NULL,
 	`canonical` text NOT NULL UNIQUE,
 	`originalUrl` text NOT NULL,
 	`format` text NOT NULL,
 	`size` integer NOT NULL,
 	`createdAt` integer NOT NULL,
-	CONSTRAINT `fk_asset_pageId_items_id_fk` FOREIGN KEY (`pageId`) REFERENCES `items`(`id`) ON DELETE CASCADE
+	CONSTRAINT `fk_asset_itemId_items_id_fk` FOREIGN KEY (`itemId`) REFERENCES `items`(`id`) ON DELETE CASCADE
 );
 --> statement-breakpoint
 CREATE TABLE `collection` (
 	`id` integer PRIMARY KEY,
+	`ref` text NOT NULL UNIQUE,
 	`name` text NOT NULL,
 	`createdAt` integer NOT NULL,
 	`updatedAt` integer
@@ -19,17 +20,9 @@ CREATE TABLE `collection` (
 CREATE TABLE `items` (
 	`id` blob PRIMARY KEY,
 	`ref` text NOT NULL,
-	`path` text NOT NULL UNIQUE,
 	`collection` integer NOT NULL,
-	`title` text NOT NULL,
-	`description` text NOT NULL,
-	`content` text,
 	`props` text,
-	`author` text,
-	`connection` blob NOT NULL,
-	`publishedAt` integer NOT NULL,
-	`createdAt` integer NOT NULL,
-	`updatedAt` integer,
+	`content` text,
 	`changedAt` integer NOT NULL,
 	CONSTRAINT `fk_items_collection_collection_id_fk` FOREIGN KEY (`collection`) REFERENCES `collection`(`id`) ON DELETE CASCADE
 );
