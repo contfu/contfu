@@ -49,6 +49,7 @@ test.describe("Notion Webhooks", () => {
     const body = JSON.stringify(payload);
     const signature = computeHmacSignature(body, webhookSecret);
 
+    const startedAt = Date.now();
     const response = await request.post(`/webhooks/notion/${SOURCE_UID}`, {
       data: body,
       headers: {
@@ -56,8 +57,10 @@ test.describe("Notion Webhooks", () => {
         "X-Notion-Signature": signature,
       },
     });
+    const durationMs = Date.now() - startedAt;
 
     expect(response.status()).toBe(200);
+    expect(durationMs).toBeLessThan(1500);
   });
 
   test("page.deleted broadcasts deletion", async ({ request }) => {
@@ -71,6 +74,7 @@ test.describe("Notion Webhooks", () => {
     const body = JSON.stringify(payload);
     const signature = computeHmacSignature(body, webhookSecret);
 
+    const startedAt = Date.now();
     const response = await request.post(`/webhooks/notion/${SOURCE_UID}`, {
       data: body,
       headers: {
@@ -78,8 +82,10 @@ test.describe("Notion Webhooks", () => {
         "X-Notion-Signature": signature,
       },
     });
+    const durationMs = Date.now() - startedAt;
 
     expect(response.status()).toBe(200);
+    expect(durationMs).toBeLessThan(1500);
   });
 
   test("rejects invalid HMAC signature with 401", async ({ request }) => {

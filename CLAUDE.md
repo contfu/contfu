@@ -36,20 +36,33 @@ cd packages/service/sync && bun test
 cd packages/service/backend && bun run db:generate   # Generate migration from schema changes
 ```
 
-## Before Creating a PR
+## Commit & PR Workflow
 
-1. **Run quality checks:**
+1. **Before opening a PR, run quality checks:**
 
    ```bash
    bun test && bun run fmt && bun run lint
    ```
 
-2. **Squash commits:**
+2. **Exactly one commit per PR branch at PR creation time.**
+   - Intermediate commits are allowed while working.
+   - Before creating or updating a PR, squash to one commit.
+   - Use a clear final commit message focused on the end-state change.
+   - Do not include transient/debug/fixup steps in the final commit message.
+
+3. **If multiple commits exist, squash them before PR:**
    ```bash
-   git rebase -i HEAD~N  # Mark all but first as 'squash'
+   git rebase -i HEAD~N  # mark all but the first as squash/fixup
    ```
 
-> E2E tests don't run on CI — always run `bun test` locally before PR.
+4. **If PR is already open and new changes are needed:**
+   ```bash
+   git add <files>
+   git commit --amend
+   git push --force-with-lease
+   ```
+
+> Root E2E tests run in CI. Ensure local validation before opening/updating a PR.
 
 ## Code Quality Rules
 

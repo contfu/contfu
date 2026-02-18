@@ -1,12 +1,14 @@
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { defineConfig, devices } from "@playwright/test";
 
 // Use a different port for E2E tests to avoid conflicts with other services
 const TEST_PORT = 4173;
 const MOCK_NOTION_PORT = 4174;
+const DIRNAME = path.dirname(fileURLToPath(import.meta.url));
 
 // File-based PGlite database shared between globalSetup (seeding) and the server
-const PGLITE_DATA_DIR = path.join(import.meta.dir, "tests/.pglite-e2e");
+const PGLITE_DATA_DIR = path.join(DIRNAME, "tests/.pglite-e2e");
 
 export default defineConfig({
   testDir: "./tests",

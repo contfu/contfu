@@ -5,6 +5,9 @@ import { getSetting } from "@contfu/svc-backend/features/admin/getSetting";
 import { upsertSetting } from "@contfu/svc-backend/features/admin/upsertSetting";
 import { listInfluxesBySourceCollections } from "@contfu/svc-backend/features/influxes/listInfluxesBySourceCollections";
 import { enqueueSyncJobs } from "@contfu/svc-backend/features/sync-jobs/enqueueSyncJobs";
+import { hasNats } from "@contfu/svc-backend/infra/nats/connection";
+import { enqueueWebhookFetch } from "@contfu/svc-backend/infra/webhook-queue/webhook-fetch-queue";
+import { cancelPending, markPending } from "@contfu/svc-backend/infra/webhook-queue/pending-kv";
 import {
   decryptCredentials,
   encryptCredentials,
@@ -65,6 +68,10 @@ type SourceInfo = {
   credentials: Buffer | null;
 };
 
+function isPageChangeEvent(eventType: string): boolean {
+  return eventType.startsWith("page.") && eventType !== "page.deleted";
+}
+
 async function logWebhookEvent(
   userId: number,
   sourceId: number,
@@ -88,7 +95,7 @@ async function logWebhookEvent(
     const logs = await db
       .select({ id: webhookLogTable.id })
       .from(webhookLogTable)
-      .where(and(eq(webhookLogTable.userId, userId), eq(webhookLogTable.sourceId, sourceId)))
+      .where(eq(webhookLogTable.sourceId, sourceId))
       .orderBy(desc(webhookLogTable.timestamp))
       .limit(1000);
 
@@ -344,6 +351,10 @@ export const POST: RequestHandler = async ({ request, params }) => {
       const itemId = genUid(uuidToBuffer(pageId));
 
       if (source) {
+        if (hasNats()) {
+          await cancelPending(source.userId, source.id, pageId);
+        }
+
         // Custom mode: find source collections via parent database
         const parentDbId = payload.data?.parent?.database_id;
         if (!parentDbId) {
@@ -432,6 +443,20 @@ export const POST: RequestHandler = async ({ request, params }) => {
         if (parentDbId) {
           const ref = uuidToBuffer(parentDbId);
           const globalCollections = await getSourceCollectionsByRefGlobal(ref);
+          const groupedSources = new Map<string, { userId: number; sourceId: number }>();
+          for (const sc of globalCollections) {
+            groupedSources.set(`${sc.userId}:${sc.sourceId}`, {
+              userId: sc.userId,
+              sourceId: sc.sourceId,
+            });
+          }
+
+          if (hasNats()) {
+            for (const grouped of groupedSources.values()) {
+              await cancelPending(grouped.userId, grouped.sourceId, pageId);
+            }
+          }
+
           for (const sc of globalCollections) {
             const influxes = await listInfluxesBySourceCollections(sc.userId, [sc.id]);
             const targetCollectionIds = [...new Set(influxes.map((i) => i.collectionId))];
@@ -470,6 +495,95 @@ export const POST: RequestHandler = async ({ request, params }) => {
     }
 
     // ---- CHANGED (page.created, page.content_updated, page.properties_updated, page.moved, page.undeleted) ----
+    if (isPageChangeEvent(eventType) && hasNats()) {
+      const parentDbId = payload.data?.parent?.database_id;
+
+      if (source) {
+        const marked = await markPending(source.userId, source.id, pageId);
+        if (marked) {
+          await enqueueWebhookFetch({
+            userId: source.userId,
+            sourceId: source.id,
+            pageId,
+            eventType,
+            parentDatabaseId: parentDbId,
+            enqueuedAt: Date.now(),
+          });
+          await logWebhookEvent(
+            source.userId,
+            source.id,
+            eventType,
+            pageId,
+            "success",
+            "Webhook fetch enqueued",
+            0,
+          );
+        } else {
+          await logWebhookEvent(
+            source.userId,
+            source.id,
+            eventType,
+            pageId,
+            "success",
+            "Skipped duplicate pending webhook fetch",
+            0,
+          );
+        }
+
+        return new Response("OK", { status: 200 });
+      }
+
+      if (!parentDbId) {
+        return new Response("OK", { status: 200 });
+      }
+
+      const ref = uuidToBuffer(parentDbId);
+      const globalCollections = await getSourceCollectionsByRefGlobal(ref);
+      const groupedSources = new Map<string, { userId: number; sourceId: number }>();
+      for (const sc of globalCollections) {
+        groupedSources.set(`${sc.userId}:${sc.sourceId}`, {
+          userId: sc.userId,
+          sourceId: sc.sourceId,
+        });
+      }
+
+      for (const grouped of groupedSources.values()) {
+        const marked = await markPending(grouped.userId, grouped.sourceId, pageId);
+        if (marked) {
+          await enqueueWebhookFetch({
+            userId: grouped.userId,
+            sourceId: grouped.sourceId,
+            pageId,
+            eventType,
+            parentDatabaseId: parentDbId,
+            enqueuedAt: Date.now(),
+          });
+          await logWebhookEvent(
+            grouped.userId,
+            grouped.sourceId,
+            eventType,
+            pageId,
+            "success",
+            "Webhook fetch enqueued",
+            0,
+          );
+        } else {
+          await logWebhookEvent(
+            grouped.userId,
+            grouped.sourceId,
+            eventType,
+            pageId,
+            "success",
+            "Skipped duplicate pending webhook fetch",
+            0,
+          );
+        }
+      }
+
+      return new Response("OK", { status: 200 });
+    }
+
+    // ---- CHANGED (fallback inline mode without NATS) ----
     if (source) {
       // Custom mode
       const credentials = source.credentials

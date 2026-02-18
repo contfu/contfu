@@ -1,7 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const PGLITE_DATA_DIR = path.join(import.meta.dir, ".pglite-e2e");
+const DIRNAME = path.dirname(fileURLToPath(import.meta.url));
+const PGLITE_DATA_DIR = path.join(DIRNAME, ".pglite-e2e");
 
 /**
  * Playwright global setup: creates a file-based PGlite database,

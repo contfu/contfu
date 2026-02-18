@@ -14,7 +14,7 @@ import {
   sourceTable,
   userTable,
 } from "@contfu/svc-backend/infra/db/schema";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import crypto from "node:crypto";
 
 /** Well-known test source UID — must match the test file. */
@@ -28,11 +28,23 @@ const MOCK_TOKEN = "mock-notion-token";
  * source → source collection → collection → influx → consumer → connection.
  */
 export async function seedWebhookData(db: any): Promise<void> {
-  const [user] = await db
+  let [user] = await db
     .select({ id: userTable.id })
     .from(userTable)
     .where(eq(userTable.email, "test@test.com"))
     .limit(1);
+
+  if (!user) {
+    [user] = await db
+      .insert(userTable)
+      .values({
+        name: "Test User",
+        email: "test@test.com",
+        emailVerified: true,
+        approved: true,
+      })
+      .returning({ id: userTable.id });
+  }
 
   if (!user) return;
 
@@ -50,82 +62,62 @@ export async function seedWebhookData(db: any): Promise<void> {
   const encryptedCredentials = await encryptCredentials(userId, Buffer.from(MOCK_TOKEN, "utf8"));
 
   // Source
-  const maxSourceId = await db
-    .select({ maxId: sql<number>`coalesce(max(id), 0)` })
-    .from(sourceTable)
-    .where(eq(sourceTable.userId, userId))
-    .limit(1);
-  const sourceId = (maxSourceId[0]?.maxId ?? 0) + 1;
-
-  await db.insert(sourceTable).values({
-    userId,
-    id: sourceId,
-    uid: SOURCE_UID,
-    name: "Test Notion Webhook Source",
-    type: SourceType.NOTION,
-    credentials: encryptedCredentials,
-  });
+  const [source] = await db
+    .insert(sourceTable)
+    .values({
+      userId,
+      uid: SOURCE_UID,
+      name: "Test Notion Webhook Source",
+      type: SourceType.NOTION,
+      credentials: encryptedCredentials,
+    })
+    .returning({ id: sourceTable.id });
+  if (!source) return;
+  const sourceId = source.id;
 
   // Source collection (ref = mock Notion database ID)
   const ref = Buffer.from(MOCK_DATABASE_ID.replace(/-/g, ""), "hex");
-  const maxScId = await db
-    .select({ maxId: sql<number>`coalesce(max(id), 0)` })
-    .from(sourceCollectionTable)
-    .where(eq(sourceCollectionTable.userId, userId))
-    .limit(1);
-  const scId = (maxScId[0]?.maxId ?? 0) + 1;
-
-  await db.insert(sourceCollectionTable).values({
-    userId,
-    sourceId,
-    id: scId,
-    name: "Test Notion Database",
-    ref,
-  });
+  const [sourceCollection] = await db
+    .insert(sourceCollectionTable)
+    .values({
+      userId,
+      sourceId,
+      name: "Test Notion Database",
+      ref,
+    })
+    .returning({ id: sourceCollectionTable.id });
+  if (!sourceCollection) return;
+  const scId = sourceCollection.id;
 
   // Target collection
-  const maxColId = await db
-    .select({ maxId: sql<number>`coalesce(max(id), 0)` })
-    .from(collectionTable)
-    .where(eq(collectionTable.userId, userId))
-    .limit(1);
-  const colId = (maxColId[0]?.maxId ?? 0) + 1;
-
-  await db.insert(collectionTable).values({
-    userId,
-    id: colId,
-    name: "Test Webhook Collection",
-  });
+  const [collection] = await db
+    .insert(collectionTable)
+    .values({
+      userId,
+      name: "Test Webhook Collection",
+    })
+    .returning({ id: collectionTable.id });
+  if (!collection) return;
+  const colId = collection.id;
 
   // Influx: source collection → collection
-  const maxInfluxId = await db
-    .select({ maxId: sql<number>`coalesce(max(id), 0)` })
-    .from(influxTable)
-    .where(eq(influxTable.userId, userId))
-    .limit(1);
-  const influxId = (maxInfluxId[0]?.maxId ?? 0) + 1;
-
   await db.insert(influxTable).values({
     userId,
-    id: influxId,
     collectionId: colId,
     sourceCollectionId: scId,
   });
 
   // Consumer
-  const maxConsumerId = await db
-    .select({ maxId: sql<number>`coalesce(max(id), 0)` })
-    .from(consumerTable)
-    .where(eq(consumerTable.userId, userId))
-    .limit(1);
-  const consumerId = (maxConsumerId[0]?.maxId ?? 0) + 1;
-
-  await db.insert(consumerTable).values({
-    userId,
-    id: consumerId,
-    key: crypto.randomBytes(32),
-    name: "Test Webhook Consumer",
-  });
+  const [consumer] = await db
+    .insert(consumerTable)
+    .values({
+      userId,
+      key: crypto.randomBytes(32),
+      name: "Test Webhook Consumer",
+    })
+    .returning({ id: consumerTable.id });
+  if (!consumer) return;
+  const consumerId = consumer.id;
 
   // Connection: consumer → collection
   await db.insert(connectionTable).values({

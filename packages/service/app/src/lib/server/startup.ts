@@ -2,6 +2,11 @@ import { ensureEventStream } from "@contfu/svc-backend/infra/nats/event-stream";
 import { hasNats } from "@contfu/svc-backend/infra/nats/connection";
 import { StreamServer } from "@contfu/svc-backend/infra/stream/stream-server";
 import { SyncWorkerManager } from "@contfu/svc-backend/infra/sync-worker/worker-manager";
+import {
+  ensureWebhookFetchQueue,
+  startWebhookFetchWorker,
+  stopWebhookFetchWorker,
+} from "@contfu/svc-backend/infra/webhook-queue/index";
 
 // Singleton instances - lazily initialized
 let streamServer: StreamServer | null = null;
@@ -49,6 +54,8 @@ export async function initialize(): Promise<void> {
   // Initialize JetStream event stream if NATS is available
   if (hasNats()) {
     await ensureEventStream();
+    await ensureWebhookFetchQueue();
+    startWebhookFetchWorker({ streamServer: stream });
   }
 
   // Wire the onItems callback to broadcast items to all connected clients
@@ -77,6 +84,10 @@ export async function shutdown(): Promise<void> {
   // Stop the worker manager
   if (workerManager) {
     await workerManager.stop();
+  }
+
+  if (hasNats()) {
+    await stopWebhookFetchWorker();
   }
 
   // Clear singletons
