@@ -18,7 +18,7 @@
     "test:e2e:headed": "E2E_FULL_FLOW=true playwright test -c tests/playwright.config.ts --headed",
     "build": "bun --filter '@contfu/*' build",
     "clean": "bun --filter '@contfu/*' clean",
-    "dev": "bun run --filter '@contfu/svc-backend' build && bun run --filter '@contfu/svc-backend' dev & bun run --parallel --filter '@contfu/*app' dev",
+    "dev": "bun run --filter '@contfu/svc-backend' build && bun run --parallel -F '@contfu/svc-{backend,app}' dev",
     "fmt": "oxfmt",
     "lint": "oxlint",
     "lint:types": "oxlint --type-aware",
