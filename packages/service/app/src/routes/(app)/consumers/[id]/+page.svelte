@@ -11,6 +11,7 @@
     addConnection,
     getConnectionsByConsumer,
     removeConnection,
+    updateConnectionIncludeRef,
   } from "$lib/remote/connections.remote";
   import {
     deleteConsumer,
@@ -172,6 +173,28 @@
           ? ""
           : "s"} · Created {new Date(client.createdAt).toLocaleDateString()}
       </p>
+      <div class="mt-3">
+        <form
+          {...updateConsumer.enhance(async ({ submit }) => {
+            await tcToast(async () => {
+              await submit().updates(
+                getConsumer({ id }).withOverride((c) => ({
+                  ...c!,
+                  includeRef: !c!.includeRef,
+                })),
+              );
+              toast.success(client.includeRef ? "Consumer refs disabled" : "Consumer refs enabled");
+            });
+          })}
+          class="inline"
+        >
+          <input {...updateConsumer.fields.id.as("text")} type="hidden" value={client.id} />
+          <input name="includeRef" type="hidden" value={client.includeRef ? "false" : "true"} />
+          <Button type="submit" variant="outline" size="sm">
+            {client.includeRef ? "Disable Refs For Consumer" : "Enable Refs For Consumer"}
+          </Button>
+        </form>
+      </div>
     </div>
 
     <!-- API Key -->
@@ -252,37 +275,62 @@
             <div
               class="flex items-center justify-between rounded-md border border-border px-4 py-3"
             >
-              <span class="text-sm font-medium"
-                >{connection.collectionName}</span
-              >
-              <form
-                {...removeConnection.enhance(async ({ submit }) => {
-                  await submit();
-                  toast.success("Collection disconnected");
-                })}
-                class="inline"
-              >
-                <input
-                  {...removeConnection.fields.consumerId.as("text")}
-                  type="hidden"
-                  value={client.id}
-                />
-                <input
-                  {...removeConnection.fields.collectionId.as("text")}
-                  type="hidden"
-                  value={connection.collectionId}
-                />
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger>
-                      <Button type="submit" variant="ghost" size="icon-sm">
-                        <UnlinkIcon />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Disconnect</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </form>
+              <div class="flex items-center gap-2">
+                <span class="text-sm font-medium">{connection.collectionName}</span>
+                <span class="text-xs text-muted-foreground">refs: {connection.includeRef ? "on" : "off"}</span>
+              </div>
+              <div class="flex items-center gap-1">
+                <form
+                  {...updateConnectionIncludeRef.enhance(async ({ submit }) => {
+                    await submit();
+                    toast.success(connection.includeRef ? "Connection refs disabled" : "Connection refs enabled");
+                  })}
+                  class="inline"
+                >
+                  <input
+                    {...updateConnectionIncludeRef.fields.consumerId.as("text")}
+                    type="hidden"
+                    value={client.id}
+                  />
+                  <input
+                    {...updateConnectionIncludeRef.fields.collectionId.as("text")}
+                    type="hidden"
+                    value={connection.collectionId}
+                  />
+                  <input name="includeRef" type="hidden" value={connection.includeRef ? "false" : "true"} />
+                  <Button type="submit" variant="ghost" size="sm">
+                    {connection.includeRef ? "Disable Refs" : "Enable Refs"}
+                  </Button>
+                </form>
+                <form
+                  {...removeConnection.enhance(async ({ submit }) => {
+                    await submit();
+                    toast.success("Collection disconnected");
+                  })}
+                  class="inline"
+                >
+                  <input
+                    {...removeConnection.fields.consumerId.as("text")}
+                    type="hidden"
+                    value={client.id}
+                  />
+                  <input
+                    {...removeConnection.fields.collectionId.as("text")}
+                    type="hidden"
+                    value={connection.collectionId}
+                  />
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <Button type="submit" variant="ghost" size="icon-sm">
+                          <UnlinkIcon />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Disconnect</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </form>
+              </div>
             </div>
           {:else}
             <p class="text-sm text-muted-foreground">

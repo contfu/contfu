@@ -15,6 +15,7 @@ export async function listConnectionsByCollection(
       userId: connectionTable.userId,
       consumerId: connectionTable.consumerId,
       collectionId: connectionTable.collectionId,
+      includeRef: connectionTable.includeRef,
       lastItemChanged: connectionTable.lastItemChanged,
       lastConsistencyCheck: connectionTable.lastConsistencyCheck,
       consumerName: consumerTable.name,

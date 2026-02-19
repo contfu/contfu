@@ -1,14 +1,16 @@
 import { decryptCredentials } from "@contfu/svc-backend/infra/crypto/credentials";
 import { db } from "@contfu/svc-backend/infra/db/db";
 import {
+  collectionTable,
   sourceCollectionTable,
   connectionTable,
+  consumerTable,
   sourceTable,
   webhookLogTable,
 } from "@contfu/svc-backend/infra/db/schema";
 import { listInfluxesBySourceCollections } from "@contfu/svc-backend/features/influxes/listInfluxesBySourceCollections";
 import { getStreamServer } from "$lib/server/startup";
-import { genUid } from "@contfu/svc-sources";
+import { encodeStrapiRef, genUid } from "@contfu/svc-sources";
 import { SourceType, matchesFilters } from "@contfu/svc-core";
 import type { UserSyncItem } from "@contfu/svc-backend/infra/sync-worker/messages";
 import { and, desc, eq, inArray } from "drizzle-orm";
@@ -46,7 +48,7 @@ interface StrapiWebhookPayload {
  * Log a webhook event to the database.
  */
 async function logWebhookEvent(
-  userId: number,
+  _userId: number,
   sourceId: number,
   event: string,
   model: string | null,
@@ -57,7 +59,6 @@ async function logWebhookEvent(
   try {
     // Insert new log
     await db.insert(webhookLogTable).values({
-      userId,
       sourceId,
       event,
       model,
@@ -70,7 +71,7 @@ async function logWebhookEvent(
     const logs = await db
       .select({ id: webhookLogTable.id })
       .from(webhookLogTable)
-      .where(and(eq(webhookLogTable.userId, userId), eq(webhookLogTable.sourceId, sourceId)))
+      .where(eq(webhookLogTable.sourceId, sourceId))
       .orderBy(desc(webhookLogTable.timestamp))
       .limit(1000);
 
@@ -127,11 +128,18 @@ function entryToItem(
   entry: StrapiWebhookPayload["entry"],
   collectionId: number,
   userId: number,
+  sourceUrl: string,
+  contentTypeUid: string,
   props: Record<string, unknown>,
 ): UserSyncItem {
   const documentId = entry.documentId ?? String(entry.id);
-  const ref = Buffer.from(documentId, "utf8");
-  const id = genUid(ref);
+  const rawRef = Buffer.from(documentId, "utf8");
+  const ref = encodeStrapiRef({
+    baseUrl: sourceUrl,
+    contentTypeUid: Buffer.from(contentTypeUid, "utf8"),
+    documentId,
+  });
+  const id = genUid(rawRef);
 
   const createdAt = new Date(entry.createdAt).getTime();
   const changedAt = new Date(entry.updatedAt).getTime();
@@ -187,6 +195,8 @@ export const POST: RequestHandler = async ({ request, params }) => {
     .select({
       userId: sourceTable.userId,
       id: sourceTable.id,
+      url: sourceTable.url,
+      includeRef: sourceTable.includeRef,
       webhookSecret: sourceTable.webhookSecret,
     })
     .from(sourceTable)
@@ -294,6 +304,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
 
     // Get unique target collection IDs that pass filters
     const targetCollectionIds: number[] = [];
+    const collectionRefPolicy = new Map<number, boolean>();
     let filteredOutCount = 0;
 
     for (const influx of influxes) {
@@ -308,6 +319,12 @@ export const POST: RequestHandler = async ({ request, params }) => {
       }
 
       targetCollectionIds.push(influx.collectionId);
+      const previous = collectionRefPolicy.get(influx.collectionId) ?? true;
+      // Ref propagation is opt-out only: false at any upstream layer disables it.
+      collectionRefPolicy.set(
+        influx.collectionId,
+        previous && source.includeRef && influx.includeRef,
+      );
     }
 
     if (targetCollectionIds.length === 0) {
@@ -329,9 +346,26 @@ export const POST: RequestHandler = async ({ request, params }) => {
       .select({
         consumerId: connectionTable.consumerId,
         collectionId: connectionTable.collectionId,
+        connectionIncludeRef: connectionTable.includeRef,
+        consumerIncludeRef: consumerTable.includeRef,
+        collectionIncludeRef: collectionTable.includeRef,
         lastItemChanged: connectionTable.lastItemChanged,
       })
       .from(connectionTable)
+      .innerJoin(
+        collectionTable,
+        and(
+          eq(connectionTable.userId, collectionTable.userId),
+          eq(connectionTable.collectionId, collectionTable.id),
+        ),
+      )
+      .innerJoin(
+        consumerTable,
+        and(
+          eq(connectionTable.userId, consumerTable.userId),
+          eq(connectionTable.consumerId, consumerTable.id),
+        ),
+      )
       .where(
         and(
           eq(connectionTable.userId, source.userId),
@@ -356,7 +390,14 @@ export const POST: RequestHandler = async ({ request, params }) => {
     // Convert entry to items (one per target collection) and broadcast
     let itemsBroadcast = 0;
     for (const collectionId of targetCollectionIds) {
-      const item = entryToItem(payload.entry, collectionId, source.userId, props);
+      const item = entryToItem(
+        payload.entry,
+        collectionId,
+        source.userId,
+        source.url ?? "",
+        contentTypeUid,
+        props,
+      );
 
       // Build connection info for this collection
       const collectionConnections = connections
@@ -365,6 +406,11 @@ export const POST: RequestHandler = async ({ request, params }) => {
           userId: source.userId,
           consumerId: c.consumerId,
           collectionId: c.collectionId,
+          includeRef:
+            Boolean(c.connectionIncludeRef) &&
+            Boolean(c.consumerIncludeRef) &&
+            Boolean(c.collectionIncludeRef) &&
+            (collectionRefPolicy.get(c.collectionId) ?? true),
           lastItemChanged: c.lastItemChanged,
         }));
 

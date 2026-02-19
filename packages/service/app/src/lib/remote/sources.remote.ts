@@ -16,6 +16,7 @@ import { updateSource as updateSourceFeature } from "@contfu/svc-backend/feature
 import { validateSourceData } from "@contfu/svc-backend/features/sources/validateSourceData";
 import { getProviderAccessToken } from "@contfu/svc-backend/infra/auth/linked-accounts";
 import { encodeId, idSchema } from "@contfu/svc-backend/infra/ids";
+import { CredentialsSource } from "@contfu/svc-core";
 import {
   iterateDataSources,
   resolveDataSourceId,
@@ -75,6 +76,12 @@ export const createSource = form(
       ),
     ),
     _credentials: v.optional(v.string()),
+    includeRef: v.optional(
+      v.pipe(
+        v.union([v.string(), v.boolean()]),
+        v.transform((val) => (typeof val === "boolean" ? val : val === "true")),
+      ),
+    ),
   }),
   async (data, issue) => {
     const userId = getUserId();
@@ -114,6 +121,7 @@ export const createSource = form(
       credentials: credentialsBuffer,
       credentialsSource:
         data.type === SourceType.NOTION ? CredentialsSource.USER_PROVIDED : undefined,
+      includeRef: data.includeRef ?? true,
     });
 
     redirect(303, `/sources/${encodeId("source", source.id)}`);
@@ -127,6 +135,12 @@ export const createSource = form(
 export const createNotionSourceFromOAuth = command(
   v.object({
     name: v.pipe(v.string(), v.nonEmpty("Name is required")),
+    includeRef: v.optional(
+      v.pipe(
+        v.union([v.string(), v.boolean()]),
+        v.transform((val) => (typeof val === "boolean" ? val : val === "true")),
+      ),
+    ),
   }),
   async (data): Promise<{ id: string }> => {
     const userId = getUserId();
@@ -150,6 +164,7 @@ export const createNotionSourceFromOAuth = command(
       url: null,
       credentials: Buffer.from(accessToken, "utf-8"),
       credentialsSource: CredentialsSource.OAUTH,
+      includeRef: data.includeRef ?? true,
     });
 
     return { id: encodeId("source", source.id) };
@@ -165,6 +180,12 @@ export const updateSource = form(
     name: v.optional(v.pipe(v.string(), v.nonEmpty("Name cannot be empty"))),
     url: v.optional(v.string()),
     _credentials: v.optional(v.string()),
+    includeRef: v.optional(
+      v.pipe(
+        v.union([v.string(), v.boolean()]),
+        v.transform((val) => (typeof val === "boolean" ? val : val === "true")),
+      ),
+    ),
   }),
   async (data, issue) => {
     const userId = getUserId();
@@ -191,7 +212,12 @@ export const updateSource = form(
     }
 
     // Build update object
-    const updates: { name?: string; url?: string | null; credentials?: Buffer } = {};
+    const updates: {
+      name?: string;
+      url?: string | null;
+      credentials?: Buffer;
+      includeRef?: boolean;
+    } = {};
     if (data.name !== undefined) {
       updates.name = data.name;
     }
@@ -200,6 +226,9 @@ export const updateSource = form(
     }
     if (data._credentials !== undefined && data._credentials.length > 0) {
       updates.credentials = Buffer.from(data._credentials, "utf-8");
+    }
+    if (data.includeRef !== undefined) {
+      updates.includeRef = data.includeRef;
     }
 
     await updateSourceFeature(userId, data.id, updates);

@@ -5,5 +5,6 @@ export type ConnectionInfo = {
   userId: number;
   consumerId: number;
   collectionId: number;
+  includeRef: boolean;
   lastItemChanged: Date | null;
 };

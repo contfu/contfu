@@ -34,6 +34,7 @@ export async function getCollection(
     id: collection.id,
     userId: collection.userId,
     name: collection.name,
+    includeRef: collection.includeRef,
     influxCount: influxCount?.count ?? 0,
     connectionCount: connectionCount?.count ?? 0,
     createdAt: collection.createdAt,

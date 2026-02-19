@@ -16,7 +16,7 @@ export interface ServiceInfluxWithDetails {
   sourceType: number;
   schema: CollectionSchema | null;
   filters: Filter[] | null;
-  includeRef: boolean | null;
+  includeRef: boolean;
   createdAt: Date;
 }
 
@@ -34,7 +34,7 @@ export interface ServiceInfluxDetails {
   sourceName: string | null;
   schema: CollectionSchema | null;
   filters: Filter[] | null;
-  includeRef: boolean | null;
+  includeRef: boolean;
   createdAt: Date;
   updatedAt: Date | null;
 }

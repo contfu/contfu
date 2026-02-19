@@ -6,6 +6,7 @@
   import { Button, buttonVariants } from "$lib/components/ui/button";
   import { Input } from "$lib/components/ui/input";
   import { Label } from "$lib/components/ui/label";
+  import { Switch } from "$lib/components/ui/switch";
   import * as Popover from "$lib/components/ui/popover";
   import {
     createSourceCollection,
@@ -58,6 +59,7 @@
   // Sync form fields when source changes
   $effect(() => {
     updateSource.fields.set(source);
+    includeRef = source?.includeRef ?? true;
   });
 
   // Query object - auto-refreshes after form submissions
@@ -72,6 +74,7 @@
 
   let testResult: { success: boolean; message: string } | null = $state(null);
   let testPending = $state(false);
+  let includeRef = $state(true);
   let namePopoverOpen = $state(false);
   let webhookLogs = $state<WebhookLogEntry[]>([]);
   let webhookSecret = $state<string | null>(null);
@@ -261,6 +264,12 @@
         class="space-y-4"
       >
         <input {...updateSource.fields.id.as("text")} type="hidden" />
+        <input name="includeRef" type="hidden" value={includeRef ? "true" : "false"} />
+
+        <div class="flex items-center justify-between rounded-md border border-border px-3 py-2">
+          <Label for="source-include-ref">Forward source item references</Label>
+          <Switch id="source-include-ref" bind:checked={includeRef} />
+        </div>
 
         {#if source.type === SourceType.STRAPI || source.type === SourceType.WEB}
           <div class="space-y-1.5">

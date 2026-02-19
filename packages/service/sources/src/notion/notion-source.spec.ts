@@ -2,6 +2,7 @@ import { describe, expect, it, beforeEach, setSystemTime, afterAll } from "bun:t
 import { PropertyType } from "@contfu/svc-core";
 import type { NotionFetchOpts } from ".";
 import { genUid, uuidToBuffer } from "../util/ids";
+import { encodeNotionRef } from "../util/refs";
 import { dbQueryPage1, dbQueryResult1, dbQueryResult2 } from "./__fixtures__/notion-query-results";
 import { mockClient } from "./__tests__/notion-mock-setup";
 
@@ -37,10 +38,12 @@ describe("NotionSource", () => {
 
         const events = await Array.fromAsync(source.fetch(pullOpts));
 
-        const ref1 = uuidToBuffer(dbQueryPage1.results[0].id);
-        const ref2 = uuidToBuffer(dbQueryPage1.results[1].id);
-        const id1 = genUid(ref1);
-        const id2 = genUid(ref2);
+        const rawRef1 = uuidToBuffer(dbQueryPage1.results[0].id);
+        const rawRef2 = uuidToBuffer(dbQueryPage1.results[1].id);
+        const ref1 = encodeNotionRef(dbQueryPage1.results[0].id);
+        const ref2 = encodeNotionRef(dbQueryPage1.results[1].id);
+        const id1 = genUid(rawRef1);
+        const id2 = genUid(rawRef2);
         const otherId = genUid(
           uuidToBuffer(dbQueryPage1.results[0].properties["Other Reference"].relation[0].id),
         );

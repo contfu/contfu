@@ -46,6 +46,7 @@ export async function listCollections(userId: number): Promise<BackendCollection
     id: c.id,
     userId: c.userId,
     name: c.name,
+    includeRef: c.includeRef,
     influxCount: influxCountMap.get(c.id) ?? 0,
     connectionCount: connectionCountMap.get(c.id) ?? 0,
     createdAt: c.createdAt,

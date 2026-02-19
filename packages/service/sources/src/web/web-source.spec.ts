@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, mock } from "bun:test";
 import type { PageProps } from "@contfu/core";
 import { PropertyType } from "@contfu/svc-core";
 import { genUid } from "../util/ids";
+import { encodeWebRef } from "../util/refs";
 import type { WebFetchOpts } from "./web";
 import { WebAuthType } from "./web";
 
@@ -98,7 +99,7 @@ describe("WebSource", () => {
       // Verify items have correct structure
       const item1 = items[0];
       expect(item1.collection).toBe(1);
-      expect(item1.ref).toEqual(Buffer.from("https://example.com/page1.html", "utf8"));
+      expect(item1.ref).toEqual(encodeWebRef("https://example.com/page1.html"));
       expect(item1.id).toEqual(genUid(Buffer.from("https://example.com/page1.html", "utf8")));
     });
 

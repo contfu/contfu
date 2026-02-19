@@ -25,7 +25,7 @@ export type WireEvent = [typeof WIRE_PING] | WireItemEvent;
  * [ref, id, collection, changedAt, props, content?]
  */
 export type WireItem = [
-  Uint8Array, // ref
+  Uint8Array | null, // ref (nullable when ref transmission is disabled)
   Uint8Array, // id
   string, // collection (encoded ID)
   number, // changedAt

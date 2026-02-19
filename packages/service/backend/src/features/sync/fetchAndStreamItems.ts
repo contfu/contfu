@@ -40,6 +40,7 @@ export async function* fetchAndStreamItems(
               ...item,
               user: config.userId,
               collection: target.collectionId,
+              includeRef: target.includeRef,
             };
           }
         }

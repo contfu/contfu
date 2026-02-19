@@ -14,7 +14,9 @@ import {
 } from "@contfu/svc-backend/infra/crypto/credentials";
 import { db } from "@contfu/svc-backend/infra/db/db";
 import {
+  collectionTable,
   connectionTable,
+  consumerTable,
   sourceCollectionTable,
   sourceTable,
   webhookLogTable,
@@ -64,6 +66,7 @@ const NotionWebhookPayloadSchema = v.looseObject({
 type SourceInfo = {
   userId: number;
   id: number;
+  includeRef: boolean;
   webhookSecret: Buffer | null;
   credentials: Buffer | null;
 };
@@ -281,6 +284,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
       .select({
         userId: sourceTable.userId,
         id: sourceTable.id,
+        includeRef: sourceTable.includeRef,
         webhookSecret: sourceTable.webhookSecret,
         credentials: sourceTable.credentials,
       })
@@ -388,6 +392,14 @@ export const POST: RequestHandler = async ({ request, params }) => {
         const sourceCollectionIds = sourceCollections.map((c) => c.id);
         const influxes = await listInfluxesBySourceCollections(source.userId, sourceCollectionIds);
         const targetCollectionIds = [...new Set(influxes.map((i) => i.collectionId))];
+        const collectionRefPolicy = new Map<number, boolean>();
+        for (const influx of influxes) {
+          const previous = collectionRefPolicy.get(influx.collectionId) ?? true;
+          collectionRefPolicy.set(
+            influx.collectionId,
+            previous && Boolean(source.includeRef) && Boolean(influx.includeRef),
+          );
+        }
 
         if (targetCollectionIds.length === 0) {
           await logWebhookEvent(
@@ -406,9 +418,26 @@ export const POST: RequestHandler = async ({ request, params }) => {
           .select({
             consumerId: connectionTable.consumerId,
             collectionId: connectionTable.collectionId,
+            connectionIncludeRef: connectionTable.includeRef,
+            consumerIncludeRef: consumerTable.includeRef,
+            collectionIncludeRef: collectionTable.includeRef,
             lastItemChanged: connectionTable.lastItemChanged,
           })
           .from(connectionTable)
+          .innerJoin(
+            collectionTable,
+            and(
+              eq(connectionTable.userId, collectionTable.userId),
+              eq(connectionTable.collectionId, collectionTable.id),
+            ),
+          )
+          .innerJoin(
+            consumerTable,
+            and(
+              eq(connectionTable.userId, consumerTable.userId),
+              eq(connectionTable.consumerId, consumerTable.id),
+            ),
+          )
           .where(
             and(
               eq(connectionTable.userId, source.userId),
@@ -423,6 +452,11 @@ export const POST: RequestHandler = async ({ request, params }) => {
               userId: source!.userId,
               consumerId: c.consumerId,
               collectionId: c.collectionId,
+              includeRef:
+                Boolean(c.connectionIncludeRef) &&
+                Boolean(c.consumerIncludeRef) &&
+                Boolean(c.collectionIncludeRef) &&
+                (collectionRefPolicy.get(c.collectionId) ?? true),
               lastItemChanged: c.lastItemChanged,
             })),
           );
@@ -461,14 +495,45 @@ export const POST: RequestHandler = async ({ request, params }) => {
             const influxes = await listInfluxesBySourceCollections(sc.userId, [sc.id]);
             const targetCollectionIds = [...new Set(influxes.map((i) => i.collectionId))];
             if (targetCollectionIds.length === 0) continue;
+            const [src] = await db
+              .select({ includeRef: sourceTable.includeRef })
+              .from(sourceTable)
+              .where(and(eq(sourceTable.userId, sc.userId), eq(sourceTable.id, sc.sourceId)))
+              .limit(1);
+            if (!src) continue;
+            const collectionRefPolicy = new Map<number, boolean>();
+            for (const influx of influxes) {
+              const previous = collectionRefPolicy.get(influx.collectionId) ?? true;
+              collectionRefPolicy.set(
+                influx.collectionId,
+                previous && Boolean(src.includeRef) && Boolean(influx.includeRef),
+              );
+            }
 
             const connections = await db
               .select({
                 consumerId: connectionTable.consumerId,
                 collectionId: connectionTable.collectionId,
+                connectionIncludeRef: connectionTable.includeRef,
+                consumerIncludeRef: consumerTable.includeRef,
+                collectionIncludeRef: collectionTable.includeRef,
                 lastItemChanged: connectionTable.lastItemChanged,
               })
               .from(connectionTable)
+              .innerJoin(
+                collectionTable,
+                and(
+                  eq(connectionTable.userId, collectionTable.userId),
+                  eq(connectionTable.collectionId, collectionTable.id),
+                ),
+              )
+              .innerJoin(
+                consumerTable,
+                and(
+                  eq(connectionTable.userId, consumerTable.userId),
+                  eq(connectionTable.consumerId, consumerTable.id),
+                ),
+              )
               .where(
                 and(
                   eq(connectionTable.userId, sc.userId),
@@ -483,6 +548,11 @@ export const POST: RequestHandler = async ({ request, params }) => {
                   userId: sc.userId,
                   consumerId: c.consumerId,
                   collectionId: c.collectionId,
+                  includeRef:
+                    Boolean(c.connectionIncludeRef) &&
+                    Boolean(c.consumerIncludeRef) &&
+                    Boolean(c.collectionIncludeRef) &&
+                    (collectionRefPolicy.get(c.collectionId) ?? true),
                   lastItemChanged: c.lastItemChanged,
                 })),
               );
@@ -661,11 +731,17 @@ export const POST: RequestHandler = async ({ request, params }) => {
 
       let itemsBroadcast = 0;
       const targetCollectionIds: number[] = [];
+      const collectionRefPolicy = new Map<number, boolean>();
       for (const influx of influxes) {
         if (influx.filters.length > 0 && !matchesFilters(result.item.props, influx.filters)) {
           continue;
         }
         targetCollectionIds.push(influx.collectionId);
+        const previous = collectionRefPolicy.get(influx.collectionId) ?? true;
+        collectionRefPolicy.set(
+          influx.collectionId,
+          previous && Boolean(source.includeRef) && Boolean(influx.includeRef),
+        );
       }
 
       if (targetCollectionIds.length > 0) {
@@ -673,9 +749,26 @@ export const POST: RequestHandler = async ({ request, params }) => {
           .select({
             consumerId: connectionTable.consumerId,
             collectionId: connectionTable.collectionId,
+            connectionIncludeRef: connectionTable.includeRef,
+            consumerIncludeRef: consumerTable.includeRef,
+            collectionIncludeRef: collectionTable.includeRef,
             lastItemChanged: connectionTable.lastItemChanged,
           })
           .from(connectionTable)
+          .innerJoin(
+            collectionTable,
+            and(
+              eq(connectionTable.userId, collectionTable.userId),
+              eq(connectionTable.collectionId, collectionTable.id),
+            ),
+          )
+          .innerJoin(
+            consumerTable,
+            and(
+              eq(connectionTable.userId, consumerTable.userId),
+              eq(connectionTable.consumerId, consumerTable.id),
+            ),
+          )
           .where(
             and(
               eq(connectionTable.userId, source.userId),
@@ -695,6 +788,11 @@ export const POST: RequestHandler = async ({ request, params }) => {
               userId: source!.userId,
               consumerId: c.consumerId,
               collectionId: c.collectionId,
+              includeRef:
+                Boolean(c.connectionIncludeRef) &&
+                Boolean(c.consumerIncludeRef) &&
+                Boolean(c.collectionIncludeRef) &&
+                (collectionRefPolicy.get(c.collectionId) ?? true),
               lastItemChanged: c.lastItemChanged,
             }));
           if (collectionConnections.length > 0) {
@@ -739,7 +837,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
 
         // Get source credentials
         const [srcRow] = await db
-          .select({ credentials: sourceTable.credentials })
+          .select({ credentials: sourceTable.credentials, includeRef: sourceTable.includeRef })
           .from(sourceTable)
           .where(and(eq(sourceTable.userId, userId), eq(sourceTable.id, sourceId)))
           .limit(1);
@@ -762,11 +860,17 @@ export const POST: RequestHandler = async ({ request, params }) => {
         const influxes = await listInfluxesBySourceCollections(userId, sourceCollectionIds);
 
         const targetCollectionIds: number[] = [];
+        const collectionRefPolicy = new Map<number, boolean>();
         for (const influx of influxes) {
           if (influx.filters.length > 0 && !matchesFilters(result.item.props, influx.filters)) {
             continue;
           }
           targetCollectionIds.push(influx.collectionId);
+          const previous = collectionRefPolicy.get(influx.collectionId) ?? true;
+          collectionRefPolicy.set(
+            influx.collectionId,
+            previous && Boolean(srcRow.includeRef) && Boolean(influx.includeRef),
+          );
         }
 
         if (targetCollectionIds.length === 0) continue;
@@ -775,9 +879,26 @@ export const POST: RequestHandler = async ({ request, params }) => {
           .select({
             consumerId: connectionTable.consumerId,
             collectionId: connectionTable.collectionId,
+            connectionIncludeRef: connectionTable.includeRef,
+            consumerIncludeRef: consumerTable.includeRef,
+            collectionIncludeRef: collectionTable.includeRef,
             lastItemChanged: connectionTable.lastItemChanged,
           })
           .from(connectionTable)
+          .innerJoin(
+            collectionTable,
+            and(
+              eq(connectionTable.userId, collectionTable.userId),
+              eq(connectionTable.collectionId, collectionTable.id),
+            ),
+          )
+          .innerJoin(
+            consumerTable,
+            and(
+              eq(connectionTable.userId, consumerTable.userId),
+              eq(connectionTable.consumerId, consumerTable.id),
+            ),
+          )
           .where(
             and(
               eq(connectionTable.userId, userId),
@@ -797,6 +918,11 @@ export const POST: RequestHandler = async ({ request, params }) => {
               userId,
               consumerId: c.consumerId,
               collectionId: c.collectionId,
+              includeRef:
+                Boolean(c.connectionIncludeRef) &&
+                Boolean(c.consumerIncludeRef) &&
+                Boolean(c.collectionIncludeRef) &&
+                (collectionRefPolicy.get(c.collectionId) ?? true),
               lastItemChanged: c.lastItemChanged,
             }));
           if (collectionConnections.length > 0) {

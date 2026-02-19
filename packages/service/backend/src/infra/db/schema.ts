@@ -141,6 +141,8 @@ export const consumerTable = pgTable.withRLS(
     key: bytea().unique(),
     /** The name of the consumer. */
     name: text().notNull(),
+    /** Whether refs may be transmitted to this consumer. */
+    includeRef: boolean().notNull().default(true),
     /** The time the consumer was created. */
     createdAt: timestamp({ withTimezone: true, mode: "date" })
       .default(sql`now()`)
@@ -182,9 +184,8 @@ export const sourceTable = pgTable.withRLS(
     webhookSecret: bytea(),
     /**
      * Whether to include a ref field in Items linking back to the upstream SourceItem.
-     * Default false (privacy-first). Can be overridden per SourceCollection→Collection link.
      */
-    includeRef: boolean().notNull().default(false),
+    includeRef: boolean().notNull().default(true),
     /** The date the source was created. */
     createdAt: timestamp({ withTimezone: true, mode: "date" })
       .default(sql`now()`)
@@ -269,6 +270,8 @@ export const collectionTable = pgTable.withRLS(
       .notNull(),
     /** The name of the collection (displayed to users). */
     name: text().notNull(),
+    /** Whether refs may be transmitted for this collection. */
+    includeRef: boolean().notNull().default(true),
     /** The date the collection was created. */
     createdAt: timestamp({ withTimezone: true, mode: "date" })
       .default(sql`now()`)
@@ -321,11 +324,8 @@ export const influxTable = pgTable.withRLS(
      * Empty/null means no filtering (all items pass through).
      */
     filters: bytea(),
-    /**
-     * Override Source.includeRef for this specific link.
-     * null = use Source default, true/false = override.
-     */
-    includeRef: boolean(),
+    /** Whether refs may be transmitted for this specific source->collection link. */
+    includeRef: boolean().notNull().default(true),
     /** The date the influx was created. */
     createdAt: timestamp({ withTimezone: true, mode: "date" })
       .default(sql`now()`)
@@ -364,6 +364,8 @@ export const connectionTable = pgTable.withRLS(
     collectionId: integer()
       .notNull()
       .references(() => collectionTable.id, { onDelete: "cascade" }),
+    /** Whether refs may be transmitted on this specific consumer->collection link. */
+    includeRef: boolean().notNull().default(true),
     /** The most recent item change that was received by the consumer. */
     lastItemChanged: timestamp({ withTimezone: true, mode: "date" }),
     /** The date the collection was last checked for deleted items. */

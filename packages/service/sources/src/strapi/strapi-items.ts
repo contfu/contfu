@@ -1,5 +1,6 @@
 import type { Block, Item, PageProps } from "@contfu/core";
 import { genUid } from "../util/ids";
+import { encodeStrapiRef } from "../util/refs";
 import type {
   StrapiComponent,
   StrapiEntry,
@@ -22,15 +23,25 @@ export async function* iterateItems(
   params: StrapiQueryParams = {},
 ): AsyncGenerator<Item> {
   for await (const entry of iterateEntries(opts, params)) {
-    yield parseItem(entry, opts.collection, opts.url);
+    yield parseItem(entry, opts.collection, opts.url, opts.ref);
   }
 }
 
 /**
  * Convert a Strapi entry to an Item.
  */
-function parseItem(entry: StrapiEntry, collection: number, baseUrl: string): Item {
-  const ref = documentIdToBuffer(entry.documentId);
+function parseItem(
+  entry: StrapiEntry,
+  collection: number,
+  baseUrl: string,
+  contentTypeUid: Buffer,
+): Item {
+  const rawRef = documentIdToBuffer(entry.documentId);
+  const ref = encodeStrapiRef({
+    baseUrl,
+    contentTypeUid,
+    documentId: entry.documentId,
+  });
   const changedAt = new Date(entry.updatedAt).getTime();
 
   const { props, content } = parseFields(entry, baseUrl);
@@ -41,7 +52,7 @@ function parseItem(entry: StrapiEntry, collection: number, baseUrl: string): Ite
   }
 
   const item: Item = {
-    id: genUid(ref),
+    id: genUid(rawRef),
     ref,
     collection,
     changedAt,

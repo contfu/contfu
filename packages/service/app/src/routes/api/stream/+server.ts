@@ -10,8 +10,10 @@ export const GET: RequestHandler = async ({ request, url }) => {
 
   // Extract and validate consumer key
   const auth = extractConsumerKey(url, request);
+  console.log("auth", auth);
   if ("error" in auth) return auth.error;
   const { key } = auth;
+  console.log("key", key);
 
   // Parse optional `from` query parameter for event replay
   const fromParam = url.searchParams.get("from");
@@ -35,6 +37,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
   }
 
   // Pre-authenticate before creating the stream
+  console.log("pre-authenticating", key);
   const authResult = await server.preAuthenticate(key);
   if (authResult.error) {
     switch (authResult.error) {
@@ -101,16 +104,27 @@ export const GET: RequestHandler = async ({ request, url }) => {
         if (info) {
           const { getConsumerCollectionIds } =
             await import("@contfu/svc-backend/infra/stream/stream-server");
+          const { getConsumerCollectionRefPolicy } =
+            await import("@contfu/svc-backend/infra/stream/stream-server");
           const collectionIds = await getConsumerCollectionIds(info.userId, info.consumerId);
+          const refPolicyByCollection = await getConsumerCollectionRefPolicy(
+            info.userId,
+            info.consumerId,
+          );
           if (collectionIds.length > 0 && !request.signal.aborted) {
             try {
-              for await (const { seq, event } of replayEvents({
+              for await (const { seq, collectionId, event } of replayEvents({
                 fromSeq,
                 userId: info.userId,
                 collectionIds,
               })) {
                 if (request.signal.aborted) break;
-                server.sendIndexedItem(controller, seq, event);
+                server.sendIndexedItem(
+                  controller,
+                  seq,
+                  event,
+                  refPolicyByCollection.get(collectionId) ?? true,
+                );
               }
             } catch (error) {
               console.error("Event replay error:", error);

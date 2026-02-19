@@ -56,7 +56,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
       try {
         for await (const item of fetchAndStreamItems(config)) {
           if (request.signal.aborted) break;
-          server.sendItem(controller, [EventType.CHANGED, toWireItem(item)]);
+          server.sendItem(controller, [EventType.CHANGED, toWireItem(item, item.includeRef)]);
         }
       } catch (error) {
         console.error("Sync stream error:", error);

@@ -17,6 +17,8 @@ export enum SyncMessageType {
 /** User-tagged item for multi-tenant routing. */
 export type UserSyncItem = Item & {
   user: number;
+  /** Whether ref should be transmitted for this item in this route context. */
+  includeRef?: boolean;
 };
 
 // App -> Worker messages

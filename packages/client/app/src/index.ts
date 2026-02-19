@@ -17,6 +17,9 @@ export {
   type DbAsset,
   type NewAsset,
   type AssetUpdate,
+  // Stream exports
+  connect,
+  type ItemEvent,
   // Sync exports
   sync,
   type SyncOptions,
@@ -62,5 +65,3 @@ export {
   deleteNulls,
   hashId,
 } from "contfu";
-
-export { connectPush } from "./core/connection";

@@ -1,6 +1,7 @@
 import type { Item, PageProps } from "@contfu/core";
 import { parse, type HTMLElement } from "node-html-parser";
 import { genUid } from "../util/ids";
+import { encodeWebRef } from "../util/refs";
 import { convertHtmlToBlocks, convertMarkdownToBlocks } from "./web-blocks";
 import {
   extractSlugFromUrl,
@@ -91,7 +92,8 @@ function parseHtmlItem(html: string, url: string, collection: number, lastModifi
   const content = convertHtmlToBlocks(bodyHtml, url);
 
   const now = Date.now();
-  const ref = urlToBuffer(url);
+  const rawRef = urlToBuffer(url);
+  const ref = encodeWebRef(url);
 
   const props: PageProps = {
     slug,
@@ -106,7 +108,7 @@ function parseHtmlItem(html: string, url: string, collection: number, lastModifi
 
   props.createdAt = lastModified ?? now;
   const item: Item = {
-    id: genUid(ref),
+    id: genUid(rawRef),
     ref,
     collection,
     changedAt: lastModified ?? now,
@@ -135,7 +137,8 @@ function parseMarkdownItem(
   const content = convertMarkdownToBlocks(markdown, url);
 
   const now = Date.now();
-  const ref = urlToBuffer(url);
+  const rawRef = urlToBuffer(url);
+  const ref = encodeWebRef(url);
 
   const props: PageProps = {
     slug,
@@ -150,7 +153,7 @@ function parseMarkdownItem(
 
   props.createdAt = lastModified ?? now;
   const item: Item = {
-    id: genUid(ref),
+    id: genUid(rawRef),
     ref,
     collection,
     changedAt: lastModified ?? now,
@@ -171,7 +174,8 @@ function parseMarkdownItem(
 function parseJsonItem(json: string, url: string, collection: number, lastModified?: number): Item {
   const slug = extractSlugFromUrl(url);
   const now = Date.now();
-  const ref = urlToBuffer(url);
+  const rawRef = urlToBuffer(url);
+  const ref = encodeWebRef(url);
 
   let data: unknown;
   try {
@@ -188,7 +192,7 @@ function parseJsonItem(json: string, url: string, collection: number, lastModifi
 
   props.createdAt = lastModified ?? now;
   const item: Item = {
-    id: genUid(ref),
+    id: genUid(rawRef),
     ref,
     collection,
     changedAt: lastModified ?? now,

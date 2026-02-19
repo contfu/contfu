@@ -8,6 +8,7 @@ function mapToBackendConsumer(consumer: Consumer): BackendConsumer {
     id: consumer.id,
     userId: consumer.userId,
     name: consumer.name,
+    includeRef: consumer.includeRef,
     hasKey: consumer.key !== null,
     createdAt: consumer.createdAt,
   };

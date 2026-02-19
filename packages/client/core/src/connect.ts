@@ -1,7 +1,9 @@
 import { connectToStream, type ItemEvent, type StreamEvent } from "./stream-client";
 
 type BaseOpts = {
-  /** Base URL (without /api/stream path) */
+  /** Consumer key. If not provided, CONTFU_API_KEY env var (base64url) is used. */
+  key?: Buffer;
+  /** Base URL (without /api/stream path). Defaults to CONTFU_API_URL env var or http://localhost:5173 */
   baseUrl?: string;
   /** Event index to replay from. Events since this index will be replayed before live events. */
   from?: number;
@@ -22,21 +24,21 @@ type OptsWithoutConnectionEvents = BaseOpts & { connectionEvents?: false };
  * Returns an async generator that yields events. Connection and
  * reconnection happen automatically in the background.
  *
+ * The consumer key can be provided via opts or the `CONTFU_API_KEY` environment variable (base64url-encoded).
+ *
  * @example
  * ```ts
  * import { connect } from "@contfu/client";
  *
- * const key = Buffer.from(apiKey, "hex");
- *
- * // Simple usage
- * for await (const event of connect(key)) {
+ * // Key from CONTFU_API_KEY env var
+ * for await (const event of connect()) {
  *   if (event.type === 2) { // CHANGED
  *     console.log("Item changed:", event.item);
  *   }
  * }
  *
- * // With connection events
- * for await (const event of connect(key, { connectionEvents: true })) {
+ * // With explicit key and connection events
+ * for await (const event of connect({ key, connectionEvents: true })) {
  *   if (event.type === "stream:connected") {
  *     console.log("Connected!");
  *   } else if (event.type === "stream:disconnected") {
@@ -47,20 +49,16 @@ type OptsWithoutConnectionEvents = BaseOpts & { connectionEvents?: false };
  * }
  * ```
  */
+export function connect(opts: OptsWithConnectionEvents): AsyncGenerator<ItemEvent | StreamEvent>;
+export function connect(opts?: OptsWithoutConnectionEvents): AsyncGenerator<ItemEvent>;
 export function connect(
-  key: Buffer,
-  opts: OptsWithConnectionEvents,
-): AsyncGenerator<ItemEvent | StreamEvent>;
-export function connect(key: Buffer, opts?: OptsWithoutConnectionEvents): AsyncGenerator<ItemEvent>;
-export function connect(
-  key: Buffer,
   opts: BaseOpts & { connectionEvents?: boolean } = {},
 ): AsyncGenerator<ItemEvent | StreamEvent> {
-  const { baseUrl = "https://contfu.com", from, connectionEvents, ...rest } = opts;
-  const streamUrl = baseUrl + "/api/stream";
+  const { baseUrl = "https://contfu.com", key, from, connectionEvents, ...rest } = opts;
+  const streamUrl = baseUrl != null ? baseUrl + "/api/stream" : undefined;
 
   if (connectionEvents) {
-    return connectToStream(key, { url: streamUrl, from, connectionEvents: true, ...rest });
+    return connectToStream({ key, url: streamUrl, from, connectionEvents: true, ...rest });
   }
-  return connectToStream(key, { url: streamUrl, from, ...rest });
+  return connectToStream({ key, url: streamUrl, from, ...rest });
 }

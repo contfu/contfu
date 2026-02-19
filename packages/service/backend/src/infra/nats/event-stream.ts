@@ -102,7 +102,7 @@ export async function* replayEvents(opts: {
   fromSeq: number;
   userId: number;
   collectionIds: number[];
-}): AsyncGenerator<{ seq: number; event: WireItemEvent }> {
+}): AsyncGenerator<{ seq: number; collectionId: number; event: WireItemEvent }> {
   if (!hasNats() || opts.collectionIds.length === 0) return;
 
   const jsm = await getJetStreamManager();
@@ -120,7 +120,9 @@ export async function* replayEvents(opts: {
   for await (const msg of messages) {
     try {
       const event = unpack(msg.data) as WireItemEvent;
-      yield { seq: msg.seq, event };
+      const parts = msg.subject.split(".");
+      const collectionId = Number(parts[2] ?? "0");
+      yield { seq: msg.seq, collectionId, event };
     } catch (error) {
       console.error("Error parsing event during replay:", error);
     }

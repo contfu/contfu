@@ -19,6 +19,10 @@ export {
   type NewItemLink,
 } from "./infra/db/schema";
 
+// Stream exports
+export { connect } from "./features/stream/connect";
+export type { ItemEvent } from "@contfu/client";
+
 // Sync exports
 export { sync, type SyncOptions, type SyncSource } from "./infra/sync/sync";
 

@@ -4,6 +4,7 @@ import { collectionTable } from "../../infra/db/schema";
 
 export interface CreateCollectionInput {
   name: string;
+  includeRef?: boolean;
 }
 
 /**
@@ -20,6 +21,7 @@ export async function createCollection(
     .values({
       userId,
       name: input.name,
+      includeRef: input.includeRef ?? true,
     })
     .returning();
 
@@ -27,6 +29,7 @@ export async function createCollection(
     id: inserted.id,
     userId: inserted.userId,
     name: inserted.name,
+    includeRef: inserted.includeRef,
     influxCount: 0,
     connectionCount: 0,
     createdAt: inserted.createdAt,

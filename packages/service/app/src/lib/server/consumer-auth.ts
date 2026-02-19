@@ -20,12 +20,9 @@ export function extractConsumerKey(
 
   try {
     let key = Buffer.from(keyString, "base64url");
+    console.log("key", key, key.length);
     if (key.length !== 32) {
-      // Try standard base64 as fallback
-      key = Buffer.from(keyString, "base64");
-      if (key.length !== 32) {
-        return { error: new Response("Invalid key format", { status: 401 }) };
-      }
+      return { error: new Response("Invalid key format", { status: 401 }) };
     }
     return { key };
   } catch {

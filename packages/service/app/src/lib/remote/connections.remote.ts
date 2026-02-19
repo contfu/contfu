@@ -7,6 +7,7 @@ import { getConnection as getConnectionFeature } from "@contfu/svc-backend/featu
 import { listConnections } from "@contfu/svc-backend/features/connections/listConnections";
 import { listConnectionsByCollection } from "@contfu/svc-backend/features/connections/listConnectionsByCollection";
 import { listConnectionsByConsumer } from "@contfu/svc-backend/features/connections/listConnectionsByConsumer";
+import { updateConnection as updateConnectionFeature } from "@contfu/svc-backend/features/connections/updateConnection";
 import { encodeId, idSchema } from "@contfu/svc-backend/infra/ids";
 import { invalid } from "@sveltejs/kit";
 import * as v from "valibot";
@@ -51,6 +52,12 @@ export const addConnection = form(
   v.object({
     consumerId: idSchema("consumer"),
     collectionId: idSchema("collection"),
+    includeRef: v.optional(
+      v.pipe(
+        v.union([v.string(), v.boolean()]),
+        v.transform((val) => (typeof val === "boolean" ? val : val === "true")),
+      ),
+    ),
   }),
   async (data, issue) => {
     const userId = getUserId();
@@ -65,9 +72,36 @@ export const addConnection = form(
     const connection = await createConnectionFeature(userId, {
       consumerId: data.consumerId,
       collectionId: data.collectionId,
+      includeRef: data.includeRef ?? true,
     });
 
     return { success: true, connection };
+  },
+);
+
+/**
+ * Update connection-level ref transmission policy.
+ */
+export const updateConnectionIncludeRef = form(
+  v.object({
+    consumerId: idSchema("consumer"),
+    collectionId: idSchema("collection"),
+    includeRef: v.pipe(
+      v.union([v.string(), v.boolean()]),
+      v.transform((val) => (typeof val === "boolean" ? val : val === "true")),
+    ),
+  }),
+  async (data, issue) => {
+    const userId = getUserId();
+    const updated = await updateConnectionFeature(userId, data.consumerId, data.collectionId, {
+      includeRef: data.includeRef,
+    });
+
+    if (!updated) {
+      invalid(issue.consumerId("Connection not found"));
+    }
+
+    return { success: true };
   },
 );
 

@@ -8,7 +8,7 @@ export interface UpdateInfluxInput {
   id: number;
   filters?: Filter[] | null;
   schema?: CollectionSchema | null;
-  includeRef?: boolean | null;
+  includeRef?: boolean;
 }
 
 export interface UpdateInfluxResult {
@@ -18,7 +18,7 @@ export interface UpdateInfluxResult {
   sourceCollectionId: number;
   schema: CollectionSchema | null;
   filters: Filter[] | null;
-  includeRef: boolean | null;
+  includeRef: boolean;
   createdAt: Date;
   updatedAt: Date | null;
 }

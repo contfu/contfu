@@ -5,7 +5,15 @@ import {
   type WorkerToAppMessage,
 } from "./messages";
 import { and, eq } from "drizzle-orm";
-import { connectionTable, db, influxTable } from "../db/db";
+import {
+  collectionTable,
+  connectionTable,
+  consumerTable,
+  db,
+  influxTable,
+  sourceCollectionTable,
+  sourceTable,
+} from "../db/db";
 import type { ConnectionInfo } from "../types";
 
 type ItemsCallback = (items: UserSyncItem[], connections: ConnectionInfo[]) => void;
@@ -84,9 +92,18 @@ export class SyncWorkerManager {
       msg.userId,
       msg.sourceCollectionId,
     );
+    const collectionRefPolicies = await getCollectionRefPolicies(
+      msg.userId,
+      msg.sourceCollectionId,
+      collectionIds,
+    );
 
     // Get connections for those collections
-    const connections = await getConnectionsForCollections(msg.userId, collectionIds);
+    const connections = await getConnectionsForCollections(
+      msg.userId,
+      collectionIds,
+      collectionRefPolicies,
+    );
     this.itemsCallback(msg.items, connections);
   }
 }
@@ -107,17 +124,107 @@ async function getCollectionIdsForSourceCollection(
 async function getConnectionsForCollections(
   userId: number,
   collectionIds: number[],
+  collectionRefPolicies: Map<number, boolean>,
 ): Promise<ConnectionInfo[]> {
   if (collectionIds.length === 0) return [];
   const results: ConnectionInfo[] = [];
   for (const collectionId of collectionIds) {
     const connections = await db
-      .select()
+      .select({
+        userId: connectionTable.userId,
+        consumerId: connectionTable.consumerId,
+        collectionId: connectionTable.collectionId,
+        includeRef: connectionTable.includeRef,
+        consumerIncludeRef: consumerTable.includeRef,
+        collectionIncludeRef: collectionTable.includeRef,
+        lastItemChanged: connectionTable.lastItemChanged,
+      })
       .from(connectionTable)
+      .innerJoin(
+        collectionTable,
+        and(
+          eq(connectionTable.userId, collectionTable.userId),
+          eq(connectionTable.collectionId, collectionTable.id),
+        ),
+      )
+      .innerJoin(
+        consumerTable,
+        and(
+          eq(connectionTable.userId, consumerTable.userId),
+          eq(connectionTable.consumerId, consumerTable.id),
+        ),
+      )
       .where(
         and(eq(connectionTable.userId, userId), eq(connectionTable.collectionId, collectionId)),
       );
-    results.push(...connections);
+    for (const c of connections) {
+      results.push({
+        userId: c.userId,
+        consumerId: c.consumerId,
+        collectionId: c.collectionId,
+        includeRef:
+          Boolean(c.includeRef) &&
+          Boolean(c.consumerIncludeRef) &&
+          Boolean(c.collectionIncludeRef) &&
+          (collectionRefPolicies.get(c.collectionId) ?? true),
+        lastItemChanged: c.lastItemChanged,
+      });
+    }
   }
   return results;
+}
+
+async function getCollectionRefPolicies(
+  userId: number,
+  sourceCollectionId: number,
+  collectionIds: number[],
+): Promise<Map<number, boolean>> {
+  if (collectionIds.length === 0) return new Map();
+
+  const rows = await db
+    .select({
+      collectionId: influxTable.collectionId,
+      influxIncludeRef: influxTable.includeRef,
+      sourceIncludeRef: sourceTable.includeRef,
+      collectionIncludeRef: collectionTable.includeRef,
+    })
+    .from(influxTable)
+    .innerJoin(
+      collectionTable,
+      and(
+        eq(influxTable.userId, collectionTable.userId),
+        eq(influxTable.collectionId, collectionTable.id),
+      ),
+    )
+    .innerJoin(
+      sourceCollectionTable,
+      and(
+        eq(influxTable.userId, sourceCollectionTable.userId),
+        eq(influxTable.sourceCollectionId, sourceCollectionTable.id),
+      ),
+    )
+    .innerJoin(
+      sourceTable,
+      and(
+        eq(sourceCollectionTable.userId, sourceTable.userId),
+        eq(sourceCollectionTable.sourceId, sourceTable.id),
+      ),
+    )
+    .where(
+      and(eq(influxTable.userId, userId), eq(influxTable.sourceCollectionId, sourceCollectionId)),
+    );
+
+  const policies = new Map<number, boolean>();
+  for (const collectionId of collectionIds) policies.set(collectionId, true);
+
+  for (const row of rows) {
+    const prev = policies.get(row.collectionId) ?? true;
+    const allow =
+      Boolean(row.sourceIncludeRef) &&
+      Boolean(row.influxIncludeRef) &&
+      Boolean(row.collectionIncludeRef);
+    policies.set(row.collectionId, prev && allow);
+  }
+
+  return policies;
 }

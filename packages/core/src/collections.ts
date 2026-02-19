@@ -7,4 +7,5 @@
 export interface Collection {
   id: string;
   name: string;
+  includeRef: boolean;
 }

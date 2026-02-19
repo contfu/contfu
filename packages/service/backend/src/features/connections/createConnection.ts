@@ -13,6 +13,7 @@ function mapToBackendConnection(connection: Connection): BackendConnection {
     userId: connection.userId,
     consumerId: connection.consumerId,
     collectionId: connection.collectionId,
+    includeRef: connection.includeRef,
     lastItemChanged: connection.lastItemChanged,
     lastConsistencyCheck: connection.lastConsistencyCheck,
   };
@@ -51,6 +52,7 @@ export async function createConnection(
       userId,
       consumerId: input.consumerId,
       collectionId: input.collectionId,
+      includeRef: input.includeRef ?? true,
       lastItemChanged: input.lastItemChanged ?? null,
       lastConsistencyCheck: input.lastConsistencyCheck ?? null,
     })

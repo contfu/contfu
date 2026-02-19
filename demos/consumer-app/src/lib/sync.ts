@@ -48,14 +48,14 @@ export async function startSyncConnection(): Promise<void> {
     return;
   }
 
-  const key = Buffer.from(CONTFU_KEY, "hex");
+  const key = Buffer.from(CONTFU_KEY, "base64url");
 
   console.info(`[SYNC] Connecting to sync service via binary stream at ${CONTFU_URL}...`);
 
   try {
     console.info("[SYNC] Attempting connection...");
 
-    for await (const event of connectToStream(key, { url: CONTFU_URL, connectionEvents: true })) {
+    for await (const event of connectToStream({ key, url: CONTFU_URL, connectionEvents: true })) {
       if (event.type === "stream:connected") {
         console.info("[SYNC] Connection established!");
         syncConnected = true;

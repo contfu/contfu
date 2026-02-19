@@ -19,6 +19,8 @@ export interface AddInfluxInput {
   filters?: Filter[];
   /** Optional schema (if known from probe results) */
   schema?: CollectionSchema;
+  /** Whether refs may be transmitted for this influx. */
+  includeRef?: boolean;
 }
 
 export interface AddInfluxResult {
@@ -115,6 +117,7 @@ export async function addInfluxWithSourceCollection(
       sourceCollectionId,
       schema: schema ? pack(schema) : null,
       filters: input.filters?.length ? pack(input.filters) : null,
+      includeRef: input.includeRef ?? true,
     })
     .returning();
 

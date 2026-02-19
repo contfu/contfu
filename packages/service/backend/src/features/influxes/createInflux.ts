@@ -9,6 +9,7 @@ export interface CreateInfluxInput {
   sourceCollectionId: number;
   filters?: Filter[];
   schema?: CollectionSchema;
+  includeRef?: boolean;
 }
 
 export interface InfluxResult {
@@ -18,7 +19,7 @@ export interface InfluxResult {
   sourceCollectionId: number;
   schema: CollectionSchema | null;
   filters: Filter[] | null;
-  includeRef: boolean | null;
+  includeRef: boolean;
   createdAt: Date;
   updatedAt: Date | null;
 }
@@ -84,6 +85,7 @@ export async function createInflux(
       sourceCollectionId: input.sourceCollectionId,
       schema: schema ? pack(schema) : null,
       filters: input.filters?.length ? pack(input.filters) : null,
+      includeRef: input.includeRef ?? true,
     })
     .returning();
 

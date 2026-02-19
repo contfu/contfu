@@ -10,7 +10,7 @@ import type { UserSyncItem } from "../sync-worker/messages";
 import { and, eq } from "drizzle-orm";
 import { pack as msgpack } from "msgpackr";
 import { enqueueSyncJobs } from "../../features/sync-jobs/enqueueSyncJobs";
-import { connectionTable, consumerTable, db, influxTable } from "../db/db";
+import { collectionTable, connectionTable, consumerTable, db, influxTable } from "../db/db";
 import { encodeId } from "../ids";
 import { publishEvent } from "../nats/event-stream";
 import type { ConnectionInfo } from "../types";
@@ -221,7 +221,7 @@ export class StreamServer {
         ) {
           continue;
         }
-        const wireItem = toWireItem(item);
+        const wireItem = toWireItem(item, conn.includeRef);
         if (connection.indexed) {
           const seq = itemSequences.get(item);
           if (seq) {
@@ -285,8 +285,15 @@ export class StreamServer {
     controller: ReadableStreamDefaultController<Uint8Array>,
     seq: number,
     wireEvent: WireItemEvent,
+    includeRef = true,
   ) {
     const [type, payload] = wireEvent;
+    if (type === EventType.CHANGED && !includeRef) {
+      const [, id, collection, changedAt, props, content] = payload as WireItem;
+      const changedNoRef: WireItem = [null, id, collection, changedAt, props, content];
+      this.sendBinary(controller, [type, changedNoRef, seq] as WireItemEvent);
+      return;
+    }
     this.sendBinary(controller, [type, payload, seq] as WireItemEvent);
   }
 
@@ -314,9 +321,9 @@ export class StreamServer {
 /**
  * Convert an Item to wire item format.
  */
-export function toWireItem(item: Item): WireItem {
+export function toWireItem(item: Item, includeRef = true): WireItem {
   const wireItem: WireItem = [
-    new Uint8Array(item.ref),
+    includeRef ? new Uint8Array(item.ref) : null,
     new Uint8Array(item.id),
     encodeId("collection", item.collection),
     item.changedAt,
@@ -362,6 +369,44 @@ export async function getConsumerCollectionIds(
     .from(connectionTable)
     .where(and(eq(connectionTable.userId, userId), eq(connectionTable.consumerId, consumerId)));
   return rows.map((r) => r.collectionId);
+}
+
+export async function getConsumerCollectionRefPolicy(
+  userId: number,
+  consumerId: number,
+): Promise<Map<number, boolean>> {
+  const rows = await db
+    .select({
+      collectionId: connectionTable.collectionId,
+      connectionIncludeRef: connectionTable.includeRef,
+      consumerIncludeRef: consumerTable.includeRef,
+      collectionIncludeRef: collectionTable.includeRef,
+    })
+    .from(connectionTable)
+    .innerJoin(
+      collectionTable,
+      and(
+        eq(connectionTable.userId, collectionTable.userId),
+        eq(connectionTable.collectionId, collectionTable.id),
+      ),
+    )
+    .innerJoin(
+      consumerTable,
+      and(
+        eq(connectionTable.userId, consumerTable.userId),
+        eq(connectionTable.consumerId, consumerTable.id),
+      ),
+    )
+    .where(and(eq(connectionTable.userId, userId), eq(connectionTable.consumerId, consumerId)));
+
+  return new Map(
+    rows.map((row) => [
+      row.collectionId,
+      Boolean(row.connectionIncludeRef) &&
+        Boolean(row.consumerIncludeRef) &&
+        Boolean(row.collectionIncludeRef),
+    ]),
+  );
 }
 
 async function getSourceCollectionIdsForCollections(

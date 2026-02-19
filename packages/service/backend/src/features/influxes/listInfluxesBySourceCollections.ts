@@ -8,6 +8,7 @@ export interface InfluxForWebhook {
   sourceCollectionId: number;
   collectionId: number;
   filters: Filter[];
+  includeRef: boolean;
 }
 
 /**
@@ -27,6 +28,7 @@ export async function listInfluxesBySourceCollections(
       sourceCollectionId: influxTable.sourceCollectionId,
       collectionId: influxTable.collectionId,
       filters: influxTable.filters,
+      includeRef: influxTable.includeRef,
     })
     .from(influxTable)
     .where(
@@ -40,5 +42,6 @@ export async function listInfluxesBySourceCollections(
     sourceCollectionId: r.sourceCollectionId,
     collectionId: r.collectionId,
     filters: r.filters ? (unpack(r.filters) as Filter[]) : [],
+    includeRef: r.includeRef,
   }));
 }

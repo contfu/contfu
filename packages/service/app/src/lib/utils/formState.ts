@@ -11,6 +11,7 @@ export interface SourceFormData {
   selectedType: string;
   selectedAuthType: string;
   useOAuth: boolean;
+  includeRef: boolean;
   url?: string;
   _credentials?: string;
 }

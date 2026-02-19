@@ -7,7 +7,7 @@
  *
  * Environment variables:
  *   CONTFU_URL  - Stream endpoint URL (default: https://contfu.com/api/stream)
- *   CONTFU_KEY  - Consumer key in hex format
+ *   CONTFU_KEY  - Consumer key in base64url format
  */
 
 import { connectToStream } from "@contfu/client";
@@ -32,12 +32,12 @@ console.log(
 console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
 
 // Convert hex key to Buffer
-const key = Buffer.from(CONTFU_KEY, "hex");
+const key = Buffer.from(CONTFU_KEY, "base64url");
 
 console.log("⏳ Establishing connection...\n");
 
 try {
-  for await (const event of connectToStream(key, { url: CONTFU_URL, connectionEvents: true })) {
+for await (const event of connectToStream({ key, url: CONTFU_URL, connectionEvents: true })) {
     const timestamp = new Date().toISOString();
 
     if (event.type === "stream:connected") {

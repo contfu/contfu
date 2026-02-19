@@ -7,6 +7,7 @@
   import { Input } from "$lib/components/ui/input";
   import { Label } from "$lib/components/ui/label";
   import * as Select from "$lib/components/ui/select";
+  import { Switch } from "$lib/components/ui/switch";
   import { listLinkedAccounts } from "$lib/remote/accounts.remote";
   import { createSource, testNewConnection, createNotionSourceFromOAuth } from "$lib/remote/sources.remote";
   import { authClient } from "$lib/auth-client";
@@ -35,6 +36,7 @@
   let selectedAuthType = $state("0");
   let testResult: { success: boolean; message: string } | null = $state(null);
   let testPending = $state(false);
+  let includeRef = $state(true);
   let useOAuth = $state(true);
   let notionLinked = $state<boolean | null>(null);
   let oauthPending = $state(false);
@@ -66,6 +68,7 @@
         selectedType = restored.selectedType;
         selectedAuthType = restored.selectedAuthType;
         useOAuth = restored.useOAuth;
+        includeRef = restored.includeRef;
 
         // Restore name input value
         const nameInput = document.querySelector<HTMLInputElement>('input[name="name"]');
@@ -118,6 +121,7 @@
       selectedType,
       selectedAuthType,
       useOAuth,
+      includeRef,
       url: urlInput?.value || undefined,
       _credentials: credentialsInput?.value || undefined,
     });
@@ -147,7 +151,7 @@
     }
 
     try {
-      const result = await createNotionSourceFromOAuth({ name });
+      const result = await createNotionSourceFromOAuth({ name, includeRef });
       if ("error" in result) {
         oauthError = result.error;
       } else {
@@ -229,6 +233,12 @@
       </Select.Root>
       <!-- validation errors handled server-side -->
       <p class="text-sm text-destructive">{createSource.fields?.type?.issues()?.[0]?.message}</p>
+    </div>
+
+    <div class="flex items-center justify-between rounded-md border border-border px-3 py-2">
+      <Label for="source-include-ref">Forward source item references</Label>
+      <Switch id="source-include-ref" bind:checked={includeRef} />
+      <input name="includeRef" type="hidden" value={includeRef ? "true" : "false"} />
     </div>
 
     {#if isNotionSource}

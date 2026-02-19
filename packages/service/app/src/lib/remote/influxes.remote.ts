@@ -256,6 +256,12 @@ export const addInflux = command(
     existingSourceCollectionId: v.optional(idSchema("sourceCollection")),
     filters: v.optional(v.string()), // JSON string of Filter[]
     schema: v.optional(v.string()), // JSON string of CollectionSchema
+    includeRef: v.optional(
+      v.pipe(
+        v.union([v.string(), v.boolean()]),
+        v.transform((val) => (typeof val === "boolean" ? val : val === "true")),
+      ),
+    ),
   }),
   async (
     data,
@@ -294,6 +300,7 @@ export const addInflux = command(
       existingSourceCollectionId: data.existingSourceCollectionId,
       filters,
       schema,
+      includeRef: data.includeRef ?? true,
     });
 
     if (!result.success) return result;
@@ -358,6 +365,12 @@ export const updateInfluxForm = form(
     collectionId: idSchema("collection"),
     sourceCollectionId: idSchema("sourceCollection"),
     filters: v.optional(v.string()), // JSON string of Filter[]
+    includeRef: v.optional(
+      v.pipe(
+        v.union([v.string(), v.boolean()]),
+        v.transform((val) => (typeof val === "boolean" ? val : val === "true")),
+      ),
+    ),
   }),
   async (data, issue) => {
     const userId = getUserId();
@@ -390,6 +403,7 @@ export const updateInfluxForm = form(
     const result = await updateInfluxFeature(userId, {
       id: influx.id,
       filters,
+      includeRef: data.includeRef,
     });
 
     if (!result) {

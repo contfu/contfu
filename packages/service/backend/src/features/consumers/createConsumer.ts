@@ -7,6 +7,7 @@ function mapToBackendConsumer(consumer: Consumer): BackendConsumer {
     id: consumer.id,
     userId: consumer.userId,
     name: consumer.name,
+    includeRef: consumer.includeRef,
     hasKey: consumer.key !== null,
     createdAt: consumer.createdAt,
   };
@@ -25,6 +26,7 @@ export async function createConsumer(
     .values({
       userId,
       name: input.name,
+      includeRef: input.includeRef ?? true,
       key: input.key ?? null,
     })
     .returning();

@@ -40,13 +40,22 @@ export const getCollection = query(v.object({ id: idSchema("collection") }), asy
 export const createCollection = form(
   v.object({
     name: v.pipe(v.string(), v.nonEmpty("Name is required")),
+    includeRef: v.optional(
+      v.pipe(
+        v.union([v.string(), v.boolean()]),
+        v.transform((val) => (typeof val === "boolean" ? val : val === "true")),
+      ),
+    ),
     // Optional: create and link a SourceCollection in one step
     sourceId: v.optional(idSchema("source")),
     ref: v.optional(v.string()), // Content type UID, e.g., "api::article.article"
   }),
   async (data) => {
     const userId = getUserId();
-    const collection = await createCollectionFeature(userId, { name: data.name });
+    const collection = await createCollectionFeature(userId, {
+      name: data.name,
+      includeRef: data.includeRef ?? true,
+    });
 
     // If sourceId + ref provided, create SourceCollection and link it via influx
     if (data.sourceId && data.ref) {
@@ -58,6 +67,7 @@ export const createCollection = form(
       await createInflux(userId, {
         collectionId: collection.id,
         sourceCollectionId: sourceCollection.id,
+        includeRef: true,
       });
     }
 
@@ -69,10 +79,22 @@ export const createCollection = form(
  * Update a Collection.
  */
 export const updateCollection = form(
-  v.object({ id: idSchema("collection"), name: v.string() }),
+  v.object({
+    id: idSchema("collection"),
+    name: v.optional(v.string()),
+    includeRef: v.optional(
+      v.pipe(
+        v.union([v.string(), v.boolean()]),
+        v.transform((val) => (typeof val === "boolean" ? val : val === "true")),
+      ),
+    ),
+  }),
   async (data) => {
     const userId = getUserId();
-    await updateCollectionFeature(userId, data.id, { name: data.name });
+    await updateCollectionFeature(userId, data.id, {
+      name: data.name,
+      includeRef: data.includeRef,
+    });
     return { success: true };
   },
 );

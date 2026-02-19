@@ -4,7 +4,14 @@ import { uuidToBuffer } from "@contfu/svc-sources";
 import { listInfluxesBySourceCollections } from "../../features/influxes/listInfluxesBySourceCollections";
 import { decryptCredentials } from "../crypto/credentials";
 import { db } from "../db/db";
-import { connectionTable, sourceCollectionTable, sourceTable, webhookLogTable } from "../db/schema";
+import {
+  collectionTable,
+  connectionTable,
+  consumerTable,
+  sourceCollectionTable,
+  sourceTable,
+  webhookLogTable,
+} from "../db/schema";
 import type { StreamServer } from "../stream/stream-server";
 import type { UserSyncItem } from "../sync-worker/messages";
 import { and, desc, eq, inArray } from "drizzle-orm";
@@ -59,7 +66,7 @@ function wait(ms: number): Promise<void> {
 
 async function processJob(job: WebhookFetchJob, streamServer: StreamServer): Promise<number> {
   const [source] = await db
-    .select({ credentials: sourceTable.credentials })
+    .select({ credentials: sourceTable.credentials, includeRef: sourceTable.includeRef })
     .from(sourceTable)
     .where(and(eq(sourceTable.userId, job.userId), eq(sourceTable.id, job.sourceId)))
     .limit(1);
@@ -149,16 +156,19 @@ async function processJob(job: WebhookFetchJob, streamServer: StreamServer): Pro
     return 0;
   }
 
-  const targetCollectionIds = [
-    ...new Set(
-      influxes
-        .filter(
-          (influx) =>
-            influx.filters.length === 0 || matchesFilters(result.item.props, influx.filters),
-        )
-        .map((influx) => influx.collectionId),
-    ),
-  ];
+  const targetCollectionIds: number[] = [];
+  const collectionRefPolicy = new Map<number, boolean>();
+  for (const influx of influxes) {
+    if (influx.filters.length > 0 && !matchesFilters(result.item.props, influx.filters)) {
+      continue;
+    }
+    targetCollectionIds.push(influx.collectionId);
+    const previous = collectionRefPolicy.get(influx.collectionId) ?? true;
+    collectionRefPolicy.set(
+      influx.collectionId,
+      previous && Boolean(source.includeRef) && Boolean(influx.includeRef),
+    );
+  }
 
   if (targetCollectionIds.length === 0) {
     await logWebhookEvent(
@@ -177,9 +187,26 @@ async function processJob(job: WebhookFetchJob, streamServer: StreamServer): Pro
     .select({
       consumerId: connectionTable.consumerId,
       collectionId: connectionTable.collectionId,
+      connectionIncludeRef: connectionTable.includeRef,
+      consumerIncludeRef: consumerTable.includeRef,
+      collectionIncludeRef: collectionTable.includeRef,
       lastItemChanged: connectionTable.lastItemChanged,
     })
     .from(connectionTable)
+    .innerJoin(
+      collectionTable,
+      and(
+        eq(connectionTable.userId, collectionTable.userId),
+        eq(connectionTable.collectionId, collectionTable.id),
+      ),
+    )
+    .innerJoin(
+      consumerTable,
+      and(
+        eq(connectionTable.userId, consumerTable.userId),
+        eq(connectionTable.consumerId, consumerTable.id),
+      ),
+    )
     .where(
       and(
         eq(connectionTable.userId, job.userId),
@@ -201,6 +228,11 @@ async function processJob(job: WebhookFetchJob, streamServer: StreamServer): Pro
         userId: job.userId,
         consumerId: connection.consumerId,
         collectionId: connection.collectionId,
+        includeRef:
+          Boolean(connection.connectionIncludeRef) &&
+          Boolean(connection.consumerIncludeRef) &&
+          Boolean(connection.collectionIncludeRef) &&
+          (collectionRefPolicy.get(connection.collectionId) ?? true),
         lastItemChanged: connection.lastItemChanged,
       }));
 

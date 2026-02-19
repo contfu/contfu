@@ -17,7 +17,7 @@ import { getStreamServer } from "$lib/server/startup";
  */
 function generateApiKey(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(32));
-  return Buffer.from(bytes).toString("hex");
+  return Buffer.from(bytes).toString("base64url");
 }
 
 function encodeConsumer(c: BackendConsumerWithConnectionCount) {
@@ -55,6 +55,12 @@ export const getConsumer = query(v.object({ id: idSchema("consumer") }), async (
 export const createConsumer = form(
   v.object({
     name: v.pipe(v.string(), v.nonEmpty("Name is required")),
+    includeRef: v.optional(
+      v.pipe(
+        v.union([v.string(), v.boolean()]),
+        v.transform((val) => (typeof val === "boolean" ? val : val === "true")),
+      ),
+    ),
   }),
   async (data) => {
     const userId = getUserId();
@@ -65,7 +71,8 @@ export const createConsumer = form(
     // Insert into database
     const consumer = await createConsumerFeature(userId, {
       name: data.name,
-      key: Buffer.from(apiKey, "hex"),
+      includeRef: data.includeRef ?? true,
+      key: Buffer.from(apiKey, "base64url"),
     });
 
     redirect(303, `/consumers/${encodeId("consumer", consumer.id)}`);
@@ -79,6 +86,12 @@ export const updateConsumer = form(
   v.object({
     id: idSchema("consumer"),
     name: v.optional(v.pipe(v.string(), v.nonEmpty("Name cannot be empty"))),
+    includeRef: v.optional(
+      v.pipe(
+        v.union([v.string(), v.boolean()]),
+        v.transform((val) => (typeof val === "boolean" ? val : val === "true")),
+      ),
+    ),
   }),
   async (data, issue) => {
     const userId = getUserId();
@@ -90,9 +103,12 @@ export const updateConsumer = form(
     }
 
     // Build update object
-    const updates: { name?: string } = {};
+    const updates: { name?: string; includeRef?: boolean } = {};
     if (data.name !== undefined) {
       updates.name = data.name;
+    }
+    if (data.includeRef !== undefined) {
+      updates.includeRef = data.includeRef;
     }
 
     await updateConsumerFeature(userId, data.id, updates);
@@ -120,7 +136,7 @@ export const regenerateKey = form(
     const apiKey = generateApiKey();
 
     await updateConsumerFeature(userId, data.id, {
-      key: Buffer.from(apiKey, "hex"),
+      key: Buffer.from(apiKey, "base64url"),
     });
 
     return { success: true, key: apiKey };

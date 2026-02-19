@@ -6,6 +6,7 @@ export interface ServiceConnection {
   userId: string;
   consumerId: string;
   collectionId: string;
+  includeRef: boolean;
   lastItemChanged: Date | null;
   lastConsistencyCheck: Date | null;
 }

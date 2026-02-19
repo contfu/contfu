@@ -4,6 +4,7 @@ import { and, eq } from "drizzle-orm";
 
 export interface UpdateCollectionInput {
   name?: string;
+  includeRef?: boolean;
 }
 
 /**
@@ -18,6 +19,7 @@ export async function updateCollection(
     .update(collectionTable)
     .set({
       name: input.name,
+      includeRef: input.includeRef,
       updatedAt: new Date(),
     })
     .where(and(eq(collectionTable.userId, userId), eq(collectionTable.id, collectionId)))

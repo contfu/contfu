@@ -12,6 +12,7 @@ export async function listConnections(userId: number): Promise<BackendConnection
       userId: connectionTable.userId,
       consumerId: connectionTable.consumerId,
       collectionId: connectionTable.collectionId,
+      includeRef: connectionTable.includeRef,
       lastItemChanged: connectionTable.lastItemChanged,
       lastConsistencyCheck: connectionTable.lastConsistencyCheck,
       consumerName: consumerTable.name,

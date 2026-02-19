@@ -14,6 +14,7 @@ export type Item<T extends PageProps = Record<never, never>> = Omit<
   InternalItem<T>,
   "collection"
 > & {
+  ref: Buffer | null;
   collection: string;
 };
 
@@ -41,8 +42,15 @@ export class IndexExpiredError extends Error {
   }
 }
 
+function getEnv(name: string): string | undefined {
+  const g = globalThis as { process?: { env?: Record<string, string | undefined> } };
+  return g.process?.env?.[name];
+}
+
 type BaseOpts = {
-  /** Stream endpoint URL (default: http://localhost:5173/api/stream) */
+  /** Consumer key. If not provided, CONTFU_API_KEY env var (base64url) is used. */
+  key?: Buffer;
+  /** Stream endpoint URL. Defaults to CONTFU_API_URL env var or http://localhost:5173/api/stream */
   url?: string;
   /** Event index to replay from. Events since this index will be replayed before live events. */
   from?: number;
@@ -63,15 +71,17 @@ type OptsWithoutConnectionEvents = BaseOpts & { connectionEvents?: false };
  * Returns an async generator that yields events directly as they arrive.
  * Connection and reconnection are handled automatically.
  *
+ * The consumer key can be provided via opts or the `CONTFU_API_KEY` environment variable (base64url-encoded).
+ *
  * @example
  * ```ts
- * // Simple usage - just item events
- * for await (const event of connectToStream(key)) {
+ * // Simple usage - key from CONTFU_API_KEY env var
+ * for await (const event of connectToStream()) {
  *   console.log(event.type, event);
  * }
  *
- * // With connection lifecycle events
- * for await (const event of connectToStream(key, { connectionEvents: true })) {
+ * // With explicit key and connection lifecycle events
+ * for await (const event of connectToStream({ key, connectionEvents: true })) {
  *   if (event.type === "stream:connected") {
  *     console.log("Connected!");
  *   } else if (event.type === "stream:disconnected") {
@@ -83,32 +93,38 @@ type OptsWithoutConnectionEvents = BaseOpts & { connectionEvents?: false };
  * ```
  */
 export function connectToStream(
-  key: Buffer,
   opts: OptsWithConnectionEvents,
 ): AsyncGenerator<ItemEvent | StreamEvent>;
-export function connectToStream(
-  key: Buffer,
-  opts?: OptsWithoutConnectionEvents,
-): AsyncGenerator<ItemEvent>;
+export function connectToStream(opts?: OptsWithoutConnectionEvents): AsyncGenerator<ItemEvent>;
 export async function* connectToStream(
-  key: Buffer,
   opts: BaseOpts & { connectionEvents?: boolean } = {},
 ): AsyncGenerator<ItemEvent | StreamEvent> {
   const {
-    url = "http://localhost:5173/api/stream",
     from,
-    reconnect = true,
+    reconnect = false,
     maxReconnectDelay = 30_000,
     initialReconnectDelay = 1_000,
     connectionEvents = false,
   } = opts;
+
+  const apiUrl = opts.url ?? getEnv("CONTFU_API_URL") ?? "http://localhost:5173/api";
+  const envKeyStr = getEnv("CONTFU_API_KEY");
+  const key = opts.key ?? (envKeyStr ? Buffer.from(envKeyStr, "base64url") : undefined);
+  if (!key) {
+    throw new Error("No consumer key provided. Pass opts.key or set CONTFU_API_KEY.");
+  }
 
   const params = new URLSearchParams();
   params.set("key", key.toString("base64url"));
   if (from != null) {
     params.set("from", from.toString());
   }
-  const streamUrl = `${url}?${params.toString()}`;
+
+  // Support both API base URLs (e.g. /api) and full stream URLs (e.g. /api/stream).
+  const baseUrl = apiUrl.replace(/\/$/, "");
+  const streamEndpoint = /\/stream(?:$|\?)/.test(baseUrl) ? baseUrl : `${baseUrl}/stream`;
+  const separator = streamEndpoint.includes("?") ? "&" : "?";
+  const streamUrl = `${streamEndpoint}${separator}${params.toString()}`;
 
   let reconnectDelay = initialReconnectDelay;
   // Always try at least once; reconnect controls retries on failure
@@ -213,7 +229,7 @@ function fromWireEvent(wireEvent: WireEvent): ItemEvent | null {
       const [ref, id, collection, changedAt, props, content] = wireItem;
 
       const item: Item = {
-        ref: Buffer.from(ref),
+        ref: ref ? Buffer.from(ref) : null,
         id: Buffer.from(id),
         collection,
         changedAt,

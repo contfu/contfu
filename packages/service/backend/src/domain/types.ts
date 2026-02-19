@@ -37,6 +37,8 @@ export interface BackendSource {
   userId: number;
   name: string | null;
   url: string | null;
+  /** Whether refs are allowed to be transmitted from this source. */
+  includeRef: boolean;
   /** Source type: 0 = Notion, 1 = Strapi, 2 = Web */
   type: number;
   /** Whether this source has credentials configured */
@@ -148,6 +150,8 @@ export interface BackendConsumer {
   id: number;
   userId: number;
   name: string;
+  /** Whether refs are allowed to be transmitted to this consumer. */
+  includeRef: boolean;
   /** Whether this consumer has an API key configured (internal consumers don't) */
   hasKey: boolean;
   createdAt: Date;
@@ -173,6 +177,8 @@ export interface BackendConnection {
   userId: number;
   consumerId: number;
   collectionId: number;
+  /** Whether refs are allowed on this specific connection. */
+  includeRef: boolean;
   lastItemChanged: Date | null;
   lastConsistencyCheck: Date | null;
 }
@@ -193,6 +199,7 @@ export interface CreateSourceInput {
   /** Source type: 0 = Notion, 1 = Strapi, 2 = Web */
   type: number;
   url?: string | null;
+  includeRef?: boolean;
   /** Raw credentials (will be encrypted by the feature) */
   credentials?: Buffer | null;
   /** Raw webhook secret (will be encrypted by the feature) */
@@ -205,6 +212,7 @@ export interface CreateSourceInput {
 export interface UpdateSourceInput {
   name?: string;
   url?: string | null;
+  includeRef?: boolean;
   /** Raw credentials (will be encrypted by the feature) */
   credentials?: Buffer;
   /** Raw webhook secret (will be encrypted by the feature) */
@@ -229,6 +237,7 @@ export interface UpdateSourceCollectionInput {
 /** Input for creating a new consumer */
 export interface CreateConsumerInput {
   name: string;
+  includeRef?: boolean;
   /** If provided, the consumer will have an API key (external consumer) */
   key?: Buffer | null;
 }
@@ -236,6 +245,7 @@ export interface CreateConsumerInput {
 /** Input for updating a consumer */
 export interface UpdateConsumerInput {
   name?: string;
+  includeRef?: boolean;
   key?: Buffer | null;
 }
 
@@ -243,12 +253,14 @@ export interface UpdateConsumerInput {
 export interface CreateConnectionInput {
   consumerId: number;
   collectionId: number;
+  includeRef?: boolean;
   lastItemChanged?: Date | null;
   lastConsistencyCheck?: Date | null;
 }
 
 /** Input for updating a connection */
 export interface UpdateConnectionInput {
+  includeRef?: boolean;
   lastItemChanged?: Date | null;
   lastConsistencyCheck?: Date | null;
 }

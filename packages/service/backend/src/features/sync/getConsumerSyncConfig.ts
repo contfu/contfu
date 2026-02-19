@@ -3,7 +3,9 @@ import { and, eq, inArray } from "drizzle-orm";
 import { unpack } from "msgpackr";
 import { decryptCredentials } from "../../infra/crypto/credentials";
 import {
+  collectionTable,
   connectionTable,
+  consumerTable,
   db,
   influxTable,
   sourceCollectionTable,
@@ -20,7 +22,7 @@ export interface ConsumerSyncConfig {
     sourceCollections: Array<{
       sourceCollectionId: number;
       collectionRef: Buffer | null;
-      targets: Array<{ collectionId: number; filters: Filter[] | null }>;
+      targets: Array<{ collectionId: number; filters: Filter[] | null; includeRef: boolean }>;
     }>;
   }>;
 }
@@ -38,14 +40,41 @@ export async function getConsumerSyncConfig(
 ): Promise<ConsumerSyncConfig> {
   // 1. Get collection IDs for this consumer
   const connections = await db
-    .select({ collectionId: connectionTable.collectionId })
+    .select({
+      collectionId: connectionTable.collectionId,
+      connectionIncludeRef: connectionTable.includeRef,
+      consumerIncludeRef: consumerTable.includeRef,
+      collectionIncludeRef: collectionTable.includeRef,
+    })
     .from(connectionTable)
+    .innerJoin(
+      collectionTable,
+      and(
+        eq(connectionTable.userId, collectionTable.userId),
+        eq(connectionTable.collectionId, collectionTable.id),
+      ),
+    )
+    .innerJoin(
+      consumerTable,
+      and(
+        eq(connectionTable.userId, consumerTable.userId),
+        eq(connectionTable.consumerId, consumerTable.id),
+      ),
+    )
     .where(and(eq(connectionTable.userId, userId), eq(connectionTable.consumerId, consumerId)));
 
   const collectionIds = connections.map((c) => c.collectionId);
   if (collectionIds.length === 0) {
     return { userId, collectionIds: [], sourceGroups: [] };
   }
+  const connectionRefPolicy = new Map(
+    connections.map((c) => [
+      c.collectionId,
+      Boolean(c.connectionIncludeRef) &&
+        Boolean(c.consumerIncludeRef) &&
+        Boolean(c.collectionIncludeRef),
+    ]),
+  );
 
   // 2. Get influxes for those collections
   const influxes = await db
@@ -53,6 +82,7 @@ export async function getConsumerSyncConfig(
       collectionId: influxTable.collectionId,
       sourceCollectionId: influxTable.sourceCollectionId,
       filters: influxTable.filters,
+      includeRef: influxTable.includeRef,
     })
     .from(influxTable)
     .where(and(eq(influxTable.userId, userId), inArray(influxTable.collectionId, collectionIds)));
@@ -72,6 +102,7 @@ export async function getConsumerSyncConfig(
       sourceType: sourceTable.type,
       sourceUrl: sourceTable.url,
       credentials: sourceTable.credentials,
+      sourceIncludeRef: sourceTable.includeRef,
     })
     .from(sourceCollectionTable)
     .innerJoin(
@@ -95,12 +126,13 @@ export async function getConsumerSyncConfig(
       sourceType: number;
       sourceUrl: string | null;
       credentials: Buffer | null;
+      sourceIncludeRef: boolean;
       sourceCollections: Map<
         number,
         {
           sourceCollectionId: number;
           collectionRef: Buffer | null;
-          targets: Array<{ collectionId: number; filters: Filter[] | null }>;
+          targets: Array<{ collectionId: number; filters: Filter[] | null; includeRef: boolean }>;
         }
       >;
     }
@@ -113,6 +145,7 @@ export async function getConsumerSyncConfig(
         sourceType: sc.sourceType,
         sourceUrl: sc.sourceUrl,
         credentials: sc.credentials,
+        sourceIncludeRef: sc.sourceIncludeRef,
         sourceCollections: new Map(),
       };
       sourceMap.set(sc.sourceId, group);
@@ -131,9 +164,13 @@ export async function getConsumerSyncConfig(
     for (const group of sourceMap.values()) {
       const sc = group.sourceCollections.get(influx.sourceCollectionId);
       if (sc) {
+        const allowByConnection = connectionRefPolicy.get(influx.collectionId) ?? true;
+        const allowByInflux = influx.includeRef;
         sc.targets.push({
           collectionId: influx.collectionId,
           filters: influx.filters ? (unpack(influx.filters) as Filter[]) : null,
+          // Ref propagation is opt-out: once disabled at any upstream layer, it cannot be re-enabled.
+          includeRef: Boolean(group.sourceIncludeRef) && allowByInflux && allowByConnection,
         });
       }
     }

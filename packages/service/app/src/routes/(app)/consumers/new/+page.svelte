@@ -3,10 +3,12 @@
   import { Button } from "$lib/components/ui/button";
   import { Input } from "$lib/components/ui/input";
   import { Label } from "$lib/components/ui/label";
+  import { Switch } from "$lib/components/ui/switch";
   import { createConsumer } from "$lib/remote/consumers.remote";
   import { useId } from "bits-ui";
 
   const nameId = useId();
+  let includeRef = $state(true);
 </script>
 
 <SiteHeader title="Add Consumer">
@@ -40,6 +42,12 @@
           {createConsumer.error}
         </p>
       {/if}
+    </div>
+
+    <div class="flex items-center justify-between rounded-md border border-border px-3 py-2">
+      <Label for="consumer-include-ref">Forward source item references</Label>
+      <Switch id="consumer-include-ref" bind:checked={includeRef} />
+      <input name="includeRef" type="hidden" value={includeRef ? "true" : "false"} />
     </div>
 
     <div class="flex gap-2 pt-2">

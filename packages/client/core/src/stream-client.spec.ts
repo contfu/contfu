@@ -88,7 +88,8 @@ describe("stream-client", () => {
       );
 
       const events: unknown[] = [];
-      for await (const event of connectToStream(testKey, {
+      for await (const event of connectToStream({
+        key: testKey,
         url: "http://test/stream",
         reconnect: false,
       })) {
@@ -118,7 +119,8 @@ describe("stream-client", () => {
       mockFetch(createMockStream([createBinaryMessage([EventType.CHANGED, wireItem])]));
 
       const events: unknown[] = [];
-      for await (const event of connectToStream(testKey, {
+      for await (const event of connectToStream({
+        key: testKey,
         url: "http://test/stream",
         reconnect: false,
       })) {
@@ -151,7 +153,8 @@ describe("stream-client", () => {
       mockFetch(createMockStream([createBinaryMessage([EventType.CHANGED, wireItem])]));
 
       const events: unknown[] = [];
-      for await (const event of connectToStream(testKey, {
+      for await (const event of connectToStream({
+        key: testKey,
         url: "http://test/stream",
         reconnect: false,
       })) {
@@ -174,7 +177,8 @@ describe("stream-client", () => {
       );
 
       const events: unknown[] = [];
-      for await (const event of connectToStream(testKey, {
+      for await (const event of connectToStream({
+        key: testKey,
         url: "http://test/stream",
         reconnect: false,
       })) {
@@ -191,7 +195,8 @@ describe("stream-client", () => {
       mockFetch(createMockStream([createBinaryMessage([EventType.DELETED, new Uint8Array([1])])]));
 
       const events: unknown[] = [];
-      for await (const event of connectToStream(testKey, {
+      for await (const event of connectToStream({
+        key: testKey,
         url: "http://test/stream",
         reconnect: false,
         connectionEvents: true,
@@ -209,7 +214,8 @@ describe("stream-client", () => {
       mockFetch(createMockStream([createBinaryMessage([EventType.DELETED, new Uint8Array([1])])]));
 
       const events: unknown[] = [];
-      for await (const event of connectToStream(testKey, {
+      for await (const event of connectToStream({
+        key: testKey,
         url: "http://test/stream",
         reconnect: false,
         connectionEvents: false,
@@ -229,7 +235,8 @@ describe("stream-client", () => {
       let thrownError: Error | null = null;
 
       try {
-        for await (const _ of connectToStream(testKey, {
+        for await (const _ of connectToStream({
+          key: testKey,
           url: "http://test/stream",
           reconnect: false,
         })) {
@@ -256,7 +263,8 @@ describe("stream-client", () => {
       mockFetch(createMockStream([combined]));
 
       const events: unknown[] = [];
-      for await (const event of connectToStream(testKey, {
+      for await (const event of connectToStream({
+        key: testKey,
         url: "http://test/stream",
         reconnect: false,
       })) {
@@ -276,7 +284,8 @@ describe("stream-client", () => {
       mockFetch(createMockStream([chunk1, chunk2]));
 
       const events: unknown[] = [];
-      for await (const event of connectToStream(testKey, {
+      for await (const event of connectToStream({
+        key: testKey,
         url: "http://test/stream",
         reconnect: false,
       })) {
@@ -292,7 +301,7 @@ describe("stream-client", () => {
     test("uses default URL when not specified", async () => {
       const { getUrl } = mockFetchCapture([]);
 
-      for await (const _ of connectToStream(testKey, { reconnect: false })) {
+      for await (const _ of connectToStream({ key: testKey, reconnect: false })) {
         // consume
       }
 
@@ -303,7 +312,8 @@ describe("stream-client", () => {
     test("encodes key as base64url in query parameter", async () => {
       const { getUrl } = mockFetchCapture([]);
 
-      for await (const _ of connectToStream(testKey, {
+      for await (const _ of connectToStream({
+        key: testKey,
         url: "http://test/stream",
         reconnect: false,
       })) {
@@ -324,7 +334,8 @@ describe("stream-client", () => {
       mockFetch(createMockStream([createBinaryMessage([EventType.CHANGED, wireItem, 42])]));
 
       const events: unknown[] = [];
-      for await (const event of connectToStream(testKey, {
+      for await (const event of connectToStream({
+        key: testKey,
         url: "http://test/stream",
         reconnect: false,
       })) {
@@ -348,7 +359,8 @@ describe("stream-client", () => {
       mockFetch(createMockStream([createBinaryMessage([EventType.DELETED, itemId, 99])]));
 
       const events: unknown[] = [];
-      for await (const event of connectToStream(testKey, {
+      for await (const event of connectToStream({
+        key: testKey,
         url: "http://test/stream",
         reconnect: false,
       })) {
@@ -367,7 +379,8 @@ describe("stream-client", () => {
     test("from option appends &from=N", async () => {
       const { getUrl } = mockFetchCapture([]);
 
-      for await (const _ of connectToStream(testKey, {
+      for await (const _ of connectToStream({
+        key: testKey,
         url: "http://test/stream",
         reconnect: false,
         from: 42,
@@ -381,7 +394,8 @@ describe("stream-client", () => {
     test("no from does not add param", async () => {
       const { getUrl } = mockFetchCapture([]);
 
-      for await (const _ of connectToStream(testKey, {
+      for await (const _ of connectToStream({
+        key: testKey,
         url: "http://test/stream",
         reconnect: false,
       })) {
@@ -394,7 +408,8 @@ describe("stream-client", () => {
     test("from=0 is appended", async () => {
       const { getUrl } = mockFetchCapture([]);
 
-      for await (const _ of connectToStream(testKey, {
+      for await (const _ of connectToStream({
+        key: testKey,
         url: "http://test/stream",
         reconnect: false,
         from: 0,
@@ -412,7 +427,8 @@ describe("stream-client", () => {
       let thrownError: Error | null = null;
 
       try {
-        for await (const _ of connectToStream(testKey, {
+        for await (const _ of connectToStream({
+          key: testKey,
           url: "http://test/stream",
           reconnect: false,
         })) {
@@ -430,7 +446,8 @@ describe("stream-client", () => {
       let thrownError: Error | null = null;
 
       try {
-        for await (const _ of connectToStream(testKey, {
+        for await (const _ of connectToStream({
+          key: testKey,
           url: "http://test/stream",
           reconnect: true,
         })) {

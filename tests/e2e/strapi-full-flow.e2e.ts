@@ -210,9 +210,24 @@ async function setupServiceAppAndGetApiKey(
   console.log(`[E2E] Strapi source created (ID: ${sourceId})`);
 
   // Get source UID from test API (source detail page may not render in test mode)
-  const sourceResp = await fetch(`${SERVICE_URL}/api/test/source?id=${sourceId}`);
-  const sourceData = await sourceResp.json();
-  const sourceUid = sourceData.uid ?? null;
+  let sourceUid: string | null = null;
+  try {
+    const sourceResp = await fetch(`${SERVICE_URL}/api/test/source?id=${sourceId}`);
+    const contentType = sourceResp.headers.get("content-type") ?? "";
+    if (sourceResp.ok && contentType.includes("application/json")) {
+      const sourceData = await sourceResp.json();
+      sourceUid = sourceData.uid ?? null;
+    }
+  } catch {
+    // Fallback below
+  }
+
+  if (!sourceUid) {
+    const webhookInput = page.locator('input[readonly][type="text"]').first();
+    const webhookUrl = await webhookInput.inputValue();
+    const uid = webhookUrl.match(/\/webhooks\/strapi\/([^/]+)$/)?.[1];
+    sourceUid = uid ?? null;
+  }
   console.log(`[E2E] Webhook URL for this source: ${SERVICE_URL}/webhooks/strapi/${sourceUid}`);
 
   // Create a Collection with implicit SourceCollection creation via UI
@@ -268,13 +283,13 @@ async function setupServiceAppAndGetApiKey(
     // Wait for the key to appear in the UI
     await sleep(1500); // Wait for remote function to complete and UI to update
 
-    // Look for the key in a <code> element (hex string, typically 40+ chars)
+    // Look for the key in a <code> element (base64url-like key, usually 40+ chars)
     const codeElements = page.locator("code");
     const count = await codeElements.count();
 
     for (let i = 0; i < count; i++) {
       const text = await codeElements.nth(i).textContent();
-      if (text && text.length > 30 && /^[a-f0-9]+$/i.test(text.trim())) {
+      if (text && text.length > 30 && /^[A-Za-z0-9_-]+$/.test(text.trim())) {
         apiKey = text.trim();
         break;
       }

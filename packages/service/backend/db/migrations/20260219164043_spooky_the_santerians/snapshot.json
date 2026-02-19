@@ -1,7 +1,7 @@
 {
   "version": "8",
   "dialect": "postgres",
-  "id": "3836087e-9750-4926-a1e9-282e65e7b2c7",
+  "id": "655ef622-d7d4-494f-9654-950699f3fa7f",
   "prevIds": [
     "bf198f14-ab30-498f-87a2-f95cd904d8ea"
   ],
@@ -329,6 +329,19 @@
       "table": "collection"
     },
     {
+      "type": "boolean",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "true",
+      "generated": null,
+      "identity": null,
+      "name": "includeRef",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "collection"
+    },
+    {
       "type": "timestamp with time zone",
       "typeSchema": null,
       "notNull": true,
@@ -389,6 +402,19 @@
       "generated": null,
       "identity": null,
       "name": "collectionId",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "connection"
+    },
+    {
+      "type": "boolean",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "true",
+      "generated": null,
+      "identity": null,
+      "name": "includeRef",
       "entityType": "columns",
       "schema": "public",
       "table": "connection"
@@ -476,6 +502,19 @@
       "generated": null,
       "identity": null,
       "name": "name",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "consumer"
+    },
+    {
+      "type": "boolean",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "true",
+      "generated": null,
+      "identity": null,
+      "name": "includeRef",
       "entityType": "columns",
       "schema": "public",
       "table": "consumer"
@@ -709,9 +748,9 @@
     {
       "type": "boolean",
       "typeSchema": null,
-      "notNull": false,
+      "notNull": true,
       "dimensions": 0,
-      "default": null,
+      "default": "true",
       "generated": null,
       "identity": null,
       "name": "includeRef",
@@ -1362,7 +1401,7 @@
       "typeSchema": null,
       "notNull": true,
       "dimensions": 0,
-      "default": "false",
+      "default": "true",
       "generated": null,
       "identity": null,
       "name": "includeRef",

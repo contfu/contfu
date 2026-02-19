@@ -28,6 +28,32 @@ async function login(page: Page): Promise<void> {
   await page.waitForURL(/\/dashboard/, { timeout: 10000 });
 }
 
+async function selectSourceType(page: Page, typeLabel: "Web" | "Strapi" | "Notion"): Promise<void> {
+  await page.getByLabel(/Type/i).click();
+  const valueByType: Record<typeof typeLabel, string> = {
+    Notion: "0",
+    Strapi: "1",
+    Web: "2",
+  };
+
+  const roleOption = page.getByRole("option", { name: new RegExp(`^${typeLabel}$`, "i") });
+  if (await roleOption.isVisible().catch(() => false)) {
+    await roleOption.click();
+    return;
+  }
+
+  const valueOption = page.locator(`[data-value="${valueByType[typeLabel]}"]`).first();
+  if (await valueOption.isVisible().catch(() => false)) {
+    await valueOption.click();
+    return;
+  }
+
+  await page
+    .locator('[data-slot="select-content"] [role="button"]', { hasText: typeLabel })
+    .first()
+    .click();
+}
+
 test.describe("Reactive List Updates", () => {
   test.describe.configure({ timeout: 60000 });
 
@@ -76,8 +102,7 @@ test.describe("Reactive List Updates", () => {
     await page.getByLabel(/Name/i).fill("Test Source for Delete");
 
     // Select Web source type using the custom Select component
-    await page.getByLabel(/Type/i).click();
-    await page.getByRole("option", { name: /Web/i }).click();
+    await selectSourceType(page, "Web");
 
     // Fill Base URL
     await page.getByLabel(/Base URL/i).fill("https://example.com");
@@ -194,8 +219,7 @@ test.describe("Reactive List Updates", () => {
     await page.getByLabel(/Name/i).fill("Source for Collection Delete");
 
     // Select Web source type using the custom Select component
-    await page.getByLabel(/Type/i).click();
-    await page.getByRole("option", { name: /Web/i }).click();
+    await selectSourceType(page, "Web");
 
     await page.getByLabel(/Base URL/i).fill("https://example.com");
     await page.getByRole("button", { name: /Create Source/i }).click();

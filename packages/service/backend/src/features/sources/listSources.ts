@@ -22,6 +22,7 @@ function mapToBackendSource(source: Source): BackendSource {
     userId: source.userId,
     name: source.name,
     url: source.url,
+    includeRef: source.includeRef,
     type: source.type,
     hasCredentials: source.credentials !== null,
     hasWebhookSecret: source.webhookSecret !== null,
