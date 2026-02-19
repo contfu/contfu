@@ -89,6 +89,18 @@
         <h1 class="text-2xl font-semibold tracking-tight">
           {client.name || "Unnamed Consumer"}
         </h1>
+        <span
+          class="inline-flex items-center gap-2 rounded-full border px-2 py-1 text-xs font-medium {client.isActive
+            ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700'
+            : 'border-border text-muted-foreground'}"
+        >
+          <span
+            class="h-2 w-2 rounded-full {client.isActive
+              ? 'bg-emerald-500'
+              : 'bg-muted-foreground/40'}"
+          ></span>
+          {client.isActive ? "Active" : "Offline"}
+        </span>
         <Popover.Root bind:open={namePopoverOpen}>
           <Popover.Trigger
             class={cn(

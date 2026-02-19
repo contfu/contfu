@@ -48,6 +48,9 @@
             <th class="px-4 py-3 text-right font-medium text-muted-foreground"
               >Connections</th
             >
+            <th class="px-4 py-3 text-left font-medium text-muted-foreground"
+              >Status</th
+            >
             <th
               class="hidden px-4 py-3 text-left font-medium text-muted-foreground sm:table-cell"
               >Created</th
@@ -70,6 +73,20 @@
               </td>
               <td class="px-4 py-3 text-right font-mono">
                 {consumer.connectionCount}
+              </td>
+              <td class="px-4 py-3">
+                <span
+                  class="inline-flex items-center gap-2 text-xs font-medium {consumer.isActive
+                    ? 'text-emerald-600'
+                    : 'text-muted-foreground'}"
+                >
+                  <span
+                    class="h-2 w-2 rounded-full {consumer.isActive
+                      ? 'bg-emerald-500'
+                      : 'bg-muted-foreground/40'}"
+                  ></span>
+                  {consumer.isActive ? "Active" : "Offline"}
+                </span>
               </td>
               <td class="hidden px-4 py-3 text-muted-foreground sm:table-cell">
                 {consumer.createdAt

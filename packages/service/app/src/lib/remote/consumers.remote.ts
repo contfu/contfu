@@ -10,6 +10,7 @@ import { updateConsumer as updateConsumerFeature } from "@contfu/svc-backend/fea
 import { encodeId, idSchema } from "@contfu/svc-backend/infra/ids";
 import { error, invalid, redirect } from "@sveltejs/kit";
 import * as v from "valibot";
+import { getStreamServer } from "$lib/server/startup";
 
 /**
  * Generate a random API key as a hex string.
@@ -20,10 +21,12 @@ function generateApiKey(): string {
 }
 
 function encodeConsumer(c: BackendConsumerWithConnectionCount) {
+  const streamServer = getStreamServer();
   return {
     ...c,
     id: encodeId("consumer", c.id),
     userId: encodeId("user", c.userId),
+    isActive: streamServer.isConsumerActive(c.userId, c.id),
   };
 }
 

@@ -50,6 +50,18 @@ export class StreamServer {
   constructor() {}
 
   /**
+   * Returns true when the given consumer currently has a live stream connection.
+   */
+  isConsumerActive(userId: number, consumerId: number): boolean {
+    for (const info of consumerInfo.values()) {
+      if (info.userId === userId && info.consumerId === consumerId) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
    * Pre-authenticate a consumer key before creating the stream.
    * Returns proper HTTP error codes (401, 409) instead of stream errors.
    */

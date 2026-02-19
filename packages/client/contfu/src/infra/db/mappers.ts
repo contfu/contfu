@@ -3,13 +3,7 @@ import { deleteNulls } from "../../util/object-helpers";
 import { getCollectionName } from "../../features/collections/getCollectionName";
 import { getOrCreateCollection } from "../../features/collections/getOrCreateCollection";
 import { decodeId, encodeId } from "../ids";
-import type {
-  DbAsset,
-  DbItem,
-  ItemUpdate,
-  NewAsset,
-  NewItem,
-} from "./schema";
+import type { DbAsset, DbItem, ItemUpdate, NewAsset, NewItem } from "./schema";
 
 export function assetToDb(asset: AssetData): NewAsset {
   return {

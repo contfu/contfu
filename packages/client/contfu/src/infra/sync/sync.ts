@@ -1,4 +1,9 @@
-import type { AssetData, AssetSyncProgress, ItemData, OnAssetProgress } from "../types/content-types";
+import type {
+  AssetData,
+  AssetSyncProgress,
+  ItemData,
+  OnAssetProgress,
+} from "../types/content-types";
 import type { ImageBlock } from "@contfu/core";
 import { extname } from "path";
 import { createAsset } from "../../features/assets/createAsset";

@@ -19,6 +19,8 @@ function getConfig() {
 
 /** Track if sync has been started */
 let syncStarted = false;
+let syncConnected = false;
+let lastDisconnectedReason: string | null = null;
 
 /**
  * Start the sync connection to the sync service.
@@ -41,6 +43,8 @@ export async function startSyncConnection(): Promise<void> {
 
   if (!CONTFU_KEY) {
     console.error("[SYNC] Warning: CONTFU_KEY not set - sync connection disabled");
+    syncConnected = false;
+    lastDisconnectedReason = "Missing CONTFU_KEY";
     return;
   }
 
@@ -54,10 +58,14 @@ export async function startSyncConnection(): Promise<void> {
     for await (const event of connectToStream(key, { url: CONTFU_URL, connectionEvents: true })) {
       if (event.type === "stream:connected") {
         console.info("[SYNC] Connection established!");
+        syncConnected = true;
+        lastDisconnectedReason = null;
         continue;
       }
       if (event.type === "stream:disconnected") {
         console.warn("[SYNC] Disconnected:", event.reason);
+        syncConnected = false;
+        lastDisconnectedReason = event.reason ?? "Disconnected";
         continue;
       }
 
@@ -77,6 +85,8 @@ export async function startSyncConnection(): Promise<void> {
   } catch (error) {
     console.error("[SYNC] Connection error:", error);
     syncStarted = false;
+    syncConnected = false;
+    lastDisconnectedReason = error instanceof Error ? error.message : "Unknown error";
     // Retry connection after a delay
     console.info("[SYNC] Will retry in 5 seconds...");
     setTimeout(() => void startSyncConnection(), 5000);
@@ -88,4 +98,12 @@ export async function startSyncConnection(): Promise<void> {
  */
 export function getSyncUrl(): string {
   return getConfig().CONTFU_URL;
+}
+
+export function getSyncStatus(): { started: boolean; connected: boolean; reason: string | null } {
+  return {
+    started: syncStarted,
+    connected: syncConnected,
+    reason: lastDisconnectedReason,
+  };
 }

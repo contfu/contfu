@@ -51,6 +51,7 @@ cd packages/service/backend && bun run db:generate   # Generate migration from s
    - Do not include transient/debug/fixup steps in the final commit message.
 
 3. **If multiple commits exist, squash them before PR:**
+
    ```bash
    git rebase -i HEAD~N  # mark all but the first as squash/fixup
    ```

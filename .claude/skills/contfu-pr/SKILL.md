@@ -89,6 +89,7 @@ EOF
 ## Label Convention
 
 Use appropriate labels:
+
 - `bug` — bug fixes
 - `enhancement` — new features
 - `refactor` — code improvements

@@ -149,11 +149,16 @@ async function processJob(job: WebhookFetchJob, streamServer: StreamServer): Pro
     return 0;
   }
 
-  const targetCollectionIds = [...new Set(
-    influxes
-      .filter((influx) => influx.filters.length === 0 || matchesFilters(result.item.props, influx.filters))
-      .map((influx) => influx.collectionId),
-  )];
+  const targetCollectionIds = [
+    ...new Set(
+      influxes
+        .filter(
+          (influx) =>
+            influx.filters.length === 0 || matchesFilters(result.item.props, influx.filters),
+        )
+        .map((influx) => influx.collectionId),
+    ),
+  ];
 
   if (targetCollectionIds.length === 0) {
     await logWebhookEvent(
