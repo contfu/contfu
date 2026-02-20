@@ -1,0 +1,54 @@
+<script lang="ts">
+  import { Button } from "$lib/components/ui/button";
+  import * as Table from "$lib/components/ui/table";
+  import type { PageData } from "./$types";
+
+  let { data }: { data: PageData } = $props();
+</script>
+
+<div class="container mx-auto max-w-6xl p-6">
+  <div class="mb-6 flex items-center justify-between">
+    <h1 class="text-2xl font-bold">Collections</h1>
+  </div>
+
+  <div class="overflow-x-auto rounded-lg border bg-card p-4">
+    <Table.Root>
+      <Table.Header>
+        <Table.Row>
+          <Table.Head>name</Table.Head>
+          <Table.Head>ref</Table.Head>
+          <Table.Head>itemCount</Table.Head>
+          <Table.Head>createdAt</Table.Head>
+          <Table.Head>updatedAt</Table.Head>
+        </Table.Row>
+      </Table.Header>
+      <Table.Body>
+        {#if data.collections.length === 0}
+          <Table.Row>
+            <Table.Cell colspan={5} class="py-6 text-center text-muted-foreground">
+              No collections found
+            </Table.Cell>
+          </Table.Row>
+        {:else}
+          {#each data.collections as collection}
+            <Table.Row>
+              <Table.Cell>
+                <Button
+                  class="h-auto p-0"
+                  variant="link"
+                  href={`/collections/${encodeURIComponent(collection.name)}`}
+                >
+                  {collection.name}
+                </Button>
+              </Table.Cell>
+              <Table.Cell>{collection.ref}</Table.Cell>
+              <Table.Cell>{collection.itemCount}</Table.Cell>
+              <Table.Cell>{collection.createdAt}</Table.Cell>
+              <Table.Cell>{collection.updatedAt ?? "-"}</Table.Cell>
+            </Table.Row>
+          {/each}
+        {/if}
+      </Table.Body>
+    </Table.Root>
+  </div>
+</div>

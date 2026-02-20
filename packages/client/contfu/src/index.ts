@@ -39,6 +39,15 @@ export { getItemIdsByCollection } from "./features/items/getItemIdsByCollection"
 export { getItemLinks } from "./features/items/getItemLinks";
 export { getItems } from "./features/items/getItems";
 export { getLastChangedItem } from "./features/items/getLastChangedItem";
+export {
+  queryItems,
+  type ItemPropFilter,
+  type ItemPropFilterOperator,
+  type ItemSortField,
+  type QueryItemsInput,
+  type QueryItemsResult,
+  type SortDirection,
+} from "./features/items/queryItems";
 export { updateItem } from "./features/items/updateItem";
 
 // Asset exports
@@ -83,6 +92,10 @@ export { getCollectionId } from "./features/collections/getCollectionId";
 export { getCollectionName } from "./features/collections/getCollectionName";
 export { getOrCreateCollection } from "./features/collections/getOrCreateCollection";
 export { countCollections } from "./features/collections/countCollections";
+export {
+  listCollections,
+  type CollectionSummary,
+} from "./features/collections/listCollections";
 export { countItems } from "./features/items/countItems";
 export { hashId } from "./util/crypto";
 export { deleteNulls } from "./util/object-helpers";

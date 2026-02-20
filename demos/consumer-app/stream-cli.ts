@@ -37,7 +37,7 @@ const key = Buffer.from(CONTFU_KEY, "base64url");
 console.log("⏳ Establishing connection...\n");
 
 try {
-for await (const event of connectToStream({ key, url: CONTFU_URL, connectionEvents: true })) {
+  for await (const event of connectToStream({ key, url: CONTFU_URL, connectionEvents: true })) {
     const timestamp = new Date().toISOString();
 
     if (event.type === "stream:connected") {

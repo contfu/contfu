@@ -25,10 +25,15 @@
   } from "$lib/remote/webhookLogs.remote";
   import { cn } from "$lib/utils";
   import { tcToast } from "$lib/utils/toast";
-  import { CredentialsSource } from "@contfu/svc-core";
   import { SourceType } from "@contfu/svc-backend/features/sources/testSourceConnection";
+  import { CredentialsSource } from "@contfu/svc-core";
+  import {
+    ChevronRightIcon,
+    SaveIcon,
+    TrashIcon,
+    ZapIcon,
+  } from "@lucide/svelte";
   import Pencil from "@lucide/svelte/icons/pencil";
-  import { ChevronRightIcon, SaveIcon, TrashIcon, ZapIcon } from "@lucide/svelte";
   import { useId } from "bits-ui";
   import { toast } from "svelte-sonner";
   import * as v from "valibot";
@@ -58,8 +63,14 @@
 
   // Sync form fields when source changes
   $effect(() => {
-    updateSource.fields.set(source);
-    includeRef = source?.includeRef ?? true;
+    if (source) {
+      updateSource.for("name").fields.set({
+        ...source,
+        name: source.name ?? undefined,
+        url: source.url ?? undefined,
+      });
+      includeRef = source?.includeRef ?? true;
+    }
   });
 
   // Query object - auto-refreshes after form submissions
@@ -180,8 +191,9 @@
           </Popover.Trigger>
           <Popover.Portal>
             <Popover.Content class="w-72" align="start">
+              {@const updateName = updateSource.for("name")}
               <form
-                {...updateSource
+                {...updateName
                   .preflight(
                     v.object({
                       id: v.string(),
@@ -202,15 +214,15 @@
                   })}
                 class="space-y-3"
               >
-                <input {...updateSource.fields.id.as("text")} type="hidden" />
+                <input {...updateName.fields.id.as("text")} type="hidden" />
                 <div class="space-y-1.5">
                   <Label for={nameId}>Name</Label>
                   <Input
                     id={nameId}
-                    {...updateSource.fields.name.as("text")}
+                    {...updateName.fields.name.as("text")}
                     placeholder="My Content Source"
                   />
-                  {#each updateSource.fields.name.issues() as issue}
+                  {#each updateName.fields.name.issues() as issue}
                     <p class="text-sm text-destructive">
                       {issue.message}
                     </p>
@@ -225,9 +237,9 @@
                   <Button
                     type="submit"
                     size="sm"
-                    disabled={!!updateSource.pending}
+                    disabled={!!updateName.pending}
                   >
-                    {updateSource.pending ? "Saving..." : "Save"}
+                    {updateName.pending ? "Saving..." : "Save"}
                   </Button>
                 </div>
               </form>
@@ -349,7 +361,9 @@
         <div class="flex gap-2">
           <Button type="submit" disabled={!!updateSource.pending}>
             <SaveIcon class="size-4" />
-            <span class="hidden sm:inline">{updateSource.pending ? "Saving..." : "Save"}</span>
+            <span class="hidden sm:inline"
+              >{updateSource.pending ? "Saving..." : "Save"}</span
+            >
           </Button>
           <Button
             type="button"
@@ -358,7 +372,9 @@
             disabled={testPending}
           >
             <ZapIcon class="size-4" />
-            <span class="hidden sm:inline">{testPending ? "Testing..." : "Test Connection"}</span>
+            <span class="hidden sm:inline"
+              >{testPending ? "Testing..." : "Test Connection"}</span
+            >
           </Button>
         </div>
       </form>

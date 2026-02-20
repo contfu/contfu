@@ -1,5 +1,6 @@
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import type { BunSQLiteDatabase } from "drizzle-orm/bun-sql/sqlite";
+import { existsSync } from "fs";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 import { detectRuntime } from "../../util/runtime";
@@ -11,9 +12,24 @@ const dbUrl: string = process.env.DATABASE_URL ?? ":memory:";
 
 export const db: Database = await createDatabaseClient(dbUrl);
 
+function resolveMigrationsFolder(): string | null {
+  const byModulePath = join(dirname(fileURLToPath(import.meta.url)), "../../../db/migrations");
+  const byRepoRoot = join(process.cwd(), "packages/client/contfu/db/migrations");
+  const byPackageRoot = join(process.cwd(), "db/migrations");
+
+  const candidates = [byModulePath, byRepoRoot, byPackageRoot];
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
+  return null;
+}
+
 async function createDatabaseClient(url: string) {
   const runtime = detectRuntime();
-  const migrationsFolder = join(dirname(fileURLToPath(import.meta.url)), "../../../db/migrations");
+  const migrationsFolder = resolveMigrationsFolder();
 
   if (runtime === "bun") {
     const { Database } = await import("bun:sqlite");
@@ -25,7 +41,9 @@ async function createDatabaseClient(url: string) {
     client.run("PRAGMA journal_mode = WAL");
 
     const db = drizzle({ client, schema });
-    migrate(db, { migrationsFolder });
+    if (migrationsFolder) {
+      migrate(db, { migrationsFolder });
+    }
     return db;
   }
 
@@ -40,6 +58,8 @@ async function createDatabaseClient(url: string) {
   client.pragma("journal_mode = WAL");
 
   const db = drizzle(client, { schema });
-  migrate(db, { migrationsFolder });
+  if (migrationsFolder) {
+    migrate(db, { migrationsFolder });
+  }
   return db;
 }
