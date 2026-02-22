@@ -7,8 +7,7 @@
   import { Button } from "$lib/components/ui/button";
   import { Input } from "$lib/components/ui/input";
   import { Label } from "$lib/components/ui/label";
-  import * as Select from "$lib/components/ui/select";
-  import { Switch } from "$lib/components/ui/switch";
+  import { Select, Switch } from "@contfu/ui";
   import { SOURCE_TYPE_LABELS } from "$lib/domain/source";
   import { listLinkedAccounts } from "$lib/remote/accounts.remote";
   import {
@@ -25,7 +24,7 @@
   import { SourceType } from "@contfu/core";
   import { WebAuthType } from "@contfu/svc-core";
   import { useId } from "bits-ui";
-  import { omit } from "remeda";
+
   import { toast } from "svelte-sonner";
 
   const nameId = useId();
@@ -48,7 +47,7 @@
 
   let selectedType = $state<SourceType>(SourceType.WEB);
   let selectedAuthType = $state<WebAuthType>(WebAuthType.NONE);
-  $inspect(selectedAuthType);
+
   let testResult: { success: boolean; message: string } | null = $state(null);
   let testPending = $state(false);
   let includeRef = $state(true);
@@ -263,28 +262,19 @@
 
     <div class="space-y-1.5">
       <Label for={typeId}>Type</Label>
-      <Select.Root
-        {...omit(createSource.fields?.type.as("text") as any, [
-          "value",
-          "type",
-        ])}
+      <Select
+        id={typeId}
+        name="type"
+        class="w-full"
         bind:value={
           () => selectedType.toString(),
-          (value) => (selectedType = Number(value) as SourceType)
+          (v) => (selectedType = Number(v) as SourceType)
         }
-        type="single"
-      >
-        <Select.Trigger id={typeId} class="w-full">
-          {SOURCE_TYPES.find((t) => t.value === selectedType)?.label ??
-            "Select type"}
-        </Select.Trigger>
-        <Select.Content>
-          {#each SOURCE_TYPES as type}
-            <Select.Item value={type.value.toString()}>{type.label}</Select.Item
-            >
-          {/each}
-        </Select.Content>
-      </Select.Root>
+        options={SOURCE_TYPES.map((t) => ({
+          value: t.value.toString(),
+          label: t.label,
+        }))}
+      />
       <!-- validation errors handled server-side -->
       <p class="text-sm text-destructive">
         {createSource.fields?.type?.issues()?.[0]?.message}
@@ -297,13 +287,7 @@
       <Label for="source-include-ref">Forward source item references</Label>
       <Switch
         id="source-include-ref"
-        {...createSource.fields?.includeRef.as("checkbox")}
-        type="button"
-      />
-      <input
-        name="includeRef"
-        type="hidden"
-        value={includeRef ? "true" : "false"}
+        {...createSource.fields.includeRef.as("checkbox")}
       />
     </div>
 
@@ -392,29 +376,19 @@
     {#if isWebSource}
       <div class="space-y-1.5">
         <Label for={authTypeId}>Authentication</Label>
-        <Select.Root
-          {...omit(createSource.fields?.authType.as("text") as any, [
-            "value",
-            "type",
-          ])}
+        <Select
+          id={authTypeId}
+          name="authType"
+          class="w-full"
           bind:value={
             () => selectedAuthType.toString(),
-            (value) => (selectedAuthType = Number(value) as WebAuthType)
+            (v) => (selectedAuthType = Number(v) as WebAuthType)
           }
-          type="single"
-        >
-          <Select.Trigger id={authTypeId} class="w-full">
-            {AUTH_TYPES.find((t) => t.value === selectedAuthType)?.label ??
-              "Select auth"}
-          </Select.Trigger>
-          <Select.Content>
-            {#each AUTH_TYPES as authType}
-              <Select.Item value={authType.value.toString()}
-                >{authType.label}</Select.Item
-              >
-            {/each}
-          </Select.Content>
-        </Select.Root>
+          options={AUTH_TYPES.map((t) => ({
+            value: t.value.toString(),
+            label: t.label,
+          }))}
+        />
       </div>
     {/if}
 

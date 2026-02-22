@@ -29,29 +29,12 @@ async function login(page: Page): Promise<void> {
 }
 
 async function selectSourceType(page: Page, typeLabel: "Web" | "Strapi" | "Notion"): Promise<void> {
-  await page.getByLabel(/Type/i).click();
   const valueByType: Record<typeof typeLabel, string> = {
     Notion: "0",
     Strapi: "1",
     Web: "2",
   };
-
-  const roleOption = page.getByRole("option", { name: new RegExp(`^${typeLabel}$`, "i") });
-  if (await roleOption.isVisible().catch(() => false)) {
-    await roleOption.click();
-    return;
-  }
-
-  const valueOption = page.locator(`[data-value="${valueByType[typeLabel]}"]`).first();
-  if (await valueOption.isVisible().catch(() => false)) {
-    await valueOption.click();
-    return;
-  }
-
-  await page
-    .locator('[data-slot="select-content"] [role="button"]', { hasText: typeLabel })
-    .first()
-    .click();
+  await page.getByLabel(/Type/i).selectOption({ value: valueByType[typeLabel] });
 }
 
 test.describe("Reactive List Updates", () => {

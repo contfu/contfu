@@ -48,6 +48,7 @@
       "version": "0.0.1",
       "dependencies": {
         "@contfu/core": "workspace:*",
+        "@contfu/ui": "workspace:*",
         "@tanstack/table-core": "^8.21.3",
         "bits-ui": "^2.15.5",
         "clsx": "^2.1.1",
@@ -166,6 +167,7 @@
         "@contfu/svc-backend": "workspace:*",
         "@contfu/svc-core": "workspace:*",
         "@contfu/svc-sources": "workspace:*",
+        "@contfu/ui": "workspace:*",
         "@tanstack/table-core": "^8.21.3",
         "bits-ui": "^2.15.5",
         "clsx": "^2.1.1",
@@ -287,6 +289,18 @@
         "typescript": "^5.9.3",
       },
     },
+    "packages/ui": {
+      "name": "@contfu/ui",
+      "version": "0.0.1",
+      "dependencies": {
+        "clsx": "^2.1.1",
+        "tailwind-merge": "^3.0.0",
+      },
+      "peerDependencies": {
+        "@lucide/svelte": ">=0.460.0",
+        "svelte": "^5.0.0",
+      },
+    },
   },
   "trustedDependencies": [
     "sharp",
@@ -361,6 +375,8 @@
     "@contfu/svc-sources": ["@contfu/svc-sources@workspace:packages/service/sources"],
 
     "@contfu/svc-sync": ["@contfu/svc-sync@workspace:packages/service/sync"],
+
+    "@contfu/ui": ["@contfu/ui@workspace:packages/ui"],
 
     "@css-inline/css-inline": ["@css-inline/css-inline@0.20.0", "", { "optionalDependencies": { "@css-inline/css-inline-android-arm-eabi": "0.20.0", "@css-inline/css-inline-android-arm64": "0.20.0", "@css-inline/css-inline-darwin-arm64": "0.20.0", "@css-inline/css-inline-darwin-x64": "0.20.0", "@css-inline/css-inline-linux-arm-gnueabihf": "0.20.0", "@css-inline/css-inline-linux-arm64-gnu": "0.20.0", "@css-inline/css-inline-linux-arm64-musl": "0.20.0", "@css-inline/css-inline-linux-x64-gnu": "0.20.0", "@css-inline/css-inline-linux-x64-musl": "0.20.0", "@css-inline/css-inline-win32-arm64-msvc": "0.20.0", "@css-inline/css-inline-win32-x64-msvc": "0.20.0" } }, "sha512-WABsvMSBs/DDadwhAUDw6uXwUE6w4DC/bnC4E2Y2rqbCTw5E1PPfj6VksnSCALkv9ynZfYGYYO4+Rvhmn5kgpw=="],
 

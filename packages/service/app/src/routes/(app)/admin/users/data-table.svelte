@@ -7,7 +7,7 @@
     FlexRender,
   } from "$lib/components/ui/data-table/index.js";
   import { Input } from "$lib/components/ui/input";
-  import * as Select from "$lib/components/ui/select";
+  import { Select } from "@contfu/ui";
   import * as Table from "$lib/components/ui/table/index.js";
   import ArrowDownIcon from "@lucide/svelte/icons/arrow-down";
   import ArrowUpIcon from "@lucide/svelte/icons/arrow-up";
@@ -147,46 +147,26 @@
       value={table.getState().globalFilter ?? ""}
       oninput={(e) => setGlobalFilter(e.currentTarget.value)}
     />
-    <Select.Root
-      type="single"
+    <Select
+      class="w-[150px]"
       value={getStatusFilter()}
-      onValueChange={setStatusFilter}
-    >
-      <Select.Trigger class="w-[150px]">
-        {#if getStatusFilter() === "approved"}
-          Approved
-        {:else if getStatusFilter() === "pending"}
-          Pending
-        {:else}
-          All statuses
-        {/if}
-      </Select.Trigger>
-      <Select.Content>
-        <Select.Item value="all">All statuses</Select.Item>
-        <Select.Item value="approved">Approved</Select.Item>
-        <Select.Item value="pending">Pending</Select.Item>
-      </Select.Content>
-    </Select.Root>
-    <Select.Root
-      type="single"
+      onchange={(e) => setStatusFilter(e.currentTarget.value)}
+      options={[
+        { value: "all", label: "All statuses" },
+        { value: "approved", label: "Approved" },
+        { value: "pending", label: "Pending" },
+      ]}
+    />
+    <Select
+      class="w-[120px]"
       value={getRoleFilter()}
-      onValueChange={setRoleFilter}
-    >
-      <Select.Trigger class="w-[120px]">
-        {#if getRoleFilter() === "admin"}
-          Admin
-        {:else if getRoleFilter() === "user"}
-          User
-        {:else}
-          All roles
-        {/if}
-      </Select.Trigger>
-      <Select.Content>
-        <Select.Item value="all">All roles</Select.Item>
-        <Select.Item value="admin">Admin</Select.Item>
-        <Select.Item value="user">User</Select.Item>
-      </Select.Content>
-    </Select.Root>
+      onchange={(e) => setRoleFilter(e.currentTarget.value)}
+      options={[
+        { value: "all", label: "All roles" },
+        { value: "admin", label: "Admin" },
+        { value: "user", label: "User" },
+      ]}
+    />
   </div>
 
   <!-- Table -->
@@ -251,21 +231,17 @@
     <div class="flex items-center justify-end gap-2 space-x-2 p-4">
       <div class="flex items-center gap-2 text-sm text-muted-foreground">
         Rows per page:
-        <Select.Root
-          type="single"
+        <Select
+          class="w-16"
           value={pagination.pageSize.toString()}
-          onValueChange={(value) => table.setPageSize(parseInt(value))}
-        >
-          <Select.Trigger class="w-16">
-            {pagination.pageSize}
-          </Select.Trigger>
-          <Select.Content>
-            <Select.Item value="10">10</Select.Item>
-            <Select.Item value="20">20</Select.Item>
-            <Select.Item value="50">50</Select.Item>
-            <Select.Item value="100">100</Select.Item>
-          </Select.Content>
-        </Select.Root>
+          onchange={(e) => table.setPageSize(parseInt(e.currentTarget.value))}
+          options={[
+            { value: "10", label: "10" },
+            { value: "20", label: "20" },
+            { value: "50", label: "50" },
+            { value: "100", label: "100" },
+          ]}
+        />
       </div>
       <span class="text-sm text-muted-foreground"
         >Page {pagination.pageIndex + 1} of {Math.ceil(

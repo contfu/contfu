@@ -3,7 +3,7 @@
   import { Button } from "$lib/components/ui/button";
   import { Input } from "$lib/components/ui/input";
   import { Label } from "$lib/components/ui/label";
-  import * as Select from "$lib/components/ui/select";
+  import { Select } from "@contfu/ui";
   import { FilterOperator, getOperatorsForType, PropertyType, type Filter, type CollectionSchema } from "@contfu/svc-core";
   import X from "@lucide/svelte/icons/x";
   import Plus from "@lucide/svelte/icons/plus";
@@ -100,47 +100,30 @@
       <div class="flex flex-1 flex-wrap items-center gap-2">
         <!-- Property selector -->
         <div class="min-w-[140px]">
-          <Select.Root
-            type="single"
+          <Select
+            size="sm"
+            class="w-full text-sm"
             value={filter.property}
-            onValueChange={(value) => {
-              if (value) updateFilter(index, { property: value });
-            }}
-          >
-            <Select.Trigger class="h-8 text-sm">
-              {filter.property}
-            </Select.Trigger>
-            <Select.Content>
-              {#each properties as prop}
-                <Select.Item value={prop.name}>
-                  {prop.name}
-                  <span class="ml-1 text-xs text-muted-foreground">({getPropertyTypeName(prop.type)})</span>
-                </Select.Item>
-              {/each}
-            </Select.Content>
-          </Select.Root>
+            onchange={(e) => updateFilter(index, { property: e.currentTarget.value })}
+            options={properties.map((p) => ({
+              value: p.name,
+              label: `${p.name} (${getPropertyTypeName(p.type)})`,
+            }))}
+          />
         </div>
 
         <!-- Operator selector -->
         <div class="min-w-[140px]">
-          <Select.Root
-            type="single"
+          <Select
+            size="sm"
+            class="w-full text-sm"
             value={filter.operator}
-            onValueChange={(value) => {
-              if (value) updateFilter(index, { operator: value as Filter["operator"] });
-            }}
-          >
-            <Select.Trigger class="h-8 text-sm">
-              {operatorLabels[filter.operator] ?? filter.operator}
-            </Select.Trigger>
-            <Select.Content>
-              {#each getOperatorsForProperty(filter.property) as op}
-                <Select.Item value={op}>
-                  {operatorLabels[op] ?? op}
-                </Select.Item>
-              {/each}
-            </Select.Content>
-          </Select.Root>
+            onchange={(e) => updateFilter(index, { operator: e.currentTarget.value as Filter["operator"] })}
+            options={getOperatorsForProperty(filter.property).map((op) => ({
+              value: op,
+              label: operatorLabels[op] ?? op,
+            }))}
+          />
         </div>
 
         <!-- Value input -->

@@ -7,7 +7,7 @@
   } from "$lib/components/ui/data-table";
   import { Input } from "$lib/components/ui/input";
   import { Label } from "$lib/components/ui/label";
-  import * as Select from "$lib/components/ui/select";
+  import { Select } from "@contfu/ui";
   import * as Table from "$lib/components/ui/table";
   import { SOURCE_TYPE_LABELS } from "$lib/domain/source";
   import { buildItemQuerySearchParams } from "$lib/query/item-query";
@@ -151,20 +151,16 @@
           <Label class="mb-1 block text-muted-foreground" for="collection"
             >Collection</Label
           >
-          <Select.Root type="single" bind:value={selectedCollection}>
-            <Select.Trigger id="collection" class="w-full">
-              {selectedCollection || "All collections"}
-            </Select.Trigger>
-            <Select.Content>
-              <Select.Item value="">All collections</Select.Item>
-              {#each collections as collection}
-                <Select.Item value={collection.name}
-                  >{collection.name}</Select.Item
-                >
-              {/each}
-            </Select.Content>
-          </Select.Root>
-          <input type="hidden" name="collection" value={selectedCollection} />
+          <Select
+            id="collection"
+            name="collection"
+            class="w-full"
+            bind:value={selectedCollection}
+            options={[
+              { value: "", label: "All collections" },
+              ...collections.map((c) => ({ value: c.name, label: c.name })),
+            ]}
+          />
         </div>
       {/if}
 
@@ -196,35 +192,31 @@
         <Label class="mb-1 block text-muted-foreground" for="sortField"
           >Sort field</Label
         >
-        <Select.Root type="single" bind:value={selectedSortField}>
-          <Select.Trigger id="sortField" class="w-full">
-            {selectedSortField}
-          </Select.Trigger>
-          <Select.Content>
-            <Select.Item value="changedAt">changedAt</Select.Item>
-            <Select.Item value="collection">collection</Select.Item>
-          </Select.Content>
-        </Select.Root>
-        <input type="hidden" name="sortField" value={selectedSortField} />
+        <Select
+          id="sortField"
+          name="sortField"
+          class="w-full"
+          bind:value={selectedSortField}
+          options={[
+            { value: "changedAt", label: "changedAt" },
+            { value: "collection", label: "collection" },
+          ]}
+        />
       </div>
 
       <div class="text-sm">
         <Label class="mb-1 block text-muted-foreground" for="sortDirection"
           >Direction</Label
         >
-        <Select.Root type="single" bind:value={selectedSortDirection}>
-          <Select.Trigger id="sortDirection" class="w-full">
-            {selectedSortDirection}
-          </Select.Trigger>
-          <Select.Content>
-            <Select.Item value="desc">desc</Select.Item>
-            <Select.Item value="asc">asc</Select.Item>
-          </Select.Content>
-        </Select.Root>
-        <input
-          type="hidden"
+        <Select
+          id="sortDirection"
           name="sortDirection"
-          value={selectedSortDirection}
+          class="w-full"
+          bind:value={selectedSortDirection}
+          options={[
+            { value: "desc", label: "desc" },
+            { value: "asc", label: "asc" },
+          ]}
         />
       </div>
 
@@ -232,18 +224,18 @@
         <Label class="mb-1 block text-muted-foreground" for="pageSize"
           >Page size</Label
         >
-        <Select.Root type="single" bind:value={selectedPageSize}>
-          <Select.Trigger id="pageSize" class="w-full">
-            {selectedPageSize}
-          </Select.Trigger>
-          <Select.Content>
-            <Select.Item value="10">10</Select.Item>
-            <Select.Item value="20">20</Select.Item>
-            <Select.Item value="50">50</Select.Item>
-            <Select.Item value="100">100</Select.Item>
-          </Select.Content>
-        </Select.Root>
-        <input type="hidden" name="pageSize" value={selectedPageSize} />
+        <Select
+          id="pageSize"
+          name="pageSize"
+          class="w-full"
+          bind:value={selectedPageSize}
+          options={[
+            { value: "10", label: "10" },
+            { value: "20", label: "20" },
+            { value: "50", label: "50" },
+            { value: "100", label: "100" },
+          ]}
+        />
       </div>
     </div>
 
@@ -257,16 +249,15 @@
             bind:value={filter.key}
             placeholder="key"
           />
-          <Select.Root type="single" bind:value={filter.op}>
-            <Select.Trigger class="w-full">
-              {filter.op}
-            </Select.Trigger>
-            <Select.Content>
-              <Select.Item value="eq">eq</Select.Item>
-              <Select.Item value="contains">contains</Select.Item>
-            </Select.Content>
-          </Select.Root>
-          <input type="hidden" name="propOp" value={filter.op} />
+          <Select
+            name="propOp"
+            class="w-full"
+            bind:value={filter.op}
+            options={[
+              { value: "eq", label: "eq" },
+              { value: "contains", label: "contains" },
+            ]}
+          />
           <Input
             name="propValue"
             type="text"
