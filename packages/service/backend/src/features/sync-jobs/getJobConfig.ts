@@ -1,6 +1,7 @@
+import { Effect } from "effect";
 import { eq } from "drizzle-orm";
-import type { PgAsyncDatabase } from "drizzle-orm/pg-core/async/db";
-import type * as schema from "../../infra/db/schema";
+import type { DrizzleDb } from "../../effect/services/Database";
+import { DatabaseError } from "../../effect/errors";
 import { sourceCollectionTable, sourceTable } from "../../infra/db/schema";
 import { decryptCredentials } from "../../infra/crypto/credentials";
 
@@ -22,32 +23,33 @@ export interface JobConfig {
  * @param job - The job's sourceCollectionId
  * @returns Configuration for executing the sync, or null if not found
  */
-export async function getJobConfig(
-  db: PgAsyncDatabase<any, typeof schema, any>,
-  job: { sourceCollectionId: number },
-): Promise<JobConfig | null> {
-  const [row] = await db
-    .select({
-      userId: sourceCollectionTable.userId,
-      sourceType: sourceTable.type,
-      sourceUrl: sourceTable.url,
-      credentials: sourceTable.credentials,
-      collectionRef: sourceCollectionTable.ref,
-      collectionId: sourceCollectionTable.id,
-    })
-    .from(sourceCollectionTable)
-    .innerJoin(sourceTable, eq(sourceCollectionTable.sourceId, sourceTable.id))
-    .where(eq(sourceCollectionTable.id, job.sourceCollectionId))
-    .limit(1);
+export const getJobConfig = (db: DrizzleDb, job: { sourceCollectionId: number }) =>
+  Effect.tryPromise({
+    try: async () => {
+      const [row] = await db
+        .select({
+          userId: sourceCollectionTable.userId,
+          sourceType: sourceTable.type,
+          sourceUrl: sourceTable.url,
+          credentials: sourceTable.credentials,
+          collectionRef: sourceCollectionTable.ref,
+          collectionId: sourceCollectionTable.id,
+        })
+        .from(sourceCollectionTable)
+        .innerJoin(sourceTable, eq(sourceCollectionTable.sourceId, sourceTable.id))
+        .where(eq(sourceCollectionTable.id, job.sourceCollectionId))
+        .limit(1);
 
-  if (!row) return null;
+      if (!row) return null;
 
-  return {
-    userId: row.userId,
-    sourceType: row.sourceType,
-    sourceUrl: row.sourceUrl,
-    credentials: await decryptCredentials(row.userId, row.credentials),
-    collectionRef: row.collectionRef,
-    collectionId: row.collectionId,
-  };
-}
+      return {
+        userId: row.userId,
+        sourceType: row.sourceType,
+        sourceUrl: row.sourceUrl,
+        credentials: await decryptCredentials(row.userId, row.credentials),
+        collectionRef: row.collectionRef,
+        collectionId: row.collectionId,
+      } satisfies JobConfig;
+    },
+    catch: (e) => new DatabaseError({ cause: e }),
+  }).pipe(Effect.withSpan("syncJobs.getJobConfig"));

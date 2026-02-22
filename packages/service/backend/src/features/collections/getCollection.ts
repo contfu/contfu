@@ -1,43 +1,59 @@
-import type { BackendCollection } from "../../domain/types";
-import { db } from "../../infra/db/db";
-import { collectionTable, influxTable, connectionTable } from "../../infra/db/schema";
+import { Effect } from "effect";
 import { and, eq, sql } from "drizzle-orm";
+import type { BackendCollection } from "../../domain/types";
+import { Database } from "../../effect/services/Database";
+import { DatabaseError } from "../../effect/errors";
+import { collectionTable, influxTable, connectionTable } from "../../infra/db/schema";
 
 /**
  * Get a single Collection by ID.
  */
-export async function getCollection(
-  userId: number,
-  collectionId: number,
-): Promise<BackendCollection | null> {
-  const [collection] = await db
-    .select()
-    .from(collectionTable)
-    .where(and(eq(collectionTable.userId, userId), eq(collectionTable.id, collectionId)))
-    .limit(1);
+export const getCollection = (userId: number, collectionId: number) =>
+  Effect.gen(function* () {
+    const { db } = yield* Database;
 
-  if (!collection) return null;
+    const [collection] = yield* Effect.tryPromise({
+      try: () =>
+        db
+          .select()
+          .from(collectionTable)
+          .where(and(eq(collectionTable.userId, userId), eq(collectionTable.id, collectionId)))
+          .limit(1),
+      catch: (e) => new DatabaseError({ cause: e }),
+    });
 
-  // Get influx count
-  const [influxCount] = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(influxTable)
-    .where(and(eq(influxTable.userId, userId), eq(influxTable.collectionId, collectionId)));
+    if (!collection) return null;
 
-  // Get connection count
-  const [connectionCount] = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(connectionTable)
-    .where(and(eq(connectionTable.userId, userId), eq(connectionTable.collectionId, collectionId)));
+    // Get influx count
+    const [influxCount] = yield* Effect.tryPromise({
+      try: () =>
+        db
+          .select({ count: sql<number>`count(*)` })
+          .from(influxTable)
+          .where(and(eq(influxTable.userId, userId), eq(influxTable.collectionId, collectionId))),
+      catch: (e) => new DatabaseError({ cause: e }),
+    });
 
-  return {
-    id: collection.id,
-    userId: collection.userId,
-    name: collection.name,
-    includeRef: collection.includeRef,
-    influxCount: influxCount?.count ?? 0,
-    connectionCount: connectionCount?.count ?? 0,
-    createdAt: collection.createdAt,
-    updatedAt: collection.updatedAt,
-  };
-}
+    // Get connection count
+    const [connectionCount] = yield* Effect.tryPromise({
+      try: () =>
+        db
+          .select({ count: sql<number>`count(*)` })
+          .from(connectionTable)
+          .where(
+            and(eq(connectionTable.userId, userId), eq(connectionTable.collectionId, collectionId)),
+          ),
+      catch: (e) => new DatabaseError({ cause: e }),
+    });
+
+    return {
+      id: collection.id,
+      userId: collection.userId,
+      name: collection.name,
+      includeRef: collection.includeRef,
+      influxCount: influxCount?.count ?? 0,
+      connectionCount: connectionCount?.count ?? 0,
+      createdAt: collection.createdAt,
+      updatedAt: collection.updatedAt,
+    } satisfies BackendCollection;
+  }).pipe(Effect.withSpan("collections.get", { attributes: { userId, collectionId } }));

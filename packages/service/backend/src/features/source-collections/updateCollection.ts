@@ -1,6 +1,8 @@
 import { and, eq } from "drizzle-orm";
+import { Effect } from "effect";
 import type { BackendSourceCollection, UpdateSourceCollectionInput } from "../../domain/types";
-import { db } from "../../infra/db/db";
+import { DatabaseError } from "../../effect/errors";
+import { Database } from "../../effect/services/Database";
 import { sourceCollectionTable, type SourceCollection } from "../../infra/db/schema";
 
 function countItemIds(itemIds: Buffer | null): number {
@@ -26,21 +28,24 @@ function mapToBackendSourceCollection(collection: SourceCollection): BackendSour
 /**
  * Update a collection.
  */
-export async function updateCollection(
-  userId: number,
-  id: number,
-  input: UpdateSourceCollectionInput,
-): Promise<BackendSourceCollection | undefined> {
-  const [updated] = await db
-    .update(sourceCollectionTable)
-    .set({
-      ...input,
-      updatedAt: new Date(),
-    })
-    .where(and(eq(sourceCollectionTable.userId, userId), eq(sourceCollectionTable.id, id)))
-    .returning();
+export const updateCollection = (userId: number, id: number, input: UpdateSourceCollectionInput) =>
+  Effect.gen(function* () {
+    const { db } = yield* Database;
 
-  if (!updated) return undefined;
+    const [updated] = yield* Effect.tryPromise({
+      try: () =>
+        db
+          .update(sourceCollectionTable)
+          .set({
+            ...input,
+            updatedAt: new Date(),
+          })
+          .where(and(eq(sourceCollectionTable.userId, userId), eq(sourceCollectionTable.id, id)))
+          .returning(),
+      catch: (e) => new DatabaseError({ cause: e }),
+    });
 
-  return mapToBackendSourceCollection(updated);
-}
+    if (!updated) return undefined;
+
+    return mapToBackendSourceCollection(updated);
+  }).pipe(Effect.withSpan("sourceCollections.update", { attributes: { userId } }));

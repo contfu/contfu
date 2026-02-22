@@ -11,6 +11,7 @@ import type { UserSyncItem } from "../sync-worker/messages";
 const log = createLogger("stream");
 import { and, eq, inArray } from "drizzle-orm";
 import { pack as msgpack } from "msgpackr";
+import { Effect } from "effect";
 import { enqueueSyncJobs } from "../../features/sync-jobs/enqueueSyncJobs";
 import { collectionTable, connectionTable, consumerTable, db, influxTable } from "../db/db";
 import { publishEvent, type StoredWireItemEvent } from "../nats/event-stream";
@@ -147,10 +148,19 @@ export class StreamServer {
           collectionIds,
         );
         if (sourceCollectionIds.length > 0) {
-          await enqueueSyncJobs(db, sourceCollectionIds);
+          await Effect.runPromise(enqueueSyncJobs(db, sourceCollectionIds));
         }
       }
 
+      log.info(
+        {
+          userId: client.userId,
+          consumerId: client.id,
+          connectionId,
+          activeConnections: consumerToConnection.size,
+        },
+        "Consumer stream finalized",
+      );
       return connectionId;
     } catch (error) {
       consumerToConnection.delete(consumerKey);
@@ -177,6 +187,15 @@ export class StreamServer {
     const consumerKey = connectionToConsumer.get(connectionId);
     if (!consumerKey) return;
     const info = consumerInfo.get(consumerKey);
+    log.debug(
+      {
+        connectionId,
+        userId: info?.userId,
+        consumerId: info?.consumerId,
+        activeConnections: consumerToConnection.size - 1,
+      },
+      "Connection removed",
+    );
 
     connectionToConsumer.delete(connectionId);
     consumerToConnection.delete(consumerKey);

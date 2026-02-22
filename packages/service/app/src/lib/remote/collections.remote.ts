@@ -1,5 +1,6 @@
 import { form, query } from "$app/server";
 import { encodeCollection } from "$lib/mappers/collection.mappers";
+import { runWithUser } from "$lib/server/run";
 import { getUserId } from "$lib/server/user";
 import type { CollectionSchema } from "@contfu/svc-core";
 import { createCollection as createCollectionFeature } from "@contfu/svc-backend/features/collections/createCollection";
@@ -19,7 +20,7 @@ import * as v from "valibot";
  */
 export const getCollections = query(async () => {
   const userId = getUserId();
-  const collections = await listCollectionsFeature(userId);
+  const collections = await runWithUser(userId, listCollectionsFeature(userId));
   return collections.map(encodeCollection);
 });
 
@@ -28,7 +29,7 @@ export const getCollections = query(async () => {
  */
 export const getCollection = query(v.object({ id: idSchema("collection") }), async ({ id }) => {
   const userId = getUserId();
-  const collection = await getCollectionFeature(userId, id);
+  const collection = await runWithUser(userId, getCollectionFeature(userId, id));
   if (!collection) error(404, "Collection not found");
   return encodeCollection(collection);
 });
@@ -52,23 +53,32 @@ export const createCollection = form(
   }),
   async (data) => {
     const userId = getUserId();
-    const collection = await createCollectionFeature(userId, {
-      name: data.name,
-      includeRef: data.includeRef ?? true,
-    });
+    const collection = await runWithUser(
+      userId,
+      createCollectionFeature(userId, {
+        name: data.name,
+        includeRef: data.includeRef ?? true,
+      }),
+    );
 
     // If sourceId + ref provided, create SourceCollection and link it via influx
     if (data.sourceId && data.ref) {
-      const sourceCollection = await createSourceCollectionFeature(userId, {
-        name: data.name, // Use collection name for the source collection too
-        sourceId: data.sourceId,
-        ref: Buffer.from(data.ref, "utf-8"),
-      });
-      await createInflux(userId, {
-        collectionId: collection.id,
-        sourceCollectionId: sourceCollection.id,
-        includeRef: true,
-      });
+      const sourceCollection = await runWithUser(
+        userId,
+        createSourceCollectionFeature(userId, {
+          name: data.name, // Use collection name for the source collection too
+          sourceId: data.sourceId,
+          ref: Buffer.from(data.ref, "utf-8"),
+        }),
+      );
+      await runWithUser(
+        userId,
+        createInflux(userId, {
+          collectionId: collection.id,
+          sourceCollectionId: sourceCollection.id,
+          includeRef: true,
+        }),
+      );
     }
 
     redirect(303, `/collections/${encodeId("collection", collection.id)}`);
@@ -91,10 +101,13 @@ export const updateCollection = form(
   }),
   async (data) => {
     const userId = getUserId();
-    await updateCollectionFeature(userId, data.id, {
-      name: data.name,
-      includeRef: data.includeRef,
-    });
+    await runWithUser(
+      userId,
+      updateCollectionFeature(userId, data.id, {
+        name: data.name,
+        includeRef: data.includeRef,
+      }),
+    );
     return { success: true };
   },
 );
@@ -104,7 +117,7 @@ export const updateCollection = form(
  */
 export const deleteCollection = form(v.object({ id: idSchema("collection") }), async (data) => {
   const userId = getUserId();
-  await deleteCollectionFeature(userId, data.id);
+  await runWithUser(userId, deleteCollectionFeature(userId, data.id));
   return { success: true };
 });
 
@@ -115,6 +128,6 @@ export const getSourceCollectionSchemaQuery = query(
   v.object({ sourceCollectionId: idSchema("sourceCollection") }),
   async ({ sourceCollectionId }): Promise<CollectionSchema | null> => {
     const userId = getUserId();
-    return getCollectionSchema(userId, sourceCollectionId);
+    return runWithUser(userId, getCollectionSchema(userId, sourceCollectionId));
   },
 );

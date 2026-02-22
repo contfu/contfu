@@ -1,4 +1,5 @@
 import { form, query } from "$app/server";
+import { run } from "$lib/server/run";
 import { getUser } from "$lib/server/user";
 import type { BackendUserSummary } from "@contfu/svc-backend/domain/types";
 import { UserRole } from "@contfu/svc-backend/domain/types";
@@ -26,7 +27,7 @@ function requireAdmin() {
  */
 export const getUsers = query(async (): Promise<BackendUserSummary[]> => {
   requireAdmin();
-  return listUsers();
+  return run(listUsers());
 });
 
 /**
@@ -43,7 +44,7 @@ export const approveUser = form(
   async (data, issue) => {
     requireAdmin();
 
-    const result = await updateUser({ id: data.id, approved: true });
+    const result = await run(updateUser({ id: data.id, approved: true }));
     if (!result) {
       invalid(issue.id("User not found"));
     }
@@ -66,7 +67,7 @@ export const revokeUser = form(
   async (data, issue) => {
     requireAdmin();
 
-    const result = await updateUser({ id: data.id, approved: false });
+    const result = await run(updateUser({ id: data.id, approved: false }));
     if (!result) {
       invalid(issue.id("User not found"));
     }
@@ -89,7 +90,7 @@ export const promoteToAdmin = form(
   async (data, issue) => {
     requireAdmin();
 
-    const result = await updateUser({ id: data.id, role: UserRole.ADMIN });
+    const result = await run(updateUser({ id: data.id, role: UserRole.ADMIN }));
     if (!result) {
       invalid(issue.id("User not found"));
     }
@@ -112,7 +113,7 @@ export const demoteFromAdmin = form(
   async (data, issue) => {
     requireAdmin();
 
-    const result = await updateUser({ id: data.id, role: UserRole.USER });
+    const result = await run(updateUser({ id: data.id, role: UserRole.USER }));
     if (!result) {
       invalid(issue.id("User not found"));
     }
@@ -135,7 +136,7 @@ export interface SystemSettings {
 export const getSystemSettings = query(async (): Promise<SystemSettings> => {
   requireAdmin();
 
-  const encrypted = await getSetting("notion_oauth_verification_token");
+  const encrypted = await run(getSetting("notion_oauth_verification_token"));
   let notionOAuthVerificationToken: string | null = null;
   if (encrypted) {
     const decrypted = await decryptCredentials(0, encrypted);

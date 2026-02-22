@@ -1,7 +1,9 @@
 import { extractWebAuthType } from "@contfu/svc-core";
+import { Effect } from "effect";
 import { and, eq, sql } from "drizzle-orm";
 import type { BackendSource, BackendSourceWithCollectionCount } from "../../domain/types";
-import { db } from "../../infra/db/db";
+import { Database } from "../../effect/services/Database";
+import { DatabaseError } from "../../effect/errors";
 import { sourceCollectionTable, sourceTable, type Source } from "../../infra/db/schema";
 
 /** Source type: Web (for extracting auth type) */
@@ -23,7 +25,6 @@ function mapToBackendSource(source: Source): BackendSource {
     updatedAt: source.updatedAt,
   };
 
-  // Add webAuthType for web sources
   if (source.type === SOURCE_TYPE_WEB) {
     return {
       ...baseSource,
@@ -34,37 +35,40 @@ function mapToBackendSource(source: Source): BackendSource {
   return baseSource;
 }
 
-function mapToBackendSourceWithCollectionCount(
-  source: Source,
-  collectionCount: number,
-): BackendSourceWithCollectionCount {
-  return {
-    ...mapToBackendSource(source),
-    collectionCount,
-  };
-}
-
 /**
  * Get a single source by ID with collection count.
  * Does NOT include credentials.
  * Returns undefined if not found or not owned by the user.
  */
-export async function getSourceWithCollectionCount(
-  userId: number,
-  id: number,
-): Promise<BackendSourceWithCollectionCount | undefined> {
-  const [source] = await db
-    .select()
-    .from(sourceTable)
-    .where(and(eq(sourceTable.id, id), eq(sourceTable.userId, userId)))
-    .limit(1);
+export const getSourceWithCollectionCount = (userId: number, id: number) =>
+  Effect.gen(function* () {
+    const { db } = yield* Database;
 
-  if (!source) return undefined;
+    const [source] = yield* Effect.tryPromise({
+      try: () =>
+        db
+          .select()
+          .from(sourceTable)
+          .where(and(eq(sourceTable.id, id), eq(sourceTable.userId, userId)))
+          .limit(1),
+      catch: (e) => new DatabaseError({ cause: e }),
+    });
 
-  const [countResult] = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(sourceCollectionTable)
-    .where(eq(sourceCollectionTable.sourceId, id));
+    if (!source) return undefined;
 
-  return mapToBackendSourceWithCollectionCount(source, countResult?.count ?? 0);
-}
+    const [countResult] = yield* Effect.tryPromise({
+      try: () =>
+        db
+          .select({ count: sql<number>`count(*)` })
+          .from(sourceCollectionTable)
+          .where(eq(sourceCollectionTable.sourceId, id)),
+      catch: (e) => new DatabaseError({ cause: e }),
+    });
+
+    return {
+      ...mapToBackendSource(source),
+      collectionCount: countResult?.count ?? 0,
+    } as BackendSourceWithCollectionCount;
+  }).pipe(
+    Effect.withSpan("sources.getWithCollectionCount", { attributes: { userId, sourceId: id } }),
+  );

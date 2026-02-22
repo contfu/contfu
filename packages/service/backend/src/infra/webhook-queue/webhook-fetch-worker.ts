@@ -7,6 +7,7 @@ import { uuidToBuffer } from "@contfu/svc-sources";
 import { fetchNotionPage } from "@contfu/svc-sources/notion";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { listInfluxesBySourceCollections } from "../../features/influxes/listInfluxesBySourceCollections";
+import { runEffectWithServices } from "../../effect/run";
 import { decryptCredentials } from "../crypto/credentials";
 import { db } from "../db/db";
 import {
@@ -143,9 +144,11 @@ async function processJob(job: WebhookFetchJob, streamServer: StreamServer): Pro
     return 0;
   }
 
-  const influxes = await listInfluxesBySourceCollections(
-    job.userId,
-    sourceCollections.map((collection) => collection.id),
+  const influxes = await runEffectWithServices(
+    listInfluxesBySourceCollections(
+      job.userId,
+      sourceCollections.map((collection) => collection.id),
+    ),
   );
 
   if (influxes.length === 0) {

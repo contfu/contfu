@@ -1,4 +1,6 @@
-import { db } from "../../infra/db/db";
+import { Effect } from "effect";
+import { Database } from "../../effect/services/Database";
+import { DatabaseError } from "../../effect/errors";
 import { influxTable } from "../../infra/db/schema";
 import { and, eq } from "drizzle-orm";
 import { pack, unpack } from "msgpackr";
@@ -26,43 +28,47 @@ export interface UpdateInfluxResult {
 /**
  * Update an influx's filters, schema, or includeRef setting.
  */
-export async function updateInflux(
-  userId: number,
-  input: UpdateInfluxInput,
-): Promise<UpdateInfluxResult | null> {
-  const updates: Record<string, unknown> = {
-    updatedAt: new Date(),
-  };
+export const updateInflux = (userId: number, input: UpdateInfluxInput) =>
+  Effect.gen(function* () {
+    const { db } = yield* Database;
 
-  if (input.filters !== undefined) {
-    updates.filters = input.filters?.length ? pack(input.filters) : null;
-  }
+    const updates: Record<string, unknown> = {
+      updatedAt: new Date(),
+    };
 
-  if (input.schema !== undefined) {
-    updates.schema = input.schema ? pack(input.schema) : null;
-  }
+    if (input.filters !== undefined) {
+      updates.filters = input.filters?.length ? pack(input.filters) : null;
+    }
 
-  if (input.includeRef !== undefined) {
-    updates.includeRef = input.includeRef;
-  }
+    if (input.schema !== undefined) {
+      updates.schema = input.schema ? pack(input.schema) : null;
+    }
 
-  const [updated] = await db
-    .update(influxTable)
-    .set(updates)
-    .where(and(eq(influxTable.userId, userId), eq(influxTable.id, input.id)))
-    .returning();
+    if (input.includeRef !== undefined) {
+      updates.includeRef = input.includeRef;
+    }
 
-  if (!updated) return null;
+    const [updated] = yield* Effect.tryPromise({
+      try: () =>
+        db
+          .update(influxTable)
+          .set(updates)
+          .where(and(eq(influxTable.userId, userId), eq(influxTable.id, input.id)))
+          .returning(),
+      catch: (e) => new DatabaseError({ cause: e }),
+    });
 
-  return {
-    id: updated.id,
-    userId: updated.userId,
-    collectionId: updated.collectionId,
-    sourceCollectionId: updated.sourceCollectionId,
-    schema: updated.schema ? (unpack(updated.schema) as CollectionSchema) : null,
-    filters: updated.filters ? (unpack(updated.filters) as Filter[]) : null,
-    includeRef: updated.includeRef,
-    createdAt: updated.createdAt,
-    updatedAt: updated.updatedAt,
-  };
-}
+    if (!updated) return null;
+
+    return {
+      id: updated.id,
+      userId: updated.userId,
+      collectionId: updated.collectionId,
+      sourceCollectionId: updated.sourceCollectionId,
+      schema: updated.schema ? (unpack(updated.schema) as CollectionSchema) : null,
+      filters: updated.filters ? (unpack(updated.filters) as Filter[]) : null,
+      includeRef: updated.includeRef,
+      createdAt: updated.createdAt,
+      updatedAt: updated.updatedAt,
+    } satisfies UpdateInfluxResult;
+  }).pipe(Effect.withSpan("influxes.update", { attributes: { userId, influxId: input.id } }));

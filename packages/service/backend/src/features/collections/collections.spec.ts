@@ -1,6 +1,7 @@
 import { SourceType } from "@contfu/core";
 import { beforeEach, describe, expect, it } from "bun:test";
 import crypto from "node:crypto";
+import { runTest } from "../../../test/effect-helpers";
 import { truncateAllTables } from "../../../test/setup";
 import { db } from "../../infra/db/db";
 import {
@@ -33,27 +34,29 @@ describe.skipIf(isDbMocked)("Collection Features Happy Path", () => {
   });
 
   it("should create, update, and delete a collection", async () => {
-    const created = await createCollection(userId, { name: "Initial Collection" });
+    const created = await runTest(createCollection(userId, { name: "Initial Collection" }));
     expect(created.name).toBe("Initial Collection");
     expect(created.influxCount).toBe(0);
     expect(created.connectionCount).toBe(0);
 
-    const updated = await updateCollection(userId, created.id, { name: "Updated Collection" });
+    const updated = await runTest(
+      updateCollection(userId, created.id, { name: "Updated Collection" }),
+    );
     expect(updated).toBe(true);
 
-    const fetched = await getCollection(userId, created.id);
+    const fetched = await runTest(getCollection(userId, created.id));
     expect(fetched).toBeDefined();
     expect(fetched!.name).toBe("Updated Collection");
 
-    const deleted = await deleteCollection(userId, created.id);
+    const deleted = await runTest(deleteCollection(userId, created.id));
     expect(deleted).toBe(true);
 
-    const afterDelete = await getCollection(userId, created.id);
+    const afterDelete = await runTest(getCollection(userId, created.id));
     expect(afterDelete).toBeNull();
   });
 
   it("should list collections with influx and connection counts", async () => {
-    const created = await createCollection(userId, { name: "Articles" });
+    const created = await runTest(createCollection(userId, { name: "Articles" }));
 
     const [source] = await db
       .insert(sourceTable)
@@ -93,13 +96,13 @@ describe.skipIf(isDbMocked)("Collection Features Happy Path", () => {
       collectionId: created.id,
     });
 
-    const listed = await listCollections(userId);
+    const listed = await runTest(listCollections(userId));
     expect(listed).toHaveLength(1);
     expect(listed[0].id).toBe(created.id);
     expect(listed[0].influxCount).toBe(1);
     expect(listed[0].connectionCount).toBe(1);
 
-    const fetched = await getCollection(userId, created.id);
+    const fetched = await runTest(getCollection(userId, created.id));
     expect(fetched).toBeDefined();
     expect(fetched!.influxCount).toBe(1);
     expect(fetched!.connectionCount).toBe(1);

@@ -1,4 +1,5 @@
 import { form, query } from "$app/server";
+import { runWithUser } from "$lib/server/run";
 import { getUserId } from "$lib/server/user";
 import type { BackendConnectionWithDetails } from "@contfu/svc-backend/domain/types";
 import { createConnection as createConnectionFeature } from "@contfu/svc-backend/features/connections/createConnection";
@@ -17,7 +18,7 @@ import * as v from "valibot";
  */
 export const getConnections = query(async () => {
   const userId = getUserId();
-  const connections = await listConnections(userId);
+  const connections = await runWithUser(userId, listConnections(userId));
   return connections.map(encodeConnection);
 });
 
@@ -28,7 +29,7 @@ export const getConnectionsByConsumer = query(
   v.object({ consumerId: idSchema("consumer") }),
   async ({ consumerId }) => {
     const userId = getUserId();
-    const connections = await listConnectionsByConsumer(userId, consumerId);
+    const connections = await runWithUser(userId, listConnectionsByConsumer(userId, consumerId));
     return connections.map(encodeConnection);
   },
 );
@@ -40,7 +41,10 @@ export const getConnectionsByCollection = query(
   v.object({ collectionId: idSchema("collection") }),
   async ({ collectionId }) => {
     const userId = getUserId();
-    const connections = await listConnectionsByCollection(userId, collectionId);
+    const connections = await runWithUser(
+      userId,
+      listConnectionsByCollection(userId, collectionId),
+    );
     return connections.map(encodeConnection);
   },
 );
@@ -63,17 +67,23 @@ export const addConnection = form(
     const userId = getUserId();
 
     // Check if connection already exists
-    const existing = await getConnectionFeature(userId, data.consumerId, data.collectionId);
+    const existing = await runWithUser(
+      userId,
+      getConnectionFeature(userId, data.consumerId, data.collectionId),
+    );
     if (existing) {
       invalid(issue.consumerId("Connection already exists"));
     }
 
     // Insert the new connection
-    const connection = await createConnectionFeature(userId, {
-      consumerId: data.consumerId,
-      collectionId: data.collectionId,
-      includeRef: data.includeRef ?? true,
-    });
+    const connection = await runWithUser(
+      userId,
+      createConnectionFeature(userId, {
+        consumerId: data.consumerId,
+        collectionId: data.collectionId,
+        includeRef: data.includeRef ?? true,
+      }),
+    );
 
     return { success: true, connection };
   },
@@ -93,9 +103,12 @@ export const updateConnectionIncludeRef = form(
   }),
   async (data, issue) => {
     const userId = getUserId();
-    const updated = await updateConnectionFeature(userId, data.consumerId, data.collectionId, {
-      includeRef: data.includeRef,
-    });
+    const updated = await runWithUser(
+      userId,
+      updateConnectionFeature(userId, data.consumerId, data.collectionId, {
+        includeRef: data.includeRef,
+      }),
+    );
 
     if (!updated) {
       invalid(issue.consumerId("Connection not found"));
@@ -115,7 +128,10 @@ export const removeConnection = form(
   }),
   async (data, issue) => {
     const userId = getUserId();
-    const deleted = await deleteConnectionFeature(userId, data.consumerId, data.collectionId);
+    const deleted = await runWithUser(
+      userId,
+      deleteConnectionFeature(userId, data.consumerId, data.collectionId),
+    );
 
     if (!deleted) {
       invalid(issue.consumerId("Connection not found"));

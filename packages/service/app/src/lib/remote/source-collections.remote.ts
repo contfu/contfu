@@ -1,4 +1,5 @@
 import { form, query } from "$app/server";
+import { runWithUser } from "$lib/server/run";
 import { getUserId } from "$lib/server/user";
 import type {
   BackendSourceCollectionSummary,
@@ -36,7 +37,7 @@ function encodeSourceCollectionSummary(c: BackendSourceCollectionSummary) {
  */
 export const getSourceCollections = query(async () => {
   const userId = getUserId();
-  const collections = await listCollections(userId);
+  const collections = await runWithUser(userId, listCollections(userId));
   return collections.map(encodeSourceCollection);
 });
 
@@ -47,7 +48,10 @@ export const getSourceCollectionsBySource = query(
   v.object({ sourceId: idSchema("source") }),
   async ({ sourceId }) => {
     const userId = getUserId();
-    const collections = await listCollectionSummariesBySource(userId, sourceId);
+    const collections = await runWithUser(
+      userId,
+      listCollectionSummariesBySource(userId, sourceId),
+    );
     return collections.map(encodeSourceCollectionSummary);
   },
 );
@@ -59,7 +63,7 @@ export const getSourceCollection = query(
   v.object({ id: idSchema("sourceCollection") }),
   async ({ id }) => {
     const userId = getUserId();
-    const collection = await getCollectionWithConnectionCount(userId, id);
+    const collection = await runWithUser(userId, getCollectionWithConnectionCount(userId, id));
     return collection ? encodeSourceCollection(collection) : null;
   },
 );
@@ -77,11 +81,14 @@ export const createSourceCollection = form(
     const userId = getUserId();
 
     // Insert into database
-    await createCollectionFeature(userId, {
-      name: data.name,
-      sourceId: data.sourceId,
-      ref: data.ref ? Buffer.from(data.ref, "utf-8") : null,
-    });
+    await runWithUser(
+      userId,
+      createCollectionFeature(userId, {
+        name: data.name,
+        sourceId: data.sourceId,
+        ref: data.ref ? Buffer.from(data.ref, "utf-8") : null,
+      }),
+    );
 
     return { success: true };
   },
@@ -100,7 +107,7 @@ export const updateSourceCollection = form(
     const userId = getUserId();
 
     // Verify collection exists
-    const existing = await getCollectionFeature(userId, data.id);
+    const existing = await runWithUser(userId, getCollectionFeature(userId, data.id));
     if (!existing) {
       invalid(issue.id("Source collection not found"));
     }
@@ -114,7 +121,7 @@ export const updateSourceCollection = form(
       updates.ref = data.ref.length > 0 ? Buffer.from(data.ref, "utf-8") : null;
     }
 
-    await updateCollectionFeature(userId, data.id, updates);
+    await runWithUser(userId, updateCollectionFeature(userId, data.id, updates));
     return { success: true };
   },
 );
@@ -129,7 +136,7 @@ export const deleteSourceCollection = form(
   async (data, issue) => {
     const userId = getUserId();
 
-    const deleted = await deleteCollectionFeature(userId, data.id);
+    const deleted = await runWithUser(userId, deleteCollectionFeature(userId, data.id));
     if (!deleted) {
       invalid(issue.id("Source collection not found"));
     }

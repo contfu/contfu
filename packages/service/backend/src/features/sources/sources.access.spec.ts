@@ -1,5 +1,6 @@
 import { SourceType } from "@contfu/core";
 import { beforeEach, describe, expect, it } from "bun:test";
+import { runTest } from "../../../test/effect-helpers";
 import { truncateAllTables } from "../../../test/setup";
 import { db } from "../../infra/db/db";
 import { userTable } from "../../infra/db/schema";
@@ -31,51 +32,61 @@ describe.skipIf(isDbMocked)("Source Features Access Control", () => {
   });
 
   it("should not allow reading another user's source", async () => {
-    const source = await createSource(user1Id, {
-      name: "User1 Source",
-      type: SourceType.STRAPI,
-      url: "https://strapi.example.com",
-    });
+    const source = await runTest(
+      createSource(user1Id, {
+        name: "User1 Source",
+        type: SourceType.STRAPI,
+        url: "https://strapi.example.com",
+      }),
+    );
 
-    const result = await getSource(user2Id, source.id);
+    const result = await runTest(getSource(user2Id, source.id));
     expect(result).toBeUndefined();
   });
 
   it("should not allow updating another user's source", async () => {
-    const source = await createSource(user1Id, {
-      name: "User1 Source",
-      type: SourceType.STRAPI,
-      url: "https://strapi.example.com",
-    });
+    const source = await runTest(
+      createSource(user1Id, {
+        name: "User1 Source",
+        type: SourceType.STRAPI,
+        url: "https://strapi.example.com",
+      }),
+    );
 
-    const updated = await updateSource(user2Id, source.id, { name: "Hacked" });
+    const updated = await runTest(updateSource(user2Id, source.id, { name: "Hacked" }));
     expect(updated).toBeUndefined();
   });
 
   it("should not allow deleting another user's source", async () => {
-    const source = await createSource(user1Id, {
-      name: "User1 Source",
-      type: SourceType.STRAPI,
-      url: "https://strapi.example.com",
-    });
+    const source = await runTest(
+      createSource(user1Id, {
+        name: "User1 Source",
+        type: SourceType.STRAPI,
+        url: "https://strapi.example.com",
+      }),
+    );
 
-    const deleted = await deleteSource(user2Id, source.id);
+    const deleted = await runTest(deleteSource(user2Id, source.id));
     expect(deleted).toBe(false);
   });
 
   it("should only list sources owned by the current user", async () => {
-    await createSource(user1Id, {
-      name: "User1 Source",
-      type: SourceType.STRAPI,
-      url: "https://strapi.example.com",
-    });
-    await createSource(user2Id, {
-      name: "User2 Source",
-      type: SourceType.STRAPI,
-      url: "https://strapi.example.com",
-    });
+    await runTest(
+      createSource(user1Id, {
+        name: "User1 Source",
+        type: SourceType.STRAPI,
+        url: "https://strapi.example.com",
+      }),
+    );
+    await runTest(
+      createSource(user2Id, {
+        name: "User2 Source",
+        type: SourceType.STRAPI,
+        url: "https://strapi.example.com",
+      }),
+    );
 
-    const sources = await listSources(user1Id);
+    const sources = await runTest(listSources(user1Id));
     expect(sources).toHaveLength(1);
     expect(sources[0].userId).toBe(user1Id);
     expect(sources[0].name).toBe("User1 Source");

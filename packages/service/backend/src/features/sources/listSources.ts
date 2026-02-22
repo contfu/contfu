@@ -1,7 +1,9 @@
 import { extractWebAuthType } from "@contfu/svc-core";
+import { Effect } from "effect";
 import { eq, sql } from "drizzle-orm";
 import type { BackendSource, BackendSourceWithCollectionCount } from "../../domain/types";
-import { db } from "../../infra/db/db";
+import { Database } from "../../effect/services/Database";
+import { DatabaseError } from "../../effect/errors";
 import { sourceCollectionTable, sourceTable, type Source } from "../../infra/db/schema";
 
 /** Source type: Web (for extracting auth type) */
@@ -48,25 +50,36 @@ function mapToBackendSourceWithCollectionCount(
  * Get all sources for a user with collection counts.
  * Does NOT include credentials.
  */
-export async function listSources(userId: number): Promise<BackendSourceWithCollectionCount[]> {
-  const sources = await db
-    .select()
-    .from(sourceTable)
-    .where(eq(sourceTable.userId, userId))
-    .orderBy(sourceTable.createdAt);
+export const listSources = (userId: number) =>
+  Effect.gen(function* () {
+    const { db } = yield* Database;
 
-  const collectionCounts = await db
-    .select({
-      sourceId: sourceCollectionTable.sourceId,
-      count: sql<number>`count(*)`.as("count"),
-    })
-    .from(sourceCollectionTable)
-    .where(eq(sourceCollectionTable.userId, userId))
-    .groupBy(sourceCollectionTable.sourceId);
+    const sources = yield* Effect.tryPromise({
+      try: () =>
+        db
+          .select()
+          .from(sourceTable)
+          .where(eq(sourceTable.userId, userId))
+          .orderBy(sourceTable.createdAt),
+      catch: (e) => new DatabaseError({ cause: e }),
+    });
 
-  const countMap = new Map<number, number>(collectionCounts.map((c) => [c.sourceId, c.count]));
+    const collectionCounts = yield* Effect.tryPromise({
+      try: () =>
+        db
+          .select({
+            sourceId: sourceCollectionTable.sourceId,
+            count: sql<number>`count(*)`.as("count"),
+          })
+          .from(sourceCollectionTable)
+          .where(eq(sourceCollectionTable.userId, userId))
+          .groupBy(sourceCollectionTable.sourceId),
+      catch: (e) => new DatabaseError({ cause: e }),
+    });
 
-  return sources.map((source) =>
-    mapToBackendSourceWithCollectionCount(source, countMap.get(source.id) ?? 0),
-  );
-}
+    const countMap = new Map<number, number>(collectionCounts.map((c) => [c.sourceId, c.count]));
+
+    return sources.map((source) =>
+      mapToBackendSourceWithCollectionCount(source, countMap.get(source.id) ?? 0),
+    );
+  }).pipe(Effect.withSpan("sources.list", { attributes: { userId } }));

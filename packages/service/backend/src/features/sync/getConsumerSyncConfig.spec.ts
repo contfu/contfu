@@ -3,6 +3,7 @@ import { FilterOperator, type Filter } from "@contfu/svc-core";
 import { beforeEach, describe, expect, it } from "bun:test";
 import { pack } from "msgpackr";
 import crypto from "node:crypto";
+import { runTest } from "../../../test/effect-helpers";
 import { truncateAllTables } from "../../../test/setup";
 import { encryptCredentials } from "../../infra/crypto/credentials";
 import {
@@ -123,7 +124,7 @@ describe.skipIf(isDbMocked)("getConsumerSyncConfig", () => {
       })
       .returning();
 
-    const config = await getConsumerSyncConfig(testUserId, consumer.id);
+    const config = await runTest(getConsumerSyncConfig(testUserId, consumer.id));
 
     expect(config.userId).toBe(testUserId);
     expect(config.collectionIds).toEqual([]);
@@ -151,7 +152,7 @@ describe.skipIf(isDbMocked)("getConsumerSyncConfig", () => {
       collectionId: collection.id,
     });
 
-    const config = await getConsumerSyncConfig(testUserId, consumer.id);
+    const config = await runTest(getConsumerSyncConfig(testUserId, consumer.id));
 
     expect(config.collectionIds).toEqual([collection.id]);
     expect(config.sourceGroups).toEqual([]);
@@ -170,7 +171,7 @@ describe.skipIf(isDbMocked)("getConsumerSyncConfig", () => {
       collectionRef,
     });
 
-    const config = await getConsumerSyncConfig(testUserId, chain.consumerId);
+    const config = await runTest(getConsumerSyncConfig(testUserId, chain.consumerId));
 
     expect(config.collectionIds).toEqual([chain.collectionId]);
     expect(config.sourceGroups).toHaveLength(1);
@@ -184,7 +185,7 @@ describe.skipIf(isDbMocked)("getConsumerSyncConfig", () => {
     expect(group.sourceCollections).toHaveLength(1);
     expect(group.sourceCollections[0].collectionRef).toEqual(collectionRef);
     expect(group.sourceCollections[0].targets).toEqual([
-      { collectionId: chain.collectionId, filters: null },
+      { collectionId: chain.collectionId, filters: null, includeRef: true },
     ]);
   });
 
@@ -242,7 +243,7 @@ describe.skipIf(isDbMocked)("getConsumerSyncConfig", () => {
       { userId: testUserId, consumerId: consumer.id, collectionId: collection2.id },
     ]);
 
-    const config = await getConsumerSyncConfig(testUserId, consumer.id);
+    const config = await runTest(getConsumerSyncConfig(testUserId, consumer.id));
 
     expect(config.collectionIds).toHaveLength(2);
     expect(config.sourceGroups).toHaveLength(1);
@@ -310,7 +311,7 @@ describe.skipIf(isDbMocked)("getConsumerSyncConfig", () => {
       { userId: testUserId, consumerId: consumer.id, collectionId: collection2.id },
     ]);
 
-    const config = await getConsumerSyncConfig(testUserId, consumer.id);
+    const config = await runTest(getConsumerSyncConfig(testUserId, consumer.id));
 
     expect(config.sourceGroups).toHaveLength(2);
     const types = config.sourceGroups.map((g) => g.sourceType).sort();
@@ -371,7 +372,7 @@ describe.skipIf(isDbMocked)("getConsumerSyncConfig", () => {
       { userId: testUserId, consumerId: consumer.id, collectionId: collection2.id },
     ]);
 
-    const config = await getConsumerSyncConfig(testUserId, consumer.id);
+    const config = await runTest(getConsumerSyncConfig(testUserId, consumer.id));
 
     expect(config.sourceGroups).toHaveLength(1);
     expect(config.sourceGroups[0].sourceCollections).toHaveLength(1);
@@ -394,7 +395,7 @@ describe.skipIf(isDbMocked)("getConsumerSyncConfig", () => {
       filters: Buffer.from(pack(filters)),
     });
 
-    const config = await getConsumerSyncConfig(testUserId, chain.consumerId);
+    const config = await runTest(getConsumerSyncConfig(testUserId, chain.consumerId));
 
     const target = config.sourceGroups[0].sourceCollections[0].targets[0];
     expect(target.filters).toEqual(filters);
@@ -406,7 +407,7 @@ describe.skipIf(isDbMocked)("getConsumerSyncConfig", () => {
       credentials: null,
     });
 
-    const config = await getConsumerSyncConfig(testUserId, chain.consumerId);
+    const config = await runTest(getConsumerSyncConfig(testUserId, chain.consumerId));
 
     expect(config.sourceGroups[0].credentials).toBeNull();
   });
@@ -442,14 +443,14 @@ describe.skipIf(isDbMocked)("getConsumerSyncConfig", () => {
       filters: null,
     });
 
-    const config = await getConsumerSyncConfig(testUserId, chain1.consumerId);
+    const config = await runTest(getConsumerSyncConfig(testUserId, chain1.consumerId));
 
     expect(config.collectionIds).toEqual([chain1.collectionId]);
     // Only the influx for collection 1 should appear
     expect(config.sourceGroups).toHaveLength(1);
     expect(config.sourceGroups[0].sourceCollections).toHaveLength(1);
     expect(config.sourceGroups[0].sourceCollections[0].targets).toEqual([
-      { collectionId: chain1.collectionId, filters: null },
+      { collectionId: chain1.collectionId, filters: null, includeRef: true },
     ]);
   });
 
@@ -463,7 +464,7 @@ describe.skipIf(isDbMocked)("getConsumerSyncConfig", () => {
       userId: user2.id,
     });
 
-    const config = await getConsumerSyncConfig(testUserId, chain.consumerId);
+    const config = await runTest(getConsumerSyncConfig(testUserId, chain.consumerId));
 
     expect(config.userId).toBe(testUserId);
     expect(config.collectionIds).toEqual([]);

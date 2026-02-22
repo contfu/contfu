@@ -1,8 +1,10 @@
 import { extractWebAuthType } from "@contfu/svc-core";
+import { Effect } from "effect";
 import crypto from "node:crypto";
 import type { BackendSource, CreateSourceInput } from "../../domain/types";
-import { encryptCredentials } from "../../infra/crypto/credentials";
-import { db } from "../../infra/db/db";
+import { Crypto } from "../../effect/services/Crypto";
+import { Database } from "../../effect/services/Database";
+import { DatabaseError } from "../../effect/errors";
 import { sourceTable, type Source } from "../../infra/db/schema";
 
 /** Source type: Web (for extracting auth type) */
@@ -42,30 +44,35 @@ function mapToBackendSource(source: Source): BackendSource {
  *
  * @returns The created source without credentials
  */
-export async function createSource(
-  userId: number,
-  input: CreateSourceInput,
-): Promise<BackendSource> {
-  // Encrypt credentials and webhookSecret
-  const [encryptedCredentials, encryptedWebhookSecret] = await Promise.all([
-    encryptCredentials(userId, input.credentials ?? null),
-    encryptCredentials(userId, input.webhookSecret ?? null),
-  ]);
+export const createSource = (userId: number, input: CreateSourceInput) =>
+  Effect.gen(function* () {
+    const { db } = yield* Database;
+    const cryptoService = yield* Crypto;
 
-  const [inserted] = await db
-    .insert(sourceTable)
-    .values({
-      userId,
-      uid: crypto.randomUUID(),
-      name: input.name,
-      type: input.type,
-      url: input.url ?? null,
-      includeRef: input.includeRef ?? true,
-      credentials: encryptedCredentials,
-      webhookSecret: encryptedWebhookSecret,
-      credentialsSource: input.credentialsSource ?? null,
-    })
-    .returning();
+    // Encrypt credentials and webhookSecret
+    const [encryptedCredentials, encryptedWebhookSecret] = yield* Effect.all([
+      cryptoService.encryptCredentials(userId, input.credentials ?? null),
+      cryptoService.encryptCredentials(userId, input.webhookSecret ?? null),
+    ]);
 
-  return mapToBackendSource(inserted);
-}
+    const [inserted] = yield* Effect.tryPromise({
+      try: () =>
+        db
+          .insert(sourceTable)
+          .values({
+            userId,
+            uid: crypto.randomUUID(),
+            name: input.name,
+            type: input.type,
+            url: input.url ?? null,
+            includeRef: input.includeRef ?? true,
+            credentials: encryptedCredentials,
+            webhookSecret: encryptedWebhookSecret,
+            credentialsSource: input.credentialsSource ?? null,
+          })
+          .returning(),
+      catch: (e) => new DatabaseError({ cause: e }),
+    });
+
+    return mapToBackendSource(inserted);
+  }).pipe(Effect.withSpan("sources.create", { attributes: { userId } }));

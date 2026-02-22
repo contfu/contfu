@@ -1,9 +1,11 @@
 import { eq, sql } from "drizzle-orm";
+import { Effect } from "effect";
 import type {
   BackendSourceCollection,
   BackendSourceCollectionWithConnectionCount,
 } from "../../domain/types";
-import { db } from "../../infra/db/db";
+import { DatabaseError } from "../../effect/errors";
+import { Database } from "../../effect/services/Database";
 import {
   connectionTable,
   sourceCollectionTable,
@@ -43,27 +45,38 @@ function mapToBackendSourceCollectionWithConnectionCount(
 /**
  * Get all collections for a user with connection counts.
  */
-export async function listCollections(
-  userId: number,
-): Promise<BackendSourceCollectionWithConnectionCount[]> {
-  const collections = await db
-    .select()
-    .from(sourceCollectionTable)
-    .where(eq(sourceCollectionTable.userId, userId))
-    .orderBy(sourceCollectionTable.createdAt);
+export const listCollections = (userId: number) =>
+  Effect.gen(function* () {
+    const { db } = yield* Database;
 
-  const connectionCounts = await db
-    .select({
-      collectionId: connectionTable.collectionId,
-      count: sql<number>`count(*)`.as("count"),
-    })
-    .from(connectionTable)
-    .where(eq(connectionTable.userId, userId))
-    .groupBy(connectionTable.collectionId);
+    const collections = yield* Effect.tryPromise({
+      try: () =>
+        db
+          .select()
+          .from(sourceCollectionTable)
+          .where(eq(sourceCollectionTable.userId, userId))
+          .orderBy(sourceCollectionTable.createdAt),
+      catch: (e) => new DatabaseError({ cause: e }),
+    });
 
-  const countMap = new Map<number, number>(connectionCounts.map((c) => [c.collectionId, c.count]));
+    const connectionCounts = yield* Effect.tryPromise({
+      try: () =>
+        db
+          .select({
+            collectionId: connectionTable.collectionId,
+            count: sql<number>`count(*)`.as("count"),
+          })
+          .from(connectionTable)
+          .where(eq(connectionTable.userId, userId))
+          .groupBy(connectionTable.collectionId),
+      catch: (e) => new DatabaseError({ cause: e }),
+    });
 
-  return collections.map((collection) =>
-    mapToBackendSourceCollectionWithConnectionCount(collection, countMap.get(collection.id) ?? 0),
-  );
-}
+    const countMap = new Map<number, number>(
+      connectionCounts.map((c) => [c.collectionId, c.count]),
+    );
+
+    return collections.map((collection) =>
+      mapToBackendSourceCollectionWithConnectionCount(collection, countMap.get(collection.id) ?? 0),
+    );
+  }).pipe(Effect.withSpan("sourceCollections.list", { attributes: { userId } }));

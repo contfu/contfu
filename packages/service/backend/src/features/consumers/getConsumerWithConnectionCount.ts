@@ -1,7 +1,9 @@
-import { db } from "../../infra/db/db";
-import { connectionTable, consumerTable, type Consumer } from "../../infra/db/schema";
+import { Effect } from "effect";
 import { and, eq, sql } from "drizzle-orm";
 import type { BackendConsumer, BackendConsumerWithConnectionCount } from "../../domain/types";
+import { DatabaseError } from "../../effect/errors";
+import { Database } from "../../effect/services/Database";
+import { connectionTable, consumerTable, type Consumer } from "../../infra/db/schema";
 
 function mapToBackendConsumer(consumer: Consumer): BackendConsumer {
   return {
@@ -28,22 +30,32 @@ function mapToBackendConsumerWithConnectionCount(
  * Get a single consumer by ID with connection count.
  * Returns undefined if not found or not owned by the user.
  */
-export async function getConsumerWithConnectionCount(
-  userId: number,
-  id: number,
-): Promise<BackendConsumerWithConnectionCount | undefined> {
-  const [consumer] = await db
-    .select()
-    .from(consumerTable)
-    .where(and(eq(consumerTable.id, id), eq(consumerTable.userId, userId)))
-    .limit(1);
+export const getConsumerWithConnectionCount = (userId: number, id: number) =>
+  Effect.gen(function* () {
+    const { db } = yield* Database;
 
-  if (!consumer) return undefined;
+    const [consumer] = yield* Effect.tryPromise({
+      try: () =>
+        db
+          .select()
+          .from(consumerTable)
+          .where(and(eq(consumerTable.id, id), eq(consumerTable.userId, userId)))
+          .limit(1),
+      catch: (e) => new DatabaseError({ cause: e }),
+    });
 
-  const [countResult] = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(connectionTable)
-    .where(eq(connectionTable.consumerId, id));
+    if (!consumer) return undefined;
 
-  return mapToBackendConsumerWithConnectionCount(consumer, countResult?.count ?? 0);
-}
+    const [countResult] = yield* Effect.tryPromise({
+      try: () =>
+        db
+          .select({ count: sql<number>`count(*)` })
+          .from(connectionTable)
+          .where(eq(connectionTable.consumerId, id)),
+      catch: (e) => new DatabaseError({ cause: e }),
+    });
+
+    return mapToBackendConsumerWithConnectionCount(consumer, countResult?.count ?? 0);
+  }).pipe(
+    Effect.withSpan("consumers.getWithConnectionCount", { attributes: { userId, consumerId: id } }),
+  );

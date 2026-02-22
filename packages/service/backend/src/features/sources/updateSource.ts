@@ -1,8 +1,10 @@
 import { extractWebAuthType, SourceType } from "@contfu/svc-core";
+import { Effect } from "effect";
 import { and, eq } from "drizzle-orm";
 import type { BackendSource, UpdateSourceInput } from "../../domain/types";
-import { encryptCredentials } from "../../infra/crypto/credentials";
-import { db } from "../../infra/db/db";
+import { Crypto } from "../../effect/services/Crypto";
+import { Database } from "../../effect/services/Database";
+import { DatabaseError } from "../../effect/errors";
 import { sourceTable, type Source } from "../../infra/db/schema";
 
 function mapToBackendSource(source: Source): BackendSource {
@@ -21,7 +23,6 @@ function mapToBackendSource(source: Source): BackendSource {
     updatedAt: source.updatedAt,
   };
 
-  // Add webAuthType for web sources
   if (source.type === SourceType.WEB) {
     return {
       ...baseSource,
@@ -39,38 +40,46 @@ function mapToBackendSource(source: Source): BackendSource {
  *
  * @returns The updated source without credentials
  */
-export async function updateSource(
-  userId: number,
-  id: number,
-  input: UpdateSourceInput,
-): Promise<BackendSource | undefined> {
-  // Encrypt credentials and webhookSecret if being updated
-  const [encryptedCredentials, encryptedWebhookSecret] = await Promise.all([
-    input.credentials ? encryptCredentials(userId, input.credentials) : undefined,
-    input.webhookSecret !== undefined ? encryptCredentials(userId, input.webhookSecret) : undefined,
-  ]);
+export const updateSource = (userId: number, id: number, input: UpdateSourceInput) =>
+  Effect.gen(function* () {
+    const { db } = yield* Database;
+    const cryptoService = yield* Crypto;
 
-  const encryptedUpdates = {
-    name: input.name,
-    url: input.url,
-    includeRef: input.includeRef,
-    credentials: encryptedCredentials,
-    webhookSecret: encryptedWebhookSecret,
-    updatedAt: new Date(),
-  };
+    // Encrypt credentials and webhookSecret if being updated
+    const [encryptedCredentials, encryptedWebhookSecret] = yield* Effect.all([
+      input.credentials
+        ? cryptoService.encryptCredentials(userId, input.credentials)
+        : Effect.succeed(undefined),
+      input.webhookSecret !== undefined
+        ? cryptoService.encryptCredentials(userId, input.webhookSecret)
+        : Effect.succeed(undefined),
+    ]);
 
-  // Remove undefined keys to avoid overwriting with undefined
-  const setValues = Object.fromEntries(
-    Object.entries(encryptedUpdates).filter(([_, v]) => v !== undefined),
-  );
+    const encryptedUpdates = {
+      name: input.name,
+      url: input.url,
+      includeRef: input.includeRef,
+      credentials: encryptedCredentials,
+      webhookSecret: encryptedWebhookSecret,
+      updatedAt: new Date(),
+    };
 
-  const [updated] = await db
-    .update(sourceTable)
-    .set(setValues)
-    .where(and(eq(sourceTable.id, id), eq(sourceTable.userId, userId)))
-    .returning();
+    // Remove undefined keys to avoid overwriting with undefined
+    const setValues = Object.fromEntries(
+      Object.entries(encryptedUpdates).filter(([_, v]) => v !== undefined),
+    );
 
-  if (!updated) return undefined;
+    const [updated] = yield* Effect.tryPromise({
+      try: () =>
+        db
+          .update(sourceTable)
+          .set(setValues)
+          .where(and(eq(sourceTable.id, id), eq(sourceTable.userId, userId)))
+          .returning(),
+      catch: (e) => new DatabaseError({ cause: e }),
+    });
 
-  return mapToBackendSource(updated);
-}
+    if (!updated) return undefined;
+
+    return mapToBackendSource(updated);
+  }).pipe(Effect.withSpan("sources.update", { attributes: { userId, sourceId: id } }));

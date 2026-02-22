@@ -1,7 +1,9 @@
-import { db } from "../../infra/db/db";
-import { sourceTable, type Source } from "../../infra/db/schema";
-import { decryptCredentials } from "../../infra/crypto/credentials";
+import { Effect } from "effect";
 import { and, eq } from "drizzle-orm";
+import { Database } from "../../effect/services/Database";
+import { Crypto } from "../../effect/services/Crypto";
+import { DatabaseError } from "../../effect/errors";
+import { sourceTable, type Source } from "../../infra/db/schema";
 
 /** Internal source with decrypted credentials - NEVER expose to app */
 export type InternalSourceWithCredentials = Source & {
@@ -16,26 +18,31 @@ export type InternalSourceWithCredentials = Source & {
  * Used by sync workers and webhook handlers that need actual credentials.
  * Returns undefined if not found or not owned by the user.
  */
-export async function getSourceWithCredentials(
-  userId: number,
-  id: number,
-): Promise<InternalSourceWithCredentials | undefined> {
-  const [source] = await db
-    .select()
-    .from(sourceTable)
-    .where(and(eq(sourceTable.id, id), eq(sourceTable.userId, userId)))
-    .limit(1);
+export const getSourceWithCredentials = (userId: number, id: number) =>
+  Effect.gen(function* () {
+    const { db } = yield* Database;
+    const cryptoService = yield* Crypto;
 
-  if (!source) return undefined;
+    const [source] = yield* Effect.tryPromise({
+      try: () =>
+        db
+          .select()
+          .from(sourceTable)
+          .where(and(eq(sourceTable.id, id), eq(sourceTable.userId, userId)))
+          .limit(1),
+      catch: (e) => new DatabaseError({ cause: e }),
+    });
 
-  const [credentials, webhookSecret] = await Promise.all([
-    decryptCredentials(source.userId, source.credentials),
-    decryptCredentials(source.userId, source.webhookSecret),
-  ]);
+    if (!source) return undefined;
 
-  return {
-    ...source,
-    credentials,
-    webhookSecret,
-  };
-}
+    const [credentials, webhookSecret] = yield* Effect.all([
+      cryptoService.decryptCredentials(source.userId, source.credentials),
+      cryptoService.decryptCredentials(source.userId, source.webhookSecret),
+    ]);
+
+    return {
+      ...source,
+      credentials,
+      webhookSecret,
+    } as InternalSourceWithCredentials;
+  }).pipe(Effect.withSpan("sources.getWithCredentials", { attributes: { userId, sourceId: id } }));

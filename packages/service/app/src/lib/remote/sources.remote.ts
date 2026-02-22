@@ -1,4 +1,5 @@
 import { command, form, query } from "$app/server";
+import { runWithUser } from "$lib/server/run";
 import { getUserId } from "$lib/server/user";
 import { SourceType } from "@contfu/core";
 import type { BackendSourceWithCollectionCount } from "@contfu/svc-backend/domain/types";
@@ -38,7 +39,7 @@ function encodeSource(source: BackendSourceWithCollectionCount) {
  */
 export const getSources = query(async () => {
   const userId = getUserId();
-  const sources = await listSources(userId);
+  const sources = await runWithUser(userId, listSources(userId));
   return sources.map(encodeSource);
 });
 
@@ -47,7 +48,7 @@ export const getSources = query(async () => {
  */
 export const getSource = query(v.object({ id: idSchema("source") }), async ({ id }) => {
   const userId = getUserId();
-  const source = await getSourceWithCollectionCount(userId, id);
+  const source = await runWithUser(userId, getSourceWithCollectionCount(userId, id));
   if (!source) error(404, "Source not found");
   return encodeSource(source);
 });
@@ -104,15 +105,18 @@ export const createSource = form(
     }
 
     // Insert into database
-    const source = await createSourceFeature(userId, {
-      name: data.name,
-      type: data.type,
-      url: data.type === SourceType.STRAPI || data.type === SourceType.WEB ? data.url : null,
-      credentials: credentialsBuffer,
-      credentialsSource:
-        data.type === SourceType.NOTION ? CredentialsSource.USER_PROVIDED : undefined,
-      includeRef: data.includeRef ?? true,
-    });
+    const source = await runWithUser(
+      userId,
+      createSourceFeature(userId, {
+        name: data.name,
+        type: data.type,
+        url: data.type === SourceType.STRAPI || data.type === SourceType.WEB ? data.url : null,
+        credentials: credentialsBuffer,
+        credentialsSource:
+          data.type === SourceType.NOTION ? CredentialsSource.USER_PROVIDED : undefined,
+        includeRef: data.includeRef ?? true,
+      }),
+    );
 
     redirect(303, `/sources/${encodeId("source", source.id)}`);
   },
@@ -148,14 +152,17 @@ export const createNotionSourceFromOAuth = command(
     }
 
     // Insert the source
-    const source = await createSourceFeature(userId, {
-      name: data.name,
-      type: SourceType.NOTION,
-      url: null,
-      credentials: Buffer.from(accessToken, "utf-8"),
-      credentialsSource: CredentialsSource.OAUTH,
-      includeRef: data.includeRef ?? true,
-    });
+    const source = await runWithUser(
+      userId,
+      createSourceFeature(userId, {
+        name: data.name,
+        type: SourceType.NOTION,
+        url: null,
+        credentials: Buffer.from(accessToken, "utf-8"),
+        credentialsSource: CredentialsSource.OAUTH,
+        includeRef: data.includeRef ?? true,
+      }),
+    );
 
     return { id: encodeId("source", source.id) };
   },
@@ -176,7 +183,7 @@ export const updateSource = form(
     const userId = getUserId();
 
     // Fetch existing source to get the type (with credentials for validation)
-    const existing = await getSourceWithCredentials(userId, data.id);
+    const existing = await runWithUser(userId, getSourceWithCredentials(userId, data.id));
     if (!existing) {
       invalid(issue.id("Source not found"));
     }
@@ -216,7 +223,7 @@ export const updateSource = form(
       updates.includeRef = data.includeRef;
     }
 
-    await updateSourceFeature(userId, data.id, updates);
+    await runWithUser(userId, updateSourceFeature(userId, data.id, updates));
     return { success: true };
   },
 );
@@ -230,7 +237,7 @@ export const deleteSource = form(
   }),
   async (data, issue) => {
     const userId = getUserId();
-    const deleted = await deleteSourceFeature(userId, data.id);
+    const deleted = await runWithUser(userId, deleteSourceFeature(userId, data.id));
 
     if (!deleted) {
       invalid(issue.id("Source not found"));
@@ -250,7 +257,7 @@ export const testConnection = command(
   async (data): Promise<ConnectionTestResult> => {
     const userId = getUserId();
     // Use getSourceWithCredentials since we need actual credentials for testing
-    const source = await getSourceWithCredentials(userId, data.id);
+    const source = await runWithUser(userId, getSourceWithCredentials(userId, data.id));
 
     if (!source) {
       return { success: false, message: "Source not found" };
@@ -289,7 +296,7 @@ export const regenerateWebhookSecret = command(
   async (data): Promise<{ success: boolean; secret?: string; message?: string }> => {
     const userId = getUserId();
     // Don't need credentials here, just checking type
-    const source = await getSourceFeature(userId, data.id);
+    const source = await runWithUser(userId, getSourceFeature(userId, data.id));
 
     if (!source) {
       error(404, "Source not found");
@@ -304,7 +311,10 @@ export const regenerateWebhookSecret = command(
     const newSecret = randomBytes(32).toString("hex");
 
     // Store the new secret (encryption happens in updateSource)
-    await updateSourceFeature(userId, data.id, { webhookSecret: Buffer.from(newSecret, "utf8") });
+    await runWithUser(
+      userId,
+      updateSourceFeature(userId, data.id, { webhookSecret: Buffer.from(newSecret, "utf8") }),
+    );
 
     return { success: true, secret: newSecret };
   },
@@ -359,7 +369,7 @@ export const listNotionDataSources = query(
   async (data) => {
     const userId = getUserId();
     // Need credentials to access Notion API
-    const source = await getSourceWithCredentials(userId, data.sourceId);
+    const source = await runWithUser(userId, getSourceWithCredentials(userId, data.sourceId));
 
     if (!source) {
       error(404, "Source not found");
@@ -378,7 +388,7 @@ export const listNotionDataSources = query(
         await import("@contfu/svc-backend/features/source-collections/listCollectionSummariesBySource");
 
       const [collections, dataSources] = await Promise.all([
-        listCollectionSummariesBySource(userId, data.sourceId),
+        runWithUser(userId, listCollectionSummariesBySource(userId, data.sourceId)),
         (async () => {
           const results: NotionDataSource[] = [];
           for await (const ds of iterateDataSources(token)) {
@@ -418,7 +428,7 @@ export const resolveNotionId = command(
   ): Promise<{ success: true; dataSourceId: string } | { success: false; error: string }> => {
     const userId = getUserId();
     // Need credentials to access Notion API
-    const source = await getSourceWithCredentials(userId, data.sourceId);
+    const source = await runWithUser(userId, getSourceWithCredentials(userId, data.sourceId));
 
     if (!source) {
       error(404, "Source not found");

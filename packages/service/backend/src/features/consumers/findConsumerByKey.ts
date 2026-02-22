@@ -1,17 +1,21 @@
-import { db } from "../../infra/db/db";
-import { consumerTable, type Consumer } from "../../infra/db/schema";
+import { Effect } from "effect";
 import { eq } from "drizzle-orm";
+import { DatabaseError } from "../../effect/errors";
+import { Database } from "../../effect/services/Database";
+import { consumerTable, type Consumer } from "../../infra/db/schema";
 
 /**
  * Find a consumer by API key.
  * INTERNAL USE ONLY - for API authentication.
  */
-export async function findConsumerByKey(key: Buffer): Promise<Consumer | undefined> {
-  const [consumer] = await db
-    .select()
-    .from(consumerTable)
-    .where(eq(consumerTable.key, key))
-    .limit(1);
+export const findConsumerByKey = (key: Buffer) =>
+  Effect.gen(function* () {
+    const { db } = yield* Database;
 
-  return consumer;
-}
+    const [consumer] = yield* Effect.tryPromise({
+      try: () => db.select().from(consumerTable).where(eq(consumerTable.key, key)).limit(1),
+      catch: (e) => new DatabaseError({ cause: e }),
+    });
+
+    return consumer as Consumer | undefined;
+  }).pipe(Effect.withSpan("consumers.findByKey"));

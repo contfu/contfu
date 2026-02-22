@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "bun:test";
+import { runTest } from "../../../test/effect-helpers";
 import { truncateAllTables } from "../../../test/setup";
 import { db } from "../../infra/db/db";
 import { collectionTable, connectionTable, userTable } from "../../infra/db/schema";
@@ -38,7 +39,7 @@ describe.skipIf(isDbMocked)("Consumer Features", () => {
 
   describe("createConsumer", () => {
     it("should create a consumer without a key", async () => {
-      const consumer = await createConsumer(testUserId, { name: "My App" });
+      const consumer = await runTest(createConsumer(testUserId, { name: "My App" }));
 
       expect(consumer.id).toBe(1);
       expect(consumer.userId).toBe(testUserId);
@@ -49,7 +50,7 @@ describe.skipIf(isDbMocked)("Consumer Features", () => {
 
     it("should create a consumer with a key", async () => {
       const key = Buffer.from("test-api-key-12345");
-      const consumer = await createConsumer(testUserId, { name: "External App", key });
+      const consumer = await runTest(createConsumer(testUserId, { name: "External App", key }));
 
       expect(consumer.id).toBe(1);
       expect(consumer.name).toBe("External App");
@@ -57,9 +58,9 @@ describe.skipIf(isDbMocked)("Consumer Features", () => {
     });
 
     it("should auto-increment consumer IDs per user", async () => {
-      const consumer1 = await createConsumer(testUserId, { name: "App 1" });
-      const consumer2 = await createConsumer(testUserId, { name: "App 2" });
-      const consumer3 = await createConsumer(testUserId, { name: "App 3" });
+      const consumer1 = await runTest(createConsumer(testUserId, { name: "App 1" }));
+      const consumer2 = await runTest(createConsumer(testUserId, { name: "App 2" }));
+      const consumer3 = await runTest(createConsumer(testUserId, { name: "App 3" }));
 
       expect(consumer1.id).toBe(1);
       expect(consumer2.id).toBe(2);
@@ -76,9 +77,9 @@ describe.skipIf(isDbMocked)("Consumer Features", () => {
         })
         .returning();
 
-      const consumer1ForUser1 = await createConsumer(testUserId, { name: "User1 App1" });
-      const consumer1ForUser2 = await createConsumer(user2.id, { name: "User2 App1" });
-      const consumer2ForUser1 = await createConsumer(testUserId, { name: "User1 App2" });
+      const consumer1ForUser1 = await runTest(createConsumer(testUserId, { name: "User1 App1" }));
+      const consumer1ForUser2 = await runTest(createConsumer(user2.id, { name: "User2 App1" }));
+      const consumer2ForUser1 = await runTest(createConsumer(testUserId, { name: "User1 App2" }));
 
       // Each user has their own ID sequence starting at 1
       expect(consumer1ForUser1.id).toBe(1);
@@ -89,9 +90,9 @@ describe.skipIf(isDbMocked)("Consumer Features", () => {
 
   describe("getConsumer", () => {
     it("should return a consumer by ID", async () => {
-      await createConsumer(testUserId, { name: "My App" });
+      await runTest(createConsumer(testUserId, { name: "My App" }));
 
-      const consumer = await getConsumer(testUserId, 1);
+      const consumer = await runTest(getConsumer(testUserId, 1));
 
       expect(consumer).toBeDefined();
       expect(consumer!.id).toBe(1);
@@ -99,13 +100,13 @@ describe.skipIf(isDbMocked)("Consumer Features", () => {
     });
 
     it("should return undefined for non-existent consumer", async () => {
-      const consumer = await getConsumer(testUserId, 999);
+      const consumer = await runTest(getConsumer(testUserId, 999));
 
       expect(consumer).toBeUndefined();
     });
 
     it("should not return another user's consumer", async () => {
-      await createConsumer(testUserId, { name: "My App" });
+      await runTest(createConsumer(testUserId, { name: "My App" }));
 
       // Create another user
       const [user2] = await db
@@ -117,7 +118,7 @@ describe.skipIf(isDbMocked)("Consumer Features", () => {
         .returning();
 
       // Try to access first user's consumer with second user's ID
-      const consumer = await getConsumer(user2.id, 1);
+      const consumer = await runTest(getConsumer(user2.id, 1));
 
       expect(consumer).toBeUndefined();
     });
@@ -125,16 +126,16 @@ describe.skipIf(isDbMocked)("Consumer Features", () => {
 
   describe("listConsumers", () => {
     it("should return empty array when no consumers exist", async () => {
-      const consumers = await listConsumers(testUserId);
+      const consumers = await runTest(listConsumers(testUserId));
 
       expect(consumers).toEqual([]);
     });
 
     it("should return all consumers for a user with connection counts", async () => {
-      await createConsumer(testUserId, { name: "App 1" });
-      await createConsumer(testUserId, { name: "App 2" });
+      await runTest(createConsumer(testUserId, { name: "App 1" }));
+      await runTest(createConsumer(testUserId, { name: "App 2" }));
 
-      const consumers = await listConsumers(testUserId);
+      const consumers = await runTest(listConsumers(testUserId));
 
       expect(consumers.length).toBe(2);
       expect(consumers[0].name).toBe("App 1");
@@ -144,7 +145,7 @@ describe.skipIf(isDbMocked)("Consumer Features", () => {
     });
 
     it("should include connection counts", async () => {
-      await createConsumer(testUserId, { name: "Connected App" });
+      await runTest(createConsumer(testUserId, { name: "Connected App" }));
 
       // Create a collection for connections
       const [collection] = await db
@@ -165,14 +166,14 @@ describe.skipIf(isDbMocked)("Consumer Features", () => {
         },
       ]);
 
-      const consumers = await listConsumers(testUserId);
+      const consumers = await runTest(listConsumers(testUserId));
 
       expect(consumers.length).toBe(1);
       expect(consumers[0].connectionCount).toBe(1);
     });
 
     it("should only return consumers for the specified user", async () => {
-      await createConsumer(testUserId, { name: "User1 App" });
+      await runTest(createConsumer(testUserId, { name: "User1 App" }));
 
       // Create another user with their own consumer
       const [user2] = await db
@@ -182,9 +183,9 @@ describe.skipIf(isDbMocked)("Consumer Features", () => {
           email: "user2@test.com",
         })
         .returning();
-      await createConsumer(user2.id, { name: "User2 App" });
+      await runTest(createConsumer(user2.id, { name: "User2 App" }));
 
-      const consumers = await listConsumers(testUserId);
+      const consumers = await runTest(listConsumers(testUserId));
 
       expect(consumers.length).toBe(1);
       expect(consumers[0].name).toBe("User1 App");
@@ -193,19 +194,19 @@ describe.skipIf(isDbMocked)("Consumer Features", () => {
 
   describe("updateConsumer", () => {
     it("should update consumer name", async () => {
-      await createConsumer(testUserId, { name: "Old Name" });
+      await runTest(createConsumer(testUserId, { name: "Old Name" }));
 
-      const updated = await updateConsumer(testUserId, 1, { name: "New Name" });
+      const updated = await runTest(updateConsumer(testUserId, 1, { name: "New Name" }));
 
       expect(updated).toBeDefined();
       expect(updated!.name).toBe("New Name");
     });
 
     it("should update consumer key", async () => {
-      await createConsumer(testUserId, { name: "App" });
+      await runTest(createConsumer(testUserId, { name: "App" }));
 
       const key = Buffer.from("new-api-key");
-      const updated = await updateConsumer(testUserId, 1, { key });
+      const updated = await runTest(updateConsumer(testUserId, 1, { key }));
 
       expect(updated).toBeDefined();
       expect(updated!.hasKey).toBe(true);
@@ -213,22 +214,22 @@ describe.skipIf(isDbMocked)("Consumer Features", () => {
 
     it("should remove key by setting to null", async () => {
       const key = Buffer.from("initial-key");
-      await createConsumer(testUserId, { name: "App", key });
+      await runTest(createConsumer(testUserId, { name: "App", key }));
 
-      const updated = await updateConsumer(testUserId, 1, { key: null });
+      const updated = await runTest(updateConsumer(testUserId, 1, { key: null }));
 
       expect(updated).toBeDefined();
       expect(updated!.hasKey).toBe(false);
     });
 
     it("should return undefined for non-existent consumer", async () => {
-      const result = await updateConsumer(testUserId, 999, { name: "New Name" });
+      const result = await runTest(updateConsumer(testUserId, 999, { name: "New Name" }));
 
       expect(result).toBeUndefined();
     });
 
     it("should not update another user's consumer", async () => {
-      await createConsumer(testUserId, { name: "Original" });
+      await runTest(createConsumer(testUserId, { name: "Original" }));
 
       const [user2] = await db
         .insert(userTable)
@@ -238,36 +239,36 @@ describe.skipIf(isDbMocked)("Consumer Features", () => {
         })
         .returning();
 
-      const result = await updateConsumer(user2.id, 1, { name: "Hacked" });
+      const result = await runTest(updateConsumer(user2.id, 1, { name: "Hacked" }));
 
       expect(result).toBeUndefined();
 
       // Verify original is unchanged
-      const original = await getConsumer(testUserId, 1);
+      const original = await runTest(getConsumer(testUserId, 1));
       expect(original!.name).toBe("Original");
     });
   });
 
   describe("deleteConsumer", () => {
     it("should delete a consumer", async () => {
-      await createConsumer(testUserId, { name: "To Delete" });
+      await runTest(createConsumer(testUserId, { name: "To Delete" }));
 
-      const deleted = await deleteConsumer(testUserId, 1);
+      const deleted = await runTest(deleteConsumer(testUserId, 1));
 
       expect(deleted).toBe(true);
 
-      const check = await getConsumer(testUserId, 1);
+      const check = await runTest(getConsumer(testUserId, 1));
       expect(check).toBeUndefined();
     });
 
     it("should return false for non-existent consumer", async () => {
-      const deleted = await deleteConsumer(testUserId, 999);
+      const deleted = await runTest(deleteConsumer(testUserId, 999));
 
       expect(deleted).toBe(false);
     });
 
     it("should not delete another user's consumer", async () => {
-      await createConsumer(testUserId, { name: "Protected" });
+      await runTest(createConsumer(testUserId, { name: "Protected" }));
 
       const [user2] = await db
         .insert(userTable)
@@ -277,12 +278,12 @@ describe.skipIf(isDbMocked)("Consumer Features", () => {
         })
         .returning();
 
-      const deleted = await deleteConsumer(user2.id, 1);
+      const deleted = await runTest(deleteConsumer(user2.id, 1));
 
       expect(deleted).toBe(false);
 
       // Verify original exists
-      const original = await getConsumer(testUserId, 1);
+      const original = await runTest(getConsumer(testUserId, 1));
       expect(original).toBeDefined();
     });
   });
@@ -290,25 +291,25 @@ describe.skipIf(isDbMocked)("Consumer Features", () => {
   describe("getConsumerWithKey", () => {
     it("should return consumer with key buffer", async () => {
       const key = Buffer.from("secret-api-key");
-      await createConsumer(testUserId, { name: "Keyed App", key });
+      await runTest(createConsumer(testUserId, { name: "Keyed App", key }));
 
-      const consumer = await getConsumerWithKey(testUserId, 1);
+      const consumer = await runTest(getConsumerWithKey(testUserId, 1));
 
       expect(consumer).toBeDefined();
       expect(consumer!.key).toEqual(key);
     });
 
     it("should return consumer with null key", async () => {
-      await createConsumer(testUserId, { name: "No Key App" });
+      await runTest(createConsumer(testUserId, { name: "No Key App" }));
 
-      const consumer = await getConsumerWithKey(testUserId, 1);
+      const consumer = await runTest(getConsumerWithKey(testUserId, 1));
 
       expect(consumer).toBeDefined();
       expect(consumer!.key).toBeNull();
     });
 
     it("should return undefined for non-existent consumer", async () => {
-      const consumer = await getConsumerWithKey(testUserId, 999);
+      const consumer = await runTest(getConsumerWithKey(testUserId, 999));
 
       expect(consumer).toBeUndefined();
     });
@@ -317,9 +318,9 @@ describe.skipIf(isDbMocked)("Consumer Features", () => {
   describe("findConsumerByKey", () => {
     it("should find consumer by exact key match", async () => {
       const key = Buffer.from("unique-api-key-12345");
-      await createConsumer(testUserId, { name: "Findable App", key });
+      await runTest(createConsumer(testUserId, { name: "Findable App", key }));
 
-      const consumer = await findConsumerByKey(key);
+      const consumer = await runTest(findConsumerByKey(key));
 
       expect(consumer).toBeDefined();
       expect(consumer!.name).toBe("Findable App");
@@ -327,7 +328,7 @@ describe.skipIf(isDbMocked)("Consumer Features", () => {
     });
 
     it("should return undefined for non-existent key", async () => {
-      const consumer = await findConsumerByKey(Buffer.from("non-existent-key"));
+      const consumer = await runTest(findConsumerByKey(Buffer.from("non-existent-key")));
 
       expect(consumer).toBeUndefined();
     });
@@ -337,11 +338,11 @@ describe.skipIf(isDbMocked)("Consumer Features", () => {
       const key2 = Buffer.from("key-two");
       const key3 = Buffer.from("key-three");
 
-      await createConsumer(testUserId, { name: "App 1", key: key1 });
-      await createConsumer(testUserId, { name: "App 2", key: key2 });
-      await createConsumer(testUserId, { name: "App 3", key: key3 });
+      await runTest(createConsumer(testUserId, { name: "App 1", key: key1 }));
+      await runTest(createConsumer(testUserId, { name: "App 2", key: key2 }));
+      await runTest(createConsumer(testUserId, { name: "App 3", key: key3 }));
 
-      const consumer = await findConsumerByKey(key2);
+      const consumer = await runTest(findConsumerByKey(key2));
 
       expect(consumer).toBeDefined();
       expect(consumer!.name).toBe("App 2");
@@ -350,9 +351,9 @@ describe.skipIf(isDbMocked)("Consumer Features", () => {
 
   describe("getConsumerWithConnectionCount", () => {
     it("should return consumer with zero connections", async () => {
-      await createConsumer(testUserId, { name: "Lonely App" });
+      await runTest(createConsumer(testUserId, { name: "Lonely App" }));
 
-      const consumer = await getConsumerWithConnectionCount(testUserId, 1);
+      const consumer = await runTest(getConsumerWithConnectionCount(testUserId, 1));
 
       expect(consumer).toBeDefined();
       expect(consumer!.name).toBe("Lonely App");
@@ -360,7 +361,7 @@ describe.skipIf(isDbMocked)("Consumer Features", () => {
     });
 
     it("should return consumer with correct connection count", async () => {
-      await createConsumer(testUserId, { name: "Popular App" });
+      await runTest(createConsumer(testUserId, { name: "Popular App" }));
 
       // Create collections
       await db.insert(collectionTable).values([
@@ -376,14 +377,14 @@ describe.skipIf(isDbMocked)("Consumer Features", () => {
         { userId: testUserId, consumerId: 1, collectionId: 3 },
       ]);
 
-      const consumer = await getConsumerWithConnectionCount(testUserId, 1);
+      const consumer = await runTest(getConsumerWithConnectionCount(testUserId, 1));
 
       expect(consumer).toBeDefined();
       expect(consumer!.connectionCount).toBe(3);
     });
 
     it("should return undefined for non-existent consumer", async () => {
-      const consumer = await getConsumerWithConnectionCount(testUserId, 999);
+      const consumer = await runTest(getConsumerWithConnectionCount(testUserId, 999));
 
       expect(consumer).toBeUndefined();
     });

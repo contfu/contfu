@@ -1,4 +1,5 @@
 import { form, query } from "$app/server";
+import { runWithUser } from "$lib/server/run";
 import { getUserId } from "$lib/server/user";
 import type { BackendConsumerWithConnectionCount } from "@contfu/svc-backend/domain/types";
 import { createConsumer as createConsumerFeature } from "@contfu/svc-backend/features/consumers/createConsumer";
@@ -35,7 +36,7 @@ function encodeConsumer(c: BackendConsumerWithConnectionCount) {
  */
 export const getConsumers = query(async () => {
   const userId = getUserId();
-  const consumers = await listConsumers(userId);
+  const consumers = await runWithUser(userId, listConsumers(userId));
   return consumers.map(encodeConsumer);
 });
 
@@ -44,7 +45,7 @@ export const getConsumers = query(async () => {
  */
 export const getConsumer = query(v.object({ id: idSchema("consumer") }), async ({ id }) => {
   const userId = getUserId();
-  const consumer = await getConsumerWithConnectionCount(userId, id);
+  const consumer = await runWithUser(userId, getConsumerWithConnectionCount(userId, id));
   if (!consumer) error(404, "Consumer not found");
   return encodeConsumer(consumer);
 });
@@ -69,11 +70,14 @@ export const createConsumer = form(
     const apiKey = generateApiKey();
 
     // Insert into database
-    const consumer = await createConsumerFeature(userId, {
-      name: data.name,
-      includeRef: data.includeRef ?? true,
-      key: Buffer.from(apiKey, "base64url"),
-    });
+    const consumer = await runWithUser(
+      userId,
+      createConsumerFeature(userId, {
+        name: data.name,
+        includeRef: data.includeRef ?? true,
+        key: Buffer.from(apiKey, "base64url"),
+      }),
+    );
 
     redirect(303, `/consumers/${encodeId("consumer", consumer.id)}`);
   },
@@ -97,7 +101,7 @@ export const updateConsumer = form(
     const userId = getUserId();
 
     // Verify consumer exists
-    const existing = await getConsumerFeature(userId, data.id);
+    const existing = await runWithUser(userId, getConsumerFeature(userId, data.id));
     if (!existing) {
       invalid(issue.id("Consumer not found"));
     }
@@ -111,7 +115,7 @@ export const updateConsumer = form(
       updates.includeRef = data.includeRef;
     }
 
-    await updateConsumerFeature(userId, data.id, updates);
+    await runWithUser(userId, updateConsumerFeature(userId, data.id, updates));
     return { success: true };
   },
 );
@@ -127,7 +131,7 @@ export const regenerateKey = form(
     const userId = getUserId();
 
     // Verify consumer exists
-    const existing = await getConsumerFeature(userId, data.id);
+    const existing = await runWithUser(userId, getConsumerFeature(userId, data.id));
     if (!existing) {
       invalid(issue.id("Consumer not found"));
     }
@@ -135,9 +139,12 @@ export const regenerateKey = form(
     // Generate a new API key
     const apiKey = generateApiKey();
 
-    await updateConsumerFeature(userId, data.id, {
-      key: Buffer.from(apiKey, "base64url"),
-    });
+    await runWithUser(
+      userId,
+      updateConsumerFeature(userId, data.id, {
+        key: Buffer.from(apiKey, "base64url"),
+      }),
+    );
 
     return { success: true, key: apiKey };
   },
@@ -152,7 +159,7 @@ export const deleteConsumer = form(
   }),
   async (data, issue) => {
     const userId = getUserId();
-    const deleted = await deleteConsumerFeature(userId, data.id);
+    const deleted = await runWithUser(userId, deleteConsumerFeature(userId, data.id));
 
     if (!deleted) {
       invalid(issue.id("Consumer not found"));

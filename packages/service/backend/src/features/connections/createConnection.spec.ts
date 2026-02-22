@@ -1,6 +1,7 @@
 import { SourceType } from "@contfu/core";
 import { beforeEach, describe, expect, it } from "bun:test";
 import crypto from "node:crypto";
+import { runTest } from "../../../test/effect-helpers";
 import { db } from "../../infra/db/db";
 import {
   collectionTable,
@@ -52,10 +53,12 @@ describe("createConnection", () => {
       .returning();
 
     // Create connection to the collection
-    const connection = await createConnection(user.id, {
-      consumerId: consumer.id,
-      collectionId: collection.id,
-    });
+    const connection = await runTest(
+      createConnection(user.id, {
+        consumerId: consumer.id,
+        collectionId: collection.id,
+      }),
+    );
 
     expect(connection.userId).toBe(user.id);
     expect(connection.consumerId).toBe(consumer.id);
@@ -83,10 +86,12 @@ describe("createConnection", () => {
 
     // Note: No collection created - this should fail with FK constraint
     await expect(
-      createConnection(user.id, {
-        consumerId: consumer.id,
-        collectionId: 999, // Non-existent collection
-      }),
+      runTest(
+        createConnection(user.id, {
+          consumerId: consumer.id,
+          collectionId: 999, // Non-existent collection
+        }),
+      ),
     ).rejects.toThrow();
   });
 
@@ -150,10 +155,12 @@ describe("createConnection", () => {
       .returning();
 
     // Create connection to the collection
-    const connection = await createConnection(user.id, {
-      consumerId: consumer.id,
-      collectionId: collection.id,
-    });
+    const connection = await runTest(
+      createConnection(user.id, {
+        consumerId: consumer.id,
+        collectionId: collection.id,
+      }),
+    );
 
     expect(connection.collectionId).toBe(collection.id);
   });
@@ -190,10 +197,12 @@ describe("createConnection", () => {
       .returning();
 
     await expect(
-      createConnection(user1.id, {
-        consumerId: consumer.id,
-        collectionId: collection.id,
-      }),
+      runTest(
+        createConnection(user1.id, {
+          consumerId: consumer.id,
+          collectionId: collection.id,
+        }),
+      ),
     ).rejects.toThrow("Consumer not found");
   });
 
@@ -229,10 +238,12 @@ describe("createConnection", () => {
       .returning();
 
     await expect(
-      createConnection(user1.id, {
-        consumerId: consumer.id,
-        collectionId: collection.id,
-      }),
+      runTest(
+        createConnection(user1.id, {
+          consumerId: consumer.id,
+          collectionId: collection.id,
+        }),
+      ),
     ).rejects.toThrow("Collection not found");
   });
 });

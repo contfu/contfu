@@ -1,5 +1,6 @@
 import { SourceType } from "@contfu/core";
 import { beforeEach, describe, expect, it } from "bun:test";
+import { runTest } from "../../../test/effect-helpers";
 import { truncateAllTables } from "../../../test/setup";
 import { db } from "../../infra/db/db";
 import { userTable } from "../../infra/db/schema";
@@ -32,64 +33,80 @@ describe.skipIf(isDbMocked)("SourceCollection Features Access Control", () => {
     user1Id = user1.id;
     user2Id = user2.id;
 
-    const source1 = await createSource(user1Id, {
-      name: "User1 Source",
-      type: SourceType.STRAPI,
-      url: "https://strapi.example.com",
-    });
-    const source2 = await createSource(user2Id, {
-      name: "User2 Source",
-      type: SourceType.STRAPI,
-      url: "https://strapi.example.com",
-    });
+    const source1 = await runTest(
+      createSource(user1Id, {
+        name: "User1 Source",
+        type: SourceType.STRAPI,
+        url: "https://strapi.example.com",
+      }),
+    );
+    const source2 = await runTest(
+      createSource(user2Id, {
+        name: "User2 Source",
+        type: SourceType.STRAPI,
+        url: "https://strapi.example.com",
+      }),
+    );
 
     user1SourceId = source1.id;
     user2SourceId = source2.id;
   });
 
   it("should not allow reading another user's source collection", async () => {
-    const collection = await createSourceCollection(user1Id, {
-      sourceId: user1SourceId,
-      name: "User1 Source Collection",
-    });
+    const collection = await runTest(
+      createSourceCollection(user1Id, {
+        sourceId: user1SourceId,
+        name: "User1 Source Collection",
+      }),
+    );
 
-    const result = await getCollection(user2Id, collection.id);
+    const result = await runTest(getCollection(user2Id, collection.id));
     expect(result).toBeUndefined();
   });
 
   it("should not allow updating another user's source collection", async () => {
-    const collection = await createSourceCollection(user1Id, {
-      sourceId: user1SourceId,
-      name: "User1 Source Collection",
-    });
+    const collection = await runTest(
+      createSourceCollection(user1Id, {
+        sourceId: user1SourceId,
+        name: "User1 Source Collection",
+      }),
+    );
 
-    const updated = await updateCollection(user2Id, collection.id, {
-      name: "Hacked",
-    });
+    const updated = await runTest(
+      updateCollection(user2Id, collection.id, {
+        name: "Hacked",
+      }),
+    );
     expect(updated).toBeUndefined();
   });
 
   it("should not allow deleting another user's source collection", async () => {
-    const collection = await createSourceCollection(user1Id, {
-      sourceId: user1SourceId,
-      name: "User1 Source Collection",
-    });
+    const collection = await runTest(
+      createSourceCollection(user1Id, {
+        sourceId: user1SourceId,
+        name: "User1 Source Collection",
+      }),
+    );
 
-    const deleted = await deleteCollection(user2Id, collection.id);
+    const deleted = await runTest(deleteCollection(user2Id, collection.id));
     expect(deleted).toBe(false);
   });
 
   it("should only list source collections owned by the current user", async () => {
-    await createSourceCollection(user1Id, {
-      sourceId: user1SourceId,
-      name: "User1 Source Collection",
-    });
-    await createSourceCollection(user2Id, {
-      sourceId: user2SourceId,
-      name: "User2 Source Collection",
-    });
+    await runTest(
+      createSourceCollection(user1Id, {
+        sourceId: user1SourceId,
+        name: "User1 Source Collection",
+      }),
+    );
+    await runTest(
+      createSourceCollection(user2Id, {
+        sourceId: user2SourceId,
+        name: "User2 Source Collection",
+      }),
+    );
 
-    const collections = await listCollections(user1Id);
+    const collections = await runTest(listCollections(user1Id));
     expect(collections).toHaveLength(1);
     expect(collections[0].userId).toBe(user1Id);
     expect(collections[0].name).toBe("User1 Source Collection");

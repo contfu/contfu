@@ -5,6 +5,8 @@ import { getSetting } from "@contfu/svc-backend/features/admin/getSetting";
 import { upsertSetting } from "@contfu/svc-backend/features/admin/upsertSetting";
 import { listInfluxesBySourceCollections } from "@contfu/svc-backend/features/influxes/listInfluxesBySourceCollections";
 import { enqueueSyncJobs } from "@contfu/svc-backend/features/sync-jobs/enqueueSyncJobs";
+import { runEffectWithServices } from "@contfu/svc-backend/effect/run";
+import { Effect } from "effect";
 import {
   decryptCredentials,
   encryptCredentials,
@@ -233,7 +235,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
         Buffer.from(payload.verification_token, "utf8"),
       );
       if (encrypted) {
-        await upsertSetting(SETTING_OAUTH_TOKEN, encrypted);
+        await runEffectWithServices(upsertSetting(SETTING_OAUTH_TOKEN, encrypted));
       }
       log.info("OAuth verification token stored in settings");
     } else {
@@ -278,7 +280,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
 
   // ---- Signature validation ----
   if (isOAuthMode) {
-    const encryptedToken = await getSetting(SETTING_OAUTH_TOKEN);
+    const encryptedToken = await runEffectWithServices(getSetting(SETTING_OAUTH_TOKEN));
     if (!encryptedToken) {
       if (!payload.verification_token) {
         log.warn("OAuth token not configured");
@@ -402,7 +404,9 @@ export const POST: RequestHandler = async ({ request, params }) => {
         }
 
         const sourceCollectionIds = sourceCollections.map((c) => c.id);
-        const influxes = await listInfluxesBySourceCollections(source.userId, sourceCollectionIds);
+        const influxes = await runEffectWithServices(
+          listInfluxesBySourceCollections(source.userId, sourceCollectionIds),
+        );
         const targetCollectionIds = [...new Set(influxes.map((i) => i.collectionId))];
         const collectionRefPolicy = new Map<number, boolean>();
         for (const influx of influxes) {
@@ -504,7 +508,9 @@ export const POST: RequestHandler = async ({ request, params }) => {
           }
 
           for (const sc of globalCollections) {
-            const influxes = await listInfluxesBySourceCollections(sc.userId, [sc.id]);
+            const influxes = await runEffectWithServices(
+              listInfluxesBySourceCollections(sc.userId, [sc.id]),
+            );
             const targetCollectionIds = [...new Set(influxes.map((i) => i.collectionId))];
             if (targetCollectionIds.length === 0) continue;
             const [src] = await db
@@ -727,7 +733,9 @@ export const POST: RequestHandler = async ({ request, params }) => {
       }
 
       const sourceCollectionIds = sourceCollections.map((c) => c.id);
-      const influxes = await listInfluxesBySourceCollections(source.userId, sourceCollectionIds);
+      const influxes = await runEffectWithServices(
+        listInfluxesBySourceCollections(source.userId, sourceCollectionIds),
+      );
       if (influxes.length === 0) {
         await logWebhookEvent(
           source.userId,
@@ -871,7 +879,9 @@ export const POST: RequestHandler = async ({ request, params }) => {
         if (!result) continue;
 
         const sourceCollectionIds = group.map((c) => c.id);
-        const influxes = await listInfluxesBySourceCollections(userId, sourceCollectionIds);
+        const influxes = await runEffectWithServices(
+          listInfluxesBySourceCollections(userId, sourceCollectionIds),
+        );
 
         const targetCollectionIds: number[] = [];
         const collectionRefPolicy = new Map<number, boolean>();
@@ -1042,9 +1052,11 @@ export const POST: RequestHandler = async ({ request, params }) => {
                 );
 
               if (sourceCollections.length > 0) {
-                await enqueueSyncJobs(
-                  db,
-                  sourceCollections.map((c) => c.id),
+                await Effect.runPromise(
+                  enqueueSyncJobs(
+                    db,
+                    sourceCollections.map((c) => c.id),
+                  ),
                 );
               }
             }

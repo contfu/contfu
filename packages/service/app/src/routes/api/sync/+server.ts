@@ -2,6 +2,7 @@ import { extractConsumerKey } from "$lib/server/consumer-auth";
 import { getStreamServer } from "$lib/server/startup";
 import { EventType } from "@contfu/core";
 import { createLogger } from "@contfu/svc-backend/infra/logger/index";
+import { runEffectWithServices } from "@contfu/svc-backend/effect/run";
 import { fetchAndStreamItems } from "@contfu/svc-backend/features/sync/fetchAndStreamItems";
 import { getConsumerSyncConfig } from "@contfu/svc-backend/features/sync/getConsumerSyncConfig";
 import { consumerTable, db } from "@contfu/svc-backend/infra/db/db";
@@ -64,6 +65,8 @@ export const GET: RequestHandler = async ({ request, url }) => {
     }
   }
 
+  log.info({ userId: consumer.userId, consumerId: consumer.id }, "Consumer connected");
+
   let fromSeq = requestedFromSeq;
   const canReplay = hasNats() && fromSeq != null;
   if (canReplay && fromSeq != null) {
@@ -94,6 +97,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
           keepAlive = null;
         }
         if (connectionId) {
+          log.debug({ connectionId }, "Connection closed");
           server.removeConnection(connectionId);
           connectionId = null;
         }
@@ -119,8 +123,12 @@ export const GET: RequestHandler = async ({ request, url }) => {
         );
 
         if (fromSeq == null) {
-          const config = await getConsumerSyncConfig(consumer.userId, consumer.id);
+          log.debug({ userId: consumer.userId, consumerId: consumer.id }, "Starting snapshot");
+          const config = await runEffectWithServices(
+            getConsumerSyncConfig(consumer.userId, consumer.id),
+          );
 
+          let snapshotItemCount = 0;
           for await (const item of fetchAndStreamItems(config)) {
             if (request.signal.aborted) break;
             const wireEvent: [EventType.CHANGED, ReturnType<typeof toWireItem>] = [
@@ -135,8 +143,13 @@ export const GET: RequestHandler = async ({ request, url }) => {
             if (seq > 0) {
               snapshotSequences.add(seq);
             }
+            snapshotItemCount++;
             server.sendIndexedItem(controller, seq, wireEvent, Boolean(item.includeRef));
           }
+          log.debug(
+            { userId: consumer.userId, consumerId: consumer.id, itemCount: snapshotItemCount },
+            "Snapshot complete",
+          );
         }
 
         const result = await server.finalizeConnection(key, controller);
@@ -145,6 +158,10 @@ export const GET: RequestHandler = async ({ request, url }) => {
           return;
         }
         connectionId = result;
+        log.info(
+          { userId: consumer.userId, consumerId: consumer.id, connectionId },
+          "Connection established",
+        );
 
         const info = server.getConnectionConsumerInfo(connectionId);
         if (!info || request.signal.aborted) {
@@ -161,6 +178,10 @@ export const GET: RequestHandler = async ({ request, url }) => {
           );
 
           if (collectionIds.length > 0 && replayStartSeq > 0 && !request.signal.aborted) {
+            log.debug(
+              { userId: info.userId, consumerId: info.consumerId, fromSeq: replayStartSeq },
+              "Starting replay",
+            );
             for await (const { seq, collectionId, event } of replayEvents({
               fromSeq: replayStartSeq,
               userId: info.userId,
@@ -175,6 +196,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
                 refPolicyByCollection.get(collectionId) ?? true,
               );
             }
+            log.debug({ userId: info.userId, consumerId: info.consumerId }, "Replay complete");
           }
         }
 

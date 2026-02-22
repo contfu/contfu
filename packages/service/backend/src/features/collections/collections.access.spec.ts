@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "bun:test";
+import { runTest } from "../../../test/effect-helpers";
 import { truncateAllTables } from "../../../test/setup";
 import { db } from "../../infra/db/db";
 import { userTable } from "../../infra/db/schema";
@@ -30,31 +31,31 @@ describe.skipIf(isDbMocked)("Collection Features Access Control", () => {
   });
 
   it("should not allow reading another user's collection", async () => {
-    const collection = await createCollection(user1Id, { name: "User1 Collection" });
+    const collection = await runTest(createCollection(user1Id, { name: "User1 Collection" }));
 
-    const result = await getCollection(user2Id, collection.id);
+    const result = await runTest(getCollection(user2Id, collection.id));
     expect(result).toBeNull();
   });
 
   it("should not allow updating another user's collection", async () => {
-    const collection = await createCollection(user1Id, { name: "User1 Collection" });
+    const collection = await runTest(createCollection(user1Id, { name: "User1 Collection" }));
 
-    const updated = await updateCollection(user2Id, collection.id, { name: "Hacked" });
+    const updated = await runTest(updateCollection(user2Id, collection.id, { name: "Hacked" }));
     expect(updated).toBe(false);
   });
 
   it("should not allow deleting another user's collection", async () => {
-    const collection = await createCollection(user1Id, { name: "User1 Collection" });
+    const collection = await runTest(createCollection(user1Id, { name: "User1 Collection" }));
 
-    const deleted = await deleteCollection(user2Id, collection.id);
+    const deleted = await runTest(deleteCollection(user2Id, collection.id));
     expect(deleted).toBe(false);
   });
 
   it("should only list collections owned by the current user", async () => {
-    await createCollection(user1Id, { name: "User1 Collection" });
-    await createCollection(user2Id, { name: "User2 Collection" });
+    await runTest(createCollection(user1Id, { name: "User1 Collection" }));
+    await runTest(createCollection(user2Id, { name: "User2 Collection" }));
 
-    const collections = await listCollections(user1Id);
+    const collections = await runTest(listCollections(user1Id));
     expect(collections).toHaveLength(1);
     expect(collections[0].userId).toBe(user1Id);
     expect(collections[0].name).toBe("User1 Collection");

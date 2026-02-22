@@ -1,6 +1,7 @@
+import { Effect } from "effect";
 import { sql } from "drizzle-orm";
-import type { PgAsyncDatabase } from "drizzle-orm/pg-core/async/db";
-import type * as schema from "../../infra/db/schema";
+import type { DrizzleDb } from "../../effect/services/Database";
+import { DatabaseError } from "../../effect/errors";
 
 /**
  * Delete completed and failed jobs older than 1 day.
@@ -9,13 +10,15 @@ import type * as schema from "../../infra/db/schema";
  * @param db - Database connection (main thread or worker)
  * @returns Number of deleted jobs
  */
-export async function cleanupCompletedJobs(
-  db: PgAsyncDatabase<any, typeof schema, any>,
-): Promise<number> {
-  const result = await db.execute(sql`
-    DELETE FROM sync_job
-    WHERE status IN ('completed', 'failed')
-      AND "completedAt" < now() - interval '1 day'
-  `);
-  return (result as unknown as { rowCount: number }).rowCount ?? 0;
-}
+export const cleanupCompletedJobs = (db: DrizzleDb) =>
+  Effect.tryPromise({
+    try: async () => {
+      const result = await db.execute(sql`
+        DELETE FROM sync_job
+        WHERE status IN ('completed', 'failed')
+          AND "completedAt" < now() - interval '1 day'
+      `);
+      return (result as unknown as { rowCount: number }).rowCount ?? 0;
+    },
+    catch: (e) => new DatabaseError({ cause: e }),
+  }).pipe(Effect.withSpan("syncJobs.cleanupCompleted"));

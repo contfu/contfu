@@ -2,6 +2,7 @@ import { getStreamServer } from "$lib/server/startup";
 import { SourceType } from "@contfu/core";
 import { createLogger } from "@contfu/svc-backend/infra/logger/index";
 import { listInfluxesBySourceCollections } from "@contfu/svc-backend/features/influxes/listInfluxesBySourceCollections";
+import { runEffectWithServices } from "@contfu/svc-backend/effect/run";
 import { decryptCredentials } from "@contfu/svc-backend/infra/crypto/credentials";
 import { db } from "@contfu/svc-backend/infra/db/db";
 import {
@@ -283,7 +284,9 @@ export const POST: RequestHandler = async ({ request, params }) => {
     const sourceCollectionIds = sourceCollections.map((c) => c.id);
 
     // Get influxes with unpacked filters for these source collections
-    const influxes = await listInfluxesBySourceCollections(source.userId, sourceCollectionIds);
+    const influxes = await runEffectWithServices(
+      listInfluxesBySourceCollections(source.userId, sourceCollectionIds),
+    );
 
     if (influxes.length === 0) {
       log.debug("No influxes for source collections");

@@ -1,4 +1,5 @@
 import { command, form, query } from "$app/server";
+import { runWithUser } from "$lib/server/run";
 import { getUserId } from "$lib/server/user";
 import { SourceType } from "@contfu/core";
 import type { BackendInfluxWithDetails } from "@contfu/svc-backend/domain/types";
@@ -102,7 +103,7 @@ function parseNotionDataSource(
  */
 export const probeAllSources = query(async (): Promise<SourceWithDataSources[]> => {
   const userId = getUserId();
-  const sources = await listSources(userId);
+  const sources = await runWithUser(userId, listSources(userId));
 
   const results: SourceWithDataSources[] = [];
 
@@ -117,7 +118,10 @@ export const probeAllSources = query(async (): Promise<SourceWithDataSources[]> 
 
     try {
       // Get existing source collections for this source
-      const existingCollections = await listCollectionSummariesBySource(userId, source.id);
+      const existingCollections = await runWithUser(
+        userId,
+        listCollectionSummariesBySource(userId, source.id),
+      );
       const existingRefMap = new Map(
         existingCollections.filter((c) => c.refString).map((c) => [c.refString!, c.id]),
       );
@@ -134,7 +138,10 @@ export const probeAllSources = query(async (): Promise<SourceWithDataSources[]> 
           parsedDataSources = cached;
         } else {
           // Cache miss - fetch from Notion API
-          const sourceWithCreds = await getSourceWithCredentials(userId, source.id);
+          const sourceWithCreds = await runWithUser(
+            userId,
+            getSourceWithCredentials(userId, source.id),
+          );
           const token = sourceWithCreds?.credentials?.toString("utf-8");
 
           if (token) {
@@ -201,7 +208,7 @@ export const refreshSourceDataSources = command(
 
     try {
       // Get source to check type
-      const sources = await listSources(userId);
+      const sources = await runWithUser(userId, listSources(userId));
       const source = sources.find((s) => s.id === data.sourceId);
 
       if (!source) {
@@ -214,7 +221,10 @@ export const refreshSourceDataSources = command(
       }
 
       // Fetch fresh data from Notion API
-      const sourceWithCreds = await getSourceWithCredentials(userId, source.id);
+      const sourceWithCreds = await runWithUser(
+        userId,
+        getSourceWithCredentials(userId, source.id),
+      );
       const token = sourceWithCreds?.credentials?.toString("utf-8");
 
       if (!token) {
@@ -292,16 +302,19 @@ export const addInflux = command(
     }
 
     // Call backend feature
-    const result = await addInfluxWithSourceCollection(userId, {
-      collectionId: data.collectionId,
-      sourceId: data.sourceId,
-      ref: data.ref,
-      name: data.name,
-      existingSourceCollectionId: data.existingSourceCollectionId,
-      filters,
-      schema,
-      includeRef: data.includeRef ?? true,
-    });
+    const result = await runWithUser(
+      userId,
+      addInfluxWithSourceCollection(userId, {
+        collectionId: data.collectionId,
+        sourceId: data.sourceId,
+        ref: data.ref,
+        name: data.name,
+        existingSourceCollectionId: data.existingSourceCollectionId,
+        filters,
+        schema,
+        includeRef: data.includeRef ?? true,
+      }),
+    );
 
     if (!result.success) return result;
     return {
@@ -335,7 +348,7 @@ export const getInfluxes = query(
   v.object({ collectionId: idSchema("collection") }),
   async ({ collectionId }) => {
     const userId = getUserId();
-    const influxes = await listInfluxes(userId, collectionId);
+    const influxes = await runWithUser(userId, listInfluxes(userId, collectionId));
     return influxes.map(encodeInflux);
   },
 );
@@ -349,7 +362,7 @@ export const getInfluxes = query(
  */
 export const removeInflux = form(v.object({ id: idSchema("influx") }), async (data) => {
   const userId = getUserId();
-  await deleteInfluxFeature(userId, data.id);
+  await runWithUser(userId, deleteInfluxFeature(userId, data.id));
   return { success: true };
 });
 
@@ -400,11 +413,14 @@ export const updateInfluxForm = form(
       throw issue.sourceCollectionId("Influx not found");
     }
 
-    const result = await updateInfluxFeature(userId, {
-      id: influx.id,
-      filters,
-      includeRef: data.includeRef,
-    });
+    const result = await runWithUser(
+      userId,
+      updateInfluxFeature(userId, {
+        id: influx.id,
+        filters,
+        includeRef: data.includeRef,
+      }),
+    );
 
     if (!result) {
       throw issue.sourceCollectionId("Failed to update influx");

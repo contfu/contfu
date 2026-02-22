@@ -1,5 +1,7 @@
+import { Effect } from "effect";
 import type { BackendSourceCollection, CreateSourceCollectionInput } from "../../domain/types";
-import { db } from "../../infra/db/db";
+import { DatabaseError } from "../../effect/errors";
+import { Database } from "../../effect/services/Database";
 import {
   collectionTable,
   influxTable,
@@ -37,44 +39,48 @@ function mapToBackendSourceCollection(collection: SourceCollection): BackendSour
  * 3. Source collections are persisted only when linked to a Collection
  * Currently we auto-create a Collection when a SourceCollection is created (backwards).
  */
-export async function createCollection(
-  userId: number,
-  input: CreateSourceCollectionInput,
-): Promise<BackendSourceCollection> {
-  // Use transaction to atomically create related records
-  const inserted = await db.transaction(async (tx) => {
-    // Create the source collection
-    const [sourceCollection] = await tx
-      .insert(sourceCollectionTable)
-      .values({
-        userId,
-        sourceId: input.sourceId,
-        name: input.name,
-        ref: input.ref ?? null,
-        itemIds: input.itemIds ?? null,
-      })
-      .returning();
+export const createCollection = (userId: number, input: CreateSourceCollectionInput) =>
+  Effect.gen(function* () {
+    const { db } = yield* Database;
 
-    // Create a corresponding collection (aggregation target)
-    const [collection] = await tx
-      .insert(collectionTable)
-      .values({
-        userId,
-        name: input.name,
-      })
-      .returning();
+    // Use transaction to atomically create related records
+    const inserted = yield* Effect.tryPromise({
+      try: () =>
+        db.transaction(async (tx) => {
+          // Create the source collection
+          const [sourceCollection] = await tx
+            .insert(sourceCollectionTable)
+            .values({
+              userId,
+              sourceId: input.sourceId,
+              name: input.name,
+              ref: input.ref ?? null,
+              itemIds: input.itemIds ?? null,
+            })
+            .returning();
 
-    // Create influx from source collection to collection (no filters)
-    await tx.insert(influxTable).values({
-      userId,
-      collectionId: collection.id,
-      sourceCollectionId: sourceCollection.id,
-      schema: null,
-      filters: null,
+          // Create a corresponding collection (aggregation target)
+          const [collection] = await tx
+            .insert(collectionTable)
+            .values({
+              userId,
+              name: input.name,
+            })
+            .returning();
+
+          // Create influx from source collection to collection (no filters)
+          await tx.insert(influxTable).values({
+            userId,
+            collectionId: collection.id,
+            sourceCollectionId: sourceCollection.id,
+            schema: null,
+            filters: null,
+          });
+
+          return sourceCollection;
+        }),
+      catch: (e) => new DatabaseError({ cause: e }),
     });
 
-    return sourceCollection;
-  });
-
-  return mapToBackendSourceCollection(inserted);
-}
+    return mapToBackendSourceCollection(inserted);
+  }).pipe(Effect.withSpan("sourceCollections.create", { attributes: { userId } }));

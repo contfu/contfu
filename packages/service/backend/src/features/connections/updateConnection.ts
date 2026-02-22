@@ -1,7 +1,9 @@
-import { db } from "../../infra/db/db";
-import { connectionTable, type Connection } from "../../infra/db/schema";
+import { Effect } from "effect";
 import { and, eq } from "drizzle-orm";
+import { connectionTable, type Connection } from "../../infra/db/schema";
 import type { BackendConnection, UpdateConnectionInput } from "../../domain/types";
+import { Database } from "../../effect/services/Database";
+import { DatabaseError } from "../../effect/errors";
 
 function mapToBackendConnection(connection: Connection): BackendConnection {
   return {
@@ -17,25 +19,32 @@ function mapToBackendConnection(connection: Connection): BackendConnection {
 /**
  * Update a connection.
  */
-export async function updateConnection(
+export const updateConnection = (
   userId: number,
   consumerId: number,
   collectionId: number,
   input: UpdateConnectionInput,
-): Promise<BackendConnection | undefined> {
-  const [updated] = await db
-    .update(connectionTable)
-    .set(input)
-    .where(
-      and(
-        eq(connectionTable.userId, userId),
-        eq(connectionTable.consumerId, consumerId),
-        eq(connectionTable.collectionId, collectionId),
-      ),
-    )
-    .returning();
+) =>
+  Effect.gen(function* () {
+    const { db } = yield* Database;
 
-  if (!updated) return undefined;
+    const [updated] = yield* Effect.tryPromise({
+      try: () =>
+        db
+          .update(connectionTable)
+          .set(input)
+          .where(
+            and(
+              eq(connectionTable.userId, userId),
+              eq(connectionTable.consumerId, consumerId),
+              eq(connectionTable.collectionId, collectionId),
+            ),
+          )
+          .returning(),
+      catch: (e) => new DatabaseError({ cause: e }),
+    });
 
-  return mapToBackendConnection(updated);
-}
+    if (!updated) return undefined;
+
+    return mapToBackendConnection(updated);
+  }).pipe(Effect.withSpan("connections.update", { attributes: { userId } }));

@@ -1,55 +1,75 @@
-import type { BackendCollection } from "../../domain/types";
-import { db } from "../../infra/db/db";
-import { collectionTable, influxTable, connectionTable } from "../../infra/db/schema";
+import { Effect } from "effect";
 import { eq, sql } from "drizzle-orm";
+import type { BackendCollection } from "../../domain/types";
+import { Database } from "../../effect/services/Database";
+import { DatabaseError } from "../../effect/errors";
+import { collectionTable, influxTable, connectionTable } from "../../infra/db/schema";
 
 /**
  * List all Collections for a user with counts.
  * These are the collections that consumers can subscribe to.
  */
-export async function listCollections(userId: number): Promise<BackendCollection[]> {
-  const collections = await db
-    .select()
-    .from(collectionTable)
-    .where(eq(collectionTable.userId, userId))
-    .orderBy(collectionTable.createdAt);
+export const listCollections = (userId: number) =>
+  Effect.gen(function* () {
+    const { db } = yield* Database;
 
-  // Get influx counts per collection
-  const influxCounts = await db
-    .select({
-      collectionId: influxTable.collectionId,
-      count: sql<number>`count(*)`.as("count"),
-    })
-    .from(influxTable)
-    .where(eq(influxTable.userId, userId))
-    .groupBy(influxTable.collectionId);
+    const collections = yield* Effect.tryPromise({
+      try: () =>
+        db
+          .select()
+          .from(collectionTable)
+          .where(eq(collectionTable.userId, userId))
+          .orderBy(collectionTable.createdAt),
+      catch: (e) => new DatabaseError({ cause: e }),
+    });
 
-  const influxCountMap = new Map<number, number>(
-    influxCounts.map((c) => [c.collectionId, c.count]),
-  );
+    // Get influx counts per collection
+    const influxCounts = yield* Effect.tryPromise({
+      try: () =>
+        db
+          .select({
+            collectionId: influxTable.collectionId,
+            count: sql<number>`count(*)`.as("count"),
+          })
+          .from(influxTable)
+          .where(eq(influxTable.userId, userId))
+          .groupBy(influxTable.collectionId),
+      catch: (e) => new DatabaseError({ cause: e }),
+    });
 
-  // Get connection counts per collection
-  const connectionCounts = await db
-    .select({
-      collectionId: connectionTable.collectionId,
-      count: sql<number>`count(*)`.as("count"),
-    })
-    .from(connectionTable)
-    .where(eq(connectionTable.userId, userId))
-    .groupBy(connectionTable.collectionId);
+    const influxCountMap = new Map<number, number>(
+      influxCounts.map((c) => [c.collectionId, c.count]),
+    );
 
-  const connectionCountMap = new Map<number, number>(
-    connectionCounts.map((c) => [c.collectionId, c.count]),
-  );
+    // Get connection counts per collection
+    const connectionCounts = yield* Effect.tryPromise({
+      try: () =>
+        db
+          .select({
+            collectionId: connectionTable.collectionId,
+            count: sql<number>`count(*)`.as("count"),
+          })
+          .from(connectionTable)
+          .where(eq(connectionTable.userId, userId))
+          .groupBy(connectionTable.collectionId),
+      catch: (e) => new DatabaseError({ cause: e }),
+    });
 
-  return collections.map((c) => ({
-    id: c.id,
-    userId: c.userId,
-    name: c.name,
-    includeRef: c.includeRef,
-    influxCount: influxCountMap.get(c.id) ?? 0,
-    connectionCount: connectionCountMap.get(c.id) ?? 0,
-    createdAt: c.createdAt,
-    updatedAt: c.updatedAt,
-  }));
-}
+    const connectionCountMap = new Map<number, number>(
+      connectionCounts.map((c) => [c.collectionId, c.count]),
+    );
+
+    return collections.map(
+      (c) =>
+        ({
+          id: c.id,
+          userId: c.userId,
+          name: c.name,
+          includeRef: c.includeRef,
+          influxCount: influxCountMap.get(c.id) ?? 0,
+          connectionCount: connectionCountMap.get(c.id) ?? 0,
+          createdAt: c.createdAt,
+          updatedAt: c.updatedAt,
+        }) satisfies BackendCollection,
+    );
+  }).pipe(Effect.withSpan("collections.list", { attributes: { userId } }));

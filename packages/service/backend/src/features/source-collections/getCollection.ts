@@ -1,6 +1,8 @@
 import { and, eq } from "drizzle-orm";
+import { Effect } from "effect";
 import type { BackendSourceCollection } from "../../domain/types";
-import { db } from "../../infra/db/db";
+import { DatabaseError } from "../../effect/errors";
+import { Database } from "../../effect/services/Database";
 import { sourceCollectionTable, type SourceCollection } from "../../infra/db/schema";
 
 function countItemIds(itemIds: Buffer | null): number {
@@ -26,17 +28,21 @@ function mapToBackendSourceCollection(collection: SourceCollection): BackendSour
 /**
  * Get a single collection by ID.
  */
-export async function getCollection(
-  userId: number,
-  id: number,
-): Promise<BackendSourceCollection | undefined> {
-  const [collection] = await db
-    .select()
-    .from(sourceCollectionTable)
-    .where(and(eq(sourceCollectionTable.userId, userId), eq(sourceCollectionTable.id, id)))
-    .limit(1);
+export const getCollection = (userId: number, id: number) =>
+  Effect.gen(function* () {
+    const { db } = yield* Database;
 
-  if (!collection) return undefined;
+    const [collection] = yield* Effect.tryPromise({
+      try: () =>
+        db
+          .select()
+          .from(sourceCollectionTable)
+          .where(and(eq(sourceCollectionTable.userId, userId), eq(sourceCollectionTable.id, id)))
+          .limit(1),
+      catch: (e) => new DatabaseError({ cause: e }),
+    });
 
-  return mapToBackendSourceCollection(collection);
-}
+    if (!collection) return undefined;
+
+    return mapToBackendSourceCollection(collection);
+  }).pipe(Effect.withSpan("sourceCollections.get", { attributes: { userId } }));

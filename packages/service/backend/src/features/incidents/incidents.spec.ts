@@ -12,6 +12,7 @@ import { pack } from "msgpackr";
 import crypto from "node:crypto";
 import { FilterOperator, PropertyType, type CollectionSchema } from "@contfu/svc-core";
 import { IncidentType, type SchemaIncompatibleDetails } from "@contfu/svc-core";
+import { runTest } from "../../../test/effect-helpers";
 import { createIncident } from "./createIncident";
 import { listIncidents } from "./listIncidents";
 import { getUnresolvedIncidentCount } from "./getUnresolvedIncidentCount";
@@ -103,11 +104,13 @@ describe.skipIf(isDbMocked)("Incident Features", () => {
 
   describe("createIncident", () => {
     it("should create a basic incident", async () => {
-      const incident = await createIncident(testUserId, {
-        influxId: testInfluxId,
-        type: IncidentType.SchemaIncompatible,
-        message: "Schema changed: field 'title' removed",
-      });
+      const incident = await runTest(
+        createIncident(testUserId, {
+          influxId: testInfluxId,
+          type: IncidentType.SchemaIncompatible,
+          message: "Schema changed: field 'title' removed",
+        }),
+      );
 
       expect(incident.id).toBeGreaterThan(0);
       expect(incident.userId).toBe(testUserId);
@@ -126,47 +129,59 @@ describe.skipIf(isDbMocked)("Incident Features", () => {
         invalidFilters: [{ property: "content", operator: FilterOperator.CONTAINS, value: "test" }],
       };
 
-      const incident = await createIncident(testUserId, {
-        influxId: testInfluxId,
-        type: IncidentType.SchemaIncompatible,
-        message: "Schema type changed",
-        details,
-      });
+      const incident = await runTest(
+        createIncident(testUserId, {
+          influxId: testInfluxId,
+          type: IncidentType.SchemaIncompatible,
+          message: "Schema type changed",
+          details,
+        }),
+      );
 
       expect(incident.details).toEqual(details as unknown as Record<string, unknown>);
     });
 
     it("should auto-increment incident IDs per user", async () => {
-      const incident1 = await createIncident(testUserId, {
-        influxId: testInfluxId,
-        type: IncidentType.SchemaIncompatible,
-        message: "First incident",
-      });
-      const incident2 = await createIncident(testUserId, {
-        influxId: testInfluxId,
-        type: IncidentType.SyncError,
-        message: "Second incident",
-      });
+      const incident1 = await runTest(
+        createIncident(testUserId, {
+          influxId: testInfluxId,
+          type: IncidentType.SchemaIncompatible,
+          message: "First incident",
+        }),
+      );
+      const incident2 = await runTest(
+        createIncident(testUserId, {
+          influxId: testInfluxId,
+          type: IncidentType.SyncError,
+          message: "Second incident",
+        }),
+      );
 
       expect(incident2.id).toBeGreaterThan(incident1.id);
     });
 
     it("should support different incident types", async () => {
-      const schemaIncident = await createIncident(testUserId, {
-        influxId: testInfluxId,
-        type: IncidentType.SchemaIncompatible,
-        message: "Schema changed",
-      });
-      const filterIncident = await createIncident(testUserId, {
-        influxId: testInfluxId,
-        type: IncidentType.FilterInvalid,
-        message: "Filter references missing field",
-      });
-      const syncIncident = await createIncident(testUserId, {
-        influxId: testInfluxId,
-        type: IncidentType.SyncError,
-        message: "Failed to sync data",
-      });
+      const schemaIncident = await runTest(
+        createIncident(testUserId, {
+          influxId: testInfluxId,
+          type: IncidentType.SchemaIncompatible,
+          message: "Schema changed",
+        }),
+      );
+      const filterIncident = await runTest(
+        createIncident(testUserId, {
+          influxId: testInfluxId,
+          type: IncidentType.FilterInvalid,
+          message: "Filter references missing field",
+        }),
+      );
+      const syncIncident = await runTest(
+        createIncident(testUserId, {
+          influxId: testInfluxId,
+          type: IncidentType.SyncError,
+          message: "Failed to sync data",
+        }),
+      );
 
       expect(schemaIncident.type).toBe(IncidentType.SchemaIncompatible);
       expect(filterIncident.type).toBe(IncidentType.FilterInvalid);
@@ -213,35 +228,41 @@ describe.skipIf(isDbMocked)("Incident Features", () => {
         .returning();
 
       await expect(
-        createIncident(testUserId, {
-          influxId: influx2.id,
-          type: IncidentType.SyncError,
-          message: "Cross-tenant write attempt",
-        }),
+        runTest(
+          createIncident(testUserId, {
+            influxId: influx2.id,
+            type: IncidentType.SyncError,
+            message: "Cross-tenant write attempt",
+          }),
+        ),
       ).rejects.toThrow("Influx not found");
     });
   });
 
   describe("listIncidents", () => {
     it("should return empty array when no incidents exist", async () => {
-      const incidents = await listIncidents(testUserId);
+      const incidents = await runTest(listIncidents(testUserId));
 
       expect(incidents).toEqual([]);
     });
 
     it("should return all incidents with details", async () => {
-      await createIncident(testUserId, {
-        influxId: testInfluxId,
-        type: IncidentType.SchemaIncompatible,
-        message: "Schema changed",
-      });
-      await createIncident(testUserId, {
-        influxId: testInfluxId,
-        type: IncidentType.SyncError,
-        message: "Sync failed",
-      });
+      await runTest(
+        createIncident(testUserId, {
+          influxId: testInfluxId,
+          type: IncidentType.SchemaIncompatible,
+          message: "Schema changed",
+        }),
+      );
+      await runTest(
+        createIncident(testUserId, {
+          influxId: testInfluxId,
+          type: IncidentType.SyncError,
+          message: "Sync failed",
+        }),
+      );
 
-      const incidents = await listIncidents(testUserId);
+      const incidents = await runTest(listIncidents(testUserId));
 
       expect(incidents.length).toBe(2);
       expect(incidents[0].collectionName).toBe("My Collection");
@@ -249,18 +270,22 @@ describe.skipIf(isDbMocked)("Incident Features", () => {
     });
 
     it("should return incidents ordered by creation (most recent first)", async () => {
-      await createIncident(testUserId, {
-        influxId: testInfluxId,
-        type: IncidentType.SchemaIncompatible,
-        message: "First",
-      });
-      await createIncident(testUserId, {
-        influxId: testInfluxId,
-        type: IncidentType.SyncError,
-        message: "Second",
-      });
+      await runTest(
+        createIncident(testUserId, {
+          influxId: testInfluxId,
+          type: IncidentType.SchemaIncompatible,
+          message: "First",
+        }),
+      );
+      await runTest(
+        createIncident(testUserId, {
+          influxId: testInfluxId,
+          type: IncidentType.SyncError,
+          message: "Second",
+        }),
+      );
 
-      const incidents = await listIncidents(testUserId);
+      const incidents = await runTest(listIncidents(testUserId));
 
       // Verify we have both incidents (order depends on DB implementation)
       expect(incidents.length).toBe(2);
@@ -269,25 +294,29 @@ describe.skipIf(isDbMocked)("Incident Features", () => {
     });
 
     it("should filter by resolved status", async () => {
-      await createIncident(testUserId, {
-        influxId: testInfluxId,
-        type: IncidentType.SchemaIncompatible,
-        message: "Unresolved",
-      });
+      await runTest(
+        createIncident(testUserId, {
+          influxId: testInfluxId,
+          type: IncidentType.SchemaIncompatible,
+          message: "Unresolved",
+        }),
+      );
 
-      const unresolved = await listIncidents(testUserId, { resolved: false });
-      const resolved = await listIncidents(testUserId, { resolved: true });
+      const unresolved = await runTest(listIncidents(testUserId, { resolved: false }));
+      const resolved = await runTest(listIncidents(testUserId, { resolved: true }));
 
       expect(unresolved.length).toBe(1);
       expect(resolved.length).toBe(0);
     });
 
     it("should only return incidents for the specified user", async () => {
-      await createIncident(testUserId, {
-        influxId: testInfluxId,
-        type: IncidentType.SchemaIncompatible,
-        message: "User1 incident",
-      });
+      await runTest(
+        createIncident(testUserId, {
+          influxId: testInfluxId,
+          type: IncidentType.SchemaIncompatible,
+          message: "User1 incident",
+        }),
+      );
 
       // Create second user
       const [user2] = await db
@@ -295,7 +324,7 @@ describe.skipIf(isDbMocked)("Incident Features", () => {
         .values({ name: "User 2", email: "user2@test.com" })
         .returning();
 
-      const incidents = await listIncidents(user2.id);
+      const incidents = await runTest(listIncidents(user2.id));
 
       expect(incidents).toEqual([]);
     });
@@ -303,24 +332,28 @@ describe.skipIf(isDbMocked)("Incident Features", () => {
 
   describe("getUnresolvedIncidentCount", () => {
     it("should return 0 when no incidents exist", async () => {
-      const count = await getUnresolvedIncidentCount(testUserId);
+      const count = await runTest(getUnresolvedIncidentCount(testUserId));
 
       expect(count).toBe(0);
     });
 
     it("should count only unresolved incidents", async () => {
-      await createIncident(testUserId, {
-        influxId: testInfluxId,
-        type: IncidentType.SchemaIncompatible,
-        message: "First",
-      });
-      await createIncident(testUserId, {
-        influxId: testInfluxId,
-        type: IncidentType.SyncError,
-        message: "Second",
-      });
+      await runTest(
+        createIncident(testUserId, {
+          influxId: testInfluxId,
+          type: IncidentType.SchemaIncompatible,
+          message: "First",
+        }),
+      );
+      await runTest(
+        createIncident(testUserId, {
+          influxId: testInfluxId,
+          type: IncidentType.SyncError,
+          message: "Second",
+        }),
+      );
 
-      const count = await getUnresolvedIncidentCount(testUserId);
+      const count = await runTest(getUnresolvedIncidentCount(testUserId));
 
       expect(count).toBe(2);
     });
@@ -328,73 +361,81 @@ describe.skipIf(isDbMocked)("Incident Features", () => {
 
   describe("resolveIncident", () => {
     it("should resolve and delete an incident", async () => {
-      const incident = await createIncident(testUserId, {
-        influxId: testInfluxId,
-        type: IncidentType.SchemaIncompatible,
-        message: "To resolve",
-      });
+      const incident = await runTest(
+        createIncident(testUserId, {
+          influxId: testInfluxId,
+          type: IncidentType.SchemaIncompatible,
+          message: "To resolve",
+        }),
+      );
 
-      const resolved = await resolveIncident(testUserId, incident.id);
+      const resolved = await runTest(resolveIncident(testUserId, incident.id));
 
       expect(resolved).toBe(true);
 
       // Verify it's deleted
-      const incidents = await listIncidents(testUserId);
+      const incidents = await runTest(listIncidents(testUserId));
       expect(incidents.length).toBe(0);
     });
 
     it("should return false for non-existent incident", async () => {
-      const resolved = await resolveIncident(testUserId, 999);
+      const resolved = await runTest(resolveIncident(testUserId, 999));
 
       expect(resolved).toBe(false);
     });
 
     it("should not resolve another user's incident", async () => {
-      const incident = await createIncident(testUserId, {
-        influxId: testInfluxId,
-        type: IncidentType.SchemaIncompatible,
-        message: "Protected",
-      });
+      const incident = await runTest(
+        createIncident(testUserId, {
+          influxId: testInfluxId,
+          type: IncidentType.SchemaIncompatible,
+          message: "Protected",
+        }),
+      );
 
       const [user2] = await db
         .insert(userTable)
         .values({ name: "User 2", email: "user2@test.com" })
         .returning();
 
-      const resolved = await resolveIncident(user2.id, incident.id);
+      const resolved = await runTest(resolveIncident(user2.id, incident.id));
 
       expect(resolved).toBe(false);
 
       // Verify original exists
-      const incidents = await listIncidents(testUserId);
+      const incidents = await runTest(listIncidents(testUserId));
       expect(incidents.length).toBe(1);
     });
   });
 
   describe("autoResolveIncidentsForInflux", () => {
     it("should resolve all unresolved incidents for an influx", async () => {
-      await createIncident(testUserId, {
-        influxId: testInfluxId,
-        type: IncidentType.SchemaIncompatible,
-        message: "First",
-      });
-      await createIncident(testUserId, {
-        influxId: testInfluxId,
-        type: IncidentType.FilterInvalid,
-        message: "Second",
-      });
+      await runTest(
+        createIncident(testUserId, {
+          influxId: testInfluxId,
+          type: IncidentType.SchemaIncompatible,
+          message: "First",
+        }),
+      );
+      await runTest(
+        createIncident(testUserId, {
+          influxId: testInfluxId,
+          type: IncidentType.FilterInvalid,
+          message: "Second",
+        }),
+      );
 
-      const count = await autoResolveIncidentsForInflux(testUserId, testInfluxId);
+      const count = await runTest(autoResolveIncidentsForInflux(testUserId, testInfluxId));
 
       expect(count).toBe(2);
 
       // Verify they're deleted
-      const incidents = await listIncidents(testUserId);
+      const incidents = await runTest(listIncidents(testUserId));
       expect(incidents.length).toBe(0);
     });
 
     it("should return 0 when no incidents exist", async () => {
-      const count = await autoResolveIncidentsForInflux(testUserId, testInfluxId);
+      const count = await runTest(autoResolveIncidentsForInflux(testUserId, testInfluxId));
 
       expect(count).toBe(0);
     });
@@ -410,23 +451,27 @@ describe.skipIf(isDbMocked)("Incident Features", () => {
         })
         .returning();
 
-      await createIncident(testUserId, {
-        influxId: testInfluxId,
-        type: IncidentType.SchemaIncompatible,
-        message: "Influx 1 incident",
-      });
-      await createIncident(testUserId, {
-        influxId: influx2.id,
-        type: IncidentType.SchemaIncompatible,
-        message: "Influx 2 incident",
-      });
+      await runTest(
+        createIncident(testUserId, {
+          influxId: testInfluxId,
+          type: IncidentType.SchemaIncompatible,
+          message: "Influx 1 incident",
+        }),
+      );
+      await runTest(
+        createIncident(testUserId, {
+          influxId: influx2.id,
+          type: IncidentType.SchemaIncompatible,
+          message: "Influx 2 incident",
+        }),
+      );
 
-      const count = await autoResolveIncidentsForInflux(testUserId, testInfluxId);
+      const count = await runTest(autoResolveIncidentsForInflux(testUserId, testInfluxId));
 
       expect(count).toBe(1);
 
       // Verify influx 2's incident still exists
-      const incidents = await listIncidents(testUserId);
+      const incidents = await runTest(listIncidents(testUserId));
       expect(incidents.length).toBe(1);
       expect(incidents[0].influxId).toBe(influx2.id);
     });

@@ -1,7 +1,9 @@
 import { extractWebAuthType } from "@contfu/svc-core";
+import { Effect } from "effect";
 import { and, eq } from "drizzle-orm";
 import type { BackendSource } from "../../domain/types";
-import { db } from "../../infra/db/db";
+import { Database } from "../../effect/services/Database";
+import { DatabaseError } from "../../effect/errors";
 import { sourceTable, type Source } from "../../infra/db/schema";
 
 /** Source type: Web (for extracting auth type) */
@@ -23,7 +25,6 @@ function mapToBackendSource(source: Source): BackendSource {
     updatedAt: source.updatedAt,
   };
 
-  // Add webAuthType for web sources
   if (source.type === SOURCE_TYPE_WEB) {
     return {
       ...baseSource,
@@ -39,14 +40,21 @@ function mapToBackendSource(source: Source): BackendSource {
  * Does NOT include credentials.
  * Returns undefined if not found or not owned by the user.
  */
-export async function getSource(userId: number, id: number): Promise<BackendSource | undefined> {
-  const [source] = await db
-    .select()
-    .from(sourceTable)
-    .where(and(eq(sourceTable.id, id), eq(sourceTable.userId, userId)))
-    .limit(1);
+export const getSource = (userId: number, id: number) =>
+  Effect.gen(function* () {
+    const { db } = yield* Database;
 
-  if (!source) return undefined;
+    const [source] = yield* Effect.tryPromise({
+      try: () =>
+        db
+          .select()
+          .from(sourceTable)
+          .where(and(eq(sourceTable.id, id), eq(sourceTable.userId, userId)))
+          .limit(1),
+      catch: (e) => new DatabaseError({ cause: e }),
+    });
 
-  return mapToBackendSource(source);
-}
+    if (!source) return undefined;
+
+    return mapToBackendSource(source);
+  }).pipe(Effect.withSpan("sources.get", { attributes: { userId, sourceId: id } }));

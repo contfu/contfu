@@ -4,6 +4,7 @@ import { encode } from "@msgpack/msgpack";
 import { beforeEach, describe, expect, it } from "bun:test";
 import { eq } from "drizzle-orm";
 import crypto from "node:crypto";
+import { runTest } from "../../../test/effect-helpers";
 import { truncateAllTables } from "../../../test/setup";
 import { db } from "../../infra/db/db";
 import {
@@ -52,26 +53,30 @@ describe.skipIf(isDbMocked)("SourceCollection Features Happy Path", () => {
   });
 
   it("should create, read, update, and delete a source collection", async () => {
-    const created = await createSourceCollection(userId, {
-      sourceId,
-      name: "Articles",
-      displayName: "Public Articles",
-      ref: Buffer.from("api::article.article"),
-    });
+    const created = await runTest(
+      createSourceCollection(userId, {
+        sourceId,
+        name: "Articles",
+        displayName: "Public Articles",
+        ref: Buffer.from("api::article.article"),
+      }),
+    );
 
-    const fetched = await getCollection(userId, created.id);
+    const fetched = await runTest(getCollection(userId, created.id));
     expect(fetched).toBeDefined();
     expect(fetched!.name).toBe("Articles");
     expect(fetched!.hasRef).toBe(true);
 
-    const updated = await updateCollection(userId, created.id, {
-      name: "Articles Updated",
-      ref: Buffer.from("api::article.updated"),
-    });
+    const updated = await runTest(
+      updateCollection(userId, created.id, {
+        name: "Articles Updated",
+        ref: Buffer.from("api::article.updated"),
+      }),
+    );
     expect(updated).toBeDefined();
     expect(updated!.name).toBe("Articles Updated");
 
-    const deleted = await deleteCollection(userId, created.id);
+    const deleted = await runTest(deleteCollection(userId, created.id));
     expect(deleted).toBe(true);
   });
 
@@ -81,13 +86,15 @@ describe.skipIf(isDbMocked)("SourceCollection Features Happy Path", () => {
       publishedAt: PropertyType.STRING,
     };
 
-    const created = await createSourceCollection(userId, {
-      sourceId,
-      name: "Schema Collection",
-      schema: Buffer.from(encode(schema)),
-    });
+    const created = await runTest(
+      createSourceCollection(userId, {
+        sourceId,
+        name: "Schema Collection",
+        schema: Buffer.from(encode(schema)),
+      }),
+    );
 
-    const decoded = await getCollectionSchema(userId, created.id);
+    const decoded = await runTest(getCollectionSchema(userId, created.id));
     expect(decoded).toEqual(schema);
   });
 
@@ -124,26 +131,32 @@ describe.skipIf(isDbMocked)("SourceCollection Features Happy Path", () => {
       collectionId: collection.id,
     });
 
-    const listed = await listCollections(userId);
+    const listed = await runTest(listCollections(userId));
     expect(listed.length).toBeGreaterThan(0);
 
     if (sourceCollection.id === collection.id) {
-      const withCount = await getCollectionWithConnectionCount(userId, sourceCollection.id);
+      const withCount = await runTest(
+        getCollectionWithConnectionCount(userId, sourceCollection.id),
+      );
       expect(withCount).toBeDefined();
       expect(withCount!.connectionCount).toBe(1);
     } else {
       // Fallback if identity sequences diverge due to prior inserts.
-      const withCount = await getCollectionWithConnectionCount(userId, sourceCollection.id);
+      const withCount = await runTest(
+        getCollectionWithConnectionCount(userId, sourceCollection.id),
+      );
       expect(withCount).toBeDefined();
     }
   });
 
   it("should create source collection + collection + influx via createCollection", async () => {
-    const created = await createSourceCollectionWithMapping(userId, {
-      sourceId,
-      name: "Auto Mapped",
-      ref: Buffer.from("api::article.article"),
-    });
+    const created = await runTest(
+      createSourceCollectionWithMapping(userId, {
+        sourceId,
+        name: "Auto Mapped",
+        ref: Buffer.from("api::article.article"),
+      }),
+    );
 
     expect(created.id).toBeGreaterThan(0);
     expect(created.name).toBe("Auto Mapped");

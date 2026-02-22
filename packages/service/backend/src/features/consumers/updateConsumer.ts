@@ -1,7 +1,9 @@
-import { db } from "../../infra/db/db";
-import { consumerTable, type Consumer } from "../../infra/db/schema";
+import { Effect } from "effect";
 import { and, eq } from "drizzle-orm";
 import type { BackendConsumer, UpdateConsumerInput } from "../../domain/types";
+import { DatabaseError } from "../../effect/errors";
+import { Database } from "../../effect/services/Database";
+import { consumerTable, type Consumer } from "../../infra/db/schema";
 
 function mapToBackendConsumer(consumer: Consumer): BackendConsumer {
   return {
@@ -18,18 +20,21 @@ function mapToBackendConsumer(consumer: Consumer): BackendConsumer {
  * Update a consumer.
  * Returns undefined if not found or not owned by the user.
  */
-export async function updateConsumer(
-  userId: number,
-  id: number,
-  input: UpdateConsumerInput,
-): Promise<BackendConsumer | undefined> {
-  const [updated] = await db
-    .update(consumerTable)
-    .set(input)
-    .where(and(eq(consumerTable.id, id), eq(consumerTable.userId, userId)))
-    .returning();
+export const updateConsumer = (userId: number, id: number, input: UpdateConsumerInput) =>
+  Effect.gen(function* () {
+    const { db } = yield* Database;
 
-  if (!updated) return undefined;
+    const [updated] = yield* Effect.tryPromise({
+      try: () =>
+        db
+          .update(consumerTable)
+          .set(input)
+          .where(and(eq(consumerTable.id, id), eq(consumerTable.userId, userId)))
+          .returning(),
+      catch: (e) => new DatabaseError({ cause: e }),
+    });
 
-  return mapToBackendConsumer(updated);
-}
+    if (!updated) return undefined;
+
+    return mapToBackendConsumer(updated);
+  }).pipe(Effect.withSpan("consumers.update", { attributes: { userId, consumerId: id } }));
