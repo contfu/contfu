@@ -1,13 +1,24 @@
+import { Otlp } from "@effect/opentelemetry";
+import { FetchHttpClient } from "@effect/platform";
 import { Layer } from "effect";
 
+const OTLP_ENDPOINT = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
+
 /**
- * Telemetry layer stub.
+ * OTLP telemetry layer using Effect-native transport (no @opentelemetry/* SDK).
  *
- * OpenTelemetry via @effect/opentelemetry is not yet enabled because the
- * packages trigger a Bun segfault when bundled into the SvelteKit app.
- * Feature functions already have Effect.withSpan annotations; once the
- * Bun/Effect-OTel compatibility is resolved, replace this with:
+ * Enabled when OTEL_EXPORTER_OTLP_ENDPOINT is set, e.g.:
+ *   OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
  *
- *   Otlp.layerJson({ ... }).pipe(Layer.provide(FetchHttpClient.layer))
+ * Uses Otlp.layerJson which is pure Effect + fetch — no Node-specific
+ * OpenTelemetry SDK packages that cause Bun segfaults.
  */
-export const TelemetryLive: Layer.Layer<never> = Layer.empty;
+export const TelemetryLive: Layer.Layer<never> = OTLP_ENDPOINT
+  ? Otlp.layerJson({
+      baseUrl: OTLP_ENDPOINT,
+      resource: {
+        serviceName: process.env.OTEL_SERVICE_NAME ?? "contfu",
+        serviceVersion: process.env.npm_package_version,
+      },
+    }).pipe(Layer.provide(FetchHttpClient.layer))
+  : Layer.empty;
