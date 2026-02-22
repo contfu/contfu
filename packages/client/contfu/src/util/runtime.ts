@@ -1,7 +1,5 @@
-import * as Bun from "bun";
-
 export function detectRuntime(): "bun" | "node" | "deno" {
-  if (typeof Bun !== "undefined") {
+  if (typeof globalThis !== "undefined" && "Bun" in globalThis) {
     return "bun";
   }
   // @ts-ignore - Deno global may not be defined in all environments

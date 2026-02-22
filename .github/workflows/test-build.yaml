@@ -99,7 +99,16 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install dependencies
-        run: bun install --frozen-lockfile --ignore-scripts
+        run: bun install --frozen-lockfile
+
+      - name: Rebuild better-sqlite3 for Node (Playwright runs under Node)
+        run: |
+          BS3_DIR=$(ls -d node_modules/.bun/better-sqlite3@*/node_modules/better-sqlite3 2>/dev/null | head -1)
+          if [ -z "$BS3_DIR" ]; then
+            BS3_DIR=$(ls -d node_modules/better-sqlite3 2>/dev/null | head -1)
+          fi
+          echo "better-sqlite3 dir: $BS3_DIR"
+          cd "$BS3_DIR" && npx --yes prebuild-install
 
       - name: Build all packages
         run: bun run build

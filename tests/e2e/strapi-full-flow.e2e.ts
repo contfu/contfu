@@ -6,35 +6,23 @@
  *
  * Flow:
  * 1. Service app already running (global-setup)
- * 2. Playwright: Login to service app, create Strapi source, create client → capture API key
- * 3. Start Consumer app with CONTFU_API_KEY env var
+ * 2. Playwright: Login to service app, create Strapi source, create collection/consumer → capture API key
+ * 3. Start connect() from @contfu/contfu to stream events into an in-memory SQLite DB
  * 4. Send webhook payloads directly (simulating Strapi webhooks)
- * 5. Verify content in Consumer app
+ * 5. Verify content via queryItems() against the local DB
  */
 import { expect, test, type Page } from "@playwright/test";
-import { spawn, type ChildProcess } from "node:child_process";
-import { promises as fs } from "node:fs";
-import { dirname, resolve } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
-import { fileURLToPath } from "node:url";
-
-// Project root (contfu/)
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const PROJECT_ROOT = resolve(__dirname, "../..");
+import { connect, queryItems, type QueryItemsResult } from "contfu";
 
 // Port configuration
 const SERVICE_URL = process.env.E2E_SERVICE_URL || "http://localhost:8011";
-const CONSUMER_PORT = 4000;
-const CONSUMER_URL = `http://localhost:${CONSUMER_PORT}`;
 
 // Test data
 const TEST_USER = {
   email: "test@test.com",
   password: "test",
 };
-
-// Track spawned processes for cleanup (consumer app only)
-const processes: ChildProcess[] = [];
 
 async function selectSourceType(page: Page, typeLabel: "Web" | "Strapi" | "Notion"): Promise<void> {
   const valueByType: Record<typeof typeLabel, string> = {
@@ -46,137 +34,25 @@ async function selectSourceType(page: Page, typeLabel: "Web" | "Strapi" | "Notio
 }
 
 /**
- * Spawn a process and wait for it to be ready (via URL polling)
+ * Poll queryItems() until a matcher returns true.
  */
-async function spawnProcess(
-  command: string,
-  args: string[],
-  cwd: string,
-  env?: NodeJS.ProcessEnv,
-  timeoutMs = 60000,
-  readyUrl?: string,
-  forwardOutput = false,
-): Promise<ChildProcess> {
-  return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      reject(
-        new Error(
-          `Process did not become ready within ${timeoutMs}ms: ${command} ${args.join(" ")}`,
-        ),
-      );
-    }, timeoutMs);
-
-    const proc = spawn(command, args, {
-      cwd,
-      env: { ...process.env, ...env },
-      stdio: ["pipe", "pipe", "pipe"],
-      shell: true,
-    });
-
-    processes.push(proc);
-
-    let output = "";
-    let isReady = false;
-
-    const markReady = () => {
-      if (!isReady) {
-        isReady = true;
-        clearTimeout(timeout);
-        resolve(proc);
-      }
-    };
-
-    const checkOutput = (data: Buffer) => {
-      const text = data.toString();
-      output += text;
-
-      if (process.env.CI) {
-        process.stdout.write(`[${command}] ${text}`);
-      } else if (forwardOutput && isReady) {
-        process.stdout.write(`[${command}] ${text}`);
-      }
-    };
-
-    proc.stdout?.on("data", checkOutput);
-    proc.stderr?.on("data", checkOutput);
-
-    proc.on("error", (err) => {
-      clearTimeout(timeout);
-      reject(err);
-    });
-
-    proc.on("exit", (code) => {
-      if (code !== 0 && code !== null && !isReady) {
-        clearTimeout(timeout);
-        reject(new Error(`Process exited with code ${code}: ${output}`));
-      }
-    });
-
-    if (readyUrl) {
-      const pollUrl = async () => {
-        const pollStart = Date.now();
-        while (Date.now() - pollStart < timeoutMs && !isReady) {
-          try {
-            const response = await fetch(readyUrl, { method: "GET" });
-            if (response.ok || response.status === 404 || response.status === 500) {
-              markReady();
-              return;
-            }
-          } catch {
-            // Server not ready yet
-          }
-          await sleep(500);
-        }
-      };
-      void pollUrl();
-    }
-  });
-}
-
-/**
- * Kill all spawned processes (consumer app)
- */
-async function killAllProcesses(): Promise<void> {
-  for (const proc of processes) {
-    if (proc.pid && !proc.killed) {
-      try {
-        process.kill(-proc.pid, "SIGTERM");
-      } catch {
-        proc.kill("SIGTERM");
-      }
-    }
-  }
-  processes.length = 0;
-  await sleep(1000);
-}
-
-/**
- * Poll for articles to appear in the consumer app.
- * Reloads the page and checks for the article text with retries.
- */
-async function waitForArticleInConsumerApp(
-  page: Page,
-  articleTitle: string,
-  timeoutMs = 30000,
-  pollIntervalMs = 2000,
-): Promise<void> {
+async function waitForItems(
+  match: (result: QueryItemsResult) => boolean,
+  timeoutMs = 15000,
+  pollIntervalMs = 500,
+): Promise<QueryItemsResult> {
   const start = Date.now();
+  let lastResult: QueryItemsResult | undefined;
   while (Date.now() - start < timeoutMs) {
-    await page.reload();
-    await page.waitForLoadState("networkidle");
-
-    const isVisible = await page
-      .getByText(articleTitle)
-      .isVisible()
-      .catch(() => false);
-    if (isVisible) {
-      return;
+    lastResult = await queryItems({ collection: "Articles", pageSize: 100 });
+    if (match(lastResult)) {
+      return lastResult;
     }
-
     await sleep(pollIntervalMs);
   }
-
-  throw new Error(`Article "${articleTitle}" did not appear within ${timeoutMs}ms`);
+  throw new Error(
+    `waitForItems timed out after ${timeoutMs}ms. Last result: ${JSON.stringify(lastResult, null, 2)}`,
+  );
 }
 
 /**
@@ -325,16 +201,15 @@ async function setupServiceAppAndGetApiKey(
 }
 
 test.describe("E2E: Strapi → Service → Consumer Full Flow (Fixtures)", () => {
-  // Extend timeout for setup - starting consumer server + UI automation takes time
+  // Extend timeout for setup - UI automation takes time
   test.describe.configure({ timeout: 180000 }); // 3 minutes
 
   let consumerApiKey: string;
   let sourceUid: string | null;
+  let abortController: AbortController;
+  let connectPromise: Promise<void>;
 
   test.beforeAll(async ({ browser }, testInfo) => {
-    // Clean up any lingering consumer processes from previous test attempts
-    await killAllProcesses();
-
     // Extend timeout for setup
     testInfo.setTimeout(180000); // 3 minutes
 
@@ -355,112 +230,37 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow (Fixtures)", () =>
     await servicePage.close();
     await context.close();
 
-    // ===== STEP 3: Start Consumer app with API key =====
+    // ===== STEP 3: Start connect() to stream events into in-memory DB =====
+    abortController = new AbortController();
+    connectPromise = (async () => {
+      try {
+        for await (const _event of connect({
+          key: Buffer.from(consumerApiKey, "base64url"),
+          url: `${SERVICE_URL}/api/sync`,
+        })) {
+          // Events are auto-persisted to the in-memory DB by connect()
+          if (abortController.signal.aborted) break;
+        }
+      } catch (err) {
+        if (!abortController.signal.aborted) {
+          console.error("[E2E] connect() error:", err);
+        }
+      }
+    })();
 
-    // Delete any existing .env file first to avoid stale values
-    const envPath = resolve(PROJECT_ROOT, "demos/consumer-app/.env");
-    try {
-      await fs.unlink(envPath);
-    } catch {
-      // File doesn't exist, that's fine
-    }
-
-    // Write .env file for consumer app (Vite dev server needs this)
-    const envContent = `CONTFU_URL=${SERVICE_URL}/api/sync\nCONTFU_KEY=${consumerApiKey}\n`;
-    await fs.writeFile(envPath, envContent);
-    console.log(
-      `[E2E] Wrote .env file: CONTFU_URL=${SERVICE_URL}/api/sync, CONTFU_KEY=${consumerApiKey.slice(0, 8)}...`,
-    );
-
-    await spawnProcess(
-      "bun",
-      ["run", "preview", "--", "--port", String(CONSUMER_PORT)],
-      resolve(PROJECT_ROOT, "demos/consumer-app"),
-      {
-        CONTFU_URL: `${SERVICE_URL}/api/sync`,
-        CONTFU_KEY: consumerApiKey,
-      },
-      60000,
-      CONSUMER_URL,
-    );
+    // Give the stream connection time to establish
+    await sleep(2000);
+    console.log("[E2E] connect() stream established");
   });
 
   test.afterAll(async () => {
-    // Clean up consumer app process
-    await killAllProcesses();
+    // Stop the connect loop
+    abortController.abort();
+    await Promise.race([connectPromise, sleep(5000)]);
   });
 
-  test("should show Strapi content in consumer app after sync", async ({ page }) => {
-    // Open consumer page early to establish stream connection
-    const consumerPage = await page.context().newPage();
-    await consumerPage.goto(CONSUMER_URL);
-    await consumerPage.waitForLoadState("networkidle");
-
-    // Give stream connection time to establish
-    await sleep(2000);
-
-    // ===== STEP 5b: Verify consumer app sync connection =====
-    try {
-      const debugResponse = await fetch(`${CONSUMER_URL}/api/debug`);
-      const debugState = await debugResponse.json();
-      console.log(
-        `[E2E] Consumer app state: articles=${debugState.articleCount}, syncUrl=${debugState.syncUrl}`,
-      );
-
-      // Trigger sync connection if not already started
-      if (debugState.articleCount === 0) {
-        await fetch(`${CONSUMER_URL}/api/debug`, { method: "POST" });
-        await sleep(2000); // Wait for connection to establish
-      }
-    } catch {
-      // Debug endpoint may not exist in older versions
-    }
-
-    // ===== STEP 5c: Test webhook→stream flow with a direct webhook =====
-    // Now that consumer is connected, send a test webhook to verify the full flow
-    const testWebhookPayload = {
-      event: "entry.create",
-      createdAt: new Date().toISOString(),
-      model: "article",
-      uid: "api::article.article",
-      entry: {
-        id: 8888,
-        documentId: "test-webhook-verify-" + Date.now(),
-        title: "Webhook Flow Test Article",
-        slug: "webhook-flow-test-" + Date.now(),
-        description: "Testing webhook→stream flow",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        publishedAt: new Date().toISOString(),
-      },
-    };
-
-    try {
-      const webhookTestResponse = await fetch(`${SERVICE_URL}/webhooks/strapi/${sourceUid}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(testWebhookPayload),
-      });
-      if (!webhookTestResponse.ok) {
-        const errorText = await webhookTestResponse.text();
-        console.error(`[E2E] Webhook endpoint error: ${errorText}`);
-      } else {
-        // Check if the test article appears
-        await sleep(1000);
-        await consumerPage.reload();
-        await consumerPage.waitForLoadState("networkidle");
-        const testArticleVisible = await consumerPage
-          .getByText("Webhook Flow Test Article")
-          .isVisible()
-          .catch(() => false);
-        console.log(`[E2E] Webhook flow test article visible: ${testArticleVisible}`);
-      }
-    } catch (webhookError) {
-      console.error(`[E2E] Webhook test error: ${webhookError}`);
-    }
-
-    // ===== STEP 6: Create article using fixture webhook payload =====
-    // Using fixture data to simulate Strapi webhook (no real Strapi needed)
+  test("should sync Strapi content through to local DB after webhooks", async () => {
+    // ===== STEP 4: Create article using fixture webhook payload =====
     const timestamp = Date.now();
     const createPayload = {
       event: "entry.create",
@@ -491,26 +291,18 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow (Fixtures)", () =>
       console.error(`[E2E] Create webhook failed: ${errorText}`);
     }
 
-    // Give the system time to process the webhook and propagate to consumer
-    console.log("[E2E] Waiting for webhook to propagate...");
-    await sleep(3000);
+    // ===== STEP 5: Verify article appears in local DB =====
+    console.log("[E2E] Polling for article in local DB...");
+    const result1 = await waitForItems((r) =>
+      r.items.some((item) => item.props.title === "E2E Test Article"),
+    );
+    expect(result1.items.length).toBeGreaterThanOrEqual(1);
 
-    // ===== STEP 7: Verify article in consumer app =====
-    // Poll for article to appear (webhook + SSE propagation can take time)
-    console.log("[E2E] Polling for article in consumer app...");
-    await waitForArticleInConsumerApp(consumerPage, "E2E Test Article", 30000);
+    const article1 = result1.items.find((item) => item.props.title === "E2E Test Article")!;
+    expect(article1.props.description).toBe("This article was created during e2e testing");
+    expect(article1.collection).toBe("Articles");
 
-    const articleCount1 = await consumerPage
-      .getByText(/Articles: \d+/)
-      .textContent()
-      .catch(() => "not found");
-    console.log(`[E2E] Consumer app shows: ${articleCount1}`);
-
-    await expect(
-      consumerPage.getByText("This article was created during e2e testing"),
-    ).toBeVisible();
-
-    // ===== STEP 8: Create second article using fixture =====
+    // ===== STEP 6: Create second article using fixture =====
     const article2Slug = `e2e-second-article-${timestamp}`;
     const createPayload2 = {
       event: "entry.create",
@@ -529,17 +321,19 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow (Fixtures)", () =>
       },
     };
 
-    // Send webhook for second article
     await fetch(`${SERVICE_URL}/webhooks/strapi/${sourceUid}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(createPayload2),
     });
 
-    // Poll for second article to appear
-    await waitForArticleInConsumerApp(consumerPage, "E2E Second Article", 30000);
+    // Poll for second article
+    const result2 = await waitForItems((r) =>
+      r.items.some((item) => item.props.title === "E2E Second Article"),
+    );
+    expect(result2.items.length).toBeGreaterThanOrEqual(2);
 
-    // ===== STEP 9: Update first article using fixture =====
+    // ===== STEP 7: Update first article using fixture =====
     const updatePayload = {
       event: "entry.update",
       createdAt: new Date().toISOString(),
@@ -557,20 +351,22 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow (Fixtures)", () =>
       },
     };
 
-    // Send webhook for article update
     await fetch(`${SERVICE_URL}/webhooks/strapi/${sourceUid}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(updatePayload),
     });
 
-    // Poll for updated article to appear
-    await waitForArticleInConsumerApp(consumerPage, "E2E Updated Article", 30000);
-    await expect(
-      consumerPage.getByText("This article was updated during e2e testing"),
-    ).toBeVisible();
+    // Poll for updated article
+    const result3 = await waitForItems((r) =>
+      r.items.some((item) => item.props.title === "E2E Updated Article"),
+    );
+    const updatedArticle = result3.items.find(
+      (item) => item.props.title === "E2E Updated Article",
+    )!;
+    expect(updatedArticle.props.description).toBe("This article was updated during e2e testing");
 
-    // ===== STEP 10: Delete second article using fixture =====
+    // ===== STEP 8: Delete second article using fixture =====
     const deletePayload = {
       event: "entry.delete",
       createdAt: new Date().toISOString(),
@@ -588,7 +384,6 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow (Fixtures)", () =>
       },
     };
 
-    // Send delete webhook
     await fetch(`${SERVICE_URL}/webhooks/strapi/${sourceUid}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -600,12 +395,9 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow (Fixtures)", () =>
     // was accepted.
     // TODO: Implement delete event broadcasting in webhook handler
 
-    // First (updated) article should still be there
-    await consumerPage.reload();
-    await consumerPage.waitForLoadState("networkidle");
-    await expect(consumerPage.getByText("E2E Updated Article")).toBeVisible();
-
-    await consumerPage.close();
+    // Updated first article should still be there
+    const result4 = await queryItems({ collection: "Articles", pageSize: 100 });
+    expect(result4.items.some((item) => item.props.title === "E2E Updated Article")).toBe(true);
   });
 });
 
