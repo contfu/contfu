@@ -198,3 +198,4 @@ logs/security/
 .planning
 .worktree
 packages/client/app/data
+.claude/worktrees
