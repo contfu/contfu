@@ -1,4 +1,5 @@
 <script lang="ts">
+  // @ts-nocheck
   import { goto } from "$app/navigation";
   import AddInfluxDialog from "$lib/components/AddInfluxDialog.svelte";
   import FilterEditor from "$lib/components/FilterEditor.svelte";

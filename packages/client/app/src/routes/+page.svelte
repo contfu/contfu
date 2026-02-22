@@ -4,6 +4,15 @@
   import { getStats } from "$lib/remote/stats.remote";
 
   const stats = await getStats();
+
+  const syncLabel =
+    stats.sync.state === "connected"
+      ? "Connected"
+      : stats.sync.state === "connecting"
+        ? "Connecting"
+        : stats.sync.state === "error"
+          ? "Error"
+          : "Disabled";
 </script>
 
 <div class="container mx-auto max-w-5xl p-6">
@@ -62,6 +71,20 @@
   <!-- Status Section -->
   <section class="mb-8">
     <h2 class="mb-4 text-lg font-semibold">Sync Status</h2>
+    <Card.Root class="mb-4">
+      <Card.Header class="pb-2">
+        <Card.Title class="text-base">Connection</Card.Title>
+      </Card.Header>
+      <Card.Content>
+        <p class="text-sm text-muted-foreground">
+          Service stream: <span class="font-medium text-foreground">{syncLabel}</span>
+          {#if stats.sync.reason}
+            ({stats.sync.reason})
+          {/if}
+        </p>
+      </Card.Content>
+    </Card.Root>
+
     {#if stats.itemCount === 0 && stats.assetCount === 0}
       <Alert.Root>
         <Alert.Title>No content synced yet</Alert.Title>

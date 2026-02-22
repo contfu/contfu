@@ -1,4 +1,5 @@
 import type { EventType } from "./events";
+import type { SourceType } from "./items";
 
 /**
  * Wire format for binary stream events.
@@ -6,15 +7,13 @@ import type { EventType } from "./events";
  *
  * Format: [type, ...payload] where:
  * - PING: [0] (keep-alive)
- * - CHANGED: [1, wireItem] or [1, wireItem, eventIndex] (EventType.CHANGED)
- * - DELETED: [2, itemId] or [2, itemId, eventIndex] (EventType.DELETED)
+ * - CHANGED: [1, wireItem, index] (EventType.CHANGED)
+ * - DELETED: [2, itemId, index] (EventType.DELETED)
  */
 
-/** Item-related events, optionally with trailing eventIndex for replay. */
+/** Item-related events sent to consumers via /api/sync. */
 export type WireItemEvent =
-  | [EventType.CHANGED, WireItem]
   | [EventType.CHANGED, WireItem, number]
-  | [EventType.DELETED, Uint8Array]
   | [EventType.DELETED, Uint8Array, number];
 
 /** Combined wire event type for client connections. */
@@ -22,12 +21,13 @@ export type WireEvent = [typeof WIRE_PING] | WireItemEvent;
 
 /**
  * Wire item format as tuple:
- * [ref, id, collection, changedAt, props, content?]
+ * [sourceType, ref, id, collection, changedAt, props, content?]
  */
 export type WireItem = [
-  Uint8Array | null, // ref (nullable when ref transmission is disabled)
+  SourceType | null, // sourceType (nullable when ref transmission is disabled)
+  string | null, // absolute source ref URL (nullable when ref transmission is disabled)
   Uint8Array, // id
-  string, // collection (encoded ID)
+  string, // collection name
   number, // changedAt
   Record<string, unknown>, // props
   unknown[]?, // content (optional)

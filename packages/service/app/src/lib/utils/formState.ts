@@ -3,13 +3,16 @@
  * Uses sessionStorage to preserve form data across navigation
  */
 
+import type { SourceType } from "@contfu/core";
+import type { WebAuthType } from "@contfu/svc-core";
+
 const STORAGE_KEY = "source-form-state";
 const EXPIRY_MS = 30 * 60 * 1000; // 30 minutes
 
 export interface SourceFormData {
   name: string;
-  selectedType: string;
-  selectedAuthType: string;
+  selectedType: SourceType;
+  selectedAuthType: WebAuthType;
   useOAuth: boolean;
   includeRef: boolean;
   url?: string;

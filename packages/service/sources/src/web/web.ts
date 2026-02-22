@@ -1,12 +1,6 @@
-/** Authentication types for web sources. */
-export const WebAuthType = {
-  NONE: 0,
-  BEARER: 1,
-  BASIC: 2,
-} as const;
+import { WebAuthType, type WebAuthType as WebAuthTypeValue } from "@contfu/svc-core";
 
-/** Type representing valid WebAuthType values. */
-export type WebAuthTypeValue = (typeof WebAuthType)[keyof typeof WebAuthType];
+export { WebAuthType };
 
 /** Options for fetching content from a web source. */
 export type WebFetchOpts = {

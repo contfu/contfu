@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
 import type { PageProps } from "@contfu/core";
 import { genUid } from "../util/ids";
-import { encodeStrapiRef } from "../util/refs";
 import {
   articleEntry1,
   articleEntry2,
@@ -59,13 +58,7 @@ describe("strapi-items", () => {
 
       // Check basic fields
       expect(item.collection).toBe(1);
-      expect(item.ref).toEqual(
-        encodeStrapiRef({
-          baseUrl: testOpts.url,
-          contentTypeUid: testOpts.ref,
-          documentId: "abc123def456",
-        }),
-      );
+      expect(item.ref).toEqual(Buffer.from("abc123def456", "utf8"));
       expect(item.id).toEqual(genUid(Buffer.from("abc123def456", "utf8")));
       expect(item.props.createdAt).toBe(new Date("2024-01-10T08:00:00.000Z").getTime());
       expect(item.changedAt).toBe(new Date("2024-01-15T10:30:00.000Z").getTime());

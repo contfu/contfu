@@ -1,4 +1,4 @@
-import type { WireItemEvent } from "@contfu/core";
+import { EventType, type WireItem } from "@contfu/core";
 import { DeliverPolicy, RetentionPolicy } from "@nats-io/jetstream";
 import { pack, unpack } from "msgpackr";
 import { hasNats } from "./connection";
@@ -9,6 +9,8 @@ const SUBJECT_PREFIX = "evt";
 
 /** 3 days in nanoseconds (NATS max_age unit). */
 const MAX_AGE_NS = 3 * 24 * 60 * 60 * 1_000_000_000;
+
+export type StoredWireItemEvent = [EventType.CHANGED, WireItem] | [EventType.DELETED, Uint8Array];
 
 let initialized = false;
 
@@ -49,7 +51,7 @@ export async function ensureEventStream(): Promise<void> {
 export async function publishEvent(
   userId: number,
   collectionId: number,
-  event: WireItemEvent,
+  event: StoredWireItemEvent,
 ): Promise<number> {
   if (!hasNats()) return 0;
 
@@ -102,7 +104,7 @@ export async function* replayEvents(opts: {
   fromSeq: number;
   userId: number;
   collectionIds: number[];
-}): AsyncGenerator<{ seq: number; collectionId: number; event: WireItemEvent }> {
+}): AsyncGenerator<{ seq: number; collectionId: number; event: StoredWireItemEvent }> {
   if (!hasNats() || opts.collectionIds.length === 0) return;
 
   const jsm = await getJetStreamManager();
@@ -119,7 +121,7 @@ export async function* replayEvents(opts: {
   const messages = await consumer.fetch({ max_messages: 10_000 });
   for await (const msg of messages) {
     try {
-      const event = unpack(msg.data) as WireItemEvent;
+      const event = unpack(msg.data) as StoredWireItemEvent;
       const parts = msg.subject.split(".");
       const collectionId = Number(parts[2] ?? "0");
       yield { seq: msg.seq, collectionId, event };

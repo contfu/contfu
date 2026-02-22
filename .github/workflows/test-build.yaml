@@ -111,8 +111,7 @@ jobs:
       - name: Run E2E tests
         run: bun run test:e2e:no-build --reporter=list
         env:
-          DEBUG: pw:api
-          PWDEBUG: 0
+          PLAYWRIGHT_HTML_OPEN: never
 
   build:
     name: Build Docker image

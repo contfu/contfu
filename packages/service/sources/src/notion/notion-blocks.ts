@@ -1,17 +1,17 @@
 import {
-  Block,
-  Heading1Block,
-  Heading2Block,
-  Heading3Block,
-  ImageBlock,
-  Inline,
   isOl,
   isQuote,
   isTable,
   isUl,
-  ParagraphBlock,
-  QuoteBlock,
   toPlainText,
+  type Block,
+  type Heading1Block,
+  type Heading2Block,
+  type Heading3Block,
+  type ImageBlock,
+  type Inline,
+  type ParagraphBlock,
+  type QuoteBlock,
 } from "@contfu/core";
 import { isFullBlock, iteratePaginatedAPI } from "@notionhq/client";
 import type {

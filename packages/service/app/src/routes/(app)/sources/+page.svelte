@@ -3,7 +3,12 @@
   import { Button } from "$lib/components/ui/button";
   import * as Tooltip from "$lib/components/ui/tooltip";
   import { deleteSource, getSources } from "$lib/remote/sources.remote";
-  import { DatabaseIcon, PencilIcon, PlusIcon, TrashIcon } from "@lucide/svelte";
+  import {
+    DatabaseIcon,
+    PencilIcon,
+    PlusIcon,
+    TrashIcon,
+  } from "@lucide/svelte";
 
   // Query object - auto-refreshes after form submissions
   const sources = getSources();
@@ -25,9 +30,7 @@
 </SiteHeader>
 
 <div class="mx-auto max-w-4xl px-4 py-8 sm:px-6">
-  <p class="mb-6 text-sm text-muted-foreground">
-    Manage your content sources
-  </p>
+  <p class="mb-6 text-sm text-muted-foreground">Manage your content sources</p>
 
   {#if sources.loading || !sources.current}
     <p class="text-muted-foreground">Loading...</p>
@@ -45,18 +48,32 @@
       <table class="w-full text-sm">
         <thead>
           <tr class="border-b border-border bg-muted/50">
-            <th class="px-4 py-3 text-left font-medium text-muted-foreground">Name</th>
-            <th class="px-4 py-3 text-left font-medium text-muted-foreground">Type</th>
-            <th class="hidden px-4 py-3 text-left font-medium text-muted-foreground sm:table-cell">URL</th>
-            <th class="px-4 py-3 text-right font-medium text-muted-foreground">Collections</th>
-            <th class="px-4 py-3 text-right font-medium text-muted-foreground"></th>
+            <th class="px-4 py-3 text-left font-medium text-muted-foreground"
+              >Name</th
+            >
+            <th class="px-4 py-3 text-left font-medium text-muted-foreground"
+              >Type</th
+            >
+            <th
+              class="hidden px-4 py-3 text-left font-medium text-muted-foreground sm:table-cell"
+              >URL</th
+            >
+            <th class="px-4 py-3 text-right font-medium text-muted-foreground"
+              >Collections</th
+            >
+            <th class="px-4 py-3 text-right font-medium text-muted-foreground"
+            ></th>
           </tr>
         </thead>
         <tbody class="divide-y divide-border">
           {#each sources.current as source}
+            {@const del = deleteSource.for(source.id)}
             <tr class="hover:bg-muted/30">
               <td class="px-4 py-3">
-                <a href="/sources/{source.id}" class="font-medium hover:underline">
+                <a
+                  href="/sources/{source.id}"
+                  class="font-medium hover:underline"
+                >
                   {source.name || "Unnamed Source"}
                 </a>
                 <div class="mt-0.5 text-xs text-muted-foreground">
@@ -64,11 +81,16 @@
                 </div>
               </td>
               <td class="px-4 py-3">
-                <span class="inline-flex items-center rounded-md bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
+                <span
+                  class="inline-flex items-center rounded-md bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground"
+                >
                   {SOURCE_TYPE_LABELS[source.type] ?? "Unknown"}
                 </span>
               </td>
-              <td class="hidden max-w-[200px] truncate px-4 py-3 text-muted-foreground sm:table-cell" title={source.url || ""}>
+              <td
+                class="hidden max-w-[200px] truncate px-4 py-3 text-muted-foreground sm:table-cell"
+                title={source.url || ""}
+              >
                 {source.url || "—"}
               </td>
               <td class="px-4 py-3 text-right font-mono">
@@ -80,15 +102,33 @@
                     <Tooltip.Root>
                       <Tooltip.Trigger>
                         {#snippet child({ props })}
-                          <Button {...props} href="/sources/{source.id}" variant="ghost" size="icon-sm">
+                          <Button
+                            {...props}
+                            href="/sources/{source.id}"
+                            variant="ghost"
+                            size="icon-sm"
+                          >
                             <PencilIcon />
                           </Button>
                         {/snippet}
                       </Tooltip.Trigger>
                       <Tooltip.Content>Edit</Tooltip.Content>
                     </Tooltip.Root>
-                    <form {...deleteSource} class="inline">
-                      <input {...deleteSource.fields.id.as("text")} type="hidden" value={source.id} />
+                    <form
+                      {...del.enhance(({ submit }) =>
+                        submit().updates(
+                          sources.withOverride((sources) =>
+                            sources.filter((s) => s.id !== source.id),
+                          ),
+                        ),
+                      )}
+                      class="inline"
+                    >
+                      <input
+                        {...del.fields.id.as("text")}
+                        type="hidden"
+                        value={source.id}
+                      />
                       <Tooltip.Root>
                         <Tooltip.Trigger>
                           {#snippet child({ props })}
@@ -99,7 +139,11 @@
                               size="icon-sm"
                               class="text-destructive hover:text-destructive"
                               onclick={(e: MouseEvent) => {
-                                if (!confirm("Delete this source? All collections will also be deleted.")) {
+                                if (
+                                  !confirm(
+                                    "Delete this source? All collections will also be deleted.",
+                                  )
+                                ) {
                                   e.preventDefault();
                                 }
                               }}

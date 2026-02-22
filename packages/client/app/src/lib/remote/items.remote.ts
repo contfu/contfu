@@ -10,11 +10,10 @@ const propFilterSchema = v.object({
 
 const queryItemsInputSchema = v.object({
   collection: v.optional(v.string()),
-  search: v.optional(v.string()),
   changedAtFrom: v.optional(v.number()),
   changedAtTo: v.optional(v.number()),
   propFilters: v.optional(v.array(propFilterSchema)),
-  sortField: v.optional(v.picklist(["changedAt", "ref", "collection"])),
+  sortField: v.optional(v.picklist(["changedAt", "collection"])),
   sortDirection: v.optional(v.picklist(["asc", "desc"])),
   page: v.optional(v.number()),
   pageSize: v.optional(v.number()),

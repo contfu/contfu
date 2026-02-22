@@ -1,11 +1,10 @@
-import { Block, Item, PageProps } from "@contfu/core";
+import type { Block, Item, PageProps } from "@contfu/core";
 import type { PageObjectResponse } from "@notionhq/client/build/src/api-endpoints";
-import { MarkOptional } from "ts-essentials";
+import type { MarkOptional } from "ts-essentials";
 import type { NotionFetchOpts } from ".";
 import { genUid, uuidToBuffer } from "../util/ids";
-import { encodeNotionRef } from "../util/refs";
 import { getContentBlocks } from "./notion-blocks";
-import { DbQuery, getImageUrl, iterateDb } from "./notion-helpers";
+import { getImageUrl, iterateDb, type DbQuery } from "./notion-helpers";
 
 export async function* iteratePages(
   { credentials, ref, collection }: NotionFetchOpts,
@@ -24,13 +23,12 @@ export function parseItem(
   const createdAt = new Date(created_time).getTime();
   const props = parseProps(properties);
   const rawRef = uuidToBuffer(id);
-  const ref = encodeNotionRef(id);
   if (icon && (icon.type === "file" || icon.type === "external")) props.icon = getImageUrl(icon);
   if (cover) props.cover = getImageUrl(cover);
   props.createdAt = createdAt;
   const item: Item = {
     id: genUid(rawRef),
-    ref,
+    ref: rawRef,
     collection,
     changedAt: new Date(last_edited_time).getTime(),
     props,

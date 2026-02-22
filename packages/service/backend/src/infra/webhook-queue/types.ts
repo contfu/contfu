@@ -1,4 +1,4 @@
-import { SourceType } from "@contfu/svc-core";
+import { SourceType } from "@contfu/core";
 
 export interface WebhookFetchJob {
   userId: number;
@@ -26,7 +26,7 @@ export const NOTION_RATE_LIMIT: RateLimitConfig = {
 export const STRAPI_RATE_LIMIT: RateLimitConfig | null = null;
 export const WEB_RATE_LIMIT: RateLimitConfig | null = null;
 
-export function getRateLimitForSourceType(sourceType: number): RateLimitConfig | null {
+export function getRateLimitForSourceType(sourceType: SourceType): RateLimitConfig | null {
   if (sourceType === SourceType.NOTION) return NOTION_RATE_LIMIT;
   if (sourceType === SourceType.STRAPI) return STRAPI_RATE_LIMIT;
   if (sourceType === SourceType.WEB) return WEB_RATE_LIMIT;

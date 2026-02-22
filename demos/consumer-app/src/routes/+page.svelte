@@ -15,9 +15,14 @@
 
 <div class="status">
   Server: {data.syncUrl}
-  | Stream: {data.syncStatus.connected ? "Connected" : "Disconnected"}
-  {#if data.syncStatus.reason}
+  | Stream:
+  {#if data.syncStatus.connected}
+    Connected
+  {:else if data.syncStatus.reason}
+    Error
     ({data.syncStatus.reason})
+  {:else}
+    Connecting
   {/if}
   | Articles: {data.articles.length}
 </div>

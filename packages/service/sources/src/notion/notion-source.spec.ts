@@ -2,7 +2,6 @@ import { describe, expect, it, beforeEach, setSystemTime, afterAll } from "bun:t
 import { PropertyType } from "@contfu/svc-core";
 import type { NotionFetchOpts } from ".";
 import { genUid, uuidToBuffer } from "../util/ids";
-import { encodeNotionRef } from "../util/refs";
 import { dbQueryPage1, dbQueryResult1, dbQueryResult2 } from "./__fixtures__/notion-query-results";
 import { mockClient } from "./__tests__/notion-mock-setup";
 
@@ -40,8 +39,6 @@ describe("NotionSource", () => {
 
         const rawRef1 = uuidToBuffer(dbQueryPage1.results[0].id);
         const rawRef2 = uuidToBuffer(dbQueryPage1.results[1].id);
-        const ref1 = encodeNotionRef(dbQueryPage1.results[0].id);
-        const ref2 = encodeNotionRef(dbQueryPage1.results[1].id);
         const id1 = genUid(rawRef1);
         const id2 = genUid(rawRef2);
         const otherId = genUid(
@@ -50,7 +47,7 @@ describe("NotionSource", () => {
         expect(events).toEqual([
           {
             id: id1,
-            ref: ref1,
+            ref: rawRef1,
             collection: 1,
             changedAt: 1716353760000,
             props: {
@@ -64,7 +61,7 @@ describe("NotionSource", () => {
           },
           {
             id: id2,
-            ref: ref2,
+            ref: rawRef2,
             collection: 1,
             changedAt: 1716353820000,
             props: {
@@ -247,13 +244,13 @@ describe("NotionSource", () => {
           })
           .mockResolvedValueOnce({
             object: "list",
-            results: [{ ...dbQueryResult1, id: "page-2-id" }],
+            results: [{ ...dbQueryResult1, id: "11111111-1111-1111-1111-111111111112" }],
             next_cursor: "cursor-2",
             has_more: true,
           })
           .mockResolvedValueOnce({
             object: "list",
-            results: [{ ...dbQueryResult2, id: "page-3-id" }],
+            results: [{ ...dbQueryResult2, id: "11111111-1111-1111-1111-111111111113" }],
             next_cursor: null,
             has_more: false,
           });
@@ -388,7 +385,7 @@ describe("NotionSource", () => {
 
       expect(mockClient.databases.retrieve).toHaveBeenCalledWith({
         auth: customOpts.credentials,
-        database_id: customOpts.ref.toString("hex"),
+        database_id: "custom-database-id",
       });
       expect(mockClient.dataSources.retrieve).toHaveBeenCalledWith({
         auth: customOpts.credentials,

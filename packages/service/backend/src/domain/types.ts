@@ -8,6 +8,7 @@
  * feature functions.
  */
 
+import { SourceType } from "@contfu/core";
 import type {
   CredentialsSource,
   ServiceCollection,
@@ -35,7 +36,7 @@ export interface BackendSource {
   id: number;
   uid: string;
   userId: number;
-  name: string | null;
+  name: string;
   url: string | null;
   /** Whether refs are allowed to be transmitted from this source. */
   includeRef: boolean;
@@ -196,8 +197,7 @@ export interface BackendConnectionWithDetails extends BackendConnection {
 /** Input for creating a new source */
 export interface CreateSourceInput {
   name: string;
-  /** Source type: 0 = Notion, 1 = Strapi, 2 = Web */
-  type: number;
+  type: SourceType;
   url?: string | null;
   includeRef?: boolean;
   /** Raw credentials (will be encrypted by the feature) */

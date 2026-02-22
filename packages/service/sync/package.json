@@ -16,7 +16,7 @@
     "@contfu/svc-backend": "workspace:*",
     "@contfu/svc-core": "workspace:*",
     "@contfu/svc-sources": "workspace:*",
-    "drizzle-orm": "^1.0.0-beta.12-a5629fb",
+    "drizzle-orm": "1.0.0-beta.15-859cf75",
     "rxjs": "^7.8.2"
   },
   "devDependencies": {

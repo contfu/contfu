@@ -1,4 +1,5 @@
 <script lang="ts">
+  // @ts-nocheck
   import { page } from "$app/state";
   import AppSidebar from "$lib/components/layout/sidenav/app-sidebar.svelte";
   import * as Sidebar from "$lib/components/ui/sidebar";

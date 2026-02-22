@@ -1,12 +1,13 @@
-import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
-import type { BunSQLiteDatabase } from "drizzle-orm/bun-sql/sqlite";
+import type { EmptyRelations } from "drizzle-orm";
+import type { SQLiteBunDatabase } from "drizzle-orm/bun-sqlite";
 import { existsSync } from "fs";
+import { mkdir } from "fs/promises";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 import { detectRuntime } from "../../util/runtime";
 import * as schema from "./schema";
 
-type Database = BunSQLiteDatabase<typeof schema> | BetterSQLite3Database<typeof schema>;
+type Database = SQLiteBunDatabase<typeof schema, EmptyRelations>;
 
 const dbUrl: string = process.env.DATABASE_URL ?? ":memory:";
 
@@ -30,6 +31,10 @@ function resolveMigrationsFolder(): string | null {
 async function createDatabaseClient(url: string) {
   const runtime = detectRuntime();
   const migrationsFolder = resolveMigrationsFolder();
+
+  if (url !== ":memory:") {
+    await mkdir(dirname(url), { recursive: true });
+  }
 
   if (runtime === "bun") {
     const { Database } = await import("bun:sqlite");

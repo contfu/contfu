@@ -1,7 +1,6 @@
 export { db } from "./db";
 export {
   assetTable,
-  collectionTable,
   itemsTable,
   linkTable,
   type AssetUpdate,

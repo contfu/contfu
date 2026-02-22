@@ -1,6 +1,7 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
+  import { authClient } from "$lib/auth-client";
   import SiteHeader from "$lib/components/layout/site-header.svelte";
   import * as Alert from "$lib/components/ui/alert";
   import { Button } from "$lib/components/ui/button";
@@ -8,11 +9,24 @@
   import { Label } from "$lib/components/ui/label";
   import * as Select from "$lib/components/ui/select";
   import { Switch } from "$lib/components/ui/switch";
+  import { SOURCE_TYPE_LABELS } from "$lib/domain/source";
   import { listLinkedAccounts } from "$lib/remote/accounts.remote";
-  import { createSource, testNewConnection, createNotionSourceFromOAuth } from "$lib/remote/sources.remote";
-  import { authClient } from "$lib/auth-client";
-  import { persistFormState, restoreFormState, clearFormState } from "$lib/utils/formState";
+  import {
+    createNotionSourceFromOAuth,
+    createSource,
+    testNewConnection,
+  } from "$lib/remote/sources.remote";
+  import {
+    clearFormState,
+    persistFormState,
+    restoreFormState,
+  } from "$lib/utils/formState";
+  import { tcToast } from "$lib/utils/toast";
+  import { SourceType } from "@contfu/core";
+  import { WebAuthType } from "@contfu/svc-core";
   import { useId } from "bits-ui";
+  import { omit } from "remeda";
+  import { toast } from "svelte-sonner";
 
   const nameId = useId();
   const typeId = useId();
@@ -21,19 +35,20 @@
   const credentialsId = useId();
 
   const SOURCE_TYPES = [
-    { value: "0", label: "Notion" },
-    { value: "1", label: "Strapi" },
-    { value: "2", label: "Web" },
+    { value: SourceType.NOTION, label: SOURCE_TYPE_LABELS[SourceType.NOTION] },
+    { value: SourceType.STRAPI, label: SOURCE_TYPE_LABELS[SourceType.STRAPI] },
+    { value: SourceType.WEB, label: SOURCE_TYPE_LABELS[SourceType.WEB] },
   ];
 
   const AUTH_TYPES = [
-    { value: "0", label: "None" },
-    { value: "1", label: "Bearer Token" },
-    { value: "2", label: "Basic Auth" },
+    { value: WebAuthType.NONE, label: "None" },
+    { value: WebAuthType.BEARER, label: "Bearer Token" },
+    { value: WebAuthType.BASIC, label: "Basic Auth" },
   ];
 
-  let selectedType = $state("1");
-  let selectedAuthType = $state("0");
+  let selectedType = $state<SourceType>(SourceType.WEB);
+  let selectedAuthType = $state<WebAuthType>(WebAuthType.NONE);
+  $inspect(selectedAuthType);
   let testResult: { success: boolean; message: string } | null = $state(null);
   let testPending = $state(false);
   let includeRef = $state(true);
@@ -42,12 +57,12 @@
   let oauthPending = $state(false);
   let oauthError = $state<string | null>(null);
 
-  const isNotionSource = $derived(selectedType === "0");
-  const isWebSource = $derived(selectedType === "2");
+  const isNotionSource = $derived(selectedType === SourceType.NOTION);
+  const isWebSource = $derived(selectedType === SourceType.WEB);
   const requiresCredentials = $derived(
-    (isNotionSource && !useOAuth) || 
-    (!isNotionSource && !isWebSource) || 
-    (isWebSource && selectedAuthType !== "0")
+    (isNotionSource && !useOAuth) ||
+      (!isNotionSource && !isWebSource) ||
+      (isWebSource && selectedAuthType !== WebAuthType.NONE),
   );
 
   // Check if Notion is linked when component mounts or when Notion is selected
@@ -71,14 +86,16 @@
         includeRef = restored.includeRef;
 
         // Restore name input value
-        const nameInput = document.querySelector<HTMLInputElement>('input[name="name"]');
+        const nameInput =
+          document.querySelector<HTMLInputElement>('input[name="name"]');
         if (nameInput && restored.name) {
           nameInput.value = restored.name;
         }
 
         // Restore url input if present
         if (restored.url) {
-          const urlInput = document.querySelector<HTMLInputElement>('input[name="url"]');
+          const urlInput =
+            document.querySelector<HTMLInputElement>('input[name="url"]');
           if (urlInput) {
             urlInput.value = restored.url;
           }
@@ -86,7 +103,9 @@
 
         // Restore credentials if present
         if (restored._credentials) {
-          const credentialsInput = document.querySelector<HTMLInputElement>('input[name="_credentials"]');
+          const credentialsInput = document.querySelector<HTMLInputElement>(
+            'input[name="_credentials"]',
+          );
           if (credentialsInput) {
             credentialsInput.value = restored._credentials;
           }
@@ -101,7 +120,9 @@
   async function checkNotionLinked() {
     try {
       const accounts = await listLinkedAccounts();
-      notionLinked = accounts.some(a => a.providerId === "notion" && a.hasAccessToken);
+      notionLinked = accounts.some(
+        (a) => a.providerId === "notion" && a.hasAccessToken,
+      );
     } catch {
       notionLinked = false;
     }
@@ -112,9 +133,13 @@
     oauthError = null;
 
     // Persist form state before OAuth redirect
-    const nameInput = document.querySelector<HTMLInputElement>('input[name="name"]');
-    const urlInput = document.querySelector<HTMLInputElement>('input[name="url"]');
-    const credentialsInput = document.querySelector<HTMLInputElement>('input[name="_credentials"]');
+    const nameInput =
+      document.querySelector<HTMLInputElement>('input[name="name"]');
+    const urlInput =
+      document.querySelector<HTMLInputElement>('input[name="url"]');
+    const credentialsInput = document.querySelector<HTMLInputElement>(
+      'input[name="_credentials"]',
+    );
 
     persistFormState({
       name: nameInput?.value || "",
@@ -132,7 +157,8 @@
         callbackURL: "/sources/new?type=notion&linked=1",
       });
     } catch (error) {
-      oauthError = error instanceof Error ? error.message : "Failed to connect Notion";
+      oauthError =
+        error instanceof Error ? error.message : "Failed to connect Notion";
     } finally {
       oauthPending = false;
     }
@@ -141,9 +167,10 @@
   async function handleCreateNotionSource() {
     oauthPending = true;
     oauthError = null;
-    const nameInput = document.querySelector<HTMLInputElement>('input[name="name"]');
+    const nameInput =
+      document.querySelector<HTMLInputElement>('input[name="name"]');
     const name = nameInput?.value?.trim();
-    
+
     if (!name) {
       oauthError = "Name is required";
       oauthPending = false;
@@ -153,13 +180,14 @@
     try {
       const result = await createNotionSourceFromOAuth({ name, includeRef });
       if ("error" in result) {
-        oauthError = result.error;
+        oauthError = result.error as string;
       } else {
         clearFormState();
         goto(`/sources/${result.id}`);
       }
     } catch (error) {
-      oauthError = error instanceof Error ? error.message : "Failed to create source";
+      oauthError =
+        error instanceof Error ? error.message : "Failed to create source";
     } finally {
       oauthPending = false;
     }
@@ -169,15 +197,18 @@
     testPending = true;
     testResult = null;
 
-    const urlInput = document.querySelector<HTMLInputElement>('input[name="url"]');
-    const credentialsInput = document.querySelector<HTMLInputElement>('input[name="_credentials"]');
+    const urlInput =
+      document.querySelector<HTMLInputElement>('input[name="url"]');
+    const credentialsInput = document.querySelector<HTMLInputElement>(
+      'input[name="_credentials"]',
+    );
 
     try {
       const result = await testNewConnection({
-        type: Number.parseInt(selectedType, 10),
+        type: selectedType,
         url: urlInput?.value || undefined,
         _credentials: credentialsInput?.value ?? "",
-        authType: isWebSource ? Number.parseInt(selectedAuthType, 10) : undefined,
+        authType: isWebSource ? selectedAuthType : undefined,
       });
       testResult = result;
     } catch (error) {
@@ -205,63 +236,120 @@
     Connect a content source to start syncing
   </p>
 
-  <form method="post" action={createSource.action} class="space-y-5" onsubmit={(e) => {
-    if (isNotionSource && useOAuth) {
-      e.preventDefault();
-      void handleCreateNotionSource();
-    }
-  }}>
+  <form
+    {...createSource.enhance(async ({ submit }) => {
+      await tcToast(async () => {
+        await submit();
+        toast.success("Source created");
+      });
+    })}
+    class="space-y-5"
+    onsubmit={(e) => {
+      if (isNotionSource && useOAuth) {
+        e.preventDefault();
+        void handleCreateNotionSource();
+      }
+    }}
+  >
     <div class="space-y-1.5">
       <Label for={nameId}>Name</Label>
       <Input id={nameId} name="name" placeholder="My Content Source" required />
-      {#if createSource.error}
-        <p class="text-sm text-destructive">{createSource.error}</p>
+      {#if createSource.fields?.name?.issues()?.[0]?.message}
+        <p class="text-sm text-destructive">
+          {createSource.fields?.name?.issues()?.[0]?.message}
+        </p>
       {/if}
     </div>
 
     <div class="space-y-1.5">
       <Label for={typeId}>Type</Label>
-      <Select.Root type="single" name="type" bind:value={selectedType}>
+      <Select.Root
+        {...omit(createSource.fields?.type.as("text") as any, [
+          "value",
+          "type",
+        ])}
+        bind:value={
+          () => selectedType.toString(),
+          (value) => (selectedType = Number(value) as SourceType)
+        }
+        type="single"
+      >
         <Select.Trigger id={typeId} class="w-full">
-          {SOURCE_TYPES.find((t) => t.value === selectedType)?.label ?? "Select type"}
+          {SOURCE_TYPES.find((t) => t.value === selectedType)?.label ??
+            "Select type"}
         </Select.Trigger>
         <Select.Content>
           {#each SOURCE_TYPES as type}
-            <Select.Item value={type.value}>{type.label}</Select.Item>
+            <Select.Item value={type.value.toString()}>{type.label}</Select.Item
+            >
           {/each}
         </Select.Content>
       </Select.Root>
       <!-- validation errors handled server-side -->
-      <p class="text-sm text-destructive">{createSource.fields?.type?.issues()?.[0]?.message}</p>
+      <p class="text-sm text-destructive">
+        {createSource.fields?.type?.issues()?.[0]?.message}
+      </p>
     </div>
 
-    <div class="flex items-center justify-between rounded-md border border-border px-3 py-2">
+    <div
+      class="flex items-center justify-between rounded-md border border-border px-3 py-2"
+    >
       <Label for="source-include-ref">Forward source item references</Label>
-      <Switch id="source-include-ref" bind:checked={includeRef} />
-      <input name="includeRef" type="hidden" value={includeRef ? "true" : "false"} />
+      <Switch
+        id="source-include-ref"
+        {...createSource.fields?.includeRef.as("checkbox")}
+        type="button"
+      />
+      <input
+        name="includeRef"
+        type="hidden"
+        value={includeRef ? "true" : "false"}
+      />
     </div>
 
     {#if isNotionSource}
       <div class="space-y-3">
         <div class="flex items-center gap-4">
           <label class="flex items-center gap-2 cursor-pointer">
-            <input type="radio" bind:group={useOAuth} value={true} class="accent-primary" />
+            <input
+              type="radio"
+              bind:group={useOAuth}
+              value={true}
+              class="accent-primary"
+            />
             <span class="text-sm">Connect with Notion (recommended)</span>
           </label>
           <label class="flex items-center gap-2 cursor-pointer">
-            <input type="radio" bind:group={useOAuth} value={false} class="accent-primary" />
+            <input
+              type="radio"
+              bind:group={useOAuth}
+              value={false}
+              class="accent-primary"
+            />
             <span class="text-sm">Use API token</span>
           </label>
         </div>
-        
+
         {#if useOAuth}
           <div class="rounded-lg border bg-muted/50 p-4">
             {#if notionLinked === null}
-              <p class="text-sm text-muted-foreground">Checking Notion connection...</p>
+              <p class="text-sm text-muted-foreground">
+                Checking Notion connection...
+              </p>
             {:else if notionLinked}
               <div class="flex items-center gap-2 text-sm text-green-600">
-                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                <svg
+                  class="h-4 w-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M5 13l4 4L19 7"
+                  />
                 </svg>
                 Notion connected! Your workspace access will be used.
               </div>
@@ -269,7 +357,12 @@
               <p class="text-sm text-muted-foreground mb-3">
                 Connect your Notion workspace to sync databases and pages.
               </p>
-              <Button type="button" variant="outline" onclick={handleConnectNotion} disabled={oauthPending}>
+              <Button
+                type="button"
+                variant="outline"
+                onclick={handleConnectNotion}
+                disabled={oauthPending}
+              >
                 {oauthPending ? "Connecting..." : "Connect Notion"}
               </Button>
             {/if}
@@ -278,14 +371,19 @@
       </div>
     {/if}
 
-    {#if selectedType === "1" || selectedType === "2"}
+    {#if selectedType === SourceType.STRAPI || selectedType === SourceType.WEB}
       <div class="space-y-1.5">
-        <Label for={urlId}>{selectedType === "1" ? "Strapi URL" : "Base URL"}</Label>
+        <Label for={urlId}
+          >{selectedType === SourceType.STRAPI
+            ? "Strapi URL"
+            : "Base URL"}</Label
+        >
         <Input
           id={urlId}
-          name="url"
-          type="url"
-          placeholder={selectedType === "1" ? "https://strapi.example.com" : "https://example.com"}
+          {...createSource.fields?.url.as("url")}
+          placeholder={selectedType === SourceType.STRAPI
+            ? "https://strapi.example.com"
+            : "https://example.com"}
           required
         />
       </div>
@@ -294,13 +392,26 @@
     {#if isWebSource}
       <div class="space-y-1.5">
         <Label for={authTypeId}>Authentication</Label>
-        <Select.Root type="single" name="authType" bind:value={selectedAuthType}>
+        <Select.Root
+          {...omit(createSource.fields?.authType.as("text") as any, [
+            "value",
+            "type",
+          ])}
+          bind:value={
+            () => selectedAuthType.toString(),
+            (value) => (selectedAuthType = Number(value) as WebAuthType)
+          }
+          type="single"
+        >
           <Select.Trigger id={authTypeId} class="w-full">
-            {AUTH_TYPES.find((t) => t.value === selectedAuthType)?.label ?? "Select auth"}
+            {AUTH_TYPES.find((t) => t.value === selectedAuthType)?.label ??
+              "Select auth"}
           </Select.Trigger>
           <Select.Content>
             {#each AUTH_TYPES as authType}
-              <Select.Item value={authType.value}>{authType.label}</Select.Item>
+              <Select.Item value={authType.value.toString()}
+                >{authType.label}</Select.Item
+              >
             {/each}
           </Select.Content>
         </Select.Root>
@@ -311,7 +422,9 @@
       <div class="space-y-1.5">
         <Label for={credentialsId}>
           {#if isWebSource}
-            {selectedAuthType === "1" ? "Bearer Token" : "Credentials"}
+            {selectedAuthType === WebAuthType.BEARER
+              ? "Bearer Token"
+              : "Credentials"}
           {:else if isNotionSource}
             Notion API Token
           {:else}
@@ -320,21 +433,23 @@
         </Label>
         <Input
           id={credentialsId}
-          name="_credentials"
-          type="password"
-          placeholder={
-            isNotionSource
-              ? "secret_..."
-              : isWebSource && selectedAuthType === "2"
-                ? "username:password"
-                : "Enter API token"
-          }
+          {...createSource.fields?._credentials.as("password")}
+          placeholder={isNotionSource
+            ? "secret_..."
+            : isWebSource && selectedAuthType === WebAuthType.BASIC
+              ? "username:password"
+              : "Enter API token"}
           required
         />
         <p class="text-xs text-muted-foreground">
           {#if isNotionSource}
-            Get your token at <a href="https://www.notion.so/my-integrations" target="_blank" rel="noopener" class="underline">notion.so/my-integrations</a>
-          {:else if isWebSource && selectedAuthType === "2"}
+            Get your token at <a
+              href="https://www.notion.so/my-integrations"
+              target="_blank"
+              rel="noopener"
+              class="underline">notion.so/my-integrations</a
+            >
+          {:else if isWebSource && selectedAuthType === WebAuthType.BASIC}
             Format: username:password
           {/if}
         </p>
@@ -343,7 +458,11 @@
 
     {#if testResult}
       <Alert.Root variant={testResult.success ? "default" : "destructive"}>
-        <Alert.Title>{testResult.success ? "Connection successful" : "Connection failed"}</Alert.Title>
+        <Alert.Title
+          >{testResult.success
+            ? "Connection successful"
+            : "Connection failed"}</Alert.Title
+        >
         <Alert.Description>{testResult.message}</Alert.Description>
       </Alert.Root>
     {/if}
@@ -357,9 +476,9 @@
 
     <div class="flex gap-2 pt-2">
       {#if isNotionSource && useOAuth}
-        <Button 
-          type="button" 
-          onclick={handleCreateNotionSource} 
+        <Button
+          type="button"
+          onclick={handleCreateNotionSource}
           disabled={oauthPending || !notionLinked}
         >
           {oauthPending ? "Creating..." : "Create Source"}
@@ -368,7 +487,12 @@
         <Button type="submit" disabled={!!createSource.pending}>
           {createSource.pending ? "Creating..." : "Create Source"}
         </Button>
-        <Button type="button" variant="outline" onclick={handleTestConnection} disabled={testPending}>
+        <Button
+          type="button"
+          variant="outline"
+          onclick={handleTestConnection}
+          disabled={testPending}
+        >
           {testPending ? "Testing..." : "Test Connection"}
         </Button>
       {/if}

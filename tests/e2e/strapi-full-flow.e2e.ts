@@ -36,6 +36,32 @@ const TEST_USER = {
 // Track spawned processes for cleanup (consumer app only)
 const processes: ChildProcess[] = [];
 
+async function selectSourceType(page: Page, typeLabel: "Web" | "Strapi" | "Notion"): Promise<void> {
+  await page.getByLabel(/Type/i).click();
+  const valueByType: Record<typeof typeLabel, string> = {
+    Notion: "0",
+    Strapi: "1",
+    Web: "2",
+  };
+
+  const roleOption = page.getByRole("option", { name: new RegExp(`^${typeLabel}$`, "i") });
+  if (await roleOption.isVisible().catch(() => false)) {
+    await roleOption.click();
+    return;
+  }
+
+  const valueOption = page.locator(`[data-value="${valueByType[typeLabel]}"]`).first();
+  if (await valueOption.isVisible().catch(() => false)) {
+    await valueOption.click();
+    return;
+  }
+
+  await page
+    .locator('[data-slot="select-content"] [role="button"]', { hasText: typeLabel })
+    .first()
+    .click();
+}
+
 /**
  * Spawn a process and wait for it to be ready (via URL polling)
  */
@@ -197,8 +223,10 @@ async function setupServiceAppAndGetApiKey(
   await page.waitForURL(/\/sources\/new/);
 
   await page.getByLabel(/Name/i).fill("E2E Strapi Demo");
-  await page.getByLabel(/Strapi URL/i).fill(strapiUrl);
-  await page.getByLabel(/API Token/i).fill(strapiApiToken);
+  await selectSourceType(page, "Strapi");
+  await expect(page.locator('input[name="url"]')).toBeVisible({ timeout: 10000 });
+  await page.locator('input[name="url"]').fill(strapiUrl);
+  await page.locator('input[name="_credentials"]').fill(strapiApiToken);
   await page.getByRole("button", { name: /Create Source/i }).click();
 
   await page.waitForURL(/\/sources\/\d+/, { timeout: 10000 });
@@ -355,10 +383,10 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow (Fixtures)", () =>
     }
 
     // Write .env file for consumer app (Vite dev server needs this)
-    const envContent = `CONTFU_URL=${SERVICE_URL}/api/stream\nCONTFU_KEY=${consumerApiKey}\n`;
+    const envContent = `CONTFU_URL=${SERVICE_URL}/api/sync\nCONTFU_KEY=${consumerApiKey}\n`;
     await fs.writeFile(envPath, envContent);
     console.log(
-      `[E2E] Wrote .env file: CONTFU_URL=${SERVICE_URL}/api/stream, CONTFU_KEY=${consumerApiKey.slice(0, 8)}...`,
+      `[E2E] Wrote .env file: CONTFU_URL=${SERVICE_URL}/api/sync, CONTFU_KEY=${consumerApiKey.slice(0, 8)}...`,
     );
 
     await spawnProcess(
@@ -366,7 +394,7 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow (Fixtures)", () =>
       ["run", "preview", "--", "--port", String(CONSUMER_PORT)],
       resolve(PROJECT_ROOT, "demos/consumer-app"),
       {
-        CONTFU_URL: `${SERVICE_URL}/api/stream`,
+        CONTFU_URL: `${SERVICE_URL}/api/sync`,
         CONTFU_KEY: consumerApiKey,
       },
       60000,

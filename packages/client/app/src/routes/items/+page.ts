@@ -1,6 +1,6 @@
+import { parseItemQueryFromUrl } from "$lib/query/item-query";
 import { getCollectionsQuery } from "$lib/remote/collections.remote";
 import { getItemsQuery } from "$lib/remote/items.remote";
-import { parseItemQueryFromUrl } from "$lib/query/item-query";
 import type { PageLoad } from "./$types";
 
 export const load: PageLoad = async ({ url }) => {

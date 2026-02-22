@@ -1,20 +1,21 @@
-import { CollectionSchema, PropertyType } from "@contfu/svc-core";
+import { PropertyType, type CollectionSchema } from "@contfu/svc-core";
 import { isFullDatabase, isFullDataSource } from "@notionhq/client";
-import { notion } from "./notion-helpers";
+import { notion, parseNotionRef } from "./notion-helpers";
 
 export async function getCollectionSchema(key: string, id: Buffer) {
+  const notionId = parseNotionRef(id);
   const db = await notion.databases.retrieve({
     auth: key,
-    database_id: id.toString("hex"),
+    database_id: notionId,
   });
   if (!isFullDatabase(db)) {
-    throw new Error(`Could not retrieve full database ${id.toString("hex")}`);
+    throw new Error(`Could not retrieve full database ${notionId}`);
   }
 
   // In Notion SDK v5+, properties are on the data source, not the database
   const dataSourceId = db.data_sources[0]?.id;
   if (!dataSourceId) {
-    throw new Error(`No data sources found for database ${id.toString("hex")}`);
+    throw new Error(`No data sources found for database ${notionId}`);
   }
 
   const dataSource = await notion.dataSources.retrieve({
@@ -22,7 +23,7 @@ export async function getCollectionSchema(key: string, id: Buffer) {
     data_source_id: dataSourceId,
   });
   if (!isFullDataSource(dataSource)) {
-    throw new Error(`Could not retrieve data source for database ${id.toString("hex")}`);
+    throw new Error(`Could not retrieve data source for database ${notionId}`);
   }
 
   return notionPropertiesToSchema(dataSource.properties);

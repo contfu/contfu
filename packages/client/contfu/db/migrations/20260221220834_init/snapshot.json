@@ -1,7 +1,7 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "b63c27a0-aa38-4098-aaed-4b2191edfba9",
+  "id": "82d128bf-c683-4f46-980f-08467e2ffc6f",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
@@ -11,15 +11,15 @@
       "entityType": "tables"
     },
     {
-      "name": "collection",
-      "entityType": "tables"
-    },
-    {
       "name": "items",
       "entityType": "tables"
     },
     {
       "name": "links",
+      "entityType": "tables"
+    },
+    {
+      "name": "sync",
       "entityType": "tables"
     },
     {
@@ -93,56 +93,6 @@
       "table": "asset"
     },
     {
-      "type": "integer",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "id",
-      "entityType": "columns",
-      "table": "collection"
-    },
-    {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "ref",
-      "entityType": "columns",
-      "table": "collection"
-    },
-    {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "name",
-      "entityType": "columns",
-      "table": "collection"
-    },
-    {
-      "type": "integer",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "createdAt",
-      "entityType": "columns",
-      "table": "collection"
-    },
-    {
-      "type": "integer",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "updatedAt",
-      "entityType": "columns",
-      "table": "collection"
-    },
-    {
       "type": "blob",
       "notNull": false,
       "autoincrement": false,
@@ -153,22 +103,12 @@
       "table": "items"
     },
     {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "ref",
-      "entityType": "columns",
-      "table": "items"
-    },
-    {
       "type": "integer",
-      "notNull": true,
+      "notNull": false,
       "autoincrement": false,
       "default": null,
       "generated": null,
-      "name": "collection",
+      "name": "sourceType",
       "entityType": "columns",
       "table": "items"
     },
@@ -178,12 +118,32 @@
       "autoincrement": false,
       "default": null,
       "generated": null,
-      "name": "props",
+      "name": "ref",
       "entityType": "columns",
       "table": "items"
     },
     {
       "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "collection",
+      "entityType": "columns",
+      "table": "items"
+    },
+    {
+      "type": "blob",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "props",
+      "entityType": "columns",
+      "table": "items"
+    },
+    {
+      "type": "blob",
       "notNull": false,
       "autoincrement": false,
       "default": null,
@@ -233,6 +193,16 @@
       "table": "links"
     },
     {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "index",
+      "entityType": "columns",
+      "table": "sync"
+    },
+    {
       "columns": [
         "itemId"
       ],
@@ -246,21 +216,6 @@
       "name": "fk_asset_itemId_items_id_fk",
       "entityType": "fks",
       "table": "asset"
-    },
-    {
-      "columns": [
-        "collection"
-      ],
-      "tableTo": "collection",
-      "columnsTo": [
-        "id"
-      ],
-      "onUpdate": "NO ACTION",
-      "onDelete": "CASCADE",
-      "nameExplicit": false,
-      "name": "fk_items_collection_collection_id_fk",
-      "entityType": "fks",
-      "table": "items"
     },
     {
       "columns": [
@@ -317,18 +272,51 @@
         "id"
       ],
       "nameExplicit": false,
-      "name": "collection_pk",
-      "table": "collection",
+      "name": "items_pk",
+      "table": "items",
       "entityType": "pks"
     },
     {
       "columns": [
-        "id"
+        {
+          "value": "ref",
+          "isExpression": false
+        }
       ],
-      "nameExplicit": false,
-      "name": "items_pk",
-      "table": "items",
-      "entityType": "pks"
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "idx_items_ref",
+      "entityType": "indexes",
+      "table": "items"
+    },
+    {
+      "columns": [
+        {
+          "value": "collection",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "idx_items_collection",
+      "entityType": "indexes",
+      "table": "items"
+    },
+    {
+      "columns": [
+        {
+          "value": "changedAt",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "idx_items_changedAt",
+      "entityType": "indexes",
+      "table": "items"
     },
     {
       "columns": [
@@ -338,15 +326,6 @@
       "name": "asset_canonical_unique",
       "entityType": "uniques",
       "table": "asset"
-    },
-    {
-      "columns": [
-        "ref"
-      ],
-      "nameExplicit": false,
-      "name": "collection_ref_unique",
-      "entityType": "uniques",
-      "table": "collection"
     }
   ],
   "renames": []

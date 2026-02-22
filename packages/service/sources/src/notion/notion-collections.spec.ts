@@ -324,7 +324,7 @@ describe("notion-collections", () => {
 
       expect(mockClient.databases.retrieve).toHaveBeenCalledWith({
         auth: key,
-        database_id: id.toString("hex"),
+        database_id: "my-database-uuid",
       });
 
       expect(mockClient.dataSources.retrieve).toHaveBeenCalledWith({

@@ -1,15 +1,6 @@
-/**
- * Source type constants
- */
-export const SourceType = {
-  NOTION: 0,
-  STRAPI: 1,
-  WEB: 2,
-} as const;
+import { SourceType } from "@contfu/core";
 
-export type SourceTypeValue = (typeof SourceType)[keyof typeof SourceType];
-
-export const SOURCE_TYPE_LABELS: Record<SourceTypeValue, string> = {
+export const SOURCE_TYPE_LABELS: Record<SourceType, string> = {
   [SourceType.NOTION]: "Notion",
   [SourceType.STRAPI]: "Strapi",
   [SourceType.WEB]: "Web",

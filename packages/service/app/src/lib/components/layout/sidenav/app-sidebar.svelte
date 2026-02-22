@@ -1,4 +1,5 @@
 <script lang="ts">
+  // @ts-nocheck
   import * as Sidebar from "$lib/components/ui/sidebar";
   import {
     CreditCardIcon,

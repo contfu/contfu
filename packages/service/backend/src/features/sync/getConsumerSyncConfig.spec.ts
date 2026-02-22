@@ -1,7 +1,9 @@
+import { SourceType } from "@contfu/core";
+import { FilterOperator, type Filter } from "@contfu/svc-core";
 import { beforeEach, describe, expect, it } from "bun:test";
-import { FilterOperator, SourceType, type Filter } from "@contfu/svc-core";
 import { pack } from "msgpackr";
 import crypto from "node:crypto";
+import { truncateAllTables } from "../../../test/setup";
 import { encryptCredentials } from "../../infra/crypto/credentials";
 import {
   collectionTable,
@@ -13,7 +15,6 @@ import {
   sourceTable,
   userTable,
 } from "../../infra/db/db";
-import { truncateAllTables } from "../../../test/setup";
 import { getConsumerSyncConfig } from "./getConsumerSyncConfig";
 
 const isDbMocked = typeof db.delete !== "function";

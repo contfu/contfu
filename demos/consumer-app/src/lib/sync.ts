@@ -11,8 +11,7 @@ import { env } from "$env/dynamic/private";
 /** Get configuration from environment (using SvelteKit's dynamic env with process.env fallback) */
 function getConfig() {
   // Try SvelteKit's dynamic env first, then fall back to process.env
-  const CONTFU_URL =
-    env?.CONTFU_URL ?? process.env.CONTFU_URL ?? "http://localhost:5173/api/stream";
+  const CONTFU_URL = env?.CONTFU_URL ?? process.env.CONTFU_URL ?? "http://localhost:5173/api/sync";
   const CONTFU_KEY = env?.CONTFU_KEY ?? process.env.CONTFU_KEY ?? "";
   return { CONTFU_URL, CONTFU_KEY };
 }
@@ -104,6 +103,6 @@ export function getSyncStatus(): { started: boolean; connected: boolean; reason:
   return {
     started: syncStarted,
     connected: syncConnected,
-    reason: lastDisconnectedReason,
+    reason: syncConnected ? null : lastDisconnectedReason,
   };
 }

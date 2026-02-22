@@ -1,4 +1,4 @@
-import type { Item } from "@contfu/core";
+import type { Item, SourceType } from "@contfu/core";
 
 /**
  * Message types for communication between the app service and the sync worker.
@@ -15,7 +15,9 @@ export enum SyncMessageType {
 }
 
 /** User-tagged item for multi-tenant routing. */
-export type UserSyncItem = Item & {
+export type UserSyncItem = Omit<Item, "ref"> & {
+  ref: string;
+  sourceType: SourceType;
   user: number;
   /** Whether ref should be transmitted for this item in this route context. */
   includeRef?: boolean;

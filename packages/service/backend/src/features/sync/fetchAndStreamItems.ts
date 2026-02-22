@@ -1,8 +1,11 @@
-import { SourceType, matchesFilters } from "@contfu/svc-core";
-import type { UserSyncItem } from "../../infra/sync-worker/messages";
+import { SourceType } from "@contfu/core";
+import { matchesFilters } from "@contfu/svc-core";
 import { NotionSource } from "@contfu/svc-sources/notion";
 import { StrapiSource } from "@contfu/svc-sources/strapi";
 import { WebSource } from "@contfu/svc-sources/web";
+import { getItemRefForSource } from "../../infra/refs/encode-ref";
+import type { UserSyncItem } from "../../infra/sync-worker/messages";
+import { getRateLimitForSourceType } from "../../infra/webhook-queue/types";
 import type { ConsumerSyncConfig } from "./getConsumerSyncConfig";
 
 const notionSource = new NotionSource();
@@ -20,12 +23,22 @@ const webSource = new WebSource();
 export async function* fetchAndStreamItems(
   config: ConsumerSyncConfig,
 ): AsyncGenerator<UserSyncItem> {
+  const throttle = new FullSyncThrottle();
+
   for (const group of config.sourceGroups) {
     for (const sc of group.sourceCollections) {
       try {
         const items = fetchSourceCollection(group, sc.collectionRef);
 
         for await (const item of items) {
+          await throttle.wait(group.sourceType);
+          const sourceRef = getItemRefForSource({
+            sourceType: group.sourceType,
+            rawRef: item.ref,
+            sourceUrl: group.sourceUrl,
+            collectionRef: sc.collectionRef,
+          });
+
           // Fan out to each target collection, applying filters
           for (const target of sc.targets) {
             if (
@@ -38,6 +51,8 @@ export async function* fetchAndStreamItems(
 
             yield {
               ...item,
+              ref: sourceRef.ref,
+              sourceType: sourceRef.sourceType,
               user: config.userId,
               collection: target.collectionId,
               includeRef: target.includeRef,
@@ -83,4 +98,24 @@ function fetchSourceCollection(
     url: group.sourceUrl!,
     credentials: group.credentials ?? undefined,
   });
+}
+
+class FullSyncThrottle {
+  private nextAllowedAt = new Map<number, number>();
+
+  async wait(sourceType: SourceType): Promise<void> {
+    const rateLimit = getRateLimitForSourceType(sourceType);
+    if (!rateLimit || rateLimit.maxRequests <= 0 || rateLimit.windowMs <= 0) {
+      return;
+    }
+
+    const minIntervalMs = Math.ceil(rateLimit.windowMs / rateLimit.maxRequests);
+    const now = Date.now();
+    const nextAt = this.nextAllowedAt.get(sourceType) ?? now;
+    const waitMs = Math.max(0, nextAt - now);
+    if (waitMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, waitMs));
+    }
+    this.nextAllowedAt.set(sourceType, Math.max(nextAt, now) + minIntervalMs);
+  }
 }

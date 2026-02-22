@@ -197,3 +197,4 @@ logs/security/
 .pnpm-store
 .planning
 .worktree
+packages/client/app/data

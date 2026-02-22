@@ -1,9 +1,9 @@
 import type { Item } from "@contfu/core";
-import { CollectionSchema } from "@contfu/svc-core";
-import { Source } from "../source";
-import { NotionFetchOpts } from "./notion";
+import type { CollectionSchema } from "@contfu/svc-core";
+import type { Source } from "../source";
+import type { NotionFetchOpts } from "./notion";
 import { getCollectionSchema } from "./notion-collections";
-import { DbQuery } from "./notion-helpers";
+import type { DbQuery } from "./notion-helpers";
 import { iteratePages } from "./notion-items";
 
 export class NotionSource implements Source<NotionFetchOpts> {

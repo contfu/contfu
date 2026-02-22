@@ -1,6 +1,11 @@
+import { countDistinct } from "drizzle-orm";
 import { db } from "../../infra/db/db";
-import { collectionTable } from "../../infra/db/schema";
+import { itemsTable } from "../../infra/db/schema";
 
-export async function countCollections() {
-  return db.$count(collectionTable);
+export function countCollections() {
+  const { count } = db
+    .select({ count: countDistinct(itemsTable.collection) })
+    .from(itemsTable)
+    .get()!;
+  return count;
 }

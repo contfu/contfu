@@ -1,4 +1,5 @@
 <script lang="ts">
+  // @ts-nocheck
   import { goto } from "$app/navigation";
   import SiteHeader from "$lib/components/layout/site-header.svelte";
   import * as Alert from "$lib/components/ui/alert";

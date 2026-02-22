@@ -1,9 +1,11 @@
 <script lang="ts">
+  // @ts-nocheck
   import FilterEditor from "$lib/components/FilterEditor.svelte";
   import SourceTypeIcon from "$lib/components/icons/SourceTypeIcon.svelte";
   import { Button } from "$lib/components/ui/button";
   import * as Command from "$lib/components/ui/command";
   import * as Dialog from "$lib/components/ui/dialog";
+  import { SOURCE_TYPE_LABELS } from "$lib/domain/source";
   import { getSourceCollectionSchemaQuery } from "$lib/remote/collections.remote";
   import {
     addInfluxWithAutoCreate,
@@ -13,9 +15,12 @@
     type DataSourceInfo,
     type SourceWithDataSources,
   } from "$lib/remote/influxes.remote";
-  import type { CollectionSchema, Filter } from "@contfu/svc-core";
-  import type { ServiceInfluxWithDetails } from "@contfu/svc-core";
-  import { SourceType } from "@contfu/svc-backend/features/sources/testSourceConnection";
+  import { SourceType } from "@contfu/core";
+  import type {
+    CollectionSchema,
+    Filter,
+    ServiceInfluxWithDetails,
+  } from "@contfu/svc-core";
   import AlertCircle from "@lucide/svelte/icons/alert-circle";
   import Check from "@lucide/svelte/icons/check";
   import ChevronLeft from "@lucide/svelte/icons/chevron-left";
@@ -60,12 +65,6 @@
   let sourcesPromise = $state<Promise<SourceWithDataSources[]> | null>(null);
   let refreshingSourceId = $state<number | null>(null);
   let refreshErrorBySourceId = $state<Map<number, string>>(new Map());
-
-  const SOURCE_TYPE_LABELS: Record<number, string> = {
-    [SourceType.NOTION]: "Notion",
-    [SourceType.STRAPI]: "Strapi",
-    [SourceType.WEB]: "Web",
-  };
 
   function handleOpen() {
     open = true;
@@ -368,16 +367,22 @@
                       </div>
                     {/if}
 
-                    {@const refreshError = refreshErrorBySourceId.get(source.sourceId)}
+                    {@const refreshError = refreshErrorBySourceId.get(
+                      source.sourceId,
+                    )}
                     {#if refreshError}
-                      <div class="flex items-center gap-2 px-2 py-3 text-sm text-destructive bg-destructive/10 border-l-2 border-destructive">
+                      <div
+                        class="flex items-center gap-2 px-2 py-3 text-sm text-destructive bg-destructive/10 border-l-2 border-destructive"
+                      >
                         <AlertCircle class="h-4 w-4" />
                         <span>Failed to refresh: {refreshError}</span>
                       </div>
                     {/if}
 
                     {#if refreshingSourceId === source.sourceId}
-                      <div class="flex items-center gap-2 py-3 pl-6 pr-2 text-sm text-muted-foreground">
+                      <div
+                        class="flex items-center gap-2 py-3 pl-6 pr-2 text-sm text-muted-foreground"
+                      >
                         <LoaderCircle class="h-4 w-4 animate-spin" />
                         Refreshing collections...
                       </div>

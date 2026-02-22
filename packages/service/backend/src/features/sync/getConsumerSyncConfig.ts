@@ -1,3 +1,4 @@
+import { SourceType } from "@contfu/core";
 import type { Filter } from "@contfu/svc-core";
 import { and, eq, inArray } from "drizzle-orm";
 import { unpack } from "msgpackr";
@@ -16,7 +17,7 @@ export interface ConsumerSyncConfig {
   userId: number;
   collectionIds: number[];
   sourceGroups: Array<{
-    sourceType: number;
+    sourceType: SourceType;
     sourceUrl: string | null;
     credentials: Buffer | null;
     sourceCollections: Array<{
@@ -123,7 +124,7 @@ export async function getConsumerSyncConfig(
   const sourceMap = new Map<
     number,
     {
-      sourceType: number;
+      sourceType: SourceType;
       sourceUrl: string | null;
       credentials: Buffer | null;
       sourceIncludeRef: boolean;

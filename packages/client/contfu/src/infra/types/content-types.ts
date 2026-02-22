@@ -1,10 +1,12 @@
 import type { ImageBlock, Block } from "@contfu/core";
+import type { SourceType } from "@contfu/core";
 
 export type ItemLinks = Record<string, string[]> & { content: string[] };
 
 export interface ItemData {
   id: string;
-  ref: string;
+  sourceType?: SourceType | null;
+  ref: string | null;
   collection: string;
   props: Record<string, unknown>;
   changedAt: number;

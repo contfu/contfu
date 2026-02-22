@@ -1,3 +1,4 @@
+import { SourceType } from "@contfu/core";
 import { CredentialsSource } from "@contfu/svc-core";
 import { sql } from "drizzle-orm";
 import {
@@ -173,13 +174,13 @@ export const sourceTable = pgTable.withRLS(
     /** Globally unique identifier for webhook URLs. */
     uid: uuid().unique().notNull(),
     /** The name of the source. */
-    name: text(),
+    name: text().notNull(),
     /** The url of the upstream source. Can be empty, if it is a centralized SaaS source. */
     url: text(),
     /** An api key or other credentials for the source. Used to fetch data from the upstream source. */
     credentials: bytea(),
     /** The type of the source. */
-    type: integer().notNull(),
+    type: integer().$type<SourceType>().notNull(),
     /** Webhook secret for validating incoming webhooks (optional). */
     webhookSecret: bytea(),
     /**

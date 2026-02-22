@@ -1,19 +1,11 @@
-import { db } from "../../infra/db/db";
-import { sourceTable, type Source } from "../../infra/db/schema";
+import { extractWebAuthType } from "@contfu/svc-core";
 import { and, eq } from "drizzle-orm";
 import type { BackendSource } from "../../domain/types";
+import { db } from "../../infra/db/db";
+import { sourceTable, type Source } from "../../infra/db/schema";
 
 /** Source type: Web (for extracting auth type) */
 const SOURCE_TYPE_WEB = 2;
-
-/**
- * Extract the web auth type from credentials buffer.
- * For web sources, the first byte is the auth type: 0=None, 1=Bearer, 2=Basic
- */
-function extractWebAuthType(credentials: Buffer | null): number {
-  if (!credentials || credentials.length === 0) return 0;
-  return credentials[0];
-}
 
 function mapToBackendSource(source: Source): BackendSource {
   const baseSource: BackendSource = {

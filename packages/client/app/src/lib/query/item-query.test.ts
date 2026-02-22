@@ -3,12 +3,11 @@ import { buildItemQuerySearchParams, parseItemQueryFromUrl } from "./item-query"
 
 describe("item-query helper", () => {
   test("parses query params including prop filters", () => {
-    const url = new URL("http://localhost/items?collection=articles&search=alpha&sortField=ref&sortDirection=asc&page=2&pageSize=50&propKey=featured&propOp=eq&propValue=true");
+    const url = new URL("http://localhost/items?collection=articles&sortField=collection&sortDirection=asc&page=2&pageSize=50&propKey=featured&propOp=eq&propValue=true");
     const parsed = parseItemQueryFromUrl(url);
 
     expect(parsed.collection).toBe("articles");
-    expect(parsed.search).toBe("alpha");
-    expect(parsed.sortField).toBe("ref");
+    expect(parsed.sortField).toBe("collection");
     expect(parsed.sortDirection).toBe("asc");
     expect(parsed.page).toBe(2);
     expect(parsed.pageSize).toBe(50);

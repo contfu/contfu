@@ -1,5 +1,5 @@
 /**
- * Shared consumer key authentication for /api/stream and /api/sync.
+ * Shared consumer key authentication for /api/sync.
  * Extracts and validates the consumer key from query params or Authorization header.
  */
 export function extractConsumerKey(

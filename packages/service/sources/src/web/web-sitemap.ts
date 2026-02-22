@@ -1,6 +1,6 @@
-import Sitemapper, { type SitemapperSiteData, type SitemapperOptions } from "sitemapper";
+import { WebAuthType } from "@contfu/svc-core";
+import Sitemapper, { type SitemapperOptions, type SitemapperSiteData } from "sitemapper";
 import { buildAuthHeader } from "./web-helpers";
-import { type WebAuthTypeValue } from "./web";
 
 /** Default timeout for sitemap requests in milliseconds. */
 const DEFAULT_TIMEOUT_MS = 30000;
@@ -32,7 +32,7 @@ export interface SitemapResult {
 /** Options for fetching a sitemap. */
 export interface FetchSitemapOptions {
   /** Authentication type. */
-  authType?: WebAuthTypeValue;
+  authType?: WebAuthType;
   /** Auth credentials (Bearer token or Base64-encoded Basic auth). */
   credentials?: Buffer;
   /** Request timeout in milliseconds. */

@@ -46,13 +46,12 @@ export function parseItemQueryFromUrl(
 
   return {
     collection,
-    search: sp.get("search") ?? undefined,
     changedAtFrom: parseMaybeNumber(sp.get("changedAtFrom")),
     changedAtTo: parseMaybeNumber(sp.get("changedAtTo")),
     propFilters: propFilters.length > 0 ? propFilters : undefined,
     sortField:
-      sp.get("sortField") === "ref" || sp.get("sortField") === "collection"
-        ? (sp.get("sortField") as "ref" | "collection")
+      sp.get("sortField") === "collection"
+        ? "collection"
         : sp.get("sortField") === "changedAt"
           ? "changedAt"
           : undefined,
@@ -69,7 +68,6 @@ export function buildItemQuerySearchParams(
   const sp = new URLSearchParams();
 
   if (!options.lockedCollection && input.collection) sp.set("collection", input.collection);
-  if (input.search) sp.set("search", input.search);
   if (typeof input.changedAtFrom === "number") sp.set("changedAtFrom", String(input.changedAtFrom));
   if (typeof input.changedAtTo === "number") sp.set("changedAtTo", String(input.changedAtTo));
   if (input.sortField) sp.set("sortField", input.sortField);

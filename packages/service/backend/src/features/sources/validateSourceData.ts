@@ -1,24 +1,5 @@
-/**
- * Source type constants
- */
-export const SourceType = {
-  NOTION: 0,
-  STRAPI: 1,
-  WEB: 2,
-} as const;
-
-export type SourceTypeValue = (typeof SourceType)[keyof typeof SourceType];
-
-/**
- * Web authentication type constants
- */
-export const WebAuthType = {
-  NONE: 0,
-  BEARER: 1,
-  BASIC: 2,
-} as const;
-
-export type WebAuthTypeValue = (typeof WebAuthType)[keyof typeof WebAuthType];
+import { SourceType } from "@contfu/core";
+import { WebAuthType } from "@contfu/svc-core";
 
 /**
  * Validation errors
@@ -32,10 +13,10 @@ export type ValidationError = {
  * Validate source data based on type.
  */
 export function validateSourceData(
-  type: number,
+  type: SourceType,
   url: string | null | undefined,
   credentials: string,
-  authType?: number,
+  authType?: WebAuthType,
 ): ValidationError[] {
   const errors: ValidationError[] = [];
 

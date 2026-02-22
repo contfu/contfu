@@ -26,7 +26,7 @@ export const POST: RequestHandler = async ({ request }) => {
         const productId = payload.productId;
         const status = payload.status;
         const currentPeriodEnd = payload.currentPeriodEnd
-          ? Math.floor(new Date(payload.currentPeriodEnd).getTime() / 1000)
+          ? new Date(payload.currentPeriodEnd)
           : null;
 
         // Find user by Polar customer ID

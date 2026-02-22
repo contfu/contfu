@@ -1,11 +1,10 @@
-import { and, asc, desc, eq, gte, like, lte, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, gte, lte, type SQL } from "drizzle-orm";
 import { db } from "../../infra/db/db";
+import { itemsTable } from "../../infra/db/schema";
 import { encodeId } from "../../infra/ids";
 import type { ItemData } from "../../infra/types/content-types";
-import { collectionTable, itemsTable } from "../../infra/db/schema";
-import { getCollectionId } from "../collections/getCollectionId";
 
-export type ItemSortField = "changedAt" | "ref" | "collection";
+export type ItemSortField = "changedAt" | "collection";
 export type SortDirection = "asc" | "desc";
 export type ItemPropFilterOperator = "eq" | "contains";
 
@@ -17,7 +16,6 @@ export type ItemPropFilter = {
 
 export type QueryItemsInput = {
   collection?: string;
-  search?: string;
   changedAtFrom?: number;
   changedAtTo?: number;
   propFilters?: ItemPropFilter[];
@@ -73,16 +71,6 @@ function normalizeSortDirection(input: SortDirection | undefined): SortDirection
   return input;
 }
 
-function parseJsonValue(value: string | null): unknown {
-  if (!value) return undefined;
-
-  try {
-    return JSON.parse(value);
-  } catch {
-    return undefined;
-  }
-}
-
 function coerceFilterValue(value: unknown): string {
   if (typeof value === "string") return value;
   if (typeof value === "number") return String(value);
@@ -121,14 +109,12 @@ function compareItems(
 
   if (sortField === "changedAt") {
     primary = a.changedAt - b.changedAt;
-  } else if (sortField === "ref") {
-    primary = a.ref.localeCompare(b.ref);
   } else {
     primary = a.collection.localeCompare(b.collection);
   }
 
   if (primary === 0) {
-    return a.ref.localeCompare(b.ref);
+    return a.id.localeCompare(b.id);
   }
 
   return sortDirection === "asc" ? primary : -primary;
@@ -144,23 +130,7 @@ export async function queryItems(input: QueryItemsInput = {}, ctx = db): Promise
 
   const collectionName = input.collection?.trim();
   if (collectionName) {
-    const collectionId = await getCollectionId(collectionName, ctx);
-    if (collectionId === null) {
-      return {
-        items: [],
-        total: 0,
-        page,
-        pageSize,
-        totalPages: 0,
-      };
-    }
-
-    whereConditions.push(eq(itemsTable.collection, collectionId));
-  }
-
-  const search = input.search?.trim();
-  if (search) {
-    whereConditions.push(like(sql`lower(${itemsTable.ref})`, `%${search.toLowerCase()}%`));
+    whereConditions.push(eq(itemsTable.collection, collectionName));
   }
 
   if (typeof input.changedAtFrom === "number") {
@@ -176,14 +146,10 @@ export async function queryItems(input: QueryItemsInput = {}, ctx = db): Promise
       ? sortDirection === "asc"
         ? asc(itemsTable.changedAt)
         : desc(itemsTable.changedAt)
-      : sortField === "ref"
-        ? sortDirection === "asc"
-          ? asc(itemsTable.ref)
-          : desc(itemsTable.ref)
-        : sortDirection === "asc"
-          ? asc(collectionTable.name)
-          : desc(collectionTable.name),
-    asc(itemsTable.ref),
+      : sortDirection === "asc"
+        ? asc(itemsTable.collection)
+        : desc(itemsTable.collection),
+    asc(itemsTable.id),
   ];
 
   const rawRows =
@@ -191,29 +157,28 @@ export async function queryItems(input: QueryItemsInput = {}, ctx = db): Promise
       ? await ctx
           .select()
           .from(itemsTable)
-          .innerJoin(collectionTable, eq(itemsTable.collection, collectionTable.id))
           .where(and(...whereConditions))
           .orderBy(...orderBy)
           .all()
       : await ctx
           .select()
           .from(itemsTable)
-          .innerJoin(collectionTable, eq(itemsTable.collection, collectionTable.id))
           .orderBy(...orderBy)
           .all();
 
   const filtered = rawRows
     .map((row): ItemData => {
-      const props = parseJsonValue(row.items.props);
-      const content = parseJsonValue(row.items.content);
+      const props = row.props;
+      const content = row.content;
 
       return {
-        id: encodeId(row.items.id),
-        ref: row.items.ref,
-        collection: row.collection.name,
+        id: encodeId(row.id),
+        sourceType: row.sourceType ?? null,
+        ref: row.ref ?? null,
+        collection: row.collection,
         props: (props && typeof props === "object" ? props : {}) as Record<string, unknown>,
         content: Array.isArray(content) ? content : undefined,
-        changedAt: row.items.changedAt,
+        changedAt: row.changedAt,
         links: { content: [] },
       };
     })

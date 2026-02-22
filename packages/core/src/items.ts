@@ -13,3 +13,14 @@ export type Item<T extends PageProps = Record<never, never>> = {
   props: T;
   content?: Block[];
 };
+
+/**
+ * Source type constants
+ */
+export const SourceType = {
+  NOTION: 0,
+  STRAPI: 1,
+  WEB: 2,
+} as const;
+
+export type SourceType = (typeof SourceType)[keyof typeof SourceType];

@@ -1,16 +1,16 @@
-import { describe, expect, it, beforeEach } from "bun:test";
+import { SourceType } from "@contfu/core";
+import { beforeEach, describe, expect, it } from "bun:test";
+import crypto from "node:crypto";
 import { db } from "../../infra/db/db";
 import {
-  userTable,
-  consumerTable,
-  sourceTable,
-  sourceCollectionTable,
   collectionTable,
+  consumerTable,
   influxTable,
+  sourceCollectionTable,
+  sourceTable,
+  userTable,
 } from "../../infra/db/schema";
 import { createConnection } from "./createConnection";
-import crypto from "node:crypto";
-import { SourceType } from "@contfu/svc-core";
 
 describe("createConnection", () => {
   beforeEach(async () => {

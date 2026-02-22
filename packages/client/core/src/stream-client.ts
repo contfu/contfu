@@ -1,26 +1,29 @@
 import {
-  Block,
   EventType,
+  SourceType,
   WIRE_PING,
-  WireEvent,
-  WireItem,
   type Item as InternalItem,
   type PageProps,
+  type Block,
+  type WireEvent,
+  type WireItem,
 } from "@contfu/core";
 import { unpack } from "msgpackr";
 
-/** Item as received by consumers — collection is an encoded string ID */
+/** Item as received by consumers — collection is the collection name. */
 export type Item<T extends PageProps = Record<never, never>> = Omit<
   InternalItem<T>,
-  "collection"
+  "collection" | "ref"
 > & {
-  ref: Buffer | null;
+  sourceType: SourceType | null;
+  ref: string | null;
   collection: string;
 };
 
-export type ChangedEvent = { type: typeof EventType.CHANGED; item: Item };
-export type DeletedEvent = { type: typeof EventType.DELETED; item: Buffer };
-export type ItemEvent = ChangedEvent | DeletedEvent;
+export type ChangedEvent = { type: typeof EventType.CHANGED; item: Item; index: number };
+export type DeletedEvent = { type: typeof EventType.DELETED; item: Buffer; index: number };
+export type SyncEvent = ChangedEvent | DeletedEvent;
+export type ItemEvent = SyncEvent;
 
 /** Emitted when stream connection is established. */
 export type StreamConnectedEvent = { type: "stream:connected" };
@@ -31,17 +34,6 @@ export type StreamDisconnectedEvent = { type: "stream:disconnected"; reason?: st
 /** Connection lifecycle events. */
 export type StreamEvent = StreamConnectedEvent | StreamDisconnectedEvent;
 
-/** Item event extended with event index from JetStream replay. */
-export type IndexedItemEvent = ItemEvent & { eventIndex: number };
-
-/** Thrown when the event index has expired (410 Gone). Consumer should full resync. */
-export class IndexExpiredError extends Error {
-  constructor() {
-    super("Event index expired, full resync required");
-    this.name = "IndexExpiredError";
-  }
-}
-
 function getEnv(name: string): string | undefined {
   const g = globalThis as { process?: { env?: Record<string, string | undefined> } };
   return g.process?.env?.[name];
@@ -50,7 +42,7 @@ function getEnv(name: string): string | undefined {
 type BaseOpts = {
   /** Consumer key. If not provided, CONTFU_API_KEY env var (base64url) is used. */
   key?: Buffer;
-  /** Stream endpoint URL. Defaults to CONTFU_API_URL env var or http://localhost:5173/api/stream */
+  /** Sync endpoint URL. Defaults to CONTFU_API_URL env var or http://localhost:5173/api/sync */
   url?: string;
   /** Event index to replay from. Events since this index will be replayed before live events. */
   from?: number;
@@ -65,40 +57,13 @@ type BaseOpts = {
 type OptsWithConnectionEvents = BaseOpts & { connectionEvents: true };
 type OptsWithoutConnectionEvents = BaseOpts & { connectionEvents?: false };
 
-/**
- * Connect to the binary stream endpoint.
- *
- * Returns an async generator that yields events directly as they arrive.
- * Connection and reconnection are handled automatically.
- *
- * The consumer key can be provided via opts or the `CONTFU_API_KEY` environment variable (base64url-encoded).
- *
- * @example
- * ```ts
- * // Simple usage - key from CONTFU_API_KEY env var
- * for await (const event of connectToStream()) {
- *   console.log(event.type, event);
- * }
- *
- * // With explicit key and connection lifecycle events
- * for await (const event of connectToStream({ key, connectionEvents: true })) {
- *   if (event.type === "stream:connected") {
- *     console.log("Connected!");
- *   } else if (event.type === "stream:disconnected") {
- *     console.log("Disconnected:", event.reason);
- *   } else {
- *     console.log(event.type, event);
- *   }
- * }
- * ```
- */
 export function connectToStream(
   opts: OptsWithConnectionEvents,
-): AsyncGenerator<ItemEvent | StreamEvent>;
-export function connectToStream(opts?: OptsWithoutConnectionEvents): AsyncGenerator<ItemEvent>;
+): AsyncGenerator<SyncEvent | StreamEvent>;
+export function connectToStream(opts?: OptsWithoutConnectionEvents): AsyncGenerator<SyncEvent>;
 export async function* connectToStream(
   opts: BaseOpts & { connectionEvents?: boolean } = {},
-): AsyncGenerator<ItemEvent | StreamEvent> {
+): AsyncGenerator<SyncEvent | StreamEvent> {
   const {
     from,
     reconnect = false,
@@ -114,66 +79,83 @@ export async function* connectToStream(
     throw new Error("No consumer key provided. Pass opts.key or set CONTFU_API_KEY.");
   }
 
-  const params = new URLSearchParams();
-  params.set("key", key.toString("base64url"));
-  if (from != null) {
-    params.set("from", from.toString());
-  }
-
-  // Support both API base URLs (e.g. /api) and full stream URLs (e.g. /api/stream).
   const baseUrl = apiUrl.replace(/\/$/, "");
-  const streamEndpoint = /\/stream(?:$|\?)/.test(baseUrl) ? baseUrl : `${baseUrl}/stream`;
-  const separator = streamEndpoint.includes("?") ? "&" : "?";
-  const streamUrl = `${streamEndpoint}${separator}${params.toString()}`;
+  const syncEndpoint = /\/sync(?:$|\?)/.test(baseUrl) ? baseUrl : `${baseUrl}/sync`;
+  const heartbeatEndpoint = buildHeartbeatUrl(syncEndpoint, key);
 
   let reconnectDelay = initialReconnectDelay;
-  // Always try at least once; reconnect controls retries on failure
   let shouldReconnect = true;
+  let nextFrom = from;
+  let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+  let lastStreamActivityAt = 0;
+  let currentReader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+
+  const startHeartbeat = () => {
+    lastStreamActivityAt = Date.now();
+    void sendHeartbeat(heartbeatEndpoint);
+    heartbeatTimer = setInterval(() => {
+      if (Date.now() - lastStreamActivityAt <= 20_000) {
+        void sendHeartbeat(heartbeatEndpoint);
+        return;
+      }
+
+      if (currentReader) {
+        void currentReader.cancel("Stream stalled");
+      }
+    }, 15_000);
+  };
+
+  const stopHeartbeat = () => {
+    if (heartbeatTimer) {
+      clearInterval(heartbeatTimer);
+      heartbeatTimer = null;
+    }
+    currentReader = null;
+  };
 
   while (shouldReconnect) {
     try {
-      const response = await fetch(streamUrl, {
+      const syncUrl = buildSyncUrl(syncEndpoint, key, nextFrom);
+      const response = await fetch(syncUrl, {
         headers: { Accept: "application/octet-stream" },
       });
 
       if (!response.ok) {
-        if (response.status === 410) {
-          throw new IndexExpiredError();
-        }
         const text = await response.text();
-        throw new Error(`Stream connection failed: ${response.status} ${text}`);
+        throw new Error(`Sync connection failed: ${response.status} ${text}`);
       }
 
       if (!response.body) {
         throw new Error("Streaming not supported in this environment");
       }
 
-      // HTTP 200 = connected — reset reconnect delay and emit lifecycle event
       reconnectDelay = initialReconnectDelay;
+      startHeartbeat();
       if (connectionEvents) {
         yield { type: "stream:connected" };
       }
 
       const reader = response.body.getReader();
+      currentReader = reader;
       let buffer = new Uint8Array(0);
 
       while (true) {
         const { value, done } = await reader.read();
 
         if (done) {
+          stopHeartbeat();
           if (connectionEvents) {
             yield { type: "stream:disconnected", reason: "Stream ended" };
           }
           break;
         }
+        lastStreamActivityAt = Date.now();
 
-        // Append to buffer
         const newBuffer = new Uint8Array(buffer.length + value.length);
         newBuffer.set(buffer);
         newBuffer.set(value, buffer.length);
         buffer = newBuffer;
 
-        // Process complete messages
         while (buffer.length >= 4) {
           const view = new DataView(buffer.buffer, buffer.byteOffset, 4);
           const messageLength = view.getUint32(0, false);
@@ -187,14 +169,13 @@ export async function* connectToStream(
           const event = fromWireEvent(wireEvent);
 
           if (event) {
+            nextFrom = event.index + 1;
             yield event;
           }
         }
       }
     } catch (err) {
-      if (err instanceof IndexExpiredError) {
-        throw err;
-      }
+      stopHeartbeat();
       if (connectionEvents && !(err instanceof Error && err.message.startsWith("Stream error:"))) {
         yield {
           type: "stream:disconnected",
@@ -202,13 +183,11 @@ export async function* connectToStream(
         };
       }
 
-      // Don't reconnect if reconnect option is false
       if (!shouldReconnect || !reconnect) {
         throw err;
       }
     }
 
-    // Exit if reconnection is disabled
     if (!reconnect) break;
     if (!shouldReconnect) break;
 
@@ -217,19 +196,48 @@ export async function* connectToStream(
   }
 }
 
-/**
- * Convert wire format back to typed events.
- */
-function fromWireEvent(wireEvent: WireEvent): ItemEvent | null {
+function buildHeartbeatUrl(syncEndpoint: string, key: Buffer): string {
+  const base = syncEndpoint.replace(/\/sync(?:\?.*)?$/, "/sync/heartbeat");
+  const params = new URLSearchParams();
+  params.set("key", key.toString("base64url"));
+  return `${base}?${params.toString()}`;
+}
+
+async function sendHeartbeat(url: string): Promise<void> {
+  try {
+    await fetch(url, { method: "POST" });
+  } catch {
+    // ignore heartbeat transport failures; stream reconnection handles hard failures
+  }
+}
+
+function buildSyncUrl(endpoint: string, key: Buffer, from?: number): string {
+  const params = new URLSearchParams();
+  params.set("key", key.toString("base64url"));
+  if (from != null) {
+    params.set("from", from.toString());
+  }
+  const separator = endpoint.includes("?") ? "&" : "?";
+  return `${endpoint}${separator}${params.toString()}`;
+}
+
+function fromWireEvent(wireEvent: WireEvent): SyncEvent | null {
   const type = wireEvent[0];
 
   switch (type) {
     case EventType.CHANGED: {
       const wireItem = wireEvent[1] as WireItem;
-      const [ref, id, collection, changedAt, props, content] = wireItem;
+      const [sourceType, ref, id, collection, changedAt, props, content] = wireItem;
+      const index = wireEvent[2];
+
+      if (typeof index !== "number") {
+        console.warn("Ignoring CHANGED event without sync index");
+        return null;
+      }
 
       const item: Item = {
-        ref: ref ? Buffer.from(ref) : null,
+        sourceType,
+        ref: typeof ref === "string" ? ref : null,
         id: Buffer.from(id),
         collection,
         changedAt,
@@ -238,24 +246,22 @@ function fromWireEvent(wireEvent: WireEvent): ItemEvent | null {
       if (content) {
         item.content = content as Block[];
       }
-      const event: ChangedEvent = { type: EventType.CHANGED, item };
-      const eventIndex = wireEvent[2] as number | undefined;
-      if (eventIndex != null) {
-        return { ...event, eventIndex } as IndexedItemEvent;
-      }
-      return event;
+
+      return { type: EventType.CHANGED, item, index };
     }
 
     case EventType.DELETED: {
-      const event: DeletedEvent = {
+      const index = wireEvent[2];
+      if (typeof index !== "number") {
+        console.warn("Ignoring DELETED event without sync index");
+        return null;
+      }
+
+      return {
         type: EventType.DELETED,
         item: Buffer.from(wireEvent[1] as Uint8Array),
+        index,
       };
-      const eventIndex = wireEvent[2] as number | undefined;
-      if (eventIndex != null) {
-        return { ...event, eventIndex } as IndexedItemEvent;
-      }
-      return event;
     }
 
     case WIRE_PING:
@@ -267,9 +273,6 @@ function fromWireEvent(wireEvent: WireEvent): ItemEvent | null {
   }
 }
 
-/**
- * Deserialize props, converting Uint8Array arrays back to Buffer.
- */
 function deserializeProps(props: Record<string, unknown>): Record<string, unknown> {
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(props)) {

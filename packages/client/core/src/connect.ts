@@ -1,9 +1,9 @@
-import { connectToStream, type ItemEvent, type StreamEvent } from "./stream-client";
+import { connectToStream, type StreamEvent, type SyncEvent } from "./stream-client";
 
 type BaseOpts = {
   /** Consumer key. If not provided, CONTFU_API_KEY env var (base64url) is used. */
   key?: Buffer;
-  /** Base URL (without /api/stream path). Defaults to CONTFU_API_URL env var or http://localhost:5173 */
+  /** Base URL (without /api/sync path). Defaults to CONTFU_API_URL env var or http://localhost:5173 */
   baseUrl?: string;
   /** Event index to replay from. Events since this index will be replayed before live events. */
   from?: number;
@@ -49,13 +49,13 @@ type OptsWithoutConnectionEvents = BaseOpts & { connectionEvents?: false };
  * }
  * ```
  */
-export function connect(opts: OptsWithConnectionEvents): AsyncGenerator<ItemEvent | StreamEvent>;
-export function connect(opts?: OptsWithoutConnectionEvents): AsyncGenerator<ItemEvent>;
+export function connect(opts: OptsWithConnectionEvents): AsyncGenerator<SyncEvent | StreamEvent>;
+export function connect(opts?: OptsWithoutConnectionEvents): AsyncGenerator<SyncEvent>;
 export function connect(
   opts: BaseOpts & { connectionEvents?: boolean } = {},
-): AsyncGenerator<ItemEvent | StreamEvent> {
+): AsyncGenerator<SyncEvent | StreamEvent> {
   const { baseUrl = "https://contfu.com", key, from, connectionEvents, ...rest } = opts;
-  const streamUrl = baseUrl != null ? baseUrl + "/api/stream" : undefined;
+  const streamUrl = baseUrl != null ? baseUrl + "/api/sync" : undefined;
 
   if (connectionEvents) {
     return connectToStream({ key, url: streamUrl, from, connectionEvents: true, ...rest });

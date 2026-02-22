@@ -25,9 +25,9 @@ export default defineConfig({
   timeout: 180_000, // 3 minutes per test - servers take time
   globalTimeout: 300_000, // 5 minutes total for all tests
   use: {
-    trace: "on-first-retry",
+    trace: process.env.CI ? "off" : "on-first-retry",
     screenshot: "only-on-failure",
-    video: "retain-on-failure",
+    video: process.env.CI ? "off" : "retain-on-failure",
   },
   projects: [
     {

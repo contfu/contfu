@@ -45,25 +45,19 @@ describe("queryItems", () => {
     expect(new Set(result.items.map((i) => i.collection))).toEqual(new Set(["articles"]));
   });
 
-  test("filters by search in ref", async () => {
-    const result = await queryItems({ search: "brav" });
-    expect(result.items).toHaveLength(1);
-    expect(result.items[0]?.ref).toBe("article/bravo");
-  });
-
   test("filters by inclusive changedAt range", async () => {
     const result = await queryItems({ changedAtFrom: 100, changedAtTo: 150, sortDirection: "asc" });
-    expect(result.items.map((i) => i.ref)).toEqual(["article/alpha", "guide/charlie"]);
+    expect(result.items.map((i) => i.id)).toEqual([makeId(1), makeId(3)]);
   });
 
   test("supports prop eq filter", async () => {
     const result = await queryItems({
       propFilters: [{ key: "featured", op: "eq", value: true }],
-      sortField: "ref",
+      sortField: "collection",
       sortDirection: "asc",
     });
 
-    expect(result.items.map((i) => i.ref)).toEqual(["article/alpha", "guide/charlie"]);
+    expect(result.items.map((i) => i.id)).toEqual([makeId(1), makeId(3)]);
   });
 
   test("supports prop contains filter on string values only", async () => {
@@ -72,7 +66,7 @@ describe("queryItems", () => {
     });
 
     expect(result.items).toHaveLength(1);
-    expect(result.items[0]?.ref).toBe("article/bravo");
+    expect(result.items[0]?.id).toBe(makeId(2));
   });
 
   test("combines prop filters with AND", async () => {
@@ -84,7 +78,7 @@ describe("queryItems", () => {
     });
 
     expect(result.items).toHaveLength(1);
-    expect(result.items[0]?.ref).toBe("guide/charlie");
+    expect(result.items[0]?.id).toBe(makeId(3));
   });
 
   test("sorts with stable ref tiebreaker", async () => {
@@ -97,7 +91,7 @@ describe("queryItems", () => {
     });
 
     const result = await queryItems({ sortField: "changedAt", sortDirection: "desc" });
-    expect(result.items.slice(0, 2).map((i) => i.ref)).toEqual(["article/able", "article/bravo"]);
+    expect(result.items.slice(0, 2).map((i) => i.id)).toEqual([makeId(2), makeId(4)]);
   });
 
   test("supports pagination and meta", async () => {
@@ -111,11 +105,11 @@ describe("queryItems", () => {
       });
     }
 
-    const result = await queryItems({ page: 2, pageSize: 10, sortField: "ref", sortDirection: "asc" });
+    const result = await queryItems({ page: 2, pageSize: 10, sortField: "changedAt", sortDirection: "asc" });
     expect(result.total).toBe(12);
     expect(result.totalPages).toBe(2);
     expect(result.items).toHaveLength(2);
-    expect(result.items[0]?.ref).toBe("extra/9");
+    expect(result.items[0]?.id).toBe(makeId(11));
   });
 
   test("returns empty items when page is out of range", async () => {

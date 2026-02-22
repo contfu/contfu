@@ -1,17 +1,28 @@
 <script lang="ts">
-  import { buildItemQuerySearchParams } from "$lib/query/item-query";
-  import { createSvelteTable, FlexRender, renderSnippet } from "$lib/components/ui/data-table";
   import { Button } from "$lib/components/ui/button";
+  import {
+    createSvelteTable,
+    FlexRender,
+    renderSnippet,
+  } from "$lib/components/ui/data-table";
   import { Input } from "$lib/components/ui/input";
   import { Label } from "$lib/components/ui/label";
   import * as Select from "$lib/components/ui/select";
   import * as Table from "$lib/components/ui/table";
+  import { SOURCE_TYPE_LABELS } from "$lib/domain/source";
+  import { buildItemQuerySearchParams } from "$lib/query/item-query";
   import {
     createColumnHelper,
     getCoreRowModel,
     type Row,
   } from "@tanstack/table-core";
-  import type { CollectionSummary, ItemData, QueryItemsInput, QueryItemsResult } from "contfu";
+  import type {
+    CollectionSummary,
+    ItemData,
+    QueryItemsInput,
+    QueryItemsResult,
+  } from "contfu";
+  import SourceTypeIcon from "./icons/SourceTypeIcon.svelte";
 
   type EditablePropFilter = {
     key: string;
@@ -27,7 +38,8 @@
     lockedCollection?: string;
   };
 
-  let { query, result, collections, basePath, lockedCollection }: Props = $props();
+  let { query, result, collections, basePath, lockedCollection }: Props =
+    $props();
 
   let propFilters = $state<EditablePropFilter[]>([]);
   let selectedCollection = $state("");
@@ -78,16 +90,19 @@
 
   const columnHelper = createColumnHelper<ItemData>();
   const columns = [
+    columnHelper.accessor("id", {
+      header: "id",
+      cell: ({ row }) => renderSnippet(idCell, { row }),
+    }),
     columnHelper.display({
       id: "ref",
       header: "ref",
       cell: ({ row }) => renderSnippet(refCell, { row }),
     }),
     columnHelper.accessor("collection", { header: "collection" }),
-    columnHelper.accessor("changedAt", { header: "changedAt" }),
-    columnHelper.accessor("id", {
-      header: "id",
-      cell: ({ row }) => renderSnippet(idCell, { row }),
+    columnHelper.accessor("changedAt", {
+      header: "changedAt",
+      cell: ({ row }) => renderSnippet(changedAtCell, { row }),
     }),
   ];
 
@@ -100,12 +115,32 @@
   });
 </script>
 
-{#snippet refCell({ row }: { row: Row<ItemData> })}
-  <Button class="h-auto p-0" variant="link" href={`/items/${row.original.id}`}>{row.original.ref}</Button>
+{#snippet idCell({ row }: { row: Row<ItemData> })}
+  <Button class="h-auto p-0" variant="link" href={`/items/${row.original.id}`}>
+    {row.original.id}
+  </Button>
 {/snippet}
 
-{#snippet idCell({ row }: { row: Row<ItemData> })}
-  <span class="font-mono text-xs">{row.original.id}</span>
+{#snippet refCell({ row }: { row: Row<ItemData> })}
+  {@const { sourceType, ref } = row.original}
+  {#if sourceType && ref}
+    <Button
+      class="h-auto gap-1 p-0"
+      variant="link"
+      href={ref}
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      {SOURCE_TYPE_LABELS[sourceType]}
+      <SourceTypeIcon type={sourceType} class="h-3.5 w-3.5" />
+    </Button>
+  {/if}
+{/snippet}
+
+{#snippet changedAtCell({ row }: { row: Row<ItemData> })}
+  <time datetime={new Date(row.original.changedAt).toISOString()}>
+    {new Date(row.original.changedAt).toLocaleString()}
+  </time>
 {/snippet}
 
 <div class="space-y-6">
@@ -113,7 +148,9 @@
     <div class="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
       {#if !lockedCollection}
         <div class="text-sm">
-          <Label class="mb-1 block text-muted-foreground" for="collection">Collection</Label>
+          <Label class="mb-1 block text-muted-foreground" for="collection"
+            >Collection</Label
+          >
           <Select.Root type="single" bind:value={selectedCollection}>
             <Select.Trigger id="collection" class="w-full">
               {selectedCollection || "All collections"}
@@ -121,7 +158,9 @@
             <Select.Content>
               <Select.Item value="">All collections</Select.Item>
               {#each collections as collection}
-                <Select.Item value={collection.name}>{collection.name}</Select.Item>
+                <Select.Item value={collection.name}
+                  >{collection.name}</Select.Item
+                >
               {/each}
             </Select.Content>
           </Select.Root>
@@ -130,29 +169,39 @@
       {/if}
 
       <div class="text-sm">
-        <Label class="mb-1 block text-muted-foreground" for="search">Search ref</Label>
-        <Input id="search" name="search" type="text" value={query.search ?? ""} placeholder="article/..." />
+        <Label class="mb-1 block text-muted-foreground" for="changedAtFrom"
+          >Changed from</Label
+        >
+        <Input
+          id="changedAtFrom"
+          name="changedAtFrom"
+          type="number"
+          value={query.changedAtFrom ?? ""}
+        />
       </div>
 
       <div class="text-sm">
-        <Label class="mb-1 block text-muted-foreground" for="changedAtFrom">Changed from</Label>
-        <Input id="changedAtFrom" name="changedAtFrom" type="number" value={query.changedAtFrom ?? ""} />
+        <Label class="mb-1 block text-muted-foreground" for="changedAtTo"
+          >Changed to</Label
+        >
+        <Input
+          id="changedAtTo"
+          name="changedAtTo"
+          type="number"
+          value={query.changedAtTo ?? ""}
+        />
       </div>
 
       <div class="text-sm">
-        <Label class="mb-1 block text-muted-foreground" for="changedAtTo">Changed to</Label>
-        <Input id="changedAtTo" name="changedAtTo" type="number" value={query.changedAtTo ?? ""} />
-      </div>
-
-      <div class="text-sm">
-        <Label class="mb-1 block text-muted-foreground" for="sortField">Sort field</Label>
+        <Label class="mb-1 block text-muted-foreground" for="sortField"
+          >Sort field</Label
+        >
         <Select.Root type="single" bind:value={selectedSortField}>
           <Select.Trigger id="sortField" class="w-full">
             {selectedSortField}
           </Select.Trigger>
           <Select.Content>
             <Select.Item value="changedAt">changedAt</Select.Item>
-            <Select.Item value="ref">ref</Select.Item>
             <Select.Item value="collection">collection</Select.Item>
           </Select.Content>
         </Select.Root>
@@ -160,7 +209,9 @@
       </div>
 
       <div class="text-sm">
-        <Label class="mb-1 block text-muted-foreground" for="sortDirection">Direction</Label>
+        <Label class="mb-1 block text-muted-foreground" for="sortDirection"
+          >Direction</Label
+        >
         <Select.Root type="single" bind:value={selectedSortDirection}>
           <Select.Trigger id="sortDirection" class="w-full">
             {selectedSortDirection}
@@ -170,11 +221,17 @@
             <Select.Item value="asc">asc</Select.Item>
           </Select.Content>
         </Select.Root>
-        <input type="hidden" name="sortDirection" value={selectedSortDirection} />
+        <input
+          type="hidden"
+          name="sortDirection"
+          value={selectedSortDirection}
+        />
       </div>
 
       <div class="text-sm">
-        <Label class="mb-1 block text-muted-foreground" for="pageSize">Page size</Label>
+        <Label class="mb-1 block text-muted-foreground" for="pageSize"
+          >Page size</Label
+        >
         <Select.Root type="single" bind:value={selectedPageSize}>
           <Select.Trigger id="pageSize" class="w-full">
             {selectedPageSize}
@@ -194,7 +251,12 @@
       <div class="text-sm font-medium">Property filters</div>
       {#each propFilters as filter, idx}
         <div class="grid gap-2 md:grid-cols-[1fr_auto_1fr_auto]">
-          <Input name="propKey" type="text" bind:value={filter.key} placeholder="key" />
+          <Input
+            name="propKey"
+            type="text"
+            bind:value={filter.key}
+            placeholder="key"
+          />
           <Select.Root type="single" bind:value={filter.op}>
             <Select.Trigger class="w-full">
               {filter.op}
@@ -205,11 +267,22 @@
             </Select.Content>
           </Select.Root>
           <input type="hidden" name="propOp" value={filter.op} />
-          <Input name="propValue" type="text" bind:value={filter.value} placeholder="value" />
-          <Button type="button" variant="outline" onclick={() => removeFilterRow(idx)}>Remove</Button>
+          <Input
+            name="propValue"
+            type="text"
+            bind:value={filter.value}
+            placeholder="value"
+          />
+          <Button
+            type="button"
+            variant="outline"
+            onclick={() => removeFilterRow(idx)}>Remove</Button
+          >
         </div>
       {/each}
-      <Button type="button" variant="outline" onclick={addFilterRow}>Add filter</Button>
+      <Button type="button" variant="outline" onclick={addFilterRow}
+        >Add filter</Button
+      >
     </div>
 
     <input type="hidden" name="page" value="1" />
@@ -228,7 +301,8 @@
   <div class="rounded-lg border bg-card p-4">
     <div class="mb-3 text-sm text-muted-foreground">
       {result.total} result{result.total === 1 ? "" : "s"} • page {result.page}
-      {#if result.totalPages > 0} of {result.totalPages}{/if}
+      {#if result.totalPages > 0}
+        of {result.totalPages}{/if}
     </div>
 
     <Table.Root>
@@ -238,7 +312,10 @@
             {#each headerGroup.headers as header}
               <Table.Head>
                 {#if !header.isPlaceholder}
-                  <FlexRender content={header.column.columnDef.header} context={header.getContext()} />
+                  <FlexRender
+                    content={header.column.columnDef.header}
+                    context={header.getContext()}
+                  />
                 {/if}
               </Table.Head>
             {/each}
@@ -251,23 +328,35 @@
             <Table.Row>
               {#each row.getVisibleCells() as cell}
                 <Table.Cell>
-                  <FlexRender content={cell.column.columnDef.cell} context={cell.getContext()} />
+                  <FlexRender
+                    content={cell.column.columnDef.cell}
+                    context={cell.getContext()}
+                  />
                 </Table.Cell>
               {/each}
             </Table.Row>
           {/each}
         {:else}
           <Table.Row>
-            <Table.Cell class="h-24 text-center" colspan={columns.length}>No items found</Table.Cell>
+            <Table.Cell class="h-24 text-center" colspan={columns.length}
+              >No items found</Table.Cell
+            >
           </Table.Row>
         {/if}
       </Table.Body>
     </Table.Root>
 
     <div class="mt-4 flex flex-wrap gap-2 text-sm">
-      <Button variant="outline" size="sm" href={createPageHref(1)}>First</Button>
-      <Button variant="outline" size="sm" href={createPageHref(Math.max(1, result.page - 1))}>Prev</Button>
-      <Button variant="outline" size="sm" href={createPageHref(result.page + 1)}>Next</Button>
+      <Button variant="outline" size="sm" href={createPageHref(1)}>First</Button
+      >
+      <Button
+        variant="outline"
+        size="sm"
+        href={createPageHref(Math.max(1, result.page - 1))}>Prev</Button
+      >
+      <Button variant="outline" size="sm" href={createPageHref(result.page + 1)}
+        >Next</Button
+      >
       <Button
         variant="outline"
         size="sm"

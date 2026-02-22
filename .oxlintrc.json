@@ -141,5 +141,5 @@
     "builtin": true
   },
   "globals": {},
-  "ignorePatterns": ["**/.svelte-kit/**"]
+  "ignorePatterns": ["**/.svelte-kit/**", "demos/consumer-app/**"]
 }

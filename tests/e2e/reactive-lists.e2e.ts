@@ -163,7 +163,14 @@ test.describe("Reactive List Updates", () => {
 
     // Verify connection appears WITHOUT page refresh
     // The connection should now be visible in the list
-    await expect(page.getByText("Test Collection for Connections")).toBeVisible({ timeout: 10000 });
+    const collectionsSection = page
+      .locator("section")
+      .filter({ has: page.getByRole("heading", { name: /^Collections$/i }) });
+    const connectionRow = collectionsSection
+      .locator("div.rounded-md.border")
+      .filter({ hasText: "Test Collection for Connections" })
+      .first();
+    await expect(connectionRow).toBeVisible({ timeout: 10000 });
     await expect(page.getByText("No collections connected")).not.toBeVisible();
 
     // Note: The disconnect part is skipped due to complex UI locator issues

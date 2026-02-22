@@ -1,5 +1,6 @@
 import { command, form, query } from "$app/server";
 import { getUserId } from "$lib/server/user";
+import { SourceType } from "@contfu/core";
 import type { BackendSourceWithCollectionCount } from "@contfu/svc-backend/domain/types";
 import { createSource as createSourceFeature } from "@contfu/svc-backend/features/sources/createSource";
 import { deleteSource as deleteSourceFeature } from "@contfu/svc-backend/features/sources/deleteSource";
@@ -8,7 +9,6 @@ import { getSourceWithCollectionCount } from "@contfu/svc-backend/features/sourc
 import { getSourceWithCredentials } from "@contfu/svc-backend/features/sources/getSourceWithCredentials";
 import { listSources } from "@contfu/svc-backend/features/sources/listSources";
 import {
-  SourceType,
   testSourceConnection,
   type ConnectionTestResult,
 } from "@contfu/svc-backend/features/sources/testSourceConnection";
@@ -16,7 +16,7 @@ import { updateSource as updateSourceFeature } from "@contfu/svc-backend/feature
 import { validateSourceData } from "@contfu/svc-backend/features/sources/validateSourceData";
 import { getProviderAccessToken } from "@contfu/svc-backend/infra/auth/linked-accounts";
 import { encodeId, idSchema } from "@contfu/svc-backend/infra/ids";
-import { CredentialsSource } from "@contfu/svc-core";
+import { CredentialsSource, WebAuthType } from "@contfu/svc-core";
 import {
   iterateDataSources,
   resolveDataSourceId,
@@ -52,29 +52,19 @@ export const getSource = query(v.object({ id: idSchema("source") }), async ({ id
   return encodeSource(source);
 });
 
+const stringToIntSchema = v.pipe(
+  v.string(),
+  v.transform((val) => Number.parseInt(val, 10)),
+);
 /**
  * Create a new source.
  */
 export const createSource = form(
   v.object({
     name: v.pipe(v.string(), v.nonEmpty("Name is required")),
-    type: v.pipe(
-      v.union([v.string(), v.number()]),
-      v.transform((val) => (typeof val === "string" ? Number.parseInt(val, 10) : val)),
-      v.number(),
-      v.minValue(0),
-      v.maxValue(2),
-    ),
+    type: v.pipe(stringToIntSchema, v.picklist(Object.values(SourceType))),
     url: v.optional(v.string()),
-    authType: v.optional(
-      v.pipe(
-        v.union([v.string(), v.number()]),
-        v.transform((val) => (typeof val === "string" ? Number.parseInt(val, 10) : val)),
-        v.number(),
-        v.minValue(0),
-        v.maxValue(2),
-      ),
-    ),
+    authType: v.optional(v.pipe(stringToIntSchema, v.picklist(Object.values(WebAuthType)))),
     _credentials: v.optional(v.string()),
     includeRef: v.optional(
       v.pipe(
@@ -180,12 +170,7 @@ export const updateSource = form(
     name: v.optional(v.pipe(v.string(), v.nonEmpty("Name cannot be empty"))),
     url: v.optional(v.string()),
     _credentials: v.optional(v.string()),
-    includeRef: v.optional(
-      v.pipe(
-        v.union([v.string(), v.boolean()]),
-        v.transform((val) => (typeof val === "boolean" ? val : val === "true")),
-      ),
-    ),
+    includeRef: v.optional(v.pipe(v.boolean())),
   }),
   async (data, issue) => {
     const userId = getUserId();
@@ -281,19 +266,9 @@ export const testConnection = command(
  */
 export const testNewConnection = command(
   v.object({
-    type: v.pipe(
-      v.union([v.string(), v.number()]),
-      v.transform((val) => (typeof val === "string" ? Number.parseInt(val, 10) : val)),
-      v.number(),
-    ),
+    type: v.pipe(v.picklist(Object.values(SourceType))),
     url: v.optional(v.string()),
-    authType: v.optional(
-      v.pipe(
-        v.union([v.string(), v.number()]),
-        v.transform((val) => (typeof val === "string" ? Number.parseInt(val, 10) : val)),
-        v.number(),
-      ),
-    ),
+    authType: v.optional(v.pipe(v.picklist(Object.values(WebAuthType)))),
     _credentials: v.optional(v.string()),
   }),
   async (data): Promise<ConnectionTestResult> => {

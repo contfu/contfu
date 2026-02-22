@@ -1,6 +1,8 @@
+import { SourceType } from "@contfu/core";
 import { matchesFilters } from "@contfu/svc-core";
-import { fetchNotionPage } from "@contfu/svc-sources/notion";
 import { uuidToBuffer } from "@contfu/svc-sources";
+import { fetchNotionPage } from "@contfu/svc-sources/notion";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { listInfluxesBySourceCollections } from "../../features/influxes/listInfluxesBySourceCollections";
 import { decryptCredentials } from "../crypto/credentials";
 import { db } from "../db/db";
@@ -12,13 +14,13 @@ import {
   sourceTable,
   webhookLogTable,
 } from "../db/schema";
+import { notionRefUrlFromRawUuid } from "../refs/encode-ref";
 import type { StreamServer } from "../stream/stream-server";
 import type { UserSyncItem } from "../sync-worker/messages";
-import { and, desc, eq, inArray } from "drizzle-orm";
-import { consumeWebhookFetches } from "./webhook-fetch-queue";
-import { acquireRateSlot } from "./rate-limiter";
 import { clearPending, isPending } from "./pending-kv";
+import { acquireRateSlot } from "./rate-limiter";
 import { getRateLimitForSourceType, type WebhookFetchJob } from "./types";
+import { consumeWebhookFetches } from "./webhook-fetch-queue";
 
 const MAX_LOGS_PER_SOURCE = 50;
 
@@ -218,6 +220,8 @@ async function processJob(job: WebhookFetchJob, streamServer: StreamServer): Pro
   for (const collectionId of targetCollectionIds) {
     const item: UserSyncItem = {
       ...result.item,
+      ref: notionRefUrlFromRawUuid(result.item.ref),
+      sourceType: SourceType.NOTION,
       user: job.userId,
       collection: collectionId,
     };
@@ -255,7 +259,7 @@ async function processJob(job: WebhookFetchJob, streamServer: StreamServer): Pro
   return itemsBroadcast;
 }
 
-async function getSourceType(userId: number, sourceId: number): Promise<number | null> {
+async function getSourceType(userId: number, sourceId: number): Promise<SourceType | null> {
   const [source] = await db
     .select({ type: sourceTable.type })
     .from(sourceTable)

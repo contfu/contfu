@@ -1,10 +1,9 @@
+import { SourceType } from "@contfu/core";
 import { beforeEach, describe, expect, it } from "bun:test";
-import { SourceType } from "@contfu/svc-core";
 import crypto from "node:crypto";
 import { truncateAllTables } from "../../../test/setup";
 import { db } from "../../infra/db/db";
 import {
-  collectionTable,
   connectionTable,
   consumerTable,
   influxTable,

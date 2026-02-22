@@ -1,18 +1,16 @@
 import {
   EventType,
   WIRE_PING,
-  type Item,
   type WireEvent,
   type WireItem,
   type WireItemEvent,
 } from "@contfu/core";
 import type { UserSyncItem } from "../sync-worker/messages";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { pack as msgpack } from "msgpackr";
 import { enqueueSyncJobs } from "../../features/sync-jobs/enqueueSyncJobs";
 import { collectionTable, connectionTable, consumerTable, db, influxTable } from "../db/db";
-import { encodeId } from "../ids";
-import { publishEvent } from "../nats/event-stream";
+import { publishEvent, type StoredWireItemEvent } from "../nats/event-stream";
 import type { ConnectionInfo } from "../types";
 
 /**
@@ -21,13 +19,12 @@ import type { ConnectionInfo } from "../types";
 type StreamConnection = {
   id: string;
   controller: ReadableStreamDefaultController<Uint8Array>;
-  /** Whether this connection wants indexed events (connected with ?from). */
-  indexed: boolean;
+  stalledSince: number | null;
 };
 
 class ConnectionError extends Error {
   constructor(
-    readonly code: "E_AUTH" | "E_CONFLICT" | "E_ACCESS",
+    readonly code: "E_AUTH" | "E_ACCESS",
     message?: string,
   ) {
     super(message);
@@ -45,6 +42,10 @@ const preAuthCache = new Map<
   string,
   { client: { id: number; userId: number }; timestamp: number }
 >();
+const PRE_AUTH_TTL_MS = 30 * 1000;
+const CONNECTION_STALL_TIMEOUT_MS = 60 * 1000;
+const CONSUMER_HEARTBEAT_TTL_MS = 45 * 1000;
+const consumerHeartbeat = new Map<string, number>();
 
 export class StreamServer {
   constructor() {}
@@ -53,19 +54,30 @@ export class StreamServer {
    * Returns true when the given consumer currently has a live stream connection.
    */
   isConsumerActive(userId: number, consumerId: number): boolean {
-    for (const info of consumerInfo.values()) {
-      if (info.userId === userId && info.consumerId === consumerId) {
-        return true;
-      }
+    this.pruneDeadConnections();
+    this.pruneHeartbeats();
+    const key = this.heartbeatKey(userId, consumerId);
+    const lastSeen = consumerHeartbeat.get(key);
+    if (lastSeen && Date.now() - lastSeen <= CONSUMER_HEARTBEAT_TTL_MS) {
+      return true;
     }
-    return false;
+    return this.findConsumerConnection(userId, consumerId) != null;
+  }
+
+  markConsumerHeartbeat(userId: number, consumerId: number): void {
+    const connection = this.findConsumerConnection(userId, consumerId);
+    if (connection && !this.updateConnectionHealth(connection)) {
+      this.removeConnection(connection.id);
+    }
+    consumerHeartbeat.set(this.heartbeatKey(userId, consumerId), Date.now());
   }
 
   /**
    * Pre-authenticate a consumer key before creating the stream.
    * Returns proper HTTP error codes (401, 409) instead of stream errors.
    */
-  async preAuthenticate(key: Buffer): Promise<{ error?: "E_AUTH" | "E_CONFLICT" | "E_ACCESS" }> {
+  async preAuthenticate(key: Buffer): Promise<{ error?: "E_AUTH" | "E_ACCESS" }> {
+    this.pruneDeadConnections();
     const client = await authenticateConsumer(key);
     if (!client) {
       return { error: "E_AUTH" };
@@ -74,7 +86,8 @@ export class StreamServer {
     const consumerKey = key.toString("hex");
     const existingConnection = consumerToConnection.get(consumerKey);
     if (existingConnection) {
-      return { error: "E_CONFLICT" };
+      // Allow reconnects by replacing the prior connection for this consumer key.
+      this.removeConnection(existingConnection.id);
     }
 
     // Store pre-auth info for finalizeConnection
@@ -90,13 +103,13 @@ export class StreamServer {
   async finalizeConnection(
     key: Buffer,
     controller: ReadableStreamDefaultController<Uint8Array>,
-    opts?: { indexed?: boolean },
   ): Promise<string | ConnectionError> {
+    this.pruneDeadConnections();
     const consumerKey = key.toString("hex");
 
-    // Get pre-auth info (with 30s expiry)
+    // Get pre-auth info (with expiry)
     const preAuth = preAuthCache.get(consumerKey);
-    if (!preAuth || Date.now() - preAuth.timestamp > 30000) {
+    if (!preAuth || Date.now() - preAuth.timestamp > PRE_AUTH_TTL_MS) {
       preAuthCache.delete(consumerKey);
       return new ConnectionError("E_AUTH");
     }
@@ -104,23 +117,24 @@ export class StreamServer {
 
     const { client } = preAuth;
 
-    // Double-check no connection exists (race condition protection)
+    // Replace stale/duplicate connection for the same key.
     const existingConnection = consumerToConnection.get(consumerKey);
     if (existingConnection) {
-      return new ConnectionError("E_CONFLICT");
+      this.removeConnection(existingConnection.id);
     }
 
     const connectionId = crypto.randomUUID();
     const connection: StreamConnection = {
       id: connectionId,
       controller,
-      indexed: opts?.indexed ?? false,
+      stalledSince: null,
     };
 
     try {
       consumerToConnection.set(consumerKey, connection);
       connectionToConsumer.set(connectionId, consumerKey);
       consumerInfo.set(consumerKey, { userId: client.userId, consumerId: client.id });
+      this.markConsumerHeartbeat(client.userId, client.id);
 
       // Enqueue sync jobs for collections this consumer is connected to
       const collectionIds = await getConsumerCollectionIds(client.userId, client.id);
@@ -159,10 +173,14 @@ export class StreamServer {
   removeConnection(connectionId: string) {
     const consumerKey = connectionToConsumer.get(connectionId);
     if (!consumerKey) return;
+    const info = consumerInfo.get(consumerKey);
 
     connectionToConsumer.delete(connectionId);
     consumerToConnection.delete(consumerKey);
     consumerInfo.delete(consumerKey);
+    if (info) {
+      consumerHeartbeat.delete(this.heartbeatKey(info.userId, info.consumerId));
+    }
   }
 
   /**
@@ -174,15 +192,53 @@ export class StreamServer {
   }
 
   /**
+   * Send a ping to an active connection and evict stale/dead streams.
+   * Returns false if the connection is gone or was removed.
+   */
+  sendPingForConnection(connectionId: string): boolean {
+    const consumerKey = connectionToConsumer.get(connectionId);
+    if (!consumerKey) return false;
+    const connection = consumerToConnection.get(consumerKey);
+    if (!connection) return false;
+
+    if (!this.updateConnectionHealth(connection)) {
+      this.removeConnection(connectionId);
+      return false;
+    }
+
+    try {
+      this.sendBinary(connection.controller, [WIRE_PING]);
+    } catch {
+      this.removeConnection(connectionId);
+      return false;
+    }
+
+    if (!this.updateConnectionHealth(connection)) {
+      this.removeConnection(connectionId);
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
    * Broadcasts items to connected stream consumers.
    * Also publishes each item event to JetStream for replay.
    */
   async broadcast(items: UserSyncItem[], connections: ConnectionInfo[]) {
+    this.pruneDeadConnections();
+    const collectionNameById = await getCollectionNamesByIds(
+      [...new Set(items.map((item) => item.collection))],
+      items[0]?.user,
+    );
+
     // Publish to JetStream and collect sequences per item (keyed by Item reference)
-    const itemSequences = new Map<Item, number>();
+    const itemSequences = new Map<UserSyncItem, number>();
     await Promise.all(
       items.map((item) => {
-        const wireEvent: WireItemEvent = [EventType.CHANGED, toWireItem(item)];
+        const collectionName =
+          collectionNameById.get(item.collection) ?? String(item.collection);
+        const wireEvent: StoredWireItemEvent = [EventType.CHANGED, toWireItem(item, collectionName)];
         return publishEvent(item.user, item.collection, wireEvent).then(
           (seq) => itemSequences.set(item, seq),
           (err) => console.error("JetStream publish error:", err),
@@ -190,7 +246,7 @@ export class StreamServer {
       }),
     );
 
-    const collectionItems = new Map<string, Item[]>();
+    const collectionItems = new Map<string, UserSyncItem[]>();
 
     for (const item of items) {
       const collectionKey = `${item.user}:${item.collection}`;
@@ -221,15 +277,11 @@ export class StreamServer {
         ) {
           continue;
         }
-        const wireItem = toWireItem(item, conn.includeRef);
-        if (connection.indexed) {
-          const seq = itemSequences.get(item);
-          if (seq) {
-            this.sendBinary(connection.controller, [EventType.CHANGED, wireItem, seq]);
-            continue;
-          }
-        }
-        this.sendBinary(connection.controller, [EventType.CHANGED, wireItem]);
+        const collectionName = collectionNameById.get(conn.collectionId) ?? String(conn.collectionId);
+        const wireItem = toWireItem(item, collectionName, conn.includeRef);
+        const seq = itemSequences.get(item);
+        if (!seq) continue;
+        this.sendBinary(connection.controller, [EventType.CHANGED, wireItem, seq]);
       }
     }
   }
@@ -239,8 +291,9 @@ export class StreamServer {
    * Also publishes the delete event to JetStream.
    */
   async broadcastDeleted(itemId: Buffer, connections: ConnectionInfo[]) {
+    this.pruneDeadConnections();
     // Publish DELETED to JetStream for each affected collection
-    const deletedWire: WireItemEvent = [EventType.DELETED, new Uint8Array(itemId)];
+    const deletedWire: StoredWireItemEvent = [EventType.DELETED, new Uint8Array(itemId)];
     const seqByCollection = new Map<number, number>();
     for (const conn of connections) {
       if (!seqByCollection.has(conn.collectionId)) {
@@ -260,38 +313,26 @@ export class StreamServer {
         }
       }
       if (!connection) continue;
-      if (connection.indexed) {
-        const seq = seqByCollection.get(conn.collectionId);
-        if (seq) {
-          this.sendBinary(connection.controller, [EventType.DELETED, new Uint8Array(itemId), seq]);
-          continue;
-        }
-      }
-      this.sendBinary(connection.controller, [EventType.DELETED, new Uint8Array(itemId)]);
+      const seq = seqByCollection.get(conn.collectionId);
+      if (!seq) continue;
+      this.sendBinary(connection.controller, [EventType.DELETED, new Uint8Array(itemId), seq]);
     }
   }
 
   /**
-   * Send a single wire item event (used by /api/sync endpoint).
-   */
-  sendItem(controller: ReadableStreamDefaultController<Uint8Array>, wireEvent: WireItemEvent) {
-    this.sendBinary(controller, wireEvent);
-  }
-
-  /**
-   * Send a wire item event with an appended sequence number (used by /api/stream replay).
+   * Send a single indexed wire item event (used by /api/sync endpoint).
    */
   sendIndexedItem(
     controller: ReadableStreamDefaultController<Uint8Array>,
     seq: number,
-    wireEvent: WireItemEvent,
+    wireEvent: StoredWireItemEvent,
     includeRef = true,
   ) {
     const [type, payload] = wireEvent;
     if (type === EventType.CHANGED && !includeRef) {
-      const [, id, collection, changedAt, props, content] = payload as WireItem;
-      const changedNoRef: WireItem = [null, id, collection, changedAt, props, content];
-      this.sendBinary(controller, [type, changedNoRef, seq] as WireItemEvent);
+      const [, , id, collection, changedAt, props, content] = payload as WireItem;
+      const changedNoRef: WireItem = [null, null, id, collection, changedAt, props, content];
+      this.sendBinary(controller, [type, changedNoRef, seq]);
       return;
     }
     this.sendBinary(controller, [type, payload, seq] as WireItemEvent);
@@ -316,16 +357,63 @@ export class StreamServer {
     controller.enqueue(lengthPrefix);
     controller.enqueue(encoded);
   }
+
+  private pruneDeadConnections() {
+    for (const connection of consumerToConnection.values()) {
+      if (!this.updateConnectionHealth(connection)) {
+        this.removeConnection(connection.id);
+      }
+    }
+  }
+
+  private updateConnectionHealth(connection: StreamConnection): boolean {
+    const desiredSize = connection.controller.desiredSize;
+    if (desiredSize === null) return false;
+
+    if (desiredSize <= 0) {
+      if (connection.stalledSince == null) {
+        connection.stalledSince = Date.now();
+        return true;
+      }
+      return Date.now() - connection.stalledSince <= CONNECTION_STALL_TIMEOUT_MS;
+    }
+
+    connection.stalledSince = null;
+    return true;
+  }
+
+  private heartbeatKey(userId: number, consumerId: number): string {
+    return `${userId}:${consumerId}`;
+  }
+
+  private findConsumerConnection(userId: number, consumerId: number): StreamConnection | null {
+    for (const [key, info] of consumerInfo.entries()) {
+      if (info.userId === userId && info.consumerId === consumerId) {
+        return consumerToConnection.get(key) ?? null;
+      }
+    }
+    return null;
+  }
+
+  private pruneHeartbeats() {
+    const now = Date.now();
+    for (const [key, lastSeen] of consumerHeartbeat.entries()) {
+      if (now - lastSeen > CONSUMER_HEARTBEAT_TTL_MS) {
+        consumerHeartbeat.delete(key);
+      }
+    }
+  }
 }
 
 /**
  * Convert an Item to wire item format.
  */
-export function toWireItem(item: Item, includeRef = true): WireItem {
+export function toWireItem(item: UserSyncItem, collectionName: string, includeRef = true): WireItem {
   const wireItem: WireItem = [
-    includeRef ? new Uint8Array(item.ref) : null,
+    includeRef ? item.sourceType : null,
+    includeRef ? item.ref : null,
     new Uint8Array(item.id),
-    encodeId("collection", item.collection),
+    collectionName,
     item.changedAt,
     serializeProps(item.props as Record<string, unknown>),
   ];
@@ -407,6 +495,27 @@ export async function getConsumerCollectionRefPolicy(
         Boolean(row.collectionIncludeRef),
     ]),
   );
+}
+
+export async function getCollectionNamesByIds(
+  collectionIds: number[],
+  userId?: number,
+): Promise<Map<number, string>> {
+  if (collectionIds.length === 0) return new Map();
+
+  const rows = await db
+    .select({ id: collectionTable.id, name: collectionTable.name })
+    .from(collectionTable)
+    .where(
+      userId == null
+        ? inArray(collectionTable.id, collectionIds)
+        : and(eq(collectionTable.userId, userId), inArray(collectionTable.id, collectionIds)),
+    );
+  const map = new Map<number, string>();
+  for (const row of rows) {
+    map.set(row.id, row.name);
+  }
+  return map;
 }
 
 async function getSourceCollectionIdsForCollections(

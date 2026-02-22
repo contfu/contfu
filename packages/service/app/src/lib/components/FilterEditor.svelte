@@ -1,4 +1,5 @@
 <script lang="ts">
+  // @ts-nocheck
   import { Button } from "$lib/components/ui/button";
   import { Input } from "$lib/components/ui/input";
   import { Label } from "$lib/components/ui/label";

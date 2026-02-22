@@ -6,7 +6,7 @@
  *   bun stream-cli.ts
  *
  * Environment variables:
- *   CONTFU_URL  - Stream endpoint URL (default: https://contfu.com/api/stream)
+ *   CONTFU_URL  - Sync endpoint URL (default: https://contfu.com/api/sync)
  *   CONTFU_KEY  - Consumer key in base64url format
  */
 
@@ -14,7 +14,7 @@ import { connectToStream } from "@contfu/client";
 import { EventType } from "@contfu/core";
 
 // Configuration from environment
-const CONTFU_URL = process.env.CONTFU_URL || "https://contfu.com/api/stream";
+const CONTFU_URL = process.env.CONTFU_URL || "https://contfu.com/api/sync";
 const CONTFU_KEY = process.env.CONTFU_KEY || "";
 
 if (!CONTFU_KEY) {

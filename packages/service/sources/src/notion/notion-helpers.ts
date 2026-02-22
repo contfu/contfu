@@ -32,7 +32,9 @@ export async function resolveDataSourceId(auth: string, id: string): Promise<str
   // First try to retrieve as a data source directly
   try {
     const ds = await notion.dataSources.retrieve({ auth, data_source_id: id });
-    return ds.id;
+    if (ds && typeof ds === "object" && "id" in ds && typeof ds.id === "string") {
+      return ds.id;
+    }
   } catch {
     // Not a data source ID, try as database ID
   }
@@ -50,17 +52,8 @@ export async function resolveDataSourceId(auth: string, id: string): Promise<str
 }
 
 export async function* iterateDb(key: string, ref: Buffer, params?: DbQuery) {
-  // ref is a database_id, we need to get the data_source_id from it
-  const db = await notion.databases.retrieve({
-    auth: key,
-    database_id: ref.toString("hex"),
-  });
-  if (!isFullDatabase(db)) return;
-
-  const dataSourceId = db.data_sources[0]?.id;
-  if (!dataSourceId) {
-    throw new Error(`No data sources found for database ${ref.toString("hex")}`);
-  }
+  const rawId = parseNotionRef(ref);
+  const dataSourceId = await resolveDataSourceId(key, rawId);
 
   for await (const pageObj of iteratePaginatedAPI(notion.dataSources.query, {
     auth: key,
@@ -69,6 +62,27 @@ export async function* iterateDb(key: string, ref: Buffer, params?: DbQuery) {
   })) {
     if (pageObj.object === "page" && isFullPage(pageObj)) yield pageObj;
   }
+}
+
+/** Parse a stored source collection ref into a Notion database/data source ID. */
+export function parseNotionRef(ref: Buffer): string {
+  if (ref.length === 16) {
+    const asciiLike = [...ref].every((byte) => byte >= 32 && byte <= 126);
+    if (!asciiLike) {
+      return ref.toString("hex");
+    }
+  }
+
+  const utf8 = sanitizeId(ref.toString("utf8"));
+  if (/^[0-9a-fA-F-]{32,36}$/.test(utf8)) {
+    return utf8.replace(/-/g, "");
+  }
+
+  return utf8;
+}
+
+function sanitizeId(id: string): string {
+  return id.trim().replace(/^["'`]+|["'`]+$/g, "");
 }
 
 type Image =

@@ -8,6 +8,7 @@ export {
   assetTable,
   linkTable as itemLinkTable,
   itemsTable as itemTable,
+  syncTable,
   type AssetUpdate,
   type DbAsset,
   type DbItem,
@@ -20,11 +21,10 @@ export {
 } from "./infra/db/schema";
 
 // Stream exports
-export { connect } from "./features/stream/connect";
 export type { ItemEvent } from "@contfu/client";
-
-// Sync exports
-export { sync, type SyncOptions, type SyncSource } from "./infra/sync/sync";
+export { connect } from "./features/stream/connect";
+export { getSyncIndex } from "./features/sync/getSyncIndex";
+export { setSyncIndex } from "./features/sync/setSyncIndex";
 
 // Item exports
 export { createItem } from "./features/items/createItem";
@@ -37,7 +37,6 @@ export { deleteOutgoingItemLinks } from "./features/items/deleteOutgoingItemLink
 export { getItem } from "./features/items/getItem";
 export { getItemIdsByCollection } from "./features/items/getItemIdsByCollection";
 export { getItemLinks } from "./features/items/getItemLinks";
-export { getItems } from "./features/items/getItems";
 export { getLastChangedItem } from "./features/items/getLastChangedItem";
 export {
   queryItems,
@@ -88,15 +87,8 @@ export {
 
 // Utility exports
 export { countAssets } from "./features/assets/countAssets";
-export { getCollectionId } from "./features/collections/getCollectionId";
-export { getCollectionName } from "./features/collections/getCollectionName";
-export { getOrCreateCollection } from "./features/collections/getOrCreateCollection";
 export { countCollections } from "./features/collections/countCollections";
-export {
-  listCollections,
-  type CollectionSummary,
-} from "./features/collections/listCollections";
+export { listCollections, type CollectionSummary } from "./features/collections/listCollections";
 export { countItems } from "./features/items/countItems";
-export { hashId } from "./util/crypto";
 export { deleteNulls } from "./util/object-helpers";
 export { detectRuntime } from "./util/runtime";

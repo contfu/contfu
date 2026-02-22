@@ -3,6 +3,7 @@
   "version": "0.0.1",
   "type": "module",
   "main": "src/index.ts",
+  "dependencies": {},
   "scripts": {
     "test": "bun test",
     "clean": "rm -rf dist"

@@ -1,6 +1,6 @@
 import { command, form, query } from "$app/server";
 import { getUserId } from "$lib/server/user";
-import type { CollectionSchema, Filter } from "@contfu/svc-core";
+import { SourceType } from "@contfu/core";
 import type { BackendInfluxWithDetails } from "@contfu/svc-backend/domain/types";
 import { addInfluxWithSourceCollection } from "@contfu/svc-backend/features/influxes";
 import { deleteInflux as deleteInfluxFeature } from "@contfu/svc-backend/features/influxes/deleteInflux";
@@ -9,10 +9,10 @@ import { updateInflux as updateInfluxFeature } from "@contfu/svc-backend/feature
 import { listCollectionSummariesBySource } from "@contfu/svc-backend/features/source-collections/listCollectionSummariesBySource";
 import { getSourceWithCredentials } from "@contfu/svc-backend/features/sources/getSourceWithCredentials";
 import { listSources } from "@contfu/svc-backend/features/sources/listSources";
-import { SourceType } from "@contfu/svc-backend/features/sources/testSourceConnection";
 import { db } from "@contfu/svc-backend/infra/db/db";
 import { influxTable } from "@contfu/svc-backend/infra/db/schema";
 import { encodeId, idSchema } from "@contfu/svc-backend/infra/ids";
+import type { CollectionSchema, Filter } from "@contfu/svc-core";
 import {
   iterateDataSources,
   notionPropertiesToSchema,

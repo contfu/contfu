@@ -1,18 +1,20 @@
+import { getStreamServer } from "$lib/server/startup";
+import { SourceType } from "@contfu/core";
+import { listInfluxesBySourceCollections } from "@contfu/svc-backend/features/influxes/listInfluxesBySourceCollections";
 import { decryptCredentials } from "@contfu/svc-backend/infra/crypto/credentials";
 import { db } from "@contfu/svc-backend/infra/db/db";
 import {
   collectionTable,
-  sourceCollectionTable,
   connectionTable,
   consumerTable,
+  sourceCollectionTable,
   sourceTable,
   webhookLogTable,
 } from "@contfu/svc-backend/infra/db/schema";
-import { listInfluxesBySourceCollections } from "@contfu/svc-backend/features/influxes/listInfluxesBySourceCollections";
-import { getStreamServer } from "$lib/server/startup";
-import { encodeStrapiRef, genUid } from "@contfu/svc-sources";
-import { SourceType, matchesFilters } from "@contfu/svc-core";
 import type { UserSyncItem } from "@contfu/svc-backend/infra/sync-worker/messages";
+import { strapiRefUrl } from "@contfu/svc-backend/infra/refs/encode-ref";
+import { matchesFilters } from "@contfu/svc-core";
+import { genUid } from "@contfu/svc-sources";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import crypto from "node:crypto";
 import type { RequestHandler } from "./$types";
@@ -134,11 +136,7 @@ function entryToItem(
 ): UserSyncItem {
   const documentId = entry.documentId ?? String(entry.id);
   const rawRef = Buffer.from(documentId, "utf8");
-  const ref = encodeStrapiRef({
-    baseUrl: sourceUrl,
-    contentTypeUid: Buffer.from(contentTypeUid, "utf8"),
-    documentId,
-  });
+  const ref = strapiRefUrl(rawRef, sourceUrl, Buffer.from(contentTypeUid, "utf8"));
   const id = genUid(rawRef);
 
   const createdAt = new Date(entry.createdAt).getTime();
@@ -154,11 +152,10 @@ function entryToItem(
   return {
     user: userId,
     collection: collectionId,
+    sourceType: SourceType.STRAPI,
     ref,
     id,
-    createdAt,
     changedAt,
-    publishedAt,
     props,
   };
 }

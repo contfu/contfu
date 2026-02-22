@@ -1,8 +1,9 @@
-import { beforeEach, describe, expect, it } from "bun:test";
-import { PropertyType, SourceType } from "@contfu/svc-core";
+import { SourceType } from "@contfu/core";
+import { PropertyType } from "@contfu/svc-core";
 import { encode } from "@msgpack/msgpack";
-import crypto from "node:crypto";
+import { beforeEach, describe, expect, it } from "bun:test";
 import { eq } from "drizzle-orm";
+import crypto from "node:crypto";
 import { truncateAllTables } from "../../../test/setup";
 import { db } from "../../infra/db/db";
 import {

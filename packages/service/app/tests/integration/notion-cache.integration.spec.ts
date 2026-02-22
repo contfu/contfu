@@ -1,11 +1,12 @@
-import { beforeEach, describe, expect, it } from "bun:test";
-import { db } from "@contfu/svc-backend/infra/db/db";
-import { sourceTable, userTable, sourceCollectionTable } from "@contfu/svc-backend/infra/db/schema";
+import { SourceType } from "@contfu/core";
 import { encryptCredentials } from "@contfu/svc-backend/infra/crypto/credentials";
+import { db } from "@contfu/svc-backend/infra/db/db";
+import { sourceCollectionTable, sourceTable, userTable } from "@contfu/svc-backend/infra/db/schema";
+import { beforeEach, describe, expect, it } from "bun:test";
 import crypto from "node:crypto";
-import { truncateAllTables } from "../../test/setup";
 import { lru } from "tiny-lru";
 import type { DataSourceInfo } from "../../src/lib/remote/influxes.remote";
+import { truncateAllTables } from "../../test/setup";
 
 /**
  * Integration tests for the Notion cache probe-refresh flow.
@@ -42,9 +43,8 @@ describe.skipIf(isDbMocked)("Notion Cache Integration", () => {
       .insert(sourceTable)
       .values({
         userId: testUserId,
-        id: 1,
         uid: crypto.randomUUID(),
-        type: 1, // SourceType.NOTION
+        type: SourceType.NOTION,
         name: "Test Notion Source",
         credentials: encryptedCreds,
       })
@@ -137,9 +137,8 @@ describe.skipIf(isDbMocked)("Notion Cache Integration", () => {
         .values({
           userId: testUserId,
           sourceId: testSourceId,
-          id: 1,
           name: "Existing Collection",
-          refString: "db-123",
+          ref: Buffer.from("db-123", "utf8"),
         })
         .returning();
 
@@ -250,7 +249,7 @@ describe.skipIf(isDbMocked)("Notion Cache Integration", () => {
       // Valid source exists
       const validSourceId = testSourceId;
 
-      const sources = await db.select().from(sourceTable).where();
+      const sources = await db.select().from(sourceTable);
       const sourceExists = sources.some((s) => s.id === validSourceId);
 
       expect(sourceExists).toBe(true);
@@ -259,7 +258,7 @@ describe.skipIf(isDbMocked)("Notion Cache Integration", () => {
     it("should handle non-existent source gracefully", async () => {
       const nonExistentSourceId = 99999;
 
-      const sources = await db.select().from(sourceTable).where();
+      const sources = await db.select().from(sourceTable);
       const sourceExists = sources.some((s) => s.id === nonExistentSourceId);
 
       expect(sourceExists).toBe(false);
@@ -272,20 +271,15 @@ describe.skipIf(isDbMocked)("Notion Cache Integration", () => {
         .insert(sourceTable)
         .values({
           userId: testUserId,
-          id: 2,
           uid: crypto.randomUUID(),
-          type: 2, // SourceType.STRAPI
+          type: SourceType.STRAPI,
           name: "Test Strapi Source",
         })
         .returning();
 
-      // Verify type check
-      const notionType = 1;
-      const strapiType = 2;
-
       expect(testSourceId).toBe(1); // This is a Notion source
-      expect(strapiSource.type).toBe(strapiType);
-      expect(strapiSource.type).not.toBe(notionType);
+      expect(strapiSource.type).toBe(SourceType.STRAPI);
+      expect(strapiSource.type).not.toBe(SourceType.NOTION);
     });
   });
 

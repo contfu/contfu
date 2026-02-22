@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
 import type { PageProps } from "@contfu/core";
 import { genUid } from "../util/ids";
-import { encodeStrapiRef } from "../util/refs";
 import {
   articleEntry1,
   articleEntry2,
@@ -61,13 +60,7 @@ describe("StrapiSource", () => {
       // Verify items have correct structure
       const item1 = items[0];
       expect(item1.collection).toBe(1);
-      expect(item1.ref).toEqual(
-        encodeStrapiRef({
-          baseUrl: testOpts.url,
-          contentTypeUid: testOpts.ref,
-          documentId: "abc123def456",
-        }),
-      );
+      expect(item1.ref).toEqual(Buffer.from("abc123def456", "utf8"));
       expect(item1.id).toEqual(genUid(Buffer.from("abc123def456", "utf8")));
       expect(getProps(item1).title).toBe("Getting Started with Strapi");
 

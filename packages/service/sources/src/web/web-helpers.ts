@@ -1,4 +1,4 @@
-import { type WebAuthTypeValue, WebAuthType } from "./web";
+import { WebAuthType } from "@contfu/svc-core";
 
 /** Default timeout for web requests in milliseconds. */
 const DEFAULT_TIMEOUT_MS = 30000;
@@ -46,7 +46,7 @@ export function extractSlugFromUrl(url: string): string {
  * Returns undefined if no auth is required (NONE type or missing credentials).
  */
 export function buildAuthHeader(
-  authType: WebAuthTypeValue | undefined,
+  authType: WebAuthType | undefined,
   credentials: Buffer | undefined,
 ): string | undefined {
   if (!credentials || authType === WebAuthType.NONE || authType === undefined) {
@@ -71,7 +71,7 @@ export interface WebRequestOptions {
   /** Base URL of the website. */
   baseUrl: string;
   /** Authentication type. */
-  authType?: WebAuthTypeValue;
+  authType?: WebAuthType;
   /** Auth credentials (Bearer token or Base64-encoded Basic auth). */
   credentials?: Buffer;
   /** Request timeout in milliseconds. */
@@ -196,7 +196,7 @@ export interface ConnectionTestResult {
 
 export async function testWebConnection(
   baseUrl: string,
-  authType?: WebAuthTypeValue,
+  authType?: WebAuthType,
   credentials?: Buffer,
 ): Promise<ConnectionTestResult> {
   try {

@@ -1,7 +1,6 @@
 import type { Item, PageProps } from "@contfu/core";
 import { parse, type HTMLElement } from "node-html-parser";
 import { genUid } from "../util/ids";
-import { encodeWebRef } from "../util/refs";
 import { convertHtmlToBlocks, convertMarkdownToBlocks } from "./web-blocks";
 import {
   extractSlugFromUrl,
@@ -93,7 +92,6 @@ function parseHtmlItem(html: string, url: string, collection: number, lastModifi
 
   const now = Date.now();
   const rawRef = urlToBuffer(url);
-  const ref = encodeWebRef(url);
 
   const props: PageProps = {
     slug,
@@ -109,7 +107,7 @@ function parseHtmlItem(html: string, url: string, collection: number, lastModifi
   props.createdAt = lastModified ?? now;
   const item: Item = {
     id: genUid(rawRef),
-    ref,
+    ref: rawRef,
     collection,
     changedAt: lastModified ?? now,
     props,
@@ -138,7 +136,6 @@ function parseMarkdownItem(
 
   const now = Date.now();
   const rawRef = urlToBuffer(url);
-  const ref = encodeWebRef(url);
 
   const props: PageProps = {
     slug,
@@ -154,7 +151,7 @@ function parseMarkdownItem(
   props.createdAt = lastModified ?? now;
   const item: Item = {
     id: genUid(rawRef),
-    ref,
+    ref: rawRef,
     collection,
     changedAt: lastModified ?? now,
     props,
@@ -175,7 +172,6 @@ function parseJsonItem(json: string, url: string, collection: number, lastModifi
   const slug = extractSlugFromUrl(url);
   const now = Date.now();
   const rawRef = urlToBuffer(url);
-  const ref = encodeWebRef(url);
 
   let data: unknown;
   try {
@@ -193,7 +189,7 @@ function parseJsonItem(json: string, url: string, collection: number, lastModifi
   props.createdAt = lastModified ?? now;
   const item: Item = {
     id: genUid(rawRef),
-    ref,
+    ref: rawRef,
     collection,
     changedAt: lastModified ?? now,
     props,

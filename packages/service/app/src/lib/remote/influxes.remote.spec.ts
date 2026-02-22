@@ -1,14 +1,10 @@
-import { beforeEach, describe, expect, it, mock } from "bun:test";
+import { SourceType } from "@contfu/core";
 import { db } from "@contfu/svc-backend/infra/db/db";
-import {
-  collectionTable,
-  sourceCollectionTable,
-  sourceTable,
-  userTable,
-} from "@contfu/svc-backend/infra/db/schema";
+import { sourceCollectionTable, sourceTable, userTable } from "@contfu/svc-backend/infra/db/schema";
+import { PropertyType, type CollectionSchema } from "@contfu/svc-core";
+import { beforeEach, describe, expect, it } from "bun:test";
 import { pack } from "msgpackr";
 import crypto from "node:crypto";
-import { PropertyType, type CollectionSchema } from "@contfu/svc-core";
 import { truncateAllTables } from "../../../test/setup";
 
 /**
@@ -46,9 +42,8 @@ describe.skipIf(isDbMocked)("Influxes Remote - Cache Logic", () => {
       .insert(sourceTable)
       .values({
         userId: testUserId,
-        id: 1,
         uid: crypto.randomUUID(),
-        type: 1, // SourceType.NOTION
+        type: SourceType.NOTION,
         name: "Test Notion Source",
       })
       .returning();
@@ -145,10 +140,9 @@ describe.skipIf(isDbMocked)("Influxes Remote - Cache Logic", () => {
         .values({
           userId: testUserId,
           sourceId: testSourceId,
-          id: 1,
           name: "Existing Collection",
-          refString: "db-123",
-          schema: pack(testSchema),
+          ref: Buffer.from("db-123", "utf8"),
+          schema: Buffer.from(pack(testSchema)),
         })
         .returning();
 
@@ -254,7 +248,7 @@ describe.skipIf(isDbMocked)("Influxes Remote - Cache Logic", () => {
       const errorResult = {
         sourceId: testSourceId,
         sourceName: "Test Source",
-        sourceType: 1,
+        sourceType: SourceType.NOTION,
         dataSources: [],
         error: "No API token configured",
       };
@@ -293,15 +287,14 @@ describe.skipIf(isDbMocked)("Influxes Remote - Cache Logic", () => {
         .insert(sourceTable)
         .values({
           userId: testUserId,
-          id: 2,
           uid: crypto.randomUUID(),
-          type: 2, // SourceType.STRAPI
+          type: SourceType.STRAPI,
           name: "Test Strapi Source",
         })
         .returning();
 
       // Strapi sources show existing collections, no cache
-      expect(strapiSource.type).toBe(2);
+      expect(strapiSource.type).toBe(SourceType.STRAPI);
       expect(strapiSource.type).not.toBe(1); // Not Notion
     });
 
@@ -311,15 +304,14 @@ describe.skipIf(isDbMocked)("Influxes Remote - Cache Logic", () => {
         .insert(sourceTable)
         .values({
           userId: testUserId,
-          id: 3,
           uid: crypto.randomUUID(),
-          type: 3, // SourceType.WEB
+          type: SourceType.WEB,
           name: "Test Web Source",
         })
         .returning();
 
       // Web sources show existing collections, no cache
-      expect(webSource.type).toBe(3);
+      expect(webSource.type).toBe(SourceType.WEB);
       expect(webSource.type).not.toBe(1); // Not Notion
     });
 
@@ -327,7 +319,7 @@ describe.skipIf(isDbMocked)("Influxes Remote - Cache Logic", () => {
       const webSourceResult = {
         sourceId: 3,
         sourceName: "Web Source",
-        sourceType: 3, // SourceType.WEB
+        sourceType: SourceType.WEB,
         dataSources: [],
         allowCustomPath: true,
       };
@@ -339,7 +331,7 @@ describe.skipIf(isDbMocked)("Influxes Remote - Cache Logic", () => {
       const notionSourceResult = {
         sourceId: testSourceId,
         sourceName: "Notion Source",
-        sourceType: 1, // SourceType.NOTION
+        sourceType: SourceType.NOTION,
         dataSources: [],
         allowCustomPath: false,
       };

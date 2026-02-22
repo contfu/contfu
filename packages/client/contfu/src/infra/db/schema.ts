@@ -1,15 +1,23 @@
-import { blob, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import type { Block, SourceType } from "@contfu/core";
+import { blob, index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
-export const itemsTable = sqliteTable("items", {
-  id: blob({ mode: "buffer" }).primaryKey(),
-  ref: text().notNull(),
-  collection: integer()
-    .notNull()
-    .references(() => collectionTable.id, { onDelete: "cascade" }),
-  props: text(),
-  content: text(),
-  changedAt: integer().notNull(),
-});
+export const itemsTable = sqliteTable(
+  "items",
+  {
+    id: blob({ mode: "buffer" }).primaryKey(),
+    sourceType: integer().$type<SourceType | null>(),
+    ref: text(),
+    collection: text().notNull(),
+    props: blob({ mode: "json" }).$type<Record<string, unknown>>(),
+    content: blob({ mode: "json" }).$type<Block[] | null>(),
+    changedAt: integer().notNull(),
+  },
+  (table) => [
+    index("idx_items_ref").on(table.ref),
+    index("idx_items_collection").on(table.collection),
+    index("idx_items_changedAt").on(table.changedAt),
+  ],
+);
 
 export type DbItem = typeof itemsTable.$inferSelect;
 export type NewItem = typeof itemsTable.$inferInsert;
@@ -33,12 +41,8 @@ export type DbItemLink = typeof linkTable.$inferSelect;
 export type NewItemLink = typeof linkTable.$inferInsert;
 export type ItemLinkUpdate = Partial<NewItemLink>;
 
-export const collectionTable = sqliteTable("collection", {
-  id: integer().primaryKey(),
-  ref: text().unique().notNull(),
-  name: text().notNull(),
-  createdAt: integer().notNull(),
-  updatedAt: integer(),
+export const syncTable = sqliteTable("sync", {
+  index: integer().notNull(),
 });
 
 export const assetTable = sqliteTable("asset", {

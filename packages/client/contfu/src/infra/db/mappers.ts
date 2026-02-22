@@ -1,8 +1,6 @@
-import type { AssetData, ItemData, ItemLinks } from "../types/content-types";
 import { deleteNulls } from "../../util/object-helpers";
-import { getCollectionName } from "../../features/collections/getCollectionName";
-import { getOrCreateCollection } from "../../features/collections/getOrCreateCollection";
 import { decodeId, encodeId } from "../ids";
+import type { AssetData, ItemData, ItemLinks } from "../types/content-types";
 import type { DbAsset, DbItem, ItemUpdate, NewAsset, NewItem } from "./schema";
 
 export function assetToDb(asset: AssetData): NewAsset {
@@ -31,31 +29,27 @@ export function assetFromDb(dbo: DbAsset): AssetData {
 
 export async function itemToDb<T extends ItemData | Omit<ItemData, "links">>(
   item: T,
-  ctx: any,
+  _ctx: any,
 ): Promise<ItemUpdate | NewItem> {
-  const collectionId = item.collection
-    ? await getOrCreateCollection(item.collection, ctx)
-    : undefined;
-
   return {
     id: decodeId(item.id),
-    ref: item.ref,
-    collection: collectionId,
-    props: item.props ? JSON.stringify(item.props) : null,
-    content: item.content ? JSON.stringify(item.content) : null,
+    sourceType: item.sourceType ?? null,
+    ref: item.ref ?? null,
+    collection: item.collection,
+    props: item.props,
+    content: item.content ? item.content : null,
     changedAt: item.changedAt,
   } satisfies ItemUpdate as ItemUpdate | NewItem;
 }
 
-export async function itemFromDb(dbo: DbItem, ctx: any, links?: ItemLinks): Promise<ItemData> {
-  const collectionName = dbo.collection ? await getCollectionName(dbo.collection, ctx) : "";
-
+export async function itemFromDb(dbo: DbItem, _ctx: any, links?: ItemLinks): Promise<ItemData> {
   return deleteNulls({
     id: encodeId(dbo.id),
-    ref: dbo.ref,
-    collection: collectionName,
-    props: dbo.props ? JSON.parse(dbo.props) : {},
-    content: dbo.content ? JSON.parse(dbo.content) : undefined,
+    sourceType: dbo.sourceType ?? null,
+    ref: dbo.ref ?? null,
+    collection: dbo.collection,
+    props: dbo.props,
+    content: dbo.content ? dbo.content : undefined,
     changedAt: dbo.changedAt,
     links: links ?? { content: [] },
   });

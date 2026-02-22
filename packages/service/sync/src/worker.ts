@@ -1,20 +1,21 @@
 /// <reference lib="webworker" />
 declare const self: Worker;
 
-import { SourceType } from "@contfu/svc-core";
-import { SyncMessageType, type UserSyncItem } from "@contfu/svc-backend/infra/sync-worker/messages";
+import { SourceType } from "@contfu/core";
 import { claimJobs } from "@contfu/svc-backend/features/sync-jobs/claimJobs";
 import { completeJob } from "@contfu/svc-backend/features/sync-jobs/completeJob";
 import { failJob } from "@contfu/svc-backend/features/sync-jobs/failJob";
 import { getJobConfig } from "@contfu/svc-backend/features/sync-jobs/getJobConfig";
 import { sourceCollectionTable } from "@contfu/svc-backend/infra/db/schema";
-import { eq } from "drizzle-orm";
-import { combineLatest, defer, repeat, timer } from "rxjs";
-import { workerDb } from "./db/worker-db";
+import { getItemRefForSource } from "@contfu/svc-backend/infra/refs/encode-ref";
+import { SyncMessageType, type UserSyncItem } from "@contfu/svc-backend/infra/sync-worker/messages";
+import { ITEM_ID_SIZE } from "@contfu/svc-sources";
 import { NotionSource } from "@contfu/svc-sources/notion";
 import { StrapiSource } from "@contfu/svc-sources/strapi";
 import { WebSource } from "@contfu/svc-sources/web";
-import { ITEM_ID_SIZE } from "@contfu/svc-sources";
+import { eq } from "drizzle-orm";
+import { combineLatest, defer, repeat, timer } from "rxjs";
+import { workerDb } from "./db/worker-db";
 import { SortedSet } from "./util/structures/sorted-set";
 
 // Constants
@@ -61,7 +62,13 @@ async function syncLoop() {
           credentials: config.credentials?.toString("utf-8") ?? "",
         };
         for await (const item of notionSource.fetch(opts)) {
-          fetchedItems.push({ ...item, user: userId });
+          const sourceRef = getItemRefForSource({
+            sourceType: config.sourceType,
+            rawRef: item.ref,
+            sourceUrl: config.sourceUrl,
+            collectionRef: config.collectionRef,
+          });
+          fetchedItems.push({ ...item, user: userId, sourceType: sourceRef.sourceType, ref: sourceRef.ref });
         }
       } else if (config.sourceType === SourceType.STRAPI) {
         const opts = {
@@ -71,7 +78,13 @@ async function syncLoop() {
           credentials: config.credentials!,
         };
         for await (const item of strapiSource.fetch(opts)) {
-          fetchedItems.push({ ...item, user: userId });
+          const sourceRef = getItemRefForSource({
+            sourceType: config.sourceType,
+            rawRef: item.ref,
+            sourceUrl: config.sourceUrl,
+            collectionRef: config.collectionRef,
+          });
+          fetchedItems.push({ ...item, user: userId, sourceType: sourceRef.sourceType, ref: sourceRef.ref });
         }
       } else {
         const opts = {
@@ -81,7 +94,13 @@ async function syncLoop() {
           credentials: config.credentials ?? undefined,
         };
         for await (const item of webSource.fetch(opts)) {
-          fetchedItems.push({ ...item, user: userId });
+          const sourceRef = getItemRefForSource({
+            sourceType: config.sourceType,
+            rawRef: item.ref,
+            sourceUrl: config.sourceUrl,
+            collectionRef: config.collectionRef,
+          });
+          fetchedItems.push({ ...item, user: userId, sourceType: sourceRef.sourceType, ref: sourceRef.ref });
         }
       }
 

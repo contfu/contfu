@@ -25,3 +25,16 @@ export type DeletedEvent = EventBase<EventType.DELETED> & {
 };
 
 export type ItemEvent = ChangedEvent | DeletedEvent;
+
+/**
+ * Sync event emitted by /api/sync. Includes the event stream index.
+ */
+export type SyncChangedEvent = ChangedEvent & {
+  index: number;
+};
+
+export type SyncDeletedEvent = DeletedEvent & {
+  index: number;
+};
+
+export type SyncEvent = SyncChangedEvent | SyncDeletedEvent;

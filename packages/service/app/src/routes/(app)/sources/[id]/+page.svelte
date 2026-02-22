@@ -6,8 +6,8 @@
   import { Button, buttonVariants } from "$lib/components/ui/button";
   import { Input } from "$lib/components/ui/input";
   import { Label } from "$lib/components/ui/label";
-  import { Switch } from "$lib/components/ui/switch";
   import * as Popover from "$lib/components/ui/popover";
+  import { Switch } from "$lib/components/ui/switch";
   import {
     createSourceCollection,
     getSourceCollectionsBySource,
@@ -25,7 +25,7 @@
   } from "$lib/remote/webhookLogs.remote";
   import { cn } from "$lib/utils";
   import { tcToast } from "$lib/utils/toast";
-  import { SourceType } from "@contfu/svc-backend/features/sources/testSourceConnection";
+  import { SourceType } from "@contfu/core";
   import { CredentialsSource } from "@contfu/svc-core";
   import {
     ChevronRightIcon,
@@ -43,6 +43,7 @@
   const credentialsId = useId();
   const webPathId = useId();
   const collectionNameId = useId();
+  const includeRefId = useId();
 
   const SOURCE_TYPE_LABELS: Record<number, string> = {
     [SourceType.NOTION]: "Notion",
@@ -64,12 +65,12 @@
   // Sync form fields when source changes
   $effect(() => {
     if (source) {
-      updateSource.for("name").fields.set({
-        ...source,
-        name: source.name ?? undefined,
-        url: source.url ?? undefined,
-      });
-      includeRef = source?.includeRef ?? true;
+      console.log(source);
+
+      updateSource
+        .for("name")
+        .fields.set({ ...source, url: source.url ?? undefined });
+      updateSource.fields.set({ ...source, url: source.url ?? undefined });
     }
   });
 
@@ -85,7 +86,6 @@
 
   let testResult: { success: boolean; message: string } | null = $state(null);
   let testPending = $state(false);
-  let includeRef = $state(true);
   let namePopoverOpen = $state(false);
   let webhookLogs = $state<WebhookLogEntry[]>([]);
   let webhookSecret = $state<string | null>(null);
@@ -274,13 +274,19 @@
           });
         })}
         class="space-y-4"
+        autocomplete="off"
       >
         <input {...updateSource.fields.id.as("text")} type="hidden" />
-        <input name="includeRef" type="hidden" value={includeRef ? "true" : "false"} />
 
-        <div class="flex items-center justify-between rounded-md border border-border px-3 py-2">
-          <Label for="source-include-ref">Forward source item references</Label>
-          <Switch id="source-include-ref" bind:checked={includeRef} />
+        <div
+          class="flex items-center justify-between rounded-md border border-border px-3 py-2"
+        >
+          <Label for={includeRefId}>Forward source item references</Label>
+          <Switch
+            id={includeRefId}
+            {...updateSource.fields.includeRef.as("checkbox")}
+            type="button"
+          />
         </div>
 
         {#if source.type === SourceType.STRAPI || source.type === SourceType.WEB}
@@ -292,8 +298,7 @@
             >
             <Input
               id={urlId}
-              name="url"
-              type="url"
+              {...updateSource.fields.url.as("url")}
               placeholder={source.type === SourceType.STRAPI
                 ? "https://strapi.example.com"
                 : "https://example.com"}
@@ -335,8 +340,7 @@
             </Label>
             <Input
               id={credentialsId}
-              name="_credentials"
-              type="password"
+              {...updateSource.fields._credentials.as("password")}
               placeholder="Leave blank to keep current"
             />
             {#each updateSource.fields._credentials.issues() as issue}

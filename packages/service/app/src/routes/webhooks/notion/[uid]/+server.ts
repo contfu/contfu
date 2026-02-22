@@ -1,13 +1,9 @@
 import { getStreamServer } from "$lib/server/startup";
-import { SourceType, matchesFilters } from "@contfu/svc-core";
-import type { UserSyncItem } from "@contfu/svc-backend/infra/sync-worker/messages";
+import { SourceType } from "@contfu/core";
 import { getSetting } from "@contfu/svc-backend/features/admin/getSetting";
 import { upsertSetting } from "@contfu/svc-backend/features/admin/upsertSetting";
 import { listInfluxesBySourceCollections } from "@contfu/svc-backend/features/influxes/listInfluxesBySourceCollections";
 import { enqueueSyncJobs } from "@contfu/svc-backend/features/sync-jobs/enqueueSyncJobs";
-import { hasNats } from "@contfu/svc-backend/infra/nats/connection";
-import { enqueueWebhookFetch } from "@contfu/svc-backend/infra/webhook-queue/webhook-fetch-queue";
-import { cancelPending, markPending } from "@contfu/svc-backend/infra/webhook-queue/pending-kv";
 import {
   decryptCredentials,
   encryptCredentials,
@@ -21,10 +17,16 @@ import {
   sourceTable,
   webhookLogTable,
 } from "@contfu/svc-backend/infra/db/schema";
+import { hasNats } from "@contfu/svc-backend/infra/nats/connection";
+import { notionRefUrlFromRawUuid } from "@contfu/svc-backend/infra/refs/encode-ref";
+import type { UserSyncItem } from "@contfu/svc-backend/infra/sync-worker/messages";
+import { cancelPending, markPending } from "@contfu/svc-backend/infra/webhook-queue/pending-kv";
+import { enqueueWebhookFetch } from "@contfu/svc-backend/infra/webhook-queue/webhook-fetch-queue";
+import { matchesFilters } from "@contfu/svc-core";
 import { genUid, uuidToBuffer } from "@contfu/svc-sources";
 import { fetchNotionPage, notionPropertiesToSchema } from "@contfu/svc-sources/notion";
 import { and, desc, eq, inArray } from "drizzle-orm";
-import { pack as msgpack } from "msgpackr";
+import { pack } from "msgpackr";
 import crypto from "node:crypto";
 import { lru } from "tiny-lru";
 import * as v from "valibot";
@@ -39,8 +41,19 @@ const NOTION_WEBHOOK_SECRET = process.env.NOTION_WEBHOOK_SECRET;
 /** Setting key for the stored OAuth verification token. */
 const SETTING_OAUTH_TOKEN = "notion_oauth_verification_token";
 
+type CachedSourceCollectionRef = {
+  id: number;
+  ref: Buffer | null;
+};
+
+type CachedGlobalSourceCollectionRef = CachedSourceCollectionRef & {
+  userId: number;
+  sourceId: number;
+};
+
 /** LRU cache for source collections by ref. */
-const sourceCollectionCache = lru<{ id: number; ref: Buffer | null }[]>(500, 5 * 60 * 1000);
+const sourceCollectionCache = lru<CachedSourceCollectionRef[]>(500, 5 * 60 * 1000);
+const globalSourceCollectionCache = lru<CachedGlobalSourceCollectionRef[]>(500, 5 * 60 * 1000);
 
 const NotionWebhookPayloadSchema = v.looseObject({
   verification_token: v.optional(v.string()),
@@ -86,7 +99,6 @@ async function logWebhookEvent(
 ): Promise<void> {
   try {
     await db.insert(webhookLogTable).values({
-      userId,
       sourceId,
       event,
       model,
@@ -158,7 +170,7 @@ async function getSourceCollectionsByRef(
  */
 async function getSourceCollectionsByRefGlobal(ref: Buffer) {
   const cacheKey = `ref:${ref.toString("hex")}`;
-  const cached = sourceCollectionCache.get(cacheKey);
+  const cached = globalSourceCollectionCache.get(cacheKey);
   if (cached) return cached;
 
   const results = await db
@@ -177,7 +189,7 @@ async function getSourceCollectionsByRefGlobal(ref: Buffer) {
     userId: c.userId,
     sourceId: c.sourceId,
   }));
-  sourceCollectionCache.set(cacheKey, mapped);
+  globalSourceCollectionCache.set(cacheKey, mapped);
   return mapped;
 }
 
@@ -779,6 +791,8 @@ export const POST: RequestHandler = async ({ request, params }) => {
         for (const collectionId of targetCollectionIds) {
           const item: UserSyncItem = {
             ...result.item,
+            ref: notionRefUrlFromRawUuid(result.item.ref),
+            sourceType: SourceType.NOTION,
             user: source.userId,
             collection: collectionId,
           };
@@ -909,6 +923,8 @@ export const POST: RequestHandler = async ({ request, params }) => {
         for (const collectionId of targetCollectionIds) {
           const item: UserSyncItem = {
             ...result.item,
+            ref: notionRefUrlFromRawUuid(result.item.ref),
+            sourceType: SourceType.NOTION,
             user: userId,
             collection: collectionId,
           };
@@ -939,6 +955,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
   if (eventType.startsWith("data_source.")) {
     // Invalidate LRU cache on any data source event
     sourceCollectionCache.clear();
+    globalSourceCollectionCache.clear();
 
     if (eventType === "data_source.schema_updated") {
       const dataSourceId = payload.entity.id;
@@ -959,7 +976,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
 
             if ("properties" in dataSource && dataSource.properties) {
               const schema = notionPropertiesToSchema(dataSource.properties);
-              const schemaBuf = Buffer.from(msgpack(schema));
+              const schemaBuf = Buffer.from(pack(schema));
 
               // Find source collections using this data source's parent database
               const parentDbId =
@@ -1025,11 +1042,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
                 );
 
               if (sourceCollections.length > 0) {
-                await enqueueSyncJobs(
-                  db,
-                  source.userId,
-                  sourceCollections.map((c) => c.id),
-                );
+                await enqueueSyncJobs(db, sourceCollections.map((c) => c.id));
               }
             }
           } catch (err) {
