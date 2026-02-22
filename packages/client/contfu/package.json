@@ -12,8 +12,8 @@
     "db:generate": "rm -rf db/migrations && drizzle-kit generate --name init"
   },
   "dependencies": {
-    "@contfu/core": "workspace:*",
     "@contfu/client": "workspace:*",
+    "@contfu/core": "workspace:*",
     "drizzle-orm": "1.0.0-beta.15-859cf75"
   },
   "devDependencies": {

@@ -105,7 +105,12 @@ describe("queryItems", () => {
       });
     }
 
-    const result = await queryItems({ page: 2, pageSize: 10, sortField: "changedAt", sortDirection: "asc" });
+    const result = await queryItems({
+      page: 2,
+      pageSize: 10,
+      sortField: "changedAt",
+      sortDirection: "asc",
+    });
     expect(result.total).toBe(12);
     expect(result.totalPages).toBe(2);
     expect(result.items).toHaveLength(2);

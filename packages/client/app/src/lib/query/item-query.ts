@@ -55,7 +55,12 @@ export function parseItemQueryFromUrl(
         : sp.get("sortField") === "changedAt"
           ? "changedAt"
           : undefined,
-    sortDirection: sp.get("sortDirection") === "asc" ? "asc" : sp.get("sortDirection") === "desc" ? "desc" : undefined,
+    sortDirection:
+      sp.get("sortDirection") === "asc"
+        ? "asc"
+        : sp.get("sortDirection") === "desc"
+          ? "desc"
+          : undefined,
     page: parseMaybeNumber(sp.get("page")),
     pageSize: parseMaybeNumber(sp.get("pageSize")),
   };

@@ -1,27 +1,27 @@
 interface BaseSourcePullConfig {
-    type: string;
-    userId: number;
-    sourceId: number;
-    collectionId: number;
-    since?: number;
+  type: string;
+  userId: number;
+  sourceId: number;
+  collectionId: number;
+  since?: number;
 }
 export interface NotionPullConfig extends BaseSourcePullConfig {
-    type: "notion";
-    apiKey: Buffer;
-    dbId: Buffer;
+  type: "notion";
+  apiKey: Buffer;
+  dbId: Buffer;
 }
 export interface StrapiPullConfig extends BaseSourcePullConfig {
-    type: "strapi";
-    apiToken: Buffer;
-    url: string;
-    contentType: Buffer;
+  type: "strapi";
+  apiToken: Buffer;
+  url: string;
+  contentType: Buffer;
 }
 export type PullConfig = NotionPullConfig | StrapiPullConfig;
 /** Authentication types for web sources. */
 export declare const WebAuthType: {
-    readonly NONE: 0;
-    readonly BEARER: 1;
-    readonly BASIC: 2;
+  readonly NONE: 0;
+  readonly BEARER: 1;
+  readonly BASIC: 2;
 };
 /** Type representing valid WebAuthType values. */
 export type WebAuthType = (typeof WebAuthType)[keyof typeof WebAuthType];

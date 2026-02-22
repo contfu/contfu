@@ -26,4 +26,3 @@ export const POST: RequestHandler = async ({ request, url }) => {
   getStreamServer().markConsumerHeartbeat(consumer.userId, consumer.id);
   return new Response(null, { status: 204 });
 };
-

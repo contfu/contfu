@@ -6,7 +6,10 @@ export type SourceRefLink = {
   href: string | null;
 };
 
-export function parseSourceRef(sourceType: SourceTypeValue | null | undefined, ref: string | null | undefined): SourceRefLink {
+export function parseSourceRef(
+  sourceType: SourceTypeValue | null | undefined,
+  ref: string | null | undefined,
+): SourceRefLink {
   if (sourceType == null || !ref) {
     return {
       type: null,

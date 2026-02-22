@@ -29,11 +29,7 @@ export async function* iterateItems(
 /**
  * Convert a Strapi entry to an Item.
  */
-function parseItem(
-  entry: StrapiEntry,
-  collection: number,
-  baseUrl: string,
-): Item {
+function parseItem(entry: StrapiEntry, collection: number, baseUrl: string): Item {
   const rawRef = documentIdToBuffer(entry.documentId);
   const changedAt = new Date(entry.updatedAt).getTime();
 
