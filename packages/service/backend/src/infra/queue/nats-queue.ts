@@ -1,7 +1,10 @@
 import { AckPolicy, RetentionPolicy } from "@nats-io/jetstream";
+import { createLogger } from "../logger/index";
 import { getJetStreamManager } from "../nats/jsm";
 import { raceForLeader } from "../nats/leader-election";
 import type { Job, Queue } from "./queue";
+
+const log = createLogger("nats-queue");
 
 const STREAM_NAME = "sync-jobs";
 const CONSUMER_NAME = "sync-worker";
@@ -67,7 +70,7 @@ async function* consume(): AsyncGenerator<Job> {
       message.ack();
       acked = true;
     } catch (error) {
-      console.error("Error processing job:", error);
+      log.error({ err: error }, "Error processing job");
     } finally {
       if (!acked) {
         // Resumed via .return()/.throw() or parse error = failure
@@ -88,7 +91,7 @@ async function* isScheduler(): AsyncGenerator<boolean> {
 export const q: Queue = {
   push: (job) => {
     void push(job).catch((err) => {
-      console.error("Job publish error:", err);
+      log.error({ err }, "Job publish error");
     });
   },
   consume,

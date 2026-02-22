@@ -5,7 +5,10 @@ import {
   type WireItem,
   type WireItemEvent,
 } from "@contfu/core";
+import { createLogger } from "../logger/index";
 import type { UserSyncItem } from "../sync-worker/messages";
+
+const log = createLogger("stream");
 import { and, eq, inArray } from "drizzle-orm";
 import { pack as msgpack } from "msgpackr";
 import { enqueueSyncJobs } from "../../features/sync-jobs/enqueueSyncJobs";
@@ -153,7 +156,7 @@ export class StreamServer {
       consumerToConnection.delete(consumerKey);
       connectionToConsumer.delete(connectionId);
       consumerInfo.delete(consumerKey);
-      console.error("Failed to connect consumer:", error);
+      log.error({ err: error }, "Failed to connect consumer");
       return new ConnectionError("E_ACCESS");
     }
   }
@@ -236,12 +239,14 @@ export class StreamServer {
     const itemSequences = new Map<UserSyncItem, number>();
     await Promise.all(
       items.map((item) => {
-        const collectionName =
-          collectionNameById.get(item.collection) ?? String(item.collection);
-        const wireEvent: StoredWireItemEvent = [EventType.CHANGED, toWireItem(item, collectionName)];
+        const collectionName = collectionNameById.get(item.collection) ?? String(item.collection);
+        const wireEvent: StoredWireItemEvent = [
+          EventType.CHANGED,
+          toWireItem(item, collectionName),
+        ];
         return publishEvent(item.user, item.collection, wireEvent).then(
           (seq) => itemSequences.set(item, seq),
-          (err) => console.error("JetStream publish error:", err),
+          (err) => log.error({ err }, "JetStream publish error"),
         );
       }),
     );
@@ -277,7 +282,8 @@ export class StreamServer {
         ) {
           continue;
         }
-        const collectionName = collectionNameById.get(conn.collectionId) ?? String(conn.collectionId);
+        const collectionName =
+          collectionNameById.get(conn.collectionId) ?? String(conn.collectionId);
         const wireItem = toWireItem(item, collectionName, conn.includeRef);
         const seq = itemSequences.get(item);
         if (!seq) continue;
@@ -299,7 +305,7 @@ export class StreamServer {
       if (!seqByCollection.has(conn.collectionId)) {
         publishEvent(conn.userId, conn.collectionId, deletedWire).then(
           (seq) => seqByCollection.set(conn.collectionId, seq),
-          (err) => console.error("JetStream publish error:", err),
+          (err) => log.error({ err }, "JetStream publish error"),
         );
       }
     }
@@ -408,7 +414,11 @@ export class StreamServer {
 /**
  * Convert an Item to wire item format.
  */
-export function toWireItem(item: UserSyncItem, collectionName: string, includeRef = true): WireItem {
+export function toWireItem(
+  item: UserSyncItem,
+  collectionName: string,
+  includeRef = true,
+): WireItem {
   const wireItem: WireItem = [
     includeRef ? item.sourceType : null,
     includeRef ? item.ref : null,

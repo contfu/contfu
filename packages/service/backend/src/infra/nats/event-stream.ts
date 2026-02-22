@@ -1,8 +1,11 @@
 import { EventType, type WireItem } from "@contfu/core";
 import { DeliverPolicy, RetentionPolicy } from "@nats-io/jetstream";
 import { pack, unpack } from "msgpackr";
+import { createLogger } from "../logger/index";
 import { hasNats } from "./connection";
 import { getJetStreamManager } from "./jsm";
+
+const log = createLogger("nats-events");
 
 const STREAM_NAME = "events";
 const SUBJECT_PREFIX = "evt";
@@ -126,7 +129,7 @@ export async function* replayEvents(opts: {
       const collectionId = Number(parts[2] ?? "0");
       yield { seq: msg.seq, collectionId, event };
     } catch (error) {
-      console.error("Error parsing event during replay:", error);
+      log.error({ err: error }, "Error parsing event during replay");
     }
   }
 }

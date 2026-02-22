@@ -2,14 +2,17 @@ import { building } from "$app/environment";
 import { auth } from "$lib/server/auth";
 import { initialize, shutdown } from "$lib/server/startup";
 import { withUserDbContext } from "@contfu/svc-backend/infra/db/db";
+import { createLogger } from "@contfu/svc-backend/infra/logger/index";
 import type { Handle } from "@sveltejs/kit";
 import { svelteKitHandler } from "better-auth/svelte-kit";
+
+const log = createLogger("hooks");
 
 // Initialize stream server and SyncWorkerManager at startup
 // Skip during SSR build phase
 if (!building) {
   initialize().catch((error) => {
-    console.error("Failed to initialize server startup services:", error);
+    log.error({ err: error }, "Failed to initialize server startup services");
   });
 
   // Register shutdown handler for graceful cleanup

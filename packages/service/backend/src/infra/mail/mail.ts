@@ -1,8 +1,11 @@
+import { createLogger } from "../logger/index";
 import { renderMailHtml } from "./mail-rendering";
+
+const log = createLogger("mail");
 
 const { sendSmtp } =
   Bun.env.SMTP_HOST == null
-    ? { sendSmtp: ({ html = "" }) => console.log(html) }
+    ? { sendSmtp: ({ html = "" }) => log.debug({ html }, "Email (no SMTP configured)") }
     : Bun.env.SMTP_HOST == "smtp.ethereal.email"
       ? await import("./smtp-ethereal")
       : Bun.env.SMTP_HOST == ""

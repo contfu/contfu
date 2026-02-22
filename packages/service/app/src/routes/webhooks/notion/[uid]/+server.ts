@@ -1,5 +1,6 @@
 import { getStreamServer } from "$lib/server/startup";
 import { SourceType } from "@contfu/core";
+import { createLogger } from "@contfu/svc-backend/infra/logger/index";
 import { getSetting } from "@contfu/svc-backend/features/admin/getSetting";
 import { upsertSetting } from "@contfu/svc-backend/features/admin/upsertSetting";
 import { listInfluxesBySourceCollections } from "@contfu/svc-backend/features/influxes/listInfluxesBySourceCollections";
@@ -31,6 +32,8 @@ import crypto from "node:crypto";
 import { lru } from "tiny-lru";
 import * as v from "valibot";
 import type { RequestHandler } from "./$types";
+
+const log = createLogger("webhook-notion");
 
 /** Maximum webhook logs to keep per source. */
 const MAX_LOGS_PER_SOURCE = 50;
@@ -119,7 +122,7 @@ async function logWebhookEvent(
       await db.delete(webhookLogTable).where(inArray(webhookLogTable.id, idsToDelete));
     }
   } catch (err) {
-    console.error("[Notion webhook] Failed to log webhook event:", err);
+    log.error({ err }, "Failed to log webhook event");
   }
 }
 
@@ -205,13 +208,13 @@ export const POST: RequestHandler = async ({ request, params }) => {
   try {
     parsed = JSON.parse(body);
   } catch {
-    console.error("[Notion webhook] Invalid JSON payload");
+    log.warn("Invalid JSON payload");
     return new Response("Invalid payload", { status: 400 });
   }
 
   const parseResult = v.safeParse(NotionWebhookPayloadSchema, parsed);
   if (!parseResult.success) {
-    console.error("[Notion webhook] Invalid payload schema");
+    log.warn("Invalid payload schema");
     return new Response("Invalid payload", { status: 400 });
   }
   const payload = parseResult.output;
@@ -221,7 +224,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
 
   // ---- Verification flow ----
   if (payload.verification_token && !payload.type) {
-    console.log("[Notion webhook] Verification request received");
+    log.info("Verification request received");
 
     if (isOAuthMode) {
       // OAuth mode: encrypt and store in settingTable
@@ -232,7 +235,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
       if (encrypted) {
         await upsertSetting(SETTING_OAUTH_TOKEN, encrypted);
       }
-      console.log("[Notion webhook] OAuth verification token stored in settings");
+      log.info("OAuth verification token stored in settings");
     } else {
       // Custom integration: find source by uid, store as webhookSecret
       const [source] = await db
@@ -260,11 +263,12 @@ export const POST: RequestHandler = async ({ request, params }) => {
           payload.verification_token,
           "success",
         );
-        console.log(
-          `[Notion webhook] Verification token stored for source ${source.userId}:${source.id}`,
+        log.info(
+          { userId: source.userId, sourceId: source.id },
+          "Verification token stored for source",
         );
       } else {
-        console.error(`[Notion webhook] Source with uid ${uid} not found for verification`);
+        log.warn({ uid }, "Source not found for verification");
         return new Response("Source not found", { status: 404 });
       }
     }
@@ -277,14 +281,14 @@ export const POST: RequestHandler = async ({ request, params }) => {
     const encryptedToken = await getSetting(SETTING_OAUTH_TOKEN);
     if (!encryptedToken) {
       if (!payload.verification_token) {
-        console.error("[Notion webhook] OAuth token not configured");
+        log.warn("OAuth token not configured");
         return new Response("Unauthorized", { status: 401 });
       }
     } else {
       const decrypted = await decryptCredentials(0, encryptedToken);
       const secret = decrypted?.toString("utf8");
       if (!secret || !validateSignature(body, request.headers, secret)) {
-        console.error("[Notion webhook] Invalid OAuth signature");
+        log.warn("Invalid OAuth signature");
         return new Response("Unauthorized", { status: 401 });
       }
     }
@@ -305,7 +309,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
       .limit(1);
 
     if (!found) {
-      console.error(`[Notion webhook] Source with uid ${uid} not found`);
+      log.warn({ uid }, "Source not found");
       return new Response("Source not found", { status: 404 });
     }
     source = found;
@@ -315,9 +319,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
       const decrypted = await decryptCredentials(source.userId, source.webhookSecret);
       const secret = decrypted?.toString("utf8");
       if (!secret || !validateSignature(body, request.headers, secret)) {
-        console.error(
-          `[Notion webhook] Invalid signature for source ${source.userId}:${source.id}`,
-        );
+        log.warn({ userId: source.userId, sourceId: source.id }, "Invalid signature");
         await logWebhookEvent(
           source.userId,
           source.id,
@@ -329,9 +331,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
         return new Response("Unauthorized", { status: 401 });
       }
     } else if (!payload.verification_token) {
-      console.error(
-        `[Notion webhook] Webhook secret not configured for source ${source.userId}:${source.id}`,
-      );
+      log.warn({ userId: source.userId, sourceId: source.id }, "Webhook secret not configured");
       await logWebhookEvent(
         source.userId,
         source.id,
@@ -349,7 +349,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
     return new Response("OK", { status: 200 });
   }
 
-  console.log(`[Notion webhook] Received ${eventType} for entity ${payload.entity.id}`);
+  log.info({ eventType, entityId: payload.entity.id }, "Received webhook event");
 
   const streamServer = getStreamServer();
 
@@ -693,7 +693,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
           parentDbId = result.parentDatabaseId ?? undefined;
         }
       } catch (err) {
-        console.error(`[Notion webhook] Failed to fetch page ${pageId}:`, err);
+        log.error({ err, pageId }, "Failed to fetch page");
         await logWebhookEvent(source.userId, source.id, eventType, pageId, "error", String(err));
         return new Response("OK", { status: 200 });
       }
@@ -865,7 +865,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
         try {
           result = await fetchNotionPage(token, pageId, 0);
         } catch (err) {
-          console.error(`[Notion webhook] OAuth: Failed to fetch page for user ${userId}:`, err);
+          log.error({ err, userId, pageId }, "OAuth: Failed to fetch page");
           continue;
         }
         if (!result) continue;
@@ -959,7 +959,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
 
     if (eventType === "data_source.schema_updated") {
       const dataSourceId = payload.entity.id;
-      console.log(`[Notion webhook] Schema updated for data source ${dataSourceId}`);
+      log.info({ dataSourceId }, "Schema updated for data source");
 
       if (source) {
         const credentials = source.credentials
@@ -999,7 +999,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
               }
             }
           } catch (err) {
-            console.error(`[Notion webhook] Failed to update schema:`, err);
+            log.error({ err }, "Failed to update schema");
           }
         }
         await logWebhookEvent(source.userId, source.id, eventType, dataSourceId, "success");
@@ -1008,7 +1008,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
 
     if (eventType === "data_source.content_updated") {
       const dataSourceId = payload.entity.id;
-      console.log(`[Notion webhook] Content updated for data source ${dataSourceId}`);
+      log.info({ dataSourceId }, "Content updated for data source");
 
       if (source) {
         const credentials = source.credentials
@@ -1042,11 +1042,14 @@ export const POST: RequestHandler = async ({ request, params }) => {
                 );
 
               if (sourceCollections.length > 0) {
-                await enqueueSyncJobs(db, sourceCollections.map((c) => c.id));
+                await enqueueSyncJobs(
+                  db,
+                  sourceCollections.map((c) => c.id),
+                );
               }
             }
           } catch (err) {
-            console.error(`[Notion webhook] Failed to retrieve data source:`, err);
+            log.error({ err }, "Failed to retrieve data source");
           }
         }
         await logWebhookEvent(source.userId, source.id, eventType, dataSourceId, "success");

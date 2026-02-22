@@ -1,5 +1,6 @@
 import { getStreamServer } from "$lib/server/startup";
 import { SourceType } from "@contfu/core";
+import { createLogger } from "@contfu/svc-backend/infra/logger/index";
 import { listInfluxesBySourceCollections } from "@contfu/svc-backend/features/influxes/listInfluxesBySourceCollections";
 import { decryptCredentials } from "@contfu/svc-backend/infra/crypto/credentials";
 import { db } from "@contfu/svc-backend/infra/db/db";
@@ -18,6 +19,8 @@ import { genUid } from "@contfu/svc-sources";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import crypto from "node:crypto";
 import type { RequestHandler } from "./$types";
+
+const log = createLogger("webhook-strapi");
 
 /** Maximum number of webhook logs to keep per source */
 const MAX_LOGS_PER_SOURCE = 50;
@@ -82,7 +85,7 @@ async function logWebhookEvent(
       await db.delete(webhookLogTable).where(inArray(webhookLogTable.id, idsToDelete));
     }
   } catch (err) {
-    console.error("[Strapi webhook] Failed to log webhook event:", err);
+    log.error({ err }, "Failed to log webhook event");
   }
 }
 
@@ -169,22 +172,20 @@ export const POST: RequestHandler = async ({ request, params }) => {
   try {
     payload = JSON.parse(body);
   } catch {
-    console.error("[Strapi webhook] Invalid JSON payload");
+    log.warn("Invalid JSON payload");
     return new Response("Invalid payload", { status: 400 });
   }
 
   // Validate required fields
   if (!payload.event || !payload.model || !payload.entry) {
-    console.error("[Strapi webhook] Missing required fields:", {
-      event: payload.event,
-      model: payload.model,
-    });
+    log.warn({ event: payload.event, model: payload.model }, "Missing required fields");
     return new Response("Missing required fields", { status: 400 });
   }
 
   const eventType = request.headers.get("x-strapi-event") || payload.event;
-  console.log(
-    `[Strapi webhook] Received ${eventType} for model "${payload.model}", entry ${payload.entry.id}`,
+  log.info(
+    { eventType, model: payload.model, entryId: payload.entry.id },
+    "Received webhook event",
   );
 
   // Find the source by uid and verify it's a Strapi source
@@ -200,7 +201,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
     .where(and(eq(sourceTable.uid, uid), eq(sourceTable.type, SourceType.STRAPI)));
 
   if (sources.length === 0) {
-    console.error(`[Strapi webhook] Source with uid ${uid} not found`);
+    log.warn({ uid }, "Source not found");
     return new Response("Source not found", { status: 404 });
   }
 
@@ -219,9 +220,9 @@ export const POST: RequestHandler = async ({ request, params }) => {
         const decryptedSecret = await decryptCredentials(source.userId, source.webhookSecret);
         webhookSecret = decryptedSecret?.toString("utf8") ?? null;
       } catch (err) {
-        console.error(
-          `[Strapi webhook] Failed to decrypt webhook secret for source ${source.userId}:${source.id}`,
-          err,
+        log.error(
+          { err, userId: source.userId, sourceId: source.id },
+          "Failed to decrypt webhook secret",
         );
         await logWebhookEvent(
           source.userId,
@@ -234,9 +235,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
         continue;
       }
       if (!validateSignature(body, request.headers, webhookSecret)) {
-        console.error(
-          `[Strapi webhook] Invalid signature for source ${source.userId}:${source.id}`,
-        );
+        log.warn({ userId: source.userId, sourceId: source.id }, "Invalid signature");
         await logWebhookEvent(
           source.userId,
           source.id,
@@ -265,8 +264,9 @@ export const POST: RequestHandler = async ({ request, params }) => {
       );
 
     if (sourceCollections.length === 0) {
-      console.log(
-        `[Strapi webhook] No source collections found for content type "${contentTypeUid}" in source ${source.userId}:${source.id}`,
+      log.debug(
+        { contentTypeUid, userId: source.userId, sourceId: source.id },
+        "No source collections found for content type",
       );
       await logWebhookEvent(
         source.userId,
@@ -286,7 +286,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
     const influxes = await listInfluxesBySourceCollections(source.userId, sourceCollectionIds);
 
     if (influxes.length === 0) {
-      console.log(`[Strapi webhook] No influxes for source collections`);
+      log.debug("No influxes for source collections");
       await logWebhookEvent(
         source.userId,
         source.id,
@@ -308,8 +308,9 @@ export const POST: RequestHandler = async ({ request, params }) => {
       if (influx.filters.length > 0) {
         if (!matchesFilters(props, influx.filters)) {
           filteredOutCount++;
-          console.log(
-            `[Strapi webhook] Entry filtered out for collection ${influx.collectionId} (${influx.filters.length} filters)`,
+          log.debug(
+            { collectionId: influx.collectionId, filterCount: influx.filters.length },
+            "Entry filtered out",
           );
           continue;
         }
@@ -325,7 +326,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
     }
 
     if (targetCollectionIds.length === 0) {
-      console.log(`[Strapi webhook] All items filtered out (${filteredOutCount} influxes)`);
+      log.debug({ filteredOutCount }, "All items filtered out");
       await logWebhookEvent(
         source.userId,
         source.id,
@@ -371,7 +372,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
       );
 
     if (connections.length === 0) {
-      console.log(`[Strapi webhook] No consumer connections for target collections`);
+      log.debug("No consumer connections for target collections");
       await logWebhookEvent(
         source.userId,
         source.id,
@@ -412,8 +413,9 @@ export const POST: RequestHandler = async ({ request, params }) => {
         }));
 
       if (collectionConnections.length > 0) {
-        console.log(
-          `[Strapi webhook] Broadcasting to ${collectionConnections.length} consumer(s) for collection ${collectionId}`,
+        log.debug(
+          { consumerCount: collectionConnections.length, collectionId },
+          "Broadcasting to consumers",
         );
         void streamServer.broadcast([item], collectionConnections);
         itemsBroadcast += collectionConnections.length;
@@ -434,7 +436,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
       itemsBroadcast,
     );
 
-    console.log(`[Strapi webhook] Processed for source ${source.userId}:${source.id}`);
+    log.info({ userId: source.userId, sourceId: source.id }, "Webhook processed");
   }
 
   return new Response("OK", { status: 200 });

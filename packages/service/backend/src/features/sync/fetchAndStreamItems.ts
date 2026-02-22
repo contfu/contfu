@@ -1,5 +1,6 @@
 import { SourceType } from "@contfu/core";
 import { matchesFilters } from "@contfu/svc-core";
+import { createLogger } from "../../infra/logger/index";
 import { NotionSource } from "@contfu/svc-sources/notion";
 import { StrapiSource } from "@contfu/svc-sources/strapi";
 import { WebSource } from "@contfu/svc-sources/web";
@@ -7,6 +8,8 @@ import { getItemRefForSource } from "../../infra/refs/encode-ref";
 import type { UserSyncItem } from "../../infra/sync-worker/messages";
 import { getRateLimitForSourceType } from "../../infra/webhook-queue/types";
 import type { ConsumerSyncConfig } from "./getConsumerSyncConfig";
+
+const log = createLogger("sync-fetch");
 
 const notionSource = new NotionSource();
 const strapiSource = new StrapiSource();
@@ -60,7 +63,7 @@ export async function* fetchAndStreamItems(
           }
         }
       } catch (error) {
-        console.error(`Sync fetch error for source collection ${sc.sourceCollectionId}:`, error);
+        log.error({ err: error, sourceCollectionId: sc.sourceCollectionId }, "Sync fetch error");
         // Skip failed source collection, continue with others
       }
     }

@@ -1,6 +1,9 @@
 import type { WireItemEvent } from "@contfu/core";
 import { pack, unpack } from "msgpackr";
+import { createLogger } from "../logger/index";
 import { getNatsConnection, hasNats } from "./connection";
+
+const log = createLogger("nats-item-events");
 
 /**
  * Item events are distributed via NATS core pub/sub for low latency.
@@ -41,7 +44,7 @@ export async function* subscribeToItemEvents(): AsyncGenerator<NatsItemEvent, vo
       try {
         yield unpack(msg.data) as NatsItemEvent;
       } catch (error) {
-        console.error("Error parsing item event:", error);
+        log.error({ err: error }, "Error parsing item event");
       }
     }
   } finally {

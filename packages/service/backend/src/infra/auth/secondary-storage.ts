@@ -2,8 +2,11 @@ import { KvWatchInclude, type KV } from "@nats-io/kv";
 import type { SecondaryStorage, Session, User } from "better-auth";
 import { pack, unpack } from "msgpackr";
 import { lru, type LRU } from "tiny-lru";
+import { createLogger } from "../logger/index";
 import { hasNats } from "../nats/connection";
 import { getKvManager } from "../nats/kvm";
+
+const log = createLogger("auth-sessions");
 
 type SessionToken = { token: string; expiresAt: number };
 
@@ -88,7 +91,7 @@ async function handleRemoteInvalidations() {
         }
       }
     })
-    .catch((err) => console.error("Session cache watcher error:", err));
+    .catch((err) => log.error({ err }, "Session cache watcher error"));
 
   void userSessionsBucket
     .watch({ include: KvWatchInclude.UpdatesOnly })
@@ -100,7 +103,7 @@ async function handleRemoteInvalidations() {
         }
       }
     })
-    .catch((err) => console.error("User sessions cache watcher error:", err));
+    .catch((err) => log.error({ err }, "User sessions cache watcher error"));
 }
 
 async function getFromCacheOrBucket(

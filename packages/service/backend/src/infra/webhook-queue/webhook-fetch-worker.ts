@@ -1,5 +1,8 @@
 import { SourceType } from "@contfu/core";
+import { createLogger } from "../logger/index";
 import { matchesFilters } from "@contfu/svc-core";
+
+const log = createLogger("webhook-fetch");
 import { uuidToBuffer } from "@contfu/svc-sources";
 import { fetchNotionPage } from "@contfu/svc-sources/notion";
 import { and, desc, eq, inArray } from "drizzle-orm";
@@ -58,7 +61,7 @@ async function logWebhookEvent(
       await db.delete(webhookLogTable).where(inArray(webhookLogTable.id, idsToDelete));
     }
   } catch (error) {
-    console.error("[Webhook fetch worker] Failed to write webhook log:", error);
+    log.error({ err: error }, "Failed to write webhook log");
   }
 }
 
@@ -280,7 +283,7 @@ async function runWorker(streamServer: StreamServer, signal: AbortSignal): Promi
     try {
       job = JSON.parse(Buffer.from(message.data).toString("utf8")) as WebhookFetchJob;
     } catch (error) {
-      console.error("[Webhook fetch worker] Invalid job payload:", error);
+      log.warn({ err: error }, "Invalid job payload");
       message.ack();
       continue;
     }
@@ -324,9 +327,9 @@ async function runWorker(streamServer: StreamServer, signal: AbortSignal): Promi
       const deliveryCount = message.info?.deliveryCount ?? (message.redelivered ? 2 : 1);
       const maxDeliverReached = deliveryCount >= 4;
 
-      console.error(
-        `[Webhook fetch worker] Failed processing ${job.userId}:${job.sourceId}:${job.pageId}`,
-        error,
+      log.error(
+        { err: error, userId: job.userId, sourceId: job.sourceId, pageId: job.pageId },
+        "Failed processing webhook fetch job",
       );
 
       if (maxDeliverReached) {
@@ -352,7 +355,7 @@ export function startWebhookFetchWorker(opts: { streamServer: StreamServer }): v
 
   stopSignal = new AbortController();
   workerTask = runWorker(opts.streamServer, stopSignal.signal).catch((error) => {
-    console.error("[Webhook fetch worker] Worker exited with error:", error);
+    log.error({ err: error }, "Worker exited with error");
   });
 }
 

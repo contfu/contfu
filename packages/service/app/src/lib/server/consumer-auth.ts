@@ -1,3 +1,7 @@
+import { createLogger } from "@contfu/svc-backend/infra/logger/index";
+
+const log = createLogger("consumer-auth");
+
 /**
  * Shared consumer key authentication for /api/sync.
  * Extracts and validates the consumer key from query params or Authorization header.
@@ -20,7 +24,7 @@ export function extractConsumerKey(
 
   try {
     let key = Buffer.from(keyString, "base64url");
-    console.log("key", key, key.length);
+    log.debug({ keyLength: key.length }, "Consumer key extracted");
     if (key.length !== 32) {
       return { error: new Response("Invalid key format", { status: 401 }) };
     }

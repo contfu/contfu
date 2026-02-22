@@ -1,4 +1,5 @@
 import type { RequestHandler } from "./$types";
+import { createLogger } from "@contfu/svc-backend/infra/logger/index";
 import { validateEvent, WebhookVerificationError } from "@polar-sh/sdk/webhooks";
 import type { WebhookSubscriptionCreatedPayload } from "@polar-sh/sdk/models/components/webhooksubscriptioncreatedpayload";
 import type { WebhookSubscriptionUpdatedPayload } from "@polar-sh/sdk/models/components/webhooksubscriptionupdatedpayload";
@@ -8,6 +9,8 @@ import { db } from "@contfu/svc-backend/infra/db/db";
 import { quotaTable } from "@contfu/svc-backend/infra/db/schema";
 import { getQuotaForProduct } from "@contfu/svc-backend/infra/polar/products";
 import { eq } from "drizzle-orm";
+
+const log = createLogger("webhook-polar");
 
 export const POST: RequestHandler = async ({ request }) => {
   const body = await request.text();
@@ -82,10 +85,10 @@ export const POST: RequestHandler = async ({ request }) => {
     return new Response("OK", { status: 200 });
   } catch (error) {
     if (error instanceof WebhookVerificationError) {
-      console.error("Webhook verification failed:", error.message);
+      log.warn({ message: error.message }, "Webhook verification failed");
       return new Response("Invalid signature", { status: 400 });
     }
-    console.error("Webhook error:", error);
+    log.error({ err: error }, "Webhook error");
     return new Response("Internal error", { status: 500 });
   }
 };

@@ -1,3 +1,4 @@
+import { createLogger } from "@contfu/svc-backend/infra/logger/index";
 import { ensureEventStream } from "@contfu/svc-backend/infra/nats/event-stream";
 import { hasNats } from "@contfu/svc-backend/infra/nats/connection";
 import { StreamServer } from "@contfu/svc-backend/infra/stream/stream-server";
@@ -7,6 +8,8 @@ import {
   startWebhookFetchWorker,
   stopWebhookFetchWorker,
 } from "@contfu/svc-backend/infra/webhook-queue/index";
+
+const log = createLogger("startup");
 
 // Singleton instances - lazily initialized
 let streamServer: StreamServer | null = null;
@@ -44,7 +47,7 @@ export function getSyncWorkerManager(): SyncWorkerManager {
  */
 export async function initialize(): Promise<void> {
   if (isInitialized) {
-    console.warn("Server startup already initialized");
+    log.warn("Server startup already initialized");
     return;
   }
 
@@ -67,7 +70,7 @@ export async function initialize(): Promise<void> {
   await worker.start();
 
   isInitialized = true;
-  console.log("Server startup complete: StreamServer and SyncWorkerManager initialized");
+  log.info("Server startup complete: StreamServer and SyncWorkerManager initialized");
 }
 
 /**
@@ -79,7 +82,7 @@ export async function shutdown(): Promise<void> {
     return;
   }
 
-  console.log("Shutting down server startup services...");
+  log.info("Shutting down server startup services...");
 
   // Stop the worker manager
   if (workerManager) {
@@ -95,7 +98,7 @@ export async function shutdown(): Promise<void> {
   workerManager = null;
   isInitialized = false;
 
-  console.log("Server startup services shut down");
+  log.info("Server startup services shut down");
 }
 
 /**

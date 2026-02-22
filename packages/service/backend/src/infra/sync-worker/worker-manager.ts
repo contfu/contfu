@@ -4,7 +4,11 @@ import {
   type UserSyncItem,
   type WorkerToAppMessage,
 } from "./messages";
+import { createLogger } from "../logger/index";
 import { and, eq } from "drizzle-orm";
+
+const log = createLogger("sync-worker-manager");
+
 import {
   collectionTable,
   connectionTable,
@@ -39,7 +43,7 @@ export class SyncWorkerManager {
     this.worker.onerror = (e) => this.handleWorkerError(e);
 
     await this.readyPromise;
-    console.log("Sync worker started");
+    log.info("Sync worker started");
   }
 
   async stop() {
@@ -52,7 +56,7 @@ export class SyncWorkerManager {
   }
 
   private handleWorkerError(error: ErrorEvent) {
-    console.error("Worker error:", error);
+    log.error({ err: error }, "Worker error");
 
     // If worker crashes before ready, reject the ready promise
     if (!this.isReady && this.readyResolve) {
@@ -80,12 +84,21 @@ export class SyncWorkerManager {
         break;
 
       default:
-        console.warn("Unknown worker message type:", (msg as { type: number }).type);
+        log.warn({ messageType: (msg as { type: number }).type }, "Unknown worker message type");
     }
   }
 
   private async handleItemsFetched(msg: ItemsFetchedMessage) {
     if (!this.itemsCallback || msg.items.length === 0) return;
+
+    log.info(
+      {
+        itemCount: msg.items.length,
+        userId: msg.userId,
+        sourceCollectionId: msg.sourceCollectionId,
+      },
+      "Items received from worker",
+    );
 
     // Look up which collections receive items from this source collection (via influx)
     const collectionIds = await getCollectionIdsForSourceCollection(

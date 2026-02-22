@@ -1,6 +1,7 @@
 import { dev } from "$app/environment";
 import { getRequestEvent } from "$app/server";
 import { UserRole } from "@contfu/svc-backend/domain/types";
+import { createLogger } from "@contfu/svc-backend/infra/logger/index";
 import { createNatsKvSessionStorage } from "@contfu/svc-backend/infra/auth/secondary-storage";
 import { db } from "@contfu/svc-backend/infra/db/db";
 import * as schema from "@contfu/svc-backend/infra/db/schema";
@@ -14,6 +15,8 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { createAuthMiddleware } from "better-auth/api";
 import { sveltekitCookies } from "better-auth/svelte-kit";
 import { count } from "drizzle-orm";
+
+const log = createLogger("auth");
 
 const polarClient = new Polar({
   accessToken: process.env.POLAR_ACCESS_TOKEN,
@@ -243,7 +246,7 @@ export const auth = betterAuth({
               webhooks({
                 secret: process.env.POLAR_WEBHOOK_SECRET,
                 onPayload: async (payload) => {
-                  console.log("hook fired", payload);
+                  log.debug({ payload }, "Polar webhook hook fired");
                 },
               }),
             ]

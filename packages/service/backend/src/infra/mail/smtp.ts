@@ -1,4 +1,7 @@
 import { createTransport } from "nodemailer";
+import { createLogger } from "../logger/index";
+
+const log = createLogger("smtp");
 
 export function sendSmtp(opts: {
   from: string;
@@ -24,5 +27,5 @@ const transport = createTransport({
 });
 
 transport.verify().catch((err: unknown) => {
-  console.warn("SMTP server is not ready to send emails", err);
+  log.warn({ err }, "SMTP server is not ready to send emails");
 });

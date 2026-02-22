@@ -1,6 +1,7 @@
 import { extractConsumerKey } from "$lib/server/consumer-auth";
 import { getStreamServer } from "$lib/server/startup";
 import { EventType } from "@contfu/core";
+import { createLogger } from "@contfu/svc-backend/infra/logger/index";
 import { fetchAndStreamItems } from "@contfu/svc-backend/features/sync/fetchAndStreamItems";
 import { getConsumerSyncConfig } from "@contfu/svc-backend/features/sync/getConsumerSyncConfig";
 import { consumerTable, db } from "@contfu/svc-backend/infra/db/db";
@@ -19,6 +20,8 @@ import {
 } from "@contfu/svc-backend/infra/stream/stream-server";
 import { eq } from "drizzle-orm";
 import type { RequestHandler } from "./$types";
+
+const log = createLogger("api-sync");
 
 export const GET: RequestHandler = async ({ request, url }) => {
   const server = getStreamServer();
@@ -185,7 +188,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
           }
         }, 10_000);
       } catch (error) {
-        console.error("Sync stream error:", error);
+        log.error({ err: error }, "Sync stream error");
         cleanup();
       } finally {
         request.signal.removeEventListener("abort", onAbort);

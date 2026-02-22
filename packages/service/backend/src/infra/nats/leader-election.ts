@@ -1,5 +1,8 @@
 import type { KV } from "@nats-io/kv";
+import { createLogger } from "../logger/index";
 import { getKvManager } from "./kvm";
+
+const log = createLogger("leader-election");
 
 const LEADER_TTL = 5000;
 const LEADER_RETRY_INTERVAL = 3000;
@@ -38,7 +41,7 @@ export async function* raceForLeader(
       const isNowLeader = await tryBecomeLeader(kv, subject);
       if (leader !== isNowLeader) {
         leaderMap.set(subject, isNowLeader);
-        if (isNowLeader) console.log("I am leader for", subject);
+        if (isNowLeader) log.info({ subject }, "Acquired leadership");
         yield isNowLeader;
       }
     }

@@ -1,5 +1,8 @@
 import { rm } from "fs/promises";
 import { createTestAccount, createTransport, getTestMessageUrl } from "nodemailer";
+import { createLogger } from "../logger/index";
+
+const log = createLogger("smtp-ethereal");
 
 export async function sendSmtp(opts: {
   from: string;
@@ -12,12 +15,12 @@ export async function sendSmtp(opts: {
   const link = getTestMessageUrl(info);
   if (link) {
     void Bun.write(".tmp/last-sent-email-link.txt", link);
-    console.log("Ethereal email link:", link);
+    log.info({ link }, "Ethereal email link");
   }
   return info;
 }
 
-console.warn("To send emails, provide SMTP configuration. Using ethereal.email for testing.");
+log.warn("To send emails, provide SMTP configuration. Using ethereal.email for testing.");
 
 void rm(".tmp/last-sent-email-link.txt", { force: true });
 

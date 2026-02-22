@@ -1,5 +1,8 @@
 import { jetstreamManager, type JetStreamManager } from "@nats-io/jetstream";
+import { createLogger } from "../logger/index";
 import { getNatsConnection } from "./connection";
+
+const log = createLogger("nats-jsm");
 
 let _jsm: Promise<JetStreamManager> | null = null;
 
@@ -19,7 +22,7 @@ export async function getJetStreamManager(): Promise<JetStreamManager> {
             `JetStream initialization failed after ${MAX_WAIT_MS}ms: ${err instanceof Error ? err.message : String(err)}`,
           );
         }
-        console.debug(`JetStream not ready (${elapsed}ms elapsed), retrying...`);
+        log.debug({ elapsed }, "JetStream not ready, retrying");
         await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
       }
     }

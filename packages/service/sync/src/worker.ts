@@ -2,6 +2,7 @@
 declare const self: Worker;
 
 import { SourceType } from "@contfu/core";
+import { createLogger } from "@contfu/svc-backend/infra/logger/index";
 import { claimJobs } from "@contfu/svc-backend/features/sync-jobs/claimJobs";
 import { completeJob } from "@contfu/svc-backend/features/sync-jobs/completeJob";
 import { failJob } from "@contfu/svc-backend/features/sync-jobs/failJob";
@@ -17,6 +18,8 @@ import { eq } from "drizzle-orm";
 import { combineLatest, defer, repeat, timer } from "rxjs";
 import { workerDb } from "./db/worker-db";
 import { SortedSet } from "./util/structures/sorted-set";
+
+const log = createLogger("sync-worker");
 
 // Constants
 const MAX_COLLECTION_PULL_SIZE = Number(process.env.MAX_COLLECTION_PULL_SIZE ?? 10_000);
@@ -42,13 +45,28 @@ async function syncLoop() {
   const jobs = await claimJobs(workerDb, workerId, MAX_COLLECTION_PULL_SIZE);
   if (jobs.length === 0) return;
 
+  log.debug({ jobCount: jobs.length, workerId }, "Claimed sync jobs");
+
   for (const job of jobs) {
     try {
       const config = await getJobConfig(workerDb, { sourceCollectionId: job.sourceCollectionId });
       if (!config) {
+        log.warn(
+          { jobId: job.id, sourceCollectionId: job.sourceCollectionId },
+          "Source collection config not found",
+        );
         await failJob(workerDb, job.id, "Source collection config not found");
         continue;
       }
+
+      log.debug(
+        {
+          jobId: job.id,
+          sourceCollectionId: job.sourceCollectionId,
+          sourceType: config.sourceType,
+        },
+        "Fetching source collection",
+      );
 
       const userId = config.userId;
 
@@ -68,7 +86,12 @@ async function syncLoop() {
             sourceUrl: config.sourceUrl,
             collectionRef: config.collectionRef,
           });
-          fetchedItems.push({ ...item, user: userId, sourceType: sourceRef.sourceType, ref: sourceRef.ref });
+          fetchedItems.push({
+            ...item,
+            user: userId,
+            sourceType: sourceRef.sourceType,
+            ref: sourceRef.ref,
+          });
         }
       } else if (config.sourceType === SourceType.STRAPI) {
         const opts = {
@@ -84,7 +107,12 @@ async function syncLoop() {
             sourceUrl: config.sourceUrl,
             collectionRef: config.collectionRef,
           });
-          fetchedItems.push({ ...item, user: userId, sourceType: sourceRef.sourceType, ref: sourceRef.ref });
+          fetchedItems.push({
+            ...item,
+            user: userId,
+            sourceType: sourceRef.sourceType,
+            ref: sourceRef.ref,
+          });
         }
       } else {
         const opts = {
@@ -100,9 +128,23 @@ async function syncLoop() {
             sourceUrl: config.sourceUrl,
             collectionRef: config.collectionRef,
           });
-          fetchedItems.push({ ...item, user: userId, sourceType: sourceRef.sourceType, ref: sourceRef.ref });
+          fetchedItems.push({
+            ...item,
+            user: userId,
+            sourceType: sourceRef.sourceType,
+            ref: sourceRef.ref,
+          });
         }
       }
+
+      log.info(
+        {
+          jobId: job.id,
+          sourceCollectionId: job.sourceCollectionId,
+          itemCount: fetchedItems.length,
+        },
+        "Source collection fetch complete",
+      );
 
       // Post items to main thread for SSE broadcast
       if (fetchedItems.length > 0) {
@@ -112,6 +154,10 @@ async function syncLoop() {
           userId,
           sourceCollectionId: job.sourceCollectionId,
         });
+        log.debug(
+          { sourceCollectionId: job.sourceCollectionId, itemCount: fetchedItems.length },
+          "Items posted to main thread",
+        );
       }
 
       // Update item IDs in source_collection directly
@@ -123,7 +169,9 @@ async function syncLoop() {
       }
 
       await completeJob(workerDb, job.id);
+      log.debug({ jobId: job.id }, "Job completed");
     } catch (error) {
+      log.error({ err: error, jobId: job.id }, "Job failed");
       await failJob(workerDb, job.id, String(error));
     }
   }
@@ -168,8 +216,9 @@ async function updateItemIds(sourceCollectionId: number, newIds: Buffer[]) {
 const sync$ = defer(() => combineLatest([timer(MIN_FETCH_INTERVAL), syncLoop()])).pipe(repeat());
 
 sync$.subscribe({
-  error: (err) => console.error("Sync error:", err),
+  error: (err) => log.error({ err }, "Sync error"),
 });
 
 // Signal ready
+log.info({ workerId }, "Sync worker ready");
 self.postMessage({ type: SyncMessageType.WORKER_READY });
