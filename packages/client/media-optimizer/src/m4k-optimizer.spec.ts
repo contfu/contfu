@@ -2,7 +2,7 @@ import { FileStore } from "@contfu/bun-file-store";
 import { type MediaStore } from "contfu";
 import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { open, readFile } from "fs/promises";
-import { SharpOptimizer } from "./sharp-optimizer";
+import { M4kOptimizer } from "./m4k-optimizer";
 
 const store = {
   exists: mock(),
@@ -10,28 +10,31 @@ const store = {
   write: mock(),
 } satisfies MediaStore;
 
-let optimizer: SharpOptimizer;
+let optimizer: M4kOptimizer;
 
 beforeEach(() => {
-  optimizer = new SharpOptimizer();
+  optimizer = new M4kOptimizer();
+  store.write.mockClear();
 });
 
-describe("optimizeImage()", () => {
+describe("optimize() — images", () => {
   it("should optimize the image into avif by default", async () => {
-    await optimizer.optimizeImage(
+    await optimizer.optimize(
       store,
       "test.png",
       await readFile(`${__dirname}/__fixtures__/test-image.png`),
+      "image",
     );
 
     expect(store.write).toHaveBeenCalledWith("test.avif", expect.any(Buffer));
   });
 
   it("should optimize the image into specified formats", async () => {
-    await optimizer.optimizeImage(
+    await optimizer.optimize(
       store,
       "test.png",
       await readFile(`${__dirname}/__fixtures__/test-image.png`),
+      "image",
       { avif: [[]], webp: [[]] },
     );
 
@@ -40,10 +43,11 @@ describe("optimizeImage()", () => {
   });
 
   it("should optimize the image into specified widths", async () => {
-    await optimizer.optimizeImage(
+    await optimizer.optimize(
       store,
       "test.png",
       await readFile(`${__dirname}/__fixtures__/test-image.png`),
+      "image",
       { avif: [200, 400, 600] }, // original is 433px
     );
 
@@ -53,12 +57,13 @@ describe("optimizeImage()", () => {
   });
 
   it("should work with input stream", async () => {
-    await optimizer.optimizeImage(
+    await optimizer.optimize(
       store,
       "test.png",
       (
         await open(`${__dirname}/__fixtures__/test-image.png`)
       ).readableWebStream() as ReadableStream,
+      "image",
       { avif: [[]], webp: [[]] },
     );
 
@@ -68,14 +73,15 @@ describe("optimizeImage()", () => {
 
   it("should output files", async () => {
     const store = new FileStore("./.tmp/test-out");
-    optimizer = new SharpOptimizer();
+    optimizer = new M4kOptimizer();
 
-    await optimizer.optimizeImage(
+    await optimizer.optimize(
       store,
       "test.png",
       (
         await open(`${__dirname}/__fixtures__/test-image.png`)
       ).readableWebStream() as ReadableStream,
+      "image",
       { avif: [[200, undefined, 5], [400, 100], 600], webp: [200, 400, 600] },
     );
 

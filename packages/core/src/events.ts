@@ -3,6 +3,7 @@ import type { Item } from "./items";
 export enum EventType {
   CHANGED = 1,
   DELETED = 2,
+  SCHEMA = 3,
 }
 
 type EventBase<T extends EventType> = {

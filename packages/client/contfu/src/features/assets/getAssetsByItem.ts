@@ -3,14 +3,15 @@ import { eq } from "drizzle-orm";
 import { assetFromDb } from "../../infra/db/mappers";
 import { db } from "../../infra/db/db";
 import { decodeId } from "../../infra/ids";
-import { assetTable } from "../../infra/db/schema";
+import { assetTable, itemAssetTable } from "../../infra/db/schema";
 
 export async function getAssetsByItem(itemId: string, ctx = db): Promise<AssetData[]> {
-  const dbos = await ctx
-    .select()
-    .from(assetTable)
-    .where(eq(assetTable.itemId, decodeId(itemId)))
+  const rows = await ctx
+    .select({ asset: assetTable })
+    .from(itemAssetTable)
+    .innerJoin(assetTable, eq(itemAssetTable.assetId, assetTable.id))
+    .where(eq(itemAssetTable.itemId, decodeId(itemId)))
     .all();
 
-  return dbos.map((dbo) => assetFromDb(dbo));
+  return rows.map((row) => assetFromDb(row.asset));
 }

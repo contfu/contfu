@@ -25,7 +25,6 @@ export {
   // Utility exports
   detectRuntime,
   getAsset,
-  getAssetByCanonical,
   getAssetsByItem,
   getItem,
   getItemIdsByCollection,
@@ -36,7 +35,6 @@ export {
   itemTable,
   updateItem,
   // Asset exports
-  type Asset,
   type AssetData,
   type AssetReference,
   type AssetSyncProgress,

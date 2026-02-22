@@ -203,6 +203,17 @@ export class StreamServer {
   }
 
   /**
+   * Send a schema event for a collection.
+   */
+  sendSchema(
+    controller: ReadableStreamDefaultController<Uint8Array>,
+    collectionName: string,
+    schema: Record<string, number>,
+  ) {
+    this.sendBinary(controller, [EventType.SCHEMA, collectionName, schema]);
+  }
+
+  /**
    * Send a ping to keep the connection alive.
    */
   sendPing(controller: ReadableStreamDefaultController<Uint8Array>) {

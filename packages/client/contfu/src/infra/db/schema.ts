@@ -47,16 +47,49 @@ export const syncTable = sqliteTable("sync", {
 
 export const assetTable = sqliteTable("asset", {
   id: blob({ mode: "buffer" }).primaryKey(),
-  itemId: blob({ mode: "buffer" })
-    .notNull()
-    .references(() => itemsTable.id, { onDelete: "cascade" }),
-  canonical: text().unique().notNull(),
   originalUrl: text().notNull(),
-  format: text().notNull(),
+  mediaType: text().notNull(),
+  ext: text().notNull(),
   size: integer().notNull(),
+  data: blob({ mode: "buffer" }),
   createdAt: integer().notNull(),
 });
 
 export type DbAsset = typeof assetTable.$inferSelect;
 export type NewAsset = typeof assetTable.$inferInsert;
 export type AssetUpdate = Partial<NewAsset>;
+
+export const itemAssetTable = sqliteTable(
+  "item_asset",
+  {
+    itemId: blob({ mode: "buffer" })
+      .notNull()
+      .references(() => itemsTable.id, { onDelete: "cascade" }),
+    assetId: blob({ mode: "buffer" })
+      .notNull()
+      .references(() => assetTable.id, { onDelete: "cascade" }),
+  },
+  (table) => [primaryKey({ columns: [table.itemId, table.assetId] })],
+);
+
+export const mediaVariantTable = sqliteTable(
+  "media_variant",
+  {
+    id: blob({ mode: "buffer" }).primaryKey(),
+    assetId: blob({ mode: "buffer" })
+      .notNull()
+      .references(() => assetTable.id, { onDelete: "cascade" }),
+    ext: text().notNull(),
+    optsHash: integer().notNull(),
+    opts: blob({ mode: "json" }).$type<Record<string, unknown>>(),
+    size: integer().notNull(),
+    data: blob({ mode: "buffer" }).notNull(),
+    createdAt: integer().notNull(),
+  },
+  (table) => [index("idx_variant_lookup").on(table.assetId, table.ext, table.optsHash)],
+);
+
+export const collectionSchemaTable = sqliteTable("collection_schema", {
+  collection: text().primaryKey(),
+  schema: blob({ mode: "json" }).$type<Record<string, number>>().notNull(),
+});

@@ -14,16 +14,11 @@ export interface ItemData {
   links: ItemLinks;
 }
 
-export interface Asset<T extends { format?: string } = { format: string }> {
-  format: T extends { format: infer F } ? F : string;
-}
-
-export interface AssetData<A extends Asset = Asset> {
+export interface AssetData {
   id: string;
-  itemId: string;
-  canonical: string;
   originalUrl: string;
-  format: A["format"];
+  mediaType: string;
+  ext: string;
   size: number;
   createdAt: number;
 }

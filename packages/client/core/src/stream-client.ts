@@ -4,6 +4,7 @@ import {
   WIRE_PING,
   WIRE_SNAPSHOT_START,
   WIRE_SNAPSHOT_END,
+  type CollectionSchema,
   type Item as InternalItem,
   type PageProps,
   type Block,
@@ -24,7 +25,12 @@ export type Item<T extends PageProps = Record<never, never>> = Omit<
 
 export type ChangedEvent = { type: typeof EventType.CHANGED; item: Item; index: number };
 export type DeletedEvent = { type: typeof EventType.DELETED; item: Buffer; index: number };
-export type SyncEvent = ChangedEvent | DeletedEvent;
+export type SchemaEvent = {
+  type: typeof EventType.SCHEMA;
+  collection: string;
+  schema: CollectionSchema;
+};
+export type SyncEvent = ChangedEvent | DeletedEvent | SchemaEvent;
 export type ItemEvent = SyncEvent;
 
 /** Emitted when stream connection is established. */
@@ -194,7 +200,9 @@ export async function* connectToStream(
 
           const event = fromWireEvent(wireEvent);
           if (event) {
-            nextFrom = event.index + 1;
+            if ("index" in event && typeof event.index === "number") {
+              nextFrom = event.index + 1;
+            }
             yield event;
           }
         }
@@ -295,6 +303,15 @@ function fromWireEvent(wireEvent: WireEvent): SyncEvent | null {
         type: EventType.DELETED,
         item: Buffer.from(wireEvent[1] as Uint8Array),
         index,
+      };
+    }
+
+    case EventType.SCHEMA: {
+      const [, collection, schema] = wireEvent;
+      return {
+        type: EventType.SCHEMA,
+        collection: collection as string,
+        schema: schema as CollectionSchema,
       };
     }
 

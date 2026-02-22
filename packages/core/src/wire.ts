@@ -16,10 +16,14 @@ export type WireItemEvent =
   | [EventType.CHANGED, WireItem, number]
   | [EventType.DELETED, Uint8Array, number];
 
+/** Schema event: sends collection schema to consumers. */
+export type WireSchemaEvent = [EventType.SCHEMA, string, Record<string, number>];
+
 /** Combined wire event type for client connections. */
 export type WireEvent =
   | [typeof WIRE_PING]
   | WireItemEvent
+  | WireSchemaEvent
   | [typeof WIRE_SNAPSHOT_START]
   | [typeof WIRE_SNAPSHOT_END];
 

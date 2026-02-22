@@ -1,0 +1,1 @@
+export { mediaStore } from "contfu";

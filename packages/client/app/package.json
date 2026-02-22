@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@contfu/core": "workspace:*",
+    "@contfu/media-optimizer": "workspace:*",
     "@contfu/ui": "workspace:*",
     "@tanstack/table-core": "^8.21.3",
     "bits-ui": "^2.15.5",

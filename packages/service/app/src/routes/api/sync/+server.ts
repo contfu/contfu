@@ -5,7 +5,7 @@ import { createLogger } from "@contfu/svc-backend/infra/logger/index";
 import { runEffectWithServices } from "@contfu/svc-backend/effect/run";
 import { fetchAndStreamItems } from "@contfu/svc-backend/features/sync/fetchAndStreamItems";
 import { getConsumerSyncConfig } from "@contfu/svc-backend/features/sync/getConsumerSyncConfig";
-import { consumerTable, db } from "@contfu/svc-backend/infra/db/db";
+import { consumerTable, db, influxTable } from "@contfu/svc-backend/infra/db/db";
 import { hasNats } from "@contfu/svc-backend/infra/nats/connection";
 import {
   getLastSequence,
@@ -19,7 +19,9 @@ import {
   getConsumerCollectionRefPolicy,
   toWireItem,
 } from "@contfu/svc-backend/infra/stream/stream-server";
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
+import { unpack } from "msgpackr";
+import type { CollectionSchema } from "@contfu/core";
 import type { RequestHandler } from "./$types";
 
 const log = createLogger("api-sync");
@@ -150,10 +152,45 @@ export const GET: RequestHandler = async ({ request, url }) => {
 
         const snapshotStartSeq = fromSeq == null ? await getLastSequence() : 0;
         const snapshotSequences = new Set<number>();
-        const collectionNames = await getCollectionNamesByIds(
-          await getConsumerCollectionIds(consumer.userId, consumer.id),
-          consumer.userId,
-        );
+        const collectionIds = await getConsumerCollectionIds(consumer.userId, consumer.id);
+        const collectionNames = await getCollectionNamesByIds(collectionIds, consumer.userId);
+
+        // Send merged schemas for each connected collection
+        if (collectionIds.length > 0) {
+          const influxRows = await db
+            .select({
+              collectionId: influxTable.collectionId,
+              schema: influxTable.schema,
+            })
+            .from(influxTable)
+            .where(
+              and(
+                eq(influxTable.userId, consumer.userId),
+                inArray(influxTable.collectionId, collectionIds),
+              ),
+            );
+
+          const mergedSchemas = new Map<number, Record<string, number>>();
+          for (const row of influxRows) {
+            if (!row.schema) continue;
+            const schema = unpack(row.schema) as CollectionSchema;
+            const existing = mergedSchemas.get(row.collectionId);
+            if (existing) {
+              for (const [prop, type] of Object.entries(schema)) {
+                existing[prop] = (existing[prop] ?? 0) | type;
+              }
+            } else {
+              mergedSchemas.set(row.collectionId, { ...schema });
+            }
+          }
+
+          for (const [colId, schema] of mergedSchemas) {
+            const name = collectionNames.get(colId);
+            if (name && Object.keys(schema).length > 0) {
+              server.sendSchema(controller, name, schema);
+            }
+          }
+        }
 
         if (fromSeq == null) {
           log.debug({ userId: consumer.userId, consumerId: consumer.id }, "Starting snapshot");

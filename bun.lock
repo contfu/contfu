@@ -5,6 +5,7 @@
     "": {
       "name": "contfu",
       "dependencies": {
+        "m4k": "^0.2.5",
         "svelte": "^5.50.2",
         "svelte-kit": "^1.2.0",
       },
@@ -48,6 +49,7 @@
       "version": "0.0.1",
       "dependencies": {
         "@contfu/core": "workspace:*",
+        "@contfu/media-optimizer": "workspace:*",
         "@contfu/ui": "workspace:*",
         "@tanstack/table-core": "^8.21.3",
         "bits-ui": "^2.15.5",
@@ -106,6 +108,7 @@
         "@contfu/client": "workspace:*",
         "@contfu/core": "workspace:*",
         "drizzle-orm": "1.0.0-beta.15-859cf75",
+        "m4k": "^0.2.4",
       },
       "devDependencies": {
         "@types/bun": "^1.3.9",
@@ -141,10 +144,27 @@
       "name": "@contfu/media-optimizer",
       "version": "0.0.1",
       "dependencies": {
+        "@ffmpeg-installer/ffmpeg": "^1.1.0",
+        "m4k": "^0.2.4",
         "sharp": "^0.34.5",
+        "tasque": "^0.1.2",
       },
       "devDependencies": {
         "@contfu/bun-file-store": "workspace:*",
+        "@types/bun": "^1.3.9",
+        "contfu": "workspace:*",
+      },
+      "peerDependencies": {
+        "typescript": "^5.9.3",
+      },
+    },
+    "packages/client/media-optimizer-remote": {
+      "name": "@contfu/media-optimizer-remote",
+      "version": "0.0.1",
+      "dependencies": {
+        "@m4k/client": "^0.2.4",
+      },
+      "devDependencies": {
         "@types/bun": "^1.3.9",
         "contfu": "workspace:*",
       },
@@ -369,6 +389,8 @@
 
     "@contfu/media-optimizer": ["@contfu/media-optimizer@workspace:packages/client/media-optimizer"],
 
+    "@contfu/media-optimizer-remote": ["@contfu/media-optimizer-remote@workspace:packages/client/media-optimizer-remote"],
+
     "@contfu/svc-app": ["@contfu/svc-app@workspace:packages/service/app"],
 
     "@contfu/svc-backend": ["@contfu/svc-backend@workspace:packages/service/backend"],
@@ -473,6 +495,24 @@
 
     "@esbuild/win32-x64": ["@esbuild/win32-x64@0.25.12", "", { "os": "win32", "cpu": "x64" }, "sha512-alJC0uCZpTFrSL0CCDjcgleBXPnCrEAhTBILpeAp7M/OFgoqtAetfBzX0xM00MUsVVPpVjlPuMbREqnZCXaTnA=="],
 
+    "@ffmpeg-installer/darwin-arm64": ["@ffmpeg-installer/darwin-arm64@4.1.5", "", { "os": "darwin", "cpu": "arm64" }, "sha512-hYqTiP63mXz7wSQfuqfFwfLOfwwFChUedeCVKkBtl/cliaTM7/ePI9bVzfZ2c+dWu3TqCwLDRWNSJ5pqZl8otA=="],
+
+    "@ffmpeg-installer/darwin-x64": ["@ffmpeg-installer/darwin-x64@4.1.0", "", { "os": "darwin", "cpu": "x64" }, "sha512-Z4EyG3cIFjdhlY8wI9aLUXuH8nVt7E9SlMVZtWvSPnm2sm37/yC2CwjUzyCQbJbySnef1tQwGG2Sx+uWhd9IAw=="],
+
+    "@ffmpeg-installer/ffmpeg": ["@ffmpeg-installer/ffmpeg@1.1.0", "", { "optionalDependencies": { "@ffmpeg-installer/darwin-arm64": "4.1.5", "@ffmpeg-installer/darwin-x64": "4.1.0", "@ffmpeg-installer/linux-arm": "4.1.3", "@ffmpeg-installer/linux-arm64": "4.1.4", "@ffmpeg-installer/linux-ia32": "4.1.0", "@ffmpeg-installer/linux-x64": "4.1.0", "@ffmpeg-installer/win32-ia32": "4.1.0", "@ffmpeg-installer/win32-x64": "4.1.0" } }, "sha512-Uq4rmwkdGxIa9A6Bd/VqqYbT7zqh1GrT5/rFwCwKM70b42W5gIjWeVETq6SdcL0zXqDtY081Ws/iJWhr1+xvQg=="],
+
+    "@ffmpeg-installer/linux-arm": ["@ffmpeg-installer/linux-arm@4.1.3", "", { "os": "linux", "cpu": "arm" }, "sha512-NDf5V6l8AfzZ8WzUGZ5mV8O/xMzRag2ETR6+TlGIsMHp81agx51cqpPItXPib/nAZYmo55Bl2L6/WOMI3A5YRg=="],
+
+    "@ffmpeg-installer/linux-arm64": ["@ffmpeg-installer/linux-arm64@4.1.4", "", { "os": "linux", "cpu": "arm64" }, "sha512-dljEqAOD0oIM6O6DxBW9US/FkvqvQwgJ2lGHOwHDDwu/pX8+V0YsDL1xqHbj1DMX/+nP9rxw7G7gcUvGspSoKg=="],
+
+    "@ffmpeg-installer/linux-ia32": ["@ffmpeg-installer/linux-ia32@4.1.0", "", { "os": "linux", "cpu": "ia32" }, "sha512-0LWyFQnPf+Ij9GQGD034hS6A90URNu9HCtQ5cTqo5MxOEc7Rd8gLXrJvn++UmxhU0J5RyRE9KRYstdCVUjkNOQ=="],
+
+    "@ffmpeg-installer/linux-x64": ["@ffmpeg-installer/linux-x64@4.1.0", "", { "os": "linux", "cpu": "x64" }, "sha512-Y5BWhGLU/WpQjOArNIgXD3z5mxxdV8c41C+U15nsE5yF8tVcdCGet5zPs5Zy3Ta6bU7haGpIzryutqCGQA/W8A=="],
+
+    "@ffmpeg-installer/win32-ia32": ["@ffmpeg-installer/win32-ia32@4.1.0", "", { "os": "win32", "cpu": "ia32" }, "sha512-FV2D7RlaZv/lrtdhaQ4oETwoFUsUjlUiasiZLDxhEUPdNDWcH1OU9K1xTvqz+OXLdsmYelUDuBS/zkMOTtlUAw=="],
+
+    "@ffmpeg-installer/win32-x64": ["@ffmpeg-installer/win32-x64@4.1.0", "", { "os": "win32", "cpu": "x64" }, "sha512-Drt5u2vzDnIONf4ZEkKtFlbvwj6rI3kxw1Ck9fpudmtgaZIHD4ucsWB2lCZBXRxJgXR+2IMSti+4rtM4C4rXgg=="],
+
     "@floating-ui/core": ["@floating-ui/core@1.7.4", "", { "dependencies": { "@floating-ui/utils": "^0.2.10" } }, "sha512-C3HlIdsBxszvm5McXlB8PeOEWfBhcGBTZGkGlWc2U0KFY5IwG5OQEuQ8rq52DZmcHDlPLd+YFBK+cZcytwIFWg=="],
 
     "@floating-ui/dom": ["@floating-ui/dom@1.7.5", "", { "dependencies": { "@floating-ui/core": "^1.7.4", "@floating-ui/utils": "^0.2.10" } }, "sha512-N0bD2kIPInNHUHehXhMke1rBGs1dwqvC9O9KYMyyjK7iXt7GAhnro7UlcuYcGdS/yYOlq0MAVgrow8IbWJwyqg=="],
@@ -556,6 +596,10 @@
     "@js-temporal/polyfill": ["@js-temporal/polyfill@0.5.1", "", { "dependencies": { "jsbi": "^4.3.0" } }, "sha512-hloP58zRVCRSpgDxmqCWJNlizAlUgJFqG2ypq79DCvyv9tHjRYMDOcPFjzfl/A1/YxDvRCZz8wvZvmapQnKwFQ=="],
 
     "@lucide/svelte": ["@lucide/svelte@0.563.1", "", { "peerDependencies": { "svelte": "^5" } }, "sha512-Kt+MbnE5D9RsuI/csmf7M+HWxALe57x3A0DhQ8pPnnUpneh7zuldrYjlT+veWtk+tVnp5doQtaAAxLujzIlhBw=="],
+
+    "@m4k/client": ["@m4k/client@0.2.4", "", { "dependencies": { "@m4k/common": "^0.2.3", "@sv2dev/multipart-stream": "^0.2.0" } }, "sha512-KlNKfyFmS4pvxBXXp/9ZyfZWJYBVwiOfWcOAUEn/9UchlSWqWyMNUk8Ef6bSKvXEwVNqO0hSpQ9Xn848F9Owsw=="],
+
+    "@m4k/common": ["@m4k/common@0.2.3", "", {}, "sha512-/sC0xarXWd44hXKLTATqSaExtnbY0qmCa8wbv716FO0/x9O+1rTSkGmzhs9zkjZjP5LDf0lONcBuqlFZcOn6Og=="],
 
     "@msgpack/msgpack": ["@msgpack/msgpack@3.1.3", "", {}, "sha512-47XIizs9XZXvuJgoaJUIE2lFoID8ugvc0jzSHP+Ptfk8nTbnR8g788wv48N03Kx0UkAv559HWRQ3yzOgzlRNUA=="],
 
@@ -922,6 +966,8 @@
     "@stripe/react-stripe-js": ["@stripe/react-stripe-js@4.0.2", "", { "dependencies": { "prop-types": "^15.7.2" }, "peerDependencies": { "@stripe/stripe-js": ">=1.44.1 <8.0.0", "react": ">=16.8.0 <20.0.0", "react-dom": ">=16.8.0 <20.0.0" } }, "sha512-l2wau+8/LOlHl+Sz8wQ1oDuLJvyw51nQCsu6/ljT6smqzTszcMHifjAJoXlnMfcou3+jK/kQyVe04u/ufyTXgg=="],
 
     "@stripe/stripe-js": ["@stripe/stripe-js@7.9.0", "", {}, "sha512-ggs5k+/0FUJcIgNY08aZTqpBTtbExkJMYMLSMwyucrhtWexVOEY1KJmhBsxf+E/Q15f5rbwBpj+t0t2AW2oCsQ=="],
+
+    "@sv2dev/multipart-stream": ["@sv2dev/multipart-stream@0.2.0", "", { "peerDependencies": { "typescript": "^5.0.0" } }, "sha512-fOBvTG957rxJeN200RiSvehzLFsm/KZVS0o931/zQiTqDGR5NR5JlMcNRdwz4iF0syzXkKHdU9J6GPuzx/Wlkg=="],
 
     "@sveltejs/acorn-typescript": ["@sveltejs/acorn-typescript@1.0.8", "", { "peerDependencies": { "acorn": "8.15.0" } }, "sha512-esgN+54+q0NjB0Y/4BomT9samII7jGwNy/2a3wNZbT2A2RpmXsXwUt24LvLhx6jUq2gVk4cWEvcRO6MFQbOfNA=="],
 
@@ -1461,6 +1507,8 @@
 
     "lz-string": ["lz-string@1.5.0", "", { "bin": { "lz-string": "bin/bin.js" } }, "sha512-h5bgJWpxJNswbU7qCrV0tIKQCaS3blPDrqKWx+QxzuzL1zGUzij9XCWLrSLsJPu5t+eWA/ycetzYAO5IOMcWAQ=="],
 
+    "m4k": ["m4k@0.2.5", "", { "dependencies": { "@m4k/common": "^0.2.3" }, "peerDependencies": { "sharp": "^0.34.1" } }, "sha512-KTlpF3i+VbRYMP5e7rJho/l30LdDxXu20aRQB68dbeIRZBC65uHjSmUBlVfTu/NXMR4fG+7g5qQBHcPD0xdqNg=="],
+
     "magic-string": ["magic-string@0.30.21", "", { "dependencies": { "@jridgewell/sourcemap-codec": "1.5.5" } }, "sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ=="],
 
     "markdown-to-jsx": ["markdown-to-jsx@8.0.0", "", { "peerDependencies": { "react": ">= 0.14.0" }, "optionalPeers": ["react"] }, "sha512-hWEaRxeCDjes1CVUQqU+Ov0mCqBqkGhLKjL98KdbwHSgEWZZSJQeGlJQatVfeZ3RaxrfTrZZ3eczl2dhp5c/pA=="],
@@ -1730,6 +1778,8 @@
     "tar-stream": ["tar-stream@3.1.7", "", { "dependencies": { "b4a": "^1.6.4", "fast-fifo": "^1.2.0", "streamx": "^2.15.0" } }, "sha512-qJj60CXt7IU1Ffyc3NJMjh6EkuCFej46zUqJ4J7pqYlThyd9bO0XBTmcOIhSzZJVWfsLks0+nle/j538YAW9RQ=="],
 
     "tarn": ["tarn@3.0.2", "", {}, "sha512-51LAVKUSZSVfI05vjPESNc5vwqqZpbXCsU+/+wxlOrUjk2SnFTt97v9ZgQrD4YmxYW1Px6w2KjaDitCfkvgxMQ=="],
+
+    "tasque": ["tasque@0.1.2", "", { "peerDependencies": { "typescript": "^5.0.0" } }, "sha512-84SpyCE9C+/ZNtCKlUgZMpfSrSnBigvPDdt+pZAIIIpulAIJYb6/Twonv2yg83o/1uq8MODhJ43o0WjyY6NvwA=="],
 
     "tedious": ["tedious@18.6.2", "", { "dependencies": { "@azure/core-auth": "^1.7.2", "@azure/identity": "^4.2.1", "@azure/keyvault-keys": "^4.4.0", "@js-joda/core": "^5.6.1", "@types/node": ">=18", "bl": "^6.0.11", "iconv-lite": "^0.6.3", "js-md4": "^0.3.2", "native-duplexpair": "^1.0.0", "sprintf-js": "^1.1.3" } }, "sha512-g7jC56o3MzLkE3lHkaFe2ZdOVFBahq5bsB60/M4NYUbocw/MCrS89IOEQUFr+ba6pb8ZHczZ/VqCyYeYq0xBAg=="],
 

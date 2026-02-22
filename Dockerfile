@@ -30,6 +30,7 @@ COPY packages/client/app/package.json /app/packages/client/app/package.json
 COPY packages/client/contfu/package.json /app/packages/client/contfu/package.json
 COPY packages/client/bun-file-store/package.json /app/packages/client/bun-file-store/package.json
 COPY packages/client/media-optimizer/package.json /app/packages/client/media-optimizer/package.json
+COPY packages/client/media-optimizer-remote/package.json /app/packages/client/media-optimizer-remote/package.json
 COPY packages/ui/package.json /app/packages/ui/package.json
 COPY demos/consumer-app/package.json /app/demos/consumer-app/package.json
 RUN bun install --frozen-lockfile --production --ignore-scripts

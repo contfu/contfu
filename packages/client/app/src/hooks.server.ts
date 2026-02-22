@@ -1,4 +1,6 @@
 import { connect } from "contfu";
+import { mediaStore } from "$lib/server/media";
+import { mediaOptimizer } from "$lib/server/media-optimizer";
 import { setSyncStatus } from "$lib/server/sync-status";
 
 let streamRunnerStarted = false;
@@ -19,7 +21,12 @@ export function init() {
 
 async function runStream() {
   try {
-    for await (const event of connect({ connectionEvents: true, reconnect: true })) {
+    for await (const event of connect({
+      connectionEvents: true,
+      reconnect: true,
+      mediaStore,
+      mediaOptimizer,
+    })) {
       if (event.type === "stream:connected") {
         setSyncStatus({ state: "connected", reason: null });
       } else if (event.type === "stream:snapshot:start") {

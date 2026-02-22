@@ -81,6 +81,7 @@
     if (!Array.isArray(cell)) return "";
     return cell.map((part) => mixedPartText(part)).join(" ");
   }
+
 </script>
 
 <div class="container mx-auto max-w-4xl space-y-6 p-6">
@@ -280,7 +281,7 @@
               {:else if block[0] === "i"}
                 <div class="space-y-1">
                   <img
-                    src={block[1]}
+                    src={`/media/${block[1]}.avif`}
                     alt={block[2]}
                     class="max-h-80 rounded border object-contain"
                     loading="lazy"

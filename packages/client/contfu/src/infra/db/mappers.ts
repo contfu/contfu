@@ -6,10 +6,9 @@ import type { DbAsset, DbItem, ItemUpdate, NewAsset, NewItem } from "./schema";
 export function assetToDb(asset: AssetData): NewAsset {
   return {
     id: decodeId(asset.id),
-    itemId: decodeId(asset.itemId),
-    canonical: asset.canonical,
     originalUrl: asset.originalUrl,
-    format: asset.format,
+    mediaType: asset.mediaType,
+    ext: asset.ext,
     size: asset.size,
     createdAt: asset.createdAt,
   };
@@ -18,10 +17,9 @@ export function assetToDb(asset: AssetData): NewAsset {
 export function assetFromDb(dbo: DbAsset): AssetData {
   return {
     id: encodeId(dbo.id),
-    itemId: encodeId(dbo.itemId),
-    canonical: dbo.canonical,
     originalUrl: dbo.originalUrl,
-    format: dbo.format,
+    mediaType: dbo.mediaType,
+    ext: dbo.ext,
     size: dbo.size,
     createdAt: dbo.createdAt,
   };

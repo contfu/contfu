@@ -5,6 +5,7 @@ export {
   type DeletedEvent,
   type Item,
   type ItemEvent,
+  type SchemaEvent,
   type SyncEvent,
   type StreamConnectedEvent,
   type StreamDisconnectedEvent,

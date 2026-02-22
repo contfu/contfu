@@ -6,8 +6,10 @@
 export { db } from "./infra/db/db";
 export {
   assetTable,
+  itemAssetTable,
   linkTable as itemLinkTable,
   itemsTable as itemTable,
+  mediaVariantTable,
   syncTable,
   type AssetUpdate,
   type DbAsset,
@@ -21,7 +23,7 @@ export {
 } from "./infra/db/schema";
 
 // Stream exports
-export type { ItemEvent } from "@contfu/client";
+export type { ItemEvent, SchemaEvent } from "@contfu/client";
 export { connect } from "./features/stream/connect";
 export { getSyncIndex } from "./features/sync/getSyncIndex";
 export { setSyncIndex } from "./features/sync/setSyncIndex";
@@ -54,13 +56,12 @@ export { createAsset } from "./features/assets/createAsset";
 export { deleteAssets } from "./features/assets/deleteAssets";
 export { deleteAssetsByItem } from "./features/assets/deleteAssetsByItem";
 export { getAsset } from "./features/assets/getAsset";
-export { getAssetByCanonical } from "./features/assets/getAssetByCanonical";
 export { getAssetsByItem } from "./features/assets/getAssetsByItem";
 export { getOrphanAssets } from "./features/assets/getOrphanAssets";
+export { linkAssetToItem } from "./features/assets/linkAssetToItem";
 
 // Shared client data types
 export {
-  type Asset,
   type AssetData,
   type AssetReference,
   type AssetSyncProgress,
@@ -71,11 +72,27 @@ export {
 
 // Media exports
 export {
+  type AudioConstraints,
+  type AudioFormat,
+  type CollectionVariants,
+  type ImageConstraints,
   type ImageFormat,
+  type MediaConvertOpts,
+  type MediaConstraints,
   type MediaOptimizer,
   type MediaStore,
+  type MediaTransform,
+  type OptimizeAudioOpts,
   type OptimizeImageOpts,
+  type OptimizeVideoOpts,
+  type VariantDef,
+  type VariantResult,
+  type VideoConstraints,
+  type VideoFormat,
 } from "./features/media/media";
+export { convertMedia } from "./features/media/convertMedia";
+export { DBStore } from "./infra/media/db-store";
+export { mediaStore } from "./infra/media/media-defaults";
 
 // Hooks exports
 export {
@@ -84,6 +101,11 @@ export {
   type EventHandler,
   type HookOptions,
 } from "./infra/hooks/event-hooks";
+
+// Collection schema exports
+export { collectionSchemaTable } from "./infra/db/schema";
+export { getCollectionSchema } from "./features/collections/getCollectionSchema";
+export { setCollectionSchema } from "./features/collections/setCollectionSchema";
 
 // Utility exports
 export { countAssets } from "./features/assets/countAssets";
