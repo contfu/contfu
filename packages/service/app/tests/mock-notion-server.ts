@@ -5,6 +5,7 @@
 
 const MOCK_PAGE_ID = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
 const MOCK_DATABASE_ID = "11111111-2222-3333-4444-555555555555";
+const MOCK_DATA_SOURCE_ID = "ffffffff-aaaa-bbbb-cccc-111111111111";
 
 const MOCK_PAGE_RESPONSE = {
   object: "page",
@@ -49,6 +50,15 @@ const MOCK_PAGE_RESPONSE = {
   public_url: null,
 };
 
+const MOCK_DATA_SOURCE_RESPONSE = {
+  object: "database",
+  id: MOCK_DATA_SOURCE_ID,
+  parent: { type: "database_id", database_id: MOCK_DATABASE_ID },
+  properties: {
+    Title: { id: "title", type: "title", title: {} },
+  },
+};
+
 const server = Bun.serve({
   port: 4174,
   fetch(req) {
@@ -63,6 +73,11 @@ const server = Bun.serve({
     // GET /v1/pages/:pageId
     if (req.method === "GET" && path.match(/^\/v1\/pages\/[^/]+$/)) {
       return Response.json(MOCK_PAGE_RESPONSE);
+    }
+
+    // GET /v1/data-sources/:dataSourceId
+    if (req.method === "GET" && path.match(/^\/v1\/data-sources\/[^/]+$/)) {
+      return Response.json(MOCK_DATA_SOURCE_RESPONSE);
     }
 
     // GET /v1/blocks/:blockId/children

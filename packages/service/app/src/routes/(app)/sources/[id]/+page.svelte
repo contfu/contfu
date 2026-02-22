@@ -79,9 +79,11 @@
     getSourceCollectionsBySource({ sourceId: params.id }),
   );
 
-  // Load webhook logs for Strapi sources
+  // Load webhook logs for Strapi and Notion sources
   const webhookLogsData = $derived(
-    source?.type === 1 ? await getWebhookLogs({ sourceId: id, limit: 10 }) : [],
+    source?.type === SourceType.STRAPI || source?.type === SourceType.NOTION
+      ? await getWebhookLogs({ sourceId: id, limit: 10 })
+      : [],
   );
 
   let testResult: { success: boolean; message: string } | null = $state(null);
@@ -96,10 +98,16 @@
     webhookLogs = webhookLogsData;
   });
 
-  // Generate webhook URL (reactive)
+  // Generate webhook URLs (reactive)
   const webhookUrl = $derived(
     source
       ? `${typeof window !== "undefined" ? window.location.origin : ""}/webhooks/strapi/${source.uid}`
+      : "",
+  );
+
+  const notionWebhookUrl = $derived(
+    source
+      ? `${typeof window !== "undefined" ? window.location.origin : ""}/webhooks/notion/${source.uid}`
       : "",
   );
 
@@ -142,7 +150,7 @@
   }
 
   async function refreshLogs() {
-    if (!source || source.type !== 1) return;
+    if (!source || (source.type !== SourceType.STRAPI && source.type !== SourceType.NOTION)) return;
     webhookLogs = await getWebhookLogs({ sourceId: source.id, limit: 10 });
   }
 
@@ -672,6 +680,122 @@
             {/if}
           </p>
         </div>
+      </section>
+
+      <!-- Webhook Configuration (Notion) -->
+      <section class="mb-8">
+        <h2
+          class="mb-3 text-sm font-medium uppercase tracking-wide text-muted-foreground"
+        >
+          Webhook Configuration
+        </h2>
+        <div class="rounded-lg border border-border p-4 space-y-4">
+          <div class="space-y-1.5">
+            <Label>Webhook URL</Label>
+            <div class="flex gap-2">
+              <Input
+                type="text"
+                value={notionWebhookUrl}
+                readonly
+                class="font-mono text-xs"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onclick={() => navigator.clipboard.writeText(notionWebhookUrl)}
+              >
+                Copy
+              </Button>
+            </div>
+            <p class="text-xs text-muted-foreground">
+              Register this URL as a Notion webhook. Notion will send a verification token to this URL when the webhook is created.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Webhook Activity Log (Notion) -->
+      <section class="mb-8">
+        <div class="mb-3 flex items-center justify-between">
+          <h2
+            class="text-sm font-medium uppercase tracking-wide text-muted-foreground"
+          >
+            Webhook Activity
+          </h2>
+          <Button size="sm" variant="ghost" onclick={refreshLogs}
+            >Refresh</Button
+          >
+        </div>
+
+        {#if webhookLogs.length === 0}
+          <div
+            class="rounded-lg border border-dashed border-border p-8 text-center"
+          >
+            <p class="text-sm text-muted-foreground">No webhook activity yet</p>
+            <p class="text-xs text-muted-foreground mt-1">
+              Events will appear here when Notion sends webhooks.
+            </p>
+          </div>
+        {:else}
+          <div class="overflow-hidden rounded-lg border border-border">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-border bg-muted/50">
+                  <th
+                    class="px-3 py-2 text-left font-medium text-muted-foreground"
+                    >Time</th
+                  >
+                  <th
+                    class="px-3 py-2 text-left font-medium text-muted-foreground"
+                    >Event</th
+                  >
+                  <th
+                    class="px-3 py-2 text-left font-medium text-muted-foreground"
+                    >Model</th
+                  >
+                  <th
+                    class="px-3 py-2 text-center font-medium text-muted-foreground"
+                    >Status</th
+                  >
+                  <th
+                    class="px-3 py-2 text-right font-medium text-muted-foreground"
+                    >Broadcast</th
+                  >
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-border">
+                {#each webhookLogs as log}
+                  <tr class="hover:bg-muted/30">
+                    <td class="px-3 py-2 text-xs text-muted-foreground">
+                      {formatTimestamp(log.timestamp)}
+                    </td>
+                    <td class="px-3 py-2 font-mono text-xs">{log.event}</td>
+                    <td class="px-3 py-2 text-xs">{log.model || "-"}</td>
+                    <td class="px-3 py-2 text-center">
+                      <span
+                        class="text-xs font-medium {getStatusColor(log.status)}"
+                      >
+                        {log.status}
+                      </span>
+                      {#if log.errorMessage}
+                        <p
+                          class="text-xs text-muted-foreground truncate max-w-[150px]"
+                          title={log.errorMessage}
+                        >
+                          {log.errorMessage}
+                        </p>
+                      {/if}
+                    </td>
+                    <td class="px-3 py-2 text-right font-mono text-xs">
+                      {log.itemsBroadcast}
+                    </td>
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+          </div>
+        {/if}
       </section>
     {/if}
 
