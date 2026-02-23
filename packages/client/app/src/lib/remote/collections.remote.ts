@@ -33,7 +33,7 @@ export const getCollectionDetailQuery = query(
     const collection = collections.find((entry) => entry.name === name) ?? null;
 
     const mergedInput: QueryItemsInput = {
-      ...(input ?? {}),
+      ...input,
       collection: name,
     };
 

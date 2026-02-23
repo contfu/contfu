@@ -53,14 +53,12 @@ const CONNECTION_STALL_TIMEOUT_MS = 60 * 1000;
 const consumerAckedSeq = new Map<string, number>();
 
 export class StreamServer {
-  constructor() {}
-
   /**
    * Returns true when the given consumer currently has a live stream connection.
    */
   isConsumerActive(userId: number, consumerId: number): boolean {
     this.pruneDeadConnections();
-    return this.findConsumerConnection(userId, consumerId) != null;
+    return this.findConsumerConnection(userId, consumerId) !== null;
   }
 
   /**
@@ -370,11 +368,12 @@ export class StreamServer {
   ) {
     const [type, payload] = wireEvent;
     if (type === EventType.CHANGED && !includeRef) {
-      const [, , id, collection, changedAt, props, content] = payload as WireItem;
+      const [, , id, collection, changedAt, props, content] = payload;
       const changedNoRef: WireItem = [null, null, id, collection, changedAt, props, content];
       this.sendBinary(controller, [type, changedNoRef, seq]);
       return;
     }
+    // oxlint-disable-next-line typescript/no-unnecessary-type-assertion -- needed for discriminated union narrowing
     this.sendBinary(controller, [type, payload, seq] as WireItemEvent);
   }
 
@@ -411,7 +410,7 @@ export class StreamServer {
     if (desiredSize === null) return false;
 
     if (desiredSize <= 0) {
-      if (connection.stalledSince == null) {
+      if (connection.stalledSince === null) {
         connection.stalledSince = Date.now();
         return true;
       }

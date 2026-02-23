@@ -136,7 +136,7 @@ test.describe("Admin Users Management", () => {
     // Get initial first row text
     const getFirstRowName = async () => {
       const firstCell = authenticatedPage.locator("tbody tr:first-child td:first-child");
-      return await firstCell.textContent();
+      return firstCell.textContent();
     };
 
     const initialName = await getFirstRowName();

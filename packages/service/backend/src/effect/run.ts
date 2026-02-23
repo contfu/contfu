@@ -28,5 +28,5 @@ function getMinimalRuntime() {
 export function runEffectWithServices<A, E>(
   effect: Effect.Effect<A, E, Database | Crypto>,
 ): Promise<A> {
-  return getMinimalRuntime().runPromise(effect as any) as Promise<A>;
+  return getMinimalRuntime().runPromise(effect as any);
 }

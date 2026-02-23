@@ -86,7 +86,7 @@ function parseValue(
     case "url":
       return value.url;
     case "files":
-      return value.files.filter((f) => f.type).map((f) => getImageUrl(f)!);
+      return value.files.filter((f) => f.type).map((f) => getImageUrl(f));
     case "people":
       return value.people.map(parseRef);
     case "created_by":

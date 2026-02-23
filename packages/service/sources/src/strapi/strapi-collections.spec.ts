@@ -10,7 +10,7 @@ const originalFetch = globalThis.fetch;
 
 beforeEach(() => {
   mockFetch.mockClear();
-  globalThis.fetch = mockFetch as any;
+  globalThis.fetch = mockFetch as unknown as typeof fetch;
 });
 
 // Import after mock setup

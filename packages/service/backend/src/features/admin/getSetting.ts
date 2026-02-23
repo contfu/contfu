@@ -22,5 +22,5 @@ export const getSetting = (key: string) =>
       catch: (e) => new DatabaseError({ cause: e }),
     });
 
-    return (row?.value as Buffer | null) ?? null;
+    return row?.value ?? null;
   }).pipe(Effect.withSpan("admin.getSetting", { attributes: { key } }));

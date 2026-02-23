@@ -1,9 +1,9 @@
 import type { EmptyRelations } from "drizzle-orm";
 import type { SQLiteBunDatabase } from "drizzle-orm/bun-sqlite";
-import { existsSync } from "fs";
-import { mkdir } from "fs/promises";
-import { dirname, join } from "path";
-import { fileURLToPath } from "url";
+import { existsSync } from "node:fs";
+import { mkdir } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { detectRuntime } from "../../util/runtime";
 import * as schema from "./schema";
 

@@ -176,7 +176,7 @@ export async function queryItems(input: QueryItemsInput = {}, ctx = db): Promise
         sourceType: row.sourceType ?? null,
         ref: row.ref ?? null,
         collection: row.collection,
-        props: (props && typeof props === "object" ? props : {}) as Record<string, unknown>,
+        props: props && typeof props === "object" ? props : {},
         content: Array.isArray(content) ? content : undefined,
         changedAt: row.changedAt,
         links: { content: [] },

@@ -9,7 +9,6 @@ import {
   type PageProps,
   type Block,
   type WireEvent,
-  type WireItem,
 } from "@contfu/core";
 import { unpack } from "msgpackr";
 
@@ -268,7 +267,7 @@ function fromWireEvent(wireEvent: WireEvent): SyncEvent | null {
 
   switch (type) {
     case EventType.CHANGED: {
-      const wireItem = wireEvent[1] as WireItem;
+      const wireItem = wireEvent[1];
       const [sourceType, ref, id, collection, changedAt, props, content] = wireItem;
       const index = wireEvent[2];
 

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import fs from "fs/promises";
+import fs from "node:fs/promises";
 import { FileStore } from "./file-store";
 
 describe("FileStore", () => {

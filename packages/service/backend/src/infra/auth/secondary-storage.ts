@@ -37,14 +37,14 @@ export async function createNatsKvSessionStorage(): Promise<SecondaryStorage | u
     get: async (key) => {
       if (key.startsWith(ACTIVE_SESSIONS_PREFIX)) {
         const actualKey = key.slice(ACTIVE_SESSIONS_PREFIX.length);
-        return await getFromCacheOrBucket(
+        return getFromCacheOrBucket(
           activeSessionsCache,
           await getUserSessionsBucket(),
           actualKey,
           deserializeActiveSessions,
         );
       }
-      return await getFromCacheOrBucket(
+      return getFromCacheOrBucket(
         sessionsCache,
         await getSessionsBucket(),
         key,

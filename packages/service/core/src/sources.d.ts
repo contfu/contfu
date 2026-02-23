@@ -30,4 +30,3 @@ export type WebAuthType = (typeof WebAuthType)[keyof typeof WebAuthType];
  * For web sources, the first byte is the auth type: 0=None, 1=Bearer, 2=Basic
  */
 export declare function extractWebAuthType(credentials: Buffer | null): WebAuthType;
-export {};

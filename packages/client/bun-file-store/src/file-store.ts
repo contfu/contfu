@@ -1,5 +1,5 @@
-import { type MediaStore } from "contfu";
-import { resolve } from "path";
+import type { MediaStore } from "contfu";
+import { resolve } from "node:path";
 
 export class FileStore implements MediaStore {
   constructor(private _root: string) {}

@@ -246,7 +246,7 @@ async function updateItemIds(sourceCollectionId: number, newIds: Buffer[]) {
     .from(sourceCollectionTable)
     .where(eq(sourceCollectionTable.id, sourceCollectionId));
 
-  const existingIds = row?.itemIds ? deserializeIds(row.itemIds as Buffer) : [];
+  const existingIds = row?.itemIds ? deserializeIds(row.itemIds) : [];
 
   const ids = new SortedSet<Buffer>({
     seed: existingIds,

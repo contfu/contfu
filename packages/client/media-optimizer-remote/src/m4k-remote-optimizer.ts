@@ -11,7 +11,7 @@ import type {
 } from "contfu";
 import { ProcessedFile, processAudio, processImage, processVideo } from "@m4k/client";
 import type { ImageOptions, VideoOptions, AudioOptions } from "@m4k/common";
-import { basename, extname } from "path";
+import { basename, extname } from "node:path";
 
 /**
  * Collect all chunks from a ProcessedFile's async stream into a Buffer.

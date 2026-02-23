@@ -34,8 +34,8 @@ export const GET: RequestHandler = async ({ request, url }) => {
   const { key } = auth;
 
   const fromParam = url.searchParams.get("from");
-  const requestedFromSeq = fromParam != null ? Number.parseInt(fromParam, 10) : null;
-  if (requestedFromSeq != null && (!Number.isFinite(requestedFromSeq) || requestedFromSeq < 0)) {
+  const requestedFromSeq = fromParam !== null ? Number.parseInt(fromParam, 10) : null;
+  if (requestedFromSeq !== null && (!Number.isFinite(requestedFromSeq) || requestedFromSeq < 0)) {
     return new Response("Invalid 'from' parameter", { status: 400 });
   }
 
@@ -73,7 +73,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
   );
 
   let fromSeq = requestedFromSeq;
-  if (hasNats() && fromSeq != null) {
+  if (hasNats() && fromSeq !== null) {
     const available = await isSequenceAvailable(fromSeq);
     if (!available) {
       fromSeq = null;
@@ -150,7 +150,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
           }
         }, 10_000);
 
-        const snapshotStartSeq = fromSeq == null ? await getLastSequence() : 0;
+        const snapshotStartSeq = fromSeq === null ? await getLastSequence() : 0;
         const snapshotSequences = new Set<number>();
         const collectionIds = await getConsumerCollectionIds(consumer.userId, consumer.id);
         const collectionNames = await getCollectionNamesByIds(collectionIds, consumer.userId);
@@ -192,7 +192,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
           }
         }
 
-        if (fromSeq == null) {
+        if (fromSeq === null) {
           log.debug({ userId: consumer.userId, consumerId: consumer.id }, "Starting snapshot");
           server.sendBinaryEvent(controller, [WIRE_SNAPSHOT_START]);
 

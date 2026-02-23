@@ -1,7 +1,7 @@
 import { FileStore } from "@contfu/bun-file-store";
-import { type MediaStore } from "contfu";
+import type { MediaStore } from "contfu";
 import { beforeEach, describe, expect, it, mock } from "bun:test";
-import { open, readFile } from "fs/promises";
+import { open, readFile } from "node:fs/promises";
 import { M4kOptimizer } from "./m4k-optimizer";
 
 const store = {

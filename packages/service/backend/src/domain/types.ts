@@ -19,7 +19,7 @@ import type {
   ServiceSourceCollectionSummary,
   ServiceSourceCollectionWithConnectionCount,
 } from "@contfu/svc-core";
-import { type Simplify } from "type-fest";
+import type { Simplify } from "type-fest";
 
 type DecodedIds<T, Ids extends keyof T & string> = Simplify<
   Omit<T, Ids> & {

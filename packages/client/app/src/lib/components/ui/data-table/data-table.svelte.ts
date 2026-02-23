@@ -119,7 +119,7 @@ export function mergeObjects<Sources extends readonly MaybeThunk<any>[]>(
       for (const s of sources) {
         const obj = resolve(s);
         if (obj) {
-          for (const k of Reflect.ownKeys(obj) as (string | symbol)[]) {
+          for (const k of Reflect.ownKeys(obj)) {
             all.add(k);
           }
         }
@@ -133,8 +133,7 @@ export function mergeObjects<Sources extends readonly MaybeThunk<any>[]>(
       return {
         configurable: true,
         enumerable: true,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        value: (src as any)[key],
+        value: src?.[key as never],
         writable: true,
       };
     },

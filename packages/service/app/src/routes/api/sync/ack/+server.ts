@@ -14,8 +14,8 @@ export const POST: RequestHandler = async ({ request, url }) => {
   }
 
   const seqParam = url.searchParams.get("seq");
-  const seq = seqParam != null ? Number.parseInt(seqParam, 10) : null;
-  if (seq == null || !Number.isFinite(seq) || seq < 0) {
+  const seq = seqParam !== null ? Number.parseInt(seqParam, 10) : null;
+  if (seq === null || !Number.isFinite(seq) || seq < 0) {
     return new Response("Invalid 'seq' parameter", { status: 400 });
   }
 

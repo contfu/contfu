@@ -18,7 +18,7 @@ export const cleanupCompletedJobs = (db: DrizzleDb) =>
         WHERE status IN ('completed', 'failed')
           AND "completedAt" < now() - interval '1 day'
       `);
-      return (result as unknown as { rowCount: number }).rowCount ?? 0;
+      return (result as { rowCount: number }).rowCount ?? 0;
     },
     catch: (e) => new DatabaseError({ cause: e }),
   }).pipe(Effect.withSpan("syncJobs.cleanupCompleted"));

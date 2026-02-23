@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["unicorn", "typescript", "oxc"],
+  "plugins": ["unicorn", "typescript", "oxc", "import", "promise"],
   "categories": {},
   "rules": {
     "constructor-super": "warn",
@@ -107,7 +107,21 @@
     "unicorn/no-useless-spread": "warn",
     "unicorn/prefer-set-size": "warn",
     "unicorn/prefer-string-starts-ends-with": "warn",
-    "typescript/no-misused-promises": "error"
+    "typescript/no-misused-promises": "error",
+    "typescript/return-await": "warn",
+    "typescript/no-unnecessary-type-assertion": "warn",
+    "typescript/no-import-type-side-effects": "warn",
+    "oxc/no-accumulating-spread": "warn",
+    "unicorn/prefer-array-flat-map": "warn",
+    "unicorn/prefer-array-find": "warn",
+    "eqeqeq": ["warn", "always", { "null": "ignore" }],
+    "no-fallthrough": "warn",
+    "no-self-compare": "warn",
+    "no-useless-constructor": "warn",
+    "import/no-self-import": "warn",
+    "unicorn/no-useless-promise-resolve-reject": "warn",
+    "no-var": "warn",
+    "unicorn/prefer-node-protocol": "warn"
   },
   "settings": {
     "jsx-a11y": {

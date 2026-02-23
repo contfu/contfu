@@ -1,10 +1,6 @@
 import type { RequestHandler } from "./$types";
 import { createLogger } from "@contfu/svc-backend/infra/logger/index";
 import { validateEvent, WebhookVerificationError } from "@polar-sh/sdk/webhooks";
-import type { WebhookSubscriptionCreatedPayload } from "@polar-sh/sdk/models/components/webhooksubscriptioncreatedpayload";
-import type { WebhookSubscriptionUpdatedPayload } from "@polar-sh/sdk/models/components/webhooksubscriptionupdatedpayload";
-import type { WebhookSubscriptionRevokedPayload } from "@polar-sh/sdk/models/components/webhooksubscriptionrevokedpayload";
-import type { WebhookSubscriptionCanceledPayload } from "@polar-sh/sdk/models/components/webhooksubscriptioncanceledpayload";
 import { db } from "@contfu/svc-backend/infra/db/db";
 import { quotaTable } from "@contfu/svc-backend/infra/db/schema";
 import { getQuotaForProduct } from "@contfu/svc-backend/infra/polar/products";
@@ -22,9 +18,7 @@ export const POST: RequestHandler = async ({ request }) => {
     switch (event.type) {
       case "subscription.created":
       case "subscription.updated": {
-        const payload = event.data as
-          | WebhookSubscriptionCreatedPayload["data"]
-          | WebhookSubscriptionUpdatedPayload["data"];
+        const payload = event.data;
         const customerId = payload.customerId;
         const productId = payload.productId;
         const status = payload.status;
@@ -59,9 +53,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
       case "subscription.revoked":
       case "subscription.canceled": {
-        const payload = event.data as
-          | WebhookSubscriptionRevokedPayload["data"]
-          | WebhookSubscriptionCanceledPayload["data"];
+        const payload = event.data;
         const customerId = payload.customerId;
 
         // Reset to free quota

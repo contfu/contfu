@@ -18,7 +18,7 @@ import {
   type ImageOptions,
   type VideoOptions,
 } from "m4k";
-import { basename, extname } from "path";
+import { basename, extname } from "node:path";
 
 /**
  * Collect all chunks from a ProcessedFile's async stream into a Buffer.

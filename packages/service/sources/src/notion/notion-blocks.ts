@@ -37,7 +37,7 @@ export async function getContentBlocks(key: string, id: string) {
       }
       if (isQuote(b) && res.has_children) {
         const c = await getContentBlocks(key, res.id);
-        b[1].push(...(c as Block[]));
+        b[1].push(...c);
       }
       if (isTable(b) && res.has_children) {
         for await (const row of paginatedChildren(key, res.id)) {

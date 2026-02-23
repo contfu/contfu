@@ -165,7 +165,7 @@ async function getSourceCollectionsByRef(
       and(eq(sourceCollectionTable.userId, userId), eq(sourceCollectionTable.sourceId, sourceId)),
     );
 
-  const result = all.map((c) => ({ id: c.id, ref: c.ref as Buffer | null }));
+  const result = all.map((c) => ({ id: c.id, ref: c.ref }));
   sourceCollectionCache.set(cacheKey, result);
   return result.filter((c) => c.ref && c.ref.equals(ref));
 }
@@ -190,7 +190,7 @@ async function getSourceCollectionsByRefGlobal(ref: Buffer) {
 
   const mapped = results.map((c) => ({
     id: c.id,
-    ref: c.ref as Buffer | null,
+    ref: c.ref,
     userId: c.userId,
     sourceId: c.sourceId,
   }));
@@ -465,7 +465,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
           await streamServer.broadcastDeleted(
             itemId,
             connections.map((c) => ({
-              userId: source!.userId,
+              userId: source.userId,
               consumerId: c.consumerId,
               collectionId: c.collectionId,
               includeRef:
@@ -807,7 +807,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
           const collectionConnections = connections
             .filter((c) => c.collectionId === collectionId)
             .map((c) => ({
-              userId: source!.userId,
+              userId: source.userId,
               consumerId: c.consumerId,
               collectionId: c.collectionId,
               includeRef:

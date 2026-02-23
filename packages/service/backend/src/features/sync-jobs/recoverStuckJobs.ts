@@ -21,7 +21,7 @@ export const recoverStuckJobs = (db: DrizzleDb) =>
         WHERE status = 'running'
           AND "startedAt" < now() - interval '5 minutes'
       `);
-      return (result as unknown as { rowCount: number }).rowCount ?? 0;
+      return (result as { rowCount: number }).rowCount ?? 0;
     },
     catch: (e) => new DatabaseError({ cause: e }),
   }).pipe(Effect.withSpan("syncJobs.recoverStuck"));

@@ -1,4 +1,4 @@
-import { createCipheriv, createDecipheriv, hkdf, randomBytes } from "crypto";
+import { createCipheriv, createDecipheriv, hkdf, randomBytes } from "node:crypto";
 
 const ALGORITHM = "aes-256-gcm";
 const IV_LENGTH = 12; // 96 bits for GCM

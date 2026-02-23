@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 import { DatabaseError } from "../../effect/errors";
 import { Database } from "../../effect/services/Database";
-import { sourceCollectionTable, type SourceCollection } from "../../infra/db/schema";
+import { sourceCollectionTable } from "../../infra/db/schema";
 
 export interface CreateSourceCollectionInput {
   sourceId: number;
@@ -37,5 +37,5 @@ export const createSourceCollection = (userId: number, input: CreateSourceCollec
       catch: (e) => new DatabaseError({ cause: e }),
     });
 
-    return inserted as SourceCollection;
+    return inserted;
   }).pipe(Effect.withSpan("sourceCollections.createSourceCollection", { attributes: { userId } }));

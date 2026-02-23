@@ -16,7 +16,7 @@ import {
   type QuoteBlock,
   type UnorderedListBlock,
 } from "@contfu/core";
-import type { StrapiBlock, StrapiBlockChild, StrapiMedia } from "./strapi";
+import type { StrapiBlock, StrapiBlockChild } from "./strapi";
 import { getMediaUrl } from "./strapi-helpers";
 
 /**
@@ -88,7 +88,7 @@ function convertBlock(block: StrapiBlock, baseUrl?: string): Block | null {
     }
 
     case "image": {
-      const media = block.image as StrapiMedia | undefined;
+      const media = block.image;
       if (!media?.url) return null;
       const url = getMediaUrl(media.url, baseUrl);
       const alt = media.alternativeText ?? "";
