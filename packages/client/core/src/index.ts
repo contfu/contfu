@@ -8,5 +8,7 @@ export {
   type SyncEvent,
   type StreamConnectedEvent,
   type StreamDisconnectedEvent,
+  type StreamSnapshotStartEvent,
+  type StreamSnapshotEndEvent,
   type StreamEvent,
 } from "./stream-client";

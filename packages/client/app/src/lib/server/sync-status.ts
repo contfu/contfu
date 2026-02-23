@@ -1,4 +1,4 @@
-export type SyncConnectionState = "disabled" | "connecting" | "connected" | "error";
+export type SyncConnectionState = "disabled" | "connecting" | "syncing" | "connected" | "error";
 
 export type SyncStatus = {
   state: SyncConnectionState;

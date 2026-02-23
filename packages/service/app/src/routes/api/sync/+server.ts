@@ -1,6 +1,6 @@
 import { extractConsumerKey } from "$lib/server/consumer-auth";
 import { getStreamServer } from "$lib/server/startup";
-import { EventType } from "@contfu/core";
+import { EventType, WIRE_SNAPSHOT_END, WIRE_SNAPSHOT_START } from "@contfu/core";
 import { createLogger } from "@contfu/svc-backend/infra/logger/index";
 import { runEffectWithServices } from "@contfu/svc-backend/effect/run";
 import { fetchAndStreamItems } from "@contfu/svc-backend/features/sync/fetchAndStreamItems";
@@ -65,18 +65,21 @@ export const GET: RequestHandler = async ({ request, url }) => {
     }
   }
 
-  log.info({ userId: consumer.userId, consumerId: consumer.id }, "Consumer connected");
+  log.info(
+    { userId: consumer.userId, consumerId: consumer.id, fromSeq: requestedFromSeq },
+    "Consumer connected",
+  );
 
   let fromSeq = requestedFromSeq;
-  const canReplay = hasNats() && fromSeq != null;
-  if (canReplay && fromSeq != null) {
+  if (hasNats() && fromSeq != null) {
     const available = await isSequenceAvailable(fromSeq);
     if (!available) {
       fromSeq = null;
     }
-  } else if (fromSeq != null) {
-    fromSeq = null;
   }
+  // When NATS is unavailable, fromSeq stays as-is.
+  // from != null means "I have data, skip snapshot."
+  // Replay phase is skipped anyway because hasNats() is false.
 
   let cleanupConnection: (() => void) | null = null;
 
@@ -115,6 +118,36 @@ export const GET: RequestHandler = async ({ request, url }) => {
       try {
         if (request.signal.aborted) return;
 
+        const result = await server.finalizeConnection(key, controller);
+        if (typeof result !== "string") {
+          cleanup();
+          return;
+        }
+        connectionId = result;
+        log.info(
+          { userId: consumer.userId, consumerId: consumer.id, connectionId },
+          "Connection established",
+        );
+
+        const info = server.getConnectionConsumerInfo(connectionId);
+        if (!info || request.signal.aborted) {
+          cleanup();
+          return;
+        }
+
+        // Start keepAlive pings before snapshot/replay so the client
+        // doesn't detect a stall during long-running phases where all
+        // events may be filtered out (e.g. snapshotSequences skip).
+        keepAlive = setInterval(() => {
+          try {
+            if (!connectionId || !server.sendPingForConnection(connectionId)) {
+              cleanup();
+            }
+          } catch {
+            cleanup();
+          }
+        }, 10_000);
+
         const snapshotStartSeq = fromSeq == null ? await getLastSequence() : 0;
         const snapshotSequences = new Set<number>();
         const collectionNames = await getCollectionNamesByIds(
@@ -124,6 +157,8 @@ export const GET: RequestHandler = async ({ request, url }) => {
 
         if (fromSeq == null) {
           log.debug({ userId: consumer.userId, consumerId: consumer.id }, "Starting snapshot");
+          server.sendBinaryEvent(controller, [WIRE_SNAPSHOT_START]);
+
           const config = await runEffectWithServices(
             getConsumerSyncConfig(consumer.userId, consumer.id),
           );
@@ -146,27 +181,12 @@ export const GET: RequestHandler = async ({ request, url }) => {
             snapshotItemCount++;
             server.sendIndexedItem(controller, seq, wireEvent, Boolean(item.includeRef));
           }
+
+          server.sendBinaryEvent(controller, [WIRE_SNAPSHOT_END]);
           log.debug(
             { userId: consumer.userId, consumerId: consumer.id, itemCount: snapshotItemCount },
             "Snapshot complete",
           );
-        }
-
-        const result = await server.finalizeConnection(key, controller);
-        if (typeof result !== "string") {
-          cleanup();
-          return;
-        }
-        connectionId = result;
-        log.info(
-          { userId: consumer.userId, consumerId: consumer.id, connectionId },
-          "Connection established",
-        );
-
-        const info = server.getConnectionConsumerInfo(connectionId);
-        if (!info || request.signal.aborted) {
-          cleanup();
-          return;
         }
 
         const replayStartSeq = fromSeq ?? snapshotStartSeq + 1;
@@ -199,16 +219,6 @@ export const GET: RequestHandler = async ({ request, url }) => {
             log.debug({ userId: info.userId, consumerId: info.consumerId }, "Replay complete");
           }
         }
-
-        keepAlive = setInterval(() => {
-          try {
-            if (!connectionId || !server.sendPingForConnection(connectionId)) {
-              cleanup();
-            }
-          } catch {
-            cleanup();
-          }
-        }, 10_000);
       } catch (error) {
         log.error({ err: error }, "Sync stream error");
         cleanup();

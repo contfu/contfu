@@ -8,11 +8,13 @@
   const syncLabel =
     stats.sync.state === "connected"
       ? "Connected"
-      : stats.sync.state === "connecting"
-        ? "Connecting"
-        : stats.sync.state === "error"
-          ? "Error"
-          : "Disabled";
+      : stats.sync.state === "syncing"
+        ? "Syncing"
+        : stats.sync.state === "connecting"
+          ? "Connecting"
+          : stats.sync.state === "error"
+            ? "Error"
+            : "Disabled";
 </script>
 
 <div class="container mx-auto max-w-5xl p-6">

@@ -5,6 +5,7 @@ import {
   type WireItem,
   type WireItemEvent,
 } from "@contfu/core";
+import { purgeEventsUpTo } from "../nats/event-stream";
 import { createLogger } from "../logger/index";
 import type { UserSyncItem } from "../sync-worker/messages";
 
@@ -48,8 +49,8 @@ const preAuthCache = new Map<
 >();
 const PRE_AUTH_TTL_MS = 30 * 1000;
 const CONNECTION_STALL_TIMEOUT_MS = 60 * 1000;
-const CONSUMER_HEARTBEAT_TTL_MS = 45 * 1000;
-const consumerHeartbeat = new Map<string, number>();
+/** Maps "userId:consumerId" to last acked sequence number. */
+const consumerAckedSeq = new Map<string, number>();
 
 export class StreamServer {
   constructor() {}
@@ -59,21 +60,17 @@ export class StreamServer {
    */
   isConsumerActive(userId: number, consumerId: number): boolean {
     this.pruneDeadConnections();
-    this.pruneHeartbeats();
-    const key = this.heartbeatKey(userId, consumerId);
-    const lastSeen = consumerHeartbeat.get(key);
-    if (lastSeen && Date.now() - lastSeen <= CONSUMER_HEARTBEAT_TTL_MS) {
-      return true;
-    }
     return this.findConsumerConnection(userId, consumerId) != null;
   }
 
-  markConsumerHeartbeat(userId: number, consumerId: number): void {
-    const connection = this.findConsumerConnection(userId, consumerId);
-    if (connection && !this.updateConnectionHealth(connection)) {
-      this.removeConnection(connection.id);
-    }
-    consumerHeartbeat.set(this.heartbeatKey(userId, consumerId), Date.now());
+  /**
+   * Records the last-acked sequence for a consumer and attempts to purge
+   * events that all active consumers have acknowledged.
+   */
+  async ackConsumerSequence(userId: number, consumerId: number, seq: number): Promise<void> {
+    const key = `${userId}:${consumerId}`;
+    consumerAckedSeq.set(key, seq);
+    await this.tryPurgeEvents();
   }
 
   /**
@@ -138,7 +135,6 @@ export class StreamServer {
       consumerToConnection.set(consumerKey, connection);
       connectionToConsumer.set(connectionId, consumerKey);
       consumerInfo.set(consumerKey, { userId: client.userId, consumerId: client.id });
-      this.markConsumerHeartbeat(client.userId, client.id);
 
       // Enqueue sync jobs for collections this consumer is connected to
       const collectionIds = await getConsumerCollectionIds(client.userId, client.id);
@@ -201,7 +197,8 @@ export class StreamServer {
     consumerToConnection.delete(consumerKey);
     consumerInfo.delete(consumerKey);
     if (info) {
-      consumerHeartbeat.delete(this.heartbeatKey(info.userId, info.consumerId));
+      consumerAckedSeq.delete(`${info.userId}:${info.consumerId}`);
+      void this.tryPurgeEvents();
     }
   }
 
@@ -241,6 +238,13 @@ export class StreamServer {
     }
 
     return true;
+  }
+
+  /**
+   * Send an arbitrary wire event to a controller.
+   */
+  sendBinaryEvent(controller: ReadableStreamDefaultController<Uint8Array>, wireEvent: WireEvent) {
+    this.sendBinary(controller, wireEvent);
   }
 
   /**
@@ -407,10 +411,6 @@ export class StreamServer {
     return true;
   }
 
-  private heartbeatKey(userId: number, consumerId: number): string {
-    return `${userId}:${consumerId}`;
-  }
-
   private findConsumerConnection(userId: number, consumerId: number): StreamConnection | null {
     for (const [key, info] of consumerInfo.entries()) {
       if (info.userId === userId && info.consumerId === consumerId) {
@@ -420,11 +420,25 @@ export class StreamServer {
     return null;
   }
 
-  private pruneHeartbeats() {
-    const now = Date.now();
-    for (const [key, lastSeen] of consumerHeartbeat.entries()) {
-      if (now - lastSeen > CONSUMER_HEARTBEAT_TTL_MS) {
-        consumerHeartbeat.delete(key);
+  /**
+   * Purge NATS events that all active consumers have acknowledged.
+   */
+  private async tryPurgeEvents(): Promise<void> {
+    if (consumerInfo.size === 0) return;
+
+    let minSeq = Number.POSITIVE_INFINITY;
+    for (const [, info] of consumerInfo.entries()) {
+      const key = `${info.userId}:${info.consumerId}`;
+      const seq = consumerAckedSeq.get(key);
+      if (seq == null) return; // Not all consumers have acked yet
+      minSeq = Math.min(minSeq, seq);
+    }
+
+    if (minSeq > 0 && Number.isFinite(minSeq)) {
+      try {
+        await purgeEventsUpTo(minSeq);
+      } catch (err) {
+        log.error({ err }, "Failed to purge events");
       }
     }
   }

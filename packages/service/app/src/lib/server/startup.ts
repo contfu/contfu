@@ -54,6 +54,11 @@ export async function initialize(): Promise<void> {
   const stream = getStreamServer();
   const worker = getSyncWorkerManager();
 
+  log.info(
+    { nats: hasNats(), natsServer: process.env.NATS_SERVER ?? null },
+    "Infrastructure status",
+  );
+
   // Initialize JetStream event stream if NATS is available
   if (hasNats()) {
     await ensureEventStream();

@@ -17,7 +17,11 @@ export type WireItemEvent =
   | [EventType.DELETED, Uint8Array, number];
 
 /** Combined wire event type for client connections. */
-export type WireEvent = [typeof WIRE_PING] | WireItemEvent;
+export type WireEvent =
+  | [typeof WIRE_PING]
+  | WireItemEvent
+  | [typeof WIRE_SNAPSHOT_START]
+  | [typeof WIRE_SNAPSHOT_END];
 
 /**
  * Wire item format as tuple:
@@ -35,3 +39,7 @@ export type WireItem = [
 
 /** PING event type constant (not in EventType enum). */
 export const WIRE_PING = 0 as const;
+
+/** Snapshot lifecycle wire event constants. */
+export const WIRE_SNAPSHOT_START = 3 as const;
+export const WIRE_SNAPSHOT_END = 4 as const;

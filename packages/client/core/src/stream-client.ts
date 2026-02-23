@@ -2,6 +2,8 @@ import {
   EventType,
   SourceType,
   WIRE_PING,
+  WIRE_SNAPSHOT_START,
+  WIRE_SNAPSHOT_END,
   type Item as InternalItem,
   type PageProps,
   type Block,
@@ -31,8 +33,18 @@ export type StreamConnectedEvent = { type: "stream:connected" };
 /** Emitted when stream connection is lost. */
 export type StreamDisconnectedEvent = { type: "stream:disconnected"; reason?: string };
 
+/** Emitted when server begins sending snapshot data. */
+export type StreamSnapshotStartEvent = { type: "stream:snapshot:start" };
+
+/** Emitted when server finishes sending snapshot data. */
+export type StreamSnapshotEndEvent = { type: "stream:snapshot:end" };
+
 /** Connection lifecycle events. */
-export type StreamEvent = StreamConnectedEvent | StreamDisconnectedEvent;
+export type StreamEvent =
+  | StreamConnectedEvent
+  | StreamDisconnectedEvent
+  | StreamSnapshotStartEvent
+  | StreamSnapshotEndEvent;
 
 function getEnv(name: string): string | undefined {
   const g = globalThis as { process?: { env?: Record<string, string | undefined> } };
@@ -81,34 +93,40 @@ export async function* connectToStream(
 
   const baseUrl = apiUrl.replace(/\/$/, "");
   const syncEndpoint = /\/sync(?:$|\?)/.test(baseUrl) ? baseUrl : `${baseUrl}/sync`;
-  const heartbeatEndpoint = buildHeartbeatUrl(syncEndpoint, key);
+  const ackEndpoint = buildAckUrl(syncEndpoint, key);
 
   let reconnectDelay = initialReconnectDelay;
   let shouldReconnect = true;
   let nextFrom = from;
-  let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+  let lastAckedFrom: number | null = null;
+  let ackTimer: ReturnType<typeof setInterval> | null = null;
   let lastStreamActivityAt = 0;
   let currentReader: ReadableStreamDefaultReader<Uint8Array> | null = null;
 
-  const startHeartbeat = () => {
+  const startAckTimer = () => {
     lastStreamActivityAt = Date.now();
-    void sendHeartbeat(heartbeatEndpoint);
-    heartbeatTimer = setInterval(() => {
-      if (Date.now() - lastStreamActivityAt <= 20_000) {
-        void sendHeartbeat(heartbeatEndpoint);
+    ackTimer = setInterval(() => {
+      // Stall detection: server pings every 10s, so 45s means ~3 missed pings
+      if (Date.now() - lastStreamActivityAt > 45_000) {
+        if (currentReader) {
+          void currentReader.cancel("Stream stalled");
+        }
         return;
       }
 
-      if (currentReader) {
-        void currentReader.cancel("Stream stalled");
+      // Send ack if we have a new sequence to acknowledge
+      if (nextFrom != null && nextFrom !== lastAckedFrom) {
+        const seq = nextFrom - 1;
+        lastAckedFrom = nextFrom;
+        void sendAck(ackEndpoint, seq);
       }
-    }, 15_000);
+    }, 30_000);
   };
 
-  const stopHeartbeat = () => {
-    if (heartbeatTimer) {
-      clearInterval(heartbeatTimer);
-      heartbeatTimer = null;
+  const stopAckTimer = () => {
+    if (ackTimer) {
+      clearInterval(ackTimer);
+      ackTimer = null;
     }
     currentReader = null;
   };
@@ -130,7 +148,7 @@ export async function* connectToStream(
       }
 
       reconnectDelay = initialReconnectDelay;
-      startHeartbeat();
+      startAckTimer();
       if (connectionEvents) {
         yield { type: "stream:connected" };
       }
@@ -143,7 +161,7 @@ export async function* connectToStream(
         const { value, done } = await reader.read();
 
         if (done) {
-          stopHeartbeat();
+          stopAckTimer();
           if (connectionEvents) {
             yield { type: "stream:disconnected", reason: "Stream ended" };
           }
@@ -166,8 +184,15 @@ export async function* connectToStream(
           buffer = buffer.slice(4 + messageLength);
 
           const wireEvent = unpack(messageData) as WireEvent;
-          const event = fromWireEvent(wireEvent);
+          const streamEvent = fromWireStreamEvent(wireEvent);
+          if (streamEvent) {
+            if (connectionEvents) {
+              yield streamEvent;
+            }
+            continue;
+          }
 
+          const event = fromWireEvent(wireEvent);
           if (event) {
             nextFrom = event.index + 1;
             yield event;
@@ -175,7 +200,7 @@ export async function* connectToStream(
         }
       }
     } catch (err) {
-      stopHeartbeat();
+      stopAckTimer();
       if (connectionEvents && !(err instanceof Error && err.message.startsWith("Stream error:"))) {
         yield {
           type: "stream:disconnected",
@@ -196,18 +221,18 @@ export async function* connectToStream(
   }
 }
 
-function buildHeartbeatUrl(syncEndpoint: string, key: Buffer): string {
-  const base = syncEndpoint.replace(/\/sync(?:\?.*)?$/, "/sync/heartbeat");
+function buildAckUrl(syncEndpoint: string, key: Buffer): string {
+  const base = syncEndpoint.replace(/\/sync(?:\?.*)?$/, "/sync/ack");
   const params = new URLSearchParams();
   params.set("key", key.toString("base64url"));
   return `${base}?${params.toString()}`;
 }
 
-async function sendHeartbeat(url: string): Promise<void> {
+async function sendAck(baseUrl: string, seq: number): Promise<void> {
   try {
-    await fetch(url, { method: "POST" });
+    await fetch(`${baseUrl}&seq=${seq}`, { method: "POST" });
   } catch {
-    // ignore heartbeat transport failures; stream reconnection handles hard failures
+    // ignore ack transport failures; stream reconnection handles hard failures
   }
 }
 
@@ -219,6 +244,15 @@ function buildSyncUrl(endpoint: string, key: Buffer, from?: number): string {
   }
   const separator = endpoint.includes("?") ? "&" : "?";
   return `${endpoint}${separator}${params.toString()}`;
+}
+
+function fromWireStreamEvent(
+  wireEvent: WireEvent,
+): StreamSnapshotStartEvent | StreamSnapshotEndEvent | null {
+  const type = wireEvent[0];
+  if (type === WIRE_SNAPSHOT_START) return { type: "stream:snapshot:start" };
+  if (type === WIRE_SNAPSHOT_END) return { type: "stream:snapshot:end" };
+  return null;
 }
 
 function fromWireEvent(wireEvent: WireEvent): SyncEvent | null {

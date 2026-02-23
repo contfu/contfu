@@ -22,6 +22,10 @@ async function runStream() {
     for await (const event of connect({ connectionEvents: true, reconnect: true })) {
       if (event.type === "stream:connected") {
         setSyncStatus({ state: "connected", reason: null });
+      } else if (event.type === "stream:snapshot:start") {
+        setSyncStatus({ state: "syncing", reason: null });
+      } else if (event.type === "stream:snapshot:end") {
+        setSyncStatus({ state: "connected", reason: null });
       } else if (event.type === "stream:disconnected") {
         setSyncStatus({
           state: "error",

@@ -13,6 +13,12 @@ export const POST: RequestHandler = async ({ request, url }) => {
     return new Response("Invalid key format", { status: 401 });
   }
 
+  const seqParam = url.searchParams.get("seq");
+  const seq = seqParam != null ? Number.parseInt(seqParam, 10) : null;
+  if (seq == null || !Number.isFinite(seq) || seq < 0) {
+    return new Response("Invalid 'seq' parameter", { status: 400 });
+  }
+
   const consumers = await db
     .select({ userId: consumerTable.userId, id: consumerTable.id })
     .from(consumerTable)
@@ -23,6 +29,6 @@ export const POST: RequestHandler = async ({ request, url }) => {
     return new Response("Invalid or unknown consumer key", { status: 401 });
   }
 
-  getStreamServer().markConsumerHeartbeat(consumer.userId, consumer.id);
+  await getStreamServer().ackConsumerSequence(consumer.userId, consumer.id, seq);
   return new Response(null, { status: 204 });
 };

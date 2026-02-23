@@ -99,6 +99,17 @@ export async function isSequenceAvailable(seq: number): Promise<boolean> {
 }
 
 /**
+ * Purge events from the stream up to (but not including) the given sequence number.
+ * No-op if NATS is unavailable.
+ */
+export async function purgeEventsUpTo(seq: number): Promise<void> {
+  if (!hasNats()) return;
+
+  const jsm = await getJetStreamManager();
+  await jsm.streams.purge(STREAM_NAME, { seq });
+}
+
+/**
  * Replay events from the stream starting at a given sequence number.
  * Yields events filtered to the specified user's collection subjects.
  * Yields until caught up, then returns.
