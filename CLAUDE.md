@@ -38,11 +38,7 @@ cd packages/service/backend && bun run db:generate   # Generate migration from s
 
 ## Commit & PR Workflow
 
-1. **Before opening a PR, run quality checks:**
-
-   ```bash
-   bun test && bun run fmt && bun run lint
-   ```
+1. **Pre-commit hook runs automatically:** formatting, linting, and unit tests run on every commit via `.githooks/pre-commit`. No manual step needed.
 
 2. **Exactly one commit per PR branch at PR creation time.**
    - Intermediate commits are allowed while working.
@@ -67,7 +63,7 @@ cd packages/service/backend && bun run db:generate   # Generate migration from s
 
 ## Code Quality Rules
 
-- **Always** run `bun run fmt && bun run lint && bun test` after changes
+- **Pre-commit hook** handles formatting, linting, and tests automatically
 - **Minimal changes only** — don't refactor unless asked
 - **Ask before large changes** — present a plan first
 

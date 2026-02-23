@@ -12,7 +12,7 @@ RUN apt-get update && \
 
 FROM build-base AS build
 COPY . .
-RUN bun install && \
+RUN bun install --ignore-scripts && \
     bun run -F '@contfu/svc-backend' build && \
     bun run -F '@contfu/svc-app' build
 

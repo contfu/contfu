@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+if grep -q "refs/heads/main" <<< "$@"; then
+  echo "❌ Direct push to main blocked"
+  exit 1
+fi
