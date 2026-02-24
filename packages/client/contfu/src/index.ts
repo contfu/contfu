@@ -51,6 +51,22 @@ export {
 } from "./features/items/queryItems";
 export { updateItem } from "./features/items/updateItem";
 
+// Query API exports
+export { contfu } from "./contfu";
+export { findItems } from "./features/items/findItems";
+export { getItemById } from "./features/items/getItemById";
+export {
+  type ContfuClient,
+  type ContfuCollectionClient,
+  type ContfuItemsClient,
+  type IncludeOption,
+  type ItemWithRelations,
+  type QueryMeta,
+  type QueryOptions,
+  type QueryResult,
+  type SortOption,
+  type WithClause,
+} from "./domain/query-types";
 // Asset exports
 export { createAsset } from "./features/assets/createAsset";
 export { deleteAssets } from "./features/assets/deleteAssets";
