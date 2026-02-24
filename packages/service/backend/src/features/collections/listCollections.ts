@@ -64,6 +64,7 @@ export const listCollections = (userId: number) =>
         ({
           id: c.id,
           userId: c.userId,
+          displayName: c.displayName,
           name: c.name,
           includeRef: c.includeRef,
           influxCount: influxCountMap.get(c.id) ?? 0,

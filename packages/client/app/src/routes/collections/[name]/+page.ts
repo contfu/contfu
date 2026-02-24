@@ -23,5 +23,6 @@ export const load: PageLoad = async ({ params, url }) => {
     collections: allCollections,
     collection: detail.collection,
     result: detail.result,
+    typeString: detail.typeString,
   };
 };

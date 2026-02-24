@@ -1,6 +1,9 @@
 {
   "name": "contfu",
   "version": "0.0.1",
+  "bin": {
+    "contfu": "src/cli.ts"
+  },
   "files": [
     "src"
   ],
@@ -8,8 +11,9 @@
   "main": "src/index.ts",
   "scripts": {
     "test": "bun test",
-    "clean": "rm -rf dist",
-    "db:generate": "rm -rf db/migrations && drizzle-kit generate --name init"
+    "clean": "rm -rf dist tsconfig.tsbuildinfo",
+    "db:generate": "rm -rf db/migrations && drizzle-kit generate --name init",
+    "build": "tsc -b"
   },
   "dependencies": {
     "@contfu/client": "workspace:*",

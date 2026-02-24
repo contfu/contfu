@@ -51,11 +51,11 @@ describe("NotionSource", () => {
             collection: 1,
             changedAt: 1716353760000,
             props: {
-              Color: "red",
-              Description: "A",
-              "Other Reference": [otherId.toString("base64url")],
-              "Self Reference": [id2.toString("base64url")],
-              Title: "Foo",
+              color: "red",
+              description: "A",
+              otherReference: [otherId.toString("base64url")],
+              selfReference: [id2.toString("base64url")],
+              title: "Foo",
               createdAt: 1711864560000,
             },
           },
@@ -65,12 +65,12 @@ describe("NotionSource", () => {
             collection: 1,
             changedAt: 1716353820000,
             props: {
-              Color: "blue",
-              Description: "B",
-              "Other Reference": [],
-              "Self Reference": [id1.toString("base64url")],
-              Slug: "/bar",
-              Title: "Bar",
+              color: "blue",
+              description: "B",
+              otherReference: [],
+              selfReference: [id1.toString("base64url")],
+              slug: "/bar",
+              title: "Bar",
               createdAt: 1711864560000,
             },
           },
@@ -351,11 +351,11 @@ describe("NotionSource", () => {
 
       const schema = await source.getCollectionSchema(pullOpts);
 
-      expect(schema.Title).toBe(PropertyType.STRING | PropertyType.NULL);
-      expect(schema.Description).toBe(PropertyType.STRING | PropertyType.NULL);
-      expect(schema.Status).toBe(PropertyType.STRING | PropertyType.NULL);
-      expect(schema.Count).toBe(PropertyType.NUMBER | PropertyType.NULL);
-      expect(schema.Done).toBe(PropertyType.BOOLEAN);
+      expect(schema.title).toBe(PropertyType.STRING | PropertyType.NULL);
+      expect(schema.description).toBe(PropertyType.STRING | PropertyType.NULL);
+      expect(schema.status).toBe(PropertyType.STRING | PropertyType.NULL);
+      expect(schema.count).toBe(PropertyType.NUMBER | PropertyType.NULL);
+      expect(schema.done).toBe(PropertyType.BOOLEAN);
 
       // Should always include cover and icon
       expect(schema.cover).toBe(PropertyType.FILE | PropertyType.NULL);

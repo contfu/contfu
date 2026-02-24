@@ -1,4 +1,5 @@
 import type { Block, Item, PageProps } from "@contfu/core";
+import { toCamelCase } from "@contfu/svc-core";
 import { genUid } from "../util/ids";
 import type {
   StrapiComponent,
@@ -75,7 +76,7 @@ function parseFields(entry: StrapiEntry, baseUrl: string): { props: PageProps; c
           content = blocks;
         } else {
           // Store additional blocks fields as custom blocks
-          props[key] = ["x", key, {}, blocks];
+          props[toCamelCase(key)] = ["x", toCamelCase(key), {}, blocks];
         }
       }
       continue;
@@ -83,7 +84,7 @@ function parseFields(entry: StrapiEntry, baseUrl: string): { props: PageProps; c
 
     const parsed = parseFieldValue(value, baseUrl);
     if (parsed != null) {
-      props[key] = parsed;
+      props[toCamelCase(key)] = parsed;
     }
   }
 

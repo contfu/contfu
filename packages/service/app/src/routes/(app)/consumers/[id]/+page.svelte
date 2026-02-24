@@ -365,7 +365,7 @@
             bind:value={selectedCollectionId}
           >
             {#each availableCollections as collection}
-              <option value={collection.id}>{collection.name}</option>
+              <option value={collection.id}>{collection.displayName}</option>
             {/each}
           </select>
           <Button type="submit" variant="outline" size="sm">

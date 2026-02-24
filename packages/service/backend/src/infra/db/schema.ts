@@ -269,7 +269,9 @@ export const collectionTable = pgTable.withRLS(
     userId: integer()
       .references(() => userTable.id, { onDelete: "cascade" })
       .notNull(),
-    /** The name of the collection (displayed to users). */
+    /** Human-readable display name (e.g. "Blog Posts"). */
+    displayName: text().notNull(),
+    /** The camelCase identifier name of the collection (e.g. "blogPosts"). */
     name: text().notNull(),
     /** Whether refs may be transmitted for this collection. */
     includeRef: boolean().notNull().default(true),

@@ -1,4 +1,4 @@
-import { CollectionSchema, PropertyType } from "@contfu/svc-core";
+import { CollectionSchema, PropertyType, toCamelCase } from "@contfu/svc-core";
 import { fetchContentTypeSchema } from "./strapi-helpers";
 import type { StrapiSchemaAttribute } from "./strapi";
 
@@ -23,7 +23,7 @@ function convertSchema(attributes: Record<string, StrapiSchemaAttribute>): Colle
   for (const [key, attr] of Object.entries(attributes)) {
     const propertyType = mapAttributeType(attr);
     if (propertyType !== null) {
-      result[key] = propertyType;
+      result[toCamelCase(key)] = propertyType;
     }
   }
 

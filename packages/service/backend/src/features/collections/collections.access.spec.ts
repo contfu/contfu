@@ -31,33 +31,41 @@ describe.skipIf(isDbMocked)("Collection Features Access Control", () => {
   });
 
   it("should not allow reading another user's collection", async () => {
-    const collection = await runTest(createCollection(user1Id, { name: "User1 Collection" }));
+    const collection = await runTest(
+      createCollection(user1Id, { displayName: "User1 Collection" }),
+    );
 
     const result = await runTest(getCollection(user2Id, collection.id));
     expect(result).toBeNull();
   });
 
   it("should not allow updating another user's collection", async () => {
-    const collection = await runTest(createCollection(user1Id, { name: "User1 Collection" }));
+    const collection = await runTest(
+      createCollection(user1Id, { displayName: "User1 Collection" }),
+    );
 
-    const updated = await runTest(updateCollection(user2Id, collection.id, { name: "Hacked" }));
+    const updated = await runTest(
+      updateCollection(user2Id, collection.id, { displayName: "Hacked" }),
+    );
     expect(updated).toBe(false);
   });
 
   it("should not allow deleting another user's collection", async () => {
-    const collection = await runTest(createCollection(user1Id, { name: "User1 Collection" }));
+    const collection = await runTest(
+      createCollection(user1Id, { displayName: "User1 Collection" }),
+    );
 
     const deleted = await runTest(deleteCollection(user2Id, collection.id));
     expect(deleted).toBe(false);
   });
 
   it("should only list collections owned by the current user", async () => {
-    await runTest(createCollection(user1Id, { name: "User1 Collection" }));
-    await runTest(createCollection(user2Id, { name: "User2 Collection" }));
+    await runTest(createCollection(user1Id, { displayName: "User1 Collection" }));
+    await runTest(createCollection(user2Id, { displayName: "User2 Collection" }));
 
     const collections = await runTest(listCollections(user1Id));
     expect(collections).toHaveLength(1);
     expect(collections[0].userId).toBe(user1Id);
-    expect(collections[0].name).toBe("User1 Collection");
+    expect(collections[0].displayName).toBe("User1 Collection");
   });
 });

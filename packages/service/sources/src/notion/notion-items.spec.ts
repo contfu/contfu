@@ -88,8 +88,8 @@ describe("notion-items", () => {
 
       const items = await Array.fromAsync(iteratePages(testOpts, {}));
 
-      expect(getProps(items[0]).Title).toBe("Foo");
-      expect(getProps(items[1]).Title).toBe("Bar");
+      expect(getProps(items[0]).title).toBe("Foo");
+      expect(getProps(items[1]).title).toBe("Bar");
     });
 
     it("should extract rich_text property", async () => {
@@ -98,8 +98,8 @@ describe("notion-items", () => {
 
       const items = await Array.fromAsync(iteratePages(testOpts, {}));
 
-      expect(getProps(items[0]).Description).toBe("A");
-      expect(getProps(items[1]).Description).toBe("B");
+      expect(getProps(items[0]).description).toBe("A");
+      expect(getProps(items[1]).description).toBe("B");
     });
 
     it("should extract select property", async () => {
@@ -108,8 +108,8 @@ describe("notion-items", () => {
 
       const items = await Array.fromAsync(iteratePages(testOpts, {}));
 
-      expect(getProps(items[0]).Color).toBe("red");
-      expect(getProps(items[1]).Color).toBe("blue");
+      expect(getProps(items[0]).color).toBe("red");
+      expect(getProps(items[1]).color).toBe("blue");
     });
 
     it("should extract relation property as array of refs", async () => {
@@ -119,7 +119,7 @@ describe("notion-items", () => {
       const items = await Array.fromAsync(iteratePages(testOpts, {}));
 
       // Self reference should contain the other item's ref
-      expect(getProps(items[0])["Self Reference"]).toEqual([
+      expect(getProps(items[0]).selfReference).toEqual([
         genUid(uuidToBuffer(dbQueryResult2.id)).toString("base64url"),
       ]);
     });
@@ -131,7 +131,7 @@ describe("notion-items", () => {
       const items = await Array.fromAsync(iteratePages(testOpts, {}));
 
       // Second item has empty "Other Reference"
-      expect(getProps(items[1])["Other Reference"]).toEqual([]);
+      expect(getProps(items[1]).otherReference).toEqual([]);
     });
 
     it("should include content blocks when present", async () => {
@@ -206,7 +206,7 @@ describe("notion-items", () => {
       });
 
       const items = await Array.fromAsync(iteratePages(testOpts, {}));
-      expect(getProps(items[0]).Count).toBe(42);
+      expect(getProps(items[0]).count).toBe(42);
     });
 
     it("should parse null number property", async () => {
@@ -217,7 +217,7 @@ describe("notion-items", () => {
       });
 
       const items = await Array.fromAsync(iteratePages(testOpts, {}));
-      expect(getProps(items[0]).Count).toBeUndefined();
+      expect(getProps(items[0]).count).toBeUndefined();
     });
 
     it("should parse date property", async () => {
@@ -231,7 +231,7 @@ describe("notion-items", () => {
       });
 
       const items = await Array.fromAsync(iteratePages(testOpts, {}));
-      expect(getProps(items[0]).Due).toBe(new Date("2024-06-15").getTime());
+      expect(getProps(items[0]).due).toBe(new Date("2024-06-15").getTime());
     });
 
     it("should parse null date property", async () => {
@@ -242,7 +242,7 @@ describe("notion-items", () => {
       });
 
       const items = await Array.fromAsync(iteratePages(testOpts, {}));
-      expect(getProps(items[0]).Due).toBeUndefined();
+      expect(getProps(items[0]).due).toBeUndefined();
     });
 
     it("should parse checkbox property", async () => {
@@ -253,7 +253,7 @@ describe("notion-items", () => {
       });
 
       const items = await Array.fromAsync(iteratePages(testOpts, {}));
-      expect(getProps(items[0]).Done).toBe(true);
+      expect(getProps(items[0]).done).toBe(true);
     });
 
     it("should parse multi_select property", async () => {
@@ -267,7 +267,7 @@ describe("notion-items", () => {
       });
 
       const items = await Array.fromAsync(iteratePages(testOpts, {}));
-      expect(getProps(items[0]).Tags).toEqual(["Tag1", "Tag2"]);
+      expect(getProps(items[0]).tags).toEqual(["Tag1", "Tag2"]);
     });
 
     it("should parse status property", async () => {
@@ -281,7 +281,7 @@ describe("notion-items", () => {
       });
 
       const items = await Array.fromAsync(iteratePages(testOpts, {}));
-      expect(getProps(items[0]).Status).toBe("In Progress");
+      expect(getProps(items[0]).status).toBe("In Progress");
     });
 
     it("should parse url property", async () => {
@@ -292,7 +292,7 @@ describe("notion-items", () => {
       });
 
       const items = await Array.fromAsync(iteratePages(testOpts, {}));
-      expect(getProps(items[0]).Link).toBe("https://example.com");
+      expect(getProps(items[0]).link).toBe("https://example.com");
     });
 
     it("should parse email property", async () => {
@@ -303,7 +303,7 @@ describe("notion-items", () => {
       });
 
       const items = await Array.fromAsync(iteratePages(testOpts, {}));
-      expect(getProps(items[0]).Email).toBe("test@example.com");
+      expect(getProps(items[0]).email).toBe("test@example.com");
     });
 
     it("should parse phone_number property", async () => {
@@ -314,7 +314,7 @@ describe("notion-items", () => {
       });
 
       const items = await Array.fromAsync(iteratePages(testOpts, {}));
-      expect(getProps(items[0]).Phone).toBe("+1234567890");
+      expect(getProps(items[0]).phone).toBe("+1234567890");
     });
 
     it("should parse created_time property", async () => {
@@ -328,7 +328,7 @@ describe("notion-items", () => {
       });
 
       const items = await Array.fromAsync(iteratePages(testOpts, {}));
-      expect(getProps(items[0]).Created).toBe(new Date("2024-01-15T10:30:00.000Z").getTime());
+      expect(getProps(items[0]).created).toBe(new Date("2024-01-15T10:30:00.000Z").getTime());
     });
 
     it("should parse last_edited_time property", async () => {
@@ -342,7 +342,7 @@ describe("notion-items", () => {
       });
 
       const items = await Array.fromAsync(iteratePages(testOpts, {}));
-      expect(getProps(items[0]).Edited).toBe(new Date("2024-06-20T15:45:00.000Z").getTime());
+      expect(getProps(items[0]).edited).toBe(new Date("2024-06-20T15:45:00.000Z").getTime());
     });
 
     it("should parse files property with file URLs", async () => {
@@ -359,7 +359,7 @@ describe("notion-items", () => {
       });
 
       const items = await Array.fromAsync(iteratePages(testOpts, {}));
-      expect(getProps(items[0]).Attachments).toEqual([
+      expect(getProps(items[0]).attachments).toEqual([
         "https://s3.amazonaws.com/file1.pdf",
         "https://example.com/file2.pdf",
       ]);
@@ -379,8 +379,8 @@ describe("notion-items", () => {
       });
 
       const items = await Array.fromAsync(iteratePages(testOpts, {}));
-      expect(getProps(items[0]).Assignees).toHaveLength(2);
-      expect((getProps(items[0]).Assignees as string[])[0]).toBe(
+      expect(getProps(items[0]).assignees).toHaveLength(2);
+      expect((getProps(items[0]).assignees as string[])[0]).toBe(
         genUid(uuidToBuffer("user-uuid-1")).toString("base64url"),
       );
     });
@@ -396,7 +396,7 @@ describe("notion-items", () => {
       });
 
       const items = await Array.fromAsync(iteratePages(testOpts, {}));
-      expect(getProps(items[0]).Creator).toBe(
+      expect(getProps(items[0]).creator).toBe(
         genUid(uuidToBuffer("creator-uuid")).toString("base64url"),
       );
     });
@@ -412,7 +412,7 @@ describe("notion-items", () => {
       });
 
       const items = await Array.fromAsync(iteratePages(testOpts, {}));
-      expect(getProps(items[0]).Editor).toBe(
+      expect(getProps(items[0]).editor).toBe(
         genUid(uuidToBuffer("editor-uuid")).toString("base64url"),
       );
     });
@@ -428,7 +428,7 @@ describe("notion-items", () => {
       });
 
       const items = await Array.fromAsync(iteratePages(testOpts, {}));
-      expect(getProps(items[0]).ID).toBe("TASK-123");
+      expect(getProps(items[0]).iD).toBe("TASK-123");
     });
 
     it("should parse unique_id property without prefix", async () => {
@@ -442,7 +442,7 @@ describe("notion-items", () => {
       });
 
       const items = await Array.fromAsync(iteratePages(testOpts, {}));
-      expect(getProps(items[0]).ID).toBe(456);
+      expect(getProps(items[0]).iD).toBe(456);
     });
 
     it("should parse verification property", async () => {
@@ -456,7 +456,7 @@ describe("notion-items", () => {
       });
 
       const items = await Array.fromAsync(iteratePages(testOpts, {}));
-      expect(getProps(items[0]).Verified).toBe("verified");
+      expect(getProps(items[0]).verified).toBe("verified");
     });
 
     it("should return null for formula property", async () => {
@@ -470,7 +470,7 @@ describe("notion-items", () => {
       });
 
       const items = await Array.fromAsync(iteratePages(testOpts, {}));
-      expect(getProps(items[0]).Computed).toBeUndefined();
+      expect(getProps(items[0]).computed).toBeUndefined();
     });
 
     it("should return null for rollup property", async () => {
@@ -484,7 +484,7 @@ describe("notion-items", () => {
       });
 
       const items = await Array.fromAsync(iteratePages(testOpts, {}));
-      expect(getProps(items[0]).Summary).toBeUndefined();
+      expect(getProps(items[0]).summary).toBeUndefined();
     });
 
     it("should return null for button property", async () => {
@@ -495,7 +495,7 @@ describe("notion-items", () => {
       });
 
       const items = await Array.fromAsync(iteratePages(testOpts, {}));
-      expect(getProps(items[0]).Action).toBeUndefined();
+      expect(getProps(items[0]).action).toBeUndefined();
     });
 
     it("should extract icon from page (non-emoji)", async () => {
@@ -569,47 +569,47 @@ describe("notion-items", () => {
       const props = getProps(items[0]);
 
       // Title (title property)
-      expect(props.Name).toBe("foo");
+      expect(props.name).toBe("foo");
 
       // Rich text properties
-      expect(props.Description).toBe("Sample page used to demo different block types.");
+      expect(props.description).toBe("Sample page used to demo different block types.");
       expect(props.slug).toBe("foo");
 
       // URL property
-      expect(props["Reference URL"]).toBe("https://www.notion.so");
+      expect(props.referenceURL).toBe("https://www.notion.so");
 
       // Number property
-      expect(props["Estimate (hours)"]).toBe(4);
+      expect(props["estimateHours"]).toBe(4);
 
       // Select property
-      expect(props.Priority).toBe("High");
+      expect(props.priority).toBe("High");
 
       // Status property
-      expect(props.Status).toBe("In progress");
+      expect(props.status).toBe("In progress");
 
       // Multi-select property
-      expect(props.Tags).toEqual(["Demo", "Frontend", "Idea"]);
+      expect(props.tags).toEqual(["Demo", "Frontend", "Idea"]);
 
       // Checkbox property
-      expect(props.Completed).toBe(false);
+      expect(props.completed).toBe(false);
 
       // Date property
-      expect(props["Due date"]).toBe(new Date("2026-01-18").getTime());
+      expect(props.dueDate).toBe(new Date("2026-01-18").getTime());
 
       // Created time property
-      expect(props["Created by"]).toBeDefined();
-      expect(typeof props["Created by"]).toBe("string");
+      expect(props.createdBy).toBeDefined();
+      expect(typeof props.createdBy).toBe("string");
 
       // Last edited time property
-      expect(props["Last edited time"]).toBe(new Date("2026-01-11T15:34:00.000Z").getTime());
+      expect(props.lastEditedTime).toBe(new Date("2026-01-11T15:34:00.000Z").getTime());
 
       // People property
-      expect(props.Owner).toBeDefined();
-      expect(Array.isArray(props.Owner)).toBe(true);
-      expect((props.Owner as string[]).length).toBe(1);
+      expect(props.owner).toBeDefined();
+      expect(Array.isArray(props.owner)).toBe(true);
+      expect((props.owner as string[]).length).toBe(1);
 
       // Files property (empty in showcase)
-      expect(props.Attachments).toEqual([]);
+      expect(props.attachments).toEqual([]);
 
       // Cover image
       expect(props.cover).toBe(
@@ -617,7 +617,7 @@ describe("notion-items", () => {
       );
 
       // Location property (place type) - not handled, should be undefined
-      expect(props.Location).toBeUndefined();
+      expect(props.location).toBeUndefined();
     });
 
     it("should have correct metadata from showcase page", async () => {

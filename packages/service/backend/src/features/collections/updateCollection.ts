@@ -3,11 +3,15 @@ import { and, eq } from "drizzle-orm";
 import { Database } from "../../effect/services/Database";
 import { DatabaseError } from "../../effect/errors";
 import { collectionTable } from "../../infra/db/schema";
+import { toCamelCase } from "@contfu/svc-core";
 
 export interface UpdateCollectionInput {
+  displayName?: string;
   name?: string;
   includeRef?: boolean;
 }
+
+const camelCasePattern = /^[a-z][a-zA-Z0-9]*$/;
 
 /**
  * Update a Collection.
@@ -20,12 +24,28 @@ export const updateCollection = (
   Effect.gen(function* () {
     const { db } = yield* Database;
 
+    let name = input.name;
+    if (name === undefined && input.displayName !== undefined) {
+      name = toCamelCase(input.displayName);
+    }
+
+    if (name !== undefined && !camelCasePattern.test(name)) {
+      yield* Effect.fail(
+        new DatabaseError({
+          cause: new Error(
+            `Collection name "${name}" must be a camelCase identifier (e.g. "blogPosts")`,
+          ),
+        }),
+      );
+    }
+
     const result = yield* Effect.tryPromise({
       try: () =>
         db
           .update(collectionTable)
           .set({
-            name: input.name,
+            displayName: input.displayName,
+            name,
             includeRef: input.includeRef,
             updatedAt: new Date(),
           })

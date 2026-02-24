@@ -9,7 +9,7 @@ import { getCollection as getCollectionFeature } from "@contfu/svc-backend/featu
 import { listCollections as listCollectionsFeature } from "@contfu/svc-backend/features/collections/listCollections";
 import { updateCollection as updateCollectionFeature } from "@contfu/svc-backend/features/collections/updateCollection";
 import { createInflux } from "@contfu/svc-backend/features/influxes/createInflux";
-import { createCollection as createSourceCollectionFeature } from "@contfu/svc-backend/features/source-collections/createCollection";
+import { createSourceCollection as createSourceCollectionFeature } from "@contfu/svc-backend/features/source-collections/createSourceCollection";
 import { getCollectionSchema } from "@contfu/svc-backend/features/source-collections/getCollectionSchema";
 import { encodeId, idSchema } from "@contfu/svc-backend/infra/ids";
 import { error, redirect } from "@sveltejs/kit";
@@ -40,7 +40,13 @@ export const getCollection = query(v.object({ id: idSchema("collection") }), asy
  */
 export const createCollection = form(
   v.object({
-    name: v.pipe(v.string(), v.nonEmpty("Name is required")),
+    displayName: v.pipe(v.string(), v.nonEmpty("Display name is required")),
+    name: v.optional(
+      v.pipe(
+        v.string(),
+        v.regex(/^[a-z][a-zA-Z0-9]*$/, "Must be a camelCase identifier (e.g. blogPosts)"),
+      ),
+    ),
     includeRef: v.optional(
       v.pipe(
         v.union([v.string(), v.boolean()]),
@@ -56,6 +62,7 @@ export const createCollection = form(
     const collection = await runWithUser(
       userId,
       createCollectionFeature(userId, {
+        displayName: data.displayName,
         name: data.name,
         includeRef: data.includeRef ?? true,
       }),
@@ -66,7 +73,7 @@ export const createCollection = form(
       const sourceCollection = await runWithUser(
         userId,
         createSourceCollectionFeature(userId, {
-          name: data.name, // Use collection name for the source collection too
+          name: data.displayName,
           sourceId: data.sourceId,
           ref: Buffer.from(data.ref, "utf-8"),
         }),
@@ -91,7 +98,13 @@ export const createCollection = form(
 export const updateCollection = form(
   v.object({
     id: idSchema("collection"),
-    name: v.optional(v.string()),
+    displayName: v.optional(v.string()),
+    name: v.optional(
+      v.pipe(
+        v.string(),
+        v.regex(/^[a-z][a-zA-Z0-9]*$/, "Must be a camelCase identifier (e.g. blogPosts)"),
+      ),
+    ),
     includeRef: v.optional(
       v.pipe(
         v.union([v.string(), v.boolean()]),
@@ -104,6 +117,7 @@ export const updateCollection = form(
     await runWithUser(
       userId,
       updateCollectionFeature(userId, data.id, {
+        displayName: data.displayName,
         name: data.name,
         includeRef: data.includeRef,
       }),

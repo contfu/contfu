@@ -60,6 +60,7 @@ async function createFullChain(opts: {
     .insert(collectionTable)
     .values({
       userId: opts.userId,
+      displayName: opts.collectionName ?? "Collection",
       name: opts.collectionName ?? "Collection",
     })
     .returning();
@@ -136,7 +137,8 @@ describe.skipIf(isDbMocked)("getConsumerSyncConfig", () => {
       .insert(collectionTable)
       .values({
         userId: testUserId,
-        name: "Empty Collection",
+        displayName: "Empty Collection",
+        name: "emptyCollection",
       })
       .returning();
     const [consumer] = await db
@@ -210,8 +212,8 @@ describe.skipIf(isDbMocked)("getConsumerSyncConfig", () => {
     const [collection1, collection2] = await db
       .insert(collectionTable)
       .values([
-        { userId: testUserId, name: "Articles Collection" },
-        { userId: testUserId, name: "Pages Collection" },
+        { userId: testUserId, displayName: "Articles Collection", name: "articlesCollection" },
+        { userId: testUserId, displayName: "Pages Collection", name: "pagesCollection" },
       ])
       .returning();
     await db.insert(influxTable).values([
@@ -278,8 +280,8 @@ describe.skipIf(isDbMocked)("getConsumerSyncConfig", () => {
     const [collection1, collection2] = await db
       .insert(collectionTable)
       .values([
-        { userId: testUserId, name: "Articles" },
-        { userId: testUserId, name: "Notes" },
+        { userId: testUserId, displayName: "Articles", name: "articles" },
+        { userId: testUserId, displayName: "Notes", name: "notes" },
       ])
       .returning();
     await db.insert(influxTable).values([
@@ -339,8 +341,8 @@ describe.skipIf(isDbMocked)("getConsumerSyncConfig", () => {
     const [collection1, collection2] = await db
       .insert(collectionTable)
       .values([
-        { userId: testUserId, name: "Published" },
-        { userId: testUserId, name: "Drafts" },
+        { userId: testUserId, displayName: "Published", name: "published" },
+        { userId: testUserId, displayName: "Drafts", name: "drafts" },
       ])
       .returning();
     await db.insert(influxTable).values([
@@ -424,7 +426,8 @@ describe.skipIf(isDbMocked)("getConsumerSyncConfig", () => {
       .insert(collectionTable)
       .values({
         userId: testUserId,
-        name: "Not Connected",
+        displayName: "Not Connected",
+        name: "notConnected",
       })
       .returning();
     const [sourceCollection2] = await db

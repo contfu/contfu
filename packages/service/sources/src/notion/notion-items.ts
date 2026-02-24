@@ -1,4 +1,5 @@
 import type { Block, Item, PageProps } from "@contfu/core";
+import { toCamelCase } from "@contfu/svc-core";
 import type { PageObjectResponse } from "@notionhq/client/build/src/api-endpoints";
 import type { MarkOptional } from "ts-essentials";
 import type { NotionFetchOpts } from ".";
@@ -42,7 +43,7 @@ function parseProps(pageProps: PageObjectResponse["properties"]) {
   for (const key in pageProps) {
     const prop = pageProps[key];
     const value = parseValue(prop);
-    if (value != null) props[key] = value;
+    if (value != null) props[toCamelCase(key)] = value;
   }
   return props;
 }

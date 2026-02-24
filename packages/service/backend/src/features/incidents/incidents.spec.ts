@@ -84,7 +84,8 @@ describe.skipIf(isDbMocked)("Incident Features", () => {
       .insert(collectionTable)
       .values({
         userId: testUserId,
-        name: "My Collection",
+        displayName: "My Collection",
+        name: "myCollection",
       })
       .returning();
     testCollectionId = collection.id;
@@ -215,7 +216,8 @@ describe.skipIf(isDbMocked)("Incident Features", () => {
         .insert(collectionTable)
         .values({
           userId: user2.id,
-          name: "User2 Collection",
+          displayName: "User2 Collection",
+          name: "user2Collection",
         })
         .returning();
       const [influx2] = await db

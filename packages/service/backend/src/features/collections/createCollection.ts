@@ -3,11 +3,15 @@ import type { BackendCollection } from "../../domain/types";
 import { Database } from "../../effect/services/Database";
 import { DatabaseError } from "../../effect/errors";
 import { collectionTable } from "../../infra/db/schema";
+import { toCamelCase } from "@contfu/svc-core";
 
 export interface CreateCollectionInput {
-  name: string;
+  displayName: string;
+  name?: string;
   includeRef?: boolean;
 }
+
+const camelCasePattern = /^[a-z][a-zA-Z0-9]*$/;
 
 /**
  * Create a new Collection for a user.
@@ -18,13 +22,26 @@ export const createCollection = (userId: number, input: CreateCollectionInput) =
   Effect.gen(function* () {
     const { db } = yield* Database;
 
+    const name = input.name ?? toCamelCase(input.displayName);
+
+    if (!camelCasePattern.test(name)) {
+      yield* Effect.fail(
+        new DatabaseError({
+          cause: new Error(
+            `Collection name "${name}" must be a camelCase identifier (e.g. "blogPosts")`,
+          ),
+        }),
+      );
+    }
+
     const [inserted] = yield* Effect.tryPromise({
       try: () =>
         db
           .insert(collectionTable)
           .values({
             userId,
-            name: input.name,
+            displayName: input.displayName,
+            name,
             includeRef: input.includeRef ?? true,
           })
           .returning(),
@@ -34,6 +51,7 @@ export const createCollection = (userId: number, input: CreateCollectionInput) =
     return {
       id: inserted.id,
       userId: inserted.userId,
+      displayName: inserted.displayName,
       name: inserted.name,
       includeRef: inserted.includeRef,
       influxCount: 0,

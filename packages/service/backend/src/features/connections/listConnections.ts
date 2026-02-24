@@ -23,7 +23,7 @@ export const listConnections = (userId: number) =>
             lastItemChanged: connectionTable.lastItemChanged,
             lastConsistencyCheck: connectionTable.lastConsistencyCheck,
             consumerName: consumerTable.name,
-            collectionName: collectionTable.name,
+            collectionName: collectionTable.displayName,
           })
           .from(connectionTable)
           .innerJoin(

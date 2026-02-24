@@ -5,18 +5,17 @@ import {
   type WireItem,
   type WireItemEvent,
 } from "@contfu/core";
-import { purgeEventsUpTo } from "../nats/event-stream";
-import { createLogger } from "../logger/index";
-import type { UserSyncItem } from "../sync-worker/messages";
-
-const log = createLogger("stream");
 import { and, eq, inArray } from "drizzle-orm";
-import { pack as msgpack } from "msgpackr";
 import { Effect } from "effect";
+import { pack as msgpack } from "msgpackr";
 import { enqueueSyncJobs } from "../../features/sync-jobs/enqueueSyncJobs";
 import { collectionTable, connectionTable, consumerTable, db, influxTable } from "../db/db";
-import { publishEvent, type StoredWireItemEvent } from "../nats/event-stream";
+import { createLogger } from "../logger/index";
+import { publishEvent, purgeEventsUpTo, type StoredWireItemEvent } from "../nats/event-stream";
+import type { UserSyncItem } from "../sync-worker/messages";
 import type { ConnectionInfo } from "../types";
+
+const log = createLogger("stream");
 
 /**
  * Binary stream connection object that wraps a ReadableStreamDefaultController.

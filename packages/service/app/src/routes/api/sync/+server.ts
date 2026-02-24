@@ -5,7 +5,12 @@ import { createLogger } from "@contfu/svc-backend/infra/logger/index";
 import { runEffectWithServices } from "@contfu/svc-backend/effect/run";
 import { fetchAndStreamItems } from "@contfu/svc-backend/features/sync/fetchAndStreamItems";
 import { getConsumerSyncConfig } from "@contfu/svc-backend/features/sync/getConsumerSyncConfig";
-import { consumerTable, db, influxTable } from "@contfu/svc-backend/infra/db/db";
+import {
+  consumerTable,
+  db,
+  influxTable,
+  sourceCollectionTable,
+} from "@contfu/svc-backend/infra/db/db";
 import { hasNats } from "@contfu/svc-backend/infra/nats/connection";
 import {
   getLastSequence,
@@ -155,14 +160,21 @@ export const GET: RequestHandler = async ({ request, url }) => {
         const collectionIds = await getConsumerCollectionIds(consumer.userId, consumer.id);
         const collectionNames = await getCollectionNamesByIds(collectionIds, consumer.userId);
 
-        // Send merged schemas for each connected collection
+        // Send merged schemas for each connected collection.
+        // Join sourceCollectionTable to fall back to its schema when
+        // the influx row has no schema of its own (common after initial setup).
         if (collectionIds.length > 0) {
           const influxRows = await db
             .select({
               collectionId: influxTable.collectionId,
-              schema: influxTable.schema,
+              influxSchema: influxTable.schema,
+              sourceSchema: sourceCollectionTable.schema,
             })
             .from(influxTable)
+            .innerJoin(
+              sourceCollectionTable,
+              eq(influxTable.sourceCollectionId, sourceCollectionTable.id),
+            )
             .where(
               and(
                 eq(influxTable.userId, consumer.userId),
@@ -172,8 +184,9 @@ export const GET: RequestHandler = async ({ request, url }) => {
 
           const mergedSchemas = new Map<number, Record<string, number>>();
           for (const row of influxRows) {
-            if (!row.schema) continue;
-            const schema = unpack(row.schema) as CollectionSchema;
+            const schemaBuf = row.influxSchema ?? row.sourceSchema;
+            if (!schemaBuf) continue;
+            const schema = unpack(schemaBuf) as CollectionSchema;
             const existing = mergedSchemas.get(row.collectionId);
             if (existing) {
               for (const [prop, type] of Object.entries(schema)) {

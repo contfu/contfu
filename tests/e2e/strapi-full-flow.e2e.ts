@@ -44,7 +44,7 @@ async function waitForItems(
   const start = Date.now();
   let lastResult: QueryItemsResult | undefined;
   while (Date.now() - start < timeoutMs) {
-    lastResult = await queryItems({ collection: "Articles", pageSize: 100 });
+    lastResult = await queryItems({ collection: "articles", pageSize: 100 });
     if (match(lastResult)) {
       return lastResult;
     }
@@ -121,7 +121,7 @@ async function setupServiceAppAndGetApiKey(
   // Navigate to collections/new with sourceId and ref as query params
   // The form has hidden fields that get populated from these params
   await page.goto(`${SERVICE_URL}/collections/new?sourceId=${sourceId}&ref=api::article.article`);
-  await page.getByLabel(/Name/i).fill("Articles");
+  await page.getByLabel(/Display Name/i).fill("Articles");
   await page.getByRole("button", { name: /Create Collection/i }).click();
 
   // Wait for redirect to collection detail page
@@ -300,7 +300,7 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow (Fixtures)", () =>
 
     const article1 = result1.items.find((item) => item.props.title === "E2E Test Article")!;
     expect(article1.props.description).toBe("This article was created during e2e testing");
-    expect(article1.collection).toBe("Articles");
+    expect(article1.collection).toBe("articles");
 
     // ===== STEP 6: Create second article using fixture =====
     const article2Slug = `e2e-second-article-${timestamp}`;
@@ -396,7 +396,7 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow (Fixtures)", () =>
     // TODO: Implement delete event broadcasting in webhook handler
 
     // Updated first article should still be there
-    const result4 = await queryItems({ collection: "Articles", pageSize: 100 });
+    const result4 = await queryItems({ collection: "articles", pageSize: 100 });
     expect(result4.items.some((item) => item.props.title === "E2E Updated Article")).toBe(true);
   });
 });

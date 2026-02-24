@@ -22,7 +22,7 @@ export function createHttpClient(baseUrl: string, apiKey?: string): ContfuClient
     if (!res.ok) {
       throw new Error(`HTTP ${res.status}: ${await res.text()}`);
     }
-    return res.json();
+    return res.json() as Promise<T>;
   }
 
   function buildQueryParams(options: QueryOptions = {}): URLSearchParams {

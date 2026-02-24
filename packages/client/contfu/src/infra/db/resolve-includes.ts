@@ -49,7 +49,7 @@ export function resolveIncludes(
 
     for (const item of items) {
       const resolved = linksByItem.get(item.id) ?? {};
-      item.links = { content: [], ...item.links, ...resolved };
+      item.links = { ...item.links, ...resolved, content: item.links?.content ?? [] };
     }
   }
 }

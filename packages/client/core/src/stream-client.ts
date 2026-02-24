@@ -158,7 +158,7 @@ export async function* connectToStream(
         yield { type: "stream:connected" };
       }
 
-      const reader = response.body.getReader();
+      const reader = response.body.getReader() as ReadableStreamDefaultReader<Uint8Array>;
       currentReader = reader;
       let buffer = new Uint8Array(0);
 
@@ -256,6 +256,8 @@ function buildSyncUrl(endpoint: string, key: Buffer, from?: number): string {
 function fromWireStreamEvent(
   wireEvent: WireEvent,
 ): StreamSnapshotStartEvent | StreamSnapshotEndEvent | null {
+  // Snapshot lifecycle events are single-element arrays [type].
+  if (wireEvent.length !== 1) return null;
   const type = wireEvent[0];
   if (type === WIRE_SNAPSHOT_START) return { type: "stream:snapshot:start" };
   if (type === WIRE_SNAPSHOT_END) return { type: "stream:snapshot:end" };

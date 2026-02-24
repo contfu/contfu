@@ -5,6 +5,17 @@
   import type { PageData } from "./$types";
 
   let { data }: { data: PageData } = $props();
+
+  let copied = $state(false);
+
+  async function copyTypes() {
+    if (!data.typeString) return;
+    await navigator.clipboard.writeText(data.typeString);
+    copied = true;
+    setTimeout(() => {
+      copied = false;
+    }, 2000);
+  }
 </script>
 
 <div class="container mx-auto max-w-6xl space-y-6 p-6">
@@ -39,6 +50,25 @@
       </dl>
     </Card.Content>
   </Card.Root>
+
+  {#if data.typeString != null}
+    <Card.Root>
+      <Card.Header>
+        <div class="flex items-center justify-between">
+          <div>
+            <Card.Title>TypeScript Types</Card.Title>
+            <Card.Description>Generated from the collection schema</Card.Description>
+          </div>
+          <Button variant="outline" size="sm" onclick={copyTypes}>
+            {copied ? "Copied!" : "Copy"}
+          </Button>
+        </div>
+      </Card.Header>
+      <Card.Content>
+        <pre class="overflow-x-auto rounded-md bg-muted p-4 text-sm">{data.typeString}</pre>
+      </Card.Content>
+    </Card.Root>
+  {/if}
 
   <ItemListExplorer
     basePath={`/collections/${encodeURIComponent(data.collection.name)}`}

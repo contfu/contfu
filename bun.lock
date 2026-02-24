@@ -104,6 +104,9 @@
     "packages/client/contfu": {
       "name": "contfu",
       "version": "0.0.1",
+      "bin": {
+        "contfu": "src/cli.ts",
+      },
       "dependencies": {
         "@contfu/client": "workspace:*",
         "@contfu/core": "workspace:*",

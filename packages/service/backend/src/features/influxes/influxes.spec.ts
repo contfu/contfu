@@ -84,7 +84,8 @@ describe.skipIf(isDbMocked)("Influx Features", () => {
       .insert(collectionTable)
       .values({
         userId: testUserId,
-        name: "My Collection",
+        displayName: "My Collection",
+        name: "myCollection",
       })
       .returning();
     testCollectionId = collection.id;
@@ -204,7 +205,8 @@ describe.skipIf(isDbMocked)("Influx Features", () => {
         .insert(collectionTable)
         .values({
           userId: user2.id,
-          name: "User2 Collection",
+          displayName: "User2 Collection",
+          name: "user2Collection",
         })
         .returning();
 
@@ -235,7 +237,8 @@ describe.skipIf(isDbMocked)("Influx Features", () => {
         .insert(collectionTable)
         .values({
           userId: user2.id,
-          name: "Other User Collection",
+          displayName: "Other User Collection",
+          name: "otherUserCollection",
         })
         .returning();
 
@@ -372,7 +375,8 @@ describe.skipIf(isDbMocked)("Influx Features", () => {
         .insert(collectionTable)
         .values({
           userId: testUserId,
-          name: "Other Collection",
+          displayName: "Other Collection",
+          name: "otherCollection",
         })
         .returning();
 
@@ -403,7 +407,8 @@ describe.skipIf(isDbMocked)("Influx Features", () => {
         .insert(collectionTable)
         .values({
           userId: testUserId,
-          name: "Other Collection",
+          displayName: "Other Collection",
+          name: "otherCollection",
         })
         .returning();
 

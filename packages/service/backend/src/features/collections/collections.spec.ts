@@ -34,19 +34,21 @@ describe.skipIf(isDbMocked)("Collection Features Happy Path", () => {
   });
 
   it("should create, update, and delete a collection", async () => {
-    const created = await runTest(createCollection(userId, { name: "Initial Collection" }));
-    expect(created.name).toBe("Initial Collection");
+    const created = await runTest(createCollection(userId, { displayName: "Initial Collection" }));
+    expect(created.name).toBe("initialCollection");
+    expect(created.displayName).toBe("Initial Collection");
     expect(created.influxCount).toBe(0);
     expect(created.connectionCount).toBe(0);
 
     const updated = await runTest(
-      updateCollection(userId, created.id, { name: "Updated Collection" }),
+      updateCollection(userId, created.id, { displayName: "Updated Collection" }),
     );
     expect(updated).toBe(true);
 
     const fetched = await runTest(getCollection(userId, created.id));
     expect(fetched).toBeDefined();
-    expect(fetched!.name).toBe("Updated Collection");
+    expect(fetched!.name).toBe("updatedCollection");
+    expect(fetched!.displayName).toBe("Updated Collection");
 
     const deleted = await runTest(deleteCollection(userId, created.id));
     expect(deleted).toBe(true);
@@ -56,7 +58,7 @@ describe.skipIf(isDbMocked)("Collection Features Happy Path", () => {
   });
 
   it("should list collections with influx and connection counts", async () => {
-    const created = await runTest(createCollection(userId, { name: "Articles" }));
+    const created = await runTest(createCollection(userId, { displayName: "Articles" }));
 
     const [source] = await db
       .insert(sourceTable)

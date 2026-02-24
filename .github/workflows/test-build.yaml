@@ -9,7 +9,7 @@ jobs:
   lint-and-test:
     name: Lint & Unit Tests
     runs-on: [self-hosted, macOS, ARM64]
-    timeout-minutes: 10
+    timeout-minutes: 5
     env:
       CI: true
     steps:
@@ -70,7 +70,7 @@ jobs:
     #   - build-ci-runner-image
     #   - build-nats-jetstream-image
     #   - build-strapi-test-image
-    timeout-minutes: 20
+    timeout-minutes: 10
 
     # Run job in a container to enable automatic service networking
     container:
@@ -124,6 +124,7 @@ jobs:
 
   build:
     name: Build Docker image
+    timeout-minutes: 8
     runs-on: [self-hosted, macOS, ARM64]
     steps:
       - uses: actions/checkout@v4

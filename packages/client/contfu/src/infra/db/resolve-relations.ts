@@ -1,10 +1,10 @@
-import type { ItemWithRelations, WithClause } from "../../domain/query-types";
+import type { IncludeOption, ItemWithRelations, WithClause } from "../../domain/query-types";
 import { db as defaultDb } from "./db";
 
 const MAX_DEPTH = 3;
 
 type FindItemsFn = (
-  options: { filter?: string; limit?: number; include?: string[]; with?: WithClause },
+  options: { filter?: string; limit?: number; include?: IncludeOption[]; with?: WithClause },
   ctx?: any,
 ) => { data: ItemWithRelations[] };
 

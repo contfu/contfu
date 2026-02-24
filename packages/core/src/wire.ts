@@ -45,5 +45,5 @@ export type WireItem = [
 export const WIRE_PING = 0 as const;
 
 /** Snapshot lifecycle wire event constants. */
-export const WIRE_SNAPSHOT_START = 3 as const;
-export const WIRE_SNAPSHOT_END = 4 as const;
+export const WIRE_SNAPSHOT_START = 5 as const;
+export const WIRE_SNAPSHOT_END = 6 as const;

@@ -3,11 +3,11 @@ import { itemsTable } from "../db/schema";
 import { basenameExpr, depthExpr, parentExpr } from "./path-helpers";
 import type { FilterAST } from "./types";
 
-const DIRECT_COLUMNS: Record<string, typeof itemsTable.collection> = {
-  collection: itemsTable.collection,
-  changedAt: itemsTable.changedAt,
-  ref: itemsTable.ref,
-  sourceType: itemsTable.sourceType,
+const DIRECT_COLUMNS: Record<string, SQL> = {
+  collection: sql`${itemsTable.collection}`,
+  changedAt: sql`${itemsTable.changedAt}`,
+  ref: sql`${itemsTable.ref}`,
+  sourceType: sql`${itemsTable.sourceType}`,
 };
 
 const FUNCTION_MAP: Record<string, (args: string[]) => SQL> = {
@@ -25,7 +25,7 @@ function jsonExtract(field: string): SQL {
   return sql`json_extract(${itemsTable.props}, ${"$." + path})`;
 }
 
-function getColumn(field: string): SQL | typeof itemsTable.collection {
+function getColumn(field: string): SQL {
   if (field in DIRECT_COLUMNS) return DIRECT_COLUMNS[field];
   return jsonExtract(field);
 }
@@ -61,11 +61,7 @@ export function compileFilter(ast: FilterAST): SQL {
   }
 }
 
-function compileComparison(
-  col: SQL | typeof itemsTable.collection,
-  op: string,
-  value: string | number | boolean | null,
-): SQL {
+function compileComparison(col: SQL, op: string, value: string | number | boolean | null): SQL {
   const val = compileValue(value);
 
   switch (op) {

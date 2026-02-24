@@ -1,4 +1,4 @@
-import { PropertyType, type CollectionSchema } from "@contfu/svc-core";
+import { PropertyType, toCamelCase, type CollectionSchema } from "@contfu/svc-core";
 import { isFullDatabase, isFullDataSource } from "@notionhq/client";
 import { notion, parseNotionRef } from "./notion-helpers";
 
@@ -41,6 +41,7 @@ export function notionPropertiesToSchema(
   } as CollectionSchema;
   for (const key in properties) {
     const prop = properties[key];
+    const camelKey = toCamelCase(key);
     switch (prop.type) {
       case "title":
       case "rich_text":
@@ -49,37 +50,37 @@ export function notionPropertiesToSchema(
       case "phone_number":
       case "status":
       case "select":
-        schema[key] = PropertyType.STRING | PropertyType.NULL;
+        schema[camelKey] = PropertyType.STRING | PropertyType.NULL;
         break;
       case "number":
-        schema[key] = PropertyType.NUMBER | PropertyType.NULL;
+        schema[camelKey] = PropertyType.NUMBER | PropertyType.NULL;
         break;
       case "date":
-        schema[key] = PropertyType.DATE | PropertyType.NULL;
+        schema[camelKey] = PropertyType.DATE | PropertyType.NULL;
         break;
       case "checkbox":
-        schema[key] = PropertyType.BOOLEAN;
+        schema[camelKey] = PropertyType.BOOLEAN;
         break;
       case "files":
-        schema[key] = PropertyType.FILES;
+        schema[camelKey] = PropertyType.FILES;
         break;
       case "created_time":
       case "last_edited_time":
-        schema[key] = PropertyType.DATE;
+        schema[camelKey] = PropertyType.DATE;
         break;
       case "relation":
       case "people":
-        schema[key] = PropertyType.REFS;
+        schema[camelKey] = PropertyType.REFS;
         break;
       case "created_by":
       case "last_edited_by":
-        schema[key] = PropertyType.REF;
+        schema[camelKey] = PropertyType.REF;
         break;
       case "multi_select":
-        schema[key] = PropertyType.STRINGS | PropertyType.NULL;
+        schema[camelKey] = PropertyType.STRINGS | PropertyType.NULL;
         break;
       case "unique_id":
-        schema[key] = PropertyType.STRING;
+        schema[camelKey] = PropertyType.STRING;
         break;
       // Skip computed types
       case "formula":

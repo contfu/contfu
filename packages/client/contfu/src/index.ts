@@ -120,8 +120,10 @@ export {
 
 // Collection schema exports
 export { collectionSchemaTable } from "./infra/db/schema";
+export { getAllCollectionSchemas } from "./features/collections/getAllCollectionSchemas";
 export { getCollectionSchema } from "./features/collections/getCollectionSchema";
 export { setCollectionSchema } from "./features/collections/setCollectionSchema";
+export { generateTypes } from "./features/collections/generateTypes";
 
 // Utility exports
 export { countAssets } from "./features/assets/countAssets";

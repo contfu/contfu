@@ -49,6 +49,7 @@ export const getCollection = (userId: number, collectionId: number) =>
     return {
       id: collection.id,
       userId: collection.userId,
+      displayName: collection.displayName,
       name: collection.name,
       includeRef: collection.includeRef,
       influxCount: influxCount?.count ?? 0,

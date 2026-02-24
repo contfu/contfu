@@ -64,6 +64,7 @@ export const createCollection = (userId: number, input: CreateSourceCollectionIn
             .insert(collectionTable)
             .values({
               userId,
+              displayName: input.name,
               name: input.name,
             })
             .returning();

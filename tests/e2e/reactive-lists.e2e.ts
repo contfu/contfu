@@ -126,7 +126,7 @@ test.describe("Reactive List Updates", () => {
 
     // Create a collection first
     await page.goto(`${SERVICE_URL}/collections/new`);
-    await page.getByLabel(/Name/i).fill("Test Collection for Connections");
+    await page.getByLabel(/Display Name/i).fill("Test Collection for Connections");
     await page.getByRole("button", { name: /Create Collection/i }).click();
     await page.waitForURL(/\/collections\/\d+/);
 
@@ -171,7 +171,7 @@ test.describe("Reactive List Updates", () => {
 
     // Create a collection
     await page.goto(`${SERVICE_URL}/collections/new`);
-    await page.getByLabel(/Name/i).fill("Collection for Connection Test");
+    await page.getByLabel(/Display Name/i).fill("Collection for Connection Test");
     await page.getByRole("button", { name: /Create Collection/i }).click();
     await page.waitForURL(/\/collections\/\d+/);
 

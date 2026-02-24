@@ -52,6 +52,7 @@
   import * as v from "valibot";
 
   const nameId = useId();
+  const displayNameId = useId();
   let { params } = $props();
 
   let id = $derived(params.id);
@@ -168,7 +169,7 @@
   <div class="mx-auto max-w-xl px-4 py-8 sm:px-6">
     <div class="mb-8">
       <div class="flex items-center gap-2">
-        <h1 class="text-2xl font-semibold tracking-tight">{collection.name}</h1>
+        <h1 class="text-2xl font-semibold tracking-tight">{collection.displayName ?? collection.name}</h1>
         <Popover.Root bind:open={namePopoverOpen}>
           <Popover.Trigger
             class={cn(
@@ -179,13 +180,14 @@
             <Pencil class="h-4 w-4" />
           </Popover.Trigger>
           <Popover.Portal>
-            <Popover.Content class="w-72" align="start">
+            <Popover.Content class="w-80" align="start">
               <form
                 {...updateCollection
                   .preflight(
                     v.object({
                       id: v.string(),
-                      name: v.pipe(v.string(), v.nonEmpty("Name is required")),
+                      displayName: v.pipe(v.string(), v.nonEmpty("Display name is required")),
+                      name: v.optional(v.string()),
                     }),
                   )
                   .enhance(async ({ submit, data }) => {
@@ -197,7 +199,7 @@
                           ...data,
                         })),
                       );
-                      toast.success("Collection name updated successfully");
+                      toast.success("Collection updated successfully");
                     });
                   })}
                 class="space-y-3"
@@ -207,10 +209,23 @@
                   type="hidden"
                 />
                 <div class="space-y-1.5">
-                  <Label for={nameId}>Name</Label>
+                  <Label for={displayNameId}>Display Name</Label>
+                  <Input
+                    id={displayNameId}
+                    {...updateCollection.fields.displayName.as("text")}
+                  />
+                  {#each updateCollection.fields.displayName.issues() as issue}
+                    <p class="text-sm text-destructive">
+                      {issue.message}
+                    </p>
+                  {/each}
+                </div>
+                <div class="space-y-1.5">
+                  <Label for={nameId}>Identifier Name <span class="text-xs text-muted-foreground">(optional override)</span></Label>
                   <Input
                     id={nameId}
                     {...updateCollection.fields.name.as("text")}
+                    placeholder="Leave blank to derive from display name"
                   />
                   {#each updateCollection.fields.name.issues() as issue}
                     <p class="text-sm text-destructive">

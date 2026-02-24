@@ -48,7 +48,8 @@ describe("createConnection", () => {
       .insert(collectionTable)
       .values({
         userId: user.id,
-        name: "Test Collection",
+        displayName: "Test Collection",
+        name: "testCollection",
       })
       .returning();
 
@@ -132,7 +133,8 @@ describe("createConnection", () => {
       .insert(collectionTable)
       .values({
         userId: user.id,
-        name: "Articles Collection",
+        displayName: "Articles Collection",
+        name: "articlesCollection",
       })
       .returning();
 
@@ -185,7 +187,8 @@ describe("createConnection", () => {
       .insert(collectionTable)
       .values({
         userId: user1.id,
-        name: "User1 Collection",
+        displayName: "User1 Collection",
+        name: "user1Collection",
       })
       .returning();
     const [consumer] = await db
@@ -233,7 +236,8 @@ describe("createConnection", () => {
       .insert(collectionTable)
       .values({
         userId: user2.id,
-        name: "User2 Collection",
+        displayName: "User2 Collection",
+        name: "user2Collection",
       })
       .returning();
 

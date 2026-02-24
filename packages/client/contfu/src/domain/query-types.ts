@@ -34,7 +34,7 @@ export type ItemWithRelations = Omit<ItemData, "sourceType" | "ref"> & {
   sourceType?: ItemData["sourceType"];
   ref?: ItemData["ref"];
   assets?: AssetData[];
-  relations?: Record<string, ItemData[]>;
+  relations?: Record<string, ItemWithRelations[]>;
 };
 
 export type QueryResult = {

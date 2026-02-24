@@ -46,7 +46,7 @@ export async function convertMedia(
   if (cached.length > 0) return cached[0].data;
 
   // Convert
-  const result = await transform(asset.data, opts);
+  const result = await transform(asset.data!, opts);
 
   // Cache
   await db.insert(mediaVariantTable).values({

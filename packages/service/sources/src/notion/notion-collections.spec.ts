@@ -62,7 +62,7 @@ describe("notion-collections", () => {
 
       const schema = await getCollectionSchema(testKey, testId);
 
-      expect(schema.Title).toBe(PropertyType.STRING | PropertyType.NULL);
+      expect(schema.title).toBe(PropertyType.STRING | PropertyType.NULL);
     });
 
     it("should map rich_text property to STRING | NULL", async () => {
@@ -72,7 +72,7 @@ describe("notion-collections", () => {
 
       const schema = await getCollectionSchema(testKey, testId);
 
-      expect(schema.Description).toBe(PropertyType.STRING | PropertyType.NULL);
+      expect(schema.description).toBe(PropertyType.STRING | PropertyType.NULL);
     });
 
     it("should map url property to STRING | NULL", async () => {
@@ -82,7 +82,7 @@ describe("notion-collections", () => {
 
       const schema = await getCollectionSchema(testKey, testId);
 
-      expect(schema.Link).toBe(PropertyType.STRING | PropertyType.NULL);
+      expect(schema.link).toBe(PropertyType.STRING | PropertyType.NULL);
     });
 
     it("should map email property to STRING | NULL", async () => {
@@ -92,7 +92,7 @@ describe("notion-collections", () => {
 
       const schema = await getCollectionSchema(testKey, testId);
 
-      expect(schema.Email).toBe(PropertyType.STRING | PropertyType.NULL);
+      expect(schema.email).toBe(PropertyType.STRING | PropertyType.NULL);
     });
 
     it("should map phone_number property to STRING | NULL", async () => {
@@ -102,7 +102,7 @@ describe("notion-collections", () => {
 
       const schema = await getCollectionSchema(testKey, testId);
 
-      expect(schema.Phone).toBe(PropertyType.STRING | PropertyType.NULL);
+      expect(schema.phone).toBe(PropertyType.STRING | PropertyType.NULL);
     });
 
     it("should map status property to STRING | NULL", async () => {
@@ -114,7 +114,7 @@ describe("notion-collections", () => {
 
       const schema = await getCollectionSchema(testKey, testId);
 
-      expect(schema.Status).toBe(PropertyType.STRING | PropertyType.NULL);
+      expect(schema.status).toBe(PropertyType.STRING | PropertyType.NULL);
     });
 
     it("should map select property to STRING | NULL", async () => {
@@ -126,7 +126,7 @@ describe("notion-collections", () => {
 
       const schema = await getCollectionSchema(testKey, testId);
 
-      expect(schema.Category).toBe(PropertyType.STRING | PropertyType.NULL);
+      expect(schema.category).toBe(PropertyType.STRING | PropertyType.NULL);
     });
 
     it("should map number property to NUMBER | NULL", async () => {
@@ -136,7 +136,7 @@ describe("notion-collections", () => {
 
       const schema = await getCollectionSchema(testKey, testId);
 
-      expect(schema.Count).toBe(PropertyType.NUMBER | PropertyType.NULL);
+      expect(schema.count).toBe(PropertyType.NUMBER | PropertyType.NULL);
     });
 
     it("should map date property to DATE | NULL", async () => {
@@ -146,7 +146,7 @@ describe("notion-collections", () => {
 
       const schema = await getCollectionSchema(testKey, testId);
 
-      expect(schema.Due).toBe(PropertyType.DATE | PropertyType.NULL);
+      expect(schema.due).toBe(PropertyType.DATE | PropertyType.NULL);
     });
 
     it("should map checkbox property to BOOLEAN (without NULL)", async () => {
@@ -156,7 +156,7 @@ describe("notion-collections", () => {
 
       const schema = await getCollectionSchema(testKey, testId);
 
-      expect(schema.Done).toBe(PropertyType.BOOLEAN);
+      expect(schema.done).toBe(PropertyType.BOOLEAN);
     });
 
     it("should map files property to FILES", async () => {
@@ -166,7 +166,7 @@ describe("notion-collections", () => {
 
       const schema = await getCollectionSchema(testKey, testId);
 
-      expect(schema.Attachments).toBe(PropertyType.FILES);
+      expect(schema.attachments).toBe(PropertyType.FILES);
     });
 
     it("should map created_time property to DATE (without NULL)", async () => {
@@ -176,7 +176,7 @@ describe("notion-collections", () => {
 
       const schema = await getCollectionSchema(testKey, testId);
 
-      expect(schema.Created).toBe(PropertyType.DATE);
+      expect(schema.created).toBe(PropertyType.DATE);
     });
 
     it("should map last_edited_time property to DATE (without NULL)", async () => {
@@ -186,7 +186,7 @@ describe("notion-collections", () => {
 
       const schema = await getCollectionSchema(testKey, testId);
 
-      expect(schema.Modified).toBe(PropertyType.DATE);
+      expect(schema.modified).toBe(PropertyType.DATE);
     });
 
     it("should map relation property to REFS", async () => {
@@ -199,7 +199,7 @@ describe("notion-collections", () => {
 
       const schema = await getCollectionSchema(testKey, testId);
 
-      expect(schema.Related).toBe(PropertyType.REFS);
+      expect(schema.related).toBe(PropertyType.REFS);
     });
 
     it("should map people property to REFS", async () => {
@@ -209,7 +209,7 @@ describe("notion-collections", () => {
 
       const schema = await getCollectionSchema(testKey, testId);
 
-      expect(schema.Assignees).toBe(PropertyType.REFS);
+      expect(schema.assignees).toBe(PropertyType.REFS);
     });
 
     it("should map created_by property to REF", async () => {
@@ -219,7 +219,7 @@ describe("notion-collections", () => {
 
       const schema = await getCollectionSchema(testKey, testId);
 
-      expect(schema.Creator).toBe(PropertyType.REF);
+      expect(schema.creator).toBe(PropertyType.REF);
     });
 
     it("should map last_edited_by property to REF", async () => {
@@ -229,7 +229,7 @@ describe("notion-collections", () => {
 
       const schema = await getCollectionSchema(testKey, testId);
 
-      expect(schema.Editor).toBe(PropertyType.REF);
+      expect(schema.editor).toBe(PropertyType.REF);
     });
 
     it("should skip unsupported property types", async () => {
@@ -241,8 +241,8 @@ describe("notion-collections", () => {
       const schema = await getCollectionSchema(testKey, testId);
 
       // Formula and rollup are computed types - not stored
-      expect(schema.Formula).toBeUndefined();
-      expect(schema.Rollup).toBeUndefined();
+      expect(schema.formula).toBeUndefined();
+      expect(schema.rollup).toBeUndefined();
     });
 
     it("should map multi_select property to STRINGS | NULL", async () => {
@@ -252,7 +252,7 @@ describe("notion-collections", () => {
 
       const schema = await getCollectionSchema(testKey, testId);
 
-      expect(schema.Tags).toBe(PropertyType.STRINGS | PropertyType.NULL);
+      expect(schema.tags).toBe(PropertyType.STRINGS | PropertyType.NULL);
     });
 
     it("should map unique_id property to STRING", async () => {
@@ -262,7 +262,7 @@ describe("notion-collections", () => {
 
       const schema = await getCollectionSchema(testKey, testId);
 
-      expect(schema.ID).toBe(PropertyType.STRING);
+      expect(schema.iD).toBe(PropertyType.STRING);
     });
 
     it("should handle database with multiple properties", async () => {
@@ -284,20 +284,20 @@ describe("notion-collections", () => {
 
       const schema = await getCollectionSchema(testKey, testId);
 
-      // Verify all expected properties are present
-      expect(schema.Title).toBe(PropertyType.STRING | PropertyType.NULL);
-      expect(schema.Description).toBe(PropertyType.STRING | PropertyType.NULL);
-      expect(schema.Status).toBe(PropertyType.STRING | PropertyType.NULL);
-      expect(schema.Priority).toBe(PropertyType.STRING | PropertyType.NULL);
-      expect(schema.Count).toBe(PropertyType.NUMBER | PropertyType.NULL);
-      expect(schema.DueDate).toBe(PropertyType.DATE | PropertyType.NULL);
-      expect(schema.Done).toBe(PropertyType.BOOLEAN);
-      expect(schema.Files).toBe(PropertyType.FILES);
-      expect(schema.CreatedAt).toBe(PropertyType.DATE);
-      expect(schema.UpdatedAt).toBe(PropertyType.DATE);
-      expect(schema.Related).toBe(PropertyType.REFS);
-      expect(schema.Assignees).toBe(PropertyType.REFS);
-      expect(schema.Creator).toBe(PropertyType.REF);
+      // Verify all expected properties are present (keys are camelCased)
+      expect(schema.title).toBe(PropertyType.STRING | PropertyType.NULL);
+      expect(schema.description).toBe(PropertyType.STRING | PropertyType.NULL);
+      expect(schema.status).toBe(PropertyType.STRING | PropertyType.NULL);
+      expect(schema.priority).toBe(PropertyType.STRING | PropertyType.NULL);
+      expect(schema.count).toBe(PropertyType.NUMBER | PropertyType.NULL);
+      expect(schema.dueDate).toBe(PropertyType.DATE | PropertyType.NULL);
+      expect(schema.done).toBe(PropertyType.BOOLEAN);
+      expect(schema.files).toBe(PropertyType.FILES);
+      expect(schema.createdAt).toBe(PropertyType.DATE);
+      expect(schema.updatedAt).toBe(PropertyType.DATE);
+      expect(schema.related).toBe(PropertyType.REFS);
+      expect(schema.assignees).toBe(PropertyType.REFS);
+      expect(schema.creator).toBe(PropertyType.REF);
 
       // Always includes cover and icon
       expect(schema.cover).toBe(PropertyType.FILE | PropertyType.NULL);
