@@ -1,5 +1,7 @@
 import { connect } from "contfu";
+import { EventType } from "@contfu/core";
 import { mediaStore } from "$lib/server/media";
+import { bufferDataChanged, publishSyncStatus } from "$lib/server/live-updates";
 import { setSyncStatus } from "$lib/server/sync-status";
 
 let streamRunnerStarted = false;
@@ -35,23 +37,39 @@ async function runStream() {
       mediaOptimizer,
     })) {
       if (event.type === "stream:connected") {
-        setSyncStatus({ state: "connected", reason: null });
+        const next = { state: "connected", reason: null } as const;
+        setSyncStatus(next);
+        publishSyncStatus(next);
       } else if (event.type === "stream:snapshot:start") {
-        setSyncStatus({ state: "syncing", reason: null });
+        const next = { state: "syncing", reason: null } as const;
+        setSyncStatus(next);
+        publishSyncStatus(next);
       } else if (event.type === "stream:snapshot:end") {
-        setSyncStatus({ state: "connected", reason: null });
+        const next = { state: "connected", reason: null } as const;
+        setSyncStatus(next);
+        publishSyncStatus(next);
       } else if (event.type === "stream:disconnected") {
-        setSyncStatus({
+        const next = {
           state: "error",
           reason: event.reason ?? "Disconnected from sync service",
-        });
+        } as const;
+        setSyncStatus(next);
+        publishSyncStatus(next);
+      } else if (event.type === EventType.SCHEMA) {
+        bufferDataChanged("schema");
+      } else if (event.type === EventType.CHANGED || event.type === EventType.DELETED) {
+        bufferDataChanged("item");
+      } else {
+        bufferDataChanged("unknown");
       }
       // item events are persisted inside connect
     }
   } catch (error) {
-    setSyncStatus({
+    const next = {
       state: "error",
       reason: error instanceof Error ? error.message : "Unknown sync error",
-    });
+    } as const;
+    setSyncStatus(next);
+    publishSyncStatus(next);
   }
 }
