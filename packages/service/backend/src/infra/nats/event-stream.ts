@@ -13,7 +13,9 @@ const SUBJECT_PREFIX = "evt";
 /** 3 days in nanoseconds (NATS max_age unit). */
 const MAX_AGE_NS = 3 * 24 * 60 * 60 * 1_000_000_000;
 
-export type StoredWireItemEvent = [EventType.CHANGED, WireItem] | [EventType.DELETED, Uint8Array];
+export type StoredWireItemEvent =
+  | [typeof EventType.CHANGED, WireItem]
+  | [typeof EventType.DELETED, Uint8Array];
 
 let initialized = false;
 

@@ -1,10 +1,4 @@
-import {
-  EventType,
-  WIRE_PING,
-  type WireEvent,
-  type WireItem,
-  type WireItemEvent,
-} from "@contfu/core";
+import { EventType, type WireEvent, type WireItem, type WireItemEvent } from "@contfu/core";
 import { and, eq, inArray } from "drizzle-orm";
 import { Effect } from "effect";
 import { pack as msgpack } from "msgpackr";
@@ -214,7 +208,7 @@ export class StreamServer {
    * Send a ping to keep the connection alive.
    */
   sendPing(controller: ReadableStreamDefaultController<Uint8Array>) {
-    const wireEvent: WireEvent = [WIRE_PING];
+    const wireEvent: WireEvent = [EventType.PING];
     this.sendBinary(controller, wireEvent);
   }
 
@@ -234,7 +228,7 @@ export class StreamServer {
     }
 
     try {
-      this.sendBinary(connection.controller, [WIRE_PING]);
+      this.sendBinary(connection.controller, [EventType.PING]);
     } catch {
       this.removeConnection(connectionId);
       return false;
@@ -367,7 +361,7 @@ export class StreamServer {
   ) {
     const [type, payload] = wireEvent;
     if (type === EventType.CHANGED && !includeRef) {
-      const [, , id, collection, changedAt, props, content] = payload;
+      const [, , id, collection, changedAt, props, content] = payload as WireItem;
       const changedNoRef: WireItem = [null, null, id, collection, changedAt, props, content];
       this.sendBinary(controller, [type, changedNoRef, seq]);
       return;

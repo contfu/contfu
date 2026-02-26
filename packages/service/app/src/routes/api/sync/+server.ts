@@ -1,6 +1,6 @@
 import { extractConsumerKey } from "$lib/server/consumer-auth";
 import { getStreamServer } from "$lib/server/startup";
-import { EventType, WIRE_SNAPSHOT_END, WIRE_SNAPSHOT_START } from "@contfu/core";
+import { EventType } from "@contfu/core";
 import { createLogger } from "@contfu/svc-backend/infra/logger/index";
 import { runEffectWithServices } from "@contfu/svc-backend/effect/run";
 import { fetchAndStreamItems } from "@contfu/svc-backend/features/sync/fetchAndStreamItems";
@@ -207,7 +207,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
 
         if (fromSeq === null) {
           log.debug({ userId: consumer.userId, consumerId: consumer.id }, "Starting snapshot");
-          server.sendBinaryEvent(controller, [WIRE_SNAPSHOT_START]);
+          server.sendBinaryEvent(controller, [EventType.SNAPSHOT_START]);
 
           const config = await runEffectWithServices(
             getConsumerSyncConfig(consumer.userId, consumer.id),
@@ -232,7 +232,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
             server.sendIndexedItem(controller, seq, wireEvent, Boolean(item.includeRef));
           }
 
-          server.sendBinaryEvent(controller, [WIRE_SNAPSHOT_END]);
+          server.sendBinaryEvent(controller, [EventType.SNAPSHOT_END]);
           log.debug(
             { userId: consumer.userId, consumerId: consumer.id, itemCount: snapshotItemCount },
             "Snapshot complete",

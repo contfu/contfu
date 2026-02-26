@@ -1,10 +1,20 @@
 import type { Item } from "./items";
 
-export enum EventType {
-  CHANGED = 1,
-  DELETED = 2,
-  SCHEMA = 3,
-}
+export const EventType = {
+  // Protocol messages (0-9)
+  PING: 0,
+  SNAPSHOT_START: 1,
+  SNAPSHOT_END: 2,
+  STREAM_CONNECTED: 3,
+  STREAM_DISCONNECTED: 4,
+  // Collection events (10-29)
+  SCHEMA: 10,
+  // Item events (30-49)
+  CHANGED: 30,
+  DELETED: 31,
+} as const;
+
+export type EventType = (typeof EventType)[keyof typeof EventType];
 
 type EventBase<T extends EventType> = {
   type: T;
@@ -13,7 +23,7 @@ type EventBase<T extends EventType> = {
 /**
  * Provides a created or changed item.
  */
-export type ChangedEvent = EventBase<EventType.CHANGED> & {
+export type ChangedEvent = EventBase<typeof EventType.CHANGED> & {
   item: Item;
 };
 
@@ -21,7 +31,7 @@ export type ChangedEvent = EventBase<EventType.CHANGED> & {
  * Provides a deleted item id.
  * This is only sent, if the source supports web hooks.
  */
-export type DeletedEvent = EventBase<EventType.DELETED> & {
+export type DeletedEvent = EventBase<typeof EventType.DELETED> & {
   item: Buffer;
 };
 

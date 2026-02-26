@@ -48,10 +48,10 @@ export async function* connect(opts?: {
   if (opts?.connectionEvents) {
     for await (const event of connectToStream({ ...baseOpts, connectionEvents: true })) {
       if (
-        event.type === "stream:connected" ||
-        event.type === "stream:disconnected" ||
-        event.type === "stream:snapshot:start" ||
-        event.type === "stream:snapshot:end"
+        event.type === EventType.STREAM_CONNECTED ||
+        event.type === EventType.STREAM_DISCONNECTED ||
+        event.type === EventType.SNAPSHOT_START ||
+        event.type === EventType.SNAPSHOT_END
       ) {
         yield event;
         continue;

@@ -1,9 +1,6 @@
 import {
   EventType,
   SourceType,
-  WIRE_PING,
-  WIRE_SNAPSHOT_START,
-  WIRE_SNAPSHOT_END,
   type CollectionSchema,
   type Item as InternalItem,
   type PageProps,
@@ -33,16 +30,19 @@ export type SyncEvent = ChangedEvent | DeletedEvent | SchemaEvent;
 export type ItemEvent = SyncEvent;
 
 /** Emitted when stream connection is established. */
-export type StreamConnectedEvent = { type: "stream:connected" };
+export type StreamConnectedEvent = { type: typeof EventType.STREAM_CONNECTED };
 
 /** Emitted when stream connection is lost. */
-export type StreamDisconnectedEvent = { type: "stream:disconnected"; reason?: string };
+export type StreamDisconnectedEvent = {
+  type: typeof EventType.STREAM_DISCONNECTED;
+  reason?: string;
+};
 
 /** Emitted when server begins sending snapshot data. */
-export type StreamSnapshotStartEvent = { type: "stream:snapshot:start" };
+export type StreamSnapshotStartEvent = { type: typeof EventType.SNAPSHOT_START };
 
 /** Emitted when server finishes sending snapshot data. */
-export type StreamSnapshotEndEvent = { type: "stream:snapshot:end" };
+export type StreamSnapshotEndEvent = { type: typeof EventType.SNAPSHOT_END };
 
 /** Connection lifecycle events. */
 export type StreamEvent =
@@ -155,7 +155,7 @@ export async function* connectToStream(
       reconnectDelay = initialReconnectDelay;
       startAckTimer();
       if (connectionEvents) {
-        yield { type: "stream:connected" };
+        yield { type: EventType.STREAM_CONNECTED };
       }
 
       const reader = response.body.getReader() as ReadableStreamDefaultReader<Uint8Array>;
@@ -168,7 +168,7 @@ export async function* connectToStream(
         if (done) {
           stopAckTimer();
           if (connectionEvents) {
-            yield { type: "stream:disconnected", reason: "Stream ended" };
+            yield { type: EventType.STREAM_DISCONNECTED, reason: "Stream ended" };
           }
           break;
         }
@@ -210,7 +210,7 @@ export async function* connectToStream(
       stopAckTimer();
       if (connectionEvents && !(err instanceof Error && err.message.startsWith("Stream error:"))) {
         yield {
-          type: "stream:disconnected",
+          type: EventType.STREAM_DISCONNECTED,
           reason: err instanceof Error ? err.message : "Unknown error",
         };
       }
@@ -259,8 +259,8 @@ function fromWireStreamEvent(
   // Snapshot lifecycle events are single-element arrays [type].
   if (wireEvent.length !== 1) return null;
   const type = wireEvent[0];
-  if (type === WIRE_SNAPSHOT_START) return { type: "stream:snapshot:start" };
-  if (type === WIRE_SNAPSHOT_END) return { type: "stream:snapshot:end" };
+  if (type === EventType.SNAPSHOT_START) return { type: EventType.SNAPSHOT_START };
+  if (type === EventType.SNAPSHOT_END) return { type: EventType.SNAPSHOT_END };
   return null;
 }
 
@@ -316,7 +316,7 @@ function fromWireEvent(wireEvent: WireEvent): SyncEvent | null {
       };
     }
 
-    case WIRE_PING:
+    case EventType.PING:
       return null;
 
     default:

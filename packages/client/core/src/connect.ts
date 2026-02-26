@@ -1,3 +1,4 @@
+import { EventType } from "@contfu/core";
 import { connectToStream, type StreamEvent, type SyncEvent } from "./stream-client";
 
 type BaseOpts = {
@@ -29,19 +30,20 @@ type OptsWithoutConnectionEvents = BaseOpts & { connectionEvents?: false };
  * @example
  * ```ts
  * import { connect } from "@contfu/client";
+ * import { EventType } from "@contfu/core";
  *
  * // Key from CONTFU_API_KEY env var
  * for await (const event of connect()) {
- *   if (event.type === 2) { // CHANGED
+ *   if (event.type === EventType.CHANGED) {
  *     console.log("Item changed:", event.item);
  *   }
  * }
  *
  * // With explicit key and connection events
  * for await (const event of connect({ key, connectionEvents: true })) {
- *   if (event.type === "stream:connected") {
+ *   if (event.type === EventType.STREAM_CONNECTED) {
  *     console.log("Connected!");
- *   } else if (event.type === "stream:disconnected") {
+ *   } else if (event.type === EventType.STREAM_DISCONNECTED) {
  *     console.log("Lost connection:", event.reason);
  *   } else {
  *     console.log("Item event:", event);

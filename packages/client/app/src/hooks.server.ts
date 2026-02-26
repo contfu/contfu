@@ -36,19 +36,19 @@ async function runStream() {
       mediaStore,
       mediaOptimizer,
     })) {
-      if (event.type === "stream:connected") {
+      if (event.type === EventType.STREAM_CONNECTED) {
         const next = { state: "connected", reason: null } as const;
         setSyncStatus(next);
         publishSyncStatus(next);
-      } else if (event.type === "stream:snapshot:start") {
+      } else if (event.type === EventType.SNAPSHOT_START) {
         const next = { state: "syncing", reason: null } as const;
         setSyncStatus(next);
         publishSyncStatus(next);
-      } else if (event.type === "stream:snapshot:end") {
+      } else if (event.type === EventType.SNAPSHOT_END) {
         const next = { state: "connected", reason: null } as const;
         setSyncStatus(next);
         publishSyncStatus(next);
-      } else if (event.type === "stream:disconnected") {
+      } else if (event.type === EventType.STREAM_DISCONNECTED) {
         const next = {
           state: "error",
           reason: event.reason ?? "Disconnected from sync service",

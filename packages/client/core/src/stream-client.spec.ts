@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { EventType, SourceType, WIRE_PING, type Block } from "@contfu/core";
+import { EventType, SourceType, type Block } from "@contfu/core";
 import { pack } from "msgpackr";
 import { connectToStream } from "./stream-client";
 
@@ -161,8 +161,9 @@ describe("stream-client", () => {
     test("ignores PING events", async () => {
       mockFetch(
         createMockStream([
-          createBinaryMessage([WIRE_PING]),
-          createBinaryMessage([WIRE_PING]),
+          createBinaryMessage([EventType.PING]),
+          createBinaryMessage([EventType.PING]),
+          createBinaryMessage([EventType.PING]),
           createBinaryMessage([EventType.DELETED, new Uint8Array([1]), 7]),
         ]),
       );
@@ -198,9 +199,9 @@ describe("stream-client", () => {
       }
 
       expect(events).toHaveLength(3);
-      expect(events[0]).toEqual({ type: "stream:connected" });
+      expect(events[0]).toEqual({ type: EventType.STREAM_CONNECTED });
       expect((events[1] as { type: number }).type).toBe(EventType.DELETED);
-      expect(events[2]).toEqual({ type: "stream:disconnected", reason: "Stream ended" });
+      expect(events[2]).toEqual({ type: EventType.STREAM_DISCONNECTED, reason: "Stream ended" });
     });
   });
 
