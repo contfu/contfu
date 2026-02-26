@@ -2,6 +2,9 @@ export function detectRuntime(): "bun" | "node" | "deno" {
   if (typeof globalThis !== "undefined" && "Bun" in globalThis) {
     return "bun";
   }
+  if (typeof process !== "undefined" && typeof process.versions?.bun === "string") {
+    return "bun";
+  }
   // @ts-ignore - Deno global may not be defined in all environments
   if (typeof Deno !== "undefined") {
     return "deno";
