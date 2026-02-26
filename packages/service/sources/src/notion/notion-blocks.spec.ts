@@ -426,7 +426,7 @@ describe("notion-blocks", () => {
       const blocks = await getContentBlocks(testKey, "page-123");
 
       // Should be merged into single list
-      expect(blocks).toEqual([["u", ["Item 1", "Item 2"]]]);
+      expect(blocks).toEqual([["u", ["Item 1"], ["Item 2"]]]);
     });
 
     it("should merge consecutive numbered list items", async () => {
@@ -446,7 +446,36 @@ describe("notion-blocks", () => {
 
       const blocks = await getContentBlocks(testKey, "page-123");
 
-      expect(blocks).toEqual([["o", ["First", "Second"]]]);
+      expect(blocks).toEqual([["o", ["First"], ["Second"]]]);
+    });
+
+    it("should preserve list item boundaries with formatted content", async () => {
+      mockClient.blocks.children.list.mockResolvedValueOnce({
+        ...emptyList,
+        results: [
+          createBlock("bulleted_list_item", {
+            rich_text: [richText("Plain item")],
+            color: "default",
+          }),
+          createBlock("bulleted_list_item", {
+            rich_text: [
+              richText("Bold", { bold: true }),
+              richText(" and "),
+              richText("link", { href: "https://example.com" }),
+            ],
+            color: "default",
+          }),
+        ],
+      });
+
+      const blocks = await getContentBlocks(testKey, "page-123");
+
+      expect(blocks).toHaveLength(1);
+      expect(blocks[0]).toEqual([
+        "u",
+        ["Plain item"],
+        [["b", "Bold"], "and", ["a", "link", "https://example.com"]],
+      ]);
     });
 
     it("should not merge different list types", async () => {
@@ -707,6 +736,8 @@ describe("notion-blocks", () => {
       // First bulleted list should have multiple items (length > 2 means more than just ["u", [first item]])
       const firstBulletedList = bulletedLists[0];
       expect(firstBulletedList.length).toBeGreaterThan(2);
+      expect(Array.isArray(firstBulletedList[1])).toBe(true);
+      expect(Array.isArray(firstBulletedList[2])).toBe(true);
     });
 
     it("should correctly parse quote blocks", async () => {

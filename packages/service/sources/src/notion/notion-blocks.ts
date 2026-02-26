@@ -27,7 +27,7 @@ export async function getContentBlocks(key: string, id: string) {
     if (!b) continue;
     const prev = blocks.at(-1);
     if ((isUl(b) && isUl(prev)) || (isOl(b) && isOl(prev))) {
-      prev[1].push(...b[1]);
+      prev.push(b[1]);
       b = prev;
     } else blocks.push(b);
     if (res.has_children) {
