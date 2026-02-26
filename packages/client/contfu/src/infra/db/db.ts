@@ -1,70 +1,31 @@
-import type { EmptyRelations } from "drizzle-orm";
-import type { SQLiteBunDatabase } from "drizzle-orm/bun-sqlite";
-import { existsSync } from "node:fs";
-import { mkdir } from "node:fs/promises";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { detectRuntime } from "../../util/runtime";
-import * as schema from "./schema";
 
-type Database = SQLiteBunDatabase<typeof schema, EmptyRelations>;
+// Keep runtime-specific module specifiers out of this file. Bun's bundler
+// statically analyzes import specifiers even when they are runtime-gated.
+const dynamicImport = (path: string) =>
+  new Function("p", "return import(p)")(path) as Promise<
+    typeof import("./db-bun") | typeof import("./db-node")
+  >;
 
-const dbUrl: string = process.env.DATABASE_URL ?? ":memory:";
-
-export const db: Database = await createDatabaseClient(dbUrl);
-
-function resolveMigrationsFolder(): string | null {
-  const byModulePath = join(dirname(fileURLToPath(import.meta.url)), "../../../db/migrations");
-  const byRepoRoot = join(process.cwd(), "packages/client/contfu/db/migrations");
-  const byPackageRoot = join(process.cwd(), "db/migrations");
-
-  const candidates = [byModulePath, byRepoRoot, byPackageRoot];
-  for (const candidate of candidates) {
-    if (existsSync(candidate)) {
-      return candidate;
+async function importDbModule(base: "db-bun" | "db-node") {
+  try {
+    return await dynamicImport(new URL(`./${base}.js`, import.meta.url).href);
+  } catch (err) {
+    const e = err as NodeJS.ErrnoException & { url?: string };
+    const missingCompiledSibling =
+      e?.code === "ERR_MODULE_NOT_FOUND" &&
+      typeof e.url === "string" &&
+      e.url.endsWith(`/${base}.js`);
+    if (!missingCompiledSibling) {
+      throw err;
     }
+    return await dynamicImport(new URL(`./${base}.ts`, import.meta.url).href);
   }
-
-  return null;
 }
 
-async function createDatabaseClient(url: string) {
-  const runtime = detectRuntime();
-  const migrationsFolder = resolveMigrationsFolder();
+const dbModule = await (detectRuntime() === "bun"
+  ? importDbModule("db-bun")
+  : importDbModule("db-node"));
 
-  if (url !== ":memory:") {
-    await mkdir(dirname(url), { recursive: true });
-  }
-
-  if (runtime === "bun") {
-    const { Database } = await import("bun:sqlite");
-    const { drizzle } = await import("drizzle-orm/bun-sqlite");
-    const { migrate } = await import("drizzle-orm/bun-sqlite/migrator");
-
-    const client = new Database(url);
-    client.run("PRAGMA foreign_keys = ON");
-    client.run("PRAGMA journal_mode = WAL");
-
-    const db = drizzle({ client, schema });
-    if (migrationsFolder) {
-      migrate(db, { migrationsFolder });
-    }
-    return db;
-  }
-
-  // @ts-ignore - better-sqlite3 is an optional dependency
-  const Database = await import("better-sqlite3");
-  const { drizzle } = await import("drizzle-orm/better-sqlite3");
-  const { migrate } = await import("drizzle-orm/better-sqlite3/migrator");
-
-  const DatabaseClass = Database.default || Database;
-  const client = new DatabaseClass(url);
-  client.pragma("foreign_keys = ON");
-  client.pragma("journal_mode = WAL");
-
-  const db = drizzle(client, { schema });
-  if (migrationsFolder) {
-    migrate(db, { migrationsFolder });
-  }
-  return db;
-}
+// Preserve existing query ergonomics for internal call sites.
+export const db = (dbModule as typeof import("./db-bun")).db;

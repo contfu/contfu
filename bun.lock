@@ -106,7 +106,7 @@
       "name": "contfu",
       "version": "0.0.1",
       "bin": {
-        "contfu": "src/cli.ts",
+        "contfu": "./bin/contfu.js",
       },
       "dependencies": {
         "@contfu/client": "workspace:*",

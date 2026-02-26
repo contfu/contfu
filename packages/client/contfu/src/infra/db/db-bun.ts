@@ -1,0 +1,27 @@
+import type { EmptyRelations } from "drizzle-orm";
+import type { SQLiteBunDatabase } from "drizzle-orm/bun-sqlite";
+import { dbUrl, ensureDbDir, resolveMigrationsFolder } from "./db-shared";
+import * as schema from "./schema";
+
+export type Database = SQLiteBunDatabase<typeof schema, EmptyRelations>;
+
+export async function createBunDatabaseClient(url: string): Promise<Database> {
+  const migrationsFolder = resolveMigrationsFolder();
+  await ensureDbDir(url);
+
+  const { Database } = await import("bun:sqlite");
+  const { drizzle } = await import("drizzle-orm/bun-sqlite");
+  const { migrate } = await import("drizzle-orm/bun-sqlite/migrator");
+
+  const client = new Database(url);
+  client.run("PRAGMA foreign_keys = ON");
+  client.run("PRAGMA journal_mode = WAL");
+
+  const db = drizzle({ client, schema });
+  if (migrationsFolder) {
+    migrate(db, { migrationsFolder });
+  }
+  return db;
+}
+
+export const db: Database = await createBunDatabaseClient(dbUrl);
