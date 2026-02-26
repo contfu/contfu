@@ -138,7 +138,12 @@ async function downloadAndStoreAsset(
     return assetId;
   }
 
-  const res = await fetch(originalUrl);
+  let res: Response;
+  try {
+    res = await fetch(originalUrl);
+  } catch {
+    return assetId;
+  }
   if (!res.ok) return assetId;
 
   const buffer = Buffer.from(await res.arrayBuffer());

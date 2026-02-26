@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { truncateAllTables } from "../../../test/setup";
+import type { ItemWithRelations, WithClause } from "../../domain/query-types";
 import { createItem } from "../../features/items/createItem";
 import { findItems } from "../../features/items/findItems";
 import { resolveRelations } from "./resolve-relations";
-import type { ItemWithRelations, WithClause } from "../../domain/query-types";
 
 function makeId(seed: number): string {
   return Buffer.from([0, 0, 0, seed]).toString("base64url");
@@ -14,7 +14,7 @@ describe("resolveRelations", () => {
     await truncateAllTables();
   });
 
-  test("resolves simple relation with :collection placeholder", async () => {
+  test("resolves simple relation with $1.collection placeholder", async () => {
     await createItem({
       id: makeId(1),
       ref: "a",
@@ -49,18 +49,18 @@ describe("resolveRelations", () => {
 
     const withClause: WithClause = {
       siblings: {
-        filter: "collection = :collection && ref != :ref",
+        filter: "collection = $1.collection && ref != $1.ref",
       },
     };
 
     resolveRelations(items, withClause, findItems);
 
-    expect(items[0].relations).toBeDefined();
-    expect(items[0].relations!.siblings).toHaveLength(1);
-    expect(items[0].relations!.siblings[0].id).toBe(makeId(2));
+    expect(items[0].rels).toBeDefined();
+    expect(items[0].rels!.siblings).toHaveLength(1);
+    expect(items[0].rels!.siblings[0].id).toBe(makeId(2));
   });
 
-  test("resolves relation with :props.X placeholder", async () => {
+  test("resolves relation with $1.props.X placeholder", async () => {
     await createItem({
       id: makeId(1),
       ref: "a",
@@ -95,14 +95,14 @@ describe("resolveRelations", () => {
 
     const withClause: WithClause = {
       sameCategory: {
-        filter: "props.category = :props.category && ref != :ref",
+        filter: "props.category = $1.props.category && ref != $1.ref",
       },
     };
 
     resolveRelations(items, withClause, findItems);
 
-    expect(items[0].relations!.sameCategory).toHaveLength(1);
-    expect(items[0].relations!.sameCategory[0].id).toBe(makeId(2));
+    expect(items[0].rels!.sameCategory).toHaveLength(1);
+    expect(items[0].rels!.sameCategory[0].id).toBe(makeId(2));
   });
 
   test("respects limit on relations", async () => {
@@ -141,14 +141,14 @@ describe("resolveRelations", () => {
 
     const withClause: WithClause = {
       others: {
-        filter: 'collection = "articles" && ref != :ref',
+        filter: 'collection = "articles" && ref != $1.ref',
         limit: 1,
       },
     };
 
     resolveRelations(items, withClause, findItems);
 
-    expect(items[0].relations!.others).toHaveLength(1);
+    expect(items[0].rels!.others).toHaveLength(1);
   });
 
   test("skips when no items", () => {

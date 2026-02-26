@@ -1,15 +1,16 @@
 import type {
-  ContfuClient,
-  ContfuCollectionClient,
-  ContfuItemsClient,
   IncludeOption,
-  ItemWithRelations,
   QueryOptions,
   QueryResult,
   WithClause,
 } from "../../domain/query-types";
+import { resolveWithFunctions } from "../../domain/filter-helpers";
 
-export function createHttpClient(baseUrl: string, apiKey?: string): ContfuClient {
+export function createHttpTypedClient<_CMap>(
+  baseUrl: string,
+  apiKey?: string,
+  flatDefault = false,
+): any {
   const headers: Record<string, string> = {
     Accept: "application/json",
   };
@@ -25,75 +26,25 @@ export function createHttpClient(baseUrl: string, apiKey?: string): ContfuClient
     return res.json() as Promise<T>;
   }
 
-  function buildQueryParams(options: QueryOptions = {}): URLSearchParams {
-    const params = new URLSearchParams();
-
-    if (options.filter) params.set("filter", options.filter);
-    if (options.search) params.set("search", options.search);
-
-    if (options.sort) {
-      const sorts = Array.isArray(options.sort) ? options.sort : [options.sort];
-      const sortStr = sorts
-        .map((s) => {
-          if (typeof s === "string") return s;
-          return s.direction === "desc" ? `-${s.field}` : s.field;
-        })
-        .join(",");
-      params.set("sort", sortStr);
+  const callable = async (
+    options: QueryOptions & { collection?: string; with?: any } = {},
+    config?: { flat?: boolean },
+  ) => {
+    const { collection, ...rest } = options;
+    const flat = config?.flat ?? flatDefault;
+    const resolvedWith =
+      rest.with && typeof rest.with === "function" ? resolveWithFunctions(rest.with, 1) : rest.with;
+    const params = serializeQueryParams({ ...rest, flat, with: resolvedWith });
+    if (collection) {
+      const basePath = `${baseUrl}/api/collections/${encodeURIComponent(collection)}/items`;
+      const url = `${basePath}?${params}`;
+      return fetchJson<QueryResult>(url);
     }
-
-    if (options.limit !== undefined) params.set("limit", String(options.limit));
-    if (options.offset !== undefined) params.set("offset", String(options.offset));
-
-    if (options.include?.length) params.set("include", options.include.join(","));
-
-    if (options.with) params.set("with", JSON.stringify(options.with));
-
-    if (options.fields?.length) params.set("fields", options.fields.join(","));
-
-    return params;
-  }
-
-  function createItemsClient(collectionFilter?: string): ContfuItemsClient {
-    const basePath = collectionFilter
-      ? `${baseUrl}/api/collections/${encodeURIComponent(collectionFilter)}/items`
-      : `${baseUrl}/api/items`;
-
-    return {
-      async find(options: QueryOptions = {}): Promise<QueryResult> {
-        const params = buildQueryParams(options);
-        const url = `${basePath}?${params}`;
-        return fetchJson<QueryResult>(url);
-      },
-
-      async get(
-        id: string,
-        options?: Pick<QueryOptions, "include" | "with">,
-      ): Promise<ItemWithRelations | null> {
-        const params = new URLSearchParams();
-        if (options?.include?.length) params.set("include", options.include.join(","));
-        if (options?.with) params.set("with", JSON.stringify(options.with));
-
-        const qs = params.toString();
-        const url = `${baseUrl}/api/items/${encodeURIComponent(id)}${qs ? `?${qs}` : ""}`;
-        try {
-          const result = await fetchJson<{ data: ItemWithRelations }>(url);
-          return result.data;
-        } catch {
-          return null;
-        }
-      },
-    };
-  }
-
-  return {
-    items: createItemsClient(),
-    collections(name: string): ContfuCollectionClient {
-      return {
-        items: createItemsClient(name),
-      };
-    },
+    const url = `${baseUrl}/api/items?${params}`;
+    return fetchJson<QueryResult>(url);
   };
+
+  return callable;
 }
 
 export function serializeQueryParams(options: QueryOptions): URLSearchParams {
@@ -118,6 +69,7 @@ export function serializeQueryParams(options: QueryOptions): URLSearchParams {
   if (options.include?.length) params.set("include", options.include.join(","));
   if (options.with) params.set("with", JSON.stringify(options.with));
   if (options.fields?.length) params.set("fields", options.fields.join(","));
+  if (options.flat) params.set("flat", "true");
 
   return params;
 }
@@ -156,6 +108,9 @@ export function deserializeQueryParams(params: URLSearchParams): QueryOptions {
 
   const fields = params.get("fields");
   if (fields) options.fields = fields.split(",").map((s) => s.trim());
+
+  const flat = params.get("flat");
+  if (flat === "true") options.flat = true;
 
   return options;
 }

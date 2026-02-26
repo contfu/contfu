@@ -16,6 +16,23 @@ import type {
 
 const DEFAULT_LIMIT = 20;
 
+function flattenItem(item: ItemWithRelations): Record<string, unknown> {
+  const { props, rels, ...core } = item;
+  const flatRels: Record<string, unknown> = {};
+  if (rels) {
+    for (const [key, value] of Object.entries(rels)) {
+      if (value === null) {
+        flatRels[key] = null;
+      } else if (Array.isArray(value)) {
+        flatRels[key] = value.map(flattenItem);
+      } else {
+        flatRels[key] = flattenItem(value);
+      }
+    }
+  }
+  return { ...core, ...props, ...flatRels };
+}
+
 function buildWhere(options: QueryOptions): SQL | undefined {
   const conditions: SQL[] = [];
 
@@ -143,6 +160,10 @@ export function findItems(options: QueryOptions = {}, ctx = defaultDb): QueryRes
   // Resolve computed relations
   if (options.with && Object.keys(options.with).length > 0) {
     resolveRelations(data, options.with, findItems, ctx);
+  }
+
+  if (options.flat) {
+    return { data: data.map(flattenItem) as any, meta: { total, limit, offset } };
   }
 
   return {

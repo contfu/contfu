@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, test } from "bun:test";
+import { truncateAllTables } from "../../../test/setup";
 import { createItem } from "./createItem";
 import { queryItems } from "./queryItems";
-import { truncateAllTables } from "../../../test/setup";
 
 function makeId(seed: number): string {
   return Buffer.from([0, 0, 0, seed]).toString("base64url");

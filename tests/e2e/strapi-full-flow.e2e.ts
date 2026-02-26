@@ -9,11 +9,12 @@
  * 2. Playwright: Login to service app, create Strapi source, create collection/consumer → capture API key
  * 3. Start connect() from @contfu/contfu to stream events into an in-memory SQLite DB
  * 4. Send webhook payloads directly (simulating Strapi webhooks)
- * 5. Verify content via queryItems() against the local DB
+ * 5. Verify content via contfu() against the local DB and via HTTP
  */
 import { expect, test, type Page } from "@playwright/test";
 import { setTimeout as sleep } from "node:timers/promises";
-import { connect, queryItems, type QueryItemsResult } from "contfu";
+import { connect, contfu, type QueryResult } from "contfu";
+import { spawn, type ChildProcess } from "node:child_process";
 
 // Port configuration
 const SERVICE_URL = process.env.E2E_SERVICE_URL || "http://localhost:8011";
@@ -33,18 +34,21 @@ async function selectSourceType(page: Page, typeLabel: "Web" | "Strapi" | "Notio
   await page.getByLabel(/Type/i).selectOption({ value: valueByType[typeLabel] });
 }
 
+// Local query client — queries the in-process SQLite DB directly
+const q = contfu<Record<string, Record<string, unknown>>>();
+
 /**
- * Poll queryItems() until a matcher returns true.
+ * Poll contfu() until a matcher returns true.
  */
 async function waitForItems(
-  match: (result: QueryItemsResult) => boolean,
+  match: (result: QueryResult) => boolean,
   timeoutMs = 15000,
   pollIntervalMs = 500,
-): Promise<QueryItemsResult> {
+): Promise<QueryResult> {
   const start = Date.now();
-  let lastResult: QueryItemsResult | undefined;
+  let lastResult: QueryResult | undefined;
   while (Date.now() - start < timeoutMs) {
-    lastResult = await queryItems({ collection: "articles", pageSize: 100 });
+    lastResult = await q({ collection: "articles", limit: 100 });
     if (match(lastResult)) {
       return lastResult;
     }
@@ -294,11 +298,11 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow (Fixtures)", () =>
     // ===== STEP 5: Verify article appears in local DB =====
     console.log("[E2E] Polling for article in local DB...");
     const result1 = await waitForItems((r) =>
-      r.items.some((item) => item.props.title === "E2E Test Article"),
+      r.data.some((item) => item.props.title === "E2E Test Article"),
     );
-    expect(result1.items.length).toBeGreaterThanOrEqual(1);
+    expect(result1.data.length).toBeGreaterThanOrEqual(1);
 
-    const article1 = result1.items.find((item) => item.props.title === "E2E Test Article")!;
+    const article1 = result1.data.find((item) => item.props.title === "E2E Test Article")!;
     expect(article1.props.description).toBe("This article was created during e2e testing");
     expect(article1.collection).toBe("articles");
 
@@ -329,9 +333,9 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow (Fixtures)", () =>
 
     // Poll for second article
     const result2 = await waitForItems((r) =>
-      r.items.some((item) => item.props.title === "E2E Second Article"),
+      r.data.some((item) => item.props.title === "E2E Second Article"),
     );
-    expect(result2.items.length).toBeGreaterThanOrEqual(2);
+    expect(result2.data.length).toBeGreaterThanOrEqual(2);
 
     // ===== STEP 7: Update first article using fixture =====
     const updatePayload = {
@@ -359,11 +363,9 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow (Fixtures)", () =>
 
     // Poll for updated article
     const result3 = await waitForItems((r) =>
-      r.items.some((item) => item.props.title === "E2E Updated Article"),
+      r.data.some((item) => item.props.title === "E2E Updated Article"),
     );
-    const updatedArticle = result3.items.find(
-      (item) => item.props.title === "E2E Updated Article",
-    )!;
+    const updatedArticle = result3.data.find((item) => item.props.title === "E2E Updated Article")!;
     expect(updatedArticle.props.description).toBe("This article was updated during e2e testing");
 
     // ===== STEP 8: Delete second article using fixture =====
@@ -396,10 +398,162 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow (Fixtures)", () =>
     // TODO: Implement delete event broadcasting in webhook handler
 
     // Updated first article should still be there
-    const result4 = await queryItems({ collection: "articles", pageSize: 100 });
-    expect(result4.items.some((item) => item.props.title === "E2E Updated Article")).toBe(true);
+    const result4 = await q({ collection: "articles", limit: 100 });
+    expect(result4.data.some((item) => item.props.title === "E2E Updated Article")).toBe(true);
+  });
+
+  test("should serve synced items over HTTP via client app", async () => {
+    // ===== Spawn the client app on port 3001 =====
+    const CLIENT_PORT = 3001;
+    const CLIENT_URL = `http://localhost:${CLIENT_PORT}`;
+    const workspaceRoot = new URL("../../", import.meta.url).pathname;
+    const clientAppPath = `${workspaceRoot}packages/client/app/build/index.js`;
+
+    let clientProcess: ChildProcess | undefined;
+
+    try {
+      clientProcess = spawn("bun", ["run", clientAppPath], {
+        cwd: workspaceRoot,
+        env: {
+          ...process.env,
+          PORT: String(CLIENT_PORT),
+          ORIGIN: CLIENT_URL,
+          CONTFU_API_KEY: consumerApiKey,
+          CONTFU_API_URL: `${SERVICE_URL}/api/sync`,
+        },
+        stdio: "pipe",
+      });
+
+      // Log client app output for debugging
+      clientProcess.stdout?.on("data", (d: Buffer) =>
+        console.log(`[client-app] ${d.toString().trim()}`),
+      );
+      clientProcess.stderr?.on("data", (d: Buffer) =>
+        console.error(`[client-app] ${d.toString().trim()}`),
+      );
+
+      // Wait for client app to become ready
+      const clientReady = await pollUntil(
+        async () => {
+          try {
+            const res = await fetch(CLIENT_URL);
+            return res.ok || res.status === 200;
+          } catch {
+            return false;
+          }
+        },
+        30000,
+        500,
+      );
+      expect(clientReady).toBe(true);
+      console.log("[E2E] Client app is ready");
+
+      // Give the client app time to establish its sync stream connection
+      await sleep(3000);
+
+      // Send a NEW webhook event — this will be broadcast in real-time to the
+      // client app's active sync stream (bypassing the snapshot+replay issue
+      // where historical events before the snapshot sequence are skipped).
+      const httpTimestamp = Date.now();
+      const httpArticlePayload = {
+        event: "entry.create",
+        createdAt: new Date().toISOString(),
+        model: "article",
+        uid: "api::article.article",
+        entry: {
+          id: 100,
+          documentId: `http-test-article-${httpTimestamp}`,
+          title: "HTTP Test Article",
+          slug: `http-test-article-${httpTimestamp}`,
+          description: "Created after client app connected",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          publishedAt: new Date().toISOString(),
+        },
+      };
+
+      console.log("[E2E] Sending webhook for HTTP test article...");
+      const webhookRes = await fetch(`${SERVICE_URL}/webhooks/strapi/${sourceUid}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(httpArticlePayload),
+      });
+      expect(webhookRes.ok).toBe(true);
+
+      // Poll the client app's HTTP API for the article to appear
+      const httpQ = contfu<Record<string, Record<string, unknown>>>({
+        url: CLIENT_URL,
+      });
+
+      let pollCount = 0;
+      const httpResult = await pollUntilResult(
+        async () => {
+          try {
+            const r = await httpQ({ collection: "articles", limit: 100 });
+            pollCount++;
+            if (pollCount <= 3 || pollCount % 10 === 0) {
+              console.log(`[E2E] HTTP poll #${pollCount}: ${r.data.length} items`);
+            }
+            return r.data.some((item) => item.props.title === "HTTP Test Article") ? r : null;
+          } catch (err) {
+            pollCount++;
+            console.log(`[E2E] HTTP poll #${pollCount} error: ${err}`);
+            return null;
+          }
+        },
+        60000,
+        2000,
+      );
+
+      expect(httpResult).not.toBeNull();
+      expect(httpResult!.data.length).toBeGreaterThanOrEqual(1);
+
+      const httpArticle = httpResult!.data.find((item) => item.props.title === "HTTP Test Article");
+      expect(httpArticle).toBeDefined();
+      expect(httpArticle!.props.description).toBe("Created after client app connected");
+      expect(httpArticle!.collection).toBe("articles");
+
+      console.log("[E2E] HTTP query test passed");
+    } finally {
+      if (clientProcess && !clientProcess.killed) {
+        clientProcess.kill("SIGTERM");
+        await sleep(1000);
+        if (!clientProcess.killed) {
+          clientProcess.kill("SIGKILL");
+        }
+      }
+    }
   });
 });
+
+/** Poll a condition until it returns true or timeout */
+async function pollUntil(
+  fn: () => Promise<boolean>,
+  timeoutMs: number,
+  intervalMs: number,
+): Promise<boolean> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    if (await fn()) return true;
+    await sleep(intervalMs);
+  }
+  return false;
+}
+
+/** Poll until the function returns a non-null result */
+async function pollUntilResult<T>(
+  fn: () => Promise<T | null>,
+  timeoutMs: number,
+  intervalMs: number,
+): Promise<T | null> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const result = await fn();
+    if (result !== null) return result;
+    await sleep(intervalMs);
+  }
+  return null;
+}
 
 /**
  * Configuration for the e2e tests

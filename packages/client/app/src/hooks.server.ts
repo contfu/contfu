@@ -1,6 +1,5 @@
 import { connect } from "contfu";
 import { mediaStore } from "$lib/server/media";
-import { mediaOptimizer } from "$lib/server/media-optimizer";
 import { setSyncStatus } from "$lib/server/sync-status";
 
 let streamRunnerStarted = false;
@@ -20,6 +19,14 @@ export function init() {
 }
 
 async function runStream() {
+  // Lazy-load media optimizer to avoid crashing when native deps (sharp, ffmpeg) are unavailable
+  let mediaOptimizer;
+  try {
+    mediaOptimizer = (await import("$lib/server/media-optimizer")).mediaOptimizer;
+  } catch {
+    // Media optimization unavailable — sync will still work without it
+  }
+
   try {
     for await (const event of connect({
       connectionEvents: true,

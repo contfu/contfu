@@ -35,7 +35,6 @@ import {
   type Bold,
   type Italic,
   type Block,
-  type Inline,
 } from "./blocks";
 
 describe("blocks", () => {

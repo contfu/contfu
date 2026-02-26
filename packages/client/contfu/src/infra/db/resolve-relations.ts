@@ -14,12 +14,19 @@ export function resolveRelations(
   findItems: FindItemsFn,
   ctx = defaultDb,
   depth = 0,
+  ancestors: ItemWithRelations[] = [],
 ): void {
   if (items.length === 0 || depth >= MAX_DEPTH) return;
 
   for (const [relationName, relationDef] of Object.entries(withClause)) {
     for (const item of items) {
-      const resolvedFilter = substitutePlaceholders(relationDef.filter, item);
+      let filter = relationDef.filter ?? "";
+      if (relationDef.collection) {
+        const collectionFilter = `collection = "${relationDef.collection}"`;
+        filter = filter ? `${collectionFilter} && (${filter})` : collectionFilter;
+      }
+      const itemAncestors = [...ancestors, item];
+      const resolvedFilter = filter ? substitutePlaceholders(filter, itemAncestors) : undefined;
 
       const result = findItems(
         {
@@ -31,14 +38,23 @@ export function resolveRelations(
         ctx,
       );
 
-      if (!item.relations) item.relations = {};
-      item.relations[relationName] = result.data;
+      if (!item.rels) item.rels = {};
+
+      if (relationDef.single) {
+        item.rels[relationName] = result.data[0] ?? null;
+      } else {
+        item.rels[relationName] = result.data;
+      }
     }
   }
 }
 
-function substitutePlaceholders(filter: string, item: ItemWithRelations): string {
-  return filter.replace(/:(\w+(?:\.\w+)*)/g, (_match, path: string) => {
+function substitutePlaceholders(filter: string, ancestors: ItemWithRelations[]): string {
+  return filter.replace(/\$(\d+)\.(\w+(?:\.\w+)*)/g, (_match, levelStr: string, path: string) => {
+    const level = parseInt(levelStr, 10);
+    const item = ancestors[ancestors.length - level];
+    if (!item) return `"$${levelStr}.${path}"`;
+
     if (path === "id") return `"${item.id}"`;
     if (path === "ref") return item.ref !== null ? `"${item.ref}"` : "null";
     if (path === "collection") return `"${item.collection}"`;

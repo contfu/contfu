@@ -51,20 +51,50 @@ export {
 } from "./features/items/queryItems";
 export { updateItem } from "./features/items/updateItem";
 
+// Filter helpers
+export {
+  eq,
+  ne,
+  gt,
+  gte,
+  lt,
+  lte,
+  like,
+  notLike,
+  contains,
+  and,
+  or,
+  type ItemRef,
+} from "./domain/filter-helpers";
+
 // Query API exports
 export { contfu } from "./contfu";
+export type { ContfuConfig } from "./contfu";
 export { findItems } from "./features/items/findItems";
 export { getItemById } from "./features/items/getItemById";
 export {
-  type ContfuClient,
-  type ContfuCollectionClient,
-  type ContfuItemsClient,
+  type FlatInferRels,
+  type FlatItem,
+  type FlatQueryResult,
+  type FlatQueryResultWithRels,
   type IncludeOption,
+  type InferRels,
   type ItemWithRelations,
+  type PickFields,
+  type QueryConfig,
   type QueryMeta,
   type QueryOptions,
   type QueryResult,
   type SortOption,
+  type TypedContfuClient,
+  type TypedFlatContfuClient,
+  type TypedItem,
+  type TypedItemWithRels,
+  type TypedQueryEntry,
+  type TypedQueryResult,
+  type TypedQueryResultWithRels,
+  type TypedWithEntry,
+  type TypedWithInput,
   type WithClause,
 } from "./domain/query-types";
 // Asset exports

@@ -13,11 +13,11 @@ code_files=$(echo "$staged_files" | grep -E '\.(ts|tsx|js|jsx|svelte|json|css|ht
 
 if [ -n "$code_files" ]; then
   echo "→ Formatting staged files..."
-  echo "$code_files" | xargs oxfmt --write
+  echo "$code_files" | xargs bunx oxfmt --write
   echo "$code_files" | xargs git add
 
   echo "→ Linting staged files..."
-  echo "$code_files" | xargs oxlint
+  echo "$code_files" | xargs bunx oxlint
 fi
 
 echo "→ Running unit tests..."

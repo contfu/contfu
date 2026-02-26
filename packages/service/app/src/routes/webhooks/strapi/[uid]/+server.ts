@@ -145,7 +145,7 @@ function entryToItem(
 
   const createdAt = new Date(entry.createdAt).getTime();
   const changedAt = new Date(entry.updatedAt).getTime();
-  const publishedAt = entry.publishedAt ? new Date(entry.publishedAt).getTime() : undefined;
+  const _publishedAt = entry.publishedAt ? new Date(entry.publishedAt).getTime() : undefined;
 
   if (Number.isNaN(createdAt) || Number.isNaN(changedAt)) {
     throw new Error(

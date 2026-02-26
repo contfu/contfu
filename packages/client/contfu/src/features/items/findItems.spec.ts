@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { truncateAllTables } from "../../../test/setup";
-import { createItem } from "./createItem";
 import { createAsset } from "../assets/createAsset";
 import { linkAssetToItem } from "../assets/linkAssetToItem";
+import { createItem } from "./createItem";
 import { createItemLink } from "./createItemLink";
 import { findItems } from "./findItems";
 import { getItemById } from "./getItemById";
@@ -190,15 +190,15 @@ describe("findItems", () => {
       filter: 'collection = "articles" && props.featured = true',
       with: {
         sameColl: {
-          filter: "collection = :collection && ref != :ref",
+          filter: "collection = $1.collection && ref != $1.ref",
         },
       },
     });
 
     expect(result.data).toHaveLength(1);
-    expect(result.data[0].relations).toBeDefined();
-    expect(result.data[0].relations!.sameColl).toHaveLength(1);
-    expect(result.data[0].relations!.sameColl[0].id).toBe(makeId(2));
+    expect(result.data[0].rels).toBeDefined();
+    expect(result.data[0].rels!.sameColl).toHaveLength(1);
+    expect(result.data[0].rels!.sameColl[0].id).toBe(makeId(2));
   });
 });
 
@@ -245,12 +245,12 @@ describe("getItemById", () => {
     const item = getItemById(makeId(1), {
       with: {
         sameColl: {
-          filter: "collection = :collection && ref != :ref",
+          filter: "collection = $1.collection && ref != $1.ref",
         },
       },
     });
 
-    expect(item!.relations!.sameColl).toHaveLength(1);
-    expect(item!.relations!.sameColl[0].id).toBe(makeId(2));
+    expect(item!.rels!.sameColl).toHaveLength(1);
+    expect(item!.rels!.sameColl[0].id).toBe(makeId(2));
   });
 });
