@@ -2,7 +2,6 @@ import type {
   ImageFormat,
   MediaConvertOpts,
   MediaOptimizer,
-  MediaStore,
   MediaTransform,
   OptimizeAudioOpts,
   OptimizeImageOpts,
@@ -55,7 +54,6 @@ export class M4kRemoteOptimizer implements MediaOptimizer {
   constructor(private readonly host: string) {}
 
   async optimize(
-    store: MediaStore,
     path: string,
     input: Buffer | ReadableStream,
     mediaType: "image" | "video" | "audio",
@@ -64,20 +62,19 @@ export class M4kRemoteOptimizer implements MediaOptimizer {
     const base = basename(path, extname(path));
 
     if (mediaType === "image") {
-      return this.processImageVariants(store, base, input, opts as OptimizeImageOpts);
+      return this.processImageVariants(base, input, opts as OptimizeImageOpts);
     }
     if (mediaType === "video") {
-      return this.processVideoVariant(store, base, input, opts as OptimizeVideoOpts);
+      return this.processVideoVariant(base, input, opts as OptimizeVideoOpts);
     }
     if (mediaType === "audio") {
-      return this.processAudioVariant(store, base, input, opts as OptimizeAudioOpts);
+      return this.processAudioVariant(base, input, opts as OptimizeAudioOpts);
     }
 
     return [];
   }
 
   private async processImageVariants(
-    store: MediaStore,
     base: string,
     input: Buffer | ReadableStream,
     opts: OptimizeImageOpts = { avif: [[]] },
@@ -118,7 +115,6 @@ export class M4kRemoteOptimizer implements MediaOptimizer {
         const path = `${base}${w || h ? "/" : ""}${w}${h}.${tmpl.ext}`;
 
         const buffer = await collectProcessedFile(item);
-        await store.write(path, buffer);
         results.push({
           path,
           width: tmpl.width,
@@ -126,6 +122,7 @@ export class M4kRemoteOptimizer implements MediaOptimizer {
           ext: tmpl.ext,
           quality: tmpl.quality,
           size: buffer.byteLength,
+          data: buffer,
         });
         templateIdx++;
       }
@@ -135,7 +132,6 @@ export class M4kRemoteOptimizer implements MediaOptimizer {
   }
 
   private async processVideoVariant(
-    store: MediaStore,
     base: string,
     input: Buffer | ReadableStream,
     opts?: OptimizeVideoOpts,
@@ -158,13 +154,13 @@ export class M4kRemoteOptimizer implements MediaOptimizer {
       if (item instanceof ProcessedFile) {
         const path = `${base}.${ext}`;
         const buffer = await collectProcessedFile(item);
-        await store.write(path, buffer);
         results.push({
           path,
           width: opts?.width,
           height: opts?.height,
           ext,
           size: buffer.byteLength,
+          data: buffer,
         });
       }
     }
@@ -172,7 +168,6 @@ export class M4kRemoteOptimizer implements MediaOptimizer {
   }
 
   private async processAudioVariant(
-    store: MediaStore,
     base: string,
     input: Buffer | ReadableStream,
     opts?: OptimizeAudioOpts,
@@ -191,11 +186,11 @@ export class M4kRemoteOptimizer implements MediaOptimizer {
       if (item instanceof ProcessedFile) {
         const path = `${base}.${ext}`;
         const buffer = await collectProcessedFile(item);
-        await store.write(path, buffer);
         results.push({
           path,
           ext,
           size: buffer.byteLength,
+          data: buffer,
         });
       }
     }

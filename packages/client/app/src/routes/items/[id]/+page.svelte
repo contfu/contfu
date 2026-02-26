@@ -4,15 +4,39 @@
   import SourceTypeIcon from "$lib/components/icons/SourceTypeIcon.svelte";
   import { Button } from "$lib/components/ui/button";
   import * as Card from "$lib/components/ui/card";
+  import * as HoverCard from "$lib/components/ui/hover-card";
   import { subscribeLiveEvent } from "$lib/live/event-source";
   import { parseSourceRef } from "$lib/source-ref";
   import type { Inline } from "@contfu/core";
   import { ExternalLink, Link2Off } from "@lucide/svelte";
+  import type { AssetData, ItemData } from "contfu";
   import { onMount } from "svelte";
   import type { PageData } from "./$types";
 
   let { data }: { data: PageData } = $props();
   let sourceRef = $derived(parseSourceRef(data.item.sourceType, data.item.ref));
+  let assetMap = $derived(
+    new Map(data.assets.map((a: AssetData) => [a.id, a])),
+  );
+  let linkedItemMap = $derived(
+    new Map(Object.entries(data.linkedItems) as [string, ItemData][]),
+  );
+
+  const ASSET_ID_RE = /^[A-Za-z0-9_-]{8,32}$/;
+
+  function linkedItemTitle(item: ItemData): string {
+    const v = item.props.title ?? item.props.name;
+    if (typeof v === "string") return v;
+    return item.id;
+  }
+
+  function linkedItemIconUrl(item: ItemData): string | null {
+    const v = item.props.icon ?? item.props.image;
+    if (typeof v !== "string" || !v) return null;
+    if (v.startsWith("http://") || v.startsWith("https://")) return v;
+    if (ASSET_ID_RE.test(v)) return `/media/${v}`;
+    return null;
+  }
   let propsView = $state<"pairs" | "json">("pairs");
   let contentView = $state<"rendered" | "json">("rendered");
 
@@ -89,7 +113,6 @@
     if (!Array.isArray(cell)) return "";
     return cell.map((part) => mixedPartText(part)).join(" ");
   }
-
 </script>
 
 <div class="container mx-auto max-w-4xl space-y-6 p-6">
@@ -192,7 +215,153 @@
               <div>
                 <dt class="text-muted-foreground">{key}</dt>
                 <dd class="wrap-break-words">
-                  {formatPropValue(value)}
+                  {#if Array.isArray(value)}
+                    <div class="flex flex-col gap-1">
+                      {#each value as element}
+                        {#if typeof element === "string" && assetMap.has(element)}
+                          {@const asset = assetMap.get(element)!}
+                          <div class="mb-2">
+                            {#if asset.mediaType === "image"}
+                              <img
+                                src={`/media/${asset.id}.${asset.ext}`}
+                                alt={key}
+                                class="max-h-60 rounded border object-contain"
+                                loading="lazy"
+                              />
+                            {:else if asset.mediaType === "video"}
+                              <!-- svelte-ignore a11y_media_has_caption -->
+                              <video
+                                src={`/media/${asset.id}.${asset.ext}`}
+                                controls
+                                class="max-h-60 rounded border"
+                              ></video>
+                            {:else if asset.mediaType === "audio"}
+                              <audio
+                                src={`/media/${asset.id}.${asset.ext}`}
+                                controls
+                              ></audio>
+                            {:else}
+                              {element}
+                            {/if}
+                            <p class="text-xs text-muted-foreground">
+                              {element}
+                            </p>
+                          </div>
+                        {:else if typeof element === "string" && linkedItemMap.has(element)}
+                          {@const linked = linkedItemMap.get(element)!}
+                          <HoverCard.Root>
+                            <HoverCard.Trigger>
+                              <Button
+                                variant="link"
+                                size="sm"
+                                class="h-auto gap-1.5 p-0"
+                                href={`/items/${element}`}
+                              >
+                                {@const iconUrl = linkedItemIconUrl(linked)}
+                                {#if iconUrl}
+                                  <img
+                                    src={iconUrl}
+                                    alt=""
+                                    class="h-4 w-4 rounded object-cover"
+                                    loading="lazy"
+                                  />
+                                {/if}
+                                {linkedItemTitle(linked)}
+                              </Button>
+                            </HoverCard.Trigger>
+                            <HoverCard.Content class="text-xs">
+                              {@const iconUrl = linkedItemIconUrl(linked)}
+                              {#if iconUrl}
+                                <img
+                                  src={iconUrl}
+                                  alt=""
+                                  class="mb-2 h-12 w-12 rounded object-cover"
+                                  loading="lazy"
+                                />
+                              {/if}
+                              <p class="font-medium">
+                                {linkedItemTitle(linked)}
+                              </p>
+                              <p class="text-muted-foreground">
+                                {linked.collection}
+                              </p>
+                              <p class="mt-1 font-mono text-muted-foreground">
+                                {linked.id}
+                              </p>
+                            </HoverCard.Content>
+                          </HoverCard.Root>
+                        {:else}
+                          <span>{formatPropValue(element)}</span>
+                        {/if}
+                      {/each}
+                    </div>
+                  {:else if typeof value === "string" && assetMap.has(value)}
+                    {@const asset = assetMap.get(value)!}
+                    <div>
+                      {#if asset.mediaType === "image"}
+                        <img
+                          src={`/media/${asset.id}.${asset.ext}`}
+                          alt={key}
+                          class="max-h-60 rounded border object-contain"
+                          loading="lazy"
+                        />
+                      {:else if asset.mediaType === "video"}
+                        <!-- svelte-ignore a11y_media_has_caption -->
+                        <video
+                          src={`/media/${asset.id}.${asset.ext}`}
+                          controls
+                          class="max-h-60 rounded border"
+                        ></video>
+                      {:else if asset.mediaType === "audio"}
+                        <audio src={`/media/${asset.id}.${asset.ext}`} controls
+                        ></audio>
+                      {:else}
+                        {formatPropValue(value)}
+                      {/if}
+                      <p class="text-xs text-muted-foreground">{value}</p>
+                    </div>
+                  {:else if typeof value === "string" && linkedItemMap.has(value)}
+                    {@const linked = linkedItemMap.get(value)!}
+                    <HoverCard.Root>
+                      <HoverCard.Trigger>
+                        <Button
+                          variant="link"
+                          size="sm"
+                          class="h-auto gap-1.5 p-0"
+                          href={`/items/${value}`}
+                        >
+                          {@const iconUrl = linkedItemIconUrl(linked)}
+                          {#if iconUrl}
+                            <img
+                              src={iconUrl}
+                              alt=""
+                              class="h-4 w-4 rounded object-cover"
+                              loading="lazy"
+                            />
+                          {/if}
+                          {linkedItemTitle(linked)}
+                        </Button>
+                      </HoverCard.Trigger>
+                      <HoverCard.Content class="text-xs">
+                        {@const iconUrl = linkedItemIconUrl(linked)}
+                        {#if iconUrl}
+                          <img
+                            src={iconUrl}
+                            alt=""
+                            class="mb-2 h-12 w-12 rounded object-cover"
+                            loading="lazy"
+                          />
+                        {/if}
+                        <p class="font-medium">{linkedItemTitle(linked)}</p>
+                        <p class="text-muted-foreground">{linked.collection}</p>
+                        <p class="mt-1 font-mono text-muted-foreground">
+                          {linked.id}
+                        </p>
+                      </HoverCard.Content>
+                    </HoverCard.Root>
+                  {:else}
+                    {formatPropValue(value)}
+                  {/if}
                 </dd>
               </div>
             {/each}
@@ -289,7 +458,7 @@
               {:else if block[0] === "i"}
                 <div class="space-y-1">
                   <img
-                    src={`/media/${block[1]}.avif`}
+                    src={`/media/${block[1]}.${assetMap.get(block[1])?.ext ?? "avif"}`}
                     alt={block[2]}
                     class="max-h-80 rounded border object-contain"
                     loading="lazy"

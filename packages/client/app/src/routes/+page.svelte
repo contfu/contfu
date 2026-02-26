@@ -1,17 +1,19 @@
 <script lang="ts">
   import { invalidateAll } from "$app/navigation";
-  import * as Alert from "$lib/components/ui/alert";
   import CopyTextButton from "$lib/components/CopyTextButton.svelte";
-  import { subscribeLiveEvent } from "$lib/live/event-source";
+  import * as Alert from "$lib/components/ui/alert";
   import * as Card from "$lib/components/ui/card";
+  import { subscribeLiveEvent } from "$lib/live/event-source";
   import { getCollectionSchemasQuery } from "$lib/remote/collections.remote";
-  import { buildCollectionsSchemaJson } from "$lib/schema-export";
   import { getStats } from "$lib/remote/stats.remote";
+  import { buildCollectionsSchemaJson } from "$lib/schema-export";
   import { onMount } from "svelte";
 
-  const [stats, collectionSchemas] = await Promise.all([getStats(), getCollectionSchemasQuery()]);
+  const [stats, collectionSchemas] = $derived(
+    await Promise.all([getStats(), getCollectionSchemasQuery()]),
+  );
 
-  const syncLabel =
+  const syncLabel = $derived(
     stats.sync.state === "connected"
       ? "Connected"
       : stats.sync.state === "syncing"
@@ -20,7 +22,8 @@
           ? "Connecting"
           : stats.sync.state === "error"
             ? "Error"
-            : "Disabled";
+            : "Disabled",
+  );
 
   onMount(() => {
     const unsubscribeSync = subscribeLiveEvent("sync-status", () => {
@@ -88,9 +91,8 @@
         </Card.Header>
         <Card.Content>
           <p class="text-xs text-muted-foreground">
-            {stats.assetCount === 1
-              ? "1 media file"
-              : `${stats.assetCount} media files`}
+            {stats.assetCount} found &middot; {stats.downloadedCount} downloaded
+            &middot; {stats.processedCount} processed
           </p>
         </Card.Content>
       </Card.Root>
@@ -106,7 +108,9 @@
       </Card.Header>
       <Card.Content>
         <p class="text-sm text-muted-foreground">
-          Service stream: <span class="font-medium text-foreground">{syncLabel}</span>
+          Service stream: <span class="font-medium text-foreground"
+            >{syncLabel}</span
+          >
           {#if stats.sync.reason}
             ({stats.sync.reason})
           {/if}
@@ -132,7 +136,8 @@
             Your local database contains {stats.itemCount}
             {stats.itemCount === 1 ? "item" : "items"} across {stats.collectionCount}
             {stats.collectionCount === 1 ? "collection" : "collections"}, with {stats.assetCount}
-            {stats.assetCount === 1 ? "asset" : "assets"}.
+            {stats.assetCount === 1 ? "asset" : "assets"}
+            ({stats.downloadedCount} downloaded, {stats.processedCount} processed).
           </p>
         </Card.Content>
       </Card.Root>

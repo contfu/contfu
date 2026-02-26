@@ -1,7 +1,7 @@
 import type { LiveDataChangedBatchEvent, LiveDataChangedKind, LiveEvent } from "$lib/live/types";
 import type { SyncStatus } from "$lib/server/sync-status";
 
-const DATA_CHANGED_WINDOW_MS = 3000 as const;
+const DATA_CHANGED_WINDOW_MS = 250 as const;
 
 type Subscriber = (event: LiveEvent) => void;
 
@@ -76,4 +76,3 @@ function publish(event: LiveEvent): void {
     }
   }
 }
-

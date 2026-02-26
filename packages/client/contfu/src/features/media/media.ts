@@ -40,6 +40,7 @@ export interface VariantResult {
   ext: string;
   quality?: number;
   size: number;
+  data: Buffer;
 }
 
 /** Storage constraints for images */
@@ -82,7 +83,6 @@ export type MediaConstraints = {
  */
 export interface MediaOptimizer {
   optimize(
-    store: MediaStore,
     path: string,
     input: Buffer | ReadableStream,
     mediaType: "image" | "video" | "audio",

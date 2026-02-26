@@ -1,6 +1,6 @@
 import { error } from "@sveltejs/kit";
 import { mediaStore } from "$lib/server/media";
-import { convertMedia, type MediaConvertOpts, type MediaTransform } from "contfu";
+import { convertMedia, getAsset, type MediaConvertOpts, type MediaTransform } from "contfu";
 import { mimeTypes } from "m4k/lib/util/mime.js";
 import type { RequestHandler } from "./$types";
 
@@ -113,7 +113,22 @@ function buildOpts(url: URL, mediaType: "image" | "video" | "audio"): MediaConve
 export const GET: RequestHandler = async ({ params, url }) => {
   const filePath = params.path;
   const parsed = parsePath(filePath);
-  if (!parsed) error(400, "Invalid path — expected <id>.<ext>");
+
+  if (!parsed) {
+    // Extensionless: treat as asset ID, look up ext from DB
+    const asset = await getAsset(filePath);
+    if (!asset) error(404, "Not found");
+    const data = await mediaStore.read(`${asset.id}.${asset.ext}`);
+    if (!data) error(404, "Not found");
+    const contentType = mimeTypes[asset.ext] ?? "application/octet-stream";
+    return new Response(data, {
+      headers: {
+        "Content-Type": contentType,
+        "Cache-Control": "public, max-age=31536000, immutable",
+      },
+    });
+  }
+
   const { id, ext } = parsed;
 
   const mediaType = mediaTypeFromExt(ext);

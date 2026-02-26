@@ -94,10 +94,9 @@ function buildAudioOptimizerOpts(constraints?: AudioConstraints): OptimizeAudioO
  * Store variant results from the optimizer into the mediaVariantTable.
  */
 async function storeVariantRecords(assetId: string, results: VariantResult[]): Promise<void> {
-  // Skip the first result (master) — only store additional variants
-  if (results.length <= 1) return;
+  if (results.length === 0) return;
 
-  for (const variant of results.slice(1)) {
+  for (const variant of results) {
     const opts: Record<string, unknown> = {};
     if (variant.width != null) opts.width = variant.width;
     if (variant.height != null) opts.height = variant.height;
@@ -111,7 +110,7 @@ async function storeVariantRecords(assetId: string, results: VariantResult[]): P
       optsHash,
       opts,
       size: variant.size,
-      data: Buffer.alloc(0), // Data lives in the MediaStore, not duplicated here
+      data: variant.data,
       createdAt: Math.floor(Date.now() / 1000),
     });
   }
@@ -152,6 +151,7 @@ async function downloadAndStoreAsset(
   const storeKey = `${assetId}.${ext}`;
 
   let masterExt: string;
+  let masterData: Buffer;
   let variantResults: VariantResult[] = [];
 
   if (mediaOptimizer && mediaType === "image") {
@@ -161,32 +161,37 @@ async function downloadAndStoreAsset(
 
     if (hasConstraints || hasVariants) {
       const opts = buildImageOptimizerOpts(imageConstraints, collectionVariants);
-      variantResults = await mediaOptimizer.optimize(mediaStore, storeKey, buffer, "image", opts);
+      variantResults = await mediaOptimizer.optimize(storeKey, buffer, "image", opts);
     } else {
-      variantResults = await mediaOptimizer.optimize(mediaStore, storeKey, buffer, "image");
+      variantResults = await mediaOptimizer.optimize(storeKey, buffer, "image");
     }
     masterExt = imageConstraints?.format ?? "avif";
+    masterData = variantResults.length > 0 ? variantResults[0].data : buffer;
   } else if (mediaOptimizer && mediaType === "video") {
     const videoConstraints = constraints as VideoConstraints | undefined;
     const opts = buildVideoOptimizerOpts(videoConstraints);
-    variantResults = await mediaOptimizer.optimize(mediaStore, storeKey, buffer, "video", opts);
+    variantResults = await mediaOptimizer.optimize(storeKey, buffer, "video", opts);
     masterExt = videoConstraints?.format ?? ext;
+    masterData = variantResults.length > 0 ? variantResults[0].data : buffer;
   } else if (mediaOptimizer && mediaType === "audio") {
     const audioConstraints = constraints as AudioConstraints | undefined;
     const opts = buildAudioOptimizerOpts(audioConstraints);
-    variantResults = await mediaOptimizer.optimize(mediaStore, storeKey, buffer, "audio", opts);
+    variantResults = await mediaOptimizer.optimize(storeKey, buffer, "audio", opts);
     masterExt = audioConstraints?.format ?? ext;
+    masterData = variantResults.length > 0 ? variantResults[0].data : buffer;
   } else {
-    await mediaStore.write(storeKey, buffer);
     masterExt = ext;
+    masterData = buffer;
   }
 
+  // Persist: single INSERT with master data included
   await createAsset({
     id: assetId,
     originalUrl,
     mediaType,
     ext: masterExt,
     size: buffer.byteLength,
+    data: masterData,
     createdAt: Math.floor(Date.now() / 1000),
   });
 
@@ -194,6 +199,14 @@ async function downloadAndStoreAsset(
 
   if (variantResults.length > 0) {
     await storeVariantRecords(assetId, variantResults);
+  }
+
+  // Write to mediaStore for non-DB store implementations
+  for (const result of variantResults) {
+    await mediaStore.write(result.path, result.data);
+  }
+  if (variantResults.length === 0) {
+    await mediaStore.write(storeKey, masterData);
   }
 
   return assetId;

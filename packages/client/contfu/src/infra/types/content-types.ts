@@ -20,6 +20,7 @@ export interface AssetData {
   mediaType: string;
   ext: string;
   size: number;
+  data?: Buffer;
   createdAt: number;
 }
 

@@ -39,6 +39,7 @@ export { deleteOutgoingItemLinks } from "./features/items/deleteOutgoingItemLink
 export { getItem } from "./features/items/getItem";
 export { getItemIdsByCollection } from "./features/items/getItemIdsByCollection";
 export { getItemLinks } from "./features/items/getItemLinks";
+export { getItemsByIds } from "./features/items/getItemsByIds";
 export { getLastChangedItem } from "./features/items/getLastChangedItem";
 export {
   queryItems,
@@ -53,16 +54,16 @@ export { updateItem } from "./features/items/updateItem";
 
 // Filter helpers
 export {
+  and,
+  contains,
   eq,
-  ne,
   gt,
   gte,
+  like,
   lt,
   lte,
-  like,
+  ne,
   notLike,
-  contains,
-  and,
   or,
   type ItemRef,
 } from "./domain/filter-helpers";
@@ -70,8 +71,6 @@ export {
 // Query API exports
 export { contfu } from "./contfu";
 export type { ContfuConfig } from "./contfu";
-export { findItems } from "./features/items/findItems";
-export { getItemById } from "./features/items/getItemById";
 export {
   type FlatInferRels,
   type FlatItem,
@@ -97,6 +96,8 @@ export {
   type TypedWithInput,
   type WithClause,
 } from "./domain/query-types";
+export { findItems } from "./features/items/findItems";
+export { getItemById } from "./features/items/getItemById";
 // Asset exports
 export { createAsset } from "./features/assets/createAsset";
 export { deleteAssets } from "./features/assets/deleteAssets";
@@ -117,14 +118,15 @@ export {
 } from "./infra/types/content-types";
 
 // Media exports
+export { convertMedia } from "./features/media/convertMedia";
 export {
   type AudioConstraints,
   type AudioFormat,
   type CollectionVariants,
   type ImageConstraints,
   type ImageFormat,
-  type MediaConvertOpts,
   type MediaConstraints,
+  type MediaConvertOpts,
   type MediaOptimizer,
   type MediaStore,
   type MediaTransform,
@@ -136,7 +138,6 @@ export {
   type VideoConstraints,
   type VideoFormat,
 } from "./features/media/media";
-export { convertMedia } from "./features/media/convertMedia";
 export { DBStore } from "./infra/media/db-store";
 export { mediaStore } from "./infra/media/media-defaults";
 
@@ -149,14 +150,18 @@ export {
 } from "./infra/hooks/event-hooks";
 
 // Collection schema exports
-export { collectionSchemaTable } from "./infra/db/schema";
+export { generateTypes } from "./features/collections/generateTypes";
 export { getAllCollectionSchemas } from "./features/collections/getAllCollectionSchemas";
 export { getCollectionSchema } from "./features/collections/getCollectionSchema";
 export { setCollectionSchema } from "./features/collections/setCollectionSchema";
-export { generateTypes } from "./features/collections/generateTypes";
+export { collectionSchemaTable } from "./infra/db/schema";
 
 // Utility exports
-export { countAssets } from "./features/assets/countAssets";
+export {
+  countAssets,
+  countDownloadedAssets,
+  countProcessedAssets,
+} from "./features/assets/countAssets";
 export { countCollections } from "./features/collections/countCollections";
 export { listCollections, type CollectionSummary } from "./features/collections/listCollections";
 export { countItems } from "./features/items/countItems";

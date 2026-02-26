@@ -59,4 +59,3 @@ export function subscribeLiveEvent<K extends LiveEventName>(
     releaseSource();
   };
 }
-

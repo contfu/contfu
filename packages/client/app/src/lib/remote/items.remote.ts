@@ -1,5 +1,5 @@
 import { query } from "$app/server";
-import { getItem, queryItems, type QueryItemsInput } from "contfu";
+import { getAssetsByItem, getItemsByIds, queryItems, type QueryItemsInput } from "contfu";
 import * as v from "valibot";
 
 const propFilterSchema = v.object({
@@ -23,9 +23,11 @@ export const getItemsQuery = query(queryItemsInputSchema, async (input) => {
   return queryItems(input as QueryItemsInput);
 });
 
-export const getItemByIdQuery = query(
-  v.object({ id: v.pipe(v.string(), v.minLength(1)) }),
-  async ({ id }) => {
-    return getItem({ id });
-  },
-);
+export const getItemByIdQuery = query.batch(v.pipe(v.string(), v.minLength(1)), async (ids) => {
+  const items = getItemsByIds({ ids });
+  return (id) => items.find((item) => item.id === id) ?? null;
+});
+
+export const getItemAssetsQuery = query(v.pipe(v.string(), v.minLength(1)), async (id) => {
+  return getAssetsByItem(id);
+});

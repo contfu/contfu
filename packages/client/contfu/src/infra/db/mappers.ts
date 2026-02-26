@@ -10,6 +10,7 @@ export function assetToDb(asset: AssetData): NewAsset {
     mediaType: asset.mediaType,
     ext: asset.ext,
     size: asset.size,
+    ...(asset.data != null && { data: asset.data }),
     createdAt: asset.createdAt,
   };
 }
@@ -25,10 +26,10 @@ export function assetFromDb(dbo: DbAsset): AssetData {
   };
 }
 
-export async function itemToDb<T extends ItemData | Omit<ItemData, "links">>(
+export function itemToDb<T extends ItemData | Omit<ItemData, "links">>(
   item: T,
   _ctx: any,
-): Promise<ItemUpdate | NewItem> {
+): ItemUpdate | NewItem {
   return {
     id: decodeId(item.id),
     sourceType: item.sourceType ?? null,
@@ -40,7 +41,7 @@ export async function itemToDb<T extends ItemData | Omit<ItemData, "links">>(
   } satisfies ItemUpdate as ItemUpdate | NewItem;
 }
 
-export async function itemFromDb(dbo: DbItem, _ctx: any, links?: ItemLinks): Promise<ItemData> {
+export function itemFromDb(dbo: DbItem, _ctx: any, links?: ItemLinks): ItemData {
   return deleteNulls({
     id: encodeId(dbo.id),
     sourceType: dbo.sourceType ?? null,

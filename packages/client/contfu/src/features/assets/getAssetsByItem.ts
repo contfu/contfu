@@ -1,12 +1,12 @@
-import type { AssetData } from "../../infra/types/content-types";
 import { eq } from "drizzle-orm";
-import { assetFromDb } from "../../infra/db/mappers";
 import { db } from "../../infra/db/db";
-import { decodeId } from "../../infra/ids";
+import { assetFromDb } from "../../infra/db/mappers";
 import { assetTable, itemAssetTable } from "../../infra/db/schema";
+import { decodeId } from "../../infra/ids";
+import type { AssetData } from "../../infra/types/content-types";
 
-export async function getAssetsByItem(itemId: string, ctx = db): Promise<AssetData[]> {
-  const rows = await ctx
+export function getAssetsByItem(itemId: string, ctx = db): AssetData[] {
+  const rows = ctx
     .select({ asset: assetTable })
     .from(itemAssetTable)
     .innerJoin(assetTable, eq(itemAssetTable.assetId, assetTable.id))

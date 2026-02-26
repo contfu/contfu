@@ -1,12 +1,23 @@
 import { query } from "$app/server";
 
 export const getStats = query(async () => {
-  const { countAssets, countCollections, countItems } = await import("contfu");
+  const { countAssets, countCollections, countItems, countDownloadedAssets, countProcessedAssets } =
+    await import("contfu");
   const { getSyncStatus } = await import("$lib/server/sync-status");
-  const [itemCount, collectionCount, assetCount] = await Promise.all([
-    countItems(),
-    countCollections(),
-    countAssets(),
-  ]);
-  return { itemCount, collectionCount, assetCount, sync: getSyncStatus() };
+  const [itemCount, collectionCount, assetCount, downloadedCount, processedCount] =
+    await Promise.all([
+      countItems(),
+      countCollections(),
+      countAssets(),
+      countDownloadedAssets(),
+      countProcessedAssets(),
+    ]);
+  return {
+    itemCount,
+    collectionCount,
+    assetCount,
+    downloadedCount,
+    processedCount,
+    sync: getSyncStatus(),
+  };
 });

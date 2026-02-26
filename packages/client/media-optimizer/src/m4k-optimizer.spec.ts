@@ -1,64 +1,62 @@
 import { FileStore } from "@contfu/bun-file-store";
-import type { MediaStore } from "contfu";
-import { beforeEach, describe, expect, it, mock } from "bun:test";
+import { beforeEach, describe, expect, it } from "bun:test";
 import { open, readFile } from "node:fs/promises";
 import { M4kOptimizer } from "./m4k-optimizer";
-
-const store = {
-  exists: mock(),
-  read: mock(),
-  write: mock(),
-} satisfies MediaStore;
 
 let optimizer: M4kOptimizer;
 
 beforeEach(() => {
   optimizer = new M4kOptimizer();
-  store.write.mockClear();
 });
 
 describe("optimize() — images", () => {
   it("should optimize the image into avif by default", async () => {
-    await optimizer.optimize(
-      store,
+    const results = await optimizer.optimize(
       "test.png",
       await readFile(`${__dirname}/__fixtures__/test-image.png`),
       "image",
     );
 
-    expect(store.write).toHaveBeenCalledWith("test.avif", expect.any(Buffer));
+    expect(results).toHaveLength(1);
+    expect(results[0].path).toBe("test.avif");
+    expect(results[0].data).toBeInstanceOf(Buffer);
+    expect(results[0].data.byteLength).toBeGreaterThan(0);
   });
 
   it("should optimize the image into specified formats", async () => {
-    await optimizer.optimize(
-      store,
+    const results = await optimizer.optimize(
       "test.png",
       await readFile(`${__dirname}/__fixtures__/test-image.png`),
       "image",
       { avif: [[]], webp: [[]] },
     );
 
-    expect(store.write).toHaveBeenCalledWith("test.avif", expect.any(Buffer));
-    expect(store.write).toHaveBeenCalledWith("test.webp", expect.any(Buffer));
+    expect(results).toHaveLength(2);
+    expect(results.map((r) => r.path)).toEqual(["test.avif", "test.webp"]);
+    for (const r of results) {
+      expect(r.data).toBeInstanceOf(Buffer);
+      expect(r.data.byteLength).toBeGreaterThan(0);
+    }
   });
 
   it("should optimize the image into specified widths", async () => {
-    await optimizer.optimize(
-      store,
+    const results = await optimizer.optimize(
       "test.png",
       await readFile(`${__dirname}/__fixtures__/test-image.png`),
       "image",
       { avif: [200, 400, 600] }, // original is 433px
     );
 
-    expect(store.write).toHaveBeenCalledWith("test/w200.avif", expect.any(Buffer));
-    expect(store.write).toHaveBeenCalledWith("test/w400.avif", expect.any(Buffer));
-    expect(store.write).toHaveBeenCalledWith("test/w600.avif", expect.any(Buffer));
+    expect(results).toHaveLength(3);
+    expect(results.map((r) => r.path)).toEqual([
+      "test/w200.avif",
+      "test/w400.avif",
+      "test/w600.avif",
+    ]);
   });
 
   it("should work with input stream", async () => {
-    await optimizer.optimize(
-      store,
+    const results = await optimizer.optimize(
       "test.png",
       (
         await open(`${__dirname}/__fixtures__/test-image.png`)
@@ -67,16 +65,12 @@ describe("optimize() — images", () => {
       { avif: [[]], webp: [[]] },
     );
 
-    expect(store.write).toHaveBeenCalledWith("test.avif", expect.any(Buffer));
-    expect(store.write).toHaveBeenCalledWith("test.webp", expect.any(Buffer));
+    expect(results).toHaveLength(2);
+    expect(results.map((r) => r.path)).toEqual(["test.avif", "test.webp"]);
   });
 
-  it("should output files", async () => {
-    const store = new FileStore("./.tmp/test-out");
-    optimizer = new M4kOptimizer();
-
-    await optimizer.optimize(
-      store,
+  it("should output files via returned buffers", async () => {
+    const results = await optimizer.optimize(
       "test.png",
       (
         await open(`${__dirname}/__fixtures__/test-image.png`)
@@ -85,6 +79,27 @@ describe("optimize() — images", () => {
       { avif: [[200, undefined, 5], [400, 100], 600], webp: [200, 400, 600] },
     );
 
+    expect(results).toHaveLength(6);
+    expect(results.map((r) => r.path)).toEqual([
+      "test/w200.avif",
+      "test/w400h100.avif",
+      "test/w600.avif",
+      "test/w200.webp",
+      "test/w400.webp",
+      "test/w600.webp",
+    ]);
+
+    // Verify all results have buffer data
+    for (const r of results) {
+      expect(r.data).toBeInstanceOf(Buffer);
+      expect(r.data.byteLength).toBe(r.size);
+    }
+
+    // Optionally write to file store to verify compatibility
+    const store = new FileStore("./.tmp/test-out");
+    for (const r of results) {
+      await store.write(r.path, r.data);
+    }
     expect(await store.exists("test/w200.avif")).toBe(true);
     expect(await store.exists("test/w400h100.avif")).toBe(true);
     expect(await store.exists("test/w600.avif")).toBe(true);

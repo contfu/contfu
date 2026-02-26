@@ -17,7 +17,7 @@ env_files=$(find packages -name .env)
 cd $wt_root
 
 for env_file in $env_files; do
-  ln -sf $primary_wt/$env_file $env_file
+  cp $primary_wt/$env_file $env_file
 done
 
 bun install

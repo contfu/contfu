@@ -18,7 +18,7 @@ export type LiveDataChangedBatchEvent = {
   type: "data-changed-batch";
   count: number;
   kinds: LiveDataChangedKind[];
-  windowMs: 3000;
+  windowMs: number;
   ts: number;
 };
 

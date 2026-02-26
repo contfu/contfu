@@ -7,6 +7,12 @@
   import { Input } from "$lib/components/ui/input";
   import { Label } from "$lib/components/ui/label";
   import * as Popover from "$lib/components/ui/popover";
+  import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+  } from "$lib/components/ui/tooltip";
   import { getCollections } from "$lib/remote/collections.remote";
   import {
     addConnection,
@@ -23,12 +29,11 @@
   import { cn } from "$lib/utils";
   import { tcToast } from "$lib/utils/toast";
   import {
-    TooltipProvider,
-    TooltipTrigger,
-    TooltipContent,
-    Tooltip,
-  } from "$lib/components/ui/tooltip";
-  import { ClipboardIcon, LinkIcon, TrashIcon, UnlinkIcon } from "@lucide/svelte";
+    ClipboardIcon,
+    LinkIcon,
+    TrashIcon,
+    UnlinkIcon,
+  } from "@lucide/svelte";
   import Pencil from "@lucide/svelte/icons/pencil";
   import { useId } from "bits-ui";
   import { toast } from "svelte-sonner";
@@ -184,15 +189,29 @@
                   includeRef: !c!.includeRef,
                 })),
               );
-              toast.success(client.includeRef ? "Consumer refs disabled" : "Consumer refs enabled");
+              toast.success(
+                client.includeRef
+                  ? "Consumer refs disabled"
+                  : "Consumer refs enabled",
+              );
             });
           })}
           class="inline"
         >
-          <input {...updateConsumer.fields.id.as("text")} type="hidden" value={client.id} />
-          <input name="includeRef" type="hidden" value={client.includeRef ? "false" : "true"} />
+          <input
+            {...updateConsumer.fields.id.as("text")}
+            type="hidden"
+            value={client.id}
+          />
+          <input
+            name="includeRef"
+            type="hidden"
+            value={client.includeRef ? "false" : "true"}
+          />
           <Button type="submit" variant="outline" size="sm">
-            {client.includeRef ? "Disable Refs For Consumer" : "Enable Refs For Consumer"}
+            {client.includeRef
+              ? "Disable Refs For Consumer"
+              : "Enable Refs For Consumer"}
           </Button>
         </form>
       </div>
@@ -273,50 +292,66 @@
         {/snippet}
         <div class="mb-4 space-y-2">
           {#each await connectionsQuery as connection}
+            {@const update = updateConnectionIncludeRef.for(
+              connection.collectionId,
+            )}
+            {@const remove = removeConnection.for(connection.collectionId)}
             <div
               class="flex items-center justify-between rounded-md border border-border px-4 py-3"
             >
               <div class="flex items-center gap-2">
-                <span class="text-sm font-medium">{connection.collectionName}</span>
-                <span class="text-xs text-muted-foreground">refs: {connection.includeRef ? "on" : "off"}</span>
+                <span class="text-sm font-medium"
+                  >{connection.collectionName}</span
+                >
+                <span class="text-xs text-muted-foreground"
+                  >refs: {connection.includeRef ? "on" : "off"}</span
+                >
               </div>
               <div class="flex items-center gap-1">
                 <form
-                  {...updateConnectionIncludeRef.enhance(async ({ submit }) => {
+                  {...update.enhance(async ({ submit }) => {
                     await submit();
-                    toast.success(connection.includeRef ? "Connection refs disabled" : "Connection refs enabled");
+                    toast.success(
+                      connection.includeRef
+                        ? "Connection refs disabled"
+                        : "Connection refs enabled",
+                    );
                   })}
                   class="inline"
                 >
                   <input
-                    {...updateConnectionIncludeRef.fields.consumerId.as("text")}
+                    {...update.fields.consumerId.as("text")}
                     type="hidden"
                     value={client.id}
                   />
                   <input
-                    {...updateConnectionIncludeRef.fields.collectionId.as("text")}
+                    {...update.fields.collectionId.as("text")}
                     type="hidden"
                     value={connection.collectionId}
                   />
-                  <input name="includeRef" type="hidden" value={connection.includeRef ? "false" : "true"} />
+                  <input
+                    {...update.fields.includeRef.as("text")}
+                    type="hidden"
+                    value={connection.includeRef ? "false" : "true"}
+                  />
                   <Button type="submit" variant="ghost" size="sm">
                     {connection.includeRef ? "Disable Refs" : "Enable Refs"}
                   </Button>
                 </form>
                 <form
-                  {...removeConnection.enhance(async ({ submit }) => {
+                  {...remove.enhance(async ({ submit }) => {
                     await submit();
                     toast.success("Collection disconnected");
                   })}
                   class="inline"
                 >
                   <input
-                    {...removeConnection.fields.consumerId.as("text")}
+                    {...remove.fields.consumerId.as("text")}
                     type="hidden"
                     value={client.id}
                   />
                   <input
-                    {...removeConnection.fields.collectionId.as("text")}
+                    {...remove.fields.collectionId.as("text")}
                     type="hidden"
                     value={connection.collectionId}
                   />

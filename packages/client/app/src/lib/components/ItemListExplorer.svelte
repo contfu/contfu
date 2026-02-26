@@ -9,7 +9,6 @@
   import { Label } from "$lib/components/ui/label";
   import { Select } from "@contfu/ui";
   import * as Table from "$lib/components/ui/table";
-  import { SOURCE_TYPE_LABELS } from "$lib/domain/source";
   import { buildItemQuerySearchParams } from "$lib/query/item-query";
   import {
     createColumnHelper,
@@ -22,7 +21,6 @@
     QueryItemsInput,
     QueryItemsResult,
   } from "contfu";
-  import SourceTypeIcon from "./icons/SourceTypeIcon.svelte";
 
   type EditablePropFilter = {
     key: string;
@@ -88,16 +86,38 @@
 
   const previewJson = $derived(JSON.stringify(query, null, 2));
 
+  const ASSET_ID_RE = /^[A-Za-z0-9_-]{8,32}$/;
+
+  function getIconUrl(item: ItemData): string | null {
+    const val = item.props.icon ?? item.props.image;
+    if (typeof val !== "string" || !val) return null;
+    if (val.startsWith("http://") || val.startsWith("https://")) return val;
+    if (ASSET_ID_RE.test(val)) return `/media/${val}`;
+    return null;
+  }
+
+  function getTitle(item: ItemData): string {
+    const val = item.props.title ?? item.props.name;
+    if (typeof val === "string") return val;
+    if (val != null) return String(val);
+    return "";
+  }
+
   const columnHelper = createColumnHelper<ItemData>();
   const columns = [
+    columnHelper.display({
+      id: "icon",
+      header: "",
+      cell: ({ row }) => renderSnippet(iconCell, { row }),
+    }),
     columnHelper.accessor("id", {
       header: "id",
       cell: ({ row }) => renderSnippet(idCell, { row }),
     }),
     columnHelper.display({
-      id: "ref",
-      header: "ref",
-      cell: ({ row }) => renderSnippet(refCell, { row }),
+      id: "title",
+      header: "",
+      cell: ({ row }) => renderSnippet(titleCell, { row }),
     }),
     columnHelper.accessor("collection", { header: "collection" }),
     columnHelper.accessor("changedAt", {
@@ -115,25 +135,23 @@
   });
 </script>
 
+{#snippet iconCell({ row }: { row: Row<ItemData> })}
+  {@const url = getIconUrl(row.original)}
+  {#if url}
+    <img src={url} alt="" class="h-8 w-8 rounded object-cover" loading="lazy" />
+  {/if}
+{/snippet}
+
 {#snippet idCell({ row }: { row: Row<ItemData> })}
-  <Button class="h-auto p-0" variant="link" href={`/items/${row.original.id}`}>
+  <Button class="h-auto p-0 font-mono text-xs" variant="link" href={`/items/${row.original.id}`}>
     {row.original.id}
   </Button>
 {/snippet}
 
-{#snippet refCell({ row }: { row: Row<ItemData> })}
-  {@const { sourceType, ref } = row.original}
-  {#if sourceType && ref}
-    <Button
-      class="h-auto gap-1 p-0"
-      variant="link"
-      href={ref}
-      target="_blank"
-      rel="noopener noreferrer"
-    >
-      {SOURCE_TYPE_LABELS[sourceType]}
-      <SourceTypeIcon type={sourceType} class="h-3.5 w-3.5" />
-    </Button>
+{#snippet titleCell({ row }: { row: Row<ItemData> })}
+  {@const title = getTitle(row.original)}
+  {#if title}
+    <span class="text-sm">{title}</span>
   {/if}
 {/snippet}
 
