@@ -1,13 +1,15 @@
 import { detectRuntime } from "../../util/runtime";
 
 const hiddenImport = (path: string) => new Function("p", "return import(p)")(path) as Promise<any>;
+const nodeCompiledModule = ["./db", "node.js"].join("-");
+const nodeSourceModule = ["./db", "node"].join("-");
 
 async function importDbModule(base: "db-bun" | "db-node") {
   try {
     if (base === "db-bun") {
       return await import("./db-bun.js");
     }
-    return await hiddenImport("./db-node.js");
+    return await hiddenImport(nodeCompiledModule);
   } catch (err) {
     const e = err as NodeJS.ErrnoException & { url?: string };
     const missingCompiledSibling =
@@ -20,7 +22,7 @@ async function importDbModule(base: "db-bun" | "db-node") {
     if (base === "db-bun") {
       return await import("./db-bun");
     }
-    return await hiddenImport("./db-node");
+    return await hiddenImport(nodeSourceModule);
   }
 }
 
