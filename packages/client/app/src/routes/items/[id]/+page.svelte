@@ -1,8 +1,10 @@
 <script lang="ts">
   import { browser } from "$app/environment";
+  import { invalidateAll } from "$app/navigation";
   import SourceTypeIcon from "$lib/components/icons/SourceTypeIcon.svelte";
   import { Button } from "$lib/components/ui/button";
   import * as Card from "$lib/components/ui/card";
+  import { subscribeLiveEvent } from "$lib/live/event-source";
   import { parseSourceRef } from "$lib/source-ref";
   import type { Inline } from "@contfu/core";
   import { ExternalLink, Link2Off } from "@lucide/svelte";
@@ -27,6 +29,12 @@
     if (storedContentView === "rendered" || storedContentView === "json") {
       contentView = storedContentView;
     }
+  });
+
+  onMount(() => {
+    return subscribeLiveEvent("data-changed-batch", () => {
+      void invalidateAll();
+    });
   });
 
   $effect(() => {

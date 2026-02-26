@@ -1,8 +1,17 @@
 <script lang="ts">
+  import { invalidateAll } from "$app/navigation";
   import ItemListExplorer from "$lib/components/ItemListExplorer.svelte";
+  import { subscribeLiveEvent } from "$lib/live/event-source";
+  import { onMount } from "svelte";
   import type { PageData } from "./$types";
 
   let { data }: { data: PageData } = $props();
+
+  onMount(() => {
+    return subscribeLiveEvent("data-changed-batch", () => {
+      void invalidateAll();
+    });
+  });
 </script>
 
 <div class="container mx-auto max-w-6xl p-6">

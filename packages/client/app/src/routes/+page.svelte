@@ -1,10 +1,13 @@
 <script lang="ts">
+  import { invalidateAll } from "$app/navigation";
   import * as Alert from "$lib/components/ui/alert";
   import CopyTextButton from "$lib/components/CopyTextButton.svelte";
+  import { subscribeLiveEvent } from "$lib/live/event-source";
   import * as Card from "$lib/components/ui/card";
   import { getCollectionSchemasQuery } from "$lib/remote/collections.remote";
   import { buildCollectionsSchemaJson } from "$lib/schema-export";
   import { getStats } from "$lib/remote/stats.remote";
+  import { onMount } from "svelte";
 
   const [stats, collectionSchemas] = await Promise.all([getStats(), getCollectionSchemasQuery()]);
 
@@ -18,6 +21,20 @@
           : stats.sync.state === "error"
             ? "Error"
             : "Disabled";
+
+  onMount(() => {
+    const unsubscribeSync = subscribeLiveEvent("sync-status", () => {
+      void invalidateAll();
+    });
+    const unsubscribeData = subscribeLiveEvent("data-changed-batch", () => {
+      void invalidateAll();
+    });
+
+    return () => {
+      unsubscribeSync();
+      unsubscribeData();
+    };
+  });
 </script>
 
 <div class="container mx-auto max-w-5xl p-6">

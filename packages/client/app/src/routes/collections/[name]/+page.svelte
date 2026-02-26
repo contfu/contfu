@@ -1,11 +1,20 @@
 <script lang="ts">
+  import { invalidateAll } from "$app/navigation";
   import CopyTextButton from "$lib/components/CopyTextButton.svelte";
   import ItemListExplorer from "$lib/components/ItemListExplorer.svelte";
   import { Button } from "$lib/components/ui/button";
+  import { subscribeLiveEvent } from "$lib/live/event-source";
   import * as Card from "$lib/components/ui/card";
+  import { onMount } from "svelte";
   import type { PageData } from "./$types";
 
   let { data }: { data: PageData } = $props();
+
+  onMount(() => {
+    return subscribeLiveEvent("data-changed-batch", () => {
+      void invalidateAll();
+    });
+  });
 </script>
 
 <div class="container mx-auto max-w-6xl space-y-6 p-6">
