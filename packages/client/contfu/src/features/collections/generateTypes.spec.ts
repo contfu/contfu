@@ -60,4 +60,20 @@ describe("generateTypes", () => {
     const result = generateTypes({ blogPosts: { title: PropertyType.STRING } });
     expect(result).toContain("BlogPostsProps");
   });
+
+  it("generates CollectionMap for query factory usage", () => {
+    const result = generateTypes(
+      {
+        articles: { title: PropertyType.STRING },
+        tags: { label: PropertyType.STRING },
+      },
+      true,
+    );
+
+    expect(result).toContain("export type ArticlesProps");
+    expect(result).toContain("export type TagsProps");
+    expect(result).toContain("export type CollectionMap = {");
+    expect(result).toContain("  articles: ArticlesProps;");
+    expect(result).toContain("  tags: TagsProps;");
+  });
 });

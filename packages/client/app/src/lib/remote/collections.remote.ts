@@ -57,7 +57,7 @@ export const getCombinedCollectionTypesQuery = query(async (): Promise<string> =
     schemaEntries.filter((entry): entry is readonly [string, CollectionSchema] => entry[1] != null),
   );
 
-  return generateTypes(schemas);
+  return generateTypes(schemas, true);
 });
 
 export const getCollectionDetailQuery = query(

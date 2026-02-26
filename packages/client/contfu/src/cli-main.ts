@@ -26,7 +26,7 @@ export async function main(argv = process.argv.slice(2)) {
     import("./features/collections/getAllCollectionSchemas"),
   ]);
   const schemas = await getAllCollectionSchemas();
-  const output = generateTypes(schemas);
+  const output = generateTypes(schemas, true);
   await writeFile(outPath, output, "utf-8");
   console.log(`Types written to ${outPath}`);
 }

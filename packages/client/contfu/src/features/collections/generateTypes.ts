@@ -18,7 +18,10 @@ function collectionNameToTypeName(name: string): string {
   return name.charAt(0).toUpperCase() + name.slice(1) + "Props";
 }
 
-export function generateTypes(schemas: Record<string, CollectionSchema>): string {
+export function generateTypes(
+  schemas: Record<string, CollectionSchema>,
+  includeCollectionMap = false,
+): string {
   const entries = Object.entries(schemas);
   const typeNames = Object.fromEntries(
     entries.map(([name]) => [name, collectionNameToTypeName(name)]),
@@ -31,5 +34,19 @@ export function generateTypes(schemas: Record<string, CollectionSchema>): string
     return `export type ${typeNames[name]} = {\n${props}\n};`;
   });
 
-  return interfaces.join("\n\n");
+  const baseTypes = interfaces.join("\n\n");
+
+  if (!includeCollectionMap) {
+    return baseTypes;
+  }
+
+  if (entries.length === 0) {
+    return "export type CollectionMap = {};";
+  }
+
+  const collectionMap = `export type CollectionMap = {\n${entries
+    .map(([name]) => `  ${name}: ${collectionNameToTypeName(name)};`)
+    .join("\n")}\n};`;
+
+  return `${baseTypes}\n\n${collectionMap}`;
 }
