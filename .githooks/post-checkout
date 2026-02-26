@@ -12,6 +12,10 @@ primary_wt="$(git worktree list --porcelain \
 # Worktree root
 wt_root="$(git rev-parse --show-toplevel)"
 
+bun install
+
+[ "$primary_wt" = "$wt_root" ] && exit 0
+
 cd $primary_wt
 env_files=$(find packages -name .env)
 cd $wt_root
@@ -20,4 +24,3 @@ for env_file in $env_files; do
   cp $primary_wt/$env_file $env_file
 done
 
-bun install
