@@ -107,8 +107,13 @@ jobs:
           if [ -z "$BS3_DIR" ]; then
             BS3_DIR=$(ls -d node_modules/better-sqlite3 2>/dev/null | head -1)
           fi
+          if [ -z "$BS3_DIR" ]; then
+            echo "better-sqlite3 directory not found"
+            exit 1
+          fi
           echo "better-sqlite3 dir: $BS3_DIR"
-          cd "$BS3_DIR" && npx --yes prebuild-install
+          cd "$BS3_DIR"
+          npx --yes prebuild-install || npx --yes node-gyp rebuild --release
 
       - name: Build all packages
         run: bun run build
