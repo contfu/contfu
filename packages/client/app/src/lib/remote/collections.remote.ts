@@ -1,11 +1,12 @@
 import { query } from "$app/server";
 import {
-  generateTypes,
   getCollectionSchema,
+  generateTypes,
   listCollections,
   queryItems,
   type QueryItemsInput,
 } from "contfu";
+import type { CollectionSchema } from "@contfu/core";
 import * as v from "valibot";
 
 const propFilterSchema = v.object({
@@ -27,6 +28,22 @@ const queryItemsInputSchema = v.object({
 
 export const getCollectionsQuery = query(async () => {
   return listCollections();
+});
+
+export type CollectionSchemaEntry = {
+  name: string;
+  schema: CollectionSchema | null;
+};
+
+export const getCollectionSchemasQuery = query(async (): Promise<CollectionSchemaEntry[]> => {
+  const collections = await listCollections();
+
+  return Promise.all(
+    collections.map(async ({ name }) => ({
+      name,
+      schema: await getCollectionSchema(name),
+    })),
+  );
 });
 
 export const getCollectionDetailQuery = query(

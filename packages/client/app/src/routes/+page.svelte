@@ -1,9 +1,12 @@
 <script lang="ts">
   import * as Alert from "$lib/components/ui/alert";
+  import CopyTextButton from "$lib/components/CopyTextButton.svelte";
   import * as Card from "$lib/components/ui/card";
+  import { getCollectionSchemasQuery } from "$lib/remote/collections.remote";
+  import { buildCollectionsSchemaJson } from "$lib/schema-export";
   import { getStats } from "$lib/remote/stats.remote";
 
-  const stats = await getStats();
+  const [stats, collectionSchemas] = await Promise.all([getStats(), getCollectionSchemasQuery()]);
 
   const syncLabel =
     stats.sync.state === "connected"
@@ -20,6 +23,13 @@
 <div class="container mx-auto max-w-5xl p-6">
   <div class="mb-6 flex items-center justify-between">
     <h1 class="text-2xl font-bold">Dashboard</h1>
+    <CopyTextButton
+      label="Copy schema"
+      copiedLabel="Schema copied"
+      failedLabel="Copy failed"
+      disabled={collectionSchemas.length === 0}
+      getText={() => buildCollectionsSchemaJson(collectionSchemas)}
+    />
   </div>
 
   <!-- Overview Section -->

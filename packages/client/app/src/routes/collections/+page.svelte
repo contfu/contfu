@@ -1,6 +1,8 @@
 <script lang="ts">
+  import CopyTextButton from "$lib/components/CopyTextButton.svelte";
   import { Button } from "$lib/components/ui/button";
   import * as Table from "$lib/components/ui/table";
+  import { buildCollectionsTypings } from "$lib/schema-export";
   import type { PageData } from "./$types";
 
   let { data }: { data: PageData } = $props();
@@ -9,6 +11,13 @@
 <div class="container mx-auto max-w-6xl p-6">
   <div class="mb-6 flex items-center justify-between">
     <h1 class="text-2xl font-bold">Collections</h1>
+    <CopyTextButton
+      label="Copy typings"
+      copiedLabel="Typings copied"
+      failedLabel="Copy failed"
+      disabled={data.collectionSchemas.length === 0}
+      getText={() => buildCollectionsTypings(data.collectionSchemas)}
+    />
   </div>
 
   <div class="overflow-x-auto rounded-lg border bg-card p-4">
