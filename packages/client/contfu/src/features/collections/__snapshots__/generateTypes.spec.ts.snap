@@ -5,10 +5,6 @@ exports[`generateTypes generates types for a single collection 1`] = `
   title: string;
   published: boolean;
   views: number;
-};
-
-export type CollectionMap = {
-  blogPosts: BlogPostsProps;
 };"
 `;
 
@@ -21,11 +17,6 @@ exports[`generateTypes generates types for multiple collections 1`] = `
 export type AuthorsProps = {
   name: string;
   featured: boolean;
-};
-
-export type CollectionMap = {
-  blogPosts: BlogPostsProps;
-  authors: AuthorsProps;
 };"
 `;
 
@@ -41,9 +32,5 @@ exports[`generateTypes maps all property types correctly 1`] = `
   file: string;
   files: string[];
   date: number;
-};
-
-export type CollectionMap = {
-  everything: EverythingProps;
 };"
 `;

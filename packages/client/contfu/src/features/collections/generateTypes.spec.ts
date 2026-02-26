@@ -46,14 +46,14 @@ describe("generateTypes", () => {
     expect(result).toMatchSnapshot();
   });
 
-  it("generates a CollectionMap covering all collections", () => {
+  it("does not generate CollectionMap", () => {
     const result = generateTypes({
       articles: { title: PropertyType.STRING },
       tags: { label: PropertyType.STRING },
     });
-    expect(result).toContain("CollectionMap");
-    expect(result).toContain("articles");
-    expect(result).toContain("tags");
+    expect(result).not.toContain("CollectionMap");
+    expect(result).toContain("ArticlesProps");
+    expect(result).toContain("TagsProps");
   });
 
   it("capitalises collection name for the type name", () => {

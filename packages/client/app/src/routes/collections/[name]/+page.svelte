@@ -1,21 +1,11 @@
 <script lang="ts">
+  import CopyTextButton from "$lib/components/CopyTextButton.svelte";
   import ItemListExplorer from "$lib/components/ItemListExplorer.svelte";
   import { Button } from "$lib/components/ui/button";
   import * as Card from "$lib/components/ui/card";
   import type { PageData } from "./$types";
 
   let { data }: { data: PageData } = $props();
-
-  let copied = $state(false);
-
-  async function copyTypes() {
-    if (!data.typeString) return;
-    await navigator.clipboard.writeText(data.typeString);
-    copied = true;
-    setTimeout(() => {
-      copied = false;
-    }, 2000);
-  }
 </script>
 
 <div class="container mx-auto max-w-6xl space-y-6 p-6">
@@ -59,9 +49,13 @@
             <Card.Title>TypeScript Types</Card.Title>
             <Card.Description>Generated from the collection schema</Card.Description>
           </div>
-          <Button variant="outline" size="sm" onclick={copyTypes}>
-            {copied ? "Copied!" : "Copy"}
-          </Button>
+          <CopyTextButton
+            variant="outline"
+            size="sm"
+            text={data.typeString}
+            label="Copy"
+            copiedLabel="Copied!"
+          />
         </div>
       </Card.Header>
       <Card.Content>

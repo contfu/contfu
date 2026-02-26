@@ -46,6 +46,20 @@ export const getCollectionSchemasQuery = query(async (): Promise<CollectionSchem
   );
 });
 
+export const getCombinedCollectionTypesQuery = query(async (): Promise<string> => {
+  const collections = await listCollections();
+
+  const schemaEntries = await Promise.all(
+    collections.map(async ({ name }) => [name, await getCollectionSchema(name)] as const),
+  );
+
+  const schemas = Object.fromEntries(
+    schemaEntries.filter((entry): entry is readonly [string, CollectionSchema] => entry[1] != null),
+  );
+
+  return generateTypes(schemas);
+});
+
 export const getCollectionDetailQuery = query(
   v.object({
     name: v.pipe(v.string(), v.minLength(1)),

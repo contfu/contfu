@@ -1,10 +1,13 @@
-import { getCollectionSchemasQuery, getCollectionsQuery } from "$lib/remote/collections.remote";
+import {
+  getCollectionsQuery,
+  getCombinedCollectionTypesQuery,
+} from "$lib/remote/collections.remote";
 import type { PageLoad } from "./$types";
 
 export const load: PageLoad = async () => {
-  const [collections, collectionSchemas] = await Promise.all([
+  const [collections, combinedTypeString] = await Promise.all([
     getCollectionsQuery(),
-    getCollectionSchemasQuery(),
+    getCombinedCollectionTypesQuery(),
   ]);
-  return { collections, collectionSchemas };
+  return { collections, combinedTypeString };
 };

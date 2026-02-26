@@ -31,8 +31,5 @@ export function generateTypes(schemas: Record<string, CollectionSchema>): string
     return `export type ${typeNames[name]} = {\n${props}\n};`;
   });
 
-  const mapEntries = entries.map(([name]) => `  ${name}: ${typeNames[name]};`).join("\n");
-  const collectionMap = `export type CollectionMap = {\n${mapEntries}\n};`;
-
-  return [...interfaces, collectionMap].join("\n\n");
+  return interfaces.join("\n\n");
 }

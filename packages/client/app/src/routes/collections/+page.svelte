@@ -2,7 +2,6 @@
   import CopyTextButton from "$lib/components/CopyTextButton.svelte";
   import { Button } from "$lib/components/ui/button";
   import * as Table from "$lib/components/ui/table";
-  import { buildCollectionsTypings } from "$lib/schema-export";
   import type { PageData } from "./$types";
 
   let { data }: { data: PageData } = $props();
@@ -15,8 +14,8 @@
       label="Copy typings"
       copiedLabel="Typings copied"
       failedLabel="Copy failed"
-      disabled={data.collectionSchemas.length === 0}
-      getText={() => buildCollectionsTypings(data.collectionSchemas)}
+      disabled={!data.combinedTypeString}
+      text={data.combinedTypeString}
     />
   </div>
 
