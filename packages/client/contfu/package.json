@@ -15,12 +15,10 @@
   "exports": {
     ".": {
       "bun": "./src/index.bun.ts",
-      "node": "./src/index.node.ts",
       "default": "./src/index.ts"
     },
     "./cli": {
       "bun": "./dist/cli.bun.js",
-      "node": "./dist/cli.node.js",
       "default": "./dist/cli.node.js"
     },
     "./src/*": "./src/*"
