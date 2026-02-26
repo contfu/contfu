@@ -1,15 +1,11 @@
 import { detectRuntime } from "../../util/runtime";
 
-// Keep runtime-specific module specifiers out of this file. Bun's bundler
-// statically analyzes import specifiers even when they are runtime-gated.
-const dynamicImport = (path: string) =>
-  new Function("p", "return import(p)")(path) as Promise<
-    typeof import("./db-bun") | typeof import("./db-node")
-  >;
-
 async function importDbModule(base: "db-bun" | "db-node") {
   try {
-    return await dynamicImport(new URL(`./${base}.js`, import.meta.url).href);
+    if (base === "db-bun") {
+      return await import("./db-bun.js");
+    }
+    return await import("./db-node.js");
   } catch (err) {
     const e = err as NodeJS.ErrnoException & { url?: string };
     const missingCompiledSibling =
@@ -19,7 +15,10 @@ async function importDbModule(base: "db-bun" | "db-node") {
     if (!missingCompiledSibling) {
       throw err;
     }
-    return await dynamicImport(new URL(`./${base}.ts`, import.meta.url).href);
+    if (base === "db-bun") {
+      return await import("./db-bun");
+    }
+    return await import("./db-node");
   }
 }
 

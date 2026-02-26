@@ -22,7 +22,8 @@
       "bun": "./dist/cli.bun.js",
       "node": "./dist/cli.node.js",
       "default": "./dist/cli.node.js"
-    }
+    },
+    "./src/*": "./src/*"
   },
   "scripts": {
     "test": "bun test",
