@@ -3,6 +3,7 @@ import type { BackendConsumer, CreateConsumerInput } from "../../domain/types";
 import { DatabaseError } from "../../effect/errors";
 import { Database } from "../../effect/services/Database";
 import { consumerTable, type Consumer } from "../../infra/db/schema";
+import { incrementCount } from "../../infra/nats/quota-kv";
 
 function mapToBackendConsumer(consumer: Consumer): BackendConsumer {
   return {
@@ -36,6 +37,8 @@ export const createConsumer = (userId: number, input: CreateConsumerInput) =>
           .returning(),
       catch: (e) => new DatabaseError({ cause: e }),
     });
+
+    yield* Effect.promise(() => incrementCount(userId, "consumers"));
 
     return mapToBackendConsumer(inserted);
   }).pipe(Effect.withSpan("consumers.create", { attributes: { userId } }));

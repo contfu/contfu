@@ -6,6 +6,7 @@ import { enqueueSyncJobs } from "../../features/sync-jobs/enqueueSyncJobs";
 import { collectionTable, connectionTable, consumerTable, db, influxTable } from "../db/db";
 import { createLogger } from "../logger/index";
 import { publishEvent, purgeEventsUpTo, type StoredWireItemEvent } from "../nats/event-stream";
+import { addItems, isItemQuotaExceeded } from "../nats/quota-kv";
 import type { UserSyncItem } from "../sync-worker/messages";
 import type { ConnectionInfo } from "../types";
 
@@ -275,6 +276,18 @@ export class StreamServer {
         );
       }),
     );
+
+    // Count synced items for quota tracking
+    const userId = items[0]?.user;
+    if (userId != null) {
+      await addItems(userId, items.length);
+    }
+
+    // Hold-back: skip delivery when item quota exceeded (events are still in JetStream for replay)
+    if (userId != null && (await isItemQuotaExceeded(userId))) {
+      log.info({ userId, itemCount: items.length }, "Item quota exceeded, skipping delivery");
+      return;
+    }
 
     const collectionItems = new Map<string, UserSyncItem[]>();
 

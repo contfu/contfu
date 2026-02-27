@@ -6,6 +6,7 @@ import { Crypto } from "../../effect/services/Crypto";
 import { Database } from "../../effect/services/Database";
 import { DatabaseError } from "../../effect/errors";
 import { sourceTable, type Source } from "../../infra/db/schema";
+import { incrementCount } from "../../infra/nats/quota-kv";
 
 /** Source type: Web (for extracting auth type) */
 const SOURCE_TYPE_WEB = 2;
@@ -73,6 +74,8 @@ export const createSource = (userId: number, input: CreateSourceInput) =>
           .returning(),
       catch: (e) => new DatabaseError({ cause: e }),
     });
+
+    yield* Effect.promise(() => incrementCount(userId, "sources"));
 
     return mapToBackendSource(inserted);
   }).pipe(Effect.withSpan("sources.create", { attributes: { userId } }));

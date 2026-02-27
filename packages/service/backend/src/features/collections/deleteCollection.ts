@@ -3,6 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { Database } from "../../effect/services/Database";
 import { DatabaseError } from "../../effect/errors";
 import { collectionTable } from "../../infra/db/schema";
+import { decrementCount } from "../../infra/nats/quota-kv";
 
 /**
  * Delete a Collection.
@@ -21,5 +22,10 @@ export const deleteCollection = (userId: number, collectionId: number) =>
       catch: (e) => new DatabaseError({ cause: e }),
     });
 
-    return result.length > 0;
+    const deleted = result.length > 0;
+    if (deleted) {
+      yield* Effect.promise(() => decrementCount(userId, "collections"));
+    }
+
+    return deleted;
   }).pipe(Effect.withSpan("collections.delete", { attributes: { userId, collectionId } }));

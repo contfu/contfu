@@ -3,6 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { Database } from "../../effect/services/Database";
 import { DatabaseError } from "../../effect/errors";
 import { sourceTable } from "../../infra/db/schema";
+import { decrementCount } from "../../infra/nats/quota-kv";
 
 /**
  * Delete a source. Collections will cascade delete.
@@ -21,5 +22,10 @@ export const deleteSource = (userId: number, id: number) =>
       catch: (e) => new DatabaseError({ cause: e }),
     });
 
-    return result.length > 0;
+    const deleted = result.length > 0;
+    if (deleted) {
+      yield* Effect.promise(() => decrementCount(userId, "sources"));
+    }
+
+    return deleted;
   }).pipe(Effect.withSpan("sources.delete", { attributes: { userId, sourceId: id } }));

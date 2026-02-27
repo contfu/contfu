@@ -4,6 +4,7 @@ import { validateEvent, WebhookVerificationError } from "@polar-sh/sdk/webhooks"
 import { db } from "@contfu/svc-backend/infra/db/db";
 import { quotaTable } from "@contfu/svc-backend/infra/db/schema";
 import { getQuotaForProduct } from "@contfu/svc-backend/infra/polar/products";
+import { setLimits } from "@contfu/svc-backend/infra/nats/quota-kv";
 import { eq } from "drizzle-orm";
 
 const log = createLogger("webhook-polar");
@@ -47,6 +48,7 @@ export const POST: RequestHandler = async ({ request }) => {
               maxConsumers: quota.maxConsumers,
             })
             .where(eq(quotaTable.polarCustomerId, customerId));
+          await setLimits(existing[0].id, quota, currentPeriodEnd);
         }
         break;
       }
@@ -58,6 +60,11 @@ export const POST: RequestHandler = async ({ request }) => {
 
         // Reset to free quota
         const quota = getQuotaForProduct(null);
+        const existingRow = await db
+          .select()
+          .from(quotaTable)
+          .where(eq(quotaTable.polarCustomerId, customerId))
+          .limit(1);
         await db
           .update(quotaTable)
           .set({
@@ -70,6 +77,9 @@ export const POST: RequestHandler = async ({ request }) => {
             maxConsumers: quota.maxConsumers,
           })
           .where(eq(quotaTable.polarCustomerId, customerId));
+        if (existingRow.length > 0) {
+          await setLimits(existingRow[0].id, quota, null);
+        }
         break;
       }
     }

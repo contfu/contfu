@@ -3,6 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { DatabaseError } from "../../effect/errors";
 import { Database } from "../../effect/services/Database";
 import { consumerTable } from "../../infra/db/schema";
+import { decrementCount } from "../../infra/nats/quota-kv";
 
 /**
  * Delete a consumer. Connections will cascade delete.
@@ -21,5 +22,10 @@ export const deleteConsumer = (userId: number, id: number) =>
       catch: (e) => new DatabaseError({ cause: e }),
     });
 
-    return result.length > 0;
+    const deleted = result.length > 0;
+    if (deleted) {
+      yield* Effect.promise(() => decrementCount(userId, "consumers"));
+    }
+
+    return deleted;
   }).pipe(Effect.withSpan("consumers.delete", { attributes: { userId, consumerId: id } }));

@@ -4,6 +4,7 @@ import { Database } from "../../effect/services/Database";
 import { DatabaseError } from "../../effect/errors";
 import { collectionTable } from "../../infra/db/schema";
 import { toCamelCase } from "@contfu/svc-core";
+import { incrementCount } from "../../infra/nats/quota-kv";
 
 export interface CreateCollectionInput {
   displayName: string;
@@ -47,6 +48,8 @@ export const createCollection = (userId: number, input: CreateCollectionInput) =
           .returning(),
       catch: (e) => new DatabaseError({ cause: e }),
     });
+
+    yield* Effect.promise(() => incrementCount(userId, "collections"));
 
     return {
       id: inserted.id,
