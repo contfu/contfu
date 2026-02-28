@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { truncateAllTables } from "../../../test/setup";
+import { setCollection } from "../collections/setCollection";
 import { createAsset } from "../assets/createAsset";
 import { linkAssetToItem } from "../assets/linkAssetToItem";
 import { createItem } from "./createItem";
@@ -12,6 +13,9 @@ function makeId(seed: number): string {
 }
 
 async function seedItems() {
+  await setCollection("articles", "Articles", { title: 1 });
+  await setCollection("guides", "Guides", { title: 1 });
+
   await createItem({
     id: makeId(1),
     ref: "blog/tech/alpha",

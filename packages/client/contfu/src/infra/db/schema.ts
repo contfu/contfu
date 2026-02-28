@@ -1,13 +1,21 @@
 import type { Block, SourceType } from "@contfu/core";
 import { blob, index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
+export const collectionsTable = sqliteTable("collections", {
+  name: text().primaryKey(),
+  displayName: text().notNull(),
+  schema: blob({ mode: "json" }).notNull().$type<Record<string, number>>(),
+});
+
 export const itemsTable = sqliteTable(
   "items",
   {
     id: blob({ mode: "buffer" }).primaryKey(),
     sourceType: integer().$type<SourceType | null>(),
     ref: text(),
-    collection: text().notNull(),
+    collection: text()
+      .notNull()
+      .references(() => collectionsTable.name, { onUpdate: "cascade" }),
     props: blob({ mode: "json" }).$type<Record<string, unknown>>(),
     content: blob({ mode: "json" }).$type<Block[] | null>(),
     changedAt: integer().notNull(),
@@ -88,8 +96,3 @@ export const mediaVariantTable = sqliteTable(
   },
   (table) => [index("idx_variant_lookup").on(table.assetId, table.ext, table.optsHash)],
 );
-
-export const collectionSchemaTable = sqliteTable("collection_schema", {
-  collection: text().primaryKey(),
-  schema: blob({ mode: "json" }).$type<Record<string, number>>().notNull(),
-});

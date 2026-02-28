@@ -6,8 +6,10 @@ import { getSyncIndex } from "../sync/getSyncIndex";
 import { setSyncIndex } from "../sync/setSyncIndex";
 import { processAssets, processPropertyAssets } from "../assets/processAssets";
 import { deleteAssetsByItem } from "../assets/deleteAssetsByItem";
-import { setCollectionSchema } from "../collections/setCollectionSchema";
-import { getCollectionSchema } from "../collections/getCollectionSchema";
+import { setCollection } from "../collections/setCollection";
+import { renameCollection } from "../collections/renameCollection";
+import { removeCollectionByName } from "../collections/removeCollectionByName";
+import { getCollectionSchemaByName } from "../collections/getCollectionSchemaByName";
 import type {
   CollectionVariants,
   MediaConstraints,
@@ -87,12 +89,22 @@ async function persistSyncEvent(
   mediaConstraints?: MediaConstraints,
   collectionVariants?: CollectionVariants,
 ): Promise<void> {
-  if (event.type === EventType.SCHEMA) {
-    await setCollectionSchema(event.collection, event.schema);
+  if (event.type === EventType.COLLECTION_SCHEMA) {
+    setCollection(event.collection, event.displayName, event.schema);
     return;
   }
 
-  if (event.type === EventType.CHANGED) {
+  if (event.type === EventType.COLLECTION_RENAMED) {
+    renameCollection(event.oldName, event.newName, event.newDisplayName);
+    return;
+  }
+
+  if (event.type === EventType.COLLECTION_REMOVED) {
+    removeCollectionByName(event.collection);
+    return;
+  }
+
+  if (event.type === EventType.ITEM_CHANGED) {
     const itemId = event.item.id.toString("base64url");
     let content = event.item.content;
     let props = event.item.props;
@@ -126,7 +138,7 @@ async function persistSyncEvent(
       }
 
       // Process property assets (cover, icon, files, etc.)
-      const schema = await getCollectionSchema(collection);
+      const schema = getCollectionSchemaByName(collection);
       if (schema && props) {
         props = await processPropertyAssets({
           itemId,
@@ -152,7 +164,7 @@ async function persistSyncEvent(
         });
       }
     }
-  } else if (event.type === EventType.DELETED) {
+  } else if (event.type === EventType.ITEM_DELETED) {
     const itemId = event.item.toString("base64url");
     if (mediaStore) {
       await deleteAssetsByItem(itemId);

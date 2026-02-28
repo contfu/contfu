@@ -121,7 +121,8 @@
     "import/no-self-import": "warn",
     "unicorn/no-useless-promise-resolve-reject": "warn",
     "no-var": "warn",
-    "unicorn/prefer-node-protocol": "warn"
+    "unicorn/prefer-node-protocol": "warn",
+    "require-await": "warn"
   },
   "settings": {
     "jsx-a11y": {

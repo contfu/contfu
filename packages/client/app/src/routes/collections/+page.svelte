@@ -35,14 +35,12 @@
           <Table.Head>name</Table.Head>
           <Table.Head>ref</Table.Head>
           <Table.Head>itemCount</Table.Head>
-          <Table.Head>createdAt</Table.Head>
-          <Table.Head>updatedAt</Table.Head>
         </Table.Row>
       </Table.Header>
       <Table.Body>
         {#if data.collections.length === 0}
           <Table.Row>
-            <Table.Cell colspan={5} class="py-6 text-center text-muted-foreground">
+            <Table.Cell colspan={3} class="py-6 text-center text-muted-foreground">
               No collections found
             </Table.Cell>
           </Table.Row>
@@ -60,8 +58,6 @@
               </Table.Cell>
               <Table.Cell>{collection.ref}</Table.Cell>
               <Table.Cell>{collection.itemCount}</Table.Cell>
-              <Table.Cell>{collection.createdAt}</Table.Cell>
-              <Table.Cell>{collection.updatedAt ?? "-"}</Table.Cell>
             </Table.Row>
           {/each}
         {/if}

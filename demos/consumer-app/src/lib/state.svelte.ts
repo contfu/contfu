@@ -3,7 +3,7 @@
  * This module manages server-side state for synchronized articles.
  */
 
-import type { ChangedEvent, DeletedEvent, Item } from "@contfu/core";
+import type { ItemChangedEvent, ItemDeletedEvent, Item } from "@contfu/core";
 import type { Article } from "./types.js";
 
 /** Article storage - keyed by ID hex string */
@@ -28,7 +28,7 @@ function itemToArticle(item: Item): Article {
 /**
  * Handle a CHANGED event - add or update an article.
  */
-export function handleChangedEvent(event: ChangedEvent): void {
+export function handleItemChangedEvent(event: ItemChangedEvent): void {
   const article = itemToArticle(event.item);
   articles.set(article.id, article);
 }
@@ -36,7 +36,7 @@ export function handleChangedEvent(event: ChangedEvent): void {
 /**
  * Handle a DELETED event - remove an article.
  */
-export function handleDeletedEvent(event: DeletedEvent): void {
+export function handleItemDeletedEvent(event: ItemDeletedEvent): void {
   const id = event.item.toString("hex");
   articles.delete(id);
 }

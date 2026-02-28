@@ -19,8 +19,17 @@ import {
   sourceTable,
 } from "../db/db";
 import type { ConnectionInfo } from "../types";
+import { unpack } from "msgpackr";
+import type { CollectionSchema } from "@contfu/core";
 
 type ItemsCallback = (items: UserSyncItem[], connections: ConnectionInfo[]) => void;
+type SchemaCallback = (
+  userId: number,
+  collectionId: number,
+  name: string,
+  displayName: string,
+  schema: Record<string, number>,
+) => void;
 
 export class SyncWorkerManager {
   private worker: Worker | null = null;
@@ -28,6 +37,8 @@ export class SyncWorkerManager {
   private readyResolve: (() => void) | null = null;
   private isReady = false;
   private itemsCallback: ItemsCallback | null = null;
+  private schemaCallback: SchemaCallback | null = null;
+  private lastBroadcastedSchema = new Map<number, string>();
 
   async start() {
     this.readyPromise = new Promise((resolve) => {
@@ -66,6 +77,10 @@ export class SyncWorkerManager {
 
   onItems(callback: ItemsCallback) {
     this.itemsCallback = callback;
+  }
+
+  onSchema(callback: SchemaCallback) {
+    this.schemaCallback = callback;
   }
 
   private async handleMessage(msg: WorkerToAppMessage) {
@@ -118,6 +133,56 @@ export class SyncWorkerManager {
       collectionRefPolicies,
     );
     this.itemsCallback(msg.items, connections);
+
+    // Broadcast schema changes if callback is registered
+    if (this.schemaCallback) {
+      await this.broadcastSchemaChanges(msg.userId, collectionIds);
+    }
+  }
+
+  private async broadcastSchemaChanges(userId: number, collectionIds: number[]) {
+    for (const collectionId of collectionIds) {
+      // Compute merged schema (same pattern as /api/sync)
+      const influxRows = await db
+        .select({
+          influxSchema: influxTable.schema,
+          sourceSchema: sourceCollectionTable.schema,
+        })
+        .from(influxTable)
+        .innerJoin(
+          sourceCollectionTable,
+          eq(influxTable.sourceCollectionId, sourceCollectionTable.id),
+        )
+        .where(and(eq(influxTable.userId, userId), eq(influxTable.collectionId, collectionId)));
+
+      const merged: Record<string, number> = {};
+      for (const row of influxRows) {
+        const schemaBuf = row.influxSchema ?? row.sourceSchema;
+        if (!schemaBuf) continue;
+        const schema = unpack(schemaBuf) as CollectionSchema;
+        for (const [prop, type] of Object.entries(schema)) {
+          merged[prop] = (merged[prop] ?? 0) | type;
+        }
+      }
+
+      if (Object.keys(merged).length === 0) continue;
+
+      // Only broadcast if schema actually changed
+      const serialized = JSON.stringify(merged);
+      if (this.lastBroadcastedSchema.get(collectionId) === serialized) continue;
+      this.lastBroadcastedSchema.set(collectionId, serialized);
+
+      // Fetch collection name + displayName
+      const [col] = await db
+        .select({ name: collectionTable.name, displayName: collectionTable.displayName })
+        .from(collectionTable)
+        .where(and(eq(collectionTable.userId, userId), eq(collectionTable.id, collectionId)))
+        .limit(1);
+
+      if (col) {
+        this.schemaCallback!(userId, collectionId, col.name, col.displayName, merged);
+      }
+    }
   }
 }
 

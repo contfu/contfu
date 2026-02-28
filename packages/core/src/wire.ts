@@ -9,24 +9,44 @@ import type { SourceType } from "./items";
  * - PING: [0] (keep-alive)
  * - SNAPSHOT_START: [1]
  * - SNAPSHOT_END: [2]
- * - SCHEMA: [10, collectionName, schema] (EventType.SCHEMA)
- * - CHANGED: [30, wireItem, index] (EventType.CHANGED)
- * - DELETED: [31, itemId, index] (EventType.DELETED)
+ * - COLLECTION_SCHEMA: [10, collectionName, displayName, schema] (EventType.COLLECTION_SCHEMA)
+ * - COLLECTION_RENAMED: [11, oldName, newName, newDisplayName] (EventType.COLLECTION_RENAMED)
+ * - COLLECTION_REMOVED: [12, collectionName] (EventType.COLLECTION_REMOVED)
+ * - ITEM_CHANGED: [30, wireItem, index] (EventType.ITEM_CHANGED)
+ * - ITEM_DELETED: [31, itemId, index] (EventType.ITEM_DELETED)
  */
 
 /** Item-related events sent to consumers via /api/sync. */
 export type WireItemEvent =
-  | [typeof EventType.CHANGED, WireItem, number]
-  | [typeof EventType.DELETED, Uint8Array, number];
+  | [typeof EventType.ITEM_CHANGED, WireItem, number]
+  | [typeof EventType.ITEM_DELETED, Uint8Array, number];
 
 /** Schema event: sends collection schema to consumers. */
-export type WireSchemaEvent = [typeof EventType.SCHEMA, string, Record<string, number>];
+export type WireSchemaEvent = [
+  typeof EventType.COLLECTION_SCHEMA,
+  string,
+  string,
+  Record<string, number>,
+];
+
+/** Collection renamed event: notifies consumers of a collection name change. */
+export type WireCollectionRenamedEvent = [
+  typeof EventType.COLLECTION_RENAMED,
+  string,
+  string,
+  string,
+];
+
+/** Collection removed event: notifies consumers that a collection was removed. */
+export type WireCollectionRemovedEvent = [typeof EventType.COLLECTION_REMOVED, string];
 
 /** Combined wire event type for client connections. */
 export type WireEvent =
   | [typeof EventType.PING]
   | WireItemEvent
   | WireSchemaEvent
+  | WireCollectionRenamedEvent
+  | WireCollectionRemovedEvent
   | [typeof EventType.SNAPSHOT_START]
   | [typeof EventType.SNAPSHOT_END];
 

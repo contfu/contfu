@@ -29,7 +29,7 @@
       <Card.Description>Collection detail</Card.Description>
     </Card.Header>
     <Card.Content>
-      <dl class="grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
+      <dl class="grid gap-2 text-sm sm:grid-cols-2">
         <div>
           <dt class="text-muted-foreground">Ref</dt>
           <dd>{data.collection.ref}</dd>
@@ -37,14 +37,6 @@
         <div>
           <dt class="text-muted-foreground">Items</dt>
           <dd>{data.collection.itemCount}</dd>
-        </div>
-        <div>
-          <dt class="text-muted-foreground">Created</dt>
-          <dd>{data.collection.createdAt}</dd>
-        </div>
-        <div>
-          <dt class="text-muted-foreground">Updated</dt>
-          <dd>{data.collection.updatedAt ?? "-"}</dd>
         </div>
       </dl>
     </Card.Content>

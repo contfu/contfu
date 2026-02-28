@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { truncateAllTables } from "../../../test/setup";
+import { setCollection } from "./setCollection";
 import { createItem } from "../items/createItem";
 import { listCollections } from "./listCollections";
 
@@ -13,6 +14,10 @@ describe("listCollections", () => {
   });
 
   test("returns collection summaries with item counts", async () => {
+    // Create collections first (schema events arrive before items)
+    await setCollection("articles", "Articles", { title: 1 });
+    await setCollection("guides", "Guides", { title: 1 });
+
     await createItem({
       id: makeId(1),
       ref: "article/alpha",
@@ -42,5 +47,6 @@ describe("listCollections", () => {
     expect(collections.map((c) => c.name)).toEqual(["articles", "guides"]);
     expect(collections.find((c) => c.name === "articles")?.itemCount).toBe(2);
     expect(collections.find((c) => c.name === "guides")?.itemCount).toBe(1);
+    expect(collections.find((c) => c.name === "articles")?.displayName).toBe("Articles");
   });
 });

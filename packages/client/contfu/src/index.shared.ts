@@ -1,5 +1,6 @@
 export {
   assetTable,
+  collectionsTable,
   itemAssetTable,
   linkTable as itemLinkTable,
   itemsTable as itemTable,
@@ -17,7 +18,12 @@ export {
 } from "./infra/db/schema";
 
 // Stream exports
-export type { ItemEvent, SchemaEvent } from "@contfu/client";
+export type {
+  CollectionRenamedEvent,
+  CollectionRemovedEvent,
+  ItemEvent,
+  SchemaEvent,
+} from "@contfu/client";
 export { connect } from "./features/stream/connect";
 export { getSyncIndex } from "./features/sync/getSyncIndex";
 export { setSyncIndex } from "./features/sync/setSyncIndex";
@@ -143,12 +149,11 @@ export {
   type HookOptions,
 } from "./infra/hooks/event-hooks";
 
-// Collection schema exports
+// Collection exports
 export { generateTypes } from "./features/collections/generateTypes";
 export { getAllCollectionSchemas } from "./features/collections/getAllCollectionSchemas";
-export { getCollectionSchema } from "./features/collections/getCollectionSchema";
-export { setCollectionSchema } from "./features/collections/setCollectionSchema";
-export { collectionSchemaTable } from "./infra/db/schema";
+export { getCollectionSchemaByName } from "./features/collections/getCollectionSchemaByName";
+export { setCollection } from "./features/collections/setCollection";
 
 // Utility exports
 export {

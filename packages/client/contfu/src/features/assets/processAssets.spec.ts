@@ -3,6 +3,7 @@ import { PropertyType, type Block, type ImageBlock } from "@contfu/core";
 import { db } from "../../infra/db/db";
 import { assetTable, itemAssetTable, itemsTable } from "../../infra/db/schema";
 import { truncateAllTables } from "../../../test/setup";
+import { setCollection } from "../collections/setCollection";
 import type { MediaOptimizer, MediaStore } from "../media/media";
 import { processAssets, processPropertyAssets } from "./processAssets";
 
@@ -29,7 +30,8 @@ function makeImageBlock(url: string, alt = "alt"): ImageBlock {
 describe("processAssets", () => {
   beforeEach(async () => {
     await truncateAllTables();
-    // Insert parent item so FK constraint is satisfied
+    // Create collection, then insert parent item so FK constraint is satisfied
+    await setCollection("test", "Test", {});
     await db.insert(itemsTable).values({
       id: Buffer.from([1, 2, 3]),
       collection: "test",
@@ -279,6 +281,7 @@ describe("processAssets", () => {
 describe("processPropertyAssets", () => {
   beforeEach(async () => {
     await truncateAllTables();
+    await setCollection("test", "Test", {});
     await db.insert(itemsTable).values({
       id: Buffer.from([1, 2, 3]),
       collection: "test",

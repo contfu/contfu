@@ -1,7 +1,7 @@
 import { db } from "../src/infra/db/db";
 import {
   assetTable,
-  collectionSchemaTable,
+  collectionsTable,
   itemAssetTable,
   itemsTable,
   linkTable,
@@ -20,5 +20,5 @@ export async function truncateAllTables(): Promise<void> {
   await db.delete(linkTable);
   await db.delete(itemsTable);
   await db.delete(syncTable);
-  await db.delete(collectionSchemaTable);
+  await db.delete(collectionsTable);
 }

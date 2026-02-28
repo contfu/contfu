@@ -73,7 +73,7 @@ describe("stream-client", () => {
     test("parses indexed DELETED event", async () => {
       mockFetch(
         createMockStream([
-          createBinaryMessage([EventType.DELETED, new Uint8Array([1, 2, 3, 4]), 11]),
+          createBinaryMessage([EventType.ITEM_DELETED, new Uint8Array([1, 2, 3, 4]), 11]),
         ]),
       );
 
@@ -88,7 +88,7 @@ describe("stream-client", () => {
 
       expect(events).toHaveLength(1);
       expect(events[0]).toEqual({
-        type: EventType.DELETED,
+        type: EventType.ITEM_DELETED,
         item: expect.any(Buffer),
         index: 11,
       });
@@ -107,7 +107,7 @@ describe("stream-client", () => {
         createdAt: 1699000000,
       };
       const wireItem = [SourceType.WEB, ref, id, "article", 1700500000, props, content];
-      mockFetch(createMockStream([createBinaryMessage([EventType.CHANGED, wireItem, 42])]));
+      mockFetch(createMockStream([createBinaryMessage([EventType.ITEM_CHANGED, wireItem, 42])]));
 
       const events: unknown[] = [];
       for await (const event of connectToStream({
@@ -124,7 +124,7 @@ describe("stream-client", () => {
         item: Record<string, unknown>;
         index: number;
       };
-      expect(changedEvent.type).toBe(EventType.CHANGED);
+      expect(changedEvent.type).toBe(EventType.ITEM_CHANGED);
       expect(changedEvent.index).toBe(42);
       expect(changedEvent.item.collection).toBe("article");
       expect(changedEvent.item.sourceType).toBe(SourceType.WEB);
@@ -141,8 +141,11 @@ describe("stream-client", () => {
     test("ignores non-indexed item events", async () => {
       mockFetch(
         createMockStream([
-          createBinaryMessage([EventType.DELETED, new Uint8Array([1])]),
-          createBinaryMessage([EventType.CHANGED, [null, null, new Uint8Array([2]), "c", 1, {}]]),
+          createBinaryMessage([EventType.ITEM_DELETED, new Uint8Array([1])]),
+          createBinaryMessage([
+            EventType.ITEM_CHANGED,
+            [null, null, new Uint8Array([2]), "c", 1, {}],
+          ]),
         ]),
       );
 
@@ -164,7 +167,7 @@ describe("stream-client", () => {
           createBinaryMessage([EventType.PING]),
           createBinaryMessage([EventType.PING]),
           createBinaryMessage([EventType.PING]),
-          createBinaryMessage([EventType.DELETED, new Uint8Array([1]), 7]),
+          createBinaryMessage([EventType.ITEM_DELETED, new Uint8Array([1]), 7]),
         ]),
       );
 
@@ -178,14 +181,14 @@ describe("stream-client", () => {
       }
 
       expect(events).toHaveLength(1);
-      expect((events[0] as { type: number }).type).toBe(EventType.DELETED);
+      expect((events[0] as { type: number }).type).toBe(EventType.ITEM_DELETED);
     });
   });
 
   describe("connection lifecycle events", () => {
     test("yields stream lifecycle events", async () => {
       mockFetch(
-        createMockStream([createBinaryMessage([EventType.DELETED, new Uint8Array([1]), 2])]),
+        createMockStream([createBinaryMessage([EventType.ITEM_DELETED, new Uint8Array([1]), 2])]),
       );
 
       const events: unknown[] = [];
@@ -200,7 +203,7 @@ describe("stream-client", () => {
 
       expect(events).toHaveLength(3);
       expect(events[0]).toEqual({ type: EventType.STREAM_CONNECTED });
-      expect((events[1] as { type: number }).type).toBe(EventType.DELETED);
+      expect((events[1] as { type: number }).type).toBe(EventType.ITEM_DELETED);
       expect(events[2]).toEqual({ type: EventType.STREAM_DISCONNECTED, reason: "Stream ended" });
     });
   });

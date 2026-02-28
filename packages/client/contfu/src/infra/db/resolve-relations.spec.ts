@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { truncateAllTables } from "../../../test/setup";
 import type { ItemWithRelations, WithClause } from "../../domain/query-types";
+import { setCollection } from "../../features/collections/setCollection";
 import { createItem } from "../../features/items/createItem";
 import { findItems } from "../../features/items/findItems";
 import { resolveRelations } from "./resolve-relations";
@@ -12,6 +13,8 @@ function makeId(seed: number): string {
 describe("resolveRelations", () => {
   beforeEach(async () => {
     await truncateAllTables();
+    await setCollection("articles", "Articles", {});
+    await setCollection("guides", "Guides", {});
   });
 
   test("resolves simple relation with $1.collection placeholder", async () => {

@@ -5,7 +5,7 @@
 
 import { connectToStream } from "@contfu/client";
 import { EventType } from "@contfu/core";
-import { handleChangedEvent, handleDeletedEvent } from "./state.svelte.js";
+import { handleItemChangedEvent, handleItemDeletedEvent } from "./state.svelte.js";
 import { env } from "$env/dynamic/private";
 
 /** Get configuration from environment (using SvelteKit's dynamic env with process.env fallback) */
@@ -69,14 +69,14 @@ export async function startSyncConnection(): Promise<void> {
       }
 
       switch (event.type) {
-        case EventType.CHANGED:
-          handleChangedEvent(event);
+        case EventType.ITEM_CHANGED:
+          handleItemChangedEvent(event);
           console.info(
             `Article updated: ${(event.item.props as { title?: string }).title || "Untitled"}`,
           );
           break;
-        case EventType.DELETED:
-          handleDeletedEvent(event);
+        case EventType.ITEM_DELETED:
+          handleItemDeletedEvent(event);
           console.info(`Article deleted: ${event.item.toString("hex")}`);
           break;
       }

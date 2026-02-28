@@ -1,11 +1,9 @@
-import { countDistinct } from "drizzle-orm";
+import { count } from "drizzle-orm";
 import { db } from "../../infra/db/db";
-import { itemsTable } from "../../infra/db/schema";
+import { collectionsTable } from "../../infra/db/schema";
 
-export function countCollections() {
-  const { count } = db
-    .select({ count: countDistinct(itemsTable.collection) })
-    .from(itemsTable)
-    .get()!;
-  return count;
+// TODO: db.$count is async even for sync SQLite drivers (Drizzle bug). Report upstream.
+export function countCollections(ctx = db) {
+  const { value } = ctx.select({ value: count() }).from(collectionsTable).get()!;
+  return value;
 }

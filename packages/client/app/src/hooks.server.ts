@@ -55,9 +55,9 @@ async function runStream() {
         } as const;
         setSyncStatus(next);
         publishSyncStatus(next);
-      } else if (event.type === EventType.SCHEMA) {
+      } else if (event.type === EventType.COLLECTION_SCHEMA) {
         bufferDataChanged("schema");
-      } else if (event.type === EventType.CHANGED || event.type === EventType.DELETED) {
+      } else if (event.type === EventType.ITEM_CHANGED || event.type === EventType.ITEM_DELETED) {
         bufferDataChanged("item");
       } else {
         bufferDataChanged("unknown");

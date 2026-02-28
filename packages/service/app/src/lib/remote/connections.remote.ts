@@ -1,7 +1,10 @@
 import { form, query } from "$app/server";
 import { runWithUser } from "$lib/server/run";
+import { getStreamServer } from "$lib/server/startup";
 import { getUserId } from "$lib/server/user";
+import { EventType, type WireEvent } from "@contfu/core";
 import type { BackendConnectionWithDetails } from "@contfu/svc-backend/domain/types";
+import { getCollection as getCollectionFeature } from "@contfu/svc-backend/features/collections/getCollection";
 import { createConnection as createConnectionFeature } from "@contfu/svc-backend/features/connections/createConnection";
 import { deleteConnection as deleteConnectionFeature } from "@contfu/svc-backend/features/connections/deleteConnection";
 import { getConnection as getConnectionFeature } from "@contfu/svc-backend/features/connections/getConnection";
@@ -85,6 +88,22 @@ export const addConnection = form(
       }),
     );
 
+    // Send COLLECTION_SCHEMA to the consumer so its existing SSE stream
+    // learns about the newly-connected collection immediately.
+    const collection = await runWithUser(
+      userId,
+      getCollectionFeature(userId, data.collectionId),
+    );
+    if (collection) {
+      const schemaEvent: WireEvent = [
+        EventType.COLLECTION_SCHEMA,
+        collection.name,
+        collection.displayName,
+        {},
+      ];
+      getStreamServer().sendToConsumer(userId, data.consumerId, schemaEvent);
+    }
+
     return { success: true, connection };
   },
 );
@@ -128,6 +147,10 @@ export const removeConnection = form(
   }),
   async (data, issue) => {
     const userId = getUserId();
+
+    // Fetch collection name before deleting the connection
+    const collection = await runWithUser(userId, getCollectionFeature(userId, data.collectionId));
+
     const deleted = await runWithUser(
       userId,
       deleteConnectionFeature(userId, data.consumerId, data.collectionId),
@@ -135,6 +158,12 @@ export const removeConnection = form(
 
     if (!deleted) {
       invalid(issue.consumerId("Connection not found"));
+    }
+
+    // Unicast COLLECTION_REMOVED to the disconnected consumer
+    if (collection) {
+      const removedEvent: WireEvent = [EventType.COLLECTION_REMOVED, collection.name];
+      getStreamServer().sendToConsumer(userId, data.consumerId, removedEvent);
     }
 
     return { success: true };

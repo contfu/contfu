@@ -1,4 +1,4 @@
-import type { ChangedEvent, DeletedEvent, ItemEvent } from "@contfu/core";
+import type { ItemChangedEvent, ItemDeletedEvent, ItemEvent } from "@contfu/core";
 import { EventType } from "@contfu/core";
 
 /**
@@ -12,9 +12,9 @@ export type EventHandler = (event: ItemEvent) => Promise<void>;
  */
 export interface HookOptions {
   /** Called when an item is created or updated */
-  onChanged?: (event: ChangedEvent) => Promise<void>;
+  onChanged?: (event: ItemChangedEvent) => Promise<void>;
   /** Called when an item is deleted */
-  onDeleted?: (event: DeletedEvent) => Promise<void>;
+  onDeleted?: (event: ItemDeletedEvent) => Promise<void>;
 }
 
 /**
@@ -43,10 +43,10 @@ export interface HookOptions {
 export function createEventHandler(hooks: HookOptions): EventHandler {
   return async (event: ItemEvent): Promise<void> => {
     switch (event.type) {
-      case EventType.CHANGED:
+      case EventType.ITEM_CHANGED:
         await hooks.onChanged?.(event);
         break;
-      case EventType.DELETED:
+      case EventType.ITEM_DELETED:
         await hooks.onDeleted?.(event);
         break;
     }

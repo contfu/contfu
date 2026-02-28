@@ -13,7 +13,15 @@ export function getItemById(
   ctx = defaultDb,
 ): ItemWithRelations | null {
   const row = ctx
-    .select()
+    .select({
+      id: itemsTable.id,
+      sourceType: itemsTable.sourceType,
+      ref: itemsTable.ref,
+      collectionName: itemsTable.collection,
+      props: itemsTable.props,
+      content: itemsTable.content,
+      changedAt: itemsTable.changedAt,
+    })
     .from(itemsTable)
     .where(eq(itemsTable.id, decodeId(id)))
     .get();
@@ -25,7 +33,7 @@ export function getItemById(
     id: encodeId(row.id),
     sourceType: row.sourceType,
     ref: row.ref,
-    collection: row.collection,
+    collection: row.collectionName,
     props: (props && typeof props === "object" ? props : {}) as Record<string, unknown>,
     changedAt: row.changedAt,
     content: Array.isArray(row.content) ? row.content : undefined,

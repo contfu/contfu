@@ -108,13 +108,12 @@ export function findItems(options: QueryOptions = {}, ctx = defaultDb): QueryRes
     id: itemsTable.id,
     sourceType: itemsTable.sourceType,
     ref: itemsTable.ref,
-    collection: itemsTable.collection,
+    collectionName: itemsTable.collection,
     props: itemsTable.props,
     changedAt: itemsTable.changedAt,
     ...(includeContent ? { content: itemsTable.content } : {}),
   };
 
-  // Main query
   const query = ctx.select(selectColumns).from(itemsTable);
 
   const rows = where
@@ -141,7 +140,7 @@ export function findItems(options: QueryOptions = {}, ctx = defaultDb): QueryRes
       id: encodeId(row.id),
       sourceType: row.sourceType,
       ref: row.ref,
-      collection: row.collection,
+      collection: row.collectionName,
       props: (props && typeof props === "object" ? props : {}) as Record<string, unknown>,
       changedAt: row.changedAt,
       ...("content" in row && row.content

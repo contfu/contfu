@@ -1,6 +1,6 @@
 import { query } from "$app/server";
 import {
-  getCollectionSchema,
+  getCollectionSchemaByName,
   generateTypes,
   listCollections,
   queryItems,
@@ -41,7 +41,7 @@ export const getCollectionSchemasQuery = query(async (): Promise<CollectionSchem
   return Promise.all(
     collections.map(async ({ name }) => ({
       name,
-      schema: await getCollectionSchema(name),
+      schema: await getCollectionSchemaByName(name),
     })),
   );
 });
@@ -50,7 +50,7 @@ export const getCombinedCollectionTypesQuery = query(async (): Promise<string> =
   const collections = await listCollections();
 
   const schemaEntries = await Promise.all(
-    collections.map(async ({ name }) => [name, await getCollectionSchema(name)] as const),
+    collections.map(async ({ name }) => [name, await getCollectionSchemaByName(name)] as const),
   );
 
   const schemas = Object.fromEntries(
@@ -76,7 +76,7 @@ export const getCollectionDetailQuery = query(
 
     const [result, schema] = await Promise.all([
       queryItems(mergedInput),
-      getCollectionSchema(name),
+      getCollectionSchemaByName(name),
     ]);
 
     const typeString = schema != null ? generateTypes({ [name]: schema }) : null;

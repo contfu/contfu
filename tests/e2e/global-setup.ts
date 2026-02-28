@@ -80,7 +80,7 @@ async function spawnProcess(
           } catch {
             // Server not ready
           }
-          await sleep(500);
+          await sleep(50);
         }
       };
       void pollUrl();

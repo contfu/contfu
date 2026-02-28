@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { truncateAllTables } from "../../../test/setup";
+import { setCollection } from "../../features/collections/setCollection";
 import { createItem } from "../../features/items/createItem";
 import { createAsset } from "../../features/assets/createAsset";
 import { linkAssetToItem } from "../../features/assets/linkAssetToItem";
@@ -25,6 +26,8 @@ function makeItem(seed: number, collection = "articles"): ItemWithRelations {
 describe("resolveIncludes", () => {
   beforeEach(async () => {
     await truncateAllTables();
+    await setCollection("c", "C", {});
+    await setCollection("articles", "Articles", {});
   });
 
   test("resolves assets for items", async () => {

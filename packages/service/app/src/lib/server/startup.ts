@@ -1,3 +1,4 @@
+import { EventType } from "@contfu/core";
 import { createLogger } from "@contfu/svc-backend/infra/logger/index";
 import { ensureEventStream } from "@contfu/svc-backend/infra/nats/event-stream";
 import { hasNats } from "@contfu/svc-backend/infra/nats/connection";
@@ -66,13 +67,26 @@ export async function initialize(): Promise<void> {
     startWebhookFetchWorker({ streamServer: stream });
   }
 
-  // Wire the onItems callback to broadcast items to all connected clients
-  worker.onItems((items, connections) => {
-    stream.broadcast(items, connections);
-  });
+  // Start the sync worker (skip in test mode — E2E tests use webhook fixtures
+  // and the worker's PGLite instance conflicts with the main app's in CI).
+  if (process.env.TEST_MODE !== "true") {
+    // Wire the onItems callback to broadcast items to all connected clients
+    worker.onItems((items, connections) => {
+      stream.broadcast(items, connections);
+    });
 
-  // Start the worker
-  await worker.start();
+    // Wire the onSchema callback to broadcast schema changes to consumers
+    worker.onSchema((userId, collectionId, name, displayName, schema) => {
+      stream.broadcastToCollection(userId, collectionId, [
+        EventType.COLLECTION_SCHEMA,
+        name,
+        displayName,
+        schema,
+      ]);
+    });
+
+    await worker.start();
+  }
 
   isInitialized = true;
   log.info("Server startup complete: StreamServer and SyncWorkerManager initialized");

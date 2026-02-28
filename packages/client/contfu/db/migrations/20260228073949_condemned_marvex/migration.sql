@@ -8,8 +8,9 @@ CREATE TABLE `asset` (
 	`createdAt` integer NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE `collection_schema` (
-	`collection` text PRIMARY KEY,
+CREATE TABLE `collections` (
+	`name` text PRIMARY KEY,
+	`displayName` text NOT NULL,
 	`schema` blob NOT NULL
 );
 --> statement-breakpoint
@@ -28,7 +29,8 @@ CREATE TABLE `items` (
 	`collection` text NOT NULL,
 	`props` blob,
 	`content` blob,
-	`changedAt` integer NOT NULL
+	`changedAt` integer NOT NULL,
+	CONSTRAINT `fk_items_collection_collections_name_fk` FOREIGN KEY (`collection`) REFERENCES `collections`(`name`) ON UPDATE CASCADE
 );
 --> statement-breakpoint
 CREATE TABLE `links` (

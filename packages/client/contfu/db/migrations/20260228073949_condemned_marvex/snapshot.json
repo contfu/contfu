@@ -1,7 +1,7 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "0208a40a-6529-475c-9fb8-f7d51f4ae0c6",
+  "id": "cdb240d1-36c8-41c2-b988-84d2d3bc8138",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
@@ -11,7 +11,7 @@
       "entityType": "tables"
     },
     {
-      "name": "collection_schema",
+      "name": "collections",
       "entityType": "tables"
     },
     {
@@ -110,9 +110,19 @@
       "autoincrement": false,
       "default": null,
       "generated": null,
-      "name": "collection",
+      "name": "name",
       "entityType": "columns",
-      "table": "collection_schema"
+      "table": "collections"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "displayName",
+      "entityType": "columns",
+      "table": "collections"
     },
     {
       "type": "blob",
@@ -122,7 +132,7 @@
       "generated": null,
       "name": "schema",
       "entityType": "columns",
-      "table": "collection_schema"
+      "table": "collections"
     },
     {
       "type": "blob",
@@ -366,6 +376,21 @@
     },
     {
       "columns": [
+        "collection"
+      ],
+      "tableTo": "collections",
+      "columnsTo": [
+        "name"
+      ],
+      "onUpdate": "CASCADE",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "fk_items_collection_collections_name_fk",
+      "entityType": "fks",
+      "table": "items"
+    },
+    {
+      "columns": [
         "from"
       ],
       "tableTo": "items",
@@ -441,11 +466,11 @@
     },
     {
       "columns": [
-        "collection"
+        "name"
       ],
       "nameExplicit": false,
-      "name": "collection_schema_pk",
-      "table": "collection_schema",
+      "name": "collections_pk",
+      "table": "collections",
       "entityType": "pks"
     },
     {

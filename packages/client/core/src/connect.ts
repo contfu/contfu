@@ -34,7 +34,7 @@ type OptsWithoutConnectionEvents = BaseOpts & { connectionEvents?: false };
  *
  * // Key from CONTFU_API_KEY env var
  * for await (const event of connect()) {
- *   if (event.type === EventType.CHANGED) {
+ *   if (event.type === EventType.ITEM_CHANGED) {
  *     console.log("Item changed:", event.item);
  *   }
  * }

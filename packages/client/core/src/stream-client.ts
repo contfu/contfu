@@ -19,14 +19,30 @@ export type Item<T extends PageProps = Record<never, never>> = Omit<
   collection: string;
 };
 
-export type ChangedEvent = { type: typeof EventType.CHANGED; item: Item; index: number };
-export type DeletedEvent = { type: typeof EventType.DELETED; item: Buffer; index: number };
+export type ItemChangedEvent = { type: typeof EventType.ITEM_CHANGED; item: Item; index: number };
+export type ItemDeletedEvent = { type: typeof EventType.ITEM_DELETED; item: Buffer; index: number };
 export type SchemaEvent = {
-  type: typeof EventType.SCHEMA;
+  type: typeof EventType.COLLECTION_SCHEMA;
   collection: string;
+  displayName: string;
   schema: CollectionSchema;
 };
-export type SyncEvent = ChangedEvent | DeletedEvent | SchemaEvent;
+export type CollectionRenamedEvent = {
+  type: typeof EventType.COLLECTION_RENAMED;
+  oldName: string;
+  newName: string;
+  newDisplayName: string;
+};
+export type CollectionRemovedEvent = {
+  type: typeof EventType.COLLECTION_REMOVED;
+  collection: string;
+};
+export type SyncEvent =
+  | ItemChangedEvent
+  | ItemDeletedEvent
+  | SchemaEvent
+  | CollectionRenamedEvent
+  | CollectionRemovedEvent;
 export type ItemEvent = SyncEvent;
 
 /** Emitted when stream connection is established. */
@@ -268,13 +284,13 @@ function fromWireEvent(wireEvent: WireEvent): SyncEvent | null {
   const type = wireEvent[0];
 
   switch (type) {
-    case EventType.CHANGED: {
+    case EventType.ITEM_CHANGED: {
       const wireItem = wireEvent[1];
       const [sourceType, ref, id, collection, changedAt, props, content] = wireItem;
       const index = wireEvent[2];
 
       if (typeof index !== "number") {
-        console.warn("Ignoring CHANGED event without sync index");
+        console.warn("Ignoring ITEM_CHANGED event without sync index");
         return null;
       }
 
@@ -290,29 +306,48 @@ function fromWireEvent(wireEvent: WireEvent): SyncEvent | null {
         item.content = content as Block[];
       }
 
-      return { type: EventType.CHANGED, item, index };
+      return { type: EventType.ITEM_CHANGED, item, index };
     }
 
-    case EventType.DELETED: {
+    case EventType.ITEM_DELETED: {
       const index = wireEvent[2];
       if (typeof index !== "number") {
-        console.warn("Ignoring DELETED event without sync index");
+        console.warn("Ignoring ITEM_DELETED event without sync index");
         return null;
       }
 
       return {
-        type: EventType.DELETED,
+        type: EventType.ITEM_DELETED,
         item: Buffer.from(wireEvent[1] as Uint8Array),
         index,
       };
     }
 
-    case EventType.SCHEMA: {
-      const [, collection, schema] = wireEvent;
+    case EventType.COLLECTION_SCHEMA: {
+      const [, collection, displayName, schema] = wireEvent;
       return {
-        type: EventType.SCHEMA,
+        type: EventType.COLLECTION_SCHEMA,
         collection: collection as string,
+        displayName: displayName as string,
         schema: schema as CollectionSchema,
+      };
+    }
+
+    case EventType.COLLECTION_RENAMED: {
+      const [, oldName, newName, newDisplayName] = wireEvent;
+      return {
+        type: EventType.COLLECTION_RENAMED,
+        oldName: oldName as string,
+        newName: newName as string,
+        newDisplayName: newDisplayName as string,
+      };
+    }
+
+    case EventType.COLLECTION_REMOVED: {
+      const [, collection] = wireEvent;
+      return {
+        type: EventType.COLLECTION_REMOVED,
+        collection: collection as string,
       };
     }
 

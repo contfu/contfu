@@ -3,6 +3,7 @@ import { truncateAllTables } from "../test/setup";
 import { contfu } from "./contfu";
 import { eq } from "./domain/filter-helpers";
 
+import { setCollection } from "./features/collections/setCollection";
 import { createItem } from "./features/items/createItem";
 
 function makeId(seed: number): string {
@@ -10,6 +11,10 @@ function makeId(seed: number): string {
 }
 
 async function seedData() {
+  await setCollection("articles", "Articles", {});
+  await setCollection("authors", "Authors", {});
+  await setCollection("tags", "Tags", {});
+
   await createItem({
     id: makeId(1),
     ref: "articles/alpha",

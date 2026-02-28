@@ -8,10 +8,12 @@ export const EventType = {
   STREAM_CONNECTED: 3,
   STREAM_DISCONNECTED: 4,
   // Collection events (10-29)
-  SCHEMA: 10,
+  COLLECTION_SCHEMA: 10,
+  COLLECTION_RENAMED: 11,
+  COLLECTION_REMOVED: 12,
   // Item events (30-49)
-  CHANGED: 30,
-  DELETED: 31,
+  ITEM_CHANGED: 30,
+  ITEM_DELETED: 31,
 } as const;
 
 export type EventType = (typeof EventType)[keyof typeof EventType];
@@ -23,7 +25,7 @@ type EventBase<T extends EventType> = {
 /**
  * Provides a created or changed item.
  */
-export type ChangedEvent = EventBase<typeof EventType.CHANGED> & {
+export type ItemChangedEvent = EventBase<typeof EventType.ITEM_CHANGED> & {
   item: Item;
 };
 
@@ -31,21 +33,21 @@ export type ChangedEvent = EventBase<typeof EventType.CHANGED> & {
  * Provides a deleted item id.
  * This is only sent, if the source supports web hooks.
  */
-export type DeletedEvent = EventBase<typeof EventType.DELETED> & {
+export type ItemDeletedEvent = EventBase<typeof EventType.ITEM_DELETED> & {
   item: Buffer;
 };
 
-export type ItemEvent = ChangedEvent | DeletedEvent;
+export type ItemEvent = ItemChangedEvent | ItemDeletedEvent;
 
 /**
  * Sync event emitted by /api/sync. Includes the event stream index.
  */
-export type SyncChangedEvent = ChangedEvent & {
+export type SyncItemChangedEvent = ItemChangedEvent & {
   index: number;
 };
 
-export type SyncDeletedEvent = DeletedEvent & {
+export type SyncItemDeletedEvent = ItemDeletedEvent & {
   index: number;
 };
 
-export type SyncEvent = SyncChangedEvent | SyncDeletedEvent;
+export type SyncEvent = SyncItemChangedEvent | SyncItemDeletedEvent;

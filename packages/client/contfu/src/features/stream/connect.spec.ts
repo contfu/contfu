@@ -3,6 +3,7 @@ import { EventType, SourceType, type ImageBlock } from "@contfu/core";
 import { db } from "../../infra/db/db";
 import { assetTable, itemAssetTable, syncTable } from "../../infra/db/schema";
 import { truncateAllTables } from "../../../test/setup.ts";
+import { setCollection } from "../collections/setCollection";
 import type { MediaOptimizer, MediaStore } from "../media/media";
 
 const key = Buffer.alloc(32, 1);
@@ -10,6 +11,7 @@ const key = Buffer.alloc(32, 1);
 describe("contfu connect", () => {
   beforeEach(async () => {
     await truncateAllTables();
+    await setCollection("article", "Article", {});
   });
 
   afterEach(() => {
@@ -20,7 +22,7 @@ describe("contfu connect", () => {
     await mock.module("@contfu/client", () => ({
       connectToStream: async function* () {
         yield {
-          type: EventType.CHANGED,
+          type: EventType.ITEM_CHANGED,
           item: {
             id: Buffer.from([1, 2, 3]),
             sourceType: SourceType.WEB,
@@ -57,7 +59,7 @@ describe("contfu connect", () => {
       connectToStream: async function* (opts?: { from?: number }) {
         receivedFrom = opts?.from;
         yield {
-          type: EventType.DELETED,
+          type: EventType.ITEM_DELETED,
           item: Buffer.from([1]),
           index: 100,
         };
@@ -93,7 +95,7 @@ describe("contfu connect", () => {
     await mock.module("@contfu/client", () => ({
       connectToStream: async function* () {
         yield {
-          type: EventType.CHANGED,
+          type: EventType.ITEM_CHANGED,
           item: {
             id: Buffer.from([4, 5, 6]),
             sourceType: SourceType.WEB,
@@ -128,7 +130,7 @@ describe("contfu connect", () => {
     await mock.module("@contfu/client", () => ({
       connectToStream: async function* () {
         yield {
-          type: EventType.CHANGED,
+          type: EventType.ITEM_CHANGED,
           item: {
             id: Buffer.from([7, 8, 9]),
             sourceType: SourceType.WEB,
@@ -165,7 +167,7 @@ describe("contfu connect", () => {
     await mock.module("@contfu/client", () => ({
       connectToStream: async function* () {
         yield {
-          type: EventType.DELETED,
+          type: EventType.ITEM_DELETED,
           item: Buffer.from([1]),
           index: 400,
         };

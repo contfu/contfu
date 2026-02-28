@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, test } from "bun:test";
+import { setCollection } from "../../features/collections/setCollection";
 import { createItem } from "../../features/items/createItem";
 import { db } from "../db/db";
 import { itemsTable } from "../db/schema";
@@ -18,13 +19,15 @@ function filter(expr: string) {
 
 async function queryWithFilter(expr: string) {
   const where = filter(expr);
-  const rows = await db.select().from(itemsTable).where(where).all();
+  const rows = await db.select({ id: itemsTable.id }).from(itemsTable).where(where).all();
   return rows.map((r) => encodeId(r.id));
 }
 
 describe("compileFilter", () => {
   beforeEach(async () => {
     await truncateAllTables();
+    await setCollection("articles", "Articles", {});
+    await setCollection("guides", "Guides", {});
 
     await createItem({
       id: makeId(1),

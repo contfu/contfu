@@ -200,9 +200,44 @@ export class StreamServer {
   sendSchema(
     controller: ReadableStreamDefaultController<Uint8Array>,
     collectionName: string,
+    displayName: string,
     schema: Record<string, number>,
   ) {
-    this.sendBinary(controller, [EventType.SCHEMA, collectionName, schema]);
+    this.sendBinary(controller, [EventType.COLLECTION_SCHEMA, collectionName, displayName, schema]);
+  }
+
+  /**
+   * Broadcast an arbitrary wire event to all active consumers connected to a
+   * specific collection of a given user.
+   */
+  async broadcastToCollection(userId: number, collectionId: number, wireEvent: WireEvent) {
+    this.pruneDeadConnections();
+    for (const [consumerKey, info] of consumerInfo.entries()) {
+      if (info.userId !== userId) continue;
+      const consumerCollectionIds = await getConsumerCollectionIds(userId, info.consumerId);
+      if (!consumerCollectionIds.includes(collectionId)) continue;
+      const connection = consumerToConnection.get(consumerKey);
+      if (!connection) continue;
+      try {
+        this.sendBinary(connection.controller, wireEvent);
+      } catch {
+        this.removeConnection(connection.id);
+      }
+    }
+  }
+
+  /**
+   * Send a wire event to a specific consumer's active stream connection.
+   */
+  sendToConsumer(userId: number, consumerId: number, wireEvent: WireEvent) {
+    this.pruneDeadConnections();
+    const connection = this.findConsumerConnection(userId, consumerId);
+    if (!connection) return;
+    try {
+      this.sendBinary(connection.controller, wireEvent);
+    } catch {
+      this.removeConnection(connection.id);
+    }
   }
 
   /**
@@ -267,7 +302,7 @@ export class StreamServer {
       items.map((item) => {
         const collectionName = collectionNameById.get(item.collection) ?? String(item.collection);
         const wireEvent: StoredWireItemEvent = [
-          EventType.CHANGED,
+          EventType.ITEM_CHANGED,
           toWireItem(item, collectionName),
         ];
         return publishEvent(item.user, item.collection, wireEvent).then(
@@ -325,7 +360,7 @@ export class StreamServer {
         const wireItem = toWireItem(item, collectionName, conn.includeRef);
         const seq = itemSequences.get(item);
         if (!seq) continue;
-        this.sendBinary(connection.controller, [EventType.CHANGED, wireItem, seq]);
+        this.sendBinary(connection.controller, [EventType.ITEM_CHANGED, wireItem, seq]);
       }
     }
   }
@@ -337,7 +372,7 @@ export class StreamServer {
   async broadcastDeleted(itemId: Buffer, connections: ConnectionInfo[]) {
     this.pruneDeadConnections();
     // Publish DELETED to JetStream for each affected collection
-    const deletedWire: StoredWireItemEvent = [EventType.DELETED, new Uint8Array(itemId)];
+    const deletedWire: StoredWireItemEvent = [EventType.ITEM_DELETED, new Uint8Array(itemId)];
     const seqByCollection = new Map<number, number>();
     for (const conn of connections) {
       if (!seqByCollection.has(conn.collectionId)) {
@@ -359,7 +394,7 @@ export class StreamServer {
       if (!connection) continue;
       const seq = seqByCollection.get(conn.collectionId);
       if (!seq) continue;
-      this.sendBinary(connection.controller, [EventType.DELETED, new Uint8Array(itemId), seq]);
+      this.sendBinary(connection.controller, [EventType.ITEM_DELETED, new Uint8Array(itemId), seq]);
     }
   }
 
@@ -373,7 +408,7 @@ export class StreamServer {
     includeRef = true,
   ) {
     const [type, payload] = wireEvent;
-    if (type === EventType.CHANGED && !includeRef) {
+    if (type === EventType.ITEM_CHANGED && !includeRef) {
       const [, , id, collection, changedAt, props, content] = payload as WireItem;
       const changedNoRef: WireItem = [null, null, id, collection, changedAt, props, content];
       this.sendBinary(controller, [type, changedNoRef, seq]);

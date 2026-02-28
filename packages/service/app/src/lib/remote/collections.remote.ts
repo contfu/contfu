@@ -1,13 +1,16 @@
 import { form, query } from "$app/server";
 import { encodeCollection } from "$lib/mappers/collection.mappers";
 import { runWithUser } from "$lib/server/run";
+import { getStreamServer } from "$lib/server/startup";
 import { getUserId } from "$lib/server/user";
+import { EventType, type WireEvent } from "@contfu/core";
 import type { CollectionSchema } from "@contfu/svc-core";
 import { createCollection as createCollectionFeature } from "@contfu/svc-backend/features/collections/createCollection";
 import { deleteCollection as deleteCollectionFeature } from "@contfu/svc-backend/features/collections/deleteCollection";
 import { getCollection as getCollectionFeature } from "@contfu/svc-backend/features/collections/getCollection";
 import { listCollections as listCollectionsFeature } from "@contfu/svc-backend/features/collections/listCollections";
 import { updateCollection as updateCollectionFeature } from "@contfu/svc-backend/features/collections/updateCollection";
+import { listConnectionsByCollection } from "@contfu/svc-backend/features/connections/listConnectionsByCollection";
 import { createInflux } from "@contfu/svc-backend/features/influxes/createInflux";
 import { createSourceCollection as createSourceCollectionFeature } from "@contfu/svc-backend/features/source-collections/createSourceCollection";
 import { getCollectionSchema } from "@contfu/svc-backend/features/source-collections/getCollectionSchema";
@@ -114,6 +117,10 @@ export const updateCollection = form(
   }),
   async (data) => {
     const userId = getUserId();
+
+    // Fetch current collection before update to detect renames
+    const oldCollection = await runWithUser(userId, getCollectionFeature(userId, data.id));
+
     await runWithUser(
       userId,
       updateCollectionFeature(userId, data.id, {
@@ -122,6 +129,19 @@ export const updateCollection = form(
         includeRef: data.includeRef,
       }),
     );
+
+    // Broadcast COLLECTION_RENAMED if name changed
+    if (oldCollection && data.name && data.name !== oldCollection.name) {
+      const newDisplayName = data.displayName ?? oldCollection.displayName;
+      const renamedEvent: WireEvent = [
+        EventType.COLLECTION_RENAMED,
+        oldCollection.name,
+        data.name,
+        newDisplayName,
+      ];
+      await getStreamServer().broadcastToCollection(userId, data.id, renamedEvent);
+    }
+
     return { success: true };
   },
 );
@@ -131,7 +151,24 @@ export const updateCollection = form(
  */
 export const deleteCollection = form(v.object({ id: idSchema("collection") }), async (data) => {
   const userId = getUserId();
+
+  // Fetch collection name and connections before delete (cascade deletes connections)
+  const collection = await runWithUser(userId, getCollectionFeature(userId, data.id));
+  const connections = collection
+    ? await runWithUser(userId, listConnectionsByCollection(userId, data.id))
+    : [];
+
   await runWithUser(userId, deleteCollectionFeature(userId, data.id));
+
+  // Broadcast COLLECTION_REMOVED to formerly-connected consumers
+  if (collection) {
+    const server = getStreamServer();
+    const removedEvent: WireEvent = [EventType.COLLECTION_REMOVED, collection.name];
+    for (const conn of connections) {
+      server.sendToConsumer(conn.userId, conn.consumerId, removedEvent);
+    }
+  }
+
   return { success: true };
 });
 

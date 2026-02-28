@@ -152,19 +152,25 @@ export async function queryItems(input: QueryItemsInput = {}, ctx = db): Promise
     asc(itemsTable.id),
   ];
 
+  const baseQuery = ctx
+    .select({
+      id: itemsTable.id,
+      sourceType: itemsTable.sourceType,
+      ref: itemsTable.ref,
+      collectionName: itemsTable.collection,
+      props: itemsTable.props,
+      content: itemsTable.content,
+      changedAt: itemsTable.changedAt,
+    })
+    .from(itemsTable);
+
   const rawRows =
     whereConditions.length > 0
-      ? await ctx
-          .select()
-          .from(itemsTable)
+      ? await baseQuery
           .where(and(...whereConditions))
           .orderBy(...orderBy)
           .all()
-      : await ctx
-          .select()
-          .from(itemsTable)
-          .orderBy(...orderBy)
-          .all();
+      : await baseQuery.orderBy(...orderBy).all();
 
   const filtered = rawRows
     .map((row): ItemData => {
@@ -175,7 +181,7 @@ export async function queryItems(input: QueryItemsInput = {}, ctx = db): Promise
         id: encodeId(row.id),
         sourceType: row.sourceType ?? null,
         ref: row.ref ?? null,
-        collection: row.collection,
+        collection: row.collectionName,
         props: props && typeof props === "object" ? props : {},
         content: Array.isArray(content) ? content : undefined,
         changedAt: row.changedAt,

@@ -1,8 +1,10 @@
 export { connect } from "./connect";
 export {
   connectToStream,
-  type ChangedEvent,
-  type DeletedEvent,
+  type ItemChangedEvent,
+  type CollectionRenamedEvent,
+  type CollectionRemovedEvent,
+  type ItemDeletedEvent,
   type Item,
   type ItemEvent,
   type SchemaEvent,

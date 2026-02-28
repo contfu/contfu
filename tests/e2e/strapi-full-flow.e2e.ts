@@ -13,7 +13,7 @@
  */
 import { expect, test, type Page } from "@playwright/test";
 import { setTimeout as sleep } from "node:timers/promises";
-import { connect, contfu, type QueryResult } from "contfu";
+import { connect, contfu, listCollections, type QueryResult } from "contfu";
 import { spawn, type ChildProcess } from "node:child_process";
 
 // Port configuration
@@ -43,7 +43,7 @@ const q = contfu<Record<string, Record<string, unknown>>>();
 async function waitForItems(
   match: (result: QueryResult) => boolean,
   timeoutMs = 15000,
-  pollIntervalMs = 500,
+  pollIntervalMs = 50,
 ): Promise<QueryResult> {
   const start = Date.now();
   let lastResult: QueryResult | undefined;
@@ -67,7 +67,7 @@ async function setupServiceAppAndGetApiKey(
   page: Page,
   strapiUrl: string,
   strapiApiToken: string,
-): Promise<{ apiKey: string; sourceUid: string | null }> {
+): Promise<{ apiKey: string; sourceUid: string | null; collectionId: string | null }> {
   console.log("[E2E] Setting up service app...");
 
   // Navigate directly to login page
@@ -200,8 +200,8 @@ async function setupServiceAppAndGetApiKey(
     `[E2E] Captured consumer API key from service app (length: ${trimmedKey.length}, first 8 chars: ${trimmedKey.slice(0, 8)}...)`,
   );
 
-  // Return both apiKey and sourceUid (sourceUid captured earlier when creating source)
-  return { apiKey: trimmedKey, sourceUid };
+  // Return apiKey, sourceUid, and collectionId
+  return { apiKey: trimmedKey, sourceUid, collectionId };
 }
 
 test.describe("E2E: Strapi → Service → Consumer Full Flow (Fixtures)", () => {
@@ -210,6 +210,7 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow (Fixtures)", () =>
 
   let consumerApiKey: string;
   let sourceUid: string | null;
+  let collectionId: string | null;
   let abortController: AbortController;
   let connectPromise: Promise<void>;
 
@@ -224,13 +225,18 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow (Fixtures)", () =>
     // Using dummy Strapi URL/token since we're using fixtures instead of real Strapi
     const context = await browser.newContext();
     const servicePage = await context.newPage();
-    const { apiKey, sourceUid: uid } = await setupServiceAppAndGetApiKey(
+    const {
+      apiKey,
+      sourceUid: uid,
+      collectionId: colId,
+    } = await setupServiceAppAndGetApiKey(
       servicePage,
       "http://localhost:1337",
       "dummy-token-for-fixtures",
     );
     consumerApiKey = apiKey;
     sourceUid = uid;
+    collectionId = colId;
     await servicePage.close();
     await context.close();
 
@@ -393,13 +399,99 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow (Fixtures)", () =>
     });
 
     // Note: Delete event propagation via webhook is TODO - the webhook currently only
-    // broadcasts CHANGED events, not DELETED events. For now, just verify the webhook
+    // broadcasts ITEM_CHANGED events, not ITEM_DELETED events. For now, just verify the webhook
     // was accepted.
     // TODO: Implement delete event broadcasting in webhook handler
 
     // Updated first article should still be there
     const result4 = await q({ collection: "articles", limit: 100 });
     expect(result4.data.some((item) => item.props.title === "E2E Updated Article")).toBe(true);
+  });
+
+  test("should reflect collection rename in local DB", async ({ browser }) => {
+    // Create a dedicated collection for this test so we don't touch "articles"
+    const context = await browser.newContext();
+    const page = await context.newPage();
+
+    // Login
+    await page.goto(`${SERVICE_URL}/login`);
+    await page.getByLabel(/Email/i).fill(TEST_USER.email);
+    await page.getByLabel(/Password/i).fill(TEST_USER.password);
+    await page.getByRole("button", { name: /Sign in|Log in|Login/i }).click();
+    await page.waitForURL(/\/dashboard/, { timeout: 10000 });
+
+    // Create a new collection (no sourceId/ref — standalone)
+    await page.goto(`${SERVICE_URL}/collections/new`);
+    await page.getByLabel(/Display Name/i).fill("Rename Test");
+    await page.getByRole("button", { name: /Create Collection/i }).click();
+    await page.waitForURL(/\/collections\/\d+/, { timeout: 10000 });
+
+    // Capture the new collection's ID from the redirect URL
+    const newCollectionId = page.url().match(/\/collections\/(\d+)/)![1];
+    console.log(`[E2E] Created dedicated collection for rename test (ID: ${newCollectionId})`);
+
+    // Connect the E2E consumer to this collection so events are broadcast to it
+    await page.waitForLoadState("networkidle");
+    await sleep(500);
+
+    // Open the consumer combobox and select the E2E consumer
+    const comboboxTrigger = page.getByRole("combobox");
+    await comboboxTrigger.waitFor({ state: "visible", timeout: 10000 });
+    await comboboxTrigger.click();
+    await page.getByRole("option", { name: /E2E Consumer App/i }).click();
+    await page.getByRole("button", { name: /Connect Consumer/i }).click();
+
+    // Wait for the COLLECTION_SCHEMA event to create the collection in the local DB
+    console.log("[E2E] Waiting for 'renameTest' collection to appear in local DB...");
+    const startSchema = Date.now();
+    let schemaReady = false;
+    while (Date.now() - startSchema < 15000) {
+      const collections = await listCollections();
+      if (collections.some((c) => c.name === "renameTest")) {
+        schemaReady = true;
+        break;
+      }
+      await sleep(50);
+    }
+    expect(schemaReady).toBe(true);
+
+    // Rename the collection via UI
+    console.log("[E2E] Renaming collection from 'renameTest' to 'renamedCollection' via UI...");
+    await page.goto(`${SERVICE_URL}/collections/${newCollectionId}`);
+    await page.waitForLoadState("networkidle");
+    await page.locator('[data-slot="popover-trigger"]').first().click();
+    await page.waitForSelector('[data-slot="popover-content"]', { timeout: 5000 });
+
+    const popover = page.locator('[data-slot="popover-content"]');
+    await popover.getByLabel(/Display Name/i).fill("Renamed Collection");
+    await popover.getByLabel(/Identifier Name/i).fill("renamedCollection");
+    await popover.getByRole("button", { name: /Save/i }).click();
+
+    // Poll until the rename is reflected in the local DB
+    const start = Date.now();
+    let renamed = false;
+    while (Date.now() - start < 10000) {
+      const collections = await listCollections();
+      if (collections.some((c) => c.name === "renamedCollection")) {
+        renamed = true;
+        break;
+      }
+      await sleep(50);
+    }
+    expect(renamed).toBe(true);
+
+    // Old name should no longer exist
+    const collectionsAfter = await listCollections();
+    expect(collectionsAfter.some((c) => c.name === "renameTest")).toBe(false);
+    expect(collectionsAfter.some((c) => c.name === "renamedCollection")).toBe(true);
+
+    // "articles" collection should be completely untouched
+    expect(collectionsAfter.some((c) => c.name === "articles")).toBe(true);
+
+    console.log("[E2E] Collection rename verified (isolated test, no rename-back needed)");
+
+    await page.close();
+    await context.close();
   });
 
   test("should serve synced items over HTTP via client app", async () => {
@@ -443,7 +535,7 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow (Fixtures)", () =>
           }
         },
         30000,
-        500,
+        50,
       );
       expect(clientReady).toBe(true);
       console.log("[E2E] Client app is ready");
@@ -502,7 +594,7 @@ test.describe("E2E: Strapi → Service → Consumer Full Flow (Fixtures)", () =>
           }
         },
         60000,
-        2000,
+        50,
       );
 
       expect(httpResult).not.toBeNull();

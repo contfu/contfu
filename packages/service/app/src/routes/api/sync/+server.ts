@@ -6,6 +6,7 @@ import { runEffectWithServices } from "@contfu/svc-backend/effect/run";
 import { fetchAndStreamItems } from "@contfu/svc-backend/features/sync/fetchAndStreamItems";
 import { getConsumerSyncConfig } from "@contfu/svc-backend/features/sync/getConsumerSyncConfig";
 import {
+  collectionTable,
   consumerTable,
   db,
   influxTable,
@@ -160,6 +161,23 @@ export const GET: RequestHandler = async ({ request, url }) => {
         const collectionIds = await getConsumerCollectionIds(consumer.userId, consumer.id);
         const collectionNames = await getCollectionNamesByIds(collectionIds, consumer.userId);
 
+        // Load displayName for each connected collection.
+        const collectionDisplayNames = new Map<number, string>();
+        if (collectionIds.length > 0) {
+          const colRows = await db
+            .select({ id: collectionTable.id, displayName: collectionTable.displayName })
+            .from(collectionTable)
+            .where(
+              and(
+                eq(collectionTable.userId, consumer.userId),
+                inArray(collectionTable.id, collectionIds),
+              ),
+            );
+          for (const r of colRows) {
+            collectionDisplayNames.set(r.id, r.displayName);
+          }
+        }
+
         // Send merged schemas for each connected collection.
         // Join sourceCollectionTable to fall back to its schema when
         // the influx row has no schema of its own (common after initial setup).
@@ -197,11 +215,14 @@ export const GET: RequestHandler = async ({ request, url }) => {
             }
           }
 
-          for (const [colId, schema] of mergedSchemas) {
+          // Send SCHEMA for every connected collection so the client creates
+          // a collectionsTable row before any items arrive (even if schema is empty).
+          for (const colId of collectionIds) {
             const name = collectionNames.get(colId);
-            if (name && Object.keys(schema).length > 0) {
-              server.sendSchema(controller, name, schema);
-            }
+            if (!name) continue;
+            const displayName = collectionDisplayNames.get(colId) ?? name;
+            const schema = mergedSchemas.get(colId) ?? {};
+            server.sendSchema(controller, name, displayName, schema);
           }
         }
 
@@ -216,8 +237,8 @@ export const GET: RequestHandler = async ({ request, url }) => {
           let snapshotItemCount = 0;
           for await (const item of fetchAndStreamItems(config)) {
             if (request.signal.aborted) break;
-            const wireEvent: [EventType.CHANGED, ReturnType<typeof toWireItem>] = [
-              EventType.CHANGED,
+            const wireEvent: [EventType.ITEM_CHANGED, ReturnType<typeof toWireItem>] = [
+              EventType.ITEM_CHANGED,
               toWireItem(
                 item,
                 collectionNames.get(item.collection) ?? String(item.collection),

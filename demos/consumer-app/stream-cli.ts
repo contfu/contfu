@@ -53,7 +53,7 @@ try {
     }
 
     switch (event.type) {
-      case EventType.CHANGED:
+      case EventType.ITEM_CHANGED:
         console.log(`[${timestamp}] 📝 CHANGED`);
         console.log(`   Collection: ${event.item.collection}`);
         console.log(`   ID: ${event.item.id.toString("hex")}`);
@@ -72,7 +72,7 @@ try {
         console.log("");
         break;
 
-      case EventType.DELETED:
+      case EventType.ITEM_DELETED:
         console.log(`[${timestamp}] 🗑️  DELETED`);
         console.log(`   Item ID: ${event.item.toString("hex")}`);
         console.log("");
