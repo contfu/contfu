@@ -30,7 +30,7 @@ async function getUserSessionsBucket(): Promise<KV> {
   ));
 }
 
-export async function createNatsKvSessionStorage(): Promise<SecondaryStorage | undefined> {
+export function createNatsKvSessionStorage(): SecondaryStorage | undefined {
   if (!hasNats()) return undefined;
   void handleRemoteInvalidations();
   return {

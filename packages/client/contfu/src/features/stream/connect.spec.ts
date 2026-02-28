@@ -20,6 +20,7 @@ describe("contfu connect", () => {
 
   test("persists sync index from events", async () => {
     await mock.module("@contfu/client", () => ({
+      // eslint-disable-next-line typescript/require-await -- async generator required by AsyncGenerator return type
       connectToStream: async function* () {
         yield {
           type: EventType.ITEM_CHANGED,
@@ -56,6 +57,7 @@ describe("contfu connect", () => {
     let receivedFrom: number | undefined;
 
     await mock.module("@contfu/client", () => ({
+      // eslint-disable-next-line typescript/require-await -- async generator required by AsyncGenerator return type
       connectToStream: async function* (opts?: { from?: number }) {
         receivedFrom = opts?.from;
         yield {
@@ -93,6 +95,7 @@ describe("contfu connect", () => {
     ) as typeof fetch;
 
     await mock.module("@contfu/client", () => ({
+      // eslint-disable-next-line typescript/require-await -- async generator required by AsyncGenerator return type
       connectToStream: async function* () {
         yield {
           type: EventType.ITEM_CHANGED,
@@ -128,6 +131,7 @@ describe("contfu connect", () => {
 
   test("stores assets as-is without optimizer (default mediaStore)", async () => {
     await mock.module("@contfu/client", () => ({
+      // eslint-disable-next-line typescript/require-await -- async generator required by AsyncGenerator return type
       connectToStream: async function* () {
         yield {
           type: EventType.ITEM_CHANGED,
@@ -165,6 +169,7 @@ describe("contfu connect", () => {
     };
 
     await mock.module("@contfu/client", () => ({
+      // eslint-disable-next-line typescript/require-await -- async generator required by AsyncGenerator return type
       connectToStream: async function* () {
         yield {
           type: EventType.ITEM_DELETED,

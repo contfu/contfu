@@ -4,7 +4,7 @@ import { cancelPending, clearPending, isPending, markPending } from "./pending-k
 class MockPendingKv {
   private entries = new Map<string, Uint8Array>();
 
-  async create(key: string, value: Uint8Array): Promise<number> {
+  create(key: string, value: Uint8Array): number {
     if (this.entries.has(key)) {
       throw new Error("wrong last sequence");
     }
@@ -12,13 +12,13 @@ class MockPendingKv {
     return 1;
   }
 
-  async get(key: string): Promise<{ value: Uint8Array } | null> {
+  get(key: string): { value: Uint8Array } | null {
     const value = this.entries.get(key);
     if (!value) return null;
     return { value };
   }
 
-  async delete(key: string): Promise<void> {
+  delete(key: string): void {
     this.entries.delete(key);
   }
 }

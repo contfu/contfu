@@ -23,11 +23,11 @@ export const getItemsQuery = query(queryItemsInputSchema, async (input) => {
   return queryItems(input as QueryItemsInput);
 });
 
-export const getItemByIdQuery = query.batch(v.pipe(v.string(), v.minLength(1)), async (ids) => {
+export const getItemByIdQuery = query.batch(v.pipe(v.string(), v.minLength(1)), (ids) => {
   const items = getItemsByIds({ ids });
   return (id) => items.find((item) => item.id === id) ?? null;
 });
 
-export const getItemAssetsQuery = query(v.pipe(v.string(), v.minLength(1)), async (id) => {
+export const getItemAssetsQuery = query(v.pipe(v.string(), v.minLength(1)), (id) => {
   return getAssetsByItem(id);
 });

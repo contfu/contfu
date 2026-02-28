@@ -122,7 +122,7 @@
     "unicorn/no-useless-promise-resolve-reject": "warn",
     "no-var": "warn",
     "unicorn/prefer-node-protocol": "warn",
-    "require-await": "warn"
+    "typescript/require-await": "error"
   },
   "settings": {
     "jsx-a11y": {

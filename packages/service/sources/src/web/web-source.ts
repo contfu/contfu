@@ -20,6 +20,7 @@ export class WebSource implements Source<WebFetchOpts> {
    * Get the schema for a web collection.
    * Web pages have a standard schema with slug, title, description, and optional data.
    */
+  // eslint-disable-next-line typescript/require-await -- implements Source interface, async needed by other sources
   async getCollectionSchema(_opts: WebFetchOpts): Promise<CollectionSchema> {
     // Web pages have a predictable schema
     return {

@@ -10,7 +10,7 @@ class MockRateLimitKv {
   private entries = new Map<string, Entry>();
   failNextUpdateWithCasConflict = false;
 
-  async create(key: string, value: Uint8Array): Promise<number> {
+  create(key: string, value: Uint8Array): number {
     if (this.entries.has(key)) {
       throw new Error("wrong last sequence");
     }
@@ -20,11 +20,11 @@ class MockRateLimitKv {
     return entry.revision;
   }
 
-  async get(key: string): Promise<Entry | null> {
+  get(key: string): Entry | null {
     return this.entries.get(key) ?? null;
   }
 
-  async update(key: string, value: Uint8Array, revision: number): Promise<number> {
+  update(key: string, value: Uint8Array, revision: number): number {
     const entry = this.entries.get(key);
     if (!entry || entry.revision !== revision || this.failNextUpdateWithCasConflict) {
       this.failNextUpdateWithCasConflict = false;

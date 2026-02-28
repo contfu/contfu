@@ -90,10 +90,7 @@ export const addConnection = form(
 
     // Send COLLECTION_SCHEMA to the consumer so its existing SSE stream
     // learns about the newly-connected collection immediately.
-    const collection = await runWithUser(
-      userId,
-      getCollectionFeature(userId, data.collectionId),
-    );
+    const collection = await runWithUser(userId, getCollectionFeature(userId, data.collectionId));
     if (collection) {
       const schemaEvent: WireEvent = [
         EventType.COLLECTION_SCHEMA,

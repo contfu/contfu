@@ -55,19 +55,19 @@ describe("findItems", () => {
     expect(result.meta.offset).toBe(0);
   });
 
-  test("filters by collection", async () => {
+  test("filters by collection", () => {
     const result = findItems({ filter: 'collection = "articles"' });
     expect(result.data).toHaveLength(2);
     expect(result.data.every((i) => i.collection === "articles")).toBe(true);
   });
 
-  test("filters by props", async () => {
+  test("filters by props", () => {
     const result = findItems({ filter: 'props.category = "news"' });
     expect(result.data).toHaveLength(1);
     expect(result.data[0].id).toBe(makeId(1));
   });
 
-  test("filters with AND", async () => {
+  test("filters with AND", () => {
     const result = findItems({
       filter: 'collection = "articles" && props.featured = true',
     });
@@ -75,80 +75,80 @@ describe("findItems", () => {
     expect(result.data[0].id).toBe(makeId(1));
   });
 
-  test("filters with OR", async () => {
+  test("filters with OR", () => {
     const result = findItems({
       filter: 'props.category = "news" || props.category = "docs"',
     });
     expect(result.data).toHaveLength(2);
   });
 
-  test("supports like filter", async () => {
+  test("supports like filter", () => {
     const result = findItems({ filter: 'props.title ~ "Post"' });
     expect(result.data).toHaveLength(2);
   });
 
-  test("supports changedAt range", async () => {
+  test("supports changedAt range", () => {
     const result = findItems({
       filter: "changedAt >= 100 && changedAt <= 150",
     });
     expect(result.data).toHaveLength(2);
   });
 
-  test("sorts ascending by field", async () => {
+  test("sorts ascending by field", () => {
     const result = findItems({ sort: "changedAt" });
     expect(result.data[0].id).toBe(makeId(1));
     expect(result.data[2].id).toBe(makeId(2));
   });
 
-  test("sorts descending with - prefix", async () => {
+  test("sorts descending with - prefix", () => {
     const result = findItems({ sort: "-changedAt" });
     expect(result.data[0].id).toBe(makeId(2));
     expect(result.data[2].id).toBe(makeId(1));
   });
 
-  test("sorts with object notation", async () => {
+  test("sorts with object notation", () => {
     const result = findItems({
       sort: { field: "changedAt", direction: "asc" },
     });
     expect(result.data[0].id).toBe(makeId(1));
   });
 
-  test("respects limit", async () => {
+  test("respects limit", () => {
     const result = findItems({ limit: 2 });
     expect(result.data).toHaveLength(2);
     expect(result.meta.total).toBe(3);
   });
 
-  test("respects offset", async () => {
+  test("respects offset", () => {
     const result = findItems({ sort: "changedAt", limit: 2, offset: 1 });
     expect(result.data).toHaveLength(2);
     expect(result.data[0].id).toBe(makeId(3));
   });
 
-  test("allows large limit", async () => {
+  test("allows large limit", () => {
     const result = findItems({ limit: 500 });
     expect(result.meta.limit).toBe(500);
   });
 
-  test("excludes content by default", async () => {
+  test("excludes content by default", () => {
     const result = findItems();
     // content should not be present
     expect(result.data[0]).not.toHaveProperty("content");
   });
 
-  test("includes content when requested", async () => {
+  test("includes content when requested", () => {
     const result = findItems({ include: ["content"] });
     // Items don't have content set, but the field should be queried
     expect(result.data).toHaveLength(3);
   });
 
-  test("supports search", async () => {
+  test("supports search", () => {
     const result = findItems({ search: "Alpha" });
     expect(result.data).toHaveLength(1);
     expect(result.data[0].id).toBe(makeId(1));
   });
 
-  test("search matches ref", async () => {
+  test("search matches ref", () => {
     const result = findItems({ search: "lifestyle" });
     expect(result.data).toHaveLength(1);
     expect(result.data[0].id).toBe(makeId(2));
@@ -189,7 +189,7 @@ describe("findItems", () => {
     expect(item1.links.related).toEqual([makeId(2)]);
   });
 
-  test("resolves with relations", async () => {
+  test("resolves with relations", () => {
     const result = findItems({
       filter: 'collection = "articles" && props.featured = true',
       with: {
@@ -212,19 +212,19 @@ describe("getItemById", () => {
     await seedItems();
   });
 
-  test("returns item by id", async () => {
+  test("returns item by id", () => {
     const item = getItemById(makeId(1));
     expect(item).not.toBeNull();
     expect(item!.id).toBe(makeId(1));
     expect(item!.collection).toBe("articles");
   });
 
-  test("returns null for non-existent id", async () => {
+  test("returns null for non-existent id", () => {
     const item = getItemById(makeId(99));
     expect(item).toBeNull();
   });
 
-  test("includes content by default", async () => {
+  test("includes content by default", () => {
     const item = getItemById(makeId(1));
     // content is queried (may be undefined if no content set)
     expect(item).not.toBeNull();
@@ -245,7 +245,7 @@ describe("getItemById", () => {
     expect(item!.assets).toHaveLength(1);
   });
 
-  test("resolves relations", async () => {
+  test("resolves relations", () => {
     const item = getItemById(makeId(1), {
       with: {
         sameColl: {

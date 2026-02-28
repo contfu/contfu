@@ -40,6 +40,7 @@ const MailTest = Layer.succeed(Mail, {
 const QueueTest = Layer.succeed(Queue, {
   push: () => Effect.void,
   consume: async function* () {},
+  // eslint-disable-next-line typescript/require-await -- async generator required by AsyncGenerator return type
   isScheduler: async function* () {
     yield true;
   },

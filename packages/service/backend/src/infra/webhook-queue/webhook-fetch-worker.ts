@@ -380,7 +380,7 @@ export function startWebhookFetchWorker(opts: { streamServer: StreamServer }): v
   });
 }
 
-export async function stopWebhookFetchWorker(): Promise<void> {
+export function stopWebhookFetchWorker(): void {
   if (!workerTask) return;
 
   stopSignal?.abort();

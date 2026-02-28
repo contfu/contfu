@@ -26,7 +26,7 @@ const queryItemsInputSchema = v.object({
   pageSize: v.optional(v.number()),
 });
 
-export const getCollectionsQuery = query(async () => {
+export const getCollectionsQuery = query(() => {
   return listCollections();
 });
 

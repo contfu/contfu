@@ -1,7 +1,7 @@
 import type { UserRole } from "@contfu/svc-backend/domain/types";
 import type { LayoutServerLoad } from "./$types";
 
-export const load: LayoutServerLoad = async ({ locals }) => {
+export const load: LayoutServerLoad = ({ locals }) => {
   const isUnderConstruction = !process.env.POLAR_ACCESS_TOKEN;
   const user = locals.user;
 

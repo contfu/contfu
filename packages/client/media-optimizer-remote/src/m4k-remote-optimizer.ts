@@ -26,6 +26,7 @@ async function collectProcessedFile(file: ProcessedFile): Promise<Buffer> {
 }
 
 /** Convert a Buffer to an AsyncIterable<Uint8Array> for m4k input */
+// eslint-disable-next-line typescript/require-await -- async generator required by AsyncIterable return type
 async function* toAsyncIterable(buf: Buffer): AsyncIterable<Uint8Array> {
   yield new Uint8Array(buf);
 }

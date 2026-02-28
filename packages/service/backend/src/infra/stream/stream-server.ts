@@ -369,7 +369,7 @@ export class StreamServer {
    * Broadcasts DELETED events to connected stream consumers.
    * Also publishes the delete event to JetStream.
    */
-  async broadcastDeleted(itemId: Buffer, connections: ConnectionInfo[]) {
+  broadcastDeleted(itemId: Buffer, connections: ConnectionInfo[]) {
     this.pruneDeadConnections();
     // Publish DELETED to JetStream for each affected collection
     const deletedWire: StoredWireItemEvent = [EventType.ITEM_DELETED, new Uint8Array(itemId)];

@@ -46,6 +46,7 @@ async function* consume(): AsyncGenerator<Job> {
   }
 }
 
+// eslint-disable-next-line typescript/require-await -- async generator required by AsyncGenerator return type
 async function* isScheduler(): AsyncGenerator<boolean> {
   // In local mode, we're always the scheduler
   yield true;

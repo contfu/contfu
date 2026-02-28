@@ -7,6 +7,7 @@ import { createHttpTypedClient } from "./infra/http/query-client";
 export type ContfuConfig = { url?: string; apiKey?: string; flat?: boolean };
 
 function createLocalTypedClient<_CMap>(flatDefault: boolean, ctx = db): any {
+  // eslint-disable-next-line typescript/require-await -- mirrors async remote API for seamless local/remote switching
   const callable = async (
     options: QueryOptions & { collection?: string; with?: any } = {},
     config?: { flat?: boolean },

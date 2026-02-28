@@ -57,6 +57,7 @@ export class SyncWorkerManager {
     log.info("Sync worker started");
   }
 
+  // eslint-disable-next-line typescript/require-await -- must return Promise for Effect.tryPromise
   async stop() {
     if (!this.worker) return;
     this.worker.postMessage({ type: SyncMessageType.SHUTDOWN });
