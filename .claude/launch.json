@@ -1,0 +1,33 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "service-app",
+      "runtimeExecutable": "/Users/svenrogge/.bun/bin/bun",
+      "runtimeArgs": ["-b", "vite", "dev"],
+      "port": 8011,
+      "cwd": "packages/service/app"
+    },
+    {
+      "name": "service-backend",
+      "runtimeExecutable": "/Users/svenrogge/.bun/bin/bun",
+      "runtimeArgs": ["run", "dev"],
+      "port": 3000,
+      "cwd": "packages/service/backend"
+    },
+    {
+      "name": "client-app",
+      "runtimeExecutable": "/Users/svenrogge/.bun/bin/bun",
+      "runtimeArgs": ["-b", "vite", "dev"],
+      "port": 5173,
+      "cwd": "packages/client/app"
+    },
+    {
+      "name": "demo-consumer-app",
+      "runtimeExecutable": "/Users/svenrogge/.bun/bin/bun",
+      "runtimeArgs": ["-b", "vite", "dev", "--port", "4000"],
+      "port": 4000,
+      "cwd": "demos/consumer-app"
+    }
+  ]
+}
