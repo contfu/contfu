@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { truncateAllTables } from "../../../test/setup";
-import { setCollection } from "../collections/setCollection";
 import { createAsset } from "../assets/createAsset";
 import { linkAssetToItem } from "../assets/linkAssetToItem";
+import { setCollection } from "../collections/setCollection";
 import { createItem } from "./createItem";
 import { createItemLink } from "./createItemLink";
 import { findItems } from "./findItems";
@@ -177,8 +177,8 @@ describe("findItems", () => {
     expect(item2.assets).toEqual([]);
   });
 
-  test("includes links when requested", async () => {
-    await createItemLink({ type: "related", from: makeId(1), to: makeId(2) });
+  test("includes content links when requested", async () => {
+    await createItemLink({ prop: null, from: makeId(1), to: makeId(2), internal: true });
 
     const result = findItems({
       filter: 'collection = "articles"',
@@ -186,7 +186,8 @@ describe("findItems", () => {
     });
 
     const item1 = result.data.find((i) => i.id === makeId(1))!;
-    expect(item1.links.related).toEqual([makeId(2)]);
+    expect(item1.links).toHaveLength(1);
+    expect((item1.links[0] as any).id).toBe(makeId(2));
   });
 
   test("resolves with relations", () => {
@@ -203,6 +204,117 @@ describe("findItems", () => {
     expect(result.data[0].rels).toBeDefined();
     expect(result.data[0].rels!.sameColl).toHaveLength(1);
     expect((result.data[0].rels!.sameColl as any[])[0].id).toBe(makeId(2));
+  });
+
+  test("findItems with forward REF relation", async () => {
+    await setCollection("persons", "Persons", { name: 1 });
+
+    await createItem({
+      id: makeId(10),
+      ref: "person/alice",
+      collection: "persons",
+      props: { name: "Alice" },
+      changedAt: 50,
+    });
+
+    const linkId = createItemLink({
+      prop: "author",
+      from: makeId(1),
+      to: makeId(10),
+      internal: true,
+    });
+
+    // Update item 1 to include the author link
+    const { createOrUpdateItem } = await import("./createOrUpdateItem");
+    await createOrUpdateItem({
+      id: makeId(1),
+      ref: "blog/tech/alpha",
+      collection: "articles",
+      props: { title: "Alpha Post", category: "news", featured: true, views: 10, author: linkId },
+      changedAt: 100,
+    });
+
+    const result = findItems({
+      filter: `id = "${makeId(1)}"`,
+      with: {
+        author: {
+          collection: "persons",
+          single: true,
+          filter: "id = $1.props.author",
+        },
+      },
+    });
+
+    expect(result.data).toHaveLength(1);
+    expect(result.data[0].rels).toBeDefined();
+    expect(result.data[0].rels!.author).not.toBeNull();
+    expect(result.data[0].rels!.author.id).toBe(makeId(10));
+  });
+
+  test("findItems with backlink relation", async () => {
+    await setCollection("persons", "Persons", { name: 1 });
+
+    await createItem({
+      id: makeId(10),
+      ref: "person/alice",
+      collection: "persons",
+      props: { name: "Alice" },
+      changedAt: 50,
+    });
+
+    const linkId1 = createItemLink({
+      prop: "author",
+      from: makeId(1),
+      to: makeId(10),
+      internal: true,
+    });
+
+    const linkId2 = createItemLink({
+      prop: "author",
+      from: makeId(2),
+      to: makeId(10),
+      internal: true,
+    });
+
+    // Update articles to include author links
+    const { createOrUpdateItem } = await import("./createOrUpdateItem");
+    await createOrUpdateItem({
+      id: makeId(1),
+      ref: "blog/tech/alpha",
+      collection: "articles",
+      props: { title: "Alpha Post", category: "news", featured: true, views: 10, author: linkId1 },
+      changedAt: 100,
+    });
+    await createOrUpdateItem({
+      id: makeId(2),
+      ref: "blog/lifestyle/bravo",
+      collection: "articles",
+      props: {
+        title: "Bravo Post",
+        category: "updates",
+        featured: false,
+        views: 5,
+        author: linkId2,
+      },
+      changedAt: 200,
+    });
+
+    const result = findItems({
+      filter: `id = "${makeId(10)}"`,
+      with: {
+        posts: {
+          collection: "articles",
+          filter: 'linksTo("author") = $1.id',
+        },
+      },
+    });
+
+    expect(result.data).toHaveLength(1);
+    expect(result.data[0].rels).toBeDefined();
+    expect(result.data[0].rels!.posts).toHaveLength(2);
+    const postIds = result.data[0].rels!.posts.map((p: any) => p.id);
+    expect(postIds).toContain(makeId(1));
+    expect(postIds).toContain(makeId(2));
   });
 });
 

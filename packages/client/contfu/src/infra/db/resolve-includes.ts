@@ -1,9 +1,9 @@
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db as defaultDb } from "./db";
-import { assetTable, itemAssetTable, linkTable } from "./schema";
+import { assetTable, itemAssetTable, itemsTable, linkTable } from "./schema";
 import { assetFromDb } from "./mappers";
 import { decodeId, encodeId } from "../ids";
-import type { AssetData } from "../types/content-types";
+import type { AssetData, ResolvedLink } from "../types/content-types";
 import type { IncludeOption, ItemWithRelations } from "../../domain/query-types";
 
 export function resolveIncludes(
@@ -36,20 +36,55 @@ export function resolveIncludes(
   }
 
   if (include.includes("links")) {
-    const rows = ctx.select().from(linkTable).where(inArray(linkTable.from, ids)).all();
+    // Only content-derived links (prop IS NULL)
+    const rows = ctx
+      .select()
+      .from(linkTable)
+      .where(and(inArray(linkTable.from, ids), isNull(linkTable.prop)))
+      .all();
 
-    const linksByItem = new Map<string, Record<string, string[]>>();
+    // Collect internal target IDs for batch fetch
+    const internalTargetIds = new Set<string>();
+    for (const row of rows) {
+      if (row.internal) {
+        internalTargetIds.add(encodeId(row.to));
+      }
+    }
+
+    // Batch-fetch internal target items
+    const targetItemMap = new Map<string, Record<string, unknown>>();
+    if (internalTargetIds.size > 0) {
+      const targetBufs = [...internalTargetIds].map(decodeId);
+      const targetRows = ctx
+        .select()
+        .from(itemsTable)
+        .where(inArray(itemsTable.id, targetBufs))
+        .all();
+      for (const row of targetRows) {
+        const id = encodeId(row.id);
+        targetItemMap.set(id, {
+          id,
+          collection: row.collection,
+          ref: row.ref,
+          props: row.props,
+          changedAt: row.changedAt,
+        });
+      }
+    }
+
+    // Group resolved links by source item
+    const linksByItem = new Map<string, ResolvedLink[]>();
     for (const row of rows) {
       const fromId = encodeId(row.from);
-      if (!linksByItem.has(fromId)) linksByItem.set(fromId, {});
-      const itemLinks = linksByItem.get(fromId)!;
-      if (!itemLinks[row.type]) itemLinks[row.type] = [];
-      itemLinks[row.type].push(encodeId(row.to));
+      if (!linksByItem.has(fromId)) linksByItem.set(fromId, []);
+      const resolved: ResolvedLink = row.internal
+        ? ((targetItemMap.get(encodeId(row.to)) as ResolvedLink) ?? null)
+        : row.to.toString("utf8");
+      linksByItem.get(fromId)!.push(resolved);
     }
 
     for (const item of items) {
-      const resolved = linksByItem.get(item.id) ?? {};
-      item.links = { ...item.links, ...resolved, content: item.links?.content ?? [] };
+      item.links = linksByItem.get(item.id) ?? [];
     }
   }
 }

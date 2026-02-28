@@ -47,8 +47,8 @@ export {
   // Item exports
   type ItemData,
   type ItemEvent,
-  type ItemLinks,
-  type ItemLinkUpdate,
+  type ContentLinks,
+  type ResolvedLink,
   type ItemUpdate,
   // Media exports
   type MediaStore,

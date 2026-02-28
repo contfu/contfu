@@ -10,7 +10,6 @@ export {
   type DbAsset,
   type DbItem,
   type DbItemLink,
-  type ItemLinkUpdate,
   type ItemUpdate,
   type NewAsset,
   type NewItem,
@@ -19,8 +18,8 @@ export {
 
 // Stream exports
 export type {
-  CollectionRenamedEvent,
   CollectionRemovedEvent,
+  CollectionRenamedEvent,
   ItemEvent,
   SchemaEvent,
 } from "@contfu/client";
@@ -54,16 +53,20 @@ export { updateItem } from "./features/items/updateItem";
 
 // Filter helpers
 export {
+  all,
   and,
   contains,
   eq,
   gt,
   gte,
   like,
+  linkedFrom,
+  linksTo,
   lt,
   lte,
   ne,
   notLike,
+  oneOf,
   or,
   type ItemRef,
 } from "./domain/filter-helpers";
@@ -112,9 +115,10 @@ export {
   type AssetData,
   type AssetReference,
   type AssetSyncProgress,
+  type ContentLinks,
   type ItemData,
-  type ItemLinks,
   type OnAssetProgress,
+  type ResolvedLink,
 } from "./infra/types/content-types";
 
 // Media exports

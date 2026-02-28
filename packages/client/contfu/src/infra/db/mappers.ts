@@ -1,6 +1,6 @@
 import { deleteNulls } from "../../util/object-helpers";
 import { decodeId, encodeId } from "../ids";
-import type { AssetData, ItemData, ItemLinks } from "../types/content-types";
+import type { AssetData, ContentLinks, ItemData } from "../types/content-types";
 import type { DbAsset, DbItem, ItemUpdate, NewAsset, NewItem } from "./schema";
 
 export function assetToDb(asset: AssetData): NewAsset {
@@ -41,7 +41,7 @@ export function itemToDb<T extends ItemData | Omit<ItemData, "links">>(
   } satisfies ItemUpdate as ItemUpdate | NewItem;
 }
 
-export function itemFromDb(dbo: DbItem, _ctx: any, links?: ItemLinks): ItemData {
+export function itemFromDb(dbo: DbItem, _ctx: any, links?: ContentLinks): ItemData {
   return deleteNulls({
     id: encodeId(dbo.id),
     sourceType: dbo.sourceType ?? null,
@@ -50,6 +50,6 @@ export function itemFromDb(dbo: DbItem, _ctx: any, links?: ItemLinks): ItemData 
     props: dbo.props,
     content: dbo.content ? dbo.content : undefined,
     changedAt: dbo.changedAt,
-    links: links ?? { content: [] },
+    links: links ?? [],
   });
 }

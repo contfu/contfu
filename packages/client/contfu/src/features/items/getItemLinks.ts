@@ -1,30 +1,26 @@
-import type { ItemLinks } from "../../infra/types/content-types";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { db } from "../../infra/db/db";
-import { decodeId, encodeId } from "../../infra/ids";
-import { linkTable } from "../../infra/db/schema";
+import { decodeId } from "../../infra/ids";
+import { linkTable, type DbItemLink } from "../../infra/db/schema";
 
-export async function getItemLinks(
-  opts: Partial<{ type: string; from: string; to: string }>,
+export function getItemLinks(
+  opts: Partial<{ prop: string | null; from: string; to: string; internal: boolean }>,
   ctx = db,
-): Promise<ItemLinks> {
-  const dbos = await ctx
+): DbItemLink[] {
+  return ctx
     .select()
     .from(linkTable)
     .where(
       and(
-        opts.type ? eq(linkTable.type, opts.type) : undefined,
+        opts.prop !== undefined
+          ? opts.prop === null
+            ? isNull(linkTable.prop)
+            : eq(linkTable.prop, opts.prop)
+          : undefined,
         opts.from ? eq(linkTable.from, decodeId(opts.from)) : undefined,
         opts.to ? eq(linkTable.to, decodeId(opts.to)) : undefined,
+        opts.internal !== undefined ? eq(linkTable.internal, opts.internal) : undefined,
       ),
     )
     .all();
-
-  const links = { content: [] } as ItemLinks;
-  for (const { type, from, to } of dbos) {
-    if (!links[type]) links[type] = [];
-    links[type].push(encodeId("to" in opts ? from : to));
-  }
-
-  return links;
 }

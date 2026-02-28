@@ -151,6 +151,16 @@ describe("compileFilter", () => {
     expect(ids).toContain(makeId(2));
   });
 
+  test("filters by id (blob comparison)", async () => {
+    const ids = await queryWithFilter(`id = "${makeId(1)}"`);
+    expect(ids).toEqual([makeId(1)]);
+  });
+
+  test("filters by id excludes non-matching", async () => {
+    const ids = await queryWithFilter(`id = "${makeId(99)}"`);
+    expect(ids).toEqual([]);
+  });
+
   test("throws on unknown function", () => {
     expect(() => filter("unknown(ref) = 1")).toThrow("Unknown function");
   });

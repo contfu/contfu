@@ -146,7 +146,7 @@ export function findItems(options: QueryOptions = {}, ctx = defaultDb): QueryRes
       ...("content" in row && row.content
         ? { content: Array.isArray(row.content) ? row.content : undefined }
         : {}),
-      links: { content: [] },
+      links: [],
     };
   });
 

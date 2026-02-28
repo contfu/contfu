@@ -1,4 +1,5 @@
 import { detectRuntime } from "../../util/runtime";
+export type { DbCtx } from "./db-bun";
 
 const hiddenImport = (path: string) => new Function("p", "return import(p)")(path) as Promise<any>;
 const nodeCompiledModule = ["./db", "node.js"].join("-");

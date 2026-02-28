@@ -1,5 +1,6 @@
 import { and, eq, gt, gte, like, lt, lte, ne, not, or, sql, type SQL } from "drizzle-orm";
 import { itemsTable } from "../db/schema";
+import { decodeId } from "../ids";
 import { basenameExpr, depthExpr, parentExpr } from "./path-helpers";
 import type { FilterAST } from "./types";
 
@@ -39,11 +40,31 @@ function compileValue(value: string | number | boolean | null): SQL {
 export function compileFilter(ast: FilterAST): SQL {
   switch (ast.kind) {
     case "comparison": {
+      if (ast.field === "id" && typeof ast.value === "string") {
+        const col = sql`${itemsTable.id}`;
+        const buf = decodeId(ast.value);
+        return compileComparison(col, ast.op, sql`${buf}`);
+      }
       const col = getColumn(ast.field);
       return compileComparison(col, ast.op, ast.value);
     }
 
     case "function": {
+      if (ast.name === "linksTo") {
+        if (typeof ast.value !== "string") throw new Error("linksTo requires a string target ID");
+        const prop = ast.args[0];
+        const buf = decodeId(ast.value);
+        const propCondition = prop ? sql`links.prop = ${prop}` : sql`links.prop IS NULL`;
+        return sql`EXISTS (SELECT 1 FROM links WHERE links."from" = ${itemsTable.id} AND ${propCondition} AND links."to" = ${buf})`;
+      }
+      if (ast.name === "linkedFrom") {
+        if (typeof ast.value !== "string")
+          throw new Error("linkedFrom requires a string source ID");
+        const prop = ast.args[0];
+        const buf = decodeId(ast.value);
+        const propCondition = prop ? sql`links.prop = ${prop}` : sql`links.prop IS NULL`;
+        return sql`EXISTS (SELECT 1 FROM links WHERE links."to" = ${itemsTable.id} AND ${propCondition} AND links."from" = ${buf})`;
+      }
       const fn = FUNCTION_MAP[ast.name];
       if (!fn) throw new Error(`Unknown function: ${ast.name}`);
       const expr = fn(ast.args);
@@ -61,8 +82,16 @@ export function compileFilter(ast: FilterAST): SQL {
   }
 }
 
-function compileComparison(col: SQL, op: string, value: string | number | boolean | null): SQL {
-  const val = compileValue(value);
+function isSql(v: unknown): v is SQL {
+  return typeof v === "object" && v !== null && "queryChunks" in v;
+}
+
+function compileComparison(
+  col: SQL,
+  op: string,
+  value: string | number | boolean | null | SQL,
+): SQL {
+  const val = isSql(value) ? value : compileValue(value);
 
   switch (op) {
     case "=":

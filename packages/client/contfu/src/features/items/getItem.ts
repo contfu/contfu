@@ -5,11 +5,8 @@ import { decodeId } from "../../infra/ids";
 import { itemFromDb } from "../../infra/db/mappers";
 import { itemsTable } from "../../infra/db/schema";
 
-export async function getItem(
-  { id }: { id: string },
-  ctx = db,
-): Promise<Omit<ItemData, "links"> | null> {
-  const dbos = await ctx
+export function getItem({ id }: { id: string }, ctx = db): Omit<ItemData, "links"> | null {
+  const dbos = ctx
     .select()
     .from(itemsTable)
     .where(eq(itemsTable.id, decodeId(id)))

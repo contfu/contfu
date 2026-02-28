@@ -65,12 +65,52 @@ export const like = binOp("~");
 export const notLike = binOp("!~");
 export const contains = binOp("?=");
 
+export function linksTo(prop: string | null, target: FilterOperand): string {
+  const propArg = prop !== null ? `"${prop}"` : "";
+  return `linksTo(${propArg}) = ${formatValue(target)}`;
+}
+
+export function linkedFrom(prop: string | null, source: FilterOperand): string {
+  const propArg = prop !== null ? `"${prop}"` : "";
+  return `linkedFrom(${propArg}) = ${formatValue(source)}`;
+}
+
 export function and(...exprs: string[]): string {
   return exprs.map((e) => `(${e})`).join(" && ");
 }
 
 export function or(...exprs: string[]): string {
   return exprs.map((e) => `(${e})`).join(" || ");
+}
+
+// --- With-clause helpers ---
+
+export function all<C extends string>(collection: C): { collection: C };
+export function all<C extends string>(
+  collection: C,
+  filter: string,
+): { collection: C; filter: string };
+export function all<C extends string>(
+  collection: C,
+  filter: (self: any) => string,
+): { collection: C; filter: (self: any) => string };
+export function all(collection: string, filter?: string | ((self: any) => string)) {
+  if (filter == null) return { collection };
+  return { collection, filter };
+}
+
+export function oneOf<C extends string>(collection: C): { collection: C; single: true };
+export function oneOf<C extends string>(
+  collection: C,
+  filter: string,
+): { collection: C; single: true; filter: string };
+export function oneOf<C extends string>(
+  collection: C,
+  filter: (self: any) => string,
+): { collection: C; single: true; filter: (self: any) => string };
+export function oneOf(collection: string, filter?: string | ((self: any) => string)) {
+  if (filter == null) return { collection, single: true as const };
+  return { collection, single: true as const, filter };
 }
 
 // --- With-clause function resolution ---

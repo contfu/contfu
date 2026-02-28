@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { truncateAllTables } from "../test/setup";
 import { contfu } from "./contfu";
-import { eq } from "./domain/filter-helpers";
+import { all, eq, linkedFrom, linksTo, oneOf } from "./domain/filter-helpers";
 
 import { setCollection } from "./features/collections/setCollection";
 import { createItem } from "./features/items/createItem";
+import { createItemLink } from "./features/items/createItemLink";
 
 function makeId(seed: number): string {
   return Buffer.from([0, 0, 0, seed]).toString("base64url");
@@ -113,9 +114,7 @@ describe("contfu typed query client", () => {
     const result = await q({
       collection: "articles",
       with: {
-        writers: {
-          collection: "authors",
-        },
+        writers: all("authors"),
       },
     });
     expect(result.data).toHaveLength(2);
@@ -128,11 +127,7 @@ describe("contfu typed query client", () => {
     const result = await q({
       collection: "articles",
       with: (article) => ({
-        author: {
-          collection: "authors",
-          single: true,
-          filter: (author) => eq(author.ref, article.props.author),
-        },
+        author: oneOf("authors", (author) => eq(author.ref, article.props.author)),
       }),
     });
     expect(result.data).toHaveLength(2);
@@ -149,10 +144,7 @@ describe("contfu typed query client", () => {
     const result = await q({
       collection: "articles",
       with: {
-        author: {
-          collection: "authors",
-          filter: "ref = $1.props.author",
-        },
+        author: all("authors", "ref = $1.props.author"),
       },
     });
     expect(result.data).toHaveLength(2);
@@ -189,11 +181,7 @@ describe("contfu flat format", () => {
     const result = await q({
       collection: "articles",
       with: (article) => ({
-        author: {
-          collection: "authors",
-          single: true,
-          filter: (author) => eq(author.ref, article.props.author),
-        },
+        author: oneOf("authors", (author) => eq(author.ref, article.props.author)),
       }),
     });
 
@@ -225,7 +213,7 @@ describe("contfu flat format", () => {
     const result = await q({
       collection: "articles",
       with: {
-        writers: { collection: "authors" },
+        writers: all("authors"),
       },
     });
 
@@ -235,5 +223,154 @@ describe("contfu flat format", () => {
       expect(writer.name).toBeDefined();
       expect("props" in writer).toBe(false);
     }
+  });
+});
+
+// --- Link resolution tests ---
+
+type LinkCollections = {
+  posts: { title: string; author: string; tags: string[] };
+  persons: {};
+  tags: {};
+};
+
+async function seedLinkData() {
+  await setCollection("persons", "Persons", {});
+  await setCollection("tags", "Tags", {});
+  await setCollection("posts", "Posts", {});
+
+  // Create persons
+  await createItem({
+    id: makeId(10),
+    ref: "persons/alice",
+    collection: "persons",
+    props: {},
+    changedAt: 100,
+  });
+  await createItem({
+    id: makeId(11),
+    ref: "persons/bob",
+    collection: "persons",
+    props: {},
+    changedAt: 101,
+  });
+
+  // Create tags
+  await createItem({
+    id: makeId(30),
+    ref: "tags/tech",
+    collection: "tags",
+    props: {},
+    changedAt: 200,
+  });
+  await createItem({
+    id: makeId(31),
+    ref: "tags/design",
+    collection: "tags",
+    props: {},
+    changedAt: 201,
+  });
+
+  // Create posts (items must exist before links due to FK)
+  await createItem({
+    id: makeId(1),
+    ref: "posts/post1",
+    collection: "posts",
+    props: { title: "Post One", author: makeId(10), tags: [makeId(30), makeId(31)] },
+    changedAt: 300,
+  });
+  await createItem({
+    id: makeId(2),
+    ref: "posts/post2",
+    collection: "posts",
+    props: { title: "Post Two", author: makeId(11), tags: [makeId(30)] },
+    changedAt: 301,
+  });
+
+  // REF links: post → author
+  createItemLink({ prop: "author", from: makeId(1), to: makeId(10), internal: true });
+  createItemLink({ prop: "author", from: makeId(2), to: makeId(11), internal: true });
+
+  // REFS links: post → tags
+  createItemLink({ prop: "tags", from: makeId(1), to: makeId(30), internal: true });
+  createItemLink({ prop: "tags", from: makeId(1), to: makeId(31), internal: true });
+  createItemLink({ prop: "tags", from: makeId(2), to: makeId(30), internal: true });
+
+  // Content links (prop=null): post1 → alice, post2 → bob
+  createItemLink({ prop: null, from: makeId(1), to: makeId(10), internal: true });
+  createItemLink({ prop: null, from: makeId(2), to: makeId(11), internal: true });
+}
+
+describe("contfu link resolution", () => {
+  const q = contfu<LinkCollections>();
+
+  beforeEach(async () => {
+    await truncateAllTables();
+    await seedLinkData();
+  });
+
+  test("forward REF: post → author via props", async () => {
+    const result = await q({
+      collection: "posts",
+      filter: 'props.title = "Post One"',
+      with: (post) => ({
+        author: oneOf("persons", (person) => eq(person.id, post.props.author)),
+      }),
+    });
+    expect(result.data).toHaveLength(1);
+    expect(result.data[0].rels.author).not.toBeNull();
+    expect(result.data[0].rels.author!.ref).toBe("persons/alice");
+  });
+
+  test("backlink REF: person → posts via linksTo('author')", async () => {
+    const aliceId = makeId(10);
+    const result = await q({
+      collection: "posts",
+      filter: linksTo("author", aliceId),
+    });
+    expect(result.data).toHaveLength(1);
+    expect(result.data[0].props.title).toBe("Post One");
+  });
+
+  test("forward REFS: post → tags via linkedFrom('tags')", async () => {
+    const post1Id = makeId(1);
+    const result = await q({
+      collection: "tags",
+      filter: linkedFrom("tags", post1Id),
+    });
+    expect(result.data).toHaveLength(2);
+    const refs = result.data.map((t) => t.ref).sort();
+    expect(refs).toEqual(["tags/design", "tags/tech"]);
+  });
+
+  test("backlink REFS: tag → posts via linksTo('tags')", async () => {
+    const techId = makeId(30);
+    const result = await q({
+      collection: "posts",
+      filter: linksTo("tags", techId),
+    });
+    expect(result.data).toHaveLength(2);
+    const titles = result.data.map((p) => p.props.title).sort();
+    expect(titles).toEqual(["Post One", "Post Two"]);
+  });
+
+  test("forward content links: post → linked items via linkedFrom(null)", async () => {
+    const post1Id = makeId(1);
+    const result = await q({
+      collection: "persons",
+      filter: linkedFrom(null, post1Id),
+    });
+    expect(result.data).toHaveLength(1);
+    expect(result.data[0].ref).toBe("persons/alice");
+  });
+
+  test("backlink content links: person → posts via linksTo(null)", async () => {
+    const aliceId = makeId(10);
+    const result = await q({
+      collection: "posts",
+      filter: linksTo(null, aliceId),
+    });
+    expect(result.data).toHaveLength(1);
+    expect(result.data[0].props.title).toBe("Post One");
   });
 });

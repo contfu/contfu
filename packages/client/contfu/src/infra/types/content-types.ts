@@ -1,7 +1,11 @@
 import type { ImageBlock, Block } from "@contfu/core";
 import type { SourceType } from "@contfu/core";
 
-export type ItemLinks = Record<string, string[]> & { content: string[] };
+/** A resolved content link: partial item (internal) or URL string (external) */
+export type ResolvedLink = (Partial<ItemData> & { id: string }) | string | null;
+
+/** Content links on item.links: array of resolved links from content anchors */
+export type ContentLinks = ResolvedLink[];
 
 export interface ItemData {
   id: string;
@@ -11,7 +15,7 @@ export interface ItemData {
   props: Record<string, unknown>;
   changedAt: number;
   content?: Block[];
-  links: ItemLinks;
+  links: ContentLinks;
 }
 
 export interface AssetData {

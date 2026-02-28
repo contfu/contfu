@@ -1,7 +1,7 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "cdb240d1-36c8-41c2-b988-84d2d3bc8138",
+  "id": "9356af69-32a3-45fa-8ff8-23dc6820ae90",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
@@ -225,12 +225,22 @@
       "table": "items"
     },
     {
-      "type": "text",
-      "notNull": true,
+      "type": "integer",
+      "notNull": false,
       "autoincrement": false,
       "default": null,
       "generated": null,
-      "name": "type",
+      "name": "id",
+      "entityType": "columns",
+      "table": "links"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "prop",
       "entityType": "columns",
       "table": "links"
     },
@@ -251,6 +261,16 @@
       "default": null,
       "generated": null,
       "name": "to",
+      "entityType": "columns",
+      "table": "links"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "internal",
       "entityType": "columns",
       "table": "links"
     },
@@ -406,21 +426,6 @@
     },
     {
       "columns": [
-        "to"
-      ],
-      "tableTo": "items",
-      "columnsTo": [
-        "id"
-      ],
-      "onUpdate": "NO ACTION",
-      "onDelete": "CASCADE",
-      "nameExplicit": false,
-      "name": "fk_links_to_items_id_fk",
-      "entityType": "fks",
-      "table": "links"
-    },
-    {
-      "columns": [
         "assetId"
       ],
       "tableTo": "asset",
@@ -443,17 +448,6 @@
       "name": "item_asset_pk",
       "entityType": "pks",
       "table": "item_asset"
-    },
-    {
-      "columns": [
-        "type",
-        "from",
-        "to"
-      ],
-      "nameExplicit": false,
-      "name": "links_pk",
-      "entityType": "pks",
-      "table": "links"
     },
     {
       "columns": [
@@ -480,6 +474,15 @@
       "nameExplicit": false,
       "name": "items_pk",
       "table": "items",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "links_pk",
+      "table": "links",
       "entityType": "pks"
     },
     {
@@ -532,6 +535,38 @@
       "name": "idx_items_changedAt",
       "entityType": "indexes",
       "table": "items"
+    },
+    {
+      "columns": [
+        {
+          "value": "from",
+          "isExpression": false
+        },
+        {
+          "value": "to",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "idx_links_from",
+      "entityType": "indexes",
+      "table": "links"
+    },
+    {
+      "columns": [
+        {
+          "value": "to",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "idx_links_to",
+      "entityType": "indexes",
+      "table": "links"
     },
     {
       "columns": [

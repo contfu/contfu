@@ -19,7 +19,7 @@ function makeItem(seed: number, collection = "articles"): ItemWithRelations {
     collection,
     props: { title: `Item ${seed}` },
     changedAt: seed * 100,
-    links: { content: [] },
+    links: [],
   };
 }
 
@@ -64,19 +64,44 @@ describe("resolveIncludes", () => {
     expect(items[1].assets![0].id).toBe(makeId(11));
   });
 
-  test("resolves links for items", async () => {
+  test("resolves content links for items", async () => {
     await createItem({ id: makeId(1), ref: "a", collection: "c", props: {}, changedAt: 100 });
     await createItem({ id: makeId(2), ref: "b", collection: "c", props: {}, changedAt: 200 });
     await createItem({ id: makeId(3), ref: "c", collection: "c", props: {}, changedAt: 300 });
 
-    await createItemLink({ type: "related", from: makeId(1), to: makeId(2) });
-    await createItemLink({ type: "related", from: makeId(1), to: makeId(3) });
+    // Content links (prop = null)
+    await createItemLink({ prop: null, from: makeId(1), to: makeId(2), internal: true });
+    await createItemLink({ prop: null, from: makeId(1), to: makeId(3), internal: true });
+    // Prop link (should NOT appear on item.links)
+    await createItemLink({ prop: "author", from: makeId(1), to: makeId(3), internal: true });
 
     const items = [makeItem(1), makeItem(2)];
     await resolveIncludes(items, ["links"]);
 
-    expect(items[0].links.related).toEqual([makeId(2), makeId(3)]);
-    expect(items[1].links).toEqual({ content: [] });
+    // Only content links (prop IS NULL) should be resolved
+    expect(items[0].links).toHaveLength(2);
+    expect((items[0].links[0] as any).id).toBe(makeId(2));
+    expect((items[0].links[1] as any).id).toBe(makeId(3));
+    expect(items[1].links).toEqual([]);
+  });
+
+  test("resolves external content links as URL strings", async () => {
+    await createItem({ id: makeId(1), ref: "a", collection: "c", props: {}, changedAt: 100 });
+
+    // External content link
+    const url = "https://example.com/page";
+    await createItemLink({
+      prop: null,
+      from: makeId(1),
+      to: Buffer.from(url, "utf8").toString("base64url"),
+      internal: false,
+    });
+
+    const items = [makeItem(1)];
+    await resolveIncludes(items, ["links"]);
+
+    expect(items[0].links).toHaveLength(1);
+    expect(items[0].links[0]).toBe(url);
   });
 
   test("skips when no items", async () => {
@@ -97,5 +122,18 @@ describe("resolveIncludes", () => {
     await resolveIncludes(items, ["assets"]);
 
     expect(items[0].assets).toEqual([]);
+  });
+
+  test("content link to missing item returns null", async () => {
+    await createItem({ id: makeId(1), ref: "a", collection: "c", props: {}, changedAt: 100 });
+
+    // Internal content link to non-existent target
+    await createItemLink({ prop: null, from: makeId(1), to: makeId(99), internal: true });
+
+    const items = [makeItem(1)];
+    await resolveIncludes(items, ["links"]);
+
+    expect(items[0].links).toHaveLength(1);
+    expect(items[0].links[0]).toBeNull();
   });
 });

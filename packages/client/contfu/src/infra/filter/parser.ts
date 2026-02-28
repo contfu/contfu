@@ -31,6 +31,16 @@ export function parse(tokens: Token[]): FilterAST {
     return advance();
   }
 
+  function expectArg(): Token {
+    const t = peek();
+    if (t && (t.type === TokenType.Identifier || t.type === TokenType.String)) {
+      return advance();
+    }
+    throw new Error(
+      `Expected identifier or string argument, got ${t ? t.type : "EOF"} at position ${pos}`,
+    );
+  }
+
   function parseOr(): FilterAST {
     let left = parseAnd();
     while (peek()?.type === TokenType.Or) {
@@ -75,10 +85,10 @@ export function parse(tokens: Token[]): FilterAST {
         advance(); // consume (
         const args: string[] = [];
         if (peek()?.type !== TokenType.RParen) {
-          args.push(expect(TokenType.Identifier).value);
+          args.push(expectArg().value);
           while (peek()?.type === TokenType.Comma) {
             advance();
-            args.push(expect(TokenType.Identifier).value);
+            args.push(expectArg().value);
           }
         }
         expect(TokenType.RParen);

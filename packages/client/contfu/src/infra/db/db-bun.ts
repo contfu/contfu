@@ -4,6 +4,7 @@ import { dbUrl, ensureDbDir, resolveMigrationsFolder } from "./db-shared";
 import * as schema from "./schema";
 
 export type Database = SQLiteBunDatabase<typeof schema, EmptyRelations>;
+export type DbCtx = Parameters<Parameters<Database["transaction"]>[0]>[0] | Database;
 
 export async function createBunDatabaseClient(url: string): Promise<Database> {
   const migrationsFolder = resolveMigrationsFolder();
@@ -24,4 +25,4 @@ export async function createBunDatabaseClient(url: string): Promise<Database> {
   return db;
 }
 
-export const db: Database = await createBunDatabaseClient(dbUrl);
+export const db: DbCtx = await createBunDatabaseClient(dbUrl);

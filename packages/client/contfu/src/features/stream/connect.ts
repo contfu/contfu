@@ -2,6 +2,8 @@ import { connectToStream, type ItemEvent, type StreamEvent } from "@contfu/clien
 import { EventType } from "@contfu/core";
 import { createOrUpdateItem } from "../items/createOrUpdateItem";
 import { deleteItem } from "../items/deleteItem";
+import { deleteOutgoingItemLinks } from "../items/deleteOutgoingItemLinks";
+import { extractLinks, replacePlaceholders } from "../items/extractLinks";
 import { getSyncIndex } from "../sync/getSyncIndex";
 import { setSyncIndex } from "../sync/setSyncIndex";
 import { processAssets, processPropertyAssets } from "../assets/processAssets";
@@ -10,6 +12,8 @@ import { setCollection } from "../collections/setCollection";
 import { renameCollection } from "../collections/renameCollection";
 import { removeCollectionByName } from "../collections/removeCollectionByName";
 import { getCollectionSchemaByName } from "../collections/getCollectionSchemaByName";
+import { db } from "../../infra/db/db";
+import { linkTable } from "../../infra/db/schema";
 import type {
   CollectionVariants,
   MediaConstraints,
@@ -105,13 +109,34 @@ async function persistSyncEvent(
   }
 
   if (event.type === EventType.ITEM_CHANGED) {
-    const itemId = event.item.id.toString("base64url");
+    const itemIdBuf = event.item.id;
+    const itemId = itemIdBuf.toString("base64url");
     let content = event.item.content;
     let props = event.item.props;
     const collection = event.item.collection;
     const variants: VariantDef[] | undefined = collectionVariants?.[collection];
 
-    // Create item first so FK constraint is satisfied
+    // Delete existing outgoing links (will be re-created from current data)
+    await deleteOutgoingItemLinks(itemId);
+
+    // Extract links from props (REF/REFS) and content (anchors)
+    const schema = getCollectionSchemaByName(collection);
+    const extracted = extractLinks(itemIdBuf, props, content, schema);
+
+    // Insert link records and get auto-increment IDs
+    let linkIds: number[] = [];
+    if (extracted.records.length > 0) {
+      linkIds = extracted.records.map(
+        (rec) => db.insert(linkTable).values(rec).returning({ id: linkTable.id }).get().id,
+      );
+    }
+
+    // Replace placeholder indices with actual link IDs
+    const resolved = replacePlaceholders(extracted.props, extracted.content, schema, linkIds);
+    props = resolved.props;
+    content = resolved.content ?? undefined;
+
+    // Create/update item (no FK constraints on links, so order doesn't matter)
     await createOrUpdateItem({
       id: itemId,
       sourceType: event.item.sourceType,
@@ -138,7 +163,6 @@ async function persistSyncEvent(
       }
 
       // Process property assets (cover, icon, files, etc.)
-      const schema = getCollectionSchemaByName(collection);
       if (schema && props) {
         props = await processPropertyAssets({
           itemId,

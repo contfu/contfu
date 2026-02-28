@@ -7,7 +7,6 @@ export {
   type DbAsset,
   type DbItem,
   type DbItemLink,
-  type ItemLinkUpdate,
   type ItemUpdate,
   type NewAsset,
   type NewItem,

@@ -37,7 +37,7 @@ export function getItemById(
     props: (props && typeof props === "object" ? props : {}) as Record<string, unknown>,
     changedAt: row.changedAt,
     content: Array.isArray(row.content) ? row.content : undefined,
-    links: { content: [] },
+    links: [],
   };
 
   const includes = options?.include?.filter((i) => i !== "content") ?? [];

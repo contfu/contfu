@@ -185,7 +185,7 @@ export async function queryItems(input: QueryItemsInput = {}, ctx = db): Promise
         props: props && typeof props === "object" ? props : {},
         content: Array.isArray(content) ? content : undefined,
         changedAt: row.changedAt,
-        links: { content: [] },
+        links: [],
       };
     })
     .filter((item) => matchesPropFilters(item.props, input.propFilters))

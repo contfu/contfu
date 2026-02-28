@@ -34,20 +34,19 @@ export type ItemUpdate = Partial<NewItem>;
 export const linkTable = sqliteTable(
   "links",
   {
-    type: text().notNull(),
+    id: integer().primaryKey(),
+    prop: text(),
     from: blob({ mode: "buffer" })
       .notNull()
       .references(() => itemsTable.id, { onDelete: "cascade" }),
-    to: blob({ mode: "buffer" })
-      .notNull()
-      .references(() => itemsTable.id, { onDelete: "cascade" }),
+    to: blob({ mode: "buffer" }).notNull(),
+    internal: integer({ mode: "boolean" }).notNull(),
   },
-  (table) => [primaryKey({ columns: [table.type, table.from, table.to] })],
+  (table) => [index("idx_links_from").on(table.from, table.to), index("idx_links_to").on(table.to)],
 );
 
 export type DbItemLink = typeof linkTable.$inferSelect;
 export type NewItemLink = typeof linkTable.$inferInsert;
-export type ItemLinkUpdate = Partial<NewItemLink>;
 
 export const syncTable = sqliteTable("sync", {
   index: integer().notNull(),
