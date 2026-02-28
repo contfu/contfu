@@ -10,10 +10,11 @@ Create structured GitHub issues from short descriptions.
 ## Workflow
 
 1. **Accept** one or more short issue descriptions from the user
-2. **Explore** the codebase for relevant files and patterns (skip if the user provides sufficient context)
-3. **Draft** each issue in the structured format below
-4. **Present** drafts for user review — always show before creating
-5. **Create** on GitHub via `gh issue create`
+2. **Clarify** if the description is ambiguous — use `AskUserQuestion` to resolve unknowns before exploring
+3. **Explore** the codebase for relevant files and patterns (skip if the user provides sufficient context)
+4. **Draft** each issue in the structured format below
+5. **Approve** — use `AskUserQuestion` to present the draft and ask for approval (options: "Create", "Edit"). On "Edit", ask what to change, revise, and re-approve.
+6. **Create** on GitHub via `gh issue create`
 
 ## Issue Body Template
 
@@ -60,9 +61,10 @@ Numbered list of descriptions -> explore shared context once -> draft all -> rev
 - **Auto-label** each issue: `enhancement`, `bug`, or `documentation`
 - **Skip exploration** when the user provides file paths and sufficient context
 - **Never implement** — this skill creates issues only, never writes code
-- **Always show the draft** before running `gh issue create`
+- **Always get approval** — use `AskUserQuestion` to present the draft and get explicit approval before creating
 - **Title format** — concise, imperative mood (e.g. "Add webhook retry logic")
-- When exploring, use the Task tool with `subagent_type=Explore` to find relevant files efficiently
+- **Use `AskUserQuestion`** for all user interactions — clarifying ambiguities, presenting drafts for approval, and asking for edits
+- When exploring, use the Agent tool with `subagent_type=Explore` to find relevant files efficiently
 
 ## Creating Issues
 
