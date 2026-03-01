@@ -16,9 +16,17 @@ import { hasNats } from "@contfu/svc-backend/infra/nats/connection";
 import {
   getLastSequence,
   isSequenceAvailable,
-  publishEvent,
   replayEvents,
 } from "@contfu/svc-backend/infra/nats/event-stream";
+import {
+  clearSnapshotProgress,
+  getSnapshotProgress,
+  isSnapshotSeqAvailable,
+  publishSnapshot,
+  purgeConsumerSnapshot,
+  replaySnapshotFrom,
+  setSnapshotProgress,
+} from "@contfu/svc-backend/infra/nats/snapshot-stream";
 import {
   getCollectionNamesByIds,
   getConsumerCollectionIds,
@@ -79,10 +87,24 @@ export const GET: RequestHandler = async ({ request, url }) => {
   );
 
   let fromSeq = requestedFromSeq;
-  if (hasNats() && fromSeq !== null) {
-    const available = await isSequenceAvailable(fromSeq);
-    if (!available) {
-      fromSeq = null;
+  let resumeFromSnapshot = false;
+
+  if (hasNats()) {
+    // Check if this consumer has an in-progress snapshot it can resume from.
+    const snapshotProgress = await getSnapshotProgress(consumer.userId, consumer.id);
+    if (snapshotProgress?.inProgress && fromSeq !== null) {
+      const available = await isSnapshotSeqAvailable(consumer.userId, consumer.id, fromSeq);
+      if (available) {
+        resumeFromSnapshot = true;
+      } else {
+        await clearSnapshotProgress(consumer.userId, consumer.id);
+        fromSeq = null;
+      }
+    } else if (fromSeq !== null) {
+      const available = await isSequenceAvailable(fromSeq);
+      if (!available) {
+        fromSeq = null;
+      }
     }
   }
   // When NATS is unavailable, fromSeq stays as-is.
@@ -157,7 +179,6 @@ export const GET: RequestHandler = async ({ request, url }) => {
         }, 10_000);
 
         const snapshotStartSeq = fromSeq === null ? await getLastSequence() : 0;
-        const snapshotSequences = new Set<number>();
         const collectionIds = await getConsumerCollectionIds(consumer.userId, consumer.id);
         const collectionNames = await getCollectionNamesByIds(collectionIds, consumer.userId);
 
@@ -230,6 +251,9 @@ export const GET: RequestHandler = async ({ request, url }) => {
           log.debug({ userId: consumer.userId, consumerId: consumer.id }, "Starting snapshot");
           server.sendBinaryEvent(controller, [EventType.SNAPSHOT_START]);
 
+          await setSnapshotProgress(consumer.userId, consumer.id, snapshotStartSeq);
+          server.setSnapshotMode(consumer.userId, consumer.id);
+
           const config = await runEffectWithServices(
             getConsumerSyncConfig(consumer.userId, consumer.id),
           );
@@ -245,19 +269,46 @@ export const GET: RequestHandler = async ({ request, url }) => {
                 item.includeRef,
               ),
             ];
-            const seq = await publishEvent(item.user, item.collection, wireEvent);
-            if (seq > 0) {
-              snapshotSequences.add(seq);
-            }
+            const seq = await publishSnapshot(consumer.userId, consumer.id, wireEvent);
             snapshotItemCount++;
             server.sendIndexedItem(controller, seq, wireEvent, Boolean(item.includeRef));
           }
 
           server.sendBinaryEvent(controller, [EventType.SNAPSHOT_END]);
+          await purgeConsumerSnapshot(consumer.userId, consumer.id);
+          await clearSnapshotProgress(consumer.userId, consumer.id);
+          server.clearSnapshotMode(consumer.userId, consumer.id);
           log.debug(
             { userId: consumer.userId, consumerId: consumer.id, itemCount: snapshotItemCount },
             "Snapshot complete",
           );
+        }
+
+        // Resume an interrupted snapshot from the dedicated snapshot stream.
+        if (resumeFromSnapshot) {
+          server.setSnapshotMode(consumer.userId, consumer.id);
+          server.sendBinaryEvent(controller, [EventType.SNAPSHOT_START]);
+
+          for await (const { seq, event } of replaySnapshotFrom(
+            consumer.userId,
+            consumer.id,
+            fromSeq!,
+          )) {
+            if (request.signal.aborted) break;
+            server.sendIndexedItem(controller, seq, event);
+          }
+
+          server.sendBinaryEvent(controller, [EventType.SNAPSHOT_END]);
+
+          // Retrieve stored eventsStartSeq, clean up snapshot state
+          const progress = await getSnapshotProgress(consumer.userId, consumer.id);
+          const eventsStartSeq = progress?.eventsStartSeq ?? 0;
+          await purgeConsumerSnapshot(consumer.userId, consumer.id);
+          await clearSnapshotProgress(consumer.userId, consumer.id);
+          server.clearSnapshotMode(consumer.userId, consumer.id);
+
+          // Override fromSeq so events replay starts at the right point
+          fromSeq = eventsStartSeq;
         }
 
         const replayStartSeq = fromSeq ?? snapshotStartSeq + 1;
@@ -279,7 +330,6 @@ export const GET: RequestHandler = async ({ request, url }) => {
               collectionIds,
             })) {
               if (request.signal.aborted) break;
-              if (snapshotSequences.has(seq)) continue;
               server.sendIndexedItem(
                 controller,
                 seq,

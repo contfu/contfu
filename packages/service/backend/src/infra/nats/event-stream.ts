@@ -4,6 +4,7 @@ import { pack, unpack } from "msgpackr";
 import { createLogger } from "../logger/index";
 import { hasNats } from "./connection";
 import { getJetStreamManager } from "./jsm";
+import { ensureSnapshotStream } from "./snapshot-stream";
 
 const log = createLogger("nats-events");
 
@@ -47,6 +48,8 @@ export async function ensureEventStream(): Promise<void> {
   }
 
   initialized = true;
+
+  await ensureSnapshotStream();
 }
 
 /**

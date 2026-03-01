@@ -94,6 +94,7 @@ export async function seedWebhookData(db: any): Promise<void> {
     .insert(collectionTable)
     .values({
       userId,
+      displayName: "Test Webhook Collection",
       name: "Test Webhook Collection",
     })
     .returning({ id: collectionTable.id });

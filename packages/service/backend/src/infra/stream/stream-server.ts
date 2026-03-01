@@ -6,6 +6,7 @@ import { enqueueSyncJobs } from "../../features/sync-jobs/enqueueSyncJobs";
 import { collectionTable, connectionTable, consumerTable, db, influxTable } from "../db/db";
 import { createLogger } from "../logger/index";
 import { publishEvent, purgeEventsUpTo, type StoredWireItemEvent } from "../nats/event-stream";
+import { updateSnapshotAckedSeq } from "../nats/snapshot-stream";
 import { addItems, isItemQuotaExceeded } from "../nats/quota-kv";
 import type { UserSyncItem } from "../sync-worker/messages";
 import type { ConnectionInfo } from "../types";
@@ -46,7 +47,22 @@ const CONNECTION_STALL_TIMEOUT_MS = 60 * 1000;
 /** Maps "userId:consumerId" to last acked sequence number. */
 const consumerAckedSeq = new Map<string, number>();
 
+/** Tracks consumers currently receiving snapshot data (not events). */
+const snapshotModeConsumers = new Set<string>();
+
 export class StreamServer {
+  setSnapshotMode(userId: number, consumerId: number): void {
+    snapshotModeConsumers.add(`${userId}:${consumerId}`);
+  }
+
+  clearSnapshotMode(userId: number, consumerId: number): void {
+    snapshotModeConsumers.delete(`${userId}:${consumerId}`);
+  }
+
+  isInSnapshotMode(userId: number, consumerId: number): boolean {
+    return snapshotModeConsumers.has(`${userId}:${consumerId}`);
+  }
+
   /**
    * Returns true when the given consumer currently has a live stream connection.
    */
@@ -60,6 +76,10 @@ export class StreamServer {
    * events that all active consumers have acknowledged.
    */
   async ackConsumerSequence(userId: number, consumerId: number, seq: number): Promise<void> {
+    if (this.isInSnapshotMode(userId, consumerId)) {
+      await updateSnapshotAckedSeq(userId, consumerId, seq);
+      return;
+    }
     const key = `${userId}:${consumerId}`;
     consumerAckedSeq.set(key, seq);
     await this.tryPurgeEvents();
@@ -190,6 +210,7 @@ export class StreamServer {
     consumerInfo.delete(consumerKey);
     if (info) {
       consumerAckedSeq.delete(`${info.userId}:${info.consumerId}`);
+      snapshotModeConsumers.delete(`${info.userId}:${info.consumerId}`);
       void this.tryPurgeEvents();
     }
   }

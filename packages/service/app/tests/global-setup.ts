@@ -27,6 +27,10 @@ export default async function globalSetup() {
   const { seedWebhookData } = await import("./e2e/notion-webhooks.seed");
   await seedWebhookData(db);
 
+  // Seed sync stream test data
+  const { seedSyncData } = await import("./e2e/sync-stream.seed");
+  await seedSyncData(db);
+
   // Release file lock so the server process can open the same database
   await closeDb();
 }
