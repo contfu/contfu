@@ -1,9 +1,9 @@
 ---
-name: contfu-implement
+name: implement
 description: Pick up a GitHub issue and implement it end-to-end. Use when you're ready to execute on a planned issue — reads the issue, creates a branch, plans the approach, implements with minimal changes, runs quality checks, and opens a PR.
 ---
 
-# Contfu Implement
+# Implement
 
 Implement a GitHub issue from start to PR.
 

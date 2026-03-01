@@ -1,9 +1,9 @@
 ---
-name: contfu-next
+name: next
 description: Pick the next issue to work on from the project board. Analyzes "Ready" issues for dependencies and conflicts with in-progress work, recommends the best candidate, and creates a branch.
 ---
 
-# Contfu Next
+# Next
 
 Pick the best next issue to work on from the GitHub project board.
 

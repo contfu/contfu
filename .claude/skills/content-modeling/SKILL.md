@@ -1,9 +1,9 @@
 ---
-name: contfu-content-modeling
+name: content-modeling
 description: Design content schemas and collection mappings for Contfu. Use when modeling content types, defining property schemas, mapping CMS fields to Contfu properties, planning collection structures, or designing relationships between content items.
 ---
 
-# Contfu Content Modeling
+# Content Modeling
 
 Design effective content schemas for syncing CMS content.
 

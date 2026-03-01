@@ -1,9 +1,9 @@
 ---
-name: contfu-source-adapter
+name: source-adapter
 description: Create new CMS source adapters for Contfu. Use when adding support for a new CMS platform (Contentful, Sanity, WordPress, Ghost, Directus, etc.), implementing the Source interface, handling pagination, transforming content blocks, or debugging sync issues with existing adapters.
 ---
 
-# Contfu Source Adapter Development
+# Source Adapter Development
 
 Create adapters that sync content from CMS platforms into Contfu.
 

@@ -1,9 +1,9 @@
 ---
-name: contfu-design
+name: design
 description: Design beautiful, distinctive UI for Contfu. Use when creating or redesigning interfaces, components, layouts, or visual systems. Focuses on craft, personality, and avoiding generic "AI slop" aesthetics. Applies to the SvelteKit app with TailwindCSS and shadcn-svelte.
 ---
 
-# Contfu Design System
+# Design System
 
 Create interfaces with craft and personality. No AI slop.
 

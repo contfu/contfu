@@ -1,5 +1,5 @@
 ---
-name: contfu-svelte
+name: svelte
 description: Write Svelte 5 components for Contfu. Use when creating or modifying Svelte components, working with runes ($state, $derived, $effect, $props), handling forms, or building UI in the SvelteKit app.
 ---
 

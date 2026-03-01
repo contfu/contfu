@@ -1,9 +1,9 @@
 ---
-name: contfu-pr
+name: pr
 description: Create a pull request following the contfu workflow. Use when changes are complete and ready to PR.
 ---
 
-# Contfu PR Workflow
+# PR Workflow
 
 Create a pull request following the project's commit & PR workflow.
 

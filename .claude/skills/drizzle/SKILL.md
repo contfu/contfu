@@ -1,9 +1,9 @@
 ---
-name: contfu-drizzle
+name: drizzle
 description: Drizzle ORM patterns for SQLite schemas in Contfu and related projects. Use when defining new tables, adding columns, setting up foreign keys, or working with timestamps, blobs, and composite keys.
 ---
 
-# Contfu Drizzle Patterns
+# Drizzle Patterns
 
 This skill documents the Drizzle ORM conventions used in Contfu (and applicable to Pumpit). Follow these patterns for consistency.
 
