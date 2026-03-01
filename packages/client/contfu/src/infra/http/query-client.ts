@@ -4,7 +4,25 @@ import type {
   QueryResult,
   WithClause,
 } from "../../domain/query-types";
-import { resolveWithFunctions } from "../../domain/filter-helpers";
+import {
+  all,
+  and,
+  contains,
+  createItemRef,
+  eq,
+  gt,
+  gte,
+  like,
+  linkedFrom,
+  linksTo,
+  lt,
+  lte,
+  ne,
+  notLike,
+  oneOf,
+  or,
+  resolveWithFunctions,
+} from "../../domain/filter-helpers";
 
 export function createHttpTypedClient<_CMap>(
   baseUrl: string,
@@ -26,15 +44,33 @@ export function createHttpTypedClient<_CMap>(
     return res.json() as Promise<T>;
   }
 
-  const callable = async (
-    options: QueryOptions & { collection?: string; with?: any } = {},
-    config?: { flat?: boolean },
-  ) => {
+  function normalizeArgs(
+    first?: string | Record<string, any>,
+    second?: any,
+    third?: any,
+  ): { options: Record<string, any>; config?: { flat?: boolean } } {
+    if (typeof first === "string") {
+      if (second == null) return { options: { collection: first } };
+      if (typeof second === "string" || typeof second === "function")
+        return { options: { collection: first, filter: second }, config: third };
+      return { options: { collection: first, ...second }, config: third };
+    }
+    return { options: first ?? {}, config: second };
+  }
+
+  function resolveFilter(filter: unknown): string | undefined {
+    if (typeof filter === "function") return filter(createItemRef(0));
+    return filter as string | undefined;
+  }
+
+  const callable = async (first?: any, second?: any, third?: any) => {
+    const { options, config } = normalizeArgs(first, second, third);
     const { collection, ...rest } = options;
     const flat = config?.flat ?? flatDefault;
+    const filter = resolveFilter(rest.filter);
     const resolvedWith =
       rest.with && typeof rest.with === "function" ? resolveWithFunctions(rest.with, 1) : rest.with;
-    const params = serializeQueryParams({ ...rest, flat, with: resolvedWith });
+    const params = serializeQueryParams({ ...rest, flat, filter, with: resolvedWith });
     if (collection) {
       const basePath = `${baseUrl}/api/collections/${encodeURIComponent(collection)}/items`;
       const url = `${basePath}?${params}`;
@@ -44,7 +80,23 @@ export function createHttpTypedClient<_CMap>(
     return fetchJson<QueryResult>(url);
   };
 
-  return callable;
+  return Object.assign(callable, {
+    all,
+    oneOf,
+    eq,
+    ne,
+    gt,
+    gte,
+    lt,
+    lte,
+    like,
+    notLike,
+    contains,
+    and,
+    or,
+    linksTo,
+    linkedFrom,
+  });
 }
 
 export function serializeQueryParams(options: QueryOptions): URLSearchParams {

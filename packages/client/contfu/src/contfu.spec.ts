@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { truncateAllTables } from "../test/setup";
 import { contfu } from "./contfu";
-import { all, eq, linkedFrom, linksTo, oneOf } from "./domain/filter-helpers";
 
 import { setCollection } from "./features/collections/setCollection";
 import { createItem } from "./features/items/createItem";
@@ -65,23 +64,21 @@ type Collections = {
 
 describe("contfu typed query client", () => {
   const q = contfu<Collections>();
+  const { all, oneOf, eq } = q;
 
   beforeEach(async () => {
     await truncateAllTables();
     await seedData();
   });
 
-  test("q({ collection }) filters by collection", async () => {
-    const result = await q({ collection: "articles" });
+  test("q(collection) filters by collection", async () => {
+    const result = await q("articles");
     expect(result.data).toHaveLength(2);
     expect(result.data.every((i) => i.collection === "articles")).toBe(true);
   });
 
-  test("q({ collection, filter }) combines collection and filter", async () => {
-    const result = await q({
-      collection: "articles",
-      filter: 'props.category = "news"',
-    });
+  test("q(collection, filter) combines collection and filter", async () => {
+    const result = await q("articles", 'props.category = "news"');
     expect(result.data).toHaveLength(1);
     expect(result.data[0].props.title).toBe("Alpha");
   });
@@ -98,21 +95,20 @@ describe("contfu typed query client", () => {
     expect(result.meta.total).toBe(5);
   });
 
-  test("q({ collection, limit }) respects limit", async () => {
-    const result = await q({ collection: "authors", limit: 1 });
+  test("q(collection, { limit }) respects limit", async () => {
+    const result = await q("authors", { limit: 1 });
     expect(result.data).toHaveLength(1);
     expect(result.meta.total).toBe(2);
   });
 
-  test("q({ collection, sort }) respects sort order", async () => {
-    const result = await q({ collection: "articles", sort: "props.title" });
+  test("q(collection, { sort }) respects sort order", async () => {
+    const result = await q("articles", { sort: "props.title" });
     expect(result.data[0].props.title).toBe("Alpha");
     expect(result.data[1].props.title).toBe("Beta");
   });
 
-  test("q() with collection in with-clause resolves relations", async () => {
-    const result = await q({
-      collection: "articles",
+  test("q(collection, { with }) resolves relations", async () => {
+    const result = await q("articles", {
       with: {
         writers: all("authors"),
       },
@@ -124,8 +120,7 @@ describe("contfu typed query client", () => {
   });
 
   test("function-based with + eq + single resolves 1:1 relation", async () => {
-    const result = await q({
-      collection: "articles",
+    const result = await q("articles", {
       with: (article) => ({
         author: oneOf("authors", (author) => eq(author.ref, article.props.author)),
       }),
@@ -141,8 +136,7 @@ describe("contfu typed query client", () => {
   });
 
   test("string-based $1 placeholder resolves relations as array", async () => {
-    const result = await q({
-      collection: "articles",
+    const result = await q("articles", {
       with: {
         author: all("authors", "ref = $1.props.author"),
       },
@@ -157,6 +151,7 @@ describe("contfu typed query client", () => {
 
 describe("contfu flat format", () => {
   const q = contfu<Collections>({ flat: true });
+  const { all, oneOf, eq } = q;
 
   beforeEach(async () => {
     await truncateAllTables();
@@ -164,7 +159,7 @@ describe("contfu flat format", () => {
   });
 
   test("flat client merges props into top level", async () => {
-    const result = await q({ collection: "articles", sort: "props.title" });
+    const result = await q("articles", { sort: "props.title" });
 
     expect(result.data).toHaveLength(2);
     const alpha = result.data[0];
@@ -178,8 +173,7 @@ describe("contfu flat format", () => {
   });
 
   test("flat with relations recursively flattens related items", async () => {
-    const result = await q({
-      collection: "articles",
+    const result = await q("articles", {
       with: (article) => ({
         author: oneOf("authors", (author) => eq(author.ref, article.props.author)),
       }),
@@ -194,7 +188,7 @@ describe("contfu flat format", () => {
   });
 
   test("per-query flat override on non-flat client", async () => {
-    const result = await q({ collection: "articles", sort: "props.title" }, { flat: true });
+    const result = await q("articles", { sort: "props.title" }, { flat: true });
 
     const alpha = result.data[0];
     expect(alpha.title).toBe("Alpha");
@@ -202,7 +196,7 @@ describe("contfu flat format", () => {
   });
 
   test("per-query flat=false override on flat client", async () => {
-    const result = await q({ collection: "articles", sort: "props.title" }, { flat: false });
+    const result = await q("articles", { sort: "props.title" }, { flat: false });
 
     const alpha = result.data[0];
     expect(alpha.props.title).toBe("Alpha");
@@ -210,8 +204,7 @@ describe("contfu flat format", () => {
   });
 
   test("flat with array relations flattens each item", async () => {
-    const result = await q({
-      collection: "articles",
+    const result = await q("articles", {
       with: {
         writers: all("authors"),
       },
@@ -303,6 +296,7 @@ async function seedLinkData() {
 
 describe("contfu link resolution", () => {
   const q = contfu<LinkCollections>();
+  const { oneOf, eq, linksTo, linkedFrom } = q;
 
   beforeEach(async () => {
     await truncateAllTables();
@@ -310,8 +304,7 @@ describe("contfu link resolution", () => {
   });
 
   test("forward REF: post → author via props", async () => {
-    const result = await q({
-      collection: "posts",
+    const result = await q("posts", {
       filter: 'props.title = "Post One"',
       with: (post) => ({
         author: oneOf("persons", (person) => eq(person.id, post.props.author)),
@@ -324,20 +317,14 @@ describe("contfu link resolution", () => {
 
   test("backlink REF: person → posts via linksTo('author')", async () => {
     const aliceId = makeId(10);
-    const result = await q({
-      collection: "posts",
-      filter: linksTo("author", aliceId),
-    });
+    const result = await q("posts", linksTo("author", aliceId));
     expect(result.data).toHaveLength(1);
     expect(result.data[0].props.title).toBe("Post One");
   });
 
   test("forward REFS: post → tags via linkedFrom('tags')", async () => {
     const post1Id = makeId(1);
-    const result = await q({
-      collection: "tags",
-      filter: linkedFrom("tags", post1Id),
-    });
+    const result = await q("tags", linkedFrom("tags", post1Id));
     expect(result.data).toHaveLength(2);
     const refs = result.data.map((t) => t.ref).sort();
     expect(refs).toEqual(["tags/design", "tags/tech"]);
@@ -345,10 +332,7 @@ describe("contfu link resolution", () => {
 
   test("backlink REFS: tag → posts via linksTo('tags')", async () => {
     const techId = makeId(30);
-    const result = await q({
-      collection: "posts",
-      filter: linksTo("tags", techId),
-    });
+    const result = await q("posts", linksTo("tags", techId));
     expect(result.data).toHaveLength(2);
     const titles = result.data.map((p) => p.props.title).sort();
     expect(titles).toEqual(["Post One", "Post Two"]);
@@ -356,20 +340,14 @@ describe("contfu link resolution", () => {
 
   test("forward content links: post → linked items via linkedFrom(null)", async () => {
     const post1Id = makeId(1);
-    const result = await q({
-      collection: "persons",
-      filter: linkedFrom(null, post1Id),
-    });
+    const result = await q("persons", linkedFrom(null, post1Id));
     expect(result.data).toHaveLength(1);
     expect(result.data[0].ref).toBe("persons/alice");
   });
 
   test("backlink content links: person → posts via linksTo(null)", async () => {
     const aliceId = makeId(10);
-    const result = await q({
-      collection: "posts",
-      filter: linksTo(null, aliceId),
-    });
+    const result = await q("posts", linksTo(null, aliceId));
     expect(result.data).toHaveLength(1);
     expect(result.data[0].props.title).toBe("Post One");
   });

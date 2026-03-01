@@ -94,9 +94,14 @@ export function all<C extends string>(
   collection: C,
   filter: (self: any) => string,
 ): { collection: C; filter: (self: any) => string };
-export function all(collection: string, filter?: string | ((self: any) => string)) {
-  if (filter == null) return { collection };
-  return { collection, filter };
+export function all(
+  collection: string,
+  filterOrOpts?: string | ((self: any) => string) | Record<string, unknown>,
+) {
+  if (filterOrOpts == null) return { collection };
+  if (typeof filterOrOpts === "string" || typeof filterOrOpts === "function")
+    return { collection, filter: filterOrOpts };
+  return { collection, ...filterOrOpts };
 }
 
 export function oneOf<C extends string>(collection: C): { collection: C; single: true };
@@ -108,9 +113,14 @@ export function oneOf<C extends string>(
   collection: C,
   filter: (self: any) => string,
 ): { collection: C; single: true; filter: (self: any) => string };
-export function oneOf(collection: string, filter?: string | ((self: any) => string)) {
-  if (filter == null) return { collection, single: true as const };
-  return { collection, single: true as const, filter };
+export function oneOf(
+  collection: string,
+  filterOrOpts?: string | ((self: any) => string) | Record<string, unknown>,
+) {
+  if (filterOrOpts == null) return { collection, single: true as const };
+  if (typeof filterOrOpts === "string" || typeof filterOrOpts === "function")
+    return { collection, single: true as const, filter: filterOrOpts };
+  return { collection, single: true as const, ...filterOrOpts };
 }
 
 // --- With-clause function resolution ---

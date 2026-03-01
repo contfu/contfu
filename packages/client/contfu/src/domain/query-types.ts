@@ -1,5 +1,20 @@
 import type { AssetData, ItemData } from "../infra/types/content-types";
-import type { ItemRef } from "./filter-helpers";
+import type {
+  and,
+  contains,
+  eq,
+  gt,
+  gte,
+  ItemRef,
+  like,
+  linkedFrom,
+  linksTo,
+  lt,
+  lte,
+  ne,
+  notLike,
+  or,
+} from "./filter-helpers";
 
 export type WithClause = {
   [relation: string]: {
@@ -92,11 +107,13 @@ export type TypedWithEntry<CMap, ChildC extends keyof CMap & string = keyof CMap
   with?: TypedWithInput<CMap, CMap[ChildC]>;
 };
 
-/** With input: object map or function returning object map */
+/** With input: object map or function returning object map.
+ *  Uses `any` for ChildC so that typed filter callbacks with specific
+ *  collection props satisfy the constraint (avoids contravariance mismatch). */
 export type TypedWithInput<CMap, ParentProps> =
-  | { [rel: string]: TypedWithEntry<CMap, keyof CMap & string> }
+  | { [rel: string]: TypedWithEntry<CMap, any> }
   | ((parent: ItemRef<ParentProps>) => {
-      [rel: string]: TypedWithEntry<CMap, keyof CMap & string>;
+      [rel: string]: TypedWithEntry<CMap, any>;
     });
 
 /** Query entry shape for typed queries — used for both top-level and with entries */
@@ -181,14 +198,137 @@ type SelectResultWithRels<Props, Rels, FlatRels, Fl extends boolean> = Fl extend
   ? FlatQueryResultWithRels<Props, FlatRels>
   : TypedQueryResultWithRels<Props, Rels>;
 
+/** Allowed opts-object shape for all/oneOf helpers bound to a client */
+export type EntryOpts<CMap, C extends keyof CMap & string> = {
+  filter?: string | ((self: ItemRef<CMap[C]>) => string);
+  sort?: SortOption | SortOption[];
+  limit?: number;
+  offset?: number;
+  search?: string;
+  include?: IncludeOption[];
+  fields?: (keyof CMap[C] & string)[];
+  with?: TypedWithInput<CMap, CMap[C]>;
+};
+
+/** Typed `all` helper bound to a client's CMap */
+export interface TypedAllFn<CMap> {
+  <C extends keyof CMap & string>(collection: C): { collection: C };
+  <C extends keyof CMap & string>(collection: C, filter: string): { collection: C; filter: string };
+  <C extends keyof CMap & string>(
+    collection: C,
+    filter: (self: ItemRef<CMap[C]>) => string,
+  ): { collection: C; filter: (self: ItemRef<CMap[C]>) => string };
+  <C extends keyof CMap & string, const O extends EntryOpts<CMap, C>>(
+    collection: C,
+    opts: O,
+  ): O & { collection: C };
+}
+
+/** Typed `oneOf` helper bound to a client's CMap */
+export interface TypedOneOfFn<CMap> {
+  <C extends keyof CMap & string>(collection: C): { collection: C; single: true };
+  <C extends keyof CMap & string>(
+    collection: C,
+    filter: string,
+  ): { collection: C; single: true; filter: string };
+  <C extends keyof CMap & string>(
+    collection: C,
+    filter: (self: ItemRef<CMap[C]>) => string,
+  ): { collection: C; single: true; filter: (self: ItemRef<CMap[C]>) => string };
+  <C extends keyof CMap & string, const O extends EntryOpts<CMap, C>>(
+    collection: C,
+    opts: O,
+  ): O & { collection: C; single: true };
+}
+
 /** Callable typed client interface (internal — use TypedContfuClient or TypedFlatContfuClient) */
 interface TypedContfuClientBase<CMap, DefaultFlat extends boolean = false> {
+  all: TypedAllFn<CMap>;
+  oneOf: TypedOneOfFn<CMap>;
+  eq: typeof eq;
+  ne: typeof ne;
+  gt: typeof gt;
+  gte: typeof gte;
+  lt: typeof lt;
+  lte: typeof lte;
+  like: typeof like;
+  notLike: typeof notLike;
+  contains: typeof contains;
+  and: typeof and;
+  or: typeof or;
+  linksTo: typeof linksTo;
+  linkedFrom: typeof linkedFrom;
+
+  // --- String-first overloads: q(collection, ...) ---
+
+  /** q(collection, filter: string, config?) */
+  <C extends keyof CMap & string, const Fl extends boolean = DefaultFlat>(
+    collection: C,
+    filter: string,
+    config?: QueryConfig<Fl>,
+  ): Promise<SelectResult<CMap[C], Fl>>;
+
+  /** q(collection, filter: fn, config?) */
+  <C extends keyof CMap & string, const Fl extends boolean = DefaultFlat>(
+    collection: C,
+    filter: (self: ItemRef<CMap[C]>) => string,
+    config?: QueryConfig<Fl>,
+  ): Promise<SelectResult<CMap[C], Fl>>;
+
+  /** q(collection, opts with function-form with, config?) */
+  <
+    C extends keyof CMap & string,
+    const F extends (keyof CMap[C] & string)[] | undefined = undefined,
+    const W extends { [rel: string]: TypedWithEntry<CMap, any> } = {
+      [rel: string]: TypedWithEntry<CMap, any>;
+    },
+    const Fl extends boolean = DefaultFlat,
+  >(
+    collection: C,
+    opts: Omit<EntryOpts<CMap, C>, "with" | "fields"> & {
+      fields?: F;
+      with: (parent: ItemRef<CMap[C]>) => W;
+    },
+    config?: QueryConfig<Fl>,
+  ): Promise<
+    SelectResultWithRels<PickFields<CMap[C], F>, InferRels<CMap, W>, FlatInferRels<CMap, W>, Fl>
+  >;
+
+  /** q(collection, opts with object-form with, config?) */
+  <
+    C extends keyof CMap & string,
+    const F extends (keyof CMap[C] & string)[] | undefined = undefined,
+    const W extends { [rel: string]: TypedWithEntry<CMap, any> } = {
+      [rel: string]: TypedWithEntry<CMap, any>;
+    },
+    const Fl extends boolean = DefaultFlat,
+  >(
+    collection: C,
+    opts: Omit<EntryOpts<CMap, C>, "with" | "fields"> & { fields?: F; with: W },
+    config?: QueryConfig<Fl>,
+  ): Promise<
+    SelectResultWithRels<PickFields<CMap[C], F>, InferRels<CMap, W>, FlatInferRels<CMap, W>, Fl>
+  >;
+
+  /** q(collection, opts?, config?) */
+  <
+    C extends keyof CMap & string,
+    const F extends (keyof CMap[C] & string)[] | undefined = undefined,
+    const Fl extends boolean = DefaultFlat,
+  >(
+    collection: C,
+    opts?: Omit<EntryOpts<CMap, C>, "fields"> & { fields?: F },
+    config?: QueryConfig<Fl>,
+  ): Promise<SelectResult<PickFields<CMap[C], F>, Fl>>;
+
+  // --- Object-first overloads: q({ collection, ... }) ---
+
   /** Typed with function-form `with` */
   <
     C extends keyof CMap & string,
     const F extends (keyof CMap[C] & string)[] | undefined = undefined,
-    const W extends { [rel: string]: TypedWithEntry<CMap> } = {
-      [rel: string]: TypedWithEntry<CMap>;
+    const W extends { [rel: string]: TypedWithEntry<CMap, any> } = {
+      [rel: string]: TypedWithEntry<CMap, any>;
     },
     const Fl extends boolean = DefaultFlat,
   >(
@@ -202,8 +342,8 @@ interface TypedContfuClientBase<CMap, DefaultFlat extends boolean = false> {
   <
     C extends keyof CMap & string,
     const F extends (keyof CMap[C] & string)[] | undefined = undefined,
-    const W extends { [rel: string]: TypedWithEntry<CMap> } = {
-      [rel: string]: TypedWithEntry<CMap>;
+    const W extends { [rel: string]: TypedWithEntry<CMap, any> } = {
+      [rel: string]: TypedWithEntry<CMap, any>;
     },
     const Fl extends boolean = DefaultFlat,
   >(
