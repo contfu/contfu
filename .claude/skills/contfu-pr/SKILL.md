@@ -14,6 +14,7 @@ Create a pull request following the project's commit & PR workflow.
 3. **Squash if needed** — ensure exactly one commit
 4. **Push branch** — create remote branch if needed
 5. **Create PR** — open pull request with proper format
+6. **Wait for CI** — watch checks, fix failures if any
 
 ## Pre-flight Checklist
 
@@ -71,6 +72,23 @@ gh pr create --title "<title>" --body "$(cat <<'EOF'
 EOF
 )"
 ```
+
+### 5. Wait for CI checks
+
+After creating the PR, wait for CI checks to complete and fix any failures:
+
+```bash
+gh pr checks <pr-number> --watch
+```
+
+If checks fail, fix the issue, amend the commit, and force push:
+
+```bash
+git commit --amend
+git push --force-with-lease
+```
+
+Then watch checks again until they pass.
 
 ## Commit Message Guidelines
 
