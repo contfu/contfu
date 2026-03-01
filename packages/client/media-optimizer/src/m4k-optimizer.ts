@@ -81,7 +81,7 @@ export class M4kOptimizer implements MediaOptimizer {
       }
     }
 
-    const buf = input instanceof Buffer ? input : await streamToBuffer(input);
+    const buf = input instanceof Buffer ? input : await streamToBuffer(input as ReadableStream);
     const iterable = processImage(toAsyncIterable(buf), m4kOpts);
     if (!iterable) return [];
 
@@ -127,7 +127,7 @@ export class M4kOptimizer implements MediaOptimizer {
     if (opts?.audioCodec) videoOpts.audioCodec = opts.audioCodec;
     if (opts?.audioBitrate) videoOpts.audioBitrate = opts.audioBitrate;
 
-    const buf = input instanceof Buffer ? input : await streamToBuffer(input);
+    const buf = input instanceof Buffer ? input : await streamToBuffer(input as ReadableStream);
     const iterable = processVideo(toAsyncIterable(buf), videoOpts);
     if (!iterable) return [];
 
@@ -160,7 +160,7 @@ export class M4kOptimizer implements MediaOptimizer {
     if (opts?.codec) audioOpts.codec = opts.codec;
     if (opts?.bitrate) audioOpts.bitrate = opts.bitrate;
 
-    const buf = input instanceof Buffer ? input : await streamToBuffer(input);
+    const buf = input instanceof Buffer ? input : await streamToBuffer(input as ReadableStream);
     const iterable = processAudio(toAsyncIterable(buf), audioOpts);
     if (!iterable) return [];
 
@@ -195,8 +195,7 @@ export function createTransform(): MediaTransform {
         imageOpt.resize = {
           width: opts.width,
           height: opts.height,
-          fit:
-            (opts.fit as ImageOptions["resize"] extends { fit?: infer F } ? F : string) ?? "inside",
+          fit: (opts.fit as NonNullable<ImageOptions["resize"]>["fit"]) ?? "inside",
         };
       }
       if (opts.format) {

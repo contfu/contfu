@@ -26,7 +26,7 @@ const isDbMocked = typeof db.delete !== "function";
  */
 async function createFullChain(opts: {
   userId: number;
-  sourceType?: number;
+  sourceType?: SourceType;
   sourceUrl?: string | null;
   credentials?: Buffer | null;
   collectionRef?: Buffer | null;

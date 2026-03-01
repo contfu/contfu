@@ -1,3 +1,4 @@
+import { SourceType } from "@contfu/core";
 import { beforeEach, describe, expect, it } from "bun:test";
 import crypto from "node:crypto";
 import { truncateAllTables } from "../../../test/setup";
@@ -35,16 +36,14 @@ describe.skipIf(isDbMocked)("Webhook Logging", () => {
         .insert(sourceTable)
         .values({
           userId: user.id,
-          id: 1,
           uid: crypto.randomUUID(),
-          type: 1,
+          type: SourceType.STRAPI,
           name: "Test Source",
         })
         .returning();
 
       // Insert webhook log
       await db.insert(webhookLogTable).values({
-        userId: user.id,
         sourceId: source.id,
         event: "entry.publish",
         model: "article",
@@ -54,8 +53,8 @@ describe.skipIf(isDbMocked)("Webhook Logging", () => {
 
       // Verify
       const [log] = await db.select().from(webhookLogTable).limit(1);
-      expect(log.userId).toBe(user.id);
-      expect(typeof log.userId).toBe("number");
+      expect(log.sourceId).toBe(source.id);
+      expect(typeof log.sourceId).toBe("number");
       expect(log.status).toBe("success");
       expect(log.itemsBroadcast).toBe(5);
     });
@@ -73,15 +72,13 @@ describe.skipIf(isDbMocked)("Webhook Logging", () => {
         .insert(sourceTable)
         .values({
           userId: user.id,
-          id: 1,
           uid: crypto.randomUUID(),
-          type: 1,
+          type: SourceType.STRAPI,
           name: "Test Source",
         })
         .returning();
 
       await db.insert(webhookLogTable).values({
-        userId: user.id,
         sourceId: source.id,
         event: "entry.create",
         model: "product",
@@ -108,15 +105,13 @@ describe.skipIf(isDbMocked)("Webhook Logging", () => {
         .insert(sourceTable)
         .values({
           userId: user.id,
-          id: 1,
           uid: crypto.randomUUID(),
-          type: 1,
+          type: SourceType.STRAPI,
           name: "Test Source",
         })
         .returning();
 
       await db.insert(webhookLogTable).values({
-        userId: user.id,
         sourceId: source.id,
         event: "entry.update",
         model: "article",
@@ -143,15 +138,13 @@ describe.skipIf(isDbMocked)("Webhook Logging", () => {
         .insert(sourceTable)
         .values({
           userId: user.id,
-          id: 1,
           uid: crypto.randomUUID(),
-          type: 1,
+          type: SourceType.STRAPI,
           name: "Test Source",
         })
         .returning();
 
       await db.insert(webhookLogTable).values({
-        userId: user.id,
         sourceId: source.id,
         event: "entry.delete",
         model: null,
@@ -178,15 +171,13 @@ describe.skipIf(isDbMocked)("Webhook Logging", () => {
         .insert(sourceTable)
         .values({
           userId: user.id,
-          id: 1,
           uid: crypto.randomUUID(),
-          type: 1,
+          type: SourceType.STRAPI,
           name: "FK Test Source",
         })
         .returning();
 
       await db.insert(webhookLogTable).values({
-        userId: user.id,
         sourceId: source.id,
         event: "entry.publish",
         status: "success",
@@ -195,7 +186,6 @@ describe.skipIf(isDbMocked)("Webhook Logging", () => {
 
       // Verify FK relationship works
       const [log] = await db.select().from(webhookLogTable).limit(1);
-      expect(log.userId).toBe(source.userId);
       expect(log.sourceId).toBe(source.id);
     });
   });

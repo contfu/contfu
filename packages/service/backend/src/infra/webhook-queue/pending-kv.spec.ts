@@ -1,25 +1,39 @@
+import type { KV } from "@nats-io/kv";
 import { describe, expect, it } from "bun:test";
 import { cancelPending, clearPending, isPending, markPending } from "./pending-kv";
 
 class MockPendingKv {
   private entries = new Map<string, Uint8Array>();
 
-  create(key: string, value: Uint8Array): number {
+  create(key: string, value: Uint8Array | string): Promise<number> {
     if (this.entries.has(key)) {
-      throw new Error("wrong last sequence");
+      return Promise.reject(new Error("wrong last sequence"));
     }
-    this.entries.set(key, value);
-    return 1;
+    const buf = typeof value === "string" ? new TextEncoder().encode(value) : value;
+    this.entries.set(key, buf);
+    return Promise.resolve(1);
   }
 
-  get(key: string): { value: Uint8Array } | null {
+  get(key: string): ReturnType<KV["get"]> {
     const value = this.entries.get(key);
-    if (!value) return null;
-    return { value };
+    if (!value) return Promise.resolve(null);
+    return Promise.resolve({
+      value,
+      revision: 1,
+      bucket: "",
+      key,
+      created: new Date(),
+      operation: "PUT" as const,
+      length: value.length,
+      rawKey: key,
+      json: <T>() => JSON.parse(Buffer.from(value).toString()) as T,
+      string: () => Buffer.from(value).toString(),
+    });
   }
 
-  delete(key: string): void {
+  delete(key: string): Promise<void> {
     this.entries.delete(key);
+    return Promise.resolve();
   }
 }
 

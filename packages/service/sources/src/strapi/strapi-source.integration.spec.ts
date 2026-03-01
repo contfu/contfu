@@ -340,7 +340,7 @@ describe("StrapiSource Integration", () => {
     expect(item).toBeDefined();
     expect(item!.ref).toBeInstanceOf(Buffer);
     expect(item!.collection).toBe(1);
-    expect(item!.createdAt).toBeGreaterThan(0);
+    expect(getProps(item!).createdAt).toBeGreaterThan(0);
     expect(item!.changedAt).toBeGreaterThan(0);
     expect(getProps(item!).slug).toBe("first-test-article");
   });

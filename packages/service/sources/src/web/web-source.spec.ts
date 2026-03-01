@@ -389,7 +389,7 @@ describe("WebSource", () => {
       );
 
       expect(items).toHaveLength(1);
-      expect(items[0].props.createdAt).toBe(expectedTimestamp);
+      expect(getProps(items[0]).createdAt).toBe(expectedTimestamp);
       expect(items[0].changedAt).toBe(expectedTimestamp);
     });
 

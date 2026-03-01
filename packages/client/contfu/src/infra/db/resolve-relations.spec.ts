@@ -60,7 +60,7 @@ describe("resolveRelations", () => {
 
     expect(items[0].rels).toBeDefined();
     expect(items[0].rels!.siblings).toHaveLength(1);
-    expect(items[0].rels!.siblings[0].id).toBe(makeId(2));
+    expect((items[0].rels!.siblings as any[])[0].id).toBe(makeId(2));
   });
 
   test("resolves relation with $1.props.X placeholder", async () => {
@@ -105,7 +105,7 @@ describe("resolveRelations", () => {
     resolveRelations(items, withClause, findItems);
 
     expect(items[0].rels!.sameCategory).toHaveLength(1);
-    expect(items[0].rels!.sameCategory[0].id).toBe(makeId(2));
+    expect((items[0].rels!.sameCategory as any[])[0].id).toBe(makeId(2));
   });
 
   test("respects limit on relations", async () => {

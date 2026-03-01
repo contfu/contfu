@@ -98,7 +98,7 @@ describe("stream-client", () => {
     test("parses indexed CHANGED event with full item", async () => {
       const ref = "https://example.com/article/42";
       const id = new Uint8Array([0x03, 0x04]);
-      const content: Block[] = [{ type: "paragraph", children: [{ type: "text", text: "Hello" }] }];
+      const content: Block[] = [["p", ["Hello"]]];
 
       const props = {
         title: "Test",

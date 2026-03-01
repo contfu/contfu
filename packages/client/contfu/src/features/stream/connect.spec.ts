@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { EventType, SourceType, type ImageBlock } from "@contfu/core";
 import { db } from "../../infra/db/db";
 import { assetTable, itemAssetTable, syncTable } from "../../infra/db/schema";
-import { truncateAllTables } from "../../../test/setup.ts";
+import { truncateAllTables } from "../../../test/setup";
 import { setCollection } from "../collections/setCollection";
 import type { MediaOptimizer, MediaStore } from "../media/media";
 
@@ -92,7 +92,7 @@ describe("contfu connect", () => {
 
     globalThis.fetch = mock(() =>
       Promise.resolve(new Response(Buffer.from("img"), { status: 200 })),
-    ) as typeof fetch;
+    ) as unknown as typeof fetch;
 
     await mock.module("@contfu/client", () => ({
       // eslint-disable-next-line typescript/require-await -- async generator required by AsyncGenerator return type

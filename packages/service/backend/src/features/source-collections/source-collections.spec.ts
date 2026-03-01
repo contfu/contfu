@@ -104,6 +104,7 @@ describe.skipIf(isDbMocked)("SourceCollection Features Happy Path", () => {
       .insert(collectionTable)
       .values({
         userId,
+        displayName: "Articles Collection",
         name: "Articles Collection",
       })
       .returning();

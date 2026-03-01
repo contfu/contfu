@@ -46,7 +46,7 @@ describe("processAssets", () => {
           headers: { "Content-Type": "image/png" },
         }),
       ),
-    ) as typeof fetch;
+    ) as unknown as typeof fetch;
   });
 
   afterEach(() => {
@@ -165,7 +165,7 @@ describe("processAssets", () => {
   test("continues on fetch failure", async () => {
     globalThis.fetch = mock(() =>
       Promise.resolve(new Response(null, { status: 404 })),
-    ) as typeof fetch;
+    ) as unknown as typeof fetch;
 
     const mediaStore = makeMediaStore();
     const mediaOptimizer = makeMediaOptimizer();
@@ -240,7 +240,7 @@ describe("processAssets", () => {
           );
         }, 10);
       });
-    }) as typeof fetch;
+    }) as unknown as typeof fetch;
 
     const mediaStore = makeMediaStore();
     const content: Block[] = [
@@ -295,7 +295,7 @@ describe("processPropertyAssets", () => {
           headers: { "Content-Type": "image/png" },
         }),
       ),
-    ) as typeof fetch;
+    ) as unknown as typeof fetch;
   });
 
   afterEach(() => {

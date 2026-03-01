@@ -202,7 +202,7 @@ describe("findItems", () => {
     expect(result.data).toHaveLength(1);
     expect(result.data[0].rels).toBeDefined();
     expect(result.data[0].rels!.sameColl).toHaveLength(1);
-    expect(result.data[0].rels!.sameColl[0].id).toBe(makeId(2));
+    expect((result.data[0].rels!.sameColl as any[])[0].id).toBe(makeId(2));
   });
 });
 
@@ -255,6 +255,6 @@ describe("getItemById", () => {
     });
 
     expect(item!.rels!.sameColl).toHaveLength(1);
-    expect(item!.rels!.sameColl[0].id).toBe(makeId(2));
+    expect((item!.rels!.sameColl as any[])[0].id).toBe(makeId(2));
   });
 });

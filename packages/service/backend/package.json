@@ -12,7 +12,7 @@
   "scripts": {
     "dev": "tsc -b --watch",
     "build": "[ -d dist ] || rm -f tsconfig.tsbuildinfo && tsc -b",
-    "check": "tsc -p tsconfig-typecheck.json",
+    "check": "tsc -p tsconfig.check.json",
     "clean": "rm -rf dist tsconfig.tsbuildinfo",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",

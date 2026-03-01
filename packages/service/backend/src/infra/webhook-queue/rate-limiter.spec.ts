@@ -1,3 +1,4 @@
+import type { KV } from "@nats-io/kv";
 import { describe, expect, it } from "bun:test";
 import { acquireRateSlot } from "./rate-limiter";
 
@@ -10,30 +11,45 @@ class MockRateLimitKv {
   private entries = new Map<string, Entry>();
   failNextUpdateWithCasConflict = false;
 
-  create(key: string, value: Uint8Array): number {
+  create(key: string, value: Uint8Array | string): Promise<number> {
     if (this.entries.has(key)) {
-      throw new Error("wrong last sequence");
+      return Promise.reject(new Error("wrong last sequence"));
     }
 
-    const entry = { value, revision: 1 };
+    const buf = typeof value === "string" ? new TextEncoder().encode(value) : value;
+    const entry = { value: buf, revision: 1 };
     this.entries.set(key, entry);
-    return entry.revision;
+    return Promise.resolve(entry.revision);
   }
 
-  get(key: string): Entry | null {
-    return this.entries.get(key) ?? null;
+  get(key: string): ReturnType<KV["get"]> {
+    const entry = this.entries.get(key);
+    if (!entry) return Promise.resolve(null);
+    return Promise.resolve({
+      value: entry.value,
+      revision: entry.revision,
+      bucket: "",
+      key,
+      created: new Date(),
+      operation: "PUT" as const,
+      length: entry.value.length,
+      rawKey: key,
+      json: <T>() => JSON.parse(Buffer.from(entry.value).toString()) as T,
+      string: () => Buffer.from(entry.value).toString(),
+    });
   }
 
-  update(key: string, value: Uint8Array, revision: number): number {
+  update(key: string, value: Uint8Array | string, revision: number): Promise<number> {
     const entry = this.entries.get(key);
     if (!entry || entry.revision !== revision || this.failNextUpdateWithCasConflict) {
       this.failNextUpdateWithCasConflict = false;
-      throw new Error("wrong last sequence");
+      return Promise.reject(new Error("wrong last sequence"));
     }
 
-    const next = { value, revision: entry.revision + 1 };
+    const buf = typeof value === "string" ? new TextEncoder().encode(value) : value;
+    const next = { value: buf, revision: entry.revision + 1 };
     this.entries.set(key, next);
-    return next.revision;
+    return Promise.resolve(next.revision);
   }
 }
 

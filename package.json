@@ -23,7 +23,7 @@
     "fmt": "oxfmt",
     "lint": "oxlint",
     "lint:types": "oxlint --type-aware",
-    "typecheck": "tsc -b",
+    "typecheck": "tsc -b tsconfig.check.json",
     "check": "bun run fmt && bun run build && bun run lint && bun run typecheck && bun run test",
     "prepare": "git rev-parse --git-dir >/dev/null 2>&1 && git config core.hooksPath .githooks || true"
   },

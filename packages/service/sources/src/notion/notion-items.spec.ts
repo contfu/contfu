@@ -78,7 +78,7 @@ describe("notion-items", () => {
       expect(item.collection).toBe(1);
       expect(item.ref).toEqual(uuidToBuffer(dbQueryResult1.id));
       expect(item.id).toEqual(genUid(uuidToBuffer(dbQueryResult1.id)));
-      expect(item.props.createdAt).toBe(new Date(dbQueryResult1.created_time).getTime());
+      expect(getProps(item).createdAt).toBe(new Date(dbQueryResult1.created_time).getTime());
       expect(item.changedAt).toBe(new Date(dbQueryResult1.last_edited_time).getTime());
     });
 
@@ -630,7 +630,7 @@ describe("notion-items", () => {
       expect(item.collection).toBe(1);
       expect(item.ref).toEqual(uuidToBuffer("2e5459d4-e3a9-80ee-8dc6-fa918c5f7f17"));
       expect(item.id).toEqual(genUid(uuidToBuffer("2e5459d4-e3a9-80ee-8dc6-fa918c5f7f17")));
-      expect(item.props.createdAt).toBe(new Date("2026-01-11T13:04:00.000Z").getTime());
+      expect(getProps(item).createdAt).toBe(new Date("2026-01-11T13:04:00.000Z").getTime());
       expect(item.changedAt).toBe(new Date("2026-01-11T15:34:00.000Z").getTime());
     });
 

@@ -152,7 +152,6 @@ describe.skipIf(isDbMocked)("Consumer Features", () => {
         .insert(collectionTable)
         .values({
           userId: testUserId,
-          id: 1,
           displayName: "Articles",
           name: "articles",
         })
@@ -366,9 +365,9 @@ describe.skipIf(isDbMocked)("Consumer Features", () => {
 
       // Create collections
       await db.insert(collectionTable).values([
-        { userId: testUserId, id: 1, displayName: "Collection 1", name: "collection1" },
-        { userId: testUserId, id: 2, displayName: "Collection 2", name: "collection2" },
-        { userId: testUserId, id: 3, displayName: "Collection 3", name: "collection3" },
+        { userId: testUserId, displayName: "Collection 1", name: "collection1" },
+        { userId: testUserId, displayName: "Collection 2", name: "collection2" },
+        { userId: testUserId, displayName: "Collection 3", name: "collection3" },
       ]);
 
       // Create multiple connections

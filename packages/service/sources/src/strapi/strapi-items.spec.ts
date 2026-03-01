@@ -60,9 +60,9 @@ describe("strapi-items", () => {
       expect(item.collection).toBe(1);
       expect(item.ref).toEqual(Buffer.from("abc123def456", "utf8"));
       expect(item.id).toEqual(genUid(Buffer.from("abc123def456", "utf8")));
-      expect(item.props.createdAt).toBe(new Date("2024-01-10T08:00:00.000Z").getTime());
+      expect(getProps(item).createdAt).toBe(new Date("2024-01-10T08:00:00.000Z").getTime());
       expect(item.changedAt).toBe(new Date("2024-01-15T10:30:00.000Z").getTime());
-      expect(item.props.publishedAt).toBe(new Date("2024-01-15T10:30:00.000Z").getTime());
+      expect(getProps(item).publishedAt).toBe(new Date("2024-01-15T10:30:00.000Z").getTime());
 
       // Check props
       expect(getProps(item).title).toBe("Getting Started with Strapi");
@@ -90,7 +90,7 @@ describe("strapi-items", () => {
       const items = await Array.fromAsync(iterateItems(testOpts));
 
       expect(items).toHaveLength(1);
-      expect(items[0].props.publishedAt).toBeUndefined();
+      expect(getProps(items[0]).publishedAt).toBeUndefined();
     });
 
     it("should convert media fields to URLs", async () => {
