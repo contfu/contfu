@@ -129,7 +129,7 @@ export const addInfluxWithSourceCollection = (userId: number, input: AddInfluxIn
       }
     }
 
-    // Create the influx
+    // Create the influx (mappings are configured client-side)
     const [influx] = yield* Effect.tryPromise({
       try: () =>
         db
@@ -139,6 +139,7 @@ export const addInfluxWithSourceCollection = (userId: number, input: AddInfluxIn
             collectionId: input.collectionId,
             sourceCollectionId,
             schema: schema ? pack(schema) : null,
+            mappings: null,
             filters: input.filters?.length ? pack(input.filters) : null,
             includeRef: input.includeRef ?? true,
           })

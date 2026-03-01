@@ -1,7 +1,7 @@
 {
   "version": "8",
   "dialect": "postgres",
-  "id": "655ef622-d7d4-494f-9654-950699f3fa7f",
+  "id": "2b834d4d-0a39-4f8d-98b7-c29b79dea29d",
   "prevIds": [
     "bf198f14-ab30-498f-87a2-f95cd904d8ea"
   ],
@@ -45,6 +45,12 @@
     {
       "isRlsEnabled": false,
       "name": "item_id_conflict_resolution",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "msgpackr_migration",
       "entityType": "tables",
       "schema": "public"
     },
@@ -323,7 +329,33 @@
       "default": null,
       "generated": null,
       "identity": null,
+      "name": "displayName",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "collection"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
       "name": "name",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "collection"
+    },
+    {
+      "type": "bytea",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "schema",
       "entityType": "columns",
       "schema": "public",
       "table": "collection"
@@ -740,6 +772,19 @@
       "default": null,
       "generated": null,
       "identity": null,
+      "name": "mappings",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "influx"
+    },
+    {
+      "type": "bytea",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
       "name": "filters",
       "entityType": "columns",
       "schema": "public",
@@ -822,6 +867,45 @@
       "entityType": "columns",
       "schema": "public",
       "table": "item_id_conflict_resolution"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "tablename",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "msgpackr_migration"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "columnname",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "msgpackr_migration"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "0",
+      "generated": null,
+      "identity": null,
+      "name": "version",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "msgpackr_migration"
     },
     {
       "type": "integer",
@@ -1334,7 +1418,7 @@
     {
       "type": "text",
       "typeSchema": null,
-      "notNull": false,
+      "notNull": true,
       "dimensions": 0,
       "default": null,
       "generated": null,
@@ -2691,6 +2775,17 @@
       "entityType": "pks",
       "schema": "public",
       "table": "item_id_conflict_resolution"
+    },
+    {
+      "columns": [
+        "tablename",
+        "columnname"
+      ],
+      "nameExplicit": false,
+      "name": "msgpackr_migration_pkey",
+      "entityType": "pks",
+      "schema": "public",
+      "table": "msgpackr_migration"
     },
     {
       "columns": [

@@ -13,13 +13,13 @@ import { listSources } from "@contfu/svc-backend/features/sources/listSources";
 import { db } from "@contfu/svc-backend/infra/db/db";
 import { influxTable } from "@contfu/svc-backend/infra/db/schema";
 import { encodeId, idSchema } from "@contfu/svc-backend/infra/ids";
-import type { CollectionSchema, Filter } from "@contfu/svc-core";
+import type { CollectionSchema, Filter, MappingRule } from "@contfu/svc-core";
 import {
   iterateDataSources,
   notionPropertiesToSchema,
   type DataSourceResult,
 } from "@contfu/svc-sources/notion";
-import { invalid } from "@sveltejs/kit";
+import { error, invalid } from "@sveltejs/kit";
 import { and, eq } from "drizzle-orm";
 import { lru } from "tiny-lru";
 import * as v from "valibot";
@@ -375,9 +375,9 @@ export const removeInflux = form(v.object({ id: idSchema("influx") }), async (da
  */
 export const updateInfluxForm = form(
   v.object({
-    collectionId: idSchema("collection"),
-    sourceCollectionId: idSchema("sourceCollection"),
+    id: idSchema("influx"),
     filters: v.optional(v.string()), // JSON string of Filter[]
+    mappings: v.optional(v.string()), // JSON string of MappingRule[]
     includeRef: v.optional(
       v.pipe(
         v.union([v.string(), v.boolean()]),
@@ -397,20 +397,23 @@ export const updateInfluxForm = form(
       }
     }
 
+    let mappings: MappingRule[] | null = null;
+    if (data.mappings) {
+      try {
+        mappings = JSON.parse(data.mappings) as MappingRule[];
+      } catch {
+        throw issue.mappings("Invalid mappings JSON");
+      }
+    }
+
     // Find influx by collectionId + sourceCollectionId
     const [influx] = await db
       .select({ id: influxTable.id })
       .from(influxTable)
-      .where(
-        and(
-          eq(influxTable.userId, userId),
-          eq(influxTable.collectionId, data.collectionId),
-          eq(influxTable.sourceCollectionId, data.sourceCollectionId),
-        ),
-      );
+      .where(and(eq(influxTable.userId, userId), eq(influxTable.id, data.id)));
 
     if (!influx) {
-      throw issue.sourceCollectionId("Influx not found");
+      throw issue.id("Influx not found");
     }
 
     const result = await runWithUser(
@@ -418,13 +421,49 @@ export const updateInfluxForm = form(
       updateInfluxFeature(userId, {
         id: influx.id,
         filters,
+        mappings,
         includeRef: data.includeRef,
       }),
     );
 
     if (!result) {
-      throw issue.sourceCollectionId("Failed to update influx");
+      throw issue.id("Failed to update influx");
     }
+
+    return { success: true };
+  },
+);
+
+/**
+ * Programmatic influx mappings update (command, not form) for use in saveMappings().
+ */
+export const updateInfluxMappings = command(
+  v.object({
+    id: idSchema("influx"),
+    mappings: v.string(), // JSON string of MappingRule[]
+  }),
+  async (data) => {
+    const userId = getUserId();
+
+    const mappings = JSON.parse(data.mappings) as MappingRule[];
+
+    // Find influx by collectionId + sourceCollectionId
+    const [influx] = await db
+      .select({ id: influxTable.id })
+      .from(influxTable)
+      .where(and(eq(influxTable.userId, userId), eq(influxTable.id, data.id)));
+
+    if (!influx) {
+      error(404, "Influx not found");
+    }
+
+    await runWithUser(
+      userId,
+      updateInfluxFeature(userId, {
+        id: influx.id,
+        mappings,
+      }),
+    );
 
     return { success: true };
   },

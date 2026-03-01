@@ -4,6 +4,8 @@ import type { BackendCollection } from "../../domain/types";
 import { Database } from "../../effect/services/Database";
 import { DatabaseError } from "../../effect/errors";
 import { collectionTable, influxTable, connectionTable } from "../../infra/db/schema";
+import { unpack } from "msgpackr";
+import type { CollectionSchema } from "@contfu/svc-core";
 
 /**
  * Get a single Collection by ID.
@@ -51,6 +53,7 @@ export const getCollection = (userId: number, collectionId: number) =>
       userId: collection.userId,
       displayName: collection.displayName,
       name: collection.name,
+      schema: unpack(collection.schema) as CollectionSchema,
       includeRef: collection.includeRef,
       influxCount: influxCount?.count ?? 0,
       connectionCount: connectionCount?.count ?? 0,

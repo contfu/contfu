@@ -1,65 +1,38 @@
 <script lang="ts">
   // @ts-nocheck
-  import FilterEditor from "$lib/components/FilterEditor.svelte";
   import SourceTypeIcon from "$lib/components/icons/SourceTypeIcon.svelte";
-  import { Button } from "$lib/components/ui/button";
   import * as Command from "$lib/components/ui/command";
   import * as Dialog from "$lib/components/ui/dialog";
   import { SOURCE_TYPE_LABELS } from "$lib/domain/source";
-  import { getSourceCollectionSchemaQuery } from "$lib/remote/collections.remote";
   import {
-    addInfluxWithAutoCreate,
-    getInfluxes,
     probeAllSources,
     refreshSourceDataSources,
     type DataSourceInfo,
     type SourceWithDataSources,
   } from "$lib/remote/influxes.remote";
   import { SourceType } from "@contfu/core";
-  import type {
-    CollectionSchema,
-    Filter,
-    ServiceInfluxWithDetails,
-  } from "@contfu/svc-core";
   import AlertCircle from "@lucide/svelte/icons/alert-circle";
   import Check from "@lucide/svelte/icons/check";
-  import ChevronLeft from "@lucide/svelte/icons/chevron-left";
   import LoaderCircle from "@lucide/svelte/icons/loader-circle";
   import Plus from "@lucide/svelte/icons/plus";
   import RefreshCw from "@lucide/svelte/icons/refresh-cw";
 
   interface Props {
-    collectionId: number;
     /** IDs of source collections already linked to this collection */
     linkedSourceCollectionIds: Set<number>;
     /** Refs of source collections already linked (for filtering custom path options) */
     linkedSourceCollectionRefs: Set<string>;
-    onSuccess?: () => void;
+    onSelect: (selection: { source: SourceWithDataSources; dataSource: DataSourceInfo }) => void;
   }
 
   let {
-    collectionId,
     linkedSourceCollectionIds,
     linkedSourceCollectionRefs,
-    onSuccess,
+    onSelect,
   }: Props = $props();
 
   // Dialog state
   let open = $state(false);
-  let step = $state<"select" | "configure">("select");
-
-  // Selection state
-  let selectedSource = $state<SourceWithDataSources | null>(null);
-  let selectedDataSource = $state<DataSourceInfo | null>(null);
-
-  // Filter configuration state
-  let schema = $state<CollectionSchema | null>(null);
-  let filters = $state<Filter[]>([]);
-  let loadingSchema = $state(false);
-
-  // Submit state
-  let submitting = $state(false);
-  let submitError = $state<string | null>(null);
 
   // Data loading
   let sourcesPromise = $state<Promise<SourceWithDataSources[]> | null>(null);
@@ -68,12 +41,6 @@
 
   function handleOpen() {
     open = true;
-    step = "select";
-    selectedSource = null;
-    selectedDataSource = null;
-    schema = null;
-    filters = [];
-    submitError = null;
     refreshErrorBySourceId = new Map();
 
     // Start probing sources
@@ -92,93 +59,14 @@
     );
   }
 
-  async function handleSelectDataSource(
+  function handleSelectDataSource(
     source: SourceWithDataSources,
     ds: DataSourceInfo,
   ) {
     if (isAlreadyLinked(ds)) return;
 
-    selectedSource = source;
-    selectedDataSource = ds;
-    step = "configure";
-    submitError = null;
-
-    // Use schema from probe results if available (Notion includes it)
-    if (ds.schema) {
-      schema = ds.schema;
-      loadingSchema = false;
-    } else if (ds.exists && ds.sourceCollectionId) {
-      // For existing source collections without inline schema, fetch from DB
-      loadingSchema = true;
-      try {
-        schema = await getSourceCollectionSchemaQuery({
-          sourceCollectionId: ds.sourceCollectionId,
-        });
-      } catch {
-        schema = null;
-      }
-      loadingSchema = false;
-    } else {
-      // No schema available
-      schema = null;
-      loadingSchema = false;
-    }
-  }
-
-  function handleBack() {
-    step = "select";
-    selectedSource = null;
-    selectedDataSource = null;
-    schema = null;
-    filters = [];
-    submitError = null;
-  }
-
-  function handleFilterChange(newFilters: Filter[]) {
-    filters = newFilters;
-  }
-
-  async function handleSubmit() {
-    if (!selectedSource || !selectedDataSource) return;
-
-    submitting = true;
-    submitError = null;
-
-    const override = {
-      sourceType: selectedSource.sourceType,
-      filters,
-      schema,
-      sourceCollectionId: 0,
-      sourceCollectionName: selectedDataSource?.title!,
-      sourceCollectionRef: selectedDataSource?.id!,
-      sourceName: selectedSource!.sourceName!,
-    } as ServiceInfluxWithDetails;
-
-    const result = await addInfluxWithAutoCreate({
-      collectionId,
-      sourceId: selectedSource.sourceId,
-      ref: selectedDataSource.id,
-      name: selectedDataSource.title,
-      existingSourceCollectionId: selectedDataSource.exists
-        ? selectedDataSource.sourceCollectionId
-        : undefined,
-      filters: filters.length > 0 ? JSON.stringify(filters) : undefined,
-      schema: schema ? JSON.stringify(schema) : undefined,
-    }).updates(
-      getInfluxes({ collectionId }).withOverride((influxes) => [
-        ...influxes,
-        override,
-      ]),
-    );
-
-    submitting = false;
-
-    if (result.success) {
-      open = false;
-      onSuccess?.();
-    } else {
-      submitError = result.error;
-    }
+    onSelect({ source, dataSource: ds });
+    open = false;
   }
 
   // Search filter for command input
@@ -205,7 +93,6 @@
   function filterMatchesExisting(source: SourceWithDataSources): boolean {
     const filter = searchFilter.trim().toLowerCase();
     if (!filter) return false;
-    // Check against data sources from probe
     if (
       source.dataSources.some(
         (ds) =>
@@ -214,37 +101,30 @@
     ) {
       return true;
     }
-    // Also check against already-linked refs (for custom paths that aren't in probe results)
     return linkedSourceCollectionRefs.has(searchFilter.trim());
   }
 
   // Refresh collections for a specific source
   async function handleRefreshSource(sourceId: number) {
-    // Prevent concurrent refresh requests for same source
     if (refreshingSourceId === sourceId) {
       return;
     }
 
     refreshingSourceId = sourceId;
-    // Clear any previous error for this source
     refreshErrorBySourceId.delete(sourceId);
     refreshErrorBySourceId = refreshErrorBySourceId;
 
     try {
-      // Try to refresh cache with fresh data
       const result = await refreshSourceDataSources({ sourceId });
 
       if (result.success) {
-        // Refresh succeeded - re-probe to show updated data
         sourcesPromise = probeAllSources();
         await sourcesPromise;
       } else {
-        // Refresh failed - show error, keep existing cached data
         refreshErrorBySourceId.set(sourceId, result.error);
         refreshErrorBySourceId = refreshErrorBySourceId;
       }
     } catch (err) {
-      // Network or other error
       const errorMsg = err instanceof Error ? err.message : "Failed to refresh";
       refreshErrorBySourceId.set(sourceId, errorMsg);
       refreshErrorBySourceId = refreshErrorBySourceId;
@@ -270,24 +150,13 @@
 
   <Dialog.Content class="max-w-lg">
     <Dialog.Header>
-      <Dialog.Title>
-        {#if step === "select"}
-          Add Influx
-        {:else}
-          Configure Influx
-        {/if}
-      </Dialog.Title>
+      <Dialog.Title>Add Influx</Dialog.Title>
       <Dialog.Description>
-        {#if step === "select"}
-          Select a data source to add to this collection.
-        {:else if selectedDataSource}
-          Configure filters for "{selectedDataSource.title}".
-        {/if}
+        Select a data source to add to this collection.
       </Dialog.Description>
     </Dialog.Header>
 
-    {#if step === "select"}
-      <!-- Data Source Selection -->
+    <!-- Data Source Selection -->
       {#if sourcesPromise}
         {#await sourcesPromise}
           <div class="flex items-center justify-center py-12">
@@ -450,72 +319,5 @@
           </div>
         {/await}
       {/if}
-    {:else}
-      <!-- Filter Configuration -->
-      <div class="space-y-4">
-        <button
-          type="button"
-          onclick={handleBack}
-          class="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ChevronLeft class="h-4 w-4" />
-          Back to selection
-        </button>
-
-        {#if selectedDataSource}
-          <div class="rounded-md border border-border bg-muted/30 p-3">
-            <div class="flex items-center gap-2">
-              {#if selectedDataSource.icon?.type === "emoji"}
-                <span>{selectedDataSource.icon.value}</span>
-              {:else if selectedSource}
-                <SourceTypeIcon
-                  type={selectedSource.sourceType}
-                  class="h-4 w-4 text-muted-foreground"
-                />
-              {/if}
-              <span class="font-medium">{selectedDataSource.title}</span>
-              {#if !selectedDataSource.exists}
-                <span class="ml-auto text-xs text-muted-foreground"
-                  >New source collection</span
-                >
-              {/if}
-            </div>
-          </div>
-        {/if}
-
-        <div>
-          <h3 class="mb-2 text-sm font-medium">Filters (optional)</h3>
-          {#if loadingSchema}
-            <div class="flex items-center gap-2 py-4 text-muted-foreground">
-              <LoaderCircle class="h-4 w-4 animate-spin" />
-              <span class="text-sm">Loading schema...</span>
-            </div>
-          {:else}
-            <FilterEditor {schema} {filters} onchange={handleFilterChange} />
-          {/if}
-        </div>
-
-        {#if submitError}
-          <div
-            class="flex items-center gap-2 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive"
-          >
-            <AlertCircle class="h-4 w-4 shrink-0" />
-            {submitError}
-          </div>
-        {/if}
-      </div>
-
-      <Dialog.Footer>
-        <Button variant="outline" onclick={handleClose}>Cancel</Button>
-        <Button onclick={handleSubmit} disabled={submitting}>
-          {#if submitting}
-            <LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
-            Adding...
-          {:else}
-            Add Influx
-          {/if}
-        </Button>
-      </Dialog.Footer>
-    {/if}
   </Dialog.Content>
 </Dialog.Root>

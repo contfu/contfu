@@ -1,5 +1,6 @@
-import { sql } from "drizzle-orm";
 import { db } from "@contfu/svc-backend/infra/db/db";
+import { sql } from "drizzle-orm";
+import "./setup-svelte";
 
 /**
  * Truncates all tables and resets identity sequences.

@@ -1,5 +1,5 @@
 import { SourceType } from "@contfu/core";
-import type { Filter } from "@contfu/svc-core";
+import type { Filter, MappingRule } from "@contfu/svc-core";
 import { Effect } from "effect";
 import { and, eq, inArray } from "drizzle-orm";
 import { unpack } from "msgpackr";
@@ -25,7 +25,12 @@ export interface ConsumerSyncConfig {
     sourceCollections: Array<{
       sourceCollectionId: number;
       collectionRef: Buffer | null;
-      targets: Array<{ collectionId: number; filters: Filter[] | null; includeRef: boolean }>;
+      targets: Array<{
+        collectionId: number;
+        filters: Filter[] | null;
+        includeRef: boolean;
+        mappings: MappingRule[] | null;
+      }>;
     }>;
   }>;
 }
@@ -95,6 +100,7 @@ export const getConsumerSyncConfig = (userId: number, consumerId: number) =>
             sourceCollectionId: influxTable.sourceCollectionId,
             filters: influxTable.filters,
             includeRef: influxTable.includeRef,
+            mappings: influxTable.mappings,
           })
           .from(influxTable)
           .where(
@@ -152,7 +158,12 @@ export const getConsumerSyncConfig = (userId: number, consumerId: number) =>
           {
             sourceCollectionId: number;
             collectionRef: Buffer | null;
-            targets: Array<{ collectionId: number; filters: Filter[] | null; includeRef: boolean }>;
+            targets: Array<{
+              collectionId: number;
+              filters: Filter[] | null;
+              includeRef: boolean;
+              mappings: MappingRule[] | null;
+            }>;
           }
         >;
       }
@@ -190,6 +201,7 @@ export const getConsumerSyncConfig = (userId: number, consumerId: number) =>
             collectionId: influx.collectionId,
             filters: influx.filters ? (unpack(influx.filters) as Filter[]) : null,
             includeRef: Boolean(group.sourceIncludeRef) && allowByInflux && allowByConnection,
+            mappings: influx.mappings ? (unpack(influx.mappings) as MappingRule[]) : null,
           });
         }
       }

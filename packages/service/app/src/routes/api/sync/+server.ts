@@ -36,6 +36,7 @@ import {
 import { and, eq, inArray } from "drizzle-orm";
 import { unpack } from "msgpackr";
 import type { CollectionSchema } from "@contfu/core";
+import { applyMappingsToSchema, type MappingRule } from "@contfu/svc-core";
 import type { RequestHandler } from "./$types";
 
 const log = createLogger("api-sync");
@@ -208,6 +209,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
               collectionId: influxTable.collectionId,
               influxSchema: influxTable.schema,
               sourceSchema: sourceCollectionTable.schema,
+              mappings: influxTable.mappings,
             })
             .from(influxTable)
             .innerJoin(
@@ -225,7 +227,10 @@ export const GET: RequestHandler = async ({ request, url }) => {
           for (const row of influxRows) {
             const schemaBuf = row.influxSchema ?? row.sourceSchema;
             if (!schemaBuf) continue;
-            const schema = unpack(schemaBuf) as CollectionSchema;
+            const rawSchema = unpack(schemaBuf) as CollectionSchema;
+            const schema = row.mappings
+              ? applyMappingsToSchema(rawSchema, unpack(row.mappings) as MappingRule[])
+              : rawSchema;
             const existing = mergedSchemas.get(row.collectionId);
             if (existing) {
               for (const [prop, type] of Object.entries(schema)) {

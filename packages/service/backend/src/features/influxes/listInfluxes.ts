@@ -4,7 +4,7 @@ import { DatabaseError } from "../../effect/errors";
 import { influxTable, sourceCollectionTable, sourceTable } from "../../infra/db/schema";
 import { and, eq } from "drizzle-orm";
 import { unpack } from "msgpackr";
-import type { CollectionSchema, Filter } from "@contfu/svc-core";
+import type { CollectionSchema, Filter, MappingRule } from "@contfu/svc-core";
 import type { BackendInfluxWithDetails } from "../../domain/types";
 
 /**
@@ -21,6 +21,7 @@ export const listInfluxes = (userId: number, collectionId: number) =>
             id: influxTable.id,
             sourceCollectionId: influxTable.sourceCollectionId,
             schema: influxTable.schema,
+            mappings: influxTable.mappings,
             filters: influxTable.filters,
             includeRef: influxTable.includeRef,
             createdAt: influxTable.createdAt,
@@ -30,6 +31,7 @@ export const listInfluxes = (userId: number, collectionId: number) =>
             sourceId: sourceCollectionTable.sourceId,
             sourceName: sourceTable.name,
             sourceType: sourceTable.type,
+            sourceCollectionSchema: sourceCollectionTable.schema,
           })
           .from(influxTable)
           .innerJoin(
@@ -58,7 +60,12 @@ export const listInfluxes = (userId: number, collectionId: number) =>
       sourceId: r.sourceId,
       sourceName: r.sourceName,
       sourceType: r.sourceType,
-      schema: r.schema ? (unpack(r.schema) as CollectionSchema) : null,
+      schema: r.schema
+        ? (unpack(r.schema) as CollectionSchema)
+        : r.sourceCollectionSchema
+          ? (unpack(r.sourceCollectionSchema) as CollectionSchema)
+          : null,
+      mappings: r.mappings ? (unpack(r.mappings) as MappingRule[]) : null,
       filters: r.filters ? (unpack(r.filters) as Filter[]) : null,
       includeRef: r.includeRef,
       createdAt: r.createdAt,

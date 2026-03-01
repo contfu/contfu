@@ -3,12 +3,14 @@ import { and, eq } from "drizzle-orm";
 import { Database } from "../../effect/services/Database";
 import { DatabaseError } from "../../effect/errors";
 import { collectionTable } from "../../infra/db/schema";
-import { toCamelCase } from "@contfu/svc-core";
+import { toCamelCase, type CollectionSchema } from "@contfu/svc-core";
+import { pack } from "msgpackr";
 
 export interface UpdateCollectionInput {
   displayName?: string;
   name?: string;
   includeRef?: boolean;
+  schema?: CollectionSchema;
 }
 
 const camelCasePattern = /^[a-z][a-zA-Z0-9]*$/;
@@ -46,6 +48,7 @@ export const updateCollection = (
           .set({
             displayName: input.displayName,
             name,
+            schema: input.schema ? pack(input.schema) : undefined,
             includeRef: input.includeRef,
             updatedAt: new Date(),
           })

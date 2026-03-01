@@ -5,6 +5,7 @@ import { DatabaseError } from "../../effect/errors";
 import { collectionTable } from "../../infra/db/schema";
 import { toCamelCase } from "@contfu/svc-core";
 import { incrementCount } from "../../infra/nats/quota-kv";
+import { pack } from "msgpackr";
 
 export interface CreateCollectionInput {
   displayName: string;
@@ -44,6 +45,7 @@ export const createCollection = (userId: number, input: CreateCollectionInput) =
             displayName: input.displayName,
             name,
             includeRef: input.includeRef ?? true,
+            schema: pack({}),
           })
           .returning(),
       catch: (e) => new DatabaseError({ cause: e }),
@@ -56,6 +58,7 @@ export const createCollection = (userId: number, input: CreateCollectionInput) =
       userId: inserted.userId,
       displayName: inserted.displayName,
       name: inserted.name,
+      schema: {},
       includeRef: inserted.includeRef,
       influxCount: 0,
       connectionCount: 0,

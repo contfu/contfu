@@ -35,6 +35,14 @@ export default async function globalSetup() {
   const { seedSyncData } = await import("./e2e/sync-stream.seed");
   await seedSyncData(db);
 
+  // Seed mapping editor test data
+  const { seedMappingEditorData } = await import("./e2e/mapping-editor.seed");
+  await seedMappingEditorData(db);
+
+  // Seed mapping sync test data
+  const { seedMappingSyncData } = await import("./e2e/mapping-sync.seed");
+  await seedMappingSyncData(db);
+
   // Release file lock so the server process can open the same database
   await closeDb();
 }

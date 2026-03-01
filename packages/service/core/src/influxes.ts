@@ -1,5 +1,6 @@
 import type { CollectionSchema } from "./schemas";
 import type { Filter } from "./filters";
+import type { MappingRule } from "./mappings";
 
 /**
  * Influx details returned from list operations.
@@ -15,6 +16,7 @@ export interface ServiceInfluxWithDetails {
   sourceName: string | null;
   sourceType: number;
   schema: CollectionSchema | null;
+  mappings: MappingRule[] | null;
   filters: Filter[] | null;
   includeRef: boolean;
   createdAt: Date;
@@ -33,6 +35,7 @@ export interface ServiceInfluxDetails {
   sourceId: string;
   sourceName: string | null;
   schema: CollectionSchema | null;
+  mappings: MappingRule[] | null;
   filters: Filter[] | null;
   includeRef: boolean;
   createdAt: Date;

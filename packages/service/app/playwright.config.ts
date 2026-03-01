@@ -5,6 +5,7 @@ import { defineConfig, devices } from "@playwright/test";
 // Use a different port for E2E tests to avoid conflicts with other services
 const TEST_PORT = 4173;
 const MOCK_NOTION_PORT = 4174;
+const MOCK_STRAPI_PORT = 4175;
 const DIRNAME = path.dirname(fileURLToPath(import.meta.url));
 
 // File-based PGlite database shared between globalSetup (seeding) and the server
@@ -34,6 +35,14 @@ export default defineConfig({
     {
       command: `bun tests/mock-notion-server.ts`,
       url: `http://localhost:${MOCK_NOTION_PORT}`,
+      reuseExistingServer: false,
+      timeout: 10_000,
+      stdout: "pipe",
+      stderr: "pipe",
+    },
+    {
+      command: `bun tests/mock-strapi-server.ts`,
+      url: `http://localhost:${MOCK_STRAPI_PORT}`,
       reuseExistingServer: false,
       timeout: 10_000,
       stdout: "pipe",

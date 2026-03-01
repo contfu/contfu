@@ -3,6 +3,7 @@
   import { goto } from "$app/navigation";
   import AddInfluxDialog from "$lib/components/AddInfluxDialog.svelte";
   import FilterEditor from "$lib/components/FilterEditor.svelte";
+  import MappingEditor from "$lib/components/MappingEditor.svelte";
   import SourceTypeIcon from "$lib/components/icons/SourceTypeIcon.svelte";
   import SiteHeader from "$lib/components/layout/site-header.svelte";
   import { Button, buttonVariants } from "$lib/components/ui/button";
@@ -16,6 +17,7 @@
     getCollection,
     getSourceCollectionSchemaQuery,
     updateCollection,
+    updateCollectionSchema,
   } from "$lib/remote/collections.remote";
   import {
     addConnection,
@@ -24,15 +26,20 @@
   } from "$lib/remote/connections.remote";
   import { getConsumers } from "$lib/remote/consumers.remote";
   import {
+    addInfluxWithAutoCreate,
     getInfluxes,
     removeInflux,
     updateInfluxForm,
+    updateInfluxMappings,
+    type DataSourceInfo,
+    type SourceWithDataSources,
   } from "$lib/remote/influxes.remote";
   import { cn } from "$lib/utils";
   import { tcToast } from "$lib/utils/toast";
   import type {
     CollectionSchema,
     Filter as FilterType,
+    MappingRule,
     ServiceConnectionWithDetails,
   } from "@contfu/svc-core";
   import {
@@ -56,7 +63,8 @@
   let { params } = $props();
 
   let id = $derived(params.id);
-  const collection = $derived(await getCollection({ id }));
+  const collectionQuery = $derived(getCollection({ id }));
+  const collection = $derived(await collectionQuery);
 
   // Sync form fields when collection changes
   $effect(() => {
@@ -70,16 +78,36 @@
   );
   const allConsumers = $derived(await getConsumers());
 
-  // Derived from query.current
+  // Pending (unsaved) influxes
+  interface PendingInflux {
+    tempId: string;
+    sourceId: string | number;
+    sourceType: number;
+    sourceName: string | null;
+    sourceCollectionName: string;
+    ref: string;
+    schema: CollectionSchema | null;
+    icon: { type: string; value: string } | null;
+    existingSourceCollectionId?: string | number;
+  }
+  let pendingInfluxes = $state<PendingInflux[]>([]);
+
+  // Derived from query.current + pending
   const linkedSourceIds = $derived(
-    new Set((influxesQuery?.current ?? []).map((m) => m.sourceCollectionId)),
+    new Set([
+      ...(influxesQuery?.current ?? []).map((m) => m.sourceCollectionId),
+      ...(pendingInfluxes
+        .filter((p) => p.existingSourceCollectionId !== undefined)
+        .map((p) => p.existingSourceCollectionId!)),
+    ]),
   );
   const linkedSourceRefs = $derived(
-    new Set(
-      (influxesQuery?.current ?? [])
+    new Set([
+      ...(influxesQuery?.current ?? [])
         .map((m) => m.sourceCollectionRef)
         .filter((r): r is string => r !== null),
-    ),
+      ...pendingInfluxes.map((p) => p.ref),
+    ]),
   );
   const connectedConsumerIds = $derived(
     new Set((connectionsQuery?.current ?? []).map((c) => c.consumerId)),
@@ -88,9 +116,26 @@
     allConsumers.filter((c) => !connectedConsumerIds.has(c.id)),
   );
 
-  // Refresh influxes after adding via dialog (command, not form - doesn't auto-refresh)
-  function refreshInfluxes() {
-    influxesQuery?.refresh();
+  function handleAddInflux(selection: { source: SourceWithDataSources; dataSource: DataSourceInfo }) {
+    const { source, dataSource } = selection;
+    pendingInfluxes = [
+      ...pendingInfluxes,
+      {
+        tempId: crypto.randomUUID(),
+        sourceId: source.sourceId,
+        sourceType: source.sourceType,
+        sourceName: source.sourceName,
+        sourceCollectionName: dataSource.title,
+        ref: dataSource.id,
+        schema: dataSource.schema,
+        icon: dataSource.icon,
+        existingSourceCollectionId: dataSource.exists ? dataSource.sourceCollectionId : undefined,
+      },
+    ];
+  }
+
+  function removePendingInflux(tempId: string) {
+    pendingInfluxes = pendingInfluxes.filter((p) => p.tempId !== tempId);
   }
 
   let selectedConsumerId = $state<number | null>(null);
@@ -154,6 +199,113 @@
     if (count === 0) return "No filters";
     return `${count} filter${count === 1 ? "" : "s"}`;
   }
+
+  // Schema & Mappings state
+  let mappingChanges = $state<{
+    targetSchema: CollectionSchema;
+    influxMappings: Map<string, MappingRule[]>;
+  } | null>(null);
+  let savingMappings = $state(false);
+  let mappingEditorRef: MappingEditor | undefined;
+
+  function handleMappingChange(changes: {
+    targetSchema: CollectionSchema;
+    influxMappings: Map<string, MappingRule[]>;
+  }) {
+    mappingChanges = changes;
+  }
+
+  // Combine server influxes + pending influxes for MappingEditor
+  const combinedInfluxes = $derived.by(() => {
+    const mapped = (influxesQuery?.current ?? []).map((influx) => ({
+      id: influx.id,
+      name: influx.sourceCollectionName,
+      sourceSchema: influx.schema,
+      mappings: influx.mappings ?? [],
+    }));
+    const pendingMapped = pendingInfluxes.map((p) => ({
+      id: p.tempId,
+      name: p.sourceCollectionName,
+      sourceSchema: p.schema,
+      mappings: [] as MappingRule[],
+    }));
+    return [...mapped, ...pendingMapped];
+  });
+
+  async function saveMappings() {
+    if ((!mappingChanges && pendingInfluxes.length === 0) || !collection) return;
+    savingMappings = true;
+    try {
+      // 1. Create pending influxes on backend
+      const createdInfluxMap = new Map<string, { sourceCollectionId: string; influxId: string }>();
+      for (const pending of pendingInfluxes) {
+        const result = await addInfluxWithAutoCreate({
+          collectionId: collection.id,
+          sourceId: pending.sourceId,
+          ref: pending.ref,
+          name: pending.sourceCollectionName,
+          existingSourceCollectionId: pending.existingSourceCollectionId,
+          schema: pending.schema ? JSON.stringify(pending.schema) : undefined,
+        });
+        if (result.success) {
+          createdInfluxMap.set(pending.tempId, {
+            sourceCollectionId: result.sourceCollectionId,
+            influxId: result.influxId,
+          });
+        } else {
+          toast.error(`Failed to create influx "${pending.sourceCollectionName}": ${result.error}`);
+          savingMappings = false;
+          return;
+        }
+      }
+
+      // 2. Save collection schema (if changed)
+      if (mappingChanges) {
+        await updateCollectionSchema({
+          id: collection.id,
+          schema: JSON.stringify(mappingChanges.targetSchema),
+        });
+      }
+
+      // 3. Save each influx's mappings
+      for (const [influxId, rules] of mappingChanges?.influxMappings ?? []) {
+        // Check if this is a server influx
+        const influx = (influxesQuery?.current ?? []).find((m) => m.id === influxId);
+        if (influx) {
+          await updateInfluxMappings({
+            id: influx.id,
+            mappings: JSON.stringify(rules),
+          });
+          continue;
+        }
+
+        // Check if this is a newly created pending influx
+        const created = createdInfluxMap.get(influxId);
+        if (created) {
+          await updateInfluxMappings({
+            id: created.influxId,
+            mappings: JSON.stringify(rules),
+          });
+        }
+      }
+
+      // 4. Refresh queries first, then clear local state
+      // This ensures the server influxes are loaded before we remove
+      // pending influxes, preventing a flash where influxes disappear.
+      await Promise.all([
+        influxesQuery?.refresh(),
+        collectionQuery?.refresh(),
+      ]);
+      pendingInfluxes = [];
+      mappingChanges = null;
+      mappingEditorRef?.resolveAll();
+      toast.success("Properties saved");
+    } catch (e) {
+      toast.error("Failed to save properties");
+    } finally {
+      savingMappings = false;
+    }
+  }
 </script>
 
 <SiteHeader>
@@ -194,7 +346,7 @@
                     namePopoverOpen = false;
                     await tcToast(async () => {
                       await submit().updates(
-                        getCollection({ id }).withOverride((c) => ({
+                        collectionQuery.withOverride((c) => ({
                           ...c!,
                           ...data,
                         })),
@@ -262,22 +414,26 @@
       </p>
     </div>
 
-    <!-- Influxes -->
+    <!-- Properties (unified: influxes + schema + mappings) -->
     <section class="mb-8 rounded-lg border border-border p-4">
       <div class="mb-3 flex items-center justify-between">
         <h2
           class="text-sm font-medium uppercase tracking-wide text-muted-foreground"
         >
-          Influxes
+          Properties
         </h2>
         <AddInfluxDialog
-          collectionId={collection.id}
           linkedSourceCollectionIds={linkedSourceIds}
           linkedSourceCollectionRefs={linkedSourceRefs}
-          onSuccess={refreshInfluxes}
+          onSelect={handleAddInflux}
         />
       </div>
 
+      <p class="mb-3 text-xs text-muted-foreground">
+        Define the target schema for this collection and configure how each influx maps to it.
+      </p>
+
+      <!-- Influx list -->
       <svelte:boundary>
         {#snippet pending()}
           <p class="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
@@ -288,156 +444,149 @@
         <div class="mb-4 space-y-2">
           {#each await influxesQuery as influx (influx.id)}
             {@const remove = removeInflux.for(influx.id)}
-            <div class="rounded-md border border-border">
-              <!-- Influx header -->
-              <div class="flex items-center justify-between px-4 py-3">
-                <div class="flex items-center gap-3">
-                  <SourceTypeIcon
-                    type={influx.sourceType}
-                    class="h-4 w-4 text-muted-foreground"
-                  />
-                  <button
-                    type="button"
-                    class="flex items-center gap-2 text-sm font-medium hover:text-primary"
-                    onclick={() => toggleInflux(influx.sourceCollectionId)}
-                  >
-                    {#if expandedInfluxes.has(influx.sourceCollectionId)}
-                      <ChevronUp class="h-4 w-4" />
-                    {:else}
-                      <ChevronDown class="h-4 w-4" />
-                    {/if}
-                    <span>
-                      {#if influx.sourceName}
-                        <span class="text-muted-foreground"
-                          >{influx.sourceName} /</span
-                        >
-                      {/if}
-                      {influx.sourceCollectionName}
-                    </span>
-                  </button>
-                  <span
-                    class="flex items-center gap-1 text-xs text-muted-foreground"
-                  >
-                    <FilterIcon class="h-3 w-3" />
-                    {formatFilterCount(
-                      getFiltersForInflux(influx.sourceCollectionId),
-                    )}
-                  </span>
-                </div>
-                <form
-                  {...remove.enhance(async ({ submit, data }) => {
-                    // For some reason, the form is submitting multiple times. when we remove influxes subsequently.
-                    if (remove.pending) return;
-                    await submit().updates(
-                      getInfluxes({
-                        collectionId: params.id,
-                      }),
-                    );
-                  })}
-                >
-                  <input
-                    {...remove.fields.id.as("text")}
-                    type="hidden"
-                    value={influx.id}
-                  />
-                  <Tooltip.Provider>
-                    <Tooltip.Root>
-                      <Tooltip.Trigger>
-                        {#snippet child({ props })}
-                          <Button
-                            {...props}
-                            type="submit"
-                            variant="destructive"
-                            size="sm"
-                            disabled={remove.pending > 0}
-                          >
-                            <TrashIcon class="size-4" />
-                          </Button>
-                        {/snippet}
-                      </Tooltip.Trigger>
-                      <Tooltip.Content>Remove</Tooltip.Content>
-                    </Tooltip.Root>
-                  </Tooltip.Provider>
-                </form>
-              </div>
-
-              <!-- Expanded filter editor -->
-              {#if expandedInfluxes.has(influx.sourceCollectionId)}
-                <div class="border-t border-border bg-muted/20 px-4 py-4">
-                  <h3 class="mb-3 text-sm font-medium">Filters</h3>
-                  <FilterEditor
-                    schema={schemaCache.get(influx.sourceCollectionId) ?? null}
-                    filters={getFiltersForInflux(influx.sourceCollectionId)}
-                    onchange={(filters) =>
-                      handleFilterChange(influx.sourceCollectionId, filters)}
-                  />
-
-                  {#if hasUnsavedChanges(influx.sourceCollectionId)}
-                    <div class="mt-4 flex gap-2">
-                      <form
-                        {...updateInfluxForm.enhance(async ({ submit }) => {
-                          await submit();
-                          toast.success("Filters updated");
-                          filterEdits = new Map();
-                        })}
-                      >
-                        <input
-                          {...updateInfluxForm.fields.collectionId.as("text")}
-                          type="hidden"
-                          value={collection.id}
-                        />
-                        <input
-                          {...updateInfluxForm.fields.sourceCollectionId.as(
-                            "text",
-                          )}
-                          type="hidden"
-                          value={influx.sourceCollectionId}
-                        />
-                        <input
-                          {...updateInfluxForm.fields.filters.as("text")}
-                          type="hidden"
-                          value={JSON.stringify(
-                            filterEdits.get(influx.sourceCollectionId) ?? [],
-                          )}
-                        />
-                        <Button
-                          type="submit"
-                          size="sm"
-                          disabled={!!updateInfluxForm.pending}
-                        >
-                          {updateInfluxForm.pending
-                            ? "Saving..."
-                            : "Save Filters"}
-                        </Button>
-                      </form>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onclick={() => {
-                          const newEdits = new Map(filterEdits);
-                          newEdits.delete(influx.sourceCollectionId);
-                          filterEdits = newEdits;
-                        }}
-                      >
-                        Cancel
-                      </Button>
-                    </div>
+            <div class="flex items-center justify-between rounded-md border border-border px-3 py-2">
+              <div class="flex items-center gap-2">
+                <SourceTypeIcon
+                  type={influx.sourceType}
+                  class="h-4 w-4 text-muted-foreground"
+                />
+                <span class="text-sm">
+                  {#if influx.sourceName}
+                    <span class="text-muted-foreground">{influx.sourceName} /</span>
                   {/if}
-                </div>
-              {/if}
+                  {influx.sourceCollectionName}
+                </span>
+              </div>
+              <form
+                {...remove.enhance(async ({ submit, data }) => {
+                  if (remove.pending) return;
+                  await submit().updates(
+                    getInfluxes({ collectionId: params.id }),
+                    collectionQuery,
+                  );
+                })}
+              >
+                <input
+                  {...remove.fields.id.as("text")}
+                  type="hidden"
+                  value={influx.id}
+                />
+                <Tooltip.Provider>
+                  <Tooltip.Root>
+                    <Tooltip.Trigger>
+                      {#snippet child({ props })}
+                        <Button
+                          {...props}
+                          type="submit"
+                          variant="ghost"
+                          size="icon"
+                          class="h-7 w-7 text-muted-foreground hover:text-destructive"
+                          disabled={remove.pending > 0}
+                        >
+                          <TrashIcon class="size-3.5" />
+                        </Button>
+                      {/snippet}
+                    </Tooltip.Trigger>
+                    <Tooltip.Content>Remove</Tooltip.Content>
+                  </Tooltip.Root>
+                </Tooltip.Provider>
+              </form>
             </div>
-          {:else}
-            <p class="mb-4 text-sm text-muted-foreground">
+          {/each}
+
+          {#each pendingInfluxes as pending (pending.tempId)}
+            <div class="flex items-center justify-between rounded-md border border-dashed border-amber-400/60 bg-amber-50/50 px-3 py-2 dark:border-amber-500/40 dark:bg-amber-900/10">
+              <div class="flex items-center gap-2">
+                <SourceTypeIcon
+                  type={pending.sourceType}
+                  class="h-4 w-4 text-muted-foreground"
+                />
+                <span class="text-sm">
+                  {#if pending.sourceName}
+                    <span class="text-muted-foreground">{pending.sourceName} /</span>
+                  {/if}
+                  {pending.sourceCollectionName}
+                </span>
+                <span class="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">
+                  unsaved
+                </span>
+              </div>
+              <Tooltip.Provider>
+                <Tooltip.Root>
+                  <Tooltip.Trigger>
+                    {#snippet child({ props })}
+                      <Button
+                        {...props}
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        class="h-7 w-7 text-muted-foreground hover:text-destructive"
+                        onclick={() => removePendingInflux(pending.tempId)}
+                      >
+                        <TrashIcon class="size-3.5" />
+                      </Button>
+                    {/snippet}
+                  </Tooltip.Trigger>
+                  <Tooltip.Content>Remove</Tooltip.Content>
+                </Tooltip.Root>
+              </Tooltip.Provider>
+            </div>
+          {/each}
+
+          {#if (influxesQuery?.current ?? []).length === 0 && pendingInfluxes.length === 0}
+            <p class="text-sm text-muted-foreground">
               No influxes configured yet. Add one to start receiving content.
             </p>
-          {/each}
+          {/if}
         </div>
+
         {#snippet failed(error)}
           <p class="mb-4 text-sm text-muted-foreground">
             Error loading influxes: {(error as any).message}
           </p>
         {/snippet}
       </svelte:boundary>
+
+      <!-- Mapping editor -->
+      <MappingEditor
+        bind:this={mappingEditorRef}
+        targetSchema={collection.schema}
+        influxes={combinedInfluxes}
+        onchange={handleMappingChange}
+      />
+
+      {#if mappingChanges || pendingInfluxes.length > 0}
+        <div class="mt-4 space-y-2">
+          <p class="text-xs text-amber-600 dark:text-amber-400">
+            {#if pendingInfluxes.length > 0}
+              {pendingInfluxes.length} unsaved influx{pendingInfluxes.length === 1 ? "" : "es"} will be created.
+            {/if}
+            {#if mappingChanges}
+              Schema changes trigger a full resync for connected consumers.
+            {/if}
+          </p>
+          <div class="flex gap-2">
+            <Button
+              size="sm"
+              disabled={savingMappings}
+              onclick={saveMappings}
+            >
+              {savingMappings ? "Saving..." : "Save"}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onclick={() => {
+                mappingChanges = null;
+                pendingInfluxes = [];
+                mappingEditorRef?.reset();
+              }}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      {/if}
     </section>
 
     <!-- Consumers -->

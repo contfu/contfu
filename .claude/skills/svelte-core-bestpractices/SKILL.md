@@ -160,6 +160,50 @@ Use `createContext` rather than `setContext` and `getContext`, as it provides ty
 
 If using version 5.36 or higher, you can use [await expressions](references/await-expressions.md) and [hydratable](references/hydratable.md) to use promises directly inside components. Note that these require the `experimental.async` option to be enabled in `svelte.config.js` as they are not yet considered fully stable.
 
+## Component Testing
+
+Every Svelte component that contains non-trivial logic (effects, derived state, event handlers that transform data, exported methods) **must** have a colocated `*.spec.ts` test file. Pure presentational wrappers (e.g. shadcn-svelte UI primitives) do not need tests.
+
+### Setup
+
+Tests run with `bun test` using happy-dom, `@testing-library/svelte`, and `@testing-library/jest-dom`. The preload in `packages/service/app/bunfig.toml` handles DOM registration and the Svelte compiler plugin.
+
+### Mocking UI dependencies
+
+Mock heavy UI libraries (`$lib/components/ui/*`, `@contfu/ui`, `@lucide/svelte/icons/*`) at the top of the spec file with `mock.module()` before any component imports. Use minimal no-op stubs — the goal is to test **component logic**, not pixel-perfect rendering.
+
+### What to test
+
+- **State transitions**: prop changes → correct `onchange` payloads
+- **Effect behavior**: auto-wiring, syncing, reset on empty input
+- **Exported methods**: e.g. `resolveAll()`, `reset()`
+- **Edge cases**: empty state, missing data, adding/removing items
+
+### Pattern
+
+```ts
+import { mock, describe, it, expect, beforeEach } from "bun:test";
+
+// mock.module() calls for UI deps...
+
+import { render, cleanup } from "@testing-library/svelte";
+import { tick } from "svelte";
+import MyComponent from "./MyComponent.svelte";
+
+beforeEach(() => cleanup());
+
+describe("MyComponent", () => {
+  it("does the thing", async () => {
+    const onchange = mock(() => {});
+    const { container } = render(MyComponent, { props: { onchange } });
+    await tick();
+    expect(onchange).toHaveBeenCalled();
+  });
+});
+```
+
+Use `await tick()` (sometimes twice) to flush Svelte effects before asserting. Use `rerender()` to simulate prop changes.
+
 ## Avoid legacy features
 
 Always use runes mode for new code, and avoid features that have more modern replacements:

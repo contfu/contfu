@@ -2,6 +2,7 @@ import { Effect } from "effect";
 import { Database } from "../../effect/services/Database";
 import { DatabaseError } from "../../effect/errors";
 import { collectionTable, influxTable, sourceCollectionTable } from "../../infra/db/schema";
+import type { MappingRule } from "@contfu/svc-core";
 import { and, eq } from "drizzle-orm";
 import { pack, unpack } from "msgpackr";
 import type { CollectionSchema, Filter } from "@contfu/svc-core";
@@ -89,6 +90,32 @@ export const createInflux = (userId: number, input: CreateInfluxInput) =>
       }
     }
 
+    // Auto-init: if collection has no schema and source has one, initialize both
+    let mappings: MappingRule[] | undefined;
+    if (schema) {
+      const [col] = yield* Effect.tryPromise({
+        try: () =>
+          db
+            .select({ schema: collectionTable.schema })
+            .from(collectionTable)
+            .where(eq(collectionTable.id, input.collectionId))
+            .limit(1),
+        catch: (e) => new DatabaseError({ cause: e }),
+      });
+      if (col && !col.schema) {
+        // Initialize collection schema from source and create identity mappings
+        yield* Effect.tryPromise({
+          try: () =>
+            db
+              .update(collectionTable)
+              .set({ schema: pack(schema), updatedAt: new Date() })
+              .where(eq(collectionTable.id, input.collectionId)),
+          catch: (e) => new DatabaseError({ cause: e }),
+        });
+        mappings = Object.keys(schema).map((k) => ({ source: k, target: k }));
+      }
+    }
+
     const [inserted] = yield* Effect.tryPromise({
       try: () =>
         db
@@ -98,6 +125,7 @@ export const createInflux = (userId: number, input: CreateInfluxInput) =>
             collectionId: input.collectionId,
             sourceCollectionId: input.sourceCollectionId,
             schema: schema ? pack(schema) : null,
+            mappings: mappings?.length ? pack(mappings) : null,
             filters: input.filters?.length ? pack(input.filters) : null,
             includeRef: input.includeRef ?? true,
           })

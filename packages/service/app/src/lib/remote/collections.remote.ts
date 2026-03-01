@@ -1,4 +1,4 @@
-import { form, query } from "$app/server";
+import { command, form, query } from "$app/server";
 import { encodeCollection } from "$lib/mappers/collection.mappers";
 import { runWithUser } from "$lib/server/run";
 import { getStreamServer } from "$lib/server/startup";
@@ -114,6 +114,7 @@ export const updateCollection = form(
         v.transform((val) => (typeof val === "boolean" ? val : val === "true")),
       ),
     ),
+    schema: v.optional(v.string()), // JSON string of CollectionSchema
   }),
   async (data) => {
     const userId = getUserId();
@@ -127,6 +128,7 @@ export const updateCollection = form(
         displayName: data.displayName,
         name: data.name,
         includeRef: data.includeRef,
+        schema: data.schema && JSON.parse(data.schema),
       }),
     );
 
@@ -171,6 +173,22 @@ export const deleteCollection = form(v.object({ id: idSchema("collection") }), a
 
   return { success: true };
 });
+
+/**
+ * Programmatic schema update (command, not form) for use in saveMappings().
+ */
+export const updateCollectionSchema = command(
+  v.object({
+    id: idSchema("collection"),
+    schema: v.string(), // JSON string of CollectionSchema
+  }),
+  async (data) => {
+    const userId = getUserId();
+    const schema = JSON.parse(data.schema) as CollectionSchema;
+    await runWithUser(userId, updateCollectionFeature(userId, data.id, { schema }));
+    return { success: true };
+  },
+);
 
 /**
  * Get the schema for a source collection.

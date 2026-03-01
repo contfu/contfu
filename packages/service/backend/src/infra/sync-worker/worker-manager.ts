@@ -21,6 +21,7 @@ import {
 import type { ConnectionInfo } from "../types";
 import { unpack } from "msgpackr";
 import type { CollectionSchema } from "@contfu/core";
+import { applyMappingsToSchema, type MappingRule } from "@contfu/svc-core";
 
 type ItemsCallback = (items: UserSyncItem[], connections: ConnectionInfo[]) => void;
 type SchemaCallback = (
@@ -148,6 +149,7 @@ export class SyncWorkerManager {
         .select({
           influxSchema: influxTable.schema,
           sourceSchema: sourceCollectionTable.schema,
+          mappings: influxTable.mappings,
         })
         .from(influxTable)
         .innerJoin(
@@ -160,7 +162,10 @@ export class SyncWorkerManager {
       for (const row of influxRows) {
         const schemaBuf = row.influxSchema ?? row.sourceSchema;
         if (!schemaBuf) continue;
-        const schema = unpack(schemaBuf) as CollectionSchema;
+        const rawSchema = unpack(schemaBuf) as CollectionSchema;
+        const schema = row.mappings
+          ? applyMappingsToSchema(rawSchema, unpack(row.mappings) as MappingRule[])
+          : rawSchema;
         for (const [prop, type] of Object.entries(schema)) {
           merged[prop] = (merged[prop] ?? 0) | type;
         }

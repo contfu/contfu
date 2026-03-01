@@ -14,7 +14,7 @@ import { truncateAllTables } from "../../../test/setup";
 
 const isDbMocked = typeof db.delete !== "function";
 
-describe.skipIf(isDbMocked)("Influxes Remote - Cache Logic", () => {
+describe("Influxes Remote Cache Logic", () => {
   let testUserId: number;
   let testSourceId: number;
 
@@ -295,7 +295,7 @@ describe.skipIf(isDbMocked)("Influxes Remote - Cache Logic", () => {
 
       // Strapi sources show existing collections, no cache
       expect(strapiSource.type).toBe(SourceType.STRAPI);
-      expect(strapiSource.type).not.toBe(1); // Not Notion
+      expect(strapiSource.type).not.toBe(SourceType.NOTION);
     });
 
     it("should not cache Web sources", async () => {
@@ -312,7 +312,7 @@ describe.skipIf(isDbMocked)("Influxes Remote - Cache Logic", () => {
 
       // Web sources show existing collections, no cache
       expect(webSource.type).toBe(SourceType.WEB);
-      expect(webSource.type).not.toBe(1); // Not Notion
+      expect(webSource.type).not.toBe(SourceType.NOTION);
     });
 
     it("should set allowCustomPath for Web sources", async () => {

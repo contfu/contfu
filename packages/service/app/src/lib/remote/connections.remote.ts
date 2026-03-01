@@ -96,7 +96,7 @@ export const addConnection = form(
         EventType.COLLECTION_SCHEMA,
         collection.name,
         collection.displayName,
-        {},
+        collection.schema,
       ];
       getStreamServer().sendToConsumer(userId, data.consumerId, schemaEvent);
     }

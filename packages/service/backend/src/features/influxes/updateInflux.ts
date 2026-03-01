@@ -4,11 +4,12 @@ import { DatabaseError } from "../../effect/errors";
 import { influxTable } from "../../infra/db/schema";
 import { and, eq } from "drizzle-orm";
 import { pack, unpack } from "msgpackr";
-import type { CollectionSchema, Filter } from "@contfu/svc-core";
+import type { CollectionSchema, Filter, MappingRule } from "@contfu/svc-core";
 
 export interface UpdateInfluxInput {
   id: number;
   filters?: Filter[] | null;
+  mappings?: MappingRule[] | null;
   schema?: CollectionSchema | null;
   includeRef?: boolean;
 }
@@ -19,6 +20,7 @@ export interface UpdateInfluxResult {
   collectionId: number;
   sourceCollectionId: number;
   schema: CollectionSchema | null;
+  mappings: MappingRule[] | null;
   filters: Filter[] | null;
   includeRef: boolean;
   createdAt: Date;
@@ -38,6 +40,10 @@ export const updateInflux = (userId: number, input: UpdateInfluxInput) =>
 
     if (input.filters !== undefined) {
       updates.filters = input.filters?.length ? pack(input.filters) : null;
+    }
+
+    if (input.mappings !== undefined) {
+      updates.mappings = input.mappings?.length ? pack(input.mappings) : null;
     }
 
     if (input.schema !== undefined) {
@@ -66,6 +72,7 @@ export const updateInflux = (userId: number, input: UpdateInfluxInput) =>
       collectionId: updated.collectionId,
       sourceCollectionId: updated.sourceCollectionId,
       schema: updated.schema ? (unpack(updated.schema) as CollectionSchema) : null,
+      mappings: updated.mappings ? (unpack(updated.mappings) as MappingRule[]) : null,
       filters: updated.filters ? (unpack(updated.filters) as Filter[]) : null,
       includeRef: updated.includeRef,
       createdAt: updated.createdAt,

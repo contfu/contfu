@@ -273,6 +273,8 @@ export const collectionTable = pgTable.withRLS(
     displayName: text().notNull(),
     /** The camelCase identifier name of the collection (e.g. "blogPosts"). */
     name: text().notNull(),
+    /** The target schema of the collection (MessagePack serialized CollectionSchema). */
+    schema: bytea().notNull(),
     /** Whether refs may be transmitted for this collection. */
     includeRef: boolean().notNull().default(true),
     /** The date the collection was created. */
@@ -321,6 +323,10 @@ export const influxTable = pgTable.withRLS(
      * Used for validating filters against schema changes.
      */
     schema: bytea(),
+    /**
+     * Mapping rules from source to target properties (MessagePack serialized MappingRule[]).
+     */
+    mappings: bytea(),
     /**
      * Filters to apply to items from this source (MessagePack serialized).
      * Format: [{property: string, operator: string, value?: unknown}]

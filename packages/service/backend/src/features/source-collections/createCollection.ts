@@ -8,6 +8,7 @@ import {
   sourceCollectionTable,
   type SourceCollection,
 } from "../../infra/db/schema";
+import { pack } from "msgpackr";
 
 function countItemIds(itemIds: Buffer | null): number {
   if (!itemIds) return 0;
@@ -66,6 +67,7 @@ export const createCollection = (userId: number, input: CreateSourceCollectionIn
               userId,
               displayName: input.name,
               name: input.name,
+              schema: pack({}),
             })
             .returning();
 

@@ -4,7 +4,7 @@ import { DatabaseError } from "../../effect/errors";
 import { influxTable, sourceCollectionTable, sourceTable } from "../../infra/db/schema";
 import { and, eq } from "drizzle-orm";
 import { unpack } from "msgpackr";
-import type { CollectionSchema, Filter } from "@contfu/svc-core";
+import type { CollectionSchema, Filter, MappingRule } from "@contfu/svc-core";
 import type { BackendInfluxDetails } from "../../domain/types";
 
 /**
@@ -23,6 +23,7 @@ export const getInflux = (userId: number, id: number) =>
             collectionId: influxTable.collectionId,
             sourceCollectionId: influxTable.sourceCollectionId,
             schema: influxTable.schema,
+            mappings: influxTable.mappings,
             filters: influxTable.filters,
             includeRef: influxTable.includeRef,
             createdAt: influxTable.createdAt,
@@ -63,6 +64,7 @@ export const getInflux = (userId: number, id: number) =>
       sourceId: result.sourceId,
       sourceName: result.sourceName,
       schema: result.schema ? (unpack(result.schema) as CollectionSchema) : null,
+      mappings: result.mappings ? (unpack(result.mappings) as MappingRule[]) : null,
       filters: result.filters ? (unpack(result.filters) as Filter[]) : null,
       includeRef: result.includeRef,
       createdAt: result.createdAt,

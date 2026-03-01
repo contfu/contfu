@@ -1,5 +1,5 @@
 import { SourceType } from "@contfu/core";
-import { matchesFilters } from "@contfu/svc-core";
+import { applyMappings, matchesFilters } from "@contfu/svc-core";
 import { createLogger } from "../../infra/logger/index";
 import { getItemRefForSource, notionSource, strapiSource, webSource } from "@contfu/svc-sources";
 import type { UserSyncItem } from "../../infra/sync-worker/messages";
@@ -50,8 +50,11 @@ export async function* fetchAndStreamItems(
               continue;
             }
 
+            const mappedProps = applyMappings(item.props, target.mappings);
+
             yield {
               ...item,
+              props: mappedProps,
               ref: sourceRef.ref,
               sourceType: sourceRef.sourceType,
               user: config.userId,
