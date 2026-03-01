@@ -81,7 +81,8 @@
 
   // Load webhook logs for Strapi and Notion sources
   const webhookLogsData = $derived(
-    source?.type === SourceType.STRAPI || source?.type === SourceType.NOTION
+    source?.type === SourceType.STRAPI ||
+    (source?.type === SourceType.NOTION && source.credentialsSource !== CredentialsSource.OAUTH)
       ? await getWebhookLogs({ sourceId: id, limit: 10 })
       : [],
   );
@@ -682,6 +683,7 @@
         </div>
       </section>
 
+      {#if source.credentialsSource !== CredentialsSource.OAUTH}
       <!-- Webhook Configuration (Notion) -->
       <section class="mb-8">
         <h2
@@ -797,6 +799,7 @@
           </div>
         {/if}
       </section>
+      {/if}
     {/if}
 
     <!-- Danger zone -->
