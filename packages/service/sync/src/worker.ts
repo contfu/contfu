@@ -14,6 +14,7 @@ import { ITEM_ID_SIZE } from "@contfu/svc-sources";
 import { NotionSource } from "@contfu/svc-sources/notion";
 import { StrapiSource } from "@contfu/svc-sources/strapi";
 import { WebSource } from "@contfu/svc-sources/web";
+import { ContentfulSource } from "@contfu/svc-sources/contentful";
 import { Duration, Effect, Schedule } from "effect";
 import { eq } from "drizzle-orm";
 import { workerDb } from "./db/worker-db";
@@ -32,6 +33,7 @@ const workerId = crypto.randomUUID();
 const notionSource = new NotionSource();
 const strapiSource = new StrapiSource();
 const webSource = new WebSource();
+const contentfulSource = new ContentfulSource();
 
 // Handle messages from the app
 self.onmessage = (e: MessageEvent) => {
@@ -103,6 +105,26 @@ const processJob = (job: { id: number; sourceCollectionId: number }) =>
             collection: config.collectionId,
             ref: config.collectionRef!,
             url: config.sourceUrl!,
+            credentials: config.credentials!,
+          })) {
+            const sourceRef = getItemRefForSource({
+              sourceType: config.sourceType,
+              rawRef: item.ref,
+              sourceUrl: config.sourceUrl,
+              collectionRef: config.collectionRef,
+            });
+            fetchedItems.push({
+              ...item,
+              user: userId,
+              sourceType: sourceRef.sourceType,
+              ref: sourceRef.ref,
+            });
+          }
+        } else if (config.sourceType === SourceType.CONTENTFUL) {
+          for await (const item of contentfulSource.fetch({
+            collection: config.collectionId,
+            ref: config.collectionRef!,
+            spaceId: config.sourceUrl!,
             credentials: config.credentials!,
           })) {
             const sourceRef = getItemRefForSource({

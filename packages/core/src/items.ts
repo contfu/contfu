@@ -21,6 +21,7 @@ export const SourceType = {
   NOTION: 0,
   STRAPI: 1,
   WEB: 2,
+  CONTENTFUL: 3,
 } as const;
 
 export type SourceType = (typeof SourceType)[keyof typeof SourceType];

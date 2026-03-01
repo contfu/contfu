@@ -9,6 +9,7 @@
   "main": "src/index.ts",
   "exports": {
     ".": "./src/index.ts",
+    "./contentful": "./src/contentful/index.ts",
     "./notion": "./src/notion/index.ts",
     "./strapi": "./src/strapi/index.ts",
     "./web": "./src/web/index.ts"
