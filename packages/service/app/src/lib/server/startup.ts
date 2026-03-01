@@ -60,6 +60,15 @@ export async function initialize(): Promise<void> {
     "Infrastructure status",
   );
 
+  // Run blob data migrations
+  // These handle schema migrations for bytea/JSONB columns that store encoded data
+  const { runMsgpackrMigrations } =
+    await import("@contfu/svc-backend/infra/db/msgpackr-migrations");
+
+  // Migrations for bytea columns storing MessagePack-encoded data
+  // Add new migrations here with incrementing version numbers
+  await runMsgpackrMigrations([]);
+
   // Initialize JetStream event stream if NATS is available
   if (hasNats()) {
     await ensureEventStream();

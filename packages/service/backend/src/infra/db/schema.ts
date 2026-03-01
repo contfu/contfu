@@ -581,3 +581,17 @@ export const settingTable = pgTable("setting", {
 });
 
 export type Setting = typeof settingTable.$inferSelect;
+
+// Msgpackr data migrations tracking
+
+export const msgpackrMigrationTable = pgTable(
+  "msgpackr_migration",
+  {
+    tablename: text().notNull(),
+    columnname: text().notNull(),
+    version: integer().notNull().default(0),
+  },
+  (table) => [primaryKey({ columns: [table.tablename, table.columnname] })],
+);
+
+export type MsgpackrMigration = typeof msgpackrMigrationTable.$inferSelect;
