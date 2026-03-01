@@ -17,7 +17,7 @@ cd $pwt
 envs=$(find packages -name .env)
 # nms="node_modules $(find packages -type d -name node_modules -prune -print)"
 
-bun install
 cd $wt
+bun install
 files=$envs
 for file in $files; do ln -sf $pwt/$file $file; done
