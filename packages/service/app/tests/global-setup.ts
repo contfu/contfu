@@ -27,6 +27,10 @@ export default async function globalSetup() {
   const { seedWebhookData } = await import("./e2e/notion-webhooks.seed");
   await seedWebhookData(db);
 
+  // Seed Contentful webhook test data
+  const { seedContentfulWebhookData } = await import("./e2e/contentful-webhooks.seed");
+  await seedContentfulWebhookData(db);
+
   // Seed sync stream test data
   const { seedSyncData } = await import("./e2e/sync-stream.seed");
   await seedSyncData(db);

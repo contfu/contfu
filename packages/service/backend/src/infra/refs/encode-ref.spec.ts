@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { SourceType } from "@contfu/core";
 import {
+  contentfulRefUrl,
   getItemRefForSource,
   notionRefUrlFromRawUuid,
   strapiRefUrl,
@@ -22,6 +23,24 @@ describe("encode-ref", () => {
     expect(url).toBe("https://cms.example.com/api/articles/abc123def456");
   });
 
+  test("builds contentful ref URL", () => {
+    const url = contentfulRefUrl(
+      Buffer.from("abc123def456", "utf8"),
+      "https://cms.contentful.com/",
+      Buffer.from("blogPost", "utf8"),
+    );
+    expect(url).toBe("https://cms.contentful.com/entries/abc123def456");
+  });
+
+  test("builds contentful ref URL without trailing slash", () => {
+    const url = contentfulRefUrl(
+      Buffer.from("abc123def456", "utf8"),
+      "https://cms.contentful.com",
+      Buffer.from("blogPost", "utf8"),
+    );
+    expect(url).toBe("https://cms.contentful.com/entries/abc123def456");
+  });
+
   test("builds web ref URL", () => {
     expect(webRefUrl(Buffer.from("https://example.com/page", "utf8"))).toBe(
       "https://example.com/page",
@@ -34,5 +53,38 @@ describe("encode-ref", () => {
       rawRef: Buffer.from("https://example.com/a", "utf8"),
     });
     expect(encoded).toEqual({ sourceType: SourceType.WEB, ref: "https://example.com/a" });
+  });
+
+  test("getItemRefForSource with Contentful", () => {
+    const encoded = getItemRefForSource({
+      sourceType: SourceType.CONTENTFUL,
+      rawRef: Buffer.from("abc123def456", "utf8"),
+      sourceUrl: "https://cms.contentful.com",
+      collectionRef: Buffer.from("blogPost", "utf8"),
+    });
+    expect(encoded).toEqual({
+      sourceType: SourceType.CONTENTFUL,
+      ref: "https://cms.contentful.com/entries/abc123def456",
+    });
+  });
+
+  test("getItemRefForSource throws for Contentful without sourceUrl", () => {
+    expect(() =>
+      getItemRefForSource({
+        sourceType: SourceType.CONTENTFUL,
+        rawRef: Buffer.from("abc123def456", "utf8"),
+        collectionRef: Buffer.from("blogPost", "utf8"),
+      }),
+    ).toThrow("Missing sourceUrl for Contentful ref encoding");
+  });
+
+  test("getItemRefForSource throws for Contentful without collectionRef", () => {
+    expect(() =>
+      getItemRefForSource({
+        sourceType: SourceType.CONTENTFUL,
+        rawRef: Buffer.from("abc123def456", "utf8"),
+        sourceUrl: "https://cms.contentful.com",
+      }),
+    ).toThrow("Missing collectionRef for Contentful ref encoding");
   });
 });

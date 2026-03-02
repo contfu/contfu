@@ -24,11 +24,18 @@ export const NOTION_RATE_LIMIT: RateLimitConfig = {
  * Keep throttling disabled unless a source-specific limit is introduced.
  */
 export const STRAPI_RATE_LIMIT: RateLimitConfig | null = null;
+
+/**
+ * Contentful has generous API rate limits (approx 10 requests/second).
+ * Use null to disable throttling.
+ */
+export const CONTENTFUL_RATE_LIMIT: RateLimitConfig | null = null;
 export const WEB_RATE_LIMIT: RateLimitConfig | null = null;
 
 export function getRateLimitForSourceType(sourceType: SourceType): RateLimitConfig | null {
   if (sourceType === SourceType.NOTION) return NOTION_RATE_LIMIT;
   if (sourceType === SourceType.STRAPI) return STRAPI_RATE_LIMIT;
+  if (sourceType === SourceType.CONTENTFUL) return CONTENTFUL_RATE_LIMIT;
   if (sourceType === SourceType.WEB) return WEB_RATE_LIMIT;
   return null;
 }

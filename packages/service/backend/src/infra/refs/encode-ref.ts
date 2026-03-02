@@ -21,6 +21,16 @@ export function strapiRefUrl(
   return `${origin}/api/${collection}/${documentId}`;
 }
 
+export function contentfulRefUrl(
+  rawEntryId: Buffer,
+  sourceUrl: string,
+  contentTypeId: Buffer,
+): string {
+  const entryId = rawEntryId.toString("utf8").trim();
+  const origin = sourceUrl.replace(/\/$/, "");
+  return `${origin}/entries/${entryId}`;
+}
+
 export function webRefUrl(rawUrl: Buffer): string {
   return rawUrl.toString("utf8").trim();
 }
@@ -40,6 +50,14 @@ export function getItemRefForSource(opts: {
     return {
       sourceType: SourceType.STRAPI,
       ref: strapiRefUrl(opts.rawRef, opts.sourceUrl, opts.collectionRef),
+    };
+  }
+  if (opts.sourceType === SourceType.CONTENTFUL) {
+    if (!opts.sourceUrl) throw new Error("Missing sourceUrl for Contentful ref encoding");
+    if (!opts.collectionRef) throw new Error("Missing collectionRef for Contentful ref encoding");
+    return {
+      sourceType: SourceType.CONTENTFUL,
+      ref: contentfulRefUrl(opts.rawRef, opts.sourceUrl, opts.collectionRef),
     };
   }
   if (opts.sourceType === SourceType.WEB) {
