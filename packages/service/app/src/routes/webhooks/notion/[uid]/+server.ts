@@ -21,7 +21,7 @@ import {
   webhookLogTable,
 } from "@contfu/svc-backend/infra/db/schema";
 import { hasNats } from "@contfu/svc-backend/infra/nats/connection";
-import { notionRefUrlFromRawUuid } from "@contfu/svc-backend/infra/refs/encode-ref";
+import { notionRefUrlFromRawUuid } from "@contfu/svc-sources";
 import type { UserSyncItem } from "@contfu/svc-backend/infra/sync-worker/messages";
 import { cancelPending, markPending } from "@contfu/svc-backend/infra/webhook-queue/pending-kv";
 import { enqueueWebhookFetch } from "@contfu/svc-backend/infra/webhook-queue/webhook-fetch-queue";

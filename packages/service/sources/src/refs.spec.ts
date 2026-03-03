@@ -6,7 +6,7 @@ import {
   notionRefUrlFromRawUuid,
   strapiRefUrl,
   webRefUrl,
-} from "./encode-ref";
+} from "./refs";
 
 describe("encode-ref", () => {
   test("builds notion ref URL", () => {

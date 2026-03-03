@@ -8,13 +8,15 @@ import { completeJob } from "@contfu/svc-backend/features/sync-jobs/completeJob"
 import { failJob } from "@contfu/svc-backend/features/sync-jobs/failJob";
 import { getJobConfig } from "@contfu/svc-backend/features/sync-jobs/getJobConfig";
 import { sourceCollectionTable } from "@contfu/svc-backend/infra/db/schema";
-import { getItemRefForSource } from "@contfu/svc-backend/infra/refs/encode-ref";
 import { SyncMessageType, type UserSyncItem } from "@contfu/svc-backend/infra/sync-worker/messages";
-import { ITEM_ID_SIZE } from "@contfu/svc-sources";
-import { NotionSource } from "@contfu/svc-sources/notion";
-import { StrapiSource } from "@contfu/svc-sources/strapi";
-import { WebSource } from "@contfu/svc-sources/web";
-import { ContentfulSource } from "@contfu/svc-sources/contentful";
+import {
+  ITEM_ID_SIZE,
+  getItemRefForSource,
+  notionSource,
+  strapiSource,
+  webSource,
+  contentfulSource,
+} from "@contfu/svc-sources";
 import { Duration, Effect, Schedule } from "effect";
 import { eq } from "drizzle-orm";
 import { workerDb } from "./db/worker-db";
@@ -29,11 +31,7 @@ const MIN_FETCH_INTERVAL = Number(process.env.MIN_FETCH_INTERVAL ?? 10_000);
 // Worker identity
 const workerId = crypto.randomUUID();
 
-// Sources
-const notionSource = new NotionSource();
-const strapiSource = new StrapiSource();
-const webSource = new WebSource();
-const contentfulSource = new ContentfulSource();
+// Sources (singletons from @contfu/svc-sources)
 
 // Handle messages from the app
 self.onmessage = (e: MessageEvent) => {

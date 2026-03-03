@@ -18,7 +18,7 @@ import {
   sourceTable,
   webhookLogTable,
 } from "../db/schema";
-import { notionRefUrlFromRawUuid } from "../refs/encode-ref";
+import { notionRefUrlFromRawUuid } from "@contfu/svc-sources";
 import type { StreamServer } from "../stream/stream-server";
 import type { UserSyncItem } from "../sync-worker/messages";
 import { isItemQuotaExceeded, getQuotaPeriodEnd } from "../nats/quota-kv";

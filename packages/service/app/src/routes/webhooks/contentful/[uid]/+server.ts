@@ -14,7 +14,7 @@ import {
   webhookLogTable,
 } from "@contfu/svc-backend/infra/db/schema";
 import type { UserSyncItem } from "@contfu/svc-backend/infra/sync-worker/messages";
-import { contentfulRefUrl } from "@contfu/svc-backend/infra/refs/encode-ref";
+import { contentfulRefUrl } from "@contfu/svc-sources";
 import { matchesFilters } from "@contfu/svc-core";
 import { genUid } from "@contfu/svc-sources";
 import { and, desc, eq, inArray } from "drizzle-orm";

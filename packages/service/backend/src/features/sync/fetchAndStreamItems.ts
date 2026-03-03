@@ -1,20 +1,13 @@
 import { SourceType } from "@contfu/core";
 import { matchesFilters } from "@contfu/svc-core";
 import { createLogger } from "../../infra/logger/index";
-import { NotionSource } from "@contfu/svc-sources/notion";
-import { StrapiSource } from "@contfu/svc-sources/strapi";
-import { WebSource } from "@contfu/svc-sources/web";
-import { getItemRefForSource } from "../../infra/refs/encode-ref";
+import { getItemRefForSource, notionSource, strapiSource, webSource } from "@contfu/svc-sources";
 import type { UserSyncItem } from "../../infra/sync-worker/messages";
 import { isItemQuotaExceeded } from "../../infra/nats/quota-kv";
 import { getRateLimitForSourceType } from "../../infra/webhook-queue/types";
 import type { ConsumerSyncConfig } from "./getConsumerSyncConfig";
 
 const log = createLogger("sync-fetch");
-
-const notionSource = new NotionSource();
-const strapiSource = new StrapiSource();
-const webSource = new WebSource();
 
 /**
  * Fetches items from upstream sources for a consumer's sync config.
