@@ -1,5 +1,6 @@
 import { SourceType } from "@contfu/core";
 import { CredentialsSource } from "@contfu/svc-core";
+import { pack } from "msgpackr";
 import { sql } from "drizzle-orm";
 import {
   boolean,
@@ -274,7 +275,9 @@ export const collectionTable = pgTable.withRLS(
     /** The camelCase identifier name of the collection (e.g. "blogPosts"). */
     name: text().notNull(),
     /** The target schema of the collection (MessagePack serialized CollectionSchema). */
-    schema: bytea().notNull(),
+    schema: bytea()
+      .notNull()
+      .$default(() => pack({})),
     /** Whether refs may be transmitted for this collection. */
     includeRef: boolean().notNull().default(true),
     /** The date the collection was created. */

@@ -66,7 +66,7 @@ describe("Consumer Features", () => {
       expect(consumer3.id).toBe(3);
     });
 
-    it("should maintain separate ID sequences per user", async () => {
+    it("should assign globally unique IDs across users", async () => {
       // Create second user
       const [user2] = await db
         .insert(userTable)
@@ -80,10 +80,10 @@ describe("Consumer Features", () => {
       const consumer1ForUser2 = await runTest(createConsumer(user2.id, { name: "User2 App1" }));
       const consumer2ForUser1 = await runTest(createConsumer(testUserId, { name: "User1 App2" }));
 
-      // Each user has their own ID sequence starting at 1
+      // Consumer IDs are globally unique (identity sequence, not per-user)
       expect(consumer1ForUser1.id).toBe(1);
-      expect(consumer1ForUser2.id).toBe(1);
-      expect(consumer2ForUser1.id).toBe(2);
+      expect(consumer1ForUser2.id).toBe(2);
+      expect(consumer2ForUser1.id).toBe(3);
     });
   });
 

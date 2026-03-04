@@ -185,7 +185,13 @@ describe("getConsumerSyncConfig", () => {
     expect(group.sourceCollections).toHaveLength(1);
     expect(group.sourceCollections[0].collectionRef).toEqual(collectionRef);
     expect(group.sourceCollections[0].targets).toEqual([
-      { collectionId: chain.collectionId, filters: null, includeRef: true },
+      {
+        influxId: chain.influxId,
+        collectionId: chain.collectionId,
+        filters: null,
+        includeRef: true,
+        mappings: null,
+      },
     ]);
   });
 
@@ -451,7 +457,13 @@ describe("getConsumerSyncConfig", () => {
     expect(config.sourceGroups).toHaveLength(1);
     expect(config.sourceGroups[0].sourceCollections).toHaveLength(1);
     expect(config.sourceGroups[0].sourceCollections[0].targets).toEqual([
-      { collectionId: chain1.collectionId, filters: null, includeRef: true },
+      {
+        influxId: chain1.influxId,
+        collectionId: chain1.collectionId,
+        filters: null,
+        includeRef: true,
+        mappings: null,
+      },
     ]);
   });
 

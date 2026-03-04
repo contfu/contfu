@@ -4,6 +4,7 @@ import { eq, count } from "drizzle-orm";
 import type { QuotaState } from "@contfu/svc-core";
 import type { ProductQuota } from "../polar/products";
 import { getKvManager } from "./kvm";
+import { hasNats } from "./connection";
 import { db } from "../db/db";
 import { sourceTable, collectionTable, consumerTable } from "../db/schema";
 import { createLogger } from "../logger/index";
@@ -52,6 +53,7 @@ function periodEndToTimestamp(periodEnd: Date | null): number {
 }
 
 export async function getQuota(userId: number): Promise<QuotaState | null> {
+  if (!hasNats()) return null;
   const store = await getQuotaKv();
   const entry = (await store.get(buildKey(userId))) as KvEntry | null;
   if (!entry) return null;
@@ -78,6 +80,7 @@ export async function ensureQuota(
   limits: ProductQuota,
   periodEnd: Date | null,
 ): Promise<void> {
+  if (!hasNats()) return;
   const store = await getQuotaKv();
   const key = buildKey(userId);
   const existing = (await store.get(key)) as KvEntry | null;
@@ -109,6 +112,7 @@ export async function setLimits(
   limits: ProductQuota,
   periodEnd: Date | null,
 ): Promise<void> {
+  if (!hasNats()) return;
   const store = await getQuotaKv();
   const key = buildKey(userId);
 
@@ -142,6 +146,7 @@ export async function setLimits(
 }
 
 export async function incrementCount(userId: number, field: CountField): Promise<void> {
+  if (!hasNats()) return;
   const store = await getQuotaKv();
   const key = buildKey(userId);
 
@@ -168,6 +173,7 @@ export async function incrementCount(userId: number, field: CountField): Promise
 }
 
 export async function decrementCount(userId: number, field: CountField): Promise<void> {
+  if (!hasNats()) return;
   const store = await getQuotaKv();
   const key = buildKey(userId);
 
@@ -194,6 +200,7 @@ export async function decrementCount(userId: number, field: CountField): Promise
 }
 
 export async function addItems(userId: number, itemCount: number): Promise<void> {
+  if (!hasNats()) return;
   const store = await getQuotaKv();
   const key = buildKey(userId);
 
@@ -220,6 +227,7 @@ export async function addItems(userId: number, itemCount: number): Promise<void>
 }
 
 export async function resetItemsIfPeriodExpired(userId: number): Promise<void> {
+  if (!hasNats()) return;
   const store = await getQuotaKv();
   const key = buildKey(userId);
 

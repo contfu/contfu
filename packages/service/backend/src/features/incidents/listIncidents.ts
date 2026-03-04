@@ -31,7 +31,7 @@ export const listIncidents = (userId: number, options?: { resolved?: boolean }) 
         createdAt: incidentTable.createdAt,
         resolvedAt: incidentTable.resolvedAt,
         collectionId: influxTable.collectionId,
-        collectionName: collectionTable.name,
+        collectionName: collectionTable.displayName,
         sourceCollectionId: influxTable.sourceCollectionId,
         sourceCollectionName: sourceCollectionTable.name,
         sourceCollectionDisplayName: sourceCollectionTable.displayName,
