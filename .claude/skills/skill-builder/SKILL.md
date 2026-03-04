@@ -21,8 +21,9 @@ A skill is a reusable set of instructions that tells Claude Code how to handle a
 Think of skills as SOPs for Claude. Instead of re-explaining a workflow every conversation, you write it once and invoke it forever.
 
 **How they work under the hood:**
+
 - Your project's `CLAUDE.md` instructions are always loaded, every conversation
-- Skill *descriptions* (from frontmatter) are always loaded so Claude knows what's available
+- Skill _descriptions_ (from frontmatter) are always loaded so Claude knows what's available
 - The full skill content only loads when the skill is actually invoked
 - Once loaded, Claude follows the skill's instructions while still respecting your CLAUDE.md rules
 
@@ -37,27 +38,27 @@ When building a new skill, run the **Discovery Interview** first. Do NOT start w
 Ask questions using AskUserQuestion, one round at a time. Each round covers one topic. Move to the next round only after the user answers. Keep going until you're 95% confident you understand the skill well enough to build it without further clarification.
 
 **Round 1: Goal & Name**
-*Why this matters: A clear goal prevents scope creep. The name becomes the `/slash-command`, so it needs to be memorable and specific.*
+_Why this matters: A clear goal prevents scope creep. The name becomes the `/slash-command`, so it needs to be memorable and specific._
 
 - What does this skill do? What problem does it solve or what workflow does it automate?
 - What should we call it? (Suggest a name based on their answer -- lowercase, hyphens, max 64 chars)
 
 **Round 2: Trigger**
-*Why this matters: The `description` field is how Claude decides whether to load your skill. Bad trigger words mean Claude never uses it. Too broad means Claude fires it when you don't want it.*
+_Why this matters: The `description` field is how Claude decides whether to load your skill. Bad trigger words mean Claude never uses it. Too broad means Claude fires it when you don't want it._
 
 - What would someone say to trigger this? (Get 2-3 natural language phrases)
 - Should it be user-only (`/slash-command`), Claude-auto-invocable, or both?
 - Does it accept arguments? If so, what? (e.g., a topic, a URL, a file path)
 
 **Round 3: Step-by-Step Process**
-*Why this matters: Claude follows instructions literally. Vague steps produce vague results. Specific steps produce consistent output every time.*
+_Why this matters: Claude follows instructions literally. Vague steps produce vague results. Specific steps produce consistent output every time._
 
 - Walk me through exactly what should happen from trigger to output. What's step 1? Step 2? Keep going.
 - For each step: Does Claude do it directly, or delegate to a subagent/script?
 - Does this need to be conversational (back-and-forth with the user) or is it a fire-and-forget task?
 
 **Round 4: Inputs, Outputs & Dependencies**
-*Why this matters: Skills that don't specify where to find inputs or where to put outputs produce inconsistent results. Nailing this down makes the skill reliable.*
+_Why this matters: Skills that don't specify where to find inputs or where to put outputs produce inconsistent results. Nailing this down makes the skill reliable._
 
 - What inputs does the skill need? (Files, API responses, user arguments, live data)
 - What does it produce? (Files, text output, structured data) Where do outputs go?
@@ -65,7 +66,7 @@ Ask questions using AskUserQuestion, one round at a time. Each round covers one 
 - Does it need reference files, style guides, templates, or examples?
 
 **Round 5: Guardrails & Edge Cases**
-*Why this matters: Skills without guardrails can produce unexpected behavior -- wrong outputs, unnecessary API costs, or actions you didn't intend.*
+_Why this matters: Skills without guardrails can produce unexpected behavior -- wrong outputs, unnecessary API costs, or actions you didn't intend._
 
 - What could go wrong? What are the common failure modes?
 - What should this skill NOT do? Any hard boundaries?
@@ -73,7 +74,7 @@ Ask questions using AskUserQuestion, one round at a time. Each round covers one 
 - Any ordering or dependency constraints? (e.g., "must check X before doing Y")
 
 **Round 6: Confirmation**
-*Why this matters: Misunderstandings caught here save you from rebuilding the skill later.*
+_Why this matters: Misunderstandings caught here save you from rebuilding the skill later._
 
 After all rounds, summarize your understanding back to the user in this format:
 
@@ -127,12 +128,14 @@ For the full field reference and invocation control matrix, see [reference.md](r
 **Step 3: Write the skill content**
 
 Structure task skills as:
+
 1. **Context** -- Files to read, APIs to call, reference material to load
 2. **Step-by-step workflow** -- Numbered steps. Each step tells Claude exactly what to do.
 3. **Output format** -- What the result looks like. Include templates, file paths, structured formats.
 4. **Notes** -- Edge cases, constraints, what to delegate, what NOT to do.
 
 Content rules:
+
 - Keep SKILL.md under 500 lines. Move detailed reference material to supporting files.
 - Use `$ARGUMENTS` / `$N` for dynamic input from arguments.
 - Use `!`command`` for dynamic context injection (preprocessing).

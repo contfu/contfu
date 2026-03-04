@@ -10,14 +10,14 @@ Source: https://code.claude.com/docs/en/skills
 
 This is the most important concept to understand before building skills. Where you put instructions determines how Claude uses them.
 
-| | CLAUDE.md | Skill |
-|---|---|---|
-| **When loaded** | Every conversation, always | Only when invoked (via `/name` or auto-detection) |
-| **What it's for** | Project-wide rules, conventions, context | Specific task workflows, specialized procedures |
-| **Size concern** | Always in context, so keep it focused | Only loaded when needed, but keep under 500 lines |
-| **Examples** | "Use TypeScript for all files", "Run tests before committing", API conventions | "Generate a PR summary", "Create meeting notes", "Deploy to staging" |
+|                   | CLAUDE.md                                                                      | Skill                                                                |
+| ----------------- | ------------------------------------------------------------------------------ | -------------------------------------------------------------------- |
+| **When loaded**   | Every conversation, always                                                     | Only when invoked (via `/name` or auto-detection)                    |
+| **What it's for** | Project-wide rules, conventions, context                                       | Specific task workflows, specialized procedures                      |
+| **Size concern**  | Always in context, so keep it focused                                          | Only loaded when needed, but keep under 500 lines                    |
+| **Examples**      | "Use TypeScript for all files", "Run tests before committing", API conventions | "Generate a PR summary", "Create meeting notes", "Deploy to staging" |
 
-**Rule of thumb:** If Claude should *always* know it, put it in CLAUDE.md. If Claude should only know it when doing a specific task, make it a skill.
+**Rule of thumb:** If Claude should _always_ know it, put it in CLAUDE.md. If Claude should only know it when doing a specific task, make it a skill.
 
 CLAUDE.md instructions still apply inside a skill's execution. A skill inherits your project's rules -- it doesn't override them. Think of it like layers: CLAUDE.md is the base layer, and the skill adds task-specific instructions on top.
 
@@ -27,18 +27,18 @@ CLAUDE.md instructions still apply inside a skill's execution. A skill inherits 
 
 All fields are optional. Only `description` is recommended.
 
-| Field | Required | Type | Default | Description |
-|-------|----------|------|---------|-------------|
-| `name` | No | string | directory name | Display name and `/slash-command`. Lowercase letters, numbers, hyphens only. Max 64 chars. |
-| `description` | Recommended | string | first paragraph of content | What the skill does and when to use it. Claude uses this for auto-invocation decisions. |
-| `argument-hint` | No | string | none | Autocomplete hint for expected arguments. Shown in `/` menu. Examples: `[issue-number]`, `[filename] [format]` |
-| `disable-model-invocation` | No | boolean | `false` | When `true`, only the user can invoke the skill. Removes it from Claude's context entirely. |
-| `user-invocable` | No | boolean | `true` | When `false`, hides the skill from the `/` menu. Only Claude can invoke it. |
-| `allowed-tools` | No | string (comma-separated) | all tools | Tools available without permission prompts when this skill is active. |
-| `model` | No | string | inherit | Model to use: `sonnet`, `opus`, `haiku`, or omit to inherit. |
-| `context` | No | string | none | Set to `fork` to run in an isolated subagent context. |
-| `agent` | No | string | `general-purpose` | Subagent type when `context: fork` is set. Options: `Explore`, `Plan`, `general-purpose`, or any custom agent name. |
-| `hooks` | No | object | none | Lifecycle hooks scoped to this skill. See Hooks section below. |
+| Field                      | Required    | Type                     | Default                    | Description                                                                                                         |
+| -------------------------- | ----------- | ------------------------ | -------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `name`                     | No          | string                   | directory name             | Display name and `/slash-command`. Lowercase letters, numbers, hyphens only. Max 64 chars.                          |
+| `description`              | Recommended | string                   | first paragraph of content | What the skill does and when to use it. Claude uses this for auto-invocation decisions.                             |
+| `argument-hint`            | No          | string                   | none                       | Autocomplete hint for expected arguments. Shown in `/` menu. Examples: `[issue-number]`, `[filename] [format]`      |
+| `disable-model-invocation` | No          | boolean                  | `false`                    | When `true`, only the user can invoke the skill. Removes it from Claude's context entirely.                         |
+| `user-invocable`           | No          | boolean                  | `true`                     | When `false`, hides the skill from the `/` menu. Only Claude can invoke it.                                         |
+| `allowed-tools`            | No          | string (comma-separated) | all tools                  | Tools available without permission prompts when this skill is active.                                               |
+| `model`                    | No          | string                   | inherit                    | Model to use: `sonnet`, `opus`, `haiku`, or omit to inherit.                                                        |
+| `context`                  | No          | string                   | none                       | Set to `fork` to run in an isolated subagent context.                                                               |
+| `agent`                    | No          | string                   | `general-purpose`          | Subagent type when `context: fork` is set. Options: `Explore`, `Plan`, `general-purpose`, or any custom agent name. |
+| `hooks`                    | No          | object                   | none                       | Lifecycle hooks scoped to this skill. See Hooks section below.                                                      |
 
 ---
 
@@ -46,13 +46,14 @@ All fields are optional. Only `description` is recommended.
 
 How `disable-model-invocation` and `user-invocable` interact:
 
-| Frontmatter | User can invoke? | Claude can invoke? | When loaded into context |
-|-------------|------------------|--------------------|--------------------------|
-| (default -- both omitted) | Yes | Yes | Description always in context. Full skill loads when invoked. |
-| `disable-model-invocation: true` | Yes | No | Description NOT in context. Full skill loads when user invokes. |
-| `user-invocable: false` | No | Yes | Description always in context. Full skill loads when Claude invokes. |
+| Frontmatter                      | User can invoke? | Claude can invoke? | When loaded into context                                             |
+| -------------------------------- | ---------------- | ------------------ | -------------------------------------------------------------------- |
+| (default -- both omitted)        | Yes              | Yes                | Description always in context. Full skill loads when invoked.        |
+| `disable-model-invocation: true` | Yes              | No                 | Description NOT in context. Full skill loads when user invokes.      |
+| `user-invocable: false`          | No               | Yes                | Description always in context. Full skill loads when Claude invokes. |
 
 Key nuances:
+
 - `user-invocable` only controls `/` menu visibility, NOT the Skill tool. To block programmatic invocation, use `disable-model-invocation: true`.
 - `disable-model-invocation: true` is the strongest restriction. It removes the skill from Claude's context entirely AND prevents Skill tool access.
 
@@ -62,12 +63,12 @@ Key nuances:
 
 Available placeholders in skill content:
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `$ARGUMENTS` | All arguments passed when invoking the skill | `/fix-issue 123` -> `$ARGUMENTS` = `123` |
-| `$ARGUMENTS[N]` | Specific argument by 0-based index | `$ARGUMENTS[0]` = first arg |
-| `$N` | Shorthand for `$ARGUMENTS[N]` | `$0` = first arg, `$1` = second |
-| `${CLAUDE_SESSION_ID}` | Current session ID | Useful for logs, session-specific files |
+| Variable               | Description                                  | Example                                  |
+| ---------------------- | -------------------------------------------- | ---------------------------------------- |
+| `$ARGUMENTS`           | All arguments passed when invoking the skill | `/fix-issue 123` -> `$ARGUMENTS` = `123` |
+| `$ARGUMENTS[N]`        | Specific argument by 0-based index           | `$ARGUMENTS[0]` = first arg              |
+| `$N`                   | Shorthand for `$ARGUMENTS[N]`                | `$0` = first arg, `$1` = second          |
+| `${CLAUDE_SESSION_ID}` | Current session ID                           | Useful for logs, session-specific files  |
 
 **Automatic fallback:** If `$ARGUMENTS` is NOT present anywhere in the skill content, arguments are automatically appended as `ARGUMENTS: <value>` at the end.
 
@@ -92,12 +93,12 @@ Running `/migrate-component SearchBar React Vue` replaces `$0` with `SearchBar`,
 
 Where you store a skill determines who can use it:
 
-| Location | Path | Applies to | Priority |
-|----------|------|------------|----------|
-| Enterprise | Managed settings | All users in org | Highest |
-| Personal | `~/.claude/skills/<name>/SKILL.md` | All your projects | High |
-| Project | `.claude/skills/<name>/SKILL.md` | This project only | Medium |
-| Plugin | `<plugin>/skills/<name>/SKILL.md` | Where plugin enabled | Lowest |
+| Location   | Path                               | Applies to           | Priority |
+| ---------- | ---------------------------------- | -------------------- | -------- |
+| Enterprise | Managed settings                   | All users in org     | Highest  |
+| Personal   | `~/.claude/skills/<name>/SKILL.md` | All your projects    | High     |
+| Project    | `.claude/skills/<name>/SKILL.md`   | This project only    | Medium   |
+| Plugin     | `<plugin>/skills/<name>/SKILL.md`  | Where plugin enabled | Lowest   |
 
 When skills share the same name across levels, higher-priority locations win. Plugin skills use `plugin-name:skill-name` namespace so they cannot conflict.
 
@@ -127,13 +128,13 @@ allowed-tools: Bash(git *), Bash(npm test), Read
 
 The glob pattern inside parentheses filters what arguments Claude can pass:
 
-| Pattern | What it allows |
-|---------|---------------|
-| `Bash` | Any bash command (no restriction) |
-| `Bash(git *)` | Any command starting with `git` (e.g., `git status`, `git diff`) |
-| `Bash(npm test)` | Only the exact command `npm test` |
-| `Bash(python scripts/*)` | Python on any file in `scripts/` |
-| `Read` | Read any file (no restriction on arguments) |
+| Pattern                  | What it allows                                                   |
+| ------------------------ | ---------------------------------------------------------------- |
+| `Bash`                   | Any bash command (no restriction)                                |
+| `Bash(git *)`            | Any command starting with `git` (e.g., `git status`, `git diff`) |
+| `Bash(npm test)`         | Only the exact command `npm test`                                |
+| `Bash(python scripts/*)` | Python on any file in `scripts/`                                 |
+| `Read`                   | Read any file (no restriction on arguments)                      |
 
 **Common patterns:**
 
@@ -151,7 +152,7 @@ allowed-tools: WebSearch, WebFetch
 allowed-tools: Read, Glob, Bash(python scripts/analyze.py *)
 ```
 
-**Important:** `allowed-tools` adds *additional* auto-approvals on top of your existing permission settings. It doesn't remove permissions you've already granted globally.
+**Important:** `allowed-tools` adds _additional_ auto-approvals on top of your existing permission settings. It doesn't remove permissions you've already granted globally.
 
 ---
 
@@ -180,6 +181,7 @@ Summarize this pull request...
 ```
 
 When this runs:
+
 1. Each `!`command`` executes immediately (before Claude sees anything)
 2. The output replaces the placeholder
 3. Claude receives the fully-rendered prompt with actual data
@@ -187,6 +189,7 @@ When this runs:
 This is preprocessing. Claude only sees the final result, not the commands.
 
 **Use cases:**
+
 - Injecting git status, branch info, or diff data
 - Fetching live API responses
 - Reading environment variables or config files
@@ -212,17 +215,20 @@ Research $ARGUMENTS thoroughly:
 ```
 
 **When to use `context: fork`:**
+
 - The task is self-contained and doesn't need conversation history
 - The skill produces verbose output you want to keep out of main context
 - You want to enforce tool restrictions via the agent type
 - The skill is computationally expensive and a cheaper model suffices
 
 **When NOT to use `context: fork`:**
+
 - The skill contains guidelines (like "use these API conventions") without a concrete task. The subagent receives guidelines but no actionable prompt and returns nothing useful.
 - The skill needs back-and-forth conversation with the user
 - The skill needs context from the current conversation
 
 **Agent options:**
+
 - `Explore` -- Haiku, read-only. Best for research, file discovery, code search.
 - `Plan` -- Inherits model, read-only. Best for planning research.
 - `general-purpose` -- Inherits model, all tools. Best for complex multi-step tasks.
@@ -230,9 +236,9 @@ Research $ARGUMENTS thoroughly:
 
 **Skills and subagents work in two directions:**
 
-| Approach | System prompt | Task | Also loads |
-|----------|---------------|------|------------|
-| Skill with `context: fork` | From agent type | SKILL.md content | CLAUDE.md |
+| Approach                     | System prompt            | Task                        | Also loads                   |
+| ---------------------------- | ------------------------ | --------------------------- | ---------------------------- |
+| Skill with `context: fork`   | From agent type          | SKILL.md content            | CLAUDE.md                    |
 | Subagent with `skills` field | Subagent's markdown body | Claude's delegation message | Preloaded skills + CLAUDE.md |
 
 ### Supporting Files
@@ -273,11 +279,11 @@ hooks:
 
 **Supported hook events in skills:**
 
-| Event | Matcher input | When it fires |
-|-------|---------------|---------------|
-| `PreToolUse` | Tool name | Before the skill uses a tool |
-| `PostToolUse` | Tool name | After the skill uses a tool |
-| `Stop` | (none) | When the skill finishes (converted to SubagentStop at runtime) |
+| Event         | Matcher input | When it fires                                                  |
+| ------------- | ------------- | -------------------------------------------------------------- |
+| `PreToolUse`  | Tool name     | Before the skill uses a tool                                   |
+| `PostToolUse` | Tool name     | After the skill uses a tool                                    |
+| `Stop`        | (none)        | When the skill finishes (converted to SubagentStop at runtime) |
 
 Hook commands receive JSON input via stdin with the tool context. Exit code 0 = allow, exit code 2 = block.
 
@@ -285,7 +291,7 @@ Hook commands receive JSON input via stdin with the tool context. Exit code 0 = 
 
 Skills can bundle scripts that generate visual output (HTML, images, charts). This extends Claude's capabilities beyond text.
 
-```yaml
+````yaml
 ---
 name: codebase-visualizer
 description: Generate an interactive tree visualization of your codebase
@@ -298,8 +304,9 @@ Run the visualization script:
 
 ```bash
 python ~/.claude/skills/codebase-visualizer/scripts/visualize.py .
-```
-```
+````
+
+````
 
 The skill provides orchestration instructions while the bundled script does the heavy lifting. This pattern works for dependency graphs, test coverage reports, API docs, or any visual output.
 
@@ -323,7 +330,7 @@ description: Review and critique architecture decisions
 ultrathink
 
 Review the following codebase architecture...
-```
+````
 
 The word can appear anywhere -- in a comment, a heading, or inline text. Its presence alone activates extended thinking for that skill's execution.
 
@@ -336,12 +343,14 @@ The word can appear anywhere -- in a comment, a heading, or inline text. Its pre
 Three ways to control which skills Claude can invoke:
 
 **1. Disable all skills** by denying the Skill tool in `/permissions`:
+
 ```
 # Add to deny rules:
 Skill
 ```
 
 **2. Allow or deny specific skills** using permission rules:
+
 ```
 # Allow only specific skills
 Skill(commit)

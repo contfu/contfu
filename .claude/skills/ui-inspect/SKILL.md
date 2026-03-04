@@ -55,8 +55,11 @@ await page.goto("http://localhost:8011/<TARGET_ROUTE>", { waitUntil: "networkidl
 // Dump captured requests
 for (const [url, text] of Object.entries(captured)) {
   console.log(`\n${url}`);
-  try { console.log(JSON.stringify(JSON.parse(text), null, 2)); }
-  catch { console.log(text.substring(0, 2000)); }
+  try {
+    console.log(JSON.stringify(JSON.parse(text), null, 2));
+  } catch {
+    console.log(text.substring(0, 2000));
+  }
 }
 
 await browser.close();
