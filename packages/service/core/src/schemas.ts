@@ -1,1 +1,6 @@
-export { PropertyType, type CollectionSchema } from "@contfu/core";
+export {
+  PropertyType,
+  type CollectionSchema,
+  type TypeGenerationInput,
+  generateTypeScript,
+} from "@contfu/core";

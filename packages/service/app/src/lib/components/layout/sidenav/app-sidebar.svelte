@@ -6,6 +6,7 @@
     CreditCardIcon,
     DatabaseIcon,
     FoldersIcon,
+    KeyIcon,
     LayoutDashboardIcon,
     UserCogIcon,
     UsersIcon,
@@ -49,6 +50,11 @@
         title: "Admin",
         url: "/admin",
         icon: UserCogIcon,
+      },
+      {
+        title: "API Keys",
+        url: "/admin/api-keys",
+        icon: KeyIcon,
       },
       {
         title: "Billing",

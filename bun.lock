@@ -10,6 +10,7 @@
         "svelte-kit": "^1.2.0",
       },
       "devDependencies": {
+        "@contfu/cli": "workspace:*",
         "@contfu/client": "workspace:*",
         "@contfu/core": "workspace:*",
         "@playwright/test": "1.58.2",
@@ -42,6 +43,16 @@
         "svelte-check": "^4.3.6",
         "typescript": "^5.9.3",
         "vite": "^7.3.1",
+      },
+    },
+    "packages/cli": {
+      "name": "@contfu/cli",
+      "version": "0.0.1",
+      "bin": {
+        "contfu": "dist/main.js",
+      },
+      "dependencies": {
+        "@contfu/core": "workspace:*",
       },
     },
     "packages/client/app": {
@@ -105,9 +116,6 @@
     "packages/client/contfu": {
       "name": "contfu",
       "version": "0.0.1",
-      "bin": {
-        "contfu": "./bin/contfu.js",
-      },
       "dependencies": {
         "@contfu/client": "workspace:*",
         "@contfu/core": "workspace:*",
@@ -271,6 +279,7 @@
       "version": "0.0.1",
       "dependencies": {
         "@contfu/core": "workspace:*",
+        "valibot": "^1.2.0",
       },
       "devDependencies": {
         "typescript": "^5.9.3",
@@ -397,6 +406,8 @@
     "@contfu/app": ["@contfu/app@workspace:packages/client/app"],
 
     "@contfu/bun-file-store": ["@contfu/bun-file-store@workspace:packages/client/bun-file-store"],
+
+    "@contfu/cli": ["@contfu/cli@workspace:packages/cli"],
 
     "@contfu/client": ["@contfu/client@workspace:packages/client/core"],
 

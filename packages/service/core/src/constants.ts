@@ -1,8 +1,12 @@
-/** Source type identifiers. */
+/** Source type identifiers.
+ * 1–19: Custom resources (web crawl, etc.)
+ * 20+:  Hosted services (Notion, Strapi, Contentful, …)
+ */
 export const SourceType = {
-  NOTION: 0,
-  STRAPI: 1,
-  WEB: 2,
+  WEB: 1,
+  NOTION: 20,
+  STRAPI: 21,
+  CONTENTFUL: 22,
 } as const;
 
 /** Credentials source identifiers. */

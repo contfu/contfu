@@ -1,0 +1,20 @@
+{
+  "name": "@contfu/cli",
+  "version": "0.0.1",
+  "bin": {
+    "contfu": "dist/main.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "scripts": {
+    "build": "bun build src/main.ts --outdir dist --target node --minify",
+    "contfu": "bun src/main.ts",
+    "test": "bun test src/",
+    "test:e2e": "bun test e2e/"
+  },
+  "dependencies": {
+    "@contfu/core": "workspace:*"
+  }
+}

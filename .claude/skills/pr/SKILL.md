@@ -10,11 +10,12 @@ Create a pull request following the project's commit & PR workflow.
 ## Workflow
 
 1. **Run quality checks** — ensure all checks pass
-2. **Check branch status** — verify current branch and changes
-3. **Squash if needed** — ensure exactly one commit
-4. **Push branch** — create remote branch if needed
-5. **Create PR** — open pull request with proper format
-6. **Wait for CI** — watch checks, fix failures if any
+2. **Run code review** — invoke `/review` to catch bugs and security issues before the PR
+3. **Check branch status** — verify current branch and changes
+4. **Squash if needed** — ensure exactly one commit
+5. **Push branch** — create remote branch if needed
+6. **Create PR** — open pull request with proper format
+7. **Wait for CI** — watch checks, fix failures if any
 
 ## Pre-flight Checklist
 
@@ -28,7 +29,17 @@ All must pass.
 
 ## Steps
 
-### 1. Check current state
+### 1. Run code review
+
+Invoke the review skill to analyze changes, fix issues, and produce `.claude/review.md`:
+
+```
+/review
+```
+
+If the review made fixes, stage them before proceeding.
+
+### 2. Check current state
 
 ```bash
 git status
@@ -36,7 +47,7 @@ git log --oneline -5
 git diff HEAD~1...HEAD
 ```
 
-### 2. Squash commits (if multiple)
+### 3. Squash commits (if multiple)
 
 ```bash
 git rebase -i HEAD~N
@@ -44,7 +55,7 @@ git rebase -i HEAD~N
 
 Mark all but the first as `squash` or `fixup`.
 
-### 3. Push branch
+### 4. Push branch
 
 ```bash
 git push -u origin HEAD
@@ -56,7 +67,7 @@ Or force with lease if already exists:
 git push --force-with-lease
 ```
 
-### 4. Create PR
+### 5. Create PR
 
 ```bash
 gh pr create --title "<title>" --body "$(cat <<'EOF'
@@ -73,7 +84,7 @@ EOF
 )"
 ```
 
-### 5. Wait for CI checks
+### 6. Wait for CI checks
 
 After creating the PR, wait for CI checks to complete and fix any failures:
 
@@ -100,6 +111,7 @@ Then watch checks again until they pass.
 ## Rules
 
 - **Never skip quality checks** — always run `bun test && bun run fmt && bun run lint`
+- **Never skip code review** — always run `/review` before creating or updating a PR
 - **Exactly one commit** — squash before creating PR
 - **No force push to main** — never force push to main/master
 - **Amend for new changes** — if PR is open, use `git commit --amend` + `git push --force-with-lease`

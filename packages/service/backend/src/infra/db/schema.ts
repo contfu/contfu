@@ -96,6 +96,33 @@ export const verificationTable = pgTable("verification", {
 
 export type Verification = typeof verificationTable.$inferSelect;
 
+export const apikeyTable = pgTable("apikey", {
+  id: integer().primaryKey().generatedAlwaysAsIdentity(),
+  configId: text(),
+  name: text(),
+  start: text(),
+  prefix: text(),
+  key: text().notNull(),
+  userId: integer().notNull(),
+  refillInterval: integer(),
+  refillAmount: integer(),
+  lastRefillAt: timestamp({ precision: 6, withTimezone: true }),
+  enabled: boolean().notNull(),
+  rateLimitEnabled: boolean().notNull(),
+  rateLimitTimeWindow: integer(),
+  rateLimitMax: integer(),
+  requestCount: integer().notNull(),
+  remaining: integer(),
+  lastRequest: timestamp({ precision: 6, withTimezone: true }),
+  expiresAt: timestamp({ precision: 6, withTimezone: true }),
+  createdAt: timestamp({ precision: 6, withTimezone: true }).notNull(),
+  updatedAt: timestamp({ precision: 6, withTimezone: true }).notNull(),
+  permissions: text(),
+  metadata: text(),
+});
+
+export type ApiKey = typeof apikeyTable.$inferSelect;
+
 // Application tables
 
 export const quotaTable = pgTable("quota", {

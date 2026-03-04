@@ -4,6 +4,7 @@
   "workspaces": [
     "packages/client/*",
     "packages/service/*",
+    "packages/cli",
     "packages/core",
     "packages/ui",
     "demos/*"
@@ -34,6 +35,7 @@
     "svelte-kit": "^1.2.0"
   },
   "devDependencies": {
+    "@contfu/cli": "workspace:*",
     "@contfu/client": "workspace:*",
     "@contfu/core": "workspace:*",
     "@playwright/test": "1.58.2",

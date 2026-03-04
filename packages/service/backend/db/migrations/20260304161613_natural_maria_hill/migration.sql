@@ -1,3 +1,28 @@
+CREATE TABLE "apikey" (
+	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "apikey_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
+	"configId" text,
+	"name" text,
+	"start" text,
+	"prefix" text,
+	"key" text NOT NULL,
+	"userId" integer NOT NULL,
+	"refillInterval" integer,
+	"refillAmount" integer,
+	"lastRefillAt" timestamp(6) with time zone,
+	"enabled" boolean NOT NULL,
+	"rateLimitEnabled" boolean NOT NULL,
+	"rateLimitTimeWindow" integer,
+	"rateLimitMax" integer,
+	"requestCount" integer NOT NULL,
+	"remaining" integer,
+	"lastRequest" timestamp(6) with time zone,
+	"expiresAt" timestamp(6) with time zone,
+	"createdAt" timestamp(6) with time zone NOT NULL,
+	"updatedAt" timestamp(6) with time zone NOT NULL,
+	"permissions" text,
+	"metadata" text
+);
+--> statement-breakpoint
 CREATE TABLE "msgpackr_migration" (
 	"tablename" text,
 	"columnname" text,

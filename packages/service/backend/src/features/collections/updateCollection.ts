@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 import { and, eq } from "drizzle-orm";
 import { Database } from "../../effect/services/Database";
-import { DatabaseError } from "../../effect/errors";
+import { DatabaseError, ValidationError } from "../../effect/errors";
 import { collectionTable } from "../../infra/db/schema";
 import { toCamelCase, type CollectionSchema } from "@contfu/svc-core";
 import { pack } from "msgpackr";
@@ -33,10 +33,9 @@ export const updateCollection = (
 
     if (name !== undefined && !camelCasePattern.test(name)) {
       yield* Effect.fail(
-        new DatabaseError({
-          cause: new Error(
-            `Collection name "${name}" must be a camelCase identifier (e.g. "blogPosts")`,
-          ),
+        new ValidationError({
+          field: "name",
+          message: `Collection name "${name}" must be a camelCase identifier (e.g. "blogPosts")`,
         }),
       );
     }

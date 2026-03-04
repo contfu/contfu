@@ -1,3 +1,4 @@
+import { error } from "@sveltejs/kit";
 import { dev } from "$app/environment";
 import { getRequestEvent } from "$app/server";
 import { UserRole } from "@contfu/svc-backend/domain/types";
@@ -13,6 +14,7 @@ import { Polar } from "@polar-sh/sdk";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { createAuthMiddleware } from "better-auth/api";
+import { apiKey } from "better-auth/plugins";
 import { sveltekitCookies } from "better-auth/svelte-kit";
 import { count } from "drizzle-orm";
 
@@ -38,6 +40,7 @@ export const auth = betterAuth({
       session: schema.sessionTable,
       account: schema.accountTable,
       verification: schema.verificationTable,
+      apikey: schema.apikeyTable,
     },
   }),
   user: {
@@ -253,9 +256,45 @@ export const auth = betterAuth({
           : []),
       ],
     }),
+    apiKey({
+      schema: {
+        apikey: { modelName: "apikey" },
+      },
+      permissions: {
+        defaultPermissions: { api: ["read", "write"] },
+      },
+    }),
     sveltekitCookies(getRequestEvent),
   ],
 });
 
 export type Session = typeof auth.$Infer.Session.session;
 export type User = typeof auth.$Infer.Session.user;
+
+export async function authenticateApiKey(
+  request: Request,
+  action: "read" | "write",
+): Promise<{ userId: number }> {
+  const header = request.headers.get("Authorization");
+  if (!header?.startsWith("Bearer ")) {
+    error(401, "Missing or invalid Authorization header");
+  }
+
+  const key = header.slice(7);
+  const result = await auth.api.verifyApiKey({
+    body: { key, permissions: { api: [action] } },
+  });
+
+  if (!result?.valid) {
+    // Better Auth uses code "KEY_NOT_FOUND" for permission mismatches
+    if (result?.error?.code === "KEY_NOT_FOUND") {
+      error(403, "Insufficient permissions");
+    }
+    if (result?.error?.code === "RATE_LIMITED") {
+      error(429, "Rate limit exceeded");
+    }
+    error(401, "Invalid API key");
+  }
+
+  return { userId: Number(result.key!.userId) };
+}
