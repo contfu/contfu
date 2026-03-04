@@ -33,7 +33,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Bun
-RUN curl -fsSL https://bun.sh/install | bash
+RUN curl -fsSL https://bun.sh/install | bash -s -- "bun-v1.3.10"
 ENV PATH="/root/.bun/bin:$PATH"
 
 # Install Playwright dependencies and browsers
