@@ -18,9 +18,8 @@ import { updateConsumer } from "./updateConsumer";
  */
 
 // Check if db is mocked (mocked db won't have delete as a function)
-const isDbMocked = typeof db.delete !== "function";
 
-describe.skipIf(isDbMocked)("Consumer Features", () => {
+describe("Consumer Features", () => {
   let testUserId: number;
 
   beforeEach(async () => {

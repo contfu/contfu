@@ -4,7 +4,7 @@ import { accountTable, userTable } from "./schema";
 
 /**
  * Seeds a test user for development and testing purposes.
- * This script runs when NODE_ENV is not 'production' or when TEST_MODE is set.
+ * This script runs when NODE_ENV is not 'production'.
  * It is idempotent - running it multiple times won't create duplicates.
  *
  * Test User Credentials:
@@ -23,8 +23,8 @@ const TEST_USER = {
  * @param database - The drizzle database instance (BunSQLDatabase or PgliteDatabase; any for driver flexibility)
  */
 export async function seedDevUser(database: any): Promise<void> {
-  // Only run in development mode or when TEST_MODE is set
-  if (process.env.NODE_ENV === "production" && !process.env.TEST_MODE) {
+  // Only run in development or test mode
+  if (process.env.NODE_ENV === "production") {
     return;
   }
 

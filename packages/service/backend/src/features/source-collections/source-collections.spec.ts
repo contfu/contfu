@@ -25,9 +25,7 @@ import { getCollectionWithConnectionCount } from "./getCollectionWithConnectionC
 import { listCollections } from "./listCollections";
 import { updateCollection } from "./updateCollection";
 
-const isDbMocked = typeof db.delete !== "function";
-
-describe.skipIf(isDbMocked)("SourceCollection Features Happy Path", () => {
+describe("SourceCollection Features Happy Path", () => {
   let userId: number;
   let sourceId: number;
 

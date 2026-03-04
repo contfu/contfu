@@ -1,7 +1,7 @@
 import type { PgAsyncDatabase } from "drizzle-orm/pg-core/async/db";
 import * as schema from "@contfu/svc-backend/infra/db/schema";
 
-const isTestMode = process.env.TEST_MODE === "true";
+const isTestMode = process.env.NODE_ENV === "test";
 const migrationsFolder =
   process.env.MIGRATIONS_PATH ??
   new URL("../../../backend/db/migrations", import.meta.url).pathname;

@@ -9,9 +9,7 @@ import { getCollection } from "./getCollection";
 import { listCollections } from "./listCollections";
 import { updateCollection } from "./updateCollection";
 
-const isDbMocked = typeof db.delete !== "function";
-
-describe.skipIf(isDbMocked)("Collection Features Access Control", () => {
+describe("Collection Features Access Control", () => {
   let user1Id: number;
   let user2Id: number;
 

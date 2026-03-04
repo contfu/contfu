@@ -3,7 +3,7 @@ import { sql } from "drizzle-orm";
 import type { PgAsyncDatabase } from "drizzle-orm/pg-core/async/db";
 import * as schema from "./schema";
 
-const isTestMode = process.env.TEST_MODE === "true";
+const isTestMode = process.env.NODE_ENV === "test";
 const dbContext = new AsyncLocalStorage<PgAsyncDatabase<any, typeof schema, any>>();
 
 // Use MIGRATIONS_PATH env var for flexibility, or resolve from import.meta.url for direct imports
@@ -95,11 +95,8 @@ export const db: PgAsyncDatabase<any, typeof schema, any> = new Proxy(
   },
 );
 
-// Seed development test user (only in non-production mode or when TEST_MODE is set)
-if (
-  process.env.SKIP_DB_INIT !== "true" &&
-  (process.env.NODE_ENV !== "production" || process.env.TEST_MODE)
-) {
+// Seed development test user (only in non-production mode)
+if (process.env.SKIP_DB_INIT !== "true" && process.env.NODE_ENV !== "production") {
   const { seedDevUser } = await import("./seed-dev");
   await seedDevUser(db);
 }

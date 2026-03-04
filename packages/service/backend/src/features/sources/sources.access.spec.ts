@@ -10,9 +10,7 @@ import { getSource } from "./getSource";
 import { listSources } from "./listSources";
 import { updateSource } from "./updateSource";
 
-const isDbMocked = typeof db.delete !== "function";
-
-describe.skipIf(isDbMocked)("Source Features Access Control", () => {
+describe("Source Features Access Control", () => {
   let user1Id: number;
   let user2Id: number;
 

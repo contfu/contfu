@@ -47,7 +47,7 @@ const QueueTest = Layer.succeed(Queue, {
 });
 
 /**
- * Test layer — uses PGlite (via TEST_MODE env), no-op NATS/Mail/Queue.
+ * Test layer — uses PGlite (via NODE_ENV=test env), no-op NATS/Mail/Queue.
  */
 export const AppTest = Layer.mergeAll(
   DatabaseLive,

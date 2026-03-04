@@ -11,9 +11,7 @@ import { getCollection } from "./getCollection";
 import { listCollections } from "./listCollections";
 import { updateCollection } from "./updateCollection";
 
-const isDbMocked = typeof db.delete !== "function";
-
-describe.skipIf(isDbMocked)("SourceCollection Features Access Control", () => {
+describe("SourceCollection Features Access Control", () => {
   let user1Id: number;
   let user2Id: number;
   let user1SourceId: number;

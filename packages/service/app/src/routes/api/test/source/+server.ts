@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import type { RequestHandler } from "./$types";
 
 export const GET: RequestHandler = async ({ url }) => {
-  if (process.env.TEST_MODE !== "true") {
+  if (process.env.NODE_ENV !== "test") {
     return new Response("Not available", { status: 403 });
   }
 

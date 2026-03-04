@@ -1,7 +1,7 @@
 import { command, form, query } from "$app/server";
 import { encodeCollection } from "$lib/mappers/collection.mappers";
 import { runWithUser } from "$lib/server/run";
-import { getStreamServer } from "$lib/server/startup";
+import { getStreamServer, getSyncWorkerManager } from "$lib/server/startup";
 import { getUserId } from "$lib/server/user";
 import { EventType, type WireEvent } from "@contfu/core";
 import type { CollectionSchema } from "@contfu/svc-core";
@@ -185,7 +185,17 @@ export const updateCollectionSchema = command(
   async (data) => {
     const userId = getUserId();
     const schema = JSON.parse(data.schema) as CollectionSchema;
+
+    const oldCollection = await runWithUser(userId, getCollectionFeature(userId, data.id));
+    const oldSchema = oldCollection?.schema ?? null;
+
     await runWithUser(userId, updateCollectionFeature(userId, data.id, { schema }));
+
+    const schemaChanged = JSON.stringify(oldSchema) !== JSON.stringify(schema);
+    if (schemaChanged) {
+      await getSyncWorkerManager().broadcastSchemaAndResync(userId, data.id);
+    }
+
     return { success: true };
   },
 );

@@ -18,9 +18,7 @@ import { getCollection } from "./getCollection";
 import { listCollections } from "./listCollections";
 import { updateCollection } from "./updateCollection";
 
-const isDbMocked = typeof db.delete !== "function";
-
-describe.skipIf(isDbMocked)("Collection Features Happy Path", () => {
+describe("Collection Features Happy Path", () => {
   let userId: number;
 
   beforeEach(async () => {

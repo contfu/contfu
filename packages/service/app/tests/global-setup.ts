@@ -18,7 +18,6 @@ export default async function globalSetup() {
 
   // Set env vars before importing db.ts — its top-level await triggers
   // PGlite creation, migration, and dev user seeding automatically.
-  process.env.TEST_MODE = "true";
   process.env.PGLITE_DATA_DIR = PGLITE_DATA_DIR;
   // Match the BETTER_AUTH_SECRET used by the server (from .env) so that
   // credentials encrypted here can be decrypted at runtime.
@@ -47,6 +46,10 @@ export default async function globalSetup() {
   // Seed mapping sync test data
   const { seedMappingSyncData } = await import("./e2e/mapping-sync.seed");
   await seedMappingSyncData(db);
+
+  // Seed schema resync test data
+  const { seedSchemaResyncData } = await import("./e2e/schema-resync.seed");
+  await seedSchemaResyncData(db);
 
   // Release file lock so the server process can open the same database
   await closeDb();

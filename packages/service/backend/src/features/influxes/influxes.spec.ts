@@ -24,9 +24,7 @@ import { deleteInfluxByMapping } from "./deleteInfluxByMapping";
  * Uses real in-memory SQLite database, not mocks.
  */
 
-const isDbMocked = typeof db.delete !== "function";
-
-describe.skipIf(isDbMocked)("Influx Features", () => {
+describe("Influx Features", () => {
   let testUserId: number;
   let testSourceId: number;
   let testSourceCollectionId: number;

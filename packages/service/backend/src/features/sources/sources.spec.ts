@@ -12,9 +12,7 @@ import { getSourceWithCredentials } from "./getSourceWithCredentials";
 import { listSources } from "./listSources";
 import { updateSource } from "./updateSource";
 
-const isDbMocked = typeof db.delete !== "function";
-
-describe.skipIf(isDbMocked)("Source Features Happy Path", () => {
+describe("Source Features Happy Path", () => {
   let userId: number;
 
   beforeEach(async () => {

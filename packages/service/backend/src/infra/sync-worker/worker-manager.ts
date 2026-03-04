@@ -22,6 +22,8 @@ import type { ConnectionInfo } from "../types";
 import { unpack } from "msgpackr";
 import type { CollectionSchema } from "@contfu/core";
 import { applyMappingsToSchema, type MappingRule } from "@contfu/svc-core";
+import { enqueueSyncJobs } from "../../features/sync-jobs/enqueueSyncJobs";
+import { Effect } from "effect";
 
 type ItemsCallback = (items: UserSyncItem[], connections: ConnectionInfo[]) => void;
 type SchemaCallback = (
@@ -139,6 +141,25 @@ export class SyncWorkerManager {
     // Broadcast schema changes if callback is registered
     if (this.schemaCallback) {
       await this.broadcastSchemaChanges(msg.userId, collectionIds);
+    }
+  }
+
+  async broadcastSchemaAndResync(userId: number, collectionId: number): Promise<void> {
+    // Force re-broadcast by clearing the cached schema for this collection
+    this.lastBroadcastedSchema.delete(collectionId);
+
+    // Broadcast updated COLLECTION_SCHEMA to all connected consumers
+    await this.broadcastSchemaChanges(userId, [collectionId]);
+
+    // Enqueue sync jobs for all source collections linked to this collection
+    const influxes = await db
+      .selectDistinct({ sourceCollectionId: influxTable.sourceCollectionId })
+      .from(influxTable)
+      .where(and(eq(influxTable.userId, userId), eq(influxTable.collectionId, collectionId)));
+
+    const sourceCollectionIds = influxes.map((r) => r.sourceCollectionId);
+    if (sourceCollectionIds.length > 0) {
+      await Effect.runPromise(enqueueSyncJobs(db, sourceCollectionIds));
     }
   }
 

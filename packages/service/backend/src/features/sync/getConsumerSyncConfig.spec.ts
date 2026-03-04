@@ -18,8 +18,6 @@ import {
 } from "../../infra/db/db";
 import { getConsumerSyncConfig } from "./getConsumerSyncConfig";
 
-const isDbMocked = typeof db.delete !== "function";
-
 /**
  * Creates a full entity chain: source → sourceCollection → collection → influx → consumer → connection.
  * Returns all generated IDs for assertions.
@@ -103,7 +101,7 @@ async function createFullChain(opts: {
   };
 }
 
-describe.skipIf(isDbMocked)("getConsumerSyncConfig", () => {
+describe("getConsumerSyncConfig", () => {
   let testUserId: number;
 
   beforeEach(async () => {

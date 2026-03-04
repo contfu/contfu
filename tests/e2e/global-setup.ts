@@ -113,7 +113,7 @@ async function globalSetup() {
     {
       PORT: String(SERVICE_PORT),
       ORIGIN: SERVICE_URL,
-      TEST_MODE: "true",
+      NODE_ENV: "test",
       PGLITE_DATA_DIR: uniqueDbDir,
       BETTER_AUTH_SECRET: "e2e-test-secret-at-least-32-chars-long",
     },

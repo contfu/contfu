@@ -24,9 +24,7 @@ import { autoResolveIncidentsForInflux } from "./autoResolveIncidentsForInflux";
  * Uses real in-memory SQLite database, not mocks.
  */
 
-const isDbMocked = typeof db.delete !== "function";
-
-describe.skipIf(isDbMocked)("Incident Features", () => {
+describe("Incident Features", () => {
   let testUserId: number;
   let testInfluxId: number;
   let testCollectionId: number;

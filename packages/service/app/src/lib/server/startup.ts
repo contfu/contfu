@@ -78,7 +78,7 @@ export async function initialize(): Promise<void> {
 
   // Start the sync worker (skip in test mode — E2E tests use webhook fixtures
   // and the worker's PGLite instance conflicts with the main app's in CI).
-  if (process.env.TEST_MODE !== "true") {
+  if (process.env.NODE_ENV !== "test") {
     // Wire the onItems callback to broadcast items to all connected clients
     worker.onItems((items, connections) => {
       stream.broadcast(items, connections);

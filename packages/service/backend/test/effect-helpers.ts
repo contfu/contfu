@@ -4,7 +4,7 @@ import { CryptoLive } from "../src/effect/services/Crypto";
 
 /**
  * Minimal test layer providing Database and Crypto services.
- * Uses PGlite when TEST_MODE=true (set by test environment).
+ * Uses PGlite when NODE_ENV=test (set by test environment).
  */
 const TestLive = Layer.mergeAll(DatabaseLive, CryptoLive);
 

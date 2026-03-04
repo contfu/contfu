@@ -51,8 +51,8 @@ export default defineConfig({
     {
       // Build and serve production build - this runs on Bun runtime with real database
       // vite dev runs in Node.js which can't use Bun-specific modules like SQL from "bun"
-      // TEST_MODE is needed at build time for CSRF config and at runtime for test user creation
-      command: `TEST_MODE=true NOTION_BASE_URL=http://localhost:${MOCK_NOTION_PORT} bun run build && TEST_MODE=true NOTION_BASE_URL=http://localhost:${MOCK_NOTION_PORT} PORT=${TEST_PORT} bun run serve`,
+      // test env is needed at build time for CSRF config and at runtime for test user creation
+      command: `NODE_ENV=test NOTION_BASE_URL=http://localhost:${MOCK_NOTION_PORT} bun run build && NODE_ENV=test NOTION_BASE_URL=http://localhost:${MOCK_NOTION_PORT} PORT=${TEST_PORT} bun run serve`,
       url: `http://localhost:${TEST_PORT}`,
       reuseExistingServer: false, // Always start fresh server to avoid port conflicts
       timeout: 180_000, // Allow time for build + server startup,
