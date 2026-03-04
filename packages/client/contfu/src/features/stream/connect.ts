@@ -13,7 +13,7 @@ import { renameCollection } from "../collections/renameCollection";
 import { removeCollectionByName } from "../collections/removeCollectionByName";
 import { getCollectionSchemaByName } from "../collections/getCollectionSchemaByName";
 import { db } from "../../infra/db/db";
-import { linkTable } from "../../infra/db/schema";
+import { collectionsTable, linkTable } from "../../infra/db/schema";
 import type {
   CollectionVariants,
   MediaConstraints,
@@ -115,6 +115,12 @@ async function persistSyncEvent(
     let props = event.item.props;
     const collection = event.item.collection;
     const variants: VariantDef[] | undefined = collectionVariants?.[collection];
+
+    // Ensure collection exists — ITEM_CHANGED may arrive before COLLECTION_SCHEMA during resync
+    db.insert(collectionsTable)
+      .values({ name: collection, displayName: collection, schema: {} })
+      .onConflictDoNothing()
+      .run();
 
     // Delete existing outgoing links (will be re-created from current data)
     await deleteOutgoingItemLinks(itemId);
