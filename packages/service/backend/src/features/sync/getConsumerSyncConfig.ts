@@ -26,6 +26,7 @@ export interface ConsumerSyncConfig {
       sourceCollectionId: number;
       collectionRef: Buffer | null;
       targets: Array<{
+        influxId: number;
         collectionId: number;
         filters: Filter[] | null;
         includeRef: boolean;
@@ -96,6 +97,7 @@ export const getConsumerSyncConfig = (userId: number, consumerId: number) =>
       try: () =>
         db
           .select({
+            id: influxTable.id,
             collectionId: influxTable.collectionId,
             sourceCollectionId: influxTable.sourceCollectionId,
             filters: influxTable.filters,
@@ -159,6 +161,7 @@ export const getConsumerSyncConfig = (userId: number, consumerId: number) =>
             sourceCollectionId: number;
             collectionRef: Buffer | null;
             targets: Array<{
+              influxId: number;
               collectionId: number;
               filters: Filter[] | null;
               includeRef: boolean;
@@ -198,6 +201,7 @@ export const getConsumerSyncConfig = (userId: number, consumerId: number) =>
           const allowByConnection = connectionRefPolicy.get(influx.collectionId) ?? true;
           const allowByInflux = influx.includeRef;
           sc.targets.push({
+            influxId: influx.id,
             collectionId: influx.collectionId,
             filters: influx.filters ? (unpack(influx.filters) as Filter[]) : null,
             includeRef: Boolean(group.sourceIncludeRef) && allowByInflux && allowByConnection,

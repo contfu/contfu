@@ -1,7 +1,7 @@
 <script lang="ts">
   import * as Sidebar from "$lib/components/ui/sidebar";
   import type { Icon } from "@lucide/svelte";
-  let { items, currentPath }: { items: { title: string; url: string; icon?: typeof Icon }[]; currentPath: string } =
+  let { items, currentPath }: { items: { title: string; url: string; icon?: typeof Icon; badge?: number }[]; currentPath: string } =
     $props();
 
   function isActive(itemUrl: string, currentPath: string): boolean {
@@ -23,6 +23,9 @@
             {/if}
             <span>{item.title}</span>
           </Sidebar.MenuButton>
+          {#if item.badge && item.badge > 0}
+            <Sidebar.MenuBadge>{item.badge}</Sidebar.MenuBadge>
+          {/if}
         </Sidebar.MenuItem>
       {/each}
     </Sidebar.Menu>

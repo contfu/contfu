@@ -9,6 +9,7 @@ export const IncidentType = {
   SchemaIncompatible: 1,
   FilterInvalid: 2,
   SyncError: 3,
+  ItemValidationError: 4,
 } as const;
 
 export type IncidentType = (typeof IncidentType)[keyof typeof IncidentType];
@@ -20,6 +21,18 @@ export interface SchemaIncompatibleDetails {
   oldSchema: CollectionSchema;
   newSchema: CollectionSchema;
   invalidFilters: Filter[];
+}
+
+/**
+ * Details for item validation error incidents.
+ * `sampleRefs` is a msgpackr-packed `[number, string][]` (timestamp + ref ID pairs).
+ */
+export interface ItemValidationErrorDetails {
+  property: string;
+  cast: string;
+  sourceProperty: string;
+  totalFailed: number;
+  sampleRefs: Buffer;
 }
 
 /**

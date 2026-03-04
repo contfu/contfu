@@ -11,8 +11,10 @@
   import { getCollections } from "$lib/remote/collections.remote";
   import { getConnections } from "$lib/remote/connections.remote";
   import { getConsumers } from "$lib/remote/consumers.remote";
+  import { getIncidentCount } from "$lib/remote/incidents.remote";
   import { getSources } from "$lib/remote/sources.remote";
   import {
+    AlertTriangleIcon,
     DatabaseIcon,
     FoldersIcon,
     LayoutDashboardIcon,
@@ -41,6 +43,9 @@
     connectionsResult.status === "fulfilled" ? connectionsResult.value : [];
   const hasLoadErrors = results.some((result) => result.status === "rejected");
 
+  const incidentCountQuery = getIncidentCount();
+  const incidentCount = $derived(incidentCountQuery?.current ?? 0);
+
   const SOURCE_TYPE_LABELS: Record<number, string> = {
     0: "Notion",
     1: "Strapi",
@@ -60,6 +65,16 @@
       <Alert.Title>Some data failed to load</Alert.Title>
       <Alert.Description>
         Parts of the dashboard are unavailable. Try refreshing the page.
+      </Alert.Description>
+    </Alert.Root>
+  {/if}
+
+  {#if incidentCount > 0}
+    <Alert.Root class="mb-6" variant="destructive">
+      <AlertTriangleIcon class="size-4" />
+      <Alert.Title>{incidentCount} sync incident{incidentCount === 1 ? "" : "s"}</Alert.Title>
+      <Alert.Description>
+        <a href="/incidents" class="underline hover:no-underline">View incidents →</a>
       </Alert.Description>
     </Alert.Root>
   {/if}

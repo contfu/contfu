@@ -20,6 +20,11 @@ export default async function globalSetup() {
   // PGlite creation, migration, and dev user seeding automatically.
   process.env.TEST_MODE = "true";
   process.env.PGLITE_DATA_DIR = PGLITE_DATA_DIR;
+  // Match the BETTER_AUTH_SECRET used by the server (from .env) so that
+  // credentials encrypted here can be decrypted at runtime.
+  if (!process.env.BETTER_AUTH_SECRET) {
+    process.env.BETTER_AUTH_SECRET = "e2e-test-secret-at-least-32-chars-long";
+  }
 
   const { db, closeDb } = await import("@contfu/svc-backend/infra/db/db");
 

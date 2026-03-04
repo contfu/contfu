@@ -3,7 +3,13 @@ import { getStreamServer } from "$lib/server/startup";
 import { EventType } from "@contfu/core";
 import { createLogger } from "@contfu/svc-backend/infra/logger/index";
 import { runEffectWithServices } from "@contfu/svc-backend/effect/run";
-import { fetchAndStreamItems } from "@contfu/svc-backend/features/sync/fetchAndStreamItems";
+import {
+  fetchAndStreamItems,
+  ValidationErrorCollector,
+} from "@contfu/svc-backend/features/sync/fetchAndStreamItems";
+import { createIncident } from "@contfu/svc-backend/features/incidents/createIncident";
+import { IncidentType } from "@contfu/svc-core";
+import { pack } from "msgpackr";
 import { getConsumerSyncConfig } from "@contfu/svc-backend/features/sync/getConsumerSyncConfig";
 import {
   collectionTable,
@@ -263,8 +269,9 @@ export const GET: RequestHandler = async ({ request, url }) => {
             getConsumerSyncConfig(consumer.userId, consumer.id),
           );
 
+          const validationCollector = new ValidationErrorCollector();
           let snapshotItemCount = 0;
-          for await (const item of fetchAndStreamItems(config)) {
+          for await (const item of fetchAndStreamItems(config, validationCollector)) {
             if (request.signal.aborted) break;
             const wireEvent: [EventType.ITEM_CHANGED, ReturnType<typeof toWireItem>] = [
               EventType.ITEM_CHANGED,
@@ -287,6 +294,30 @@ export const GET: RequestHandler = async ({ request, url }) => {
             { userId: consumer.userId, consumerId: consumer.id, itemCount: snapshotItemCount },
             "Snapshot complete",
           );
+
+          // Create incidents for validation errors
+          if (validationCollector.size > 0) {
+            for (const group of validationCollector.getGroups()) {
+              try {
+                await runEffectWithServices(
+                  createIncident(consumer.userId, {
+                    influxId: group.influxId,
+                    type: IncidentType.ItemValidationError,
+                    message: `${group.total} item(s) dropped: cannot cast "${group.sourceProperty}" to ${group.cast} for "${group.property}"`,
+                    details: {
+                      property: group.property,
+                      cast: group.cast,
+                      sourceProperty: group.sourceProperty,
+                      totalFailed: group.total,
+                      sampleRefs: pack(group.samples),
+                    },
+                  }),
+                );
+              } catch (e) {
+                log.error({ err: e }, "Failed to create validation incident");
+              }
+            }
+          }
         }
 
         // Resume an interrupted snapshot from the dedicated snapshot stream.

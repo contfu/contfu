@@ -24,7 +24,14 @@ export const MAPPING_SYNC_CONSUMER_KEY = Buffer.from(
   "hex",
 );
 
+/** Separate consumer key for validation tests. */
+export const VALIDATION_CONSUMER_KEY = Buffer.from(
+  "bb01020304050607080910111213141516171819202122232425262728293031",
+  "hex",
+);
+
 export const COLLECTION_NAME = "mappingSyncCollection";
+export const VALIDATION_COLLECTION_NAME = "validationSyncCollection";
 
 /** Target schema: both influxes merge into these target property names. */
 export const TARGET_SCHEMA: CollectionSchema = {
@@ -56,6 +63,18 @@ export const MAPPINGS_B: MappingRule[] = [
   { source: "rating", target: "score", cast: "string" },
 ];
 
+/** Validation test: target schema with number type for views. */
+export const VALIDATION_TARGET_SCHEMA: CollectionSchema = {
+  title: PropertyType.STRING,
+  views: PropertyType.NUMBER,
+};
+
+/** Validation test: mappings with number cast — "not-a-number" will fail. */
+export const VALIDATION_MAPPINGS: MappingRule[] = [
+  { source: "title", target: "title" },
+  { source: "views", target: "views", cast: "number" },
+];
+
 export async function seedMappingSyncData(db: any): Promise<void> {
   // Get test user
   let [user] = await db
@@ -82,6 +101,7 @@ export async function seedMappingSyncData(db: any): Promise<void> {
     .insert(sourceTable)
     .values({
       userId,
+      uid: "00000003-0000-4000-a000-000000000001",
       name: "Mock Strapi (mapping-sync)",
       type: SourceType.STRAPI,
       url: "http://localhost:4175",
@@ -162,5 +182,46 @@ export async function seedMappingSyncData(db: any): Promise<void> {
     userId,
     consumerId: consumer.id,
     collectionId: collection.id,
+  });
+
+  // ---- Validation test data ----
+
+  // Target collection with number-typed views
+  const [valCollection] = await db
+    .insert(collectionTable)
+    .values({
+      userId,
+      name: VALIDATION_COLLECTION_NAME,
+      displayName: "Validation Sync Collection",
+      schema: pack(VALIDATION_TARGET_SCHEMA),
+    })
+    .returning({ id: collectionTable.id });
+  if (!valCollection) return;
+
+  // Influx: articles → validation collection, with number cast on views
+  await db.insert(influxTable).values({
+    userId,
+    collectionId: valCollection.id,
+    sourceCollectionId: scA.id,
+    schema: pack(SOURCE_SCHEMA_A),
+    mappings: pack(VALIDATION_MAPPINGS),
+  });
+
+  // Validation consumer
+  const [valConsumer] = await db
+    .insert(consumerTable)
+    .values({
+      userId,
+      key: VALIDATION_CONSUMER_KEY,
+      name: "Validation Sync Consumer",
+    })
+    .returning({ id: consumerTable.id });
+  if (!valConsumer) return;
+
+  // Connection: validation consumer → validation collection
+  await db.insert(connectionTable).values({
+    userId,
+    consumerId: valConsumer.id,
+    collectionId: valCollection.id,
   });
 }

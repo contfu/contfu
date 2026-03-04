@@ -1,9 +1,15 @@
 import { test, expect } from "@playwright/test";
 import { unpack } from "msgpackr";
 import { EventType } from "@contfu/core";
-import { MAPPING_SYNC_CONSUMER_KEY, COLLECTION_NAME } from "./mapping-sync.seed";
+import {
+  MAPPING_SYNC_CONSUMER_KEY,
+  VALIDATION_CONSUMER_KEY,
+  COLLECTION_NAME,
+  VALIDATION_COLLECTION_NAME,
+} from "./mapping-sync.seed";
 
 const VALID_KEY = MAPPING_SYNC_CONSUMER_KEY.toString("base64url");
+const VALIDATION_KEY = VALIDATION_CONSUMER_KEY.toString("base64url");
 
 /**
  * Reads framed msgpack events from a binary sync stream.
@@ -116,7 +122,7 @@ test.describe("Mapping Sync — property mappings applied during sync", () => {
     // Wire format: [EventType.ITEM_CHANGED, wireItem, index]
     // wireItem: [sourceType, refUrl, id, collectionName, changedAt, props, content?]
     const itemEvents = events.filter((e) => e[0] === EventType.ITEM_CHANGED);
-    expect(itemEvents.length).toBe(2);
+    expect(itemEvents.length).toBe(3);
 
     for (const evt of itemEvents) {
       const wireItem = evt[1] as unknown[];
@@ -140,9 +146,9 @@ test.describe("Mapping Sync — property mappings applied during sync", () => {
     }
   });
 
-  test("two items total — one from each source", () => {
+  test("three items total — two articles plus one post", () => {
     const itemEvents = events.filter((e) => e[0] === EventType.ITEM_CHANGED);
-    expect(itemEvents.length).toBe(2);
+    expect(itemEvents.length).toBe(3);
 
     const titles = itemEvents.map((evt) => {
       const wireItem = evt[1] as unknown[];
@@ -151,6 +157,43 @@ test.describe("Mapping Sync — property mappings applied during sync", () => {
     });
 
     expect(titles).toContain("Article One");
+    expect(titles).toContain("Article Two");
     expect(titles).toContain("Post Alpha");
+  });
+});
+
+test.describe("Validation Sync — invalid items dropped, incidents created", () => {
+  test.setTimeout(30_000);
+
+  let events: unknown[][];
+
+  test.beforeAll(async () => {
+    events = await readSyncEvents({
+      baseUrl: "http://localhost:4173",
+      key: VALIDATION_KEY,
+      until: (evts) => evts.some((e) => e[0] === EventType.SNAPSHOT_END),
+      timeoutMs: 20_000,
+    });
+  });
+
+  test("valid items sync, invalid items are dropped", () => {
+    const itemEvents = events.filter((e) => e[0] === EventType.ITEM_CHANGED);
+    // Article One (views: 42) passes number cast, Article Two (views: "not-a-number") is dropped
+    expect(itemEvents.length).toBe(1);
+
+    const wireItem = itemEvents[0][1] as unknown[];
+    const props = wireItem[5] as Record<string, unknown>;
+    expect(props.title).toBe("Article One");
+    expect(props.views).toBe(42);
+  });
+
+  test("schema uses correct property names", () => {
+    const schemaEvents = events.filter((e) => e[0] === EventType.COLLECTION_SCHEMA);
+    const ourSchema = schemaEvents.find((e) => e[1] === VALIDATION_COLLECTION_NAME);
+    expect(ourSchema).toBeDefined();
+
+    const schema = ourSchema![3] as Record<string, number>;
+    expect(schema).toHaveProperty("title");
+    expect(schema).toHaveProperty("views");
   });
 });

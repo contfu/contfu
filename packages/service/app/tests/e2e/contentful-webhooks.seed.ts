@@ -3,6 +3,7 @@
  * Called by global-setup.ts before the server starts.
  */
 import { SourceType } from "@contfu/core";
+import { pack } from "msgpackr";
 import { encryptCredentials } from "@contfu/svc-backend/infra/crypto/credentials";
 import {
   collectionTable,
@@ -88,6 +89,7 @@ export async function seedContentfulWebhookData(db: any): Promise<void> {
       userId,
       displayName: "Test Contentful Webhook Collection",
       name: "Test Contentful Webhook Collection",
+      schema: pack({}),
     })
     .returning({ id: collectionTable.id });
   if (!collection) return;

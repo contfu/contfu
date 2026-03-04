@@ -13,6 +13,15 @@ const MOCK_ARTICLES = [
     updatedAt: "2025-01-01T00:00:00.000Z",
     publishedAt: "2025-01-01T00:00:00.000Z",
   },
+  {
+    id: 2,
+    documentId: "doc-a-2",
+    title: "Article Two",
+    views: "not-a-number",
+    createdAt: "2025-01-02T00:00:00.000Z",
+    updatedAt: "2025-01-02T00:00:00.000Z",
+    publishedAt: "2025-01-02T00:00:00.000Z",
+  },
 ];
 
 const MOCK_POSTS = [

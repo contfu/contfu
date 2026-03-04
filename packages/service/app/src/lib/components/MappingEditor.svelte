@@ -266,6 +266,52 @@
     verifiedMappings.add(mappingKey(influxId, propName));
   }
 
+  // ---------------------------------------------------------------------------
+  // Default value validation
+  // ---------------------------------------------------------------------------
+
+  let validationErrors = $state<Map<string, string>>(new Map());
+
+  function validationKey(influxId: string, propName: string): string {
+    return `${influxId}:${propName}:default`;
+  }
+
+  function validateDefault(value: string, targetType: number): string | null {
+    if (value === "") return null;
+    if (targetType & PropertyType.NUMBER || targetType & PropertyType.NUMBERS) {
+      if (Number.isNaN(Number(value))) return "Must be a valid number";
+    }
+    if (targetType === PropertyType.BOOLEAN) {
+      if (!["true", "false", "1", "0"].includes(value)) return 'Must be "true" or "false"';
+    }
+    if (targetType === PropertyType.DATE) {
+      if (Number.isNaN(new Date(value).getTime())) return "Must be a valid date";
+    }
+    return null;
+  }
+
+  function getValidationError(influxId: string, propName: string): string | null {
+    return validationErrors.get(validationKey(influxId, propName)) ?? null;
+  }
+
+  function updateValidation(influxId: string, propName: string, value: string) {
+    const targetType = localSchema[propName] || 0;
+    const error = validateDefault(value, targetType);
+    const key = validationKey(influxId, propName);
+    const next = new Map(validationErrors);
+    if (error) {
+      next.set(key, error);
+    } else {
+      next.delete(key);
+    }
+    validationErrors = next;
+  }
+
+  /** Returns true if any default value has a validation error. */
+  export function hasValidationErrors(): boolean {
+    return validationErrors.size > 0;
+  }
+
   function emitChange() {
     // Deep-clone to detach from reactive proxies so the snapshot
     // remains stable even if local state changes later.
@@ -359,6 +405,7 @@
       });
     }
     localMappings = new Map(localMappings).set(influxId, rules);
+    updateValidation(influxId, targetProp, defaultVal);
     emitChange();
   }
 
@@ -589,22 +636,46 @@
                       </div>
                     {/if}
                     {#if getSourcePropForInflux(influx.id, propName) === "" || targetType & PropertyType.NULL}
+                      {@const defaultError = getValidationError(influx.id, propName)}
                       <div class="min-w-[100px] flex-1">
                         <Label class="mb-1 text-xs text-muted-foreground"
                           >Default</Label
                         >
-                        <Input
-                          type="text"
-                          placeholder="Default value"
-                          value={getDefaultForInflux(influx.id, propName)}
-                          oninput={(e) =>
-                            setDefault(
-                              influx.id,
-                              propName,
-                              e.currentTarget.value,
-                            )}
-                          class="h-8 text-sm"
-                        />
+                        {#if targetType === PropertyType.BOOLEAN}
+                          <Select
+                            size="sm"
+                            class="w-full text-sm"
+                            value={getDefaultForInflux(influx.id, propName)}
+                            onchange={(e) =>
+                              setDefault(influx.id, propName, e.currentTarget.value)}
+                            options={[
+                              { value: "", label: "---" },
+                              { value: "true", label: "true" },
+                              { value: "false", label: "false" },
+                            ]}
+                          />
+                        {:else if targetType & PropertyType.NUMBER || targetType & PropertyType.NUMBERS}
+                          <Input
+                            type="number"
+                            placeholder="Default value"
+                            value={getDefaultForInflux(influx.id, propName)}
+                            oninput={(e) =>
+                              setDefault(influx.id, propName, e.currentTarget.value)}
+                            class="h-8 text-sm {defaultError ? 'border-destructive' : ''}"
+                          />
+                        {:else}
+                          <Input
+                            type="text"
+                            placeholder="Default value"
+                            value={getDefaultForInflux(influx.id, propName)}
+                            oninput={(e) =>
+                              setDefault(influx.id, propName, e.currentTarget.value)}
+                            class="h-8 text-sm {defaultError ? 'border-destructive' : ''}"
+                          />
+                        {/if}
+                        {#if defaultError}
+                          <span class="text-xs text-destructive">{defaultError}</span>
+                        {/if}
                       </div>
                     {/if}
                   </div>

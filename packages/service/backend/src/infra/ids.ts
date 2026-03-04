@@ -11,7 +11,8 @@ export type EntityType =
   | "collection"
   | "consumer"
   | "sourceCollection"
-  | "influx";
+  | "influx"
+  | "incident";
 
 // Lazy-initialized state
 let initialized = false;
@@ -38,6 +39,7 @@ function init() {
     "consumer",
     "sourceCollection",
     "influx",
+    "incident",
   ];
   for (const entity of entities) {
     const alphabet = shuffleAlphabet(secret, entity);

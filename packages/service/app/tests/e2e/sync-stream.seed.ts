@@ -3,6 +3,7 @@
  * Called by global-setup.ts before the server starts.
  * Constants are shared with sync-stream.e2e.ts.
  */
+import { pack } from "msgpackr";
 import {
   collectionTable,
   connectionTable,
@@ -61,6 +62,7 @@ export async function seedSyncData(db: any): Promise<void> {
       userId,
       displayName: "Test Sync Collection",
       name: "Test Sync Collection",
+      schema: pack({}),
     })
     .returning({ id: collectionTable.id });
   if (!collection) return;

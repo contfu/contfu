@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import { and, eq, desc } from "drizzle-orm";
+import { and, eq, desc, count } from "drizzle-orm";
 import { unpack } from "msgpackr";
 import { IncidentType } from "@contfu/svc-core";
 import type { BackendIncidentWithDetails } from "../../domain/types";
@@ -89,3 +89,22 @@ export const listIncidents = (userId: number, options?: { resolved?: boolean }) 
         }) satisfies BackendIncidentWithDetails,
     );
   }).pipe(Effect.withSpan("incidents.list", { attributes: { userId } }));
+
+/**
+ * Count unresolved incidents for a user.
+ */
+export const getUnresolvedIncidentCount = (userId: number) =>
+  Effect.gen(function* () {
+    const { db } = yield* Database;
+
+    const [result] = yield* Effect.tryPromise({
+      try: () =>
+        db
+          .select({ count: count() })
+          .from(incidentTable)
+          .where(and(eq(incidentTable.userId, userId), eq(incidentTable.resolved, false))),
+      catch: (e) => new DatabaseError({ cause: e }),
+    });
+
+    return result?.count ?? 0;
+  }).pipe(Effect.withSpan("incidents.unresolvedCount", { attributes: { userId } }));

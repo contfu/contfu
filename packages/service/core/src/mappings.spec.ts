@@ -6,6 +6,7 @@ import {
   autoWireMappings,
   applyMappings,
   applyMappingsToSchema,
+  validateSourceItem,
   type MappingRule,
 } from "./mappings";
 
@@ -192,6 +193,59 @@ describe("applyMappings", () => {
     const props = { x: 42 };
     const mappings: MappingRule[] = [{ source: "x", target: "x", cast: "unknown" }];
     expect(applyMappings(props, mappings)).toEqual({ x: 42 });
+  });
+});
+
+describe("validateSourceItem", () => {
+  test("returns error for non-numeric string with number cast", () => {
+    const errors = validateSourceItem({ views: "arb" }, [
+      { source: "views", target: "score", cast: "number" },
+    ]);
+    expect(errors).toEqual([{ property: "score", sourceProperty: "views", cast: "number" }]);
+  });
+
+  test("returns no error for valid number string", () => {
+    const errors = validateSourceItem({ views: "42" }, [
+      { source: "views", target: "score", cast: "number" },
+    ]);
+    expect(errors).toEqual([]);
+  });
+
+  test("returns no error for actual number value", () => {
+    const errors = validateSourceItem({ views: 42 }, [
+      { source: "views", target: "score", cast: "number" },
+    ]);
+    expect(errors).toEqual([]);
+  });
+
+  test("multiple failing properties return multiple errors", () => {
+    const errors = validateSourceItem({ a: "bad", b: "worse" }, [
+      { source: "a", target: "x", cast: "number" },
+      { source: "b", target: "y", cast: "number" },
+    ]);
+    expect(errors).toHaveLength(2);
+  });
+
+  test("no cast rules return no errors", () => {
+    const errors = validateSourceItem({ title: "Hello" }, [{ source: "title", target: "title" }]);
+    expect(errors).toEqual([]);
+  });
+
+  test("missing source prop with no default is skipped", () => {
+    const errors = validateSourceItem({}, [{ source: "missing", target: "score", cast: "number" }]);
+    expect(errors).toEqual([]);
+  });
+
+  test("null or empty mappings return no errors", () => {
+    expect(validateSourceItem({ x: 1 }, null)).toEqual([]);
+    expect(validateSourceItem({ x: 1 }, [])).toEqual([]);
+  });
+
+  test("validates default value when source prop is missing", () => {
+    const errors = validateSourceItem({}, [
+      { source: "missing", target: "score", cast: "number", default: "not-a-number" },
+    ]);
+    expect(errors).toEqual([{ property: "score", sourceProperty: "missing", cast: "number" }]);
   });
 });
 

@@ -234,6 +234,10 @@
 
   async function saveMappings() {
     if ((!mappingChanges && pendingInfluxes.length === 0) || !collection) return;
+    if (mappingEditorRef?.hasValidationErrors()) {
+      toast.error("Fix validation errors before saving");
+      return;
+    }
     savingMappings = true;
     try {
       // 1. Create pending influxes on backend

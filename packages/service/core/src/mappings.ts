@@ -164,6 +164,57 @@ export function applyMappingsToSchema(
   return result;
 }
 
+// ---------------------------------------------------------------------------
+// Source item validation
+// ---------------------------------------------------------------------------
+
+export interface SourceItemValidationError {
+  /** Target property name. */
+  property: string;
+  /** Source property name. */
+  sourceProperty: string;
+  /** The failing cast (e.g. "number"). */
+  cast: string;
+}
+
+/**
+ * Validate a source item against mapping rules before applying them.
+ * Returns errors for each rule whose cast would produce an invalid result.
+ * Empty array means the item is valid.
+ */
+export function validateSourceItem(
+  props: Record<string, unknown>,
+  mappings: MappingRule[] | null,
+): SourceItemValidationError[] {
+  if (!mappings || mappings.length === 0) return [];
+
+  const errors: SourceItemValidationError[] = [];
+  for (const rule of mappings) {
+    if (!rule.cast || !CAST_FNS[rule.cast]) continue;
+
+    let value: unknown;
+    if (rule.source in props) {
+      value = props[rule.source];
+    } else if ("default" in rule) {
+      value = rule.default;
+    } else {
+      continue; // no value to validate
+    }
+
+    if (rule.cast === "number") {
+      const n = Number(value);
+      if (Number.isNaN(n)) {
+        errors.push({
+          property: rule.target ?? rule.source,
+          sourceProperty: rule.source,
+          cast: rule.cast,
+        });
+      }
+    }
+  }
+  return errors;
+}
+
 export function autoWireMappings(
   targetSchema: CollectionSchema,
   sourceSchema: CollectionSchema,

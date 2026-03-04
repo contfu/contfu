@@ -4,6 +4,7 @@
  * Constants are shared with notion-webhooks.e2e.ts.
  */
 import { SourceType } from "@contfu/svc-core";
+import { pack } from "msgpackr";
 import { encryptCredentials } from "@contfu/svc-backend/infra/crypto/credentials";
 import {
   collectionTable,
@@ -96,6 +97,7 @@ export async function seedWebhookData(db: any): Promise<void> {
       userId,
       displayName: "Test Webhook Collection",
       name: "Test Webhook Collection",
+      schema: pack({}),
     })
     .returning({ id: collectionTable.id });
   if (!collection) return;

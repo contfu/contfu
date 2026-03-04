@@ -2,6 +2,7 @@
   // @ts-nocheck
   import * as Sidebar from "$lib/components/ui/sidebar";
   import {
+    AlertTriangleIcon,
     CreditCardIcon,
     DatabaseIcon,
     FoldersIcon,
@@ -37,6 +38,11 @@
         url: "/consumers",
         icon: UsersIcon,
       },
+      {
+        title: "Incidents",
+        url: "/incidents",
+        icon: AlertTriangleIcon,
+      },
     ],
     navSecondary: [
       {
@@ -55,8 +61,15 @@
   let {
     currentPath,
     user,
+    incidentCount = 0,
     ...restProps
-  }: ComponentProps<typeof Sidebar.Root> & { currentPath: string; user: DisplayUser } = $props();
+  }: ComponentProps<typeof Sidebar.Root> & { currentPath: string; user: DisplayUser; incidentCount?: number } = $props();
+
+  const navMainItems = $derived(
+    data.navMain.map((item) =>
+      item.url === "/incidents" ? { ...item, badge: incidentCount } : item,
+    ),
+  );
 </script>
 
 <Sidebar.Root collapsible="icon" {...restProps}>
@@ -75,7 +88,7 @@
     </Sidebar.Menu>
   </Sidebar.Header>
   <Sidebar.Content>
-    <NavMain items={data.navMain} {currentPath} />
+    <NavMain items={navMainItems} {currentPath} />
     <NavSecondary items={data.navSecondary} class="mt-auto" />
   </Sidebar.Content>
   <Sidebar.Footer>
