@@ -283,6 +283,41 @@ describe("MappingEditor", () => {
     expect(onchange).not.toHaveBeenCalled();
   });
 
+  it("verifyMapping() strips guessed flag from MappingRule and emits change", async () => {
+    const onchange = mock(() => {});
+    const targetSchema: CollectionSchema = { title: PropertyType.STRING };
+
+    const { component } = renderEditor({
+      targetSchema,
+      influxes: [
+        {
+          id: "i1",
+          name: "Source",
+          sourceSchema: { name: PropertyType.STRING },
+          mappings: [{ source: "name", target: "title", guessed: true }],
+        },
+      ],
+      onchange,
+    });
+    await tick();
+    await tick();
+    onchange.mockClear();
+
+    (component as unknown as { verifyMapping: (a: string, b: string) => void }).verifyMapping(
+      "i1",
+      "title",
+    );
+    await tick();
+
+    expect(onchange).toHaveBeenCalledTimes(1);
+    const call = (onchange.mock.calls[0] as unknown[])[0] as ChangePayload;
+    const rules = call.influxMappings.get("i1")!;
+    expect(rules).toHaveLength(1);
+    expect(rules[0].source).toBe("name");
+    expect(rules[0].target).toBe("title");
+    expect((rules[0] as MappingRule & { guessed?: boolean }).guessed).toBeUndefined();
+  });
+
   it("resolveAll() clears all warnings", async () => {
     const targetSchema: CollectionSchema = { title: PropertyType.STRING };
 

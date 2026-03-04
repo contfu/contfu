@@ -262,8 +262,17 @@
     return influxes.some((influx) => hasMappingWarning(influx.id, propName));
   }
 
-  function verifyMapping(influxId: string, propName: string) {
-    verifiedMappings.add(mappingKey(influxId, propName));
+  export function verifyMapping(influxId: string, propName: string) {
+    const rules = [...(localMappings.get(influxId) ?? [])];
+    const idx = rules.findIndex((r) => (r.target ?? r.source) === propName);
+    if (idx >= 0 && rules[idx].guessed) {
+      const { guessed: _, ...rest } = rules[idx];
+      rules[idx] = rest as MappingRule;
+      localMappings = new Map(localMappings).set(influxId, rules);
+      emitChange();
+    }
+    // Still add to verifiedMappings to clear any "no match found" warnings
+    verifiedMappings = new Set([...verifiedMappings, mappingKey(influxId, propName)]);
   }
 
   // ---------------------------------------------------------------------------
