@@ -60,15 +60,15 @@
   <title>API Keys - Contfu Admin</title>
 </svelte:head>
 
-<SiteHeader icon={KeyIcon} title="API Keys">
+<SiteHeader icon={KeyIcon} title="api keys">
   <div class="ml-auto">
     <Button onclick={() => (showCreateDialog = true)}>Create API Key</Button>
   </div>
 </SiteHeader>
 
 <div class="p-6">
-  <p class="mb-6 text-sm text-muted-foreground">
-    Manage API keys for CLI and programmatic access.
+  <p class="mb-6 text-xs text-muted-foreground">
+    <span class="text-primary">$</span> contfu admin api-keys --manage
   </p>
 
   <div class="rounded-md border">

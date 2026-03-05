@@ -32,18 +32,18 @@
   const nameValue = $derived(nameEditable ? nameOverride : derivedName);
 </script>
 
-<SiteHeader title="Create Collection">
+<SiteHeader title="new collection">
   <a
     href="/collections"
-    class="ml-auto text-sm text-muted-foreground hover:text-foreground"
+    class="ml-auto text-xs text-muted-foreground hover:text-foreground"
   >
-    ← Collections
+    &lt; collections
   </a>
 </SiteHeader>
 
 <div class="mx-auto max-w-xl px-4 py-8 sm:px-6">
-  <p class="mb-8 text-sm text-muted-foreground">
-    Create a new collection to aggregate content from multiple sources.
+  <p class="mb-8 text-xs text-muted-foreground">
+    <span class="text-primary">$</span> contfu collections --create
   </p>
 
   <form method="post" action={createCollection.action} class="space-y-5">

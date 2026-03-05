@@ -1,523 +1,713 @@
 <script lang="ts">
-  // import { authClient } from "$lib/auth-client";
   import { Button } from "$lib/components/ui/button";
-  // import * as Tabs from "$lib/components/ui/tabs";
+  import SourceTypeIcon from "$lib/components/icons/SourceTypeIcon.svelte";
+  import { SourceType } from "@contfu/core";
+  import {
+    FilterIcon,
+    DatabaseIcon,
+    ImageIcon,
+    ArrowDownIcon,
+    MonitorIcon,
+    BookOpenIcon,
+    CodeIcon,
+    RadioIcon,
+    DownloadIcon,
+  } from "@lucide/svelte";
+  import { onMount } from "svelte";
 
   let { data } = $props();
-  // let isYearly = $state(true);
 
   const features = [
-    {
-      title: "Connect Any CMS",
-      description:
-        "Notion, Strapi, Contentful — sync them all to one database. Add new sources in minutes.",
-    },
-    {
-      title: "Real-Time Updates",
-      description:
-        "Content changes stream to your apps instantly. No polling. Sub-second propagation.",
-    },
-    {
-      title: "One Schema",
-      description:
-        "Query all your content with a single, predictable structure. No more API mapping.",
-    },
-    {
-      title: "Migrate Gradually",
-      description:
-        "Switch CMS platforms without rewriting apps. Run multiple sources in parallel.",
-    },
+    { cmd: "connect", title: "Connect Any CMS", description: "Notion, Strapi, Contentful -- sync them all to one database." },
+    { cmd: "sync", title: "Real-Time Updates", description: "Content changes stream instantly. No polling. Sub-second propagation." },
+    { cmd: "query", title: "One Schema", description: "Query all your content with a single, predictable structure." },
+    { cmd: "migrate", title: "Migrate Gradually", description: "Switch CMS platforms without rewriting apps. Run sources in parallel." },
   ];
 
-  // Pricing temporarily disabled during beta
-  // const plans = [
-  //   {
-  //     name: "Free",
-  //     monthlyPrice: 0,
-  //     features: ["1 source", "5 collections", "100 items", "1 client"],
-  //     slug: null,
-  //   },
-  //   {
-  //     name: "Starter",
-  //     monthlyPrice: 6,
-  //     features: ["3 sources", "15 collections", "1,000 items", "2 consumers"],
-  //     slug: "starter",
-  //   },
-  //   {
-  //     name: "Pro",
-  //     monthlyPrice: 25,
-  //     features: ["10 sources", "50 collections", "10,000 items", "5 consumers", "Priority support"],
-  //     slug: "pro",
-  //     recommended: true,
-  //   },
-  //   {
-  //     name: "Business",
-  //     monthlyPrice: 100,
-  //     features: ["100 sources", "500 collections", "100,000 items", "50 consumers", "Dedicated support"],
-  //     slug: "business",
-  //   },
-  // ];
+  const cmsSources = [
+    { name: "notion", type: SourceType.NOTION, mode: "webhook" as const },
+    { name: "strapi", type: SourceType.STRAPI, mode: "webhook" as const },
+    { name: "web/url", type: SourceType.WEB, mode: "poll" as const },
+  ] as const;
+  const pendingSources = [
+    { name: "storyblok", type: SourceType.STRAPI },
+    { name: "wordpress", type: SourceType.WEB },
+  ] as const;
+  const appConsumers = ["website", "docs", "api"] as const;
+  const contentTypes = ["page", "post", "image", "block", "asset", "entry"] as const;
 
-  // function getYearlyPrice(monthlyPrice: number) {
-  //   return Math.round(monthlyPrice * 12 * 0.85 * 100) / 100;
-  // }
+  // --- Pipeline simulation ---
 
-  // async function handleCheckout(slug: string) {
-  //   const period = isYearly ? "yearly" : "monthly";
-  //   await authClient.checkout({ slug: `${slug}/${period}` });
-  // }
+  type EventStage =
+    | "webhook"       // webhook received / poll triggered
+    | "fetching"      // fetching full content from source API
+    | "filtering"     // applying filter rules
+    | "mapping"       // applying property mappings
+    | "pushing"       // pushing to connected consumers
+    | "storing"       // client stores in local SQLite
+    | "media"         // client: download assets / optimize images
+    | "complete";
 
-  // function formatPrice(amount: number) {
-  //   if (amount === 0) return "Free";
-  //   // Show decimals only if needed
-  //   return amount % 1 === 0 ? `$${amount}` : `$${amount.toFixed(2)}`;
-  // }
+  type PipelineEvent = {
+    id: number;
+    source: string;
+    contentType: string;
+    title: string;
+    stage: EventStage;
+    isImage: boolean;
+    hasAssets: boolean;
+    ts: number;
+  };
+
+  type QueryEvent = { id: number; consumer: string; collection: string; items: number; latency: string; ts: number };
+  type Flash = { key: string; until: number };
+  type WriteOp = { id: number; contentType: string; title: string; progress: number };
+  type AssetOp = { id: number; title: string; size: string; step: number; isImage: boolean };
+
+  let events: PipelineEvent[] = $state([]);
+  let queries: QueryEvent[] = $state([]);
+  let flashes: Flash[] = $state([]);
+  let writeOps: WriteOp[] = $state([]);
+  let assetOps: AssetOp[] = $state([]);
+  let eventId = 0;
+  let queryId = 0;
+  let writeOpId = 0;
+  let assetOpId = 0;
+  let totalProcessed = $state(0);
+  let totalQueries = $state(0);
+
+  function pick<T>(arr: readonly T[]): T {
+    return arr[Math.floor(Math.random() * arr.length)]!;
+  }
+
+  function flash(key: string, durationMs = 500) {
+    const until = Date.now() + durationMs;
+    const existing = flashes.find((f) => f.key === key);
+    if (existing) { existing.until = until; }
+    else { flashes.push({ key, until }); }
+    setTimeout(() => { flashes = flashes.filter((f) => f.until > Date.now()); }, durationMs + 50);
+  }
+
+  function isFlashing(key: string): boolean {
+    return flashes.some((f) => f.key === key && f.until > Date.now());
+  }
+
+  const titles: Record<string, string[]> = {
+    page: ["About Us", "Pricing", "Home", "Contact", "FAQ", "Careers"],
+    post: ["Release Notes", "How To Guide", "Case Study", "Announcement"],
+    image: ["hero.webp", "og-card.png", "team-photo.jpg", "banner.svg"],
+    block: ["rich-text-14", "callout-7", "table-3", "embed-9"],
+    asset: ["download.pdf", "schema.json", "report.csv", "slides.pptx"],
+    entry: ["config-main", "nav-header", "footer-links", "seo-defaults"],
+  };
+  const imageSizes = ["2.4MB", "1.1MB", "856KB", "3.2MB", "412KB"];
+
+  function createEvent(): PipelineEvent {
+    const source = pick(cmsSources).name;
+    const contentType = pick(contentTypes);
+    const title = pick(titles[contentType]!);
+    const isImage = contentType === "image";
+    // Most content has associated assets (images in rich text, thumbnails, etc.)
+    const hasAssets = isImage || contentType === "asset" || Math.random() < 0.5;
+    return { id: eventId++, source, contentType, title, stage: "webhook", isImage, hasAssets, ts: Date.now() };
+  }
+
+  const stageOrder: EventStage[] = [
+    "webhook", "fetching", "filtering", "mapping", "pushing", "storing", "media", "complete",
+  ];
+
+  // Key fix: look up event from reactive array by ID so mutations go through the proxy
+  function advanceEvent(evId: number) {
+    const ev = events.find((e) => e.id === evId);
+    if (!ev) return;
+
+    const idx = stageOrder.indexOf(ev.stage);
+    if (idx >= stageOrder.length - 1) {
+      totalProcessed++;
+      setTimeout(() => { events = events.filter((e) => e.id !== evId); }, 800);
+      return;
+    }
+
+    const next = stageOrder[idx + 1]!;
+
+    // Skip media stage if no assets
+    if (next === "media" && !ev.hasAssets) {
+      ev.stage = "complete";
+      ev.ts = Date.now();
+      totalProcessed++;
+      setTimeout(() => { events = events.filter((e) => e.id !== evId); }, 800);
+      return;
+    }
+
+    const delays: Record<EventStage, number> = {
+      "webhook": 300,
+      "fetching": 600,
+      "filtering": 600,    // long enough to be visible
+      "mapping": 700,      // long enough to be visible
+      "pushing": 300,
+      "storing": 400,
+      "media": 800,
+      "complete": 0,
+    };
+
+    const delay = (delays[ev.stage] ?? 300) + Math.random() * 300;
+    setTimeout(() => {
+      // Re-lookup from reactive array
+      const current = events.find((e) => e.id === evId);
+      if (!current) return;
+
+      current.stage = next;
+      current.ts = Date.now();
+
+      // Side effects
+      if (current.stage === "pushing") {
+        const consumer = pick(appConsumers);
+        flash(`con:${consumer}`);
+      }
+      if (current.stage === "storing") {
+        spawnWriteOp(current);
+      }
+      if (current.stage === "media") {
+        spawnAssetOp(current);
+      }
+
+      advanceEvent(evId);
+    }, delay);
+  }
+
+  function spawnWriteOp(ev: PipelineEvent) {
+    const op: WriteOp = { id: writeOpId++, contentType: ev.contentType, title: ev.title, progress: 0 };
+    writeOps = [...writeOps.slice(-1), op];
+    const steps = 6;
+    let step = 0;
+    const iv = setInterval(() => {
+      step++;
+      writeOps = writeOps.map((w) => w.id === op.id ? { ...w, progress: step / steps } : w);
+      if (step >= steps) { clearInterval(iv); setTimeout(() => { writeOps = writeOps.filter((w) => w.id !== op.id); }, 400); }
+    }, 90);
+  }
+
+  function spawnAssetOp(ev: PipelineEvent) {
+    const isImage = ev.isImage;
+    const op: AssetOp = { id: assetOpId++, title: ev.title, size: pick(imageSizes), step: 0, isImage };
+    assetOps = [...assetOps.slice(-1), op];
+
+    if (!isImage) {
+      // Non-image assets: just download
+      setTimeout(() => {
+        assetOps = assetOps.map((a) => a.id === op.id ? { ...a, step: 1 } : a);
+        setTimeout(() => { assetOps = assetOps.filter((a) => a.id !== op.id); }, 500);
+      }, 400 + Math.random() * 300);
+      return;
+    }
+    // Images: download -> resize -> optimize -> store (4 steps)
+    const stepDelays = [500, 400, 350, 250];
+    let currentStep = 0;
+    function nextStep() {
+      currentStep++;
+      assetOps = assetOps.map((a) => a.id === op.id ? { ...a, step: currentStep } : a);
+      if (currentStep < 4) {
+        setTimeout(nextStep, stepDelays[currentStep]! + Math.random() * 200);
+      } else {
+        setTimeout(() => { assetOps = assetOps.filter((a) => a.id !== op.id); }, 500);
+      }
+    }
+    setTimeout(nextStep, stepDelays[0]! + Math.random() * 200);
+  }
+
+  function spawnQuery() {
+    const consumer = pick(appConsumers);
+    queries = [...queries.slice(-2), {
+      id: queryId++, consumer,
+      collection: pick(["blog-posts", "pages", "assets", "nav-items", "settings"]),
+      items: Math.floor(Math.random() * 48) + 1,
+      latency: `${(Math.random() * 4 + 0.2).toFixed(1)}ms`,
+      ts: Date.now(),
+    }];
+    totalQueries++;
+    flash(`con:${consumer}`);
+  }
+
+  onMount(() => {
+    let active = true;
+
+    function scheduleEvent() {
+      if (!active) return;
+      setTimeout(() => {
+        if (!active) return;
+        const ev = createEvent();
+        events.push(ev);
+        flash(`src:${ev.source}`);
+        advanceEvent(ev.id);
+        scheduleEvent();
+      }, 800 + Math.random() * 1200);
+    }
+
+    function scheduleQuery() {
+      if (!active) return;
+      setTimeout(() => {
+        if (!active) return;
+        spawnQuery();
+        scheduleQuery();
+      }, 1200 + Math.random() * 2000);
+    }
+
+    for (let i = 0; i < 3; i++) {
+      setTimeout(() => {
+        if (!active) return;
+        const ev = createEvent();
+        events.push(ev);
+        flash(`src:${ev.source}`);
+        advanceEvent(ev.id);
+      }, i * 500);
+    }
+    spawnQuery();
+    scheduleEvent();
+    scheduleQuery();
+
+    return () => { active = false; };
+  });
+
+  // Derived event groups
+  const ingesting = $derived(events.filter((e) => e.stage === "webhook" || e.stage === "fetching"));
+  const engineEvents = $derived(events.filter((e) => e.stage === "filtering" || e.stage === "mapping"));
+  const pushing = $derived(events.filter((e) => e.stage === "pushing"));
+  const clientEvents = $derived(events.filter((e) => e.stage === "storing" || e.stage === "media"));
+
+  const consumerIcon = { website: MonitorIcon, docs: BookOpenIcon, api: CodeIcon };
+
+  const engineStageLabel: Record<string, string> = { "filtering": "filter", "mapping": "map" };
+  const engineStageDetail: Record<string, string> = { "filtering": "applying influx rules", "mapping": "rename + cast props" };
+  const imageStepLabels = ["download", "resize", "optimize", "store"];
 </script>
 
 <main>
   <!-- Hero -->
-  <section class="border-b border-border py-20 sm:py-32">
-    <div class="mx-auto max-w-3xl px-4 text-center sm:px-6">
-      <h1 class="text-4xl font-semibold tracking-tight sm:text-5xl">
-        Query Any CMS in Milliseconds
+  <section class="border-b border-border py-20 sm:py-28">
+    <div class="mx-auto max-w-3xl px-4 sm:px-6 scroll-stagger">
+      <div class="mb-8">
+        <img src="/favicon.svg" alt="contfu" class="h-12 sm:h-14 w-auto" />
+      </div>
+      <div class="text-xs text-muted-foreground mb-4">
+        <span class="text-primary">$</span> contfu --version 0.1.0-beta
+      </div>
+      <h1 class="text-3xl font-semibold sm:text-4xl">
+        Query Any CMS<br/>in Milliseconds
       </h1>
-      <p class="mx-auto mt-6 max-w-xl text-lg text-muted-foreground">
+      <p class="mt-4 max-w-xl text-sm text-muted-foreground leading-relaxed">
         Sync content from Notion, Strapi, and more into a local SQLite database.
         Build faster apps with instant content access and zero API limits.
       </p>
-      <div class="mt-8 flex justify-center gap-3">
-        <Button href="#beta" size="lg">Join the Beta</Button>
-        <Button href="#how-it-works" variant="outline" size="lg"
-          >How It Works</Button
-        >
+      <div class="mt-8 flex gap-3">
+        <Button href="#beta" size="lg">join --beta</Button>
+        <Button href="#how-it-works" variant="outline" size="lg">--help</Button>
       </div>
     </div>
   </section>
 
   <!-- How It Works -->
   <section id="how-it-works" class="border-b border-border py-16 sm:py-24">
-    <div class="mx-auto max-w-4xl px-4 sm:px-6">
-      <div class="text-center">
-        <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">
-          Your Content. One Database. Zero Latency.
-        </h2>
-        <p class="mx-auto mt-4 max-w-2xl text-muted-foreground">
-          Stop juggling multiple CMS APIs. Contfu syncs your content sources
-          into a single, lightning-fast local database that your applications
-          can query instantly.
-        </p>
+    <div class="mx-auto max-w-3xl px-4 sm:px-6">
+      <div class="scroll-reveal text-xs text-muted-foreground mb-6">
+        <span class="text-primary">$</span> contfu explain --how-it-works
       </div>
+      <h2 class="scroll-reveal text-xl font-semibold sm:text-2xl mb-2">
+        Your Content. One Database. Zero Latency.
+      </h2>
+      <p class="scroll-reveal text-sm text-muted-foreground mb-10">
+        Stop juggling multiple CMS APIs. Contfu syncs your content sources
+        into a single, lightning-fast local database.
+      </p>
 
-      <!-- Architecture diagram -->
-      <div class="mt-12">
-        <div class="flex flex-col items-center gap-4">
-          <!-- Sources -->
-          <div class="flex flex-wrap justify-center gap-3">
-            <div
-              class="rounded-md border border-border px-4 py-2 text-sm font-medium"
-            >
-              Notion
-            </div>
-            <div
-              class="rounded-md border border-border px-4 py-2 text-sm font-medium"
-            >
-              Strapi
-            </div>
-            <div
-              class="rounded-md border border-dashed border-muted-foreground px-4 py-2 text-sm text-muted-foreground"
-            >
-              + More
-            </div>
-          </div>
-
-          <!-- Arrow -->
-          <div class="text-muted-foreground">↓</div>
-
-          <!-- Contfu -->
-          <div
-            class="flex items-center gap-3 rounded-lg border-2 border-primary px-6 py-3"
-          >
-            <img src="/favicon.svg" alt="" class="h-6 w-6" />
-            <span class="font-semibold text-primary">Contfu</span>
-            <span
-              class="inline-flex items-center gap-1.5 text-xs text-muted-foreground"
-            >
-              <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-success"
-              ></span>
-              Real-time sync
+      <!-- Live system diagram -->
+      <div class="scroll-reveal border border-border bg-card text-xs overflow-hidden">
+        <!-- Header -->
+        <div class="flex items-center justify-between px-4 py-2 border-b border-border bg-muted/30">
+          <span class="text-muted-foreground uppercase tracking-widest text-[10px]">system overview</span>
+          <div class="flex items-center gap-4">
+            <span class="inline-flex items-center gap-1.5">
+              <span class="h-1.5 w-1.5 rounded-full bg-success pulse-dot"></span>
+              <span class="text-muted-foreground">{totalProcessed} synced</span>
+            </span>
+            <span class="inline-flex items-center gap-1.5">
+              <span class="h-1.5 w-1.5 rounded-full bg-primary pulse-dot"></span>
+              <span class="text-muted-foreground">{totalQueries} queries</span>
             </span>
           </div>
+        </div>
 
-          <!-- Arrow -->
-          <div class="text-muted-foreground">↓</div>
-
-          <!-- Database -->
-          <div class="rounded-lg bg-primary px-6 py-3 text-primary-foreground">
-            <div class="font-semibold">SQLite</div>
-            <div class="text-xs opacity-80">Local Database</div>
+        <div class="p-4">
+          <!-- INGEST -->
+          <div class="sys-row">
+            <div class="sys-label">ingest</div>
+            <div class="sys-body">
+              <div class="flex flex-wrap items-center gap-2">
+                {#each cmsSources as src}
+                  <span class="sys-node {isFlashing(`src:${src.name}`) ? 'sys-node-flash' : ''}">
+                    <SourceTypeIcon type={src.type} class="size-3 {isFlashing(`src:${src.name}`) ? '' : 'opacity-40'}" />
+                    <span>{src.name}</span>
+                    <span class="text-[9px] text-muted-foreground">{src.mode === 'poll' ? 'poll' : 'hook'}</span>
+                  </span>
+                {/each}
+              </div>
+              <div class="sys-slot h-[3.25rem]">
+                {#each ingesting.slice(-3) as ev (ev.id)}
+                  <div class="sys-event event-enter">
+                    {#if ev.stage === "webhook"}
+                      <span class="text-primary">{ev.source}</span>
+                      <span class="text-muted-foreground">→</span>
+                      <span class="text-muted-foreground">{ev.contentType} changed</span>
+                      <span class="text-muted-foreground truncate">"{ev.title}"</span>
+                    {:else}
+                      <span class="text-warning">fetching</span>
+                      <span>{ev.source}/{ev.contentType}</span>
+                      <span class="text-muted-foreground truncate">"{ev.title}"</span>
+                    {/if}
+                  </div>
+                {/each}
+              </div>
+            </div>
           </div>
 
-          <!-- Arrow -->
-          <div class="text-muted-foreground">↓</div>
+          <div class="sys-connector"><ArrowDownIcon class="size-3 {ingesting.length > 0 ? 'text-primary' : 'text-border'}" /></div>
 
-          <!-- Apps -->
-          <div class="flex flex-wrap justify-center gap-3">
-            <div
-              class="rounded-md border border-border bg-muted/50 px-4 py-2 text-sm"
-            >
-              Website
+          <!-- ENGINE -->
+          <div class="sys-row">
+            <div class="sys-label">engine</div>
+            <div class="sys-body">
+              <div class="flex items-center gap-2">
+                <FilterIcon class="size-3 {engineEvents.length > 0 ? 'text-warning icon-blink' : 'text-muted-foreground'}" />
+                <span class="text-primary font-semibold">contfu</span>
+                <span class="text-muted-foreground">::</span>
+                <span class="text-muted-foreground">filter + map + validate</span>
+              </div>
+              <div class="sys-slot h-[3.25rem]">
+                {#each engineEvents.slice(-3) as ev (ev.id)}
+                  <div class="sys-event event-enter">
+                    <span class="text-warning">{engineStageLabel[ev.stage] ?? ev.stage}</span>
+                    <span>{ev.source}/{ev.contentType}</span>
+                    <span class="text-muted-foreground truncate">"{ev.title}"</span>
+                    <span class="text-muted-foreground text-[10px]">({engineStageDetail[ev.stage]})</span>
+                  </div>
+                {/each}
+              </div>
             </div>
-            <div
-              class="rounded-md border border-border bg-muted/50 px-4 py-2 text-sm"
-            >
-              Automation
+          </div>
+
+          <div class="sys-connector"><ArrowDownIcon class="size-3 {pushing.length > 0 ? 'text-success' : 'text-border'}" /></div>
+
+          <!-- PUSH: stream to consumers -->
+          <div class="sys-row">
+            <div class="sys-label">push</div>
+            <div class="sys-body">
+              <div class="flex items-center gap-2 mb-1">
+                <RadioIcon class="size-3 {pushing.length > 0 ? 'text-success icon-blink' : 'text-muted-foreground'}" />
+                <span class="font-semibold {pushing.length > 0 ? 'text-success' : 'text-muted-foreground'}">real-time stream</span>
+              </div>
+              <div class="sys-slot h-[2.5rem]">
+                {#each pushing.slice(-2) as ev (ev.id)}
+                  <div class="sys-event event-enter">
+                    <span class="text-success">PUSH</span>
+                    <span>{ev.contentType}</span>
+                    <span class="text-muted-foreground truncate">"{ev.title}"</span>
+                  </div>
+                {/each}
+              </div>
             </div>
-            <div
-              class="rounded-md border border-border bg-muted/50 px-4 py-2 text-sm"
-            >
-              Docs
+          </div>
+
+          <div class="sys-connector"><DownloadIcon class="size-3 {clientEvents.length > 0 ? 'text-primary' : 'text-border'}" /></div>
+
+          <!-- STORE: local SQLite + media -->
+          <div class="sys-row">
+            <div class="sys-label">store</div>
+            <div class="sys-body">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <!-- SQLite -->
+                <div class="border border-border p-2">
+                  <div class="flex items-center gap-2 mb-1">
+                    <DatabaseIcon class="size-3 {writeOps.length > 0 ? 'text-success icon-blink' : 'text-muted-foreground'}" />
+                    <span class="font-semibold {writeOps.length > 0 ? 'text-success' : 'text-muted-foreground'}">sqlite</span>
+                  </div>
+                  <div class="sys-slot h-[3.5rem]">
+                    {#each writeOps as op (op.id)}
+                      <div class="write-op event-enter">
+                        <div class="flex items-center gap-2">
+                          <span class="text-success text-[10px]">INSERT</span>
+                          <span class="text-[10px]">{op.contentType}</span>
+                          <span class="text-muted-foreground text-[10px] truncate">"{op.title}"</span>
+                        </div>
+                        <div class="write-bar">
+                          <div class="write-fill" style="width: {op.progress * 100}%"></div>
+                        </div>
+                      </div>
+                    {/each}
+                  </div>
+                </div>
+
+                <!-- Media -->
+                <div class="border border-border p-2">
+                  <div class="flex items-center gap-2 mb-1">
+                    <ImageIcon class="size-3 {assetOps.length > 0 ? 'text-primary icon-blink' : 'text-muted-foreground'}" />
+                    <span class="font-semibold {assetOps.length > 0 ? 'text-primary' : 'text-muted-foreground'}">media</span>
+                  </div>
+                  <div class="sys-slot h-[3.5rem]">
+                    {#each assetOps as op (op.id)}
+                      <div class="asset-op event-enter">
+                        <div class="flex items-center gap-2">
+                          {#if op.isImage}
+                            <span class="text-[10px] {op.step >= 4 ? 'text-success' : 'text-primary'}">{imageStepLabels[Math.min(op.step, 3)]}</span>
+                          {:else}
+                            <span class="text-[10px] {op.step >= 1 ? 'text-success' : 'text-primary'}">download</span>
+                          {/if}
+                          <span class="text-[10px] truncate">{op.title}</span>
+                          {#if op.step === 0}
+                            <span class="text-muted-foreground text-[10px]">{op.size}</span>
+                          {/if}
+                        </div>
+                        {#if op.isImage}
+                          <div class="asset-steps">
+                            {#each imageStepLabels as _, i}
+                              <span class="asset-dot {op.step > i ? 'asset-dot-done' : op.step === i ? 'asset-dot-active' : ''}"></span>
+                              {#if i < 3}
+                                <span class="asset-line {op.step > i ? 'asset-line-done' : ''}"></span>
+                              {/if}
+                            {/each}
+                            <span class="text-[9px] text-muted-foreground ml-1">{Math.min(op.step + 1, 4)}/4</span>
+                          </div>
+                        {:else}
+                          <div class="write-bar" style="margin-top: 3px">
+                            <div class="write-fill {op.step >= 1 ? '' : 'downloading'}" style="width: {op.step >= 1 ? 100 : 60}%"></div>
+                          </div>
+                        {/if}
+                      </div>
+                    {/each}
+                  </div>
+                </div>
+              </div>
             </div>
+          </div>
+
+          <div class="sys-connector"><ArrowDownIcon class="size-3 {queries.length > 0 ? 'text-primary' : 'text-border'}" /></div>
+
+          <!-- CONSUMERS -->
+          <div class="sys-row">
+            <div class="sys-label">apps</div>
+            <div class="sys-body">
+              <div class="flex flex-wrap items-center gap-3">
+                {#each appConsumers as app}
+                  {@const Icon = consumerIcon[app]}
+                  <span class="sys-node {isFlashing(`con:${app}`) ? 'sys-node-flash' : ''}">
+                    <Icon class="size-3 {isFlashing(`con:${app}`) ? '' : 'opacity-40'}" />
+                    <span>{app}</span>
+                  </span>
+                {/each}
+              </div>
+              <div class="sys-slot h-[2.5rem]">
+                {#each queries.slice(-2) as q (q.id)}
+                  <div class="sys-event event-enter">
+                    <span class="text-primary text-[10px]">QUERY</span>
+                    <span class="text-[10px]">{q.consumer}</span>
+                    <span class="text-muted-foreground text-[10px]">→ {q.collection}</span>
+                    <span class="text-muted-foreground text-[10px]">{q.items} rows</span>
+                    <span class="text-success text-[10px]">{q.latency}</span>
+                  </div>
+                {/each}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="px-4 py-2 border-t border-border bg-muted/30">
+          <div class="flex items-center gap-3 text-[10px] text-muted-foreground">
+            <span>in flight: {events.length}</span>
+            <span>&middot;</span>
+            <span>content streams in real-time, images are optimized locally</span>
           </div>
         </div>
       </div>
 
-      <!-- Benefits -->
-      <div class="mt-12 flex flex-wrap justify-center gap-2">
-        <span
-          class="rounded-full border border-success/30 bg-success/10 px-3 py-1 text-sm font-medium text-success"
-        >
-          Local-First Speed
-        </span>
-        <span
-          class="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-sm font-medium text-primary"
-        >
-          One Unified API
-        </span>
-        <span
-          class="rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-sm font-medium text-amber-600 dark:text-amber-400"
-        >
-          Always Available
-        </span>
+      <div class="mt-6 flex flex-wrap gap-3 text-xs scroll-reveal">
+        <span class="text-success">--local-first</span>
+        <span class="text-primary">--unified-api</span>
+        <span class="text-warning">--always-available</span>
       </div>
     </div>
   </section>
 
-  <!-- CMS logos -->
+  <!-- CMS Integrations -->
   <section class="border-b border-border py-12">
-    <div class="mx-auto max-w-4xl px-4 sm:px-6">
-      <p
-        class="mb-6 text-center text-xs font-medium uppercase tracking-wider text-muted-foreground"
-      >
-        Works with your favorite CMS
-      </p>
-      <div class="flex flex-wrap items-center justify-center gap-8">
-        <div class="flex flex-col items-center gap-2">
-          <div
-            class="flex h-12 w-12 items-center justify-center rounded-lg border border-border"
-          >
-            <svg
-              role="img"
-              viewBox="0 0 24 24"
-              class="h-6 w-6"
-              fill="currentColor"
-              ><title>Notion</title><path
-                d="M4.459 4.208c.746.606 1.026.56 2.428.466l13.215-.793c.28 0 .047-.28-.046-.326L17.86 1.968c-.42-.326-.981-.7-2.055-.607L3.01 2.295c-.466.046-.56.28-.374.466zm.793 3.08v13.904c0 .747.373 1.027 1.214.98l14.523-.84c.841-.046.935-.56.935-1.167V6.354c0-.606-.233-.933-.748-.887l-15.177.887c-.56.047-.747.327-.747.933zm14.337.745c.093.42 0 .84-.42.888l-.7.14v10.264c-.608.327-1.168.514-1.635.514-.748 0-.935-.234-1.495-.933l-4.577-7.186v6.952L12.21 19s0 .84-1.168.84l-3.222.186c-.093-.186 0-.653.327-.746l.84-.233V9.854L7.822 9.76c-.094-.42.14-1.026.793-1.073l3.456-.233 4.764 7.279v-6.44l-1.215-.139c-.093-.514.28-.887.747-.933zM1.936 1.035l13.31-.98c1.634-.14 2.055-.047 3.082.7l4.249 2.986c.7.513.934.653.934 1.213v16.378c0 1.026-.373 1.634-1.68 1.726l-15.458.934c-.98.047-1.448-.093-1.962-.747l-3.129-4.06c-.56-.747-.793-1.306-.793-1.96V2.667c0-.839.374-1.54 1.447-1.632z"
-              /></svg
-            >
-          </div>
-          <span class="text-xs font-medium">Notion</span>
-        </div>
-        <div class="flex flex-col items-center gap-2">
-          <div
-            class="flex h-12 w-12 items-center justify-center rounded-lg border border-border"
-          >
-            <svg
-              role="img"
-              viewBox="0 0 24 24"
-              class="h-6 w-6"
-              fill="currentColor"
-              ><title>Strapi</title><path
-                d="M8.32 0c-3.922 0-5.882 0-7.1 1.219C0 2.438 0 4.399 0 8.32v7.36c0 3.922 0 5.882 1.219 7.101C2.438 24 4.399 24 8.32 24h7.36c3.922 0 5.882 0 7.101-1.219C24 21.562 24 19.601 24 15.68V8.32c0-3.922 0-5.882-1.219-7.101C21.562 0 19.601 0 15.68 0H8.32zm.41 7.28h7.83a.16.16 0 0 1 .16.16v7.83h-3.87v-3.71a.41.41 0 0 0-.313-.398l-.086-.012h-3.72V7.28zm-.5.25v3.87H4.553a.08.08 0 0 1-.057-.136L8.23 7.529zm.25 4.12h3.87v3.87H8.64a.16.16 0 0 1-.16-.16v-3.71zm4.12 4.12h3.87l-3.734 3.734a.08.08 0 0 1-.136-.057V15.77z"
-              /></svg
-            >
-          </div>
-          <span class="text-xs font-medium">Strapi</span>
-        </div>
-        <div class="flex flex-col items-center gap-2">
-          <div
-            class="flex h-12 w-12 items-center justify-center rounded-lg border border-border"
-          >
-            <svg
-              role="img"
-              viewBox="0 0 24 24"
-              class="h-6 w-6"
-              fill="currentColor"
-              ><title>Web</title><path
-                d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"
-              /></svg
-            >
-          </div>
-          <span class="text-xs font-medium">Any URL</span>
-        </div>
-        <div class="flex flex-col items-center gap-2">
-          <div
-            class="relative flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-muted-foreground"
-          >
-            <svg
-              role="img"
-              viewBox="0 0 24 24"
-              class="h-6 w-6 text-muted-foreground"
-              fill="currentColor"
-              ><title>Storyblok</title><path
-                d="M13.953 11.462H9.088v2.34h4.748c.281 0 .538-.118.749-.305.187-.187.304-.468.304-.819a1.404 1.404 0 0 0-.257-.842c-.188-.234-.398-.374-.679-.374zm.164-2.83c.21-.14.304-.445.304-.843 0-.35-.094-.608-.257-.771a.935.935 0 0 0-.608-.234H9.088v2.105h4.374c.234 0 .468-.117.655-.257zM21.251 0H2.89c-.585 0-1.053.468-1.053 1.03v18.385c0 .562.468.912 1.03.912H5.58V24l3.368-3.65h12.304c.562 0 .913-.35.913-.935V1.053c0-.562-.351-1.03-.936-1.03zm-3.087 14.9a2.827 2.827 0 0 1-1.006 1.03c-.445.28-.936.538-1.497.655-.562.14-1.17.257-1.801.257H5.579v-13.1h9.403c.468 0 .866.094 1.24.305.351.187.679.444.936.748.524.64.806 1.443.795 2.27 0 .608-.164 1.192-.468 1.754a2.924 2.924 0 0 1-1.403 1.263c.748.21 1.333.585 1.778 1.123.42.561.631 1.286.631 2.199 0 .584-.117 1.076-.35 1.497z"
-              /></svg
-            >
-            <span
-              class="absolute -bottom-0.5 -right-0.5 rounded bg-primary/80 px-1 text-[9px] font-bold text-white"
-              >Soon</span
-            >
-          </div>
-          <span class="text-xs text-muted-foreground">Storyblok</span>
-        </div>
-        <div class="flex flex-col items-center gap-2">
-          <div
-            class="relative flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-muted-foreground"
-          >
-            <svg
-              role="img"
-              viewBox="0 0 24 24"
-              class="h-6 w-6 text-muted-foreground"
-              fill="currentColor"
-              ><title>WordPress</title><path
-                d="M21.469 6.825c.84 1.537 1.318 3.3 1.318 5.175 0 3.979-2.156 7.456-5.363 9.325l3.295-9.527c.615-1.54.82-2.771.82-3.864 0-.405-.026-.78-.07-1.11m-7.981.105c.647-.03 1.232-.105 1.232-.105.582-.075.514-.93-.067-.899 0 0-1.755.135-2.88.135-1.064 0-2.85-.15-2.85-.15-.585-.03-.661.855-.075.885 0 0 .54.061 1.125.09l1.68 4.605-2.37 7.08L5.354 6.9c.649-.03 1.234-.1 1.234-.1.585-.075.516-.93-.065-.896 0 0-1.746.138-2.874.138-.2 0-.438-.008-.69-.015C4.911 3.15 8.235 1.215 12 1.215c2.809 0 5.365 1.072 7.286 2.833-.046-.003-.091-.009-.141-.009-1.06 0-1.812.923-1.812 1.914 0 .89.513 1.643 1.06 2.531.411.72.89 1.643.89 2.977 0 .915-.354 1.994-.821 3.479l-1.075 3.585-3.9-11.61.001.014zM12 22.784c-1.059 0-2.081-.153-3.048-.437l3.237-9.406 3.315 9.087c.024.053.05.101.078.149-1.12.393-2.325.609-3.582.609M1.211 12c0-1.564.336-3.05.935-4.39L7.29 21.709C3.694 19.96 1.212 16.271 1.211 12M12 0C5.385 0 0 5.385 0 12s5.385 12 12 12 12-5.385 12-12S18.615 0 12 0"
-              /></svg
-            >
-            <span
-              class="absolute -bottom-0.5 -right-0.5 rounded bg-primary/80 px-1 text-[9px] font-bold text-white"
-              >Soon</span
-            >
-          </div>
-          <span class="text-xs text-muted-foreground">WordPress</span>
-        </div>
+    <div class="mx-auto max-w-3xl px-4 sm:px-6">
+      <div class="scroll-reveal text-xs text-muted-foreground mb-6">
+        <span class="text-primary">$</span> contfu sources --list
       </div>
-    </div>
-  </section>
-
-  <!-- Features -->
-  <section id="features" class="border-b border-border py-16 sm:py-24">
-    <div class="mx-auto max-w-4xl px-4 sm:px-6">
-      <h2 class="text-center text-2xl font-semibold tracking-tight sm:text-3xl">
-        Why Contfu?
-      </h2>
-      <div class="mt-12 grid gap-8 sm:grid-cols-2">
-        {#each features as feature}
-          <div class="border-l-2 border-border pl-4">
-            <h3 class="font-semibold">{feature.title}</h3>
-            <p class="mt-1 text-sm text-muted-foreground">
-              {feature.description}
-            </p>
+      <div class="grid grid-cols-2 gap-3 sm:grid-cols-5 scroll-stagger">
+        {#each cmsSources as source}
+          <div class="border border-border p-3 text-center transition-all duration-200 hover:border-primary/50 hover:bg-primary/5">
+            <SourceTypeIcon type={source.type} class="size-4 mx-auto mb-1.5 text-foreground" />
+            <div class="text-xs font-medium">{source.name}</div>
+            <div class="text-[10px] text-success mt-1">ready</div>
+          </div>
+        {/each}
+        {#each pendingSources as source}
+          <div class="border border-dashed border-muted-foreground p-3 text-center transition-all duration-200 hover:border-primary/50 hover:bg-primary/5">
+            <SourceTypeIcon type={source.type} class="size-4 mx-auto mb-1.5 text-muted-foreground" />
+            <div class="text-xs text-muted-foreground">{source.name}</div>
+            <div class="text-[10px] text-warning mt-1">soon</div>
           </div>
         {/each}
       </div>
     </div>
   </section>
 
-  <!-- 
-  PRICING SECTION (temporarily disabled during beta)
-  Uncomment and remove Beta Section when ready to launch pricing.
-  
-  <section id="pricing" class="py-16 sm:py-24">
-    <div class="mx-auto max-w-5xl px-4 sm:px-6">
-      <div class="text-center">
-        <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">Simple pricing</h2>
-        <p class="mt-2 text-muted-foreground">All paid plans include a 7-day free trial</p>
+  <!-- Features -->
+  <section id="features" class="border-b border-border py-16 sm:py-24">
+    <div class="mx-auto max-w-3xl px-4 sm:px-6">
+      <div class="scroll-reveal text-xs text-muted-foreground mb-6">
+        <span class="text-primary">$</span> contfu --features
       </div>
-
-      <Tabs.Root value={isYearly ? "yearly" : "monthly"} class="mt-8">
-        <div class="flex justify-center">
-          <Tabs.List>
-            <Tabs.Trigger value="monthly" onclick={() => isYearly = false}>Monthly</Tabs.Trigger>
-            <Tabs.Trigger value="yearly" onclick={() => isYearly = true}>
-              Yearly <span class="ml-1 text-xs text-success">-15%</span>
-            </Tabs.Trigger>
-          </Tabs.List>
-        </div>
-
-        <div class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {#each plans as plan}
-            {@const yearlyTotal = getYearlyPrice(plan.monthlyPrice)}
-            {@const monthlyEquivalent = yearlyTotal > 0 ? Math.round(yearlyTotal / 12 * 100) / 100 : 0}
-            {@const price = isYearly ? monthlyEquivalent : plan.monthlyPrice}
-            <div class="relative flex flex-col rounded-lg border {plan.recommended ? 'border-primary' : 'border-border'} p-5">
-              {#if plan.recommended}
-                <span class="absolute -top-2.5 left-4 rounded bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground">
-                  Recommended
-                </span>
-              {/if}
-              <h3 class="font-semibold">{plan.name}</h3>
-              <div class="mt-2">
-                <span class="text-3xl font-semibold">{formatPrice(price)}</span>
-                {#if price > 0}
-                  <span class="text-sm text-muted-foreground">/mo</span>
-                {/if}
-              </div>
-              {#if isYearly && yearlyTotal > 0}
-                <p class="mt-1 text-xs text-muted-foreground">Billed ${yearlyTotal}/year</p>
-              {/if}
-              <ul class="mt-4 flex-1 space-y-2 text-sm text-muted-foreground">
-                {#each plan.features as feature}
-                  <li class="flex items-center gap-2">
-                    <svg class="h-4 w-4 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                    </svg>
-                    {feature}
-                  </li>
-                {/each}
-              </ul>
-              {#if plan.slug && data.user}
-                <Button onclick={() => handleCheckout(plan.slug!)} class="mt-4 w-full">
-                  Subscribe
-                </Button>
-              {:else}
-                <Button href="/register" variant={plan.recommended ? "default" : "outline"} class="mt-4 w-full">
-                  Get Started
-                </Button>
-              {/if}
-            </div>
-          {/each}
-        </div>
-      </Tabs.Root>
+      <div class="space-y-6 scroll-stagger">
+        {#each features as feature}
+          <div class="border-l-2 border-border pl-4 transition-all duration-200 hover:border-primary hover:pl-5">
+            <div class="text-xs text-primary mb-1">$ contfu {feature.cmd}</div>
+            <h3 class="text-sm font-semibold">{feature.title}</h3>
+            <p class="mt-1 text-xs text-muted-foreground">{feature.description}</p>
+          </div>
+        {/each}
+      </div>
     </div>
   </section>
-  -->
 
-  <!-- Beta Section (replaces Pricing during beta) -->
+  <!-- Beta -->
   <section id="beta" class="py-16 sm:py-24">
     <div class="mx-auto max-w-3xl px-4 sm:px-6">
-      <div
-        class="rounded-2xl border-2 border-primary/20 bg-primary/5 p-8 sm:p-12"
-      >
-        <div class="text-center">
-          <div
-            class="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10"
-          >
-            <svg
-              class="h-8 w-8 text-primary"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"
-              />
-            </svg>
-          </div>
-          <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">
-            We're in Beta!
-          </h2>
-          <p class="mx-auto mt-4 max-w-lg text-muted-foreground">
-            Contfu is currently in closed beta. Sign up now to get early access
-            and help shape the future of content synchronization.
-          </p>
+      <div class="scroll-reveal border border-primary/30 bg-primary/5 p-8">
+        <div class="text-xs text-muted-foreground mb-4">
+          <span class="text-primary">$</span> contfu beta --info
         </div>
-
-        <!-- Beta Benefits -->
+        <h2 class="text-xl font-semibold sm:text-2xl">Beta Program</h2>
+        <p class="mt-2 text-sm text-muted-foreground">
+          Contfu is currently in closed beta. Sign up to get early access and shape the future of content synchronization.
+        </p>
         <div class="mt-8 grid gap-4 sm:grid-cols-3">
-          <div class="rounded-lg bg-background p-4">
-            <div
-              class="mb-2 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10"
-            >
-              <svg
-                class="h-5 w-5 text-primary"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
-                />
-              </svg>
-            </div>
-            <h3 class="font-medium">Early Access</h3>
-            <p class="mt-1 text-sm text-muted-foreground">
-              Be among the first to try new features
-            </p>
+          <div class="border border-border bg-card p-4 transition-all duration-200 hover:border-primary/50 hover:bg-primary/5">
+            <div class="text-xs text-primary mb-2">--early-access</div>
+            <h3 class="text-sm font-medium">Early Access</h3>
+            <p class="mt-1 text-xs text-muted-foreground">Be among the first to try new features</p>
           </div>
-          <div class="rounded-lg bg-background p-4">
-            <div
-              class="mb-2 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10"
-            >
-              <svg
-                class="h-5 w-5 text-primary"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                />
-              </svg>
-            </div>
-            <h3 class="font-medium">Direct Feedback</h3>
-            <p class="mt-1 text-sm text-muted-foreground">
-              Your input shapes the product
-            </p>
+          <div class="border border-border bg-card p-4 transition-all duration-200 hover:border-primary/50 hover:bg-primary/5">
+            <div class="text-xs text-primary mb-2">--feedback</div>
+            <h3 class="text-sm font-medium">Direct Feedback</h3>
+            <p class="mt-1 text-xs text-muted-foreground">Your input shapes the product</p>
           </div>
-          <div class="rounded-lg bg-background p-4">
-            <div
-              class="mb-2 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10"
-            >
-              <svg
-                class="h-5 w-5 text-primary"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"
-                />
-              </svg>
-            </div>
-            <h3 class="font-medium">Lifetime Pro</h3>
-            <p class="mt-1 text-sm text-muted-foreground">
-              Provide a testimonial → free Pro forever
-            </p>
+          <div class="border border-border bg-card p-4 transition-all duration-200 hover:border-primary/50 hover:bg-primary/5">
+            <div class="text-xs text-primary mb-2">--reward</div>
+            <h3 class="text-sm font-medium">Lifetime Pro</h3>
+            <p class="mt-1 text-xs text-muted-foreground">Testimonial = free Pro forever</p>
           </div>
         </div>
-
-        <!-- CTA -->
-        <div class="mt-8 text-center">
-          <Button href="/register" size="lg">Sign up for Beta Testing</Button>
-          <p class="mt-3 text-sm text-muted-foreground">
-            Already have an account? <a
-              href="/login"
-              class="text-primary hover:underline">Sign in</a
-            >
+        <div class="mt-8">
+          <Button href="/register" size="lg">register --beta</Button>
+          <p class="mt-3 text-xs text-muted-foreground">
+            Already registered? <a href="/login" class="text-primary hover:underline">login</a>
           </p>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- CTA -->
+  <!-- Final CTA -->
   <section class="border-t border-border py-16 sm:py-24">
-    <div class="mx-auto max-w-2xl px-4 text-center sm:px-6">
-      <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">
-        Ship Faster. Query Content Instantly.
-      </h2>
-      <Button href="/register" size="lg" class="mt-6">Sign up for Beta</Button>
+    <div class="scroll-reveal mx-auto max-w-2xl px-4 sm:px-6 text-center">
+      <div class="text-xs text-muted-foreground mb-4">
+        <span class="text-primary">$</span> contfu init<span class="cursor-blink"></span>
+      </div>
+      <h2 class="text-xl font-semibold sm:text-2xl">Ship Faster. Query Instantly.</h2>
+      <div class="mt-4"><Button href="/register" size="lg">get-started</Button></div>
     </div>
   </section>
 </main>
+
+<style>
+  .pulse-dot { animation: pulse-dot 2s ease-in-out infinite; }
+  @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+  :global(.icon-blink) { animation: icon-blink 1.2s ease-in-out infinite; }
+  @keyframes icon-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+  .sys-row { display: flex; }
+  .sys-label {
+    width: 3.25rem; flex-shrink: 0; padding-top: 0.375rem;
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em;
+    color: var(--muted-foreground); text-align: right; padding-right: 0.625rem;
+  }
+  .sys-body { flex: 1; padding: 0.25rem 0; min-width: 0; }
+
+  .sys-slot {
+    display: flex; flex-direction: column; justify-content: flex-start;
+    gap: 2px; margin-top: 0.25rem; overflow: hidden;
+  }
+
+  .sys-node {
+    display: inline-flex; align-items: center; gap: 0.375rem;
+    border: 1px solid var(--border); padding: 0.1875rem 0.5rem;
+    transition: all 200ms ease-out;
+  }
+  .sys-node-flash {
+    border-color: oklch(0.658 0.106 199 / 0.7);
+    background: oklch(0.658 0.106 199 / 0.08);
+    box-shadow: 0 0 8px oklch(0.658 0.106 199 / 0.15);
+  }
+
+  .sys-event {
+    display: flex; flex-wrap: nowrap; gap: 0.375rem;
+    white-space: nowrap; overflow: hidden; line-height: 1.4;
+  }
+  .event-enter { animation: event-in 0.25s ease-out; }
+  @keyframes event-in {
+    from { opacity: 0; transform: translateX(-6px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .sys-connector {
+    display: flex; align-items: center; justify-content: center;
+    padding-left: 3.25rem; height: 1rem;
+  }
+
+  .write-op { margin-bottom: 2px; }
+  .write-bar {
+    height: 3px; background: var(--border); margin-top: 2px;
+    overflow: hidden; border-radius: 1px;
+  }
+  .write-fill {
+    height: 100%; background: var(--success);
+    box-shadow: 0 0 6px var(--success);
+    transition: width 90ms linear; border-radius: 1px;
+  }
+  .write-fill.downloading {
+    background: var(--primary); box-shadow: 0 0 6px var(--primary);
+    animation: download-pulse 0.8s ease-in-out infinite;
+  }
+  @keyframes download-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+  .asset-op { margin-bottom: 2px; }
+  .asset-steps { display: flex; align-items: center; gap: 0; margin-top: 3px; }
+  .asset-dot {
+    width: 5px; height: 5px; border-radius: 50%;
+    background: var(--border); flex-shrink: 0; transition: all 200ms;
+  }
+  .asset-dot-active {
+    background: var(--primary); box-shadow: 0 0 6px var(--primary);
+    animation: step-pulse 0.8s ease-in-out infinite;
+  }
+  .asset-dot-done { background: var(--success); box-shadow: 0 0 3px var(--success); }
+  .asset-line {
+    width: 16px; height: 1px; background: var(--border);
+    flex-shrink: 0; transition: background 200ms;
+  }
+  .asset-line-done { background: var(--success); }
+  @keyframes step-pulse {
+    0%, 100% { box-shadow: 0 0 4px var(--primary); }
+    50% { box-shadow: 0 0 10px var(--primary); }
+  }
+</style>

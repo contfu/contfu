@@ -47,21 +47,24 @@
   const incidentCount = $derived(incidentCountQuery?.current ?? 0);
 
   const SOURCE_TYPE_LABELS: Record<number, string> = {
-    0: "Notion",
-    1: "Strapi",
-    2: "Web",
+    0: "notion",
+    1: "strapi",
+    2: "web",
   };
 </script>
 
-<SiteHeader icon={LayoutDashboardIcon} title="Dashboard" />
+<SiteHeader icon={LayoutDashboardIcon} title="dashboard" />
 
-<div class="mx-auto max-w-4xl px-4 py-6 sm:px-6">
+<div class="mx-auto max-w-4xl px-4 py-8 sm:px-6">
+  <p class="mb-6 text-xs text-muted-foreground">
+    <span class="text-primary">$</span> contfu status --overview
+  </p>
 
   {#if hasLoadErrors}
     <Alert.Root class="mb-6" variant="destructive">
-      <Alert.Title>Some data failed to load</Alert.Title>
+      <Alert.Title>ERR: partial load failure</Alert.Title>
       <Alert.Description>
-        Parts of the dashboard are unavailable. Try refreshing the page.
+        Some data failed to load. Try refreshing.
       </Alert.Description>
     </Alert.Root>
   {/if}
@@ -69,118 +72,96 @@
   {#if incidentCount > 0}
     <Alert.Root class="mb-6" variant="destructive">
       <AlertTriangleIcon class="size-4" />
-      <Alert.Title>{incidentCount} sync incident{incidentCount === 1 ? "" : "s"}</Alert.Title>
+      <Alert.Title>{incidentCount} incident{incidentCount === 1 ? "" : "s"}</Alert.Title>
       <Alert.Description>
-        <a href="/incidents" class="underline hover:no-underline">View incidents →</a>
+        <a href="/incidents" class="underline hover:no-underline">view incidents</a>
       </Alert.Description>
     </Alert.Root>
   {/if}
 
-  <!-- Stats row -->
-  <div class="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
-    <div class="rounded-lg border border-border border-l-2 border-l-primary/20 p-3">
+  <!-- Stats -->
+  <div class="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
+    <div class="border border-border p-3">
       <div class="text-2xl font-semibold">{sources.length}</div>
-      <div class="flex items-center gap-1.5 text-sm text-muted-foreground">
-        <DatabaseIcon class="size-4" />
-        Sources
+      <div class="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <DatabaseIcon class="size-3" />
+        sources
       </div>
     </div>
-    <div class="rounded-lg border border-border border-l-2 border-l-primary/20 p-3">
+    <div class="border border-border p-3">
       <div class="text-2xl font-semibold">{collections.length}</div>
-      <div class="flex items-center gap-1.5 text-sm text-muted-foreground">
-        <FoldersIcon class="size-4" />
-        Collections
+      <div class="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <FoldersIcon class="size-3" />
+        collections
       </div>
     </div>
-    <div class="rounded-lg border border-border border-l-2 border-l-primary/20 p-3">
+    <div class="border border-border p-3">
       <div class="text-2xl font-semibold">{consumers.length}</div>
-      <div class="flex items-center gap-1.5 text-sm text-muted-foreground">
-        <UsersIcon class="size-4" />
-        Consumers
+      <div class="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <UsersIcon class="size-3" />
+        consumers
       </div>
     </div>
-    <div class="rounded-lg border border-border border-l-2 border-l-primary/20 p-3">
+    <div class="border border-border p-3">
       <div class="text-2xl font-semibold">{connections.length}</div>
-      <div class="flex items-center gap-1.5 text-sm text-muted-foreground">
-        <Link2Icon class="size-4" />
-        Connections
+      <div class="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <Link2Icon class="size-3" />
+        connections
       </div>
     </div>
   </div>
 
-  <!-- Sources section -->
-  <section class="mb-6">
+  <!-- Sources -->
+  <section class="mb-8">
     <div class="mb-3 flex items-center justify-between">
-      <h2
-        class="text-xs font-medium uppercase tracking-wide text-muted-foreground"
-      >
-        Sources
+      <h2 class="text-xs text-muted-foreground">
+        <span class="text-primary">$</span> contfu sources --list
       </h2>
       <Button size="sm" href="/sources/new">
-        <PlusIcon class="size-4" />
-        <span class="hidden sm:inline">Add Source</span>
+        <PlusIcon class="size-3" />
+        <span class="hidden sm:inline">add</span>
       </Button>
     </div>
 
     {#if sources.length === 0}
-      <div
-        class="rounded-lg border border-dashed border-border p-8 text-center"
-      >
-        <p class="text-sm text-muted-foreground">No sources configured</p>
-        <Button variant="link" href="/sources/new" class="mt-2"
-          >Add your first source →</Button
-        >
+      <div class="border border-dashed border-border p-8 text-center">
+        <p class="text-xs text-muted-foreground">no sources configured</p>
+        <Button variant="link" href="/sources/new" class="mt-2 text-xs">add source</Button>
       </div>
     {:else}
-      <div class="overflow-hidden rounded-lg border border-border">
-        <table class="w-full text-sm">
+      <div class="border border-border">
+        <table class="w-full text-xs">
           <thead>
             <tr class="border-b border-border bg-muted/50">
-              <th
-                class="px-4 py-2.5 text-left font-medium text-muted-foreground"
-                >Name</th
-              >
-              <th
-                class="px-4 py-2.5 text-left font-medium text-muted-foreground"
-                >Type</th
-              >
-              <th
-                class="px-4 py-2.5 text-right font-medium text-muted-foreground"
-                >Collections</th
-              >
-              <th
-                class="px-4 py-2.5 text-right font-medium text-muted-foreground"
-              ></th>
+              <th class="px-3 py-2 text-left font-medium text-muted-foreground">name</th>
+              <th class="px-3 py-2 text-left font-medium text-muted-foreground">type</th>
+              <th class="px-3 py-2 text-right font-medium text-muted-foreground">collections</th>
+              <th class="px-3 py-2 text-right font-medium text-muted-foreground"></th>
             </tr>
           </thead>
           <tbody class="divide-y divide-border">
             {#each sources.slice(0, 5) as source}
-              <tr class="hover:bg-muted/30">
-                <td class="px-4 py-3">
-                  <a
-                    href="/sources/{source.id}"
-                    class="font-medium hover:underline"
-                  >
-                    {source.name || "Unnamed"}
+              <tr class="hover:bg-muted/30 transition-colors duration-100">
+                <td class="px-3 py-2">
+                  <a href="/sources/{source.id}" class="hover:text-primary transition-colors duration-150">
+                    {source.name || "unnamed"}
                   </a>
                 </td>
-                <td class="px-4 py-3 text-muted-foreground">
-                  {SOURCE_TYPE_LABELS[source.type] ?? "Unknown"}
+                <td class="px-3 py-2 text-muted-foreground">
+                  {SOURCE_TYPE_LABELS[source.type] ?? "unknown"}
                 </td>
-                <td
-                  class="px-4 py-3 text-right font-mono text-muted-foreground"
-                >
+                <td class="px-3 py-2 text-right text-muted-foreground">
                   {source.collectionCount}
                 </td>
-                <td class="px-4 py-3 text-right">
+                <td class="px-3 py-2 text-right">
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger>
                         <Button href="/sources/{source.id}" variant="ghost" size="icon-sm">
-                          <PencilIcon class="size-4" />
+                          <PencilIcon class="size-3" />
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent>Edit</TooltipContent>
+                      <TooltipContent>edit</TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
                 </td>
@@ -191,89 +172,65 @@
       </div>
       {#if sources.length > 5}
         <div class="mt-2">
-          <Button variant="link" href="/sources" class="h-auto p-0 text-sm"
-            >View all {sources.length} sources →</Button
-          >
+          <Button variant="link" href="/sources" class="h-auto p-0 text-xs">
+            view all {sources.length} sources
+          </Button>
         </div>
       {/if}
     {/if}
   </section>
 
-  <!-- Collections section -->
-  <section class="mb-6">
+  <!-- Collections -->
+  <section class="mb-8">
     <div class="mb-3 flex items-center justify-between">
-      <h2
-        class="text-xs font-medium uppercase tracking-wide text-muted-foreground"
-      >
-        Collections
+      <h2 class="text-xs text-muted-foreground">
+        <span class="text-primary">$</span> contfu collections --list
       </h2>
       <Button size="sm" href="/collections/new">
-        <PlusIcon class="size-4" />
-        <span class="hidden sm:inline">New Collection</span>
+        <PlusIcon class="size-3" />
+        <span class="hidden sm:inline">new</span>
       </Button>
     </div>
 
     {#if collections.length === 0}
-      <div
-        class="rounded-lg border border-dashed border-border p-8 text-center"
-      >
-        <p class="text-sm text-muted-foreground">No collections yet</p>
-        <Button variant="link" href="/collections/new" class="mt-2"
-          >Create your first collection →</Button
-        >
+      <div class="border border-dashed border-border p-8 text-center">
+        <p class="text-xs text-muted-foreground">no collections yet</p>
+        <Button variant="link" href="/collections/new" class="mt-2 text-xs">create collection</Button>
       </div>
     {:else}
-      <div class="overflow-hidden rounded-lg border border-border">
-        <table class="w-full text-sm">
+      <div class="border border-border">
+        <table class="w-full text-xs">
           <thead>
             <tr class="border-b border-border bg-muted/50">
-              <th
-                class="px-4 py-2.5 text-left font-medium text-muted-foreground"
-                >Name</th
-              >
-              <th
-                class="px-4 py-2.5 text-right font-medium text-muted-foreground"
-                >Sources</th
-              >
-              <th
-                class="px-4 py-2.5 text-right font-medium text-muted-foreground"
-                >Consumers</th
-              >
-              <th
-                class="px-4 py-2.5 text-right font-medium text-muted-foreground"
-              ></th>
+              <th class="px-3 py-2 text-left font-medium text-muted-foreground">name</th>
+              <th class="px-3 py-2 text-right font-medium text-muted-foreground">sources</th>
+              <th class="px-3 py-2 text-right font-medium text-muted-foreground">consumers</th>
+              <th class="px-3 py-2 text-right font-medium text-muted-foreground"></th>
             </tr>
           </thead>
           <tbody class="divide-y divide-border">
             {#each collections.slice(0, 5) as collection}
-              <tr class="hover:bg-muted/30">
-                <td class="px-4 py-3">
-                  <a
-                    href="/collections/{collection.id}"
-                    class="font-medium hover:underline"
-                  >
-                    {collection.name || "Unnamed"}
+              <tr class="hover:bg-muted/30 transition-colors duration-100">
+                <td class="px-3 py-2">
+                  <a href="/collections/{collection.id}" class="hover:text-primary transition-colors duration-150">
+                    {collection.name || "unnamed"}
                   </a>
                 </td>
-                <td
-                  class="px-4 py-3 text-right font-mono text-muted-foreground"
-                >
+                <td class="px-3 py-2 text-right text-muted-foreground">
                   {collection.influxCount}
                 </td>
-                <td
-                  class="px-4 py-3 text-right font-mono text-muted-foreground"
-                >
+                <td class="px-3 py-2 text-right text-muted-foreground">
                   {collection.connectionCount}
                 </td>
-                <td class="px-4 py-3 text-right">
+                <td class="px-3 py-2 text-right">
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger>
                         <Button href="/collections/{collection.id}" variant="ghost" size="icon-sm">
-                          <PencilIcon class="size-4" />
+                          <PencilIcon class="size-3" />
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent>Edit</TooltipContent>
+                      <TooltipContent>edit</TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
                 </td>
@@ -284,80 +241,61 @@
       </div>
       {#if collections.length > 5}
         <div class="mt-2">
-          <Button variant="link" href="/collections" class="h-auto p-0 text-sm"
-            >View all {collections.length} collections →</Button
-          >
+          <Button variant="link" href="/collections" class="h-auto p-0 text-xs">
+            view all {collections.length} collections
+          </Button>
         </div>
       {/if}
     {/if}
   </section>
 
-  <!-- Consumers section -->
+  <!-- Consumers -->
   <section>
     <div class="mb-3 flex items-center justify-between">
-      <h2
-        class="text-xs font-medium uppercase tracking-wide text-muted-foreground"
-      >
-        Consumers
+      <h2 class="text-xs text-muted-foreground">
+        <span class="text-primary">$</span> contfu consumers --list
       </h2>
       <Button size="sm" href="/consumers/new">
-        <PlusIcon class="size-4" />
-        <span class="hidden sm:inline">Add Consumer</span>
+        <PlusIcon class="size-3" />
+        <span class="hidden sm:inline">add</span>
       </Button>
     </div>
 
     {#if consumers.length === 0}
-      <div
-        class="rounded-lg border border-dashed border-border p-8 text-center"
-      >
-        <p class="text-sm text-muted-foreground">No consumers configured</p>
-        <Button variant="link" href="/consumers/new" class="mt-2"
-          >Add your first consumer →</Button
-        >
+      <div class="border border-dashed border-border p-8 text-center">
+        <p class="text-xs text-muted-foreground">no consumers configured</p>
+        <Button variant="link" href="/consumers/new" class="mt-2 text-xs">add consumer</Button>
       </div>
     {:else}
-      <div class="overflow-hidden rounded-lg border border-border">
-        <table class="w-full text-sm">
+      <div class="border border-border">
+        <table class="w-full text-xs">
           <thead>
             <tr class="border-b border-border bg-muted/50">
-              <th
-                class="px-4 py-2.5 text-left font-medium text-muted-foreground"
-                >Name</th
-              >
-              <th
-                class="px-4 py-2.5 text-right font-medium text-muted-foreground"
-                >Connections</th
-              >
-              <th
-                class="px-4 py-2.5 text-right font-medium text-muted-foreground"
-              ></th>
+              <th class="px-3 py-2 text-left font-medium text-muted-foreground">name</th>
+              <th class="px-3 py-2 text-right font-medium text-muted-foreground">connections</th>
+              <th class="px-3 py-2 text-right font-medium text-muted-foreground"></th>
             </tr>
           </thead>
           <tbody class="divide-y divide-border">
             {#each consumers.slice(0, 5) as consumer}
-              <tr class="hover:bg-muted/30">
-                <td class="px-4 py-3">
-                  <a
-                    href="/consumers/{consumer.id}"
-                    class="font-medium hover:underline"
-                  >
-                    {consumer.name || "Unnamed"}
+              <tr class="hover:bg-muted/30 transition-colors duration-100">
+                <td class="px-3 py-2">
+                  <a href="/consumers/{consumer.id}" class="hover:text-primary transition-colors duration-150">
+                    {consumer.name || "unnamed"}
                   </a>
                 </td>
-                <td
-                  class="px-4 py-3 text-right font-mono text-muted-foreground"
-                >
+                <td class="px-3 py-2 text-right text-muted-foreground">
                   {consumer.connectionCount}
                 </td>
-                <td class="px-4 py-3 text-right">
+                <td class="px-3 py-2 text-right">
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger>
                         <Button href="/consumers/{consumer.id}" variant="ghost" size="icon-sm">
-                          <PencilIcon class="size-4" />
+                          <PencilIcon class="size-3" />
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent>Edit</TooltipContent>
+                      <TooltipContent>edit</TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
                 </td>
@@ -368,9 +306,9 @@
       </div>
       {#if consumers.length > 5}
         <div class="mt-2">
-          <Button variant="link" href="/consumers" class="h-auto p-0 text-sm"
-            >View all {consumers.length} consumers →</Button
-          >
+          <Button variant="link" href="/consumers" class="h-auto p-0 text-xs">
+            view all {consumers.length} consumers
+          </Button>
         </div>
       {/if}
     {/if}

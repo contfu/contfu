@@ -46,9 +46,9 @@
   const includeRefId = useId();
 
   const SOURCE_TYPE_LABELS: Record<number, string> = {
-    [SourceType.NOTION]: "Notion",
-    [SourceType.STRAPI]: "Strapi",
-    [SourceType.WEB]: "Web",
+    [SourceType.NOTION]: "notion",
+    [SourceType.STRAPI]: "strapi",
+    [SourceType.WEB]: "web",
   };
 
   const AUTH_TYPE_LABELS: Record<number, string> = {
@@ -173,10 +173,17 @@
   }
 </script>
 
-<SiteHeader breadcrumbs={[{label: "Sources", href: "/sources"}, {label: source?.name || "Source"}]} />
+<SiteHeader>
+  <a
+    href="/sources"
+    class="text-xs text-muted-foreground hover:text-foreground"
+  >
+    &lt; sources
+  </a>
+</SiteHeader>
 
 {#if source}
-  <div class="mx-auto max-w-2xl px-4 py-6 sm:px-6">
+  <div class="mx-auto max-w-2xl px-4 py-8 sm:px-6">
     <div class="mb-8">
       <div class="flex items-center gap-2">
         <h1 class="text-2xl font-semibold tracking-tight">

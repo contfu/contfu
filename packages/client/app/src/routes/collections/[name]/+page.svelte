@@ -19,50 +19,32 @@
 
 <div class="container mx-auto max-w-6xl space-y-6 p-6">
   <div class="flex items-center justify-between">
-    <h1 class="text-xl font-semibold tracking-tight">Collection: {data.collection.name}</h1>
-    <Button href="/collections" variant="ghost" size="sm">Back to collections</Button>
+    <h1 class="text-lg"><span class="text-primary">$</span> contfu collections --show {data.collection.name}</h1>
+    <Button href="/collections" variant="ghost" size="sm">&lt;- back</Button>
   </div>
 
-  <Card.Root>
-    <Card.Header>
-      <Card.Title>{data.collection.name}</Card.Title>
-      <Card.Description>Collection detail</Card.Description>
-    </Card.Header>
-    <Card.Content>
-      <dl class="grid gap-2 text-sm sm:grid-cols-2">
-        <div>
-          <dt class="text-muted-foreground">Ref</dt>
-          <dd>{data.collection.ref}</dd>
-        </div>
-        <div>
-          <dt class="text-muted-foreground">Items</dt>
-          <dd>{data.collection.itemCount}</dd>
-        </div>
-      </dl>
-    </Card.Content>
-  </Card.Root>
+  <div class="border border-border bg-card p-4">
+    <div class="space-y-1 text-sm">
+      <p><span class="text-muted-foreground">name</span><span class="mx-2 text-muted-foreground">=</span>{data.collection.name}</p>
+      <p><span class="text-muted-foreground">ref</span><span class="mx-2 text-muted-foreground">=</span>{data.collection.ref}</p>
+      <p><span class="text-muted-foreground">items</span><span class="mx-2 text-muted-foreground">=</span>{data.collection.itemCount}</p>
+    </div>
+  </div>
 
   {#if data.typeString != null}
-    <Card.Root>
-      <Card.Header>
-        <div class="flex items-center justify-between">
-          <div>
-            <Card.Title>TypeScript Types</Card.Title>
-            <Card.Description>Generated from the collection schema</Card.Description>
-          </div>
-          <CopyTextButton
-            variant="outline"
-            size="sm"
-            text={data.typeString}
-            label="Copy"
-            copiedLabel="Copied!"
-          />
-        </div>
-      </Card.Header>
-      <Card.Content>
-        <pre class="overflow-x-auto rounded-md bg-muted p-4 text-sm">{data.typeString}</pre>
-      </Card.Content>
-    </Card.Root>
+    <div class="border border-border bg-card p-4">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-sm text-muted-foreground uppercase tracking-widest">typescript types</h2>
+        <CopyTextButton
+          variant="outline"
+          size="sm"
+          text={data.typeString}
+          label="copy"
+          copiedLabel="copied"
+        />
+      </div>
+      <pre class="overflow-x-auto bg-muted p-4 text-sm border border-border">{data.typeString}</pre>
+    </div>
   {/if}
 
   <ItemListExplorer

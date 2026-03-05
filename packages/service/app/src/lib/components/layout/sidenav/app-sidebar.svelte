@@ -18,48 +18,46 @@
   import type { DisplayUser } from "$lib/components/Header.svelte";
 
   const data = {
-    navWorkspace: [
+    navMain: [
       {
-        title: "Dashboard",
+        title: "dashboard",
         url: "/dashboard",
         icon: LayoutDashboardIcon,
       },
       {
-        title: "Sources",
+        title: "sources",
         url: "/sources",
         icon: DatabaseIcon,
       },
       {
-        title: "Collections",
+        title: "collections",
         url: "/collections",
         icon: FoldersIcon,
       },
       {
-        title: "Consumers",
+        title: "consumers",
         url: "/consumers",
         icon: UsersIcon,
       },
-    ],
-    navOperations: [
       {
-        title: "Incidents",
+        title: "incidents",
         url: "/incidents",
         icon: AlertTriangleIcon,
       },
     ],
     navSecondary: [
       {
-        title: "Admin",
+        title: "admin",
         url: "/admin",
         icon: UserCogIcon,
       },
       {
-        title: "API Keys",
+        title: "api-keys",
         url: "/admin/api-keys",
         icon: KeyIcon,
       },
       {
-        title: "Billing",
+        title: "billing",
         url: "/billing",
         icon: CreditCardIcon,
       },
@@ -73,8 +71,8 @@
     ...restProps
   }: ComponentProps<typeof Sidebar.Root> & { currentPath: string; user: DisplayUser; incidentCount?: number } = $props();
 
-  const navOperationsItems = $derived(
-    data.navOperations.map((item) =>
+  const navMainItems = $derived(
+    data.navMain.map((item) =>
       item.url === "/incidents" ? { ...item, badge: incidentCount } : item,
     ),
   );
@@ -84,11 +82,11 @@
   <Sidebar.Header>
     <Sidebar.Menu>
       <Sidebar.MenuItem>
-        <Sidebar.MenuButton size="lg">
+        <Sidebar.MenuButton class="lg data-[slot=sidebar-menu-button]:!p-1.5 h-16">
           {#snippet child({ props })}
-            <a href="/dashboard" {...props}>
-              <img src="/favicon.svg" alt="Logo" class="size-8" />
-              <span class="text-base font-semibold">contfu</span>
+            <a href="/dashboard" {...props} style="padding: 0!important">
+              <img src="/favicon.svg" alt="contfu" class="h-7 w-auto ml-1" />
+              <span class="font-mono text-base font-semibold tracking-tight">contfu</span>
             </a>
           {/snippet}
         </Sidebar.MenuButton>
@@ -96,8 +94,7 @@
     </Sidebar.Menu>
   </Sidebar.Header>
   <Sidebar.Content>
-    <NavMain label="Workspace" items={data.navWorkspace} {currentPath} />
-    <NavMain label="Operations" items={navOperationsItems} {currentPath} />
+    <NavMain items={navMainItems} {currentPath} />
     <NavSecondary items={data.navSecondary} class="mt-auto" />
   </Sidebar.Content>
   <Sidebar.Footer>

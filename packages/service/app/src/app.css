@@ -6,7 +6,7 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --radius: 0.375rem;
+  --radius: 2px;
 
   /* Light theme - intentional, restrained colors */
   --background: oklch(0.985 0 0);
@@ -152,6 +152,9 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Terminal font */
+  --font-mono: "JetBrains Mono", "Fira Code", "SF Mono", "Cascadia Code", ui-monospace, monospace;
 }
 
 @layer base {
@@ -159,21 +162,33 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground antialiased;
-    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    @apply bg-background text-foreground;
+    font-family: "JetBrains Mono", "Fira Code", "SF Mono", "Cascadia Code", ui-monospace, monospace;
+    font-feature-settings:
+      "liga" 1,
+      "calt" 1;
+    font-size: 14px;
+    line-height: 1.6;
+    -webkit-font-smoothing: auto;
+    -moz-osx-font-smoothing: auto;
   }
 
-  /* Typography - tight tracking for headings */
+  /* Typography - same mono font, tight tracking for headings */
   h1,
   h2,
   h3 {
-    letter-spacing: -0.02em;
+    letter-spacing: -0.01em;
   }
 
   /* Generous line-height for body */
   p,
   li {
     line-height: 1.6;
+  }
+
+  /* Subtle selection color */
+  ::selection {
+    background: oklch(0.658 0.106 199 / 0.3);
   }
 }
 
@@ -186,4 +201,75 @@ html {
   .focus-ring {
     @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
   }
+
+  /* Terminal prompt cursor */
+  .cursor-blink::after {
+    content: "\2588";
+    animation: cursor-blink 1s step-end infinite;
+    @apply ml-0.5 text-primary;
+  }
+}
+
+@keyframes cursor-blink {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  51%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes scroll-reveal-kf {
+  from {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Scroll-driven reveal — bound to scroll position, not time */
+.scroll-reveal {
+  opacity: 0;
+  transform: translateY(40px);
+  animation: scroll-reveal-kf linear both;
+  animation-timeline: view();
+  animation-range: entry 0% cover 15%;
+}
+
+/* Staggered scroll reveal — children animate as parent enters viewport */
+.scroll-stagger {
+  view-timeline: --stagger block;
+}
+.scroll-stagger > * {
+  opacity: 0;
+  transform: translateY(40px);
+  animation: scroll-reveal-kf linear both;
+  animation-timeline: --stagger;
+  animation-range: entry 0% cover 20%;
+}
+.scroll-stagger > *:nth-child(1) {
+  animation-range: entry 0% cover 10%;
+}
+.scroll-stagger > *:nth-child(2) {
+  animation-range: entry 20% cover 15%;
+}
+.scroll-stagger > *:nth-child(3) {
+  animation-range: entry 40% cover 20%;
+}
+.scroll-stagger > *:nth-child(4) {
+  animation-range: entry 60% cover 25%;
+}
+.scroll-stagger > *:nth-child(5) {
+  animation-range: entry 70% cover 30%;
+}
+.scroll-stagger > *:nth-child(6) {
+  animation-range: entry 80% cover 35%;
+}
+.scroll-stagger > *:nth-child(7) {
+  animation-range: entry 90% cover 40%;
 }

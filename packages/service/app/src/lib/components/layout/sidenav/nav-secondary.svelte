@@ -13,9 +13,9 @@
     <Sidebar.Menu>
       {#each items as item (item.title)}
         <Sidebar.MenuItem>
-          <Sidebar.MenuButton href={item.url}>
+          <Sidebar.MenuButton href={item.url} class="font-mono text-sm">
             {#if item.icon}
-              <item.icon />
+              <item.icon class="size-4 opacity-50" />
             {/if}
             <span>{item.title}</span>
           </Sidebar.MenuButton>
@@ -24,13 +24,14 @@
       <Sidebar.MenuItem>
         <Sidebar.MenuButton
           onclick={() => setMode(mode.current === "dark" ? "light" : "dark")}
+          class="font-mono text-sm"
         >
           {#if mode.current === "dark"}
-            <MoonIcon />
+            <MoonIcon class="size-4 opacity-50" />
           {:else}
-            <SunIcon />
+            <SunIcon class="size-4 opacity-50" />
           {/if}
-          <span>Toggle Theme</span>
+          <span>theme</span>
         </Sidebar.MenuButton>
       </Sidebar.MenuItem>
     </Sidebar.Menu>

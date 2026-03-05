@@ -1,5 +1,4 @@
 <script lang="ts">
-  import * as Breadcrumb from "$lib/components/ui/breadcrumb";
   import { Separator } from "$lib/components/ui/separator/index.js";
   import * as Sidebar from "$lib/components/ui/sidebar/index.js";
   import type { Icon as LucideIcon } from "@lucide/svelte";
@@ -9,13 +8,8 @@
     children,
     icon: Icon,
     title,
-    breadcrumbs,
-  }: {
-    children?: Snippet;
-    icon?: typeof LucideIcon;
-    title?: string;
-    breadcrumbs?: { label: string; href?: string }[];
-  } = $props();
+  }: { children?: Snippet; icon?: typeof LucideIcon; title?: string } =
+    $props();
 </script>
 
 <header
@@ -27,38 +21,18 @@
       orientation="vertical"
       class="mx-2 data-[orientation=vertical]:h-4"
     />
-    {#if breadcrumbs && breadcrumbs.length > 0}
-      <Breadcrumb.Root>
-        <Breadcrumb.List>
-          {#each breadcrumbs as crumb, i}
-            {#if i > 0}
-              <Breadcrumb.Separator />
-            {/if}
-            <Breadcrumb.Item>
-              {#if crumb.href}
-                <Breadcrumb.Link href={crumb.href}>{crumb.label}</Breadcrumb.Link>
-              {:else}
-                <Breadcrumb.Page>{crumb.label}</Breadcrumb.Page>
-              {/if}
-            </Breadcrumb.Item>
-          {/each}
-        </Breadcrumb.List>
-      </Breadcrumb.Root>
-    {/if}
-    {#if Icon}
-      <Icon class="hidden flex-none xs:inline" />
-    {/if}
-    {#if title}
-      <h1 class="flex min-w-0 items-center gap-2 text-base font-medium">
-        <span class="overflow-hidden text-ellipsis whitespace-nowrap"
-          >{title}</span
-        >
-      </h1>
-    {/if}
+    <div class="flex min-w-0 items-center gap-2 font-mono">
+      {#if Icon}
+        <Icon class="hidden flex-none size-4 opacity-50 xs:inline" />
+      {/if}
+      {#if title}
+        <h1 class="flex min-w-0 items-center gap-2 text-sm font-medium">
+          <span class="text-muted-foreground">~/</span><span class="overflow-hidden text-ellipsis whitespace-nowrap lowercase">{title}</span>
+        </h1>
+      {/if}
+    </div>
     {#if children}
-      <div class="ml-auto flex items-center gap-2">
-        {@render children()}
-      </div>
+      {@render children()}
     {/if}
   </div>
 </header>

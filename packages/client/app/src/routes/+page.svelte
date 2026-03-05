@@ -15,14 +15,24 @@
 
   const syncLabel = $derived(
     stats.sync.state === "connected"
-      ? "Connected"
+      ? "connected"
       : stats.sync.state === "syncing"
-        ? "Syncing"
+        ? "syncing"
         : stats.sync.state === "connecting"
-          ? "Connecting"
+          ? "connecting"
           : stats.sync.state === "error"
-            ? "Error"
-            : "Disabled",
+            ? "error"
+            : "disabled",
+  );
+
+  const syncColor = $derived(
+    stats.sync.state === "connected"
+      ? "text-success"
+      : stats.sync.state === "syncing"
+        ? "text-warning"
+        : stats.sync.state === "error"
+          ? "text-destructive"
+          : "text-muted-foreground",
   );
 
   onMount(() => {
@@ -42,11 +52,11 @@
 
 <div class="container mx-auto max-w-5xl p-6">
   <div class="mb-6 flex items-center justify-between">
-    <h1 class="text-xl font-semibold tracking-tight">Dashboard</h1>
+    <h1 class="text-lg"><span class="text-primary">$</span> contfu status</h1>
     <CopyTextButton
-      label="Copy schema"
-      copiedLabel="Schema copied"
-      failedLabel="Copy failed"
+      label="copy schema"
+      copiedLabel="schema copied"
+      failedLabel="copy failed"
       disabled={collectionSchemas.length === 0}
       getText={() => buildCollectionsSchemaJson(collectionSchemas)}
     />
@@ -54,93 +64,46 @@
 
   <!-- Overview Section -->
   <section class="mb-8">
-    <h2 class="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">Content Overview</h2>
-    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      <Card.Root>
-        <Card.Header class="pb-2">
-          <Card.Description>Total Items</Card.Description>
-          <Card.Title class="text-3xl">{stats.itemCount}</Card.Title>
-        </Card.Header>
-        <Card.Content>
-          <p class="text-xs text-muted-foreground">
-            {stats.itemCount === 1
-              ? "1 synced page"
-              : `${stats.itemCount} synced pages`}
-          </p>
-        </Card.Content>
-      </Card.Root>
-
-      <Card.Root>
-        <Card.Header class="pb-2">
-          <Card.Description>Collections</Card.Description>
-          <Card.Title class="text-3xl">{stats.collectionCount}</Card.Title>
-        </Card.Header>
-        <Card.Content>
-          <p class="text-xs text-muted-foreground">
-            {stats.collectionCount === 1
-              ? "1 content collection"
-              : `${stats.collectionCount} content collections`}
-          </p>
-        </Card.Content>
-      </Card.Root>
-
-      <Card.Root>
-        <Card.Header class="pb-2">
-          <Card.Description>Assets</Card.Description>
-          <Card.Title class="text-3xl">{stats.assetCount}</Card.Title>
-        </Card.Header>
-        <Card.Content>
-          <p class="text-xs text-muted-foreground">
-            {stats.assetCount} found &middot; {stats.downloadedCount} downloaded
-            &middot; {stats.processedCount} processed
-          </p>
-        </Card.Content>
-      </Card.Root>
+    <h2 class="mb-4 text-sm text-muted-foreground uppercase tracking-widest">content overview</h2>
+    <div class="border border-border bg-card p-4 line-reveal">
+      <div class="space-y-1 text-sm">
+        <p><span class="text-muted-foreground">items</span><span class="mx-2 text-muted-foreground">=</span><span class="text-primary font-bold text-lg">{stats.itemCount}</span> <span class="text-muted-foreground text-xs">({stats.itemCount === 1 ? "1 synced page" : `${stats.itemCount} synced pages`})</span></p>
+        <p><span class="text-muted-foreground">collections</span><span class="mx-2 text-muted-foreground">=</span><span class="text-primary font-bold text-lg">{stats.collectionCount}</span> <span class="text-muted-foreground text-xs">({stats.collectionCount === 1 ? "1 content collection" : `${stats.collectionCount} content collections`})</span></p>
+        <p><span class="text-muted-foreground">assets</span><span class="mx-2 text-muted-foreground">=</span><span class="text-primary font-bold text-lg">{stats.assetCount}</span> <span class="text-muted-foreground text-xs">({stats.assetCount} found &middot; {stats.downloadedCount} downloaded &middot; {stats.processedCount} processed)</span></p>
+      </div>
     </div>
   </section>
 
   <!-- Status Section -->
   <section class="mb-8">
-    <h2 class="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">Sync Status</h2>
-    <Card.Root class="mb-4">
-      <Card.Header class="pb-2">
-        <Card.Title class="text-base">Connection</Card.Title>
-      </Card.Header>
-      <Card.Content>
-        <p class="text-sm text-muted-foreground">
-          Service stream: <span class="font-medium text-foreground"
-            >{syncLabel}</span
-          >
-          {#if stats.sync.reason}
-            ({stats.sync.reason})
-          {/if}
-        </p>
-      </Card.Content>
-    </Card.Root>
+    <h2 class="mb-4 text-sm text-muted-foreground uppercase tracking-widest">sync status</h2>
+    <div class="border border-border bg-card p-4 mb-4">
+      <div class="text-sm">
+        <span class="text-muted-foreground">stream</span><span class="mx-2 text-muted-foreground">:</span><span class="{syncColor} font-bold">{syncLabel}</span>
+        {#if stats.sync.reason}
+          <span class="text-muted-foreground ml-2">({stats.sync.reason})</span>
+        {/if}
+      </div>
+    </div>
 
     {#if stats.itemCount === 0 && stats.assetCount === 0}
       <Alert.Root>
-        <Alert.Title>No content synced yet</Alert.Title>
+        <Alert.Title>no content synced yet</Alert.Title>
         <Alert.Description>
-          Your local database is empty. Connect to a Contfu sync server to start
+          your local database is empty. connect to a contfu sync server to start
           receiving content.
         </Alert.Description>
       </Alert.Root>
     {:else}
-      <Card.Root>
-        <Card.Header class="pb-2">
-          <Card.Title class="text-base">Content Ready</Card.Title>
-        </Card.Header>
-        <Card.Content>
-          <p class="text-sm text-muted-foreground">
-            Your local database contains {stats.itemCount}
-            {stats.itemCount === 1 ? "item" : "items"} across {stats.collectionCount}
-            {stats.collectionCount === 1 ? "collection" : "collections"}, with {stats.assetCount}
-            {stats.assetCount === 1 ? "asset" : "assets"}
-            ({stats.downloadedCount} downloaded, {stats.processedCount} processed).
-          </p>
-        </Card.Content>
-      </Card.Root>
+      <div class="border border-border bg-card p-4">
+        <p class="text-sm">
+          <span class="text-muted-foreground">&gt;</span> local database contains {stats.itemCount}
+          {stats.itemCount === 1 ? "item" : "items"} across {stats.collectionCount}
+          {stats.collectionCount === 1 ? "collection" : "collections"}, with {stats.assetCount}
+          {stats.assetCount === 1 ? "asset" : "assets"}
+          ({stats.downloadedCount} downloaded, {stats.processedCount} processed).
+        </p>
+      </div>
     {/if}
   </section>
 </div>

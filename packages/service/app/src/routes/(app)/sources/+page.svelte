@@ -4,6 +4,7 @@
   import * as Tooltip from "$lib/components/ui/tooltip";
   import { deleteSource, getSources } from "$lib/remote/sources.remote";
   import {
+    DatabaseIcon,
     PencilIcon,
     PlusIcon,
     TrashIcon,
@@ -13,102 +14,83 @@
   const sources = getSources();
 
   const SOURCE_TYPE_LABELS: Record<number, string> = {
-    0: "Notion",
-    1: "Strapi",
-    2: "Web",
+    0: "notion",
+    1: "strapi",
+    2: "web",
   };
 </script>
 
-<SiteHeader breadcrumbs={[{label: "Sources"}]}>
-  <Button href="/sources/new">
-      <PlusIcon class="size-4" />
-      <span class="hidden sm:inline">Add Source</span>
+<SiteHeader icon={DatabaseIcon} title="sources">
+  <div class="ml-auto">
+    <Button href="/sources/new">
+      <PlusIcon class="size-3" />
+      <span class="hidden sm:inline">add</span>
     </Button>
+  </div>
 </SiteHeader>
 
-<div class="mx-auto max-w-4xl px-4 py-6 sm:px-6">
+<div class="mx-auto max-w-4xl px-4 py-8 sm:px-6">
+  <p class="mb-6 text-xs text-muted-foreground">
+    <span class="text-primary">$</span> contfu sources --manage
+  </p>
 
   {#if sources.loading || !sources.current}
-    <p class="text-muted-foreground">Loading...</p>
+    <p class="text-xs text-muted-foreground">loading...</p>
   {:else if sources.current.length === 0}
-    <div class="rounded-lg border border-dashed border-border p-8 text-center">
-      <p class="text-muted-foreground">No sources configured</p>
-      <p class="mt-1 text-sm text-muted-foreground">
-        Connect a CMS like Notion, Strapi, or a web source to start syncing
-        content.
+    <div class="border border-dashed border-border p-12 text-center">
+      <p class="text-sm text-muted-foreground">no sources configured</p>
+      <p class="mt-1 text-xs text-muted-foreground">
+        Connect a CMS to start syncing content.
       </p>
-      <Button href="/sources/new" class="mt-4">Add your first source</Button>
+      <Button href="/sources/new" class="mt-4">add source</Button>
     </div>
   {:else}
-    <div class="overflow-hidden rounded-lg border border-border">
-      <table class="w-full text-sm">
+    <div class="border border-border">
+      <table class="w-full text-xs">
         <thead>
           <tr class="border-b border-border bg-muted/50">
-            <th class="px-4 py-3 text-left font-medium text-muted-foreground"
-              >Name</th
-            >
-            <th class="px-4 py-3 text-left font-medium text-muted-foreground"
-              >Type</th
-            >
-            <th
-              class="hidden px-4 py-3 text-left font-medium text-muted-foreground sm:table-cell"
-              >URL</th
-            >
-            <th class="px-4 py-3 text-right font-medium text-muted-foreground"
-              >Collections</th
-            >
-            <th class="px-4 py-3 text-right font-medium text-muted-foreground"
-            ></th>
+            <th class="px-3 py-2 text-left font-medium text-muted-foreground">name</th>
+            <th class="px-3 py-2 text-left font-medium text-muted-foreground">type</th>
+            <th class="hidden px-3 py-2 text-left font-medium text-muted-foreground sm:table-cell">url</th>
+            <th class="px-3 py-2 text-right font-medium text-muted-foreground">collections</th>
+            <th class="px-3 py-2 text-right font-medium text-muted-foreground"></th>
           </tr>
         </thead>
         <tbody class="divide-y divide-border">
           {#each sources.current as source}
             {@const del = deleteSource.for(source.id)}
-            <tr class="hover:bg-muted/30">
-              <td class="px-4 py-3">
-                <a
-                  href="/sources/{source.id}"
-                  class="font-medium hover:underline"
-                >
-                  {source.name || "Unnamed Source"}
+            <tr class="hover:bg-muted/30 transition-colors duration-100">
+              <td class="px-3 py-2">
+                <a href="/sources/{source.id}" class="hover:text-primary transition-colors duration-150">
+                  {source.name || "unnamed"}
                 </a>
-                <div class="mt-0.5 text-xs text-muted-foreground">
-                  Created {new Date(source.createdAt).toLocaleDateString()}
+                <div class="mt-0.5 text-[10px] text-muted-foreground">
+                  {new Date(source.createdAt).toLocaleDateString()}
                 </div>
               </td>
-              <td class="px-4 py-3">
-                <span
-                  class="inline-flex items-center rounded-md bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground"
-                >
-                  {SOURCE_TYPE_LABELS[source.type] ?? "Unknown"}
+              <td class="px-3 py-2">
+                <span class="text-muted-foreground">
+                  {SOURCE_TYPE_LABELS[source.type] ?? "unknown"}
                 </span>
               </td>
-              <td
-                class="hidden max-w-[200px] truncate px-4 py-3 text-muted-foreground sm:table-cell"
-                title={source.url || ""}
-              >
-                {source.url || "—"}
+              <td class="hidden max-w-[200px] truncate px-3 py-2 text-muted-foreground sm:table-cell" title={source.url || ""}>
+                {source.url || "--"}
               </td>
-              <td class="px-4 py-3 text-right font-mono">
+              <td class="px-3 py-2 text-right text-muted-foreground">
                 {source.collectionCount}
               </td>
-              <td class="px-4 py-3 text-right">
-                <div class="flex items-center justify-end gap-2">
+              <td class="px-3 py-2 text-right">
+                <div class="flex items-center justify-end gap-1">
                   <Tooltip.Provider>
                     <Tooltip.Root>
                       <Tooltip.Trigger>
                         {#snippet child({ props })}
-                          <Button
-                            {...props}
-                            href="/sources/{source.id}"
-                            variant="ghost"
-                            size="icon-sm"
-                          >
-                            <PencilIcon />
+                          <Button {...props} href="/sources/{source.id}" variant="ghost" size="icon-sm">
+                            <PencilIcon class="size-3" />
                           </Button>
                         {/snippet}
                       </Tooltip.Trigger>
-                      <Tooltip.Content>Edit</Tooltip.Content>
+                      <Tooltip.Content>edit</Tooltip.Content>
                     </Tooltip.Root>
                     <form
                       {...del.enhance(({ submit }) =>
@@ -120,11 +102,7 @@
                       )}
                       class="inline"
                     >
-                      <input
-                        {...del.fields.id.as("text")}
-                        type="hidden"
-                        value={source.id}
-                      />
+                      <input {...del.fields.id.as("text")} type="hidden" value={source.id} />
                       <Tooltip.Root>
                         <Tooltip.Trigger>
                           {#snippet child({ props })}
@@ -135,20 +113,16 @@
                               size="icon-sm"
                               class="text-destructive hover:text-destructive"
                               onclick={(e: MouseEvent) => {
-                                if (
-                                  !confirm(
-                                    "Delete this source? All collections will also be deleted.",
-                                  )
-                                ) {
+                                if (!confirm("Delete this source? All collections will also be deleted.")) {
                                   e.preventDefault();
                                 }
                               }}
                             >
-                              <TrashIcon />
+                              <TrashIcon class="size-3" />
                             </Button>
                           {/snippet}
                         </Tooltip.Trigger>
-                        <Tooltip.Content>Delete</Tooltip.Content>
+                        <Tooltip.Content>delete</Tooltip.Content>
                       </Tooltip.Root>
                     </form>
                   </Tooltip.Provider>

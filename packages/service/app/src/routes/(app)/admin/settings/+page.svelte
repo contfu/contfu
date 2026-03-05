@@ -1,6 +1,7 @@
 <script lang="ts">
   import SiteHeader from "$lib/components/layout/site-header.svelte";
   import { getSystemSettings } from "$lib/remote/admin.remote";
+  import { SettingsIcon } from "@lucide/svelte";
 
   const settings = await getSystemSettings();
 </script>
@@ -9,12 +10,16 @@
   <title>Settings - Contfu Admin</title>
 </svelte:head>
 
-<SiteHeader breadcrumbs={[{label: "Admin"}, {label: "Settings"}]} />
+<SiteHeader icon={SettingsIcon} title="settings" />
 
 <div class="p-6">
+  <p class="mb-6 text-xs text-muted-foreground">
+    <span class="text-primary">$</span> contfu admin settings
+  </p>
+
   <div class="space-y-6">
     <div class="rounded-lg border border-border p-4">
-      <h2 class="mb-2 text-base font-medium">Notion OAuth Verification Token</h2>
+      <h2 class="mb-2 text-lg font-medium">Notion OAuth Verification Token</h2>
       <p class="text-muted-foreground mb-3 text-sm">
         This token is set automatically when Notion sends a verification webhook to the OAuth endpoint.
         Copy it and paste it back into Notion's webhook verification UI to complete the setup.

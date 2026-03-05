@@ -221,18 +221,18 @@
   }
 </script>
 
-<SiteHeader title="Add Source">
+<SiteHeader title="add source">
   <a
     href="/sources"
-    class="ml-auto text-sm text-muted-foreground hover:text-foreground"
+    class="ml-auto text-xs text-muted-foreground hover:text-foreground"
   >
-    ← Sources
+    &lt; sources
   </a>
 </SiteHeader>
 
 <div class="mx-auto max-w-xl px-4 py-8 sm:px-6">
-  <p class="mb-8 text-sm text-muted-foreground">
-    Connect a content source to start syncing
+  <p class="mb-8 text-xs text-muted-foreground">
+    <span class="text-primary">$</span> contfu sources --add
   </p>
 
   <form

@@ -18,30 +18,30 @@
 
 <div class="container mx-auto max-w-6xl p-6">
   <div class="mb-6 flex items-center justify-between">
-    <h1 class="text-xl font-semibold tracking-tight">Collections</h1>
+    <h1 class="text-lg"><span class="text-primary">$</span> contfu collections --list</h1>
     <CopyTextButton
-      label="Copy typings"
-      copiedLabel="Typings copied"
-      failedLabel="Copy failed"
+      label="copy typings"
+      copiedLabel="typings copied"
+      failedLabel="copy failed"
       disabled={!data.combinedTypeString}
       text={data.combinedTypeString}
     />
   </div>
 
-  <div class="overflow-x-auto rounded-lg border bg-card p-4">
+  <div class="overflow-x-auto border border-border bg-card p-4">
     <Table.Root>
       <Table.Header>
         <Table.Row>
-          <Table.Head>name</Table.Head>
-          <Table.Head>ref</Table.Head>
-          <Table.Head>itemCount</Table.Head>
+          <Table.Head class="text-muted-foreground">name</Table.Head>
+          <Table.Head class="text-muted-foreground">ref</Table.Head>
+          <Table.Head class="text-muted-foreground">item_count</Table.Head>
         </Table.Row>
       </Table.Header>
       <Table.Body>
         {#if data.collections.length === 0}
           <Table.Row>
             <Table.Cell colspan={3} class="py-6 text-center text-muted-foreground">
-              No collections found
+              -- no collections found --
             </Table.Cell>
           </Table.Row>
         {:else}
@@ -56,12 +56,15 @@
                   {collection.name}
                 </Button>
               </Table.Cell>
-              <Table.Cell>{collection.ref}</Table.Cell>
+              <Table.Cell class="text-muted-foreground">{collection.ref}</Table.Cell>
               <Table.Cell>{collection.itemCount}</Table.Cell>
             </Table.Row>
           {/each}
         {/if}
       </Table.Body>
     </Table.Root>
+    {#if data.collections.length > 0}
+      <p class="mt-3 text-xs text-muted-foreground">{data.collections.length} {data.collections.length === 1 ? "result" : "results"}</p>
+    {/if}
   </div>
 </div>

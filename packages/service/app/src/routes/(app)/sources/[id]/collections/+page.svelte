@@ -17,9 +17,9 @@
   import { TrashIcon } from "@lucide/svelte";
 
   const SOURCE_TYPE_LABELS: Record<number, string> = {
-    0: "Notion",
-    1: "Strapi",
-    2: "Web",
+    0: "notion",
+    1: "strapi",
+    2: "web",
   };
 
   const id = page.params.id ?? "";
@@ -30,12 +30,12 @@
 
 </script>
 
-<SiteHeader title="Source Collections">
+<SiteHeader title="source collections">
   <a
     href="/sources/{id}"
-    class="ml-auto text-sm text-muted-foreground hover:text-foreground"
+    class="ml-auto text-xs text-muted-foreground hover:text-foreground"
   >
-    ← {source?.name || "Source"}
+    &lt; {source?.name || "source"}
   </a>
 </SiteHeader>
 

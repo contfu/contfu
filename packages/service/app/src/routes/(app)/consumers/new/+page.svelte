@@ -12,18 +12,18 @@
 
 </script>
 
-<SiteHeader title="Add Consumer">
+<SiteHeader title="add consumer">
   <a
     href="/consumers"
-    class="ml-auto text-sm text-muted-foreground hover:text-foreground"
+    class="ml-auto text-xs text-muted-foreground hover:text-foreground"
   >
-    ← Consumers
+    &lt; consumers
   </a>
 </SiteHeader>
 
 <div class="mx-auto max-w-xl px-4 py-8 sm:px-6">
-  <p class="mb-8 text-sm text-muted-foreground">
-    Create a consumer to get an API key
+  <p class="mb-8 text-xs text-muted-foreground">
+    <span class="text-primary">$</span> contfu consumers --add
   </p>
 
   <form {...createConsumer} class="space-y-5">

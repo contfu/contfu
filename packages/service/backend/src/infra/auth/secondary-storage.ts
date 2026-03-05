@@ -168,7 +168,13 @@ async function getFromCacheOrBucket(
   const value = await bucket.get(key);
   if (!value) return null;
 
-  const res = JSON.stringify(deserialize(key, value.value));
+  let deserialized: unknown;
+  try {
+    deserialized = deserialize(key, value.value);
+  } catch {
+    return null;
+  }
+  const res = JSON.stringify(deserialized);
   cache.set(key, res);
   return res;
 }
@@ -184,8 +190,13 @@ function serializeActiveSessions(sessions: SessionToken[]): Uint8Array {
 }
 
 function deserializeActiveSessions(_: string, data: Uint8Array): SessionToken[] {
-  const wire = unpack(data) as WireActiveSessions;
-  return wire.map(([token, expiresAt]) => ({ token, expiresAt }));
+  try {
+    const wire = unpack(data) as WireActiveSessions;
+    return wire.map(([token, expiresAt]) => ({ token, expiresAt }));
+  } catch (err) {
+    log.warn({ err }, "Failed to deserialize active sessions, returning empty");
+    return [];
+  }
 }
 
 /**
@@ -233,7 +244,14 @@ function deserializeSessionAndUser(
   key: string,
   data: Uint8Array,
 ): { user: User; session: Omit<Session, "id"> } {
-  const [wireUser, wireSession] = unpack(data) as WireSessionAndUser;
+  let wireUser: WireUser;
+  let wireSession: WireSession;
+  try {
+    [wireUser, wireSession] = unpack(data) as WireSessionAndUser;
+  } catch (err) {
+    log.warn({ err, key }, "Failed to deserialize session, returning null");
+    throw err;
+  }
 
   const user: User = {
     id: wireUser[0].toString(),

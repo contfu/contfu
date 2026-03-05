@@ -3,6 +3,7 @@
   import SiteHeader from "$lib/components/layout/site-header.svelte";
   import { Button } from "$lib/components/ui/button";
   import { getQuota } from "$lib/remote/billing.remote";
+  import { CreditCardIcon } from "@lucide/svelte";
 
   const quota = await getQuota();
 
@@ -25,9 +26,12 @@
   }
 </script>
 
-<SiteHeader breadcrumbs={[{label: "Billing"}]} />
+<SiteHeader icon={CreditCardIcon} title="billing" />
 
-<div class="mx-auto max-w-3xl px-4 py-6 sm:px-6">
+<div class="mx-auto max-w-3xl px-4 py-8 sm:px-6">
+  <p class="mb-8 text-xs text-muted-foreground">
+    <span class="text-primary">$</span> contfu billing --status
+  </p>
 
   {#if quota?.subscriptionStatus === "active"}
     <!-- Current subscription -->
