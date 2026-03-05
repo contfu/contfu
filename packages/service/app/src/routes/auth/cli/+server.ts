@@ -47,6 +47,10 @@ export const GET: RequestHandler = async ({ request, url }) => {
     },
   });
 
+  if (!result?.key) {
+    return new Response("Failed to create API key", { status: 500 });
+  }
+
   if (isCodeMode) {
     const code = randomBytes(4).toString("hex").toUpperCase(); // e.g. "A3F2B1C9"
     storeCliToken(code, result.key);

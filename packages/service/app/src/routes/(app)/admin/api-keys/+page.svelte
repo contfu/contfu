@@ -86,7 +86,7 @@
         {#each keys as key}
           <tr class="border-b last:border-b-0">
             <td class="p-3">{key.name ?? "Unnamed"}</td>
-            <td class="p-3 font-mono text-muted-foreground">···{key.start ?? ""}</td>
+            <td class="p-3 font-mono text-muted-foreground">{key.start ?? ""}···</td>
             <td class="p-3 text-muted-foreground">{scopeLabel(key)}</td>
             <td class="p-3 text-muted-foreground">{new Date(key.createdAt).toLocaleDateString()}</td>
             <td class="p-3 text-right">

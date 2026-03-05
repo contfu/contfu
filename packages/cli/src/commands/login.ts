@@ -3,7 +3,7 @@ import { randomBytes } from "node:crypto";
 import { promises as fs } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
-import { exec } from "node:child_process";
+import { spawn } from "node:child_process";
 
 const CONFIG_PATH = join(homedir(), ".config", "contfu", "config.json");
 
@@ -13,14 +13,16 @@ function getBaseUrl(): string {
 
 async function openBrowser(url: string): Promise<void> {
   const platform = process.platform;
-  const cmd =
+  const [cmd, args] =
     platform === "darwin"
-      ? `open "${url}"`
+      ? (["open", [url]] as const)
       : platform === "win32"
-        ? `start "${url}"`
-        : `xdg-open "${url}"`;
+        ? (["cmd", ["/c", "start", "", url]] as const)
+        : (["xdg-open", [url]] as const);
   await new Promise<void>((resolve, reject) => {
-    exec(cmd, (err) => (err ? reject(err) : resolve()));
+    const child = spawn(cmd, args, { stdio: "ignore", detached: true });
+    child.on("error", reject);
+    child.on("close", (code) => (code === 0 ? resolve() : reject(new Error(`exit ${code}`))));
   });
 }
 

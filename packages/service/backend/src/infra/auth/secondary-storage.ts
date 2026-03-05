@@ -11,12 +11,21 @@ const log = createLogger("auth-sessions");
 type SessionToken = { token: string; expiresAt: number };
 
 const SESSION_TTL = 1000 * 60 * 60 * 24 * 7; // 7 days
+const API_KEY_TTL = 1000 * 60 * 60 * 24 * 30; // 30 days
 const ACTIVE_SESSIONS_PREFIX = "active-sessions-";
+const API_KEY_PREFIX = "api-key:";
+
+/** NATS KV keys don't allow colons — replace with dots */
+function natsKey(key: string): string {
+  return key.replaceAll(":", ".");
+}
 
 let sessionsBucket: Promise<KV> | undefined;
 let userSessionsBucket: Promise<KV> | undefined;
+let apiKeyBucket: Promise<KV> | undefined;
 const sessionsCache: LRU<string> = lru(10_000);
 const activeSessionsCache: LRU<string> = lru(5_000);
+const apiKeyCache: LRU<string> = lru(5_000);
 
 async function getSessionsBucket(): Promise<KV> {
   return (sessionsBucket ??= getKvManager().then((kvm) =>
@@ -30,11 +39,25 @@ async function getUserSessionsBucket(): Promise<KV> {
   ));
 }
 
+async function getApiKeyBucket(): Promise<KV> {
+  return (apiKeyBucket ??= getKvManager().then((kvm) =>
+    kvm.create("api-key", { ttl: API_KEY_TTL }),
+  ));
+}
+
 export function createNatsKvSessionStorage(): SecondaryStorage | undefined {
   if (!hasNats()) return undefined;
   void handleRemoteInvalidations();
   return {
     get: async (key) => {
+      if (key.startsWith(API_KEY_PREFIX)) {
+        return getFromCacheOrBucket(
+          apiKeyCache,
+          await getApiKeyBucket(),
+          natsKey(key),
+          passthrough,
+        );
+      }
       if (key.startsWith(ACTIVE_SESSIONS_PREFIX)) {
         const actualKey = key.slice(ACTIVE_SESSIONS_PREFIX.length);
         return getFromCacheOrBucket(
@@ -52,6 +75,12 @@ export function createNatsKvSessionStorage(): SecondaryStorage | undefined {
       );
     },
     set: async (key, value) => {
+      if (key.startsWith(API_KEY_PREFIX)) {
+        const bucket = await getApiKeyBucket();
+        await bucket.put(natsKey(key), new TextEncoder().encode(value));
+        apiKeyCache.set(natsKey(key), value);
+        return;
+      }
       if (key.startsWith(ACTIVE_SESSIONS_PREFIX)) {
         const actualKey = key.slice(ACTIVE_SESSIONS_PREFIX.length);
         const bucket = await getUserSessionsBucket();
@@ -64,6 +93,12 @@ export function createNatsKvSessionStorage(): SecondaryStorage | undefined {
       sessionsCache.set(key, value);
     },
     delete: async (key) => {
+      if (key.startsWith(API_KEY_PREFIX)) {
+        const bucket = await getApiKeyBucket();
+        await bucket.delete(natsKey(key));
+        apiKeyCache.delete(natsKey(key));
+        return;
+      }
       if (key.startsWith(ACTIVE_SESSIONS_PREFIX)) {
         const actualKey = key.slice(ACTIVE_SESSIONS_PREFIX.length);
         const bucket = await getUserSessionsBucket();
@@ -78,9 +113,24 @@ export function createNatsKvSessionStorage(): SecondaryStorage | undefined {
   };
 }
 
+function passthrough(_: string, data: Uint8Array): unknown {
+  return JSON.parse(new TextDecoder().decode(data));
+}
+
 async function handleRemoteInvalidations() {
   const sessionsBucket = await getSessionsBucket();
   const userSessionsBucket = await getUserSessionsBucket();
+  const apiKeyBkt = await getApiKeyBucket();
+  void apiKeyBkt
+    .watch({ include: KvWatchInclude.UpdatesOnly })
+    .then(async (watcher) => {
+      for await (const event of watcher) {
+        if (event.operation === "DEL") {
+          apiKeyCache.delete(event.key);
+        }
+      }
+    })
+    .catch((err) => log.error({ err }, "API key cache watcher error"));
   void sessionsBucket
     .watch({ include: KvWatchInclude.UpdatesOnly })
     .then(async (watcher) => {

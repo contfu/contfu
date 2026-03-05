@@ -263,6 +263,8 @@ export const auth = betterAuth({
       permissions: {
         defaultPermissions: { api: ["read", "write"] },
       },
+      storage: "secondary-storage",
+      fallbackToDatabase: true,
     }),
     sveltekitCookies(getRequestEvent),
   ],
