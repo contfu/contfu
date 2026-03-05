@@ -4,7 +4,6 @@
   import * as Tooltip from "$lib/components/ui/tooltip";
   import { deleteSource, getSources } from "$lib/remote/sources.remote";
   import {
-    DatabaseIcon,
     PencilIcon,
     PlusIcon,
     TrashIcon,
@@ -20,22 +19,19 @@
   };
 </script>
 
-<SiteHeader icon={DatabaseIcon} title="Sources">
-  <div class="ml-auto">
-    <Button href="/sources/new">
+<SiteHeader breadcrumbs={[{label: "Sources"}]}>
+  <Button href="/sources/new">
       <PlusIcon class="size-4" />
       <span class="hidden sm:inline">Add Source</span>
     </Button>
-  </div>
 </SiteHeader>
 
-<div class="mx-auto max-w-4xl px-4 py-8 sm:px-6">
-  <p class="mb-6 text-sm text-muted-foreground">Manage your content sources</p>
+<div class="mx-auto max-w-4xl px-4 py-6 sm:px-6">
 
   {#if sources.loading || !sources.current}
     <p class="text-muted-foreground">Loading...</p>
   {:else if sources.current.length === 0}
-    <div class="rounded-lg border border-dashed border-border p-12 text-center">
+    <div class="rounded-lg border border-dashed border-border p-8 text-center">
       <p class="text-muted-foreground">No sources configured</p>
       <p class="mt-1 text-sm text-muted-foreground">
         Connect a CMS like Notion, Strapi, or a web source to start syncing

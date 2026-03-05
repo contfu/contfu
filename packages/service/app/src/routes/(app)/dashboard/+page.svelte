@@ -55,10 +55,7 @@
 
 <SiteHeader icon={LayoutDashboardIcon} title="Dashboard" />
 
-<div class="mx-auto max-w-4xl px-4 py-8 sm:px-6">
-  <p class="mb-8 text-sm text-muted-foreground">
-    Overview of your content sync status
-  </p>
+<div class="mx-auto max-w-4xl px-4 py-6 sm:px-6">
 
   {#if hasLoadErrors}
     <Alert.Root class="mb-6" variant="destructive">
@@ -80,29 +77,29 @@
   {/if}
 
   <!-- Stats row -->
-  <div class="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
-    <div class="rounded-lg border border-border p-4">
+  <div class="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
+    <div class="rounded-lg border border-border border-l-2 border-l-primary/20 p-3">
       <div class="text-2xl font-semibold">{sources.length}</div>
       <div class="flex items-center gap-1.5 text-sm text-muted-foreground">
         <DatabaseIcon class="size-4" />
         Sources
       </div>
     </div>
-    <div class="rounded-lg border border-border p-4">
+    <div class="rounded-lg border border-border border-l-2 border-l-primary/20 p-3">
       <div class="text-2xl font-semibold">{collections.length}</div>
       <div class="flex items-center gap-1.5 text-sm text-muted-foreground">
         <FoldersIcon class="size-4" />
         Collections
       </div>
     </div>
-    <div class="rounded-lg border border-border p-4">
+    <div class="rounded-lg border border-border border-l-2 border-l-primary/20 p-3">
       <div class="text-2xl font-semibold">{consumers.length}</div>
       <div class="flex items-center gap-1.5 text-sm text-muted-foreground">
         <UsersIcon class="size-4" />
         Consumers
       </div>
     </div>
-    <div class="rounded-lg border border-border p-4">
+    <div class="rounded-lg border border-border border-l-2 border-l-primary/20 p-3">
       <div class="text-2xl font-semibold">{connections.length}</div>
       <div class="flex items-center gap-1.5 text-sm text-muted-foreground">
         <Link2Icon class="size-4" />
@@ -112,12 +109,11 @@
   </div>
 
   <!-- Sources section -->
-  <section class="mb-8">
+  <section class="mb-6">
     <div class="mb-3 flex items-center justify-between">
       <h2
-        class="flex items-center gap-1.5 text-sm font-medium uppercase tracking-wide text-muted-foreground"
+        class="text-xs font-medium uppercase tracking-wide text-muted-foreground"
       >
-        <DatabaseIcon class="size-4" />
         Sources
       </h2>
       <Button size="sm" href="/sources/new">
@@ -204,12 +200,11 @@
   </section>
 
   <!-- Collections section -->
-  <section class="mb-8">
+  <section class="mb-6">
     <div class="mb-3 flex items-center justify-between">
       <h2
-        class="flex items-center gap-1.5 text-sm font-medium uppercase tracking-wide text-muted-foreground"
+        class="text-xs font-medium uppercase tracking-wide text-muted-foreground"
       >
-        <FoldersIcon class="size-4" />
         Collections
       </h2>
       <Button size="sm" href="/collections/new">
@@ -301,9 +296,8 @@
   <section>
     <div class="mb-3 flex items-center justify-between">
       <h2
-        class="flex items-center gap-1.5 text-sm font-medium uppercase tracking-wide text-muted-foreground"
+        class="text-xs font-medium uppercase tracking-wide text-muted-foreground"
       >
-        <UsersIcon class="size-4" />
         Consumers
       </h2>
       <Button size="sm" href="/consumers/new">

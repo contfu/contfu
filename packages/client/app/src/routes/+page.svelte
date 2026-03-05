@@ -42,7 +42,7 @@
 
 <div class="container mx-auto max-w-5xl p-6">
   <div class="mb-6 flex items-center justify-between">
-    <h1 class="text-2xl font-bold">Dashboard</h1>
+    <h1 class="text-xl font-semibold tracking-tight">Dashboard</h1>
     <CopyTextButton
       label="Copy schema"
       copiedLabel="Schema copied"
@@ -54,7 +54,7 @@
 
   <!-- Overview Section -->
   <section class="mb-8">
-    <h2 class="mb-4 text-lg font-semibold">Content Overview</h2>
+    <h2 class="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">Content Overview</h2>
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       <Card.Root>
         <Card.Header class="pb-2">
@@ -101,7 +101,7 @@
 
   <!-- Status Section -->
   <section class="mb-8">
-    <h2 class="mb-4 text-lg font-semibold">Sync Status</h2>
+    <h2 class="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">Sync Status</h2>
     <Card.Root class="mb-4">
       <Card.Header class="pb-2">
         <Card.Title class="text-base">Connection</Card.Title>

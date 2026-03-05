@@ -33,11 +33,11 @@
   });
 </script>
 
-<SiteHeader icon={AlertTriangleIcon} title="Incidents" />
+<SiteHeader breadcrumbs={[{label: "Incidents"}]} />
 
-<div class="mx-auto max-w-3xl px-4 py-8 sm:px-6">
+<div class="mx-auto max-w-3xl px-4 py-6 sm:px-6">
   {#if incidents.length === 0}
-    <div class="rounded-lg border border-dashed border-border p-12 text-center">
+    <div class="rounded-lg border border-dashed border-border p-8 text-center">
       <CheckCircleIcon class="mx-auto mb-3 size-10 text-muted-foreground/50" />
       <p class="text-sm text-muted-foreground">No incidents</p>
       <p class="mt-1 text-xs text-muted-foreground">All syncs are running cleanly.</p>
@@ -56,7 +56,7 @@
           <div class="space-y-2">
             {#each group.items as incident (incident.id)}
               {@const resolve = resolveIncident.for(incident.id)}
-              <div class="flex items-start gap-3 rounded-lg border border-border p-4">
+              <div class="flex items-start gap-3 rounded-lg border border-l-2 border-l-amber-500 border-border p-4">
                 <AlertTriangleIcon class="mt-0.5 size-4 shrink-0 text-amber-500" />
                 <div class="flex-1 space-y-1">
                   <p class="text-sm">{incident.message}</p>

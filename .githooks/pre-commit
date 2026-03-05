@@ -9,15 +9,24 @@ if [ -z "$staged_files" ]; then
 fi
 
 # Filter to formattable/lintable files
-code_files=$(echo "$staged_files" | grep -E '\.(ts|tsx|js|jsx|svelte|json|css|html)$' || true)
+code_files=$(echo "$staged_files" | grep -E '\.(ts|tsx|js|jsx|json|css|html)$' || true)
+svelte_files=$(echo "$staged_files" | grep -E '\.svelte$' || true)
+
+all_code_files=$(printf '%s\n%s' "$code_files" "$svelte_files" | sed '/^$/d')
 
 if [ -n "$code_files" ]; then
   echo "→ Formatting staged files..."
   echo "$code_files" | xargs bunx oxfmt --write
   echo "$code_files" | xargs git add
+fi
 
+if [ -n "$svelte_files" ]; then
+  echo "$svelte_files" | xargs git add
+fi
+
+if [ -n "$all_code_files" ]; then
   echo "→ Linting staged files..."
-  echo "$code_files" | xargs bunx oxlint
+  echo "$all_code_files" | xargs bunx oxlint
 fi
 
 echo "→ Running unit tests..."

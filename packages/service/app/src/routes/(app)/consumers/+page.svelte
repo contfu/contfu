@@ -4,31 +4,26 @@
   import * as Tooltip from "$lib/components/ui/tooltip";
   import { deleteConsumer, getConsumers } from "$lib/remote/consumers.remote";
   import { tcToast } from "$lib/utils/toast";
-  import { PencilIcon, PlusIcon, TrashIcon, UsersIcon } from "@lucide/svelte";
+  import { PencilIcon, PlusIcon, TrashIcon } from "@lucide/svelte";
   import { toast } from "svelte-sonner";
 
   // Query object - auto-refreshes after form submissions
   const consumers = getConsumers();
 </script>
 
-<SiteHeader icon={UsersIcon} title="Consumers">
-  <div class="ml-auto">
-    <Button href="/consumers/new">
-      <PlusIcon class="size-4" />
-      <span class="hidden sm:inline">Add Consumer</span>
-    </Button>
-  </div>
+<SiteHeader breadcrumbs={[{label: "Consumers"}]}>
+  <Button href="/consumers/new">
+    <PlusIcon class="size-4" />
+    <span class="hidden sm:inline">Add Consumer</span>
+  </Button>
 </SiteHeader>
 
-<div class="mx-auto max-w-4xl px-4 py-8 sm:px-6">
-  <p class="mb-6 text-sm text-muted-foreground">
-    Manage API access for your applications
-  </p>
+<div class="mx-auto max-w-4xl px-4 py-6 sm:px-6">
 
   {#if consumers.loading || !consumers.current}
     <p class="text-muted-foreground">Loading...</p>
   {:else if consumers.current.length === 0}
-    <div class="rounded-lg border border-dashed border-border p-12 text-center">
+    <div class="rounded-lg border border-dashed border-border p-8 text-center">
       <p class="text-muted-foreground">No consumers configured</p>
       <p class="mt-1 text-sm text-muted-foreground">
         Create a consumer to generate an API key for accessing your synced

@@ -42,7 +42,11 @@
 
 <div class="flex min-h-[calc(100vh-8rem)] items-center justify-center px-4 py-12">
 	<div class="w-full max-w-sm">
-		<div class="mb-8 text-center">
+		<div class="mb-6 flex justify-center">
+			<img src="/favicon.svg" alt="contfu" class="size-10" />
+		</div>
+		<div class="rounded-lg border border-border border-t-2 border-t-primary p-6">
+		<div class="mb-6 text-center">
 			<h1 class="text-2xl font-semibold tracking-tight">Sign in</h1>
 			<p class="mt-1 text-sm text-muted-foreground">Welcome back to Contfu</p>
 		</div>
@@ -95,5 +99,6 @@
 			Don't have an account?
 			<a href="/register" class="font-medium text-primary hover:underline">Sign up</a>
 		</p>
+		</div>
 	</div>
 </div>

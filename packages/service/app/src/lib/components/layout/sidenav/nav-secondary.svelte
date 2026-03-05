@@ -8,6 +8,7 @@
 </script>
 
 <Sidebar.Group class="mt-auto">
+  <Sidebar.GroupLabel>Settings</Sidebar.GroupLabel>
   <Sidebar.GroupContent>
     <Sidebar.Menu>
       {#each items as item (item.title)}

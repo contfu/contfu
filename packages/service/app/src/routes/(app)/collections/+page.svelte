@@ -2,27 +2,22 @@
   import SiteHeader from "$lib/components/layout/site-header.svelte";
   import { Button } from "$lib/components/ui/button";
   import { getCollections } from "$lib/remote/collections.remote";
-  import { FoldersIcon, Plus } from "@lucide/svelte";
+  import { Plus } from "@lucide/svelte";
 
   const collections = await getCollections();
 </script>
 
-<SiteHeader icon={FoldersIcon} title="Collections">
-  <div class="ml-auto">
-    <Button href="/collections/new">
-      <Plus class="mr-2 size-4" />
-      Add Collection
-    </Button>
-  </div>
+<SiteHeader breadcrumbs={[{label: "Collections"}]}>
+  <Button href="/collections/new">
+    <Plus class="mr-2 size-4" />
+    Add Collection
+  </Button>
 </SiteHeader>
 
-<div class="mx-auto max-w-4xl px-4 py-8 sm:px-6">
-  <p class="mb-8 text-sm text-muted-foreground">
-    Aggregation targets that consumers subscribe to
-  </p>
+<div class="mx-auto max-w-4xl px-4 py-6 sm:px-6">
 
   {#if collections.length === 0}
-    <div class="rounded-lg border border-dashed p-12 text-center">
+    <div class="rounded-lg border border-dashed p-8 text-center">
       <h3 class="text-lg font-medium">No collections yet</h3>
       <p class="mt-2 text-sm text-muted-foreground">
         Create a collection to aggregate content from multiple sources.

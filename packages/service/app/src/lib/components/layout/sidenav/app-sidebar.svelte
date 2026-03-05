@@ -18,7 +18,7 @@
   import type { DisplayUser } from "$lib/components/Header.svelte";
 
   const data = {
-    navMain: [
+    navWorkspace: [
       {
         title: "Dashboard",
         url: "/dashboard",
@@ -39,6 +39,8 @@
         url: "/consumers",
         icon: UsersIcon,
       },
+    ],
+    navOperations: [
       {
         title: "Incidents",
         url: "/incidents",
@@ -71,8 +73,8 @@
     ...restProps
   }: ComponentProps<typeof Sidebar.Root> & { currentPath: string; user: DisplayUser; incidentCount?: number } = $props();
 
-  const navMainItems = $derived(
-    data.navMain.map((item) =>
+  const navOperationsItems = $derived(
+    data.navOperations.map((item) =>
       item.url === "/incidents" ? { ...item, badge: incidentCount } : item,
     ),
   );
@@ -82,10 +84,10 @@
   <Sidebar.Header>
     <Sidebar.Menu>
       <Sidebar.MenuItem>
-        <Sidebar.MenuButton class="lg data-[slot=sidebar-menu-button]:!p-1.5 h-16">
+        <Sidebar.MenuButton size="lg">
           {#snippet child({ props })}
-            <a href="/dashboard" {...props} style="padding: 0!important">
-              <img src="/favicon.svg" alt="Logo" class="size-16" />
+            <a href="/dashboard" {...props}>
+              <img src="/favicon.svg" alt="Logo" class="size-8" />
               <span class="text-base font-semibold">contfu</span>
             </a>
           {/snippet}
@@ -94,7 +96,8 @@
     </Sidebar.Menu>
   </Sidebar.Header>
   <Sidebar.Content>
-    <NavMain items={navMainItems} {currentPath} />
+    <NavMain label="Workspace" items={data.navWorkspace} {currentPath} />
+    <NavMain label="Operations" items={navOperationsItems} {currentPath} />
     <NavSecondary items={data.navSecondary} class="mt-auto" />
   </Sidebar.Content>
   <Sidebar.Footer>

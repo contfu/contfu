@@ -19,7 +19,7 @@
 
 <div class="container mx-auto max-w-6xl space-y-6 p-6">
   <div class="flex items-center justify-between">
-    <h1 class="text-2xl font-bold">Collection: {data.collection.name}</h1>
+    <h1 class="text-xl font-semibold tracking-tight">Collection: {data.collection.name}</h1>
     <Button href="/collections" variant="ghost" size="sm">Back to collections</Button>
   </div>
 

@@ -18,7 +18,7 @@
 
 <div class="container mx-auto max-w-6xl p-6">
   <div class="mb-6 flex items-center justify-between">
-    <h1 class="text-2xl font-bold">Collections</h1>
+    <h1 class="text-xl font-semibold tracking-tight">Collections</h1>
     <CopyTextButton
       label="Copy typings"
       copiedLabel="Typings copied"

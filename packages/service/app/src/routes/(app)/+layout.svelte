@@ -11,7 +11,7 @@
   const incidentCount = $derived(incidentCountQuery?.current ?? 0);
 </script>
 
-<Sidebar.Provider style="--sidebar-width: calc(var(--spacing) * 54); --header-height: calc(var(--spacing) * 12);">
+<Sidebar.Provider style="--sidebar-width: calc(var(--spacing) * 48); --header-height: calc(var(--spacing) * 11);">
   <AppSidebar currentPath={page.url.pathname} user={data.user} {incidentCount} />
   <Sidebar.Inset class="@container/main">
     {@render children()}
