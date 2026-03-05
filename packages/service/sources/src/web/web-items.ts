@@ -5,19 +5,21 @@ import { convertHtmlToBlocks, convertMarkdownToBlocks } from "./web-blocks";
 import {
   extractSlugFromUrl,
   getContentProcessor,
+  isSitemapUrl,
   parseRefUrls,
   resolveUrl,
   webFetch,
   type WebRequestOptions,
 } from "./web-helpers";
+import { fetchSitemap, extractUrlsFromEntries } from "./web-sitemap";
 import type { WebFetchOpts } from "./web";
 
 /**
  * Iterate through web URLs and convert them to Items.
  */
 export async function* iterateItems(opts: WebFetchOpts): AsyncGenerator<Item> {
-  const urls = parseRefUrls(opts.ref);
-  if (urls.length === 0) {
+  const rawUrls = parseRefUrls(opts.ref);
+  if (rawUrls.length === 0) {
     return;
   }
 
@@ -27,7 +29,34 @@ export async function* iterateItems(opts: WebFetchOpts): AsyncGenerator<Item> {
     credentials: opts.credentials,
   };
 
-  for (const url of urls) {
+  // Partition into sitemap URLs and regular URLs
+  const sitemapUrls: string[] = [];
+  const regularUrls: string[] = [];
+  for (const url of rawUrls) {
+    if (isSitemapUrl(url)) {
+      sitemapUrls.push(url);
+    } else {
+      regularUrls.push(url);
+    }
+  }
+
+  // Expand sitemap URLs into page URLs
+  const expandedUrls: string[] = [];
+  for (const sitemapUrl of sitemapUrls) {
+    const resolved = resolveUrl(sitemapUrl, opts.url);
+    const result = await fetchSitemap(resolved, {
+      authType: opts.authType,
+      credentials: opts.credentials,
+    });
+    if (result.success) {
+      expandedUrls.push(...extractUrlsFromEntries(result.entries, opts.since));
+    }
+  }
+
+  // Deduplicate merged URL list
+  const allUrls = [...new Set([...regularUrls, ...expandedUrls])];
+
+  for (const url of allUrls) {
     const item = await fetchAndParseUrl(url, opts.collection, requestOptions, opts.since);
     if (item) {
       yield item;
@@ -46,7 +75,10 @@ async function fetchAndParseUrl(
   since?: number,
 ): Promise<Item | null> {
   try {
-    const result = await webFetch(url, options);
+    const result = await webFetch(url, { ...options, since });
+    if (!result) {
+      return null; // 304 Not Modified
+    }
 
     // Parse last-modified timestamp if available
     const lastModified = result.lastModified ? new Date(result.lastModified).getTime() : undefined;

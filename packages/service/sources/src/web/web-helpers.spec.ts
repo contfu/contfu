@@ -6,6 +6,7 @@ import {
   getContentProcessor,
   parseRefUrls,
   normalizeBaseUrl,
+  isSitemapUrl,
 } from "./web-helpers";
 import { WebAuthType } from "./web";
 
@@ -204,6 +205,35 @@ describe("web-helpers", () => {
     });
   });
 
+  describe("isSitemapUrl()", () => {
+    it("should return true for .xml URLs", () => {
+      expect(isSitemapUrl("https://example.com/sitemap.xml")).toBe(true);
+    });
+
+    it("should return true for .xml.gz URLs", () => {
+      expect(isSitemapUrl("https://example.com/sitemap.xml.gz")).toBe(true);
+    });
+
+    it("should return true for URLs containing 'sitemap'", () => {
+      expect(isSitemapUrl("https://example.com/sitemap-index")).toBe(true);
+      expect(isSitemapUrl("https://example.com/my-sitemap")).toBe(true);
+    });
+
+    it("should return false for regular URLs", () => {
+      expect(isSitemapUrl("https://example.com/blog/article")).toBe(false);
+      expect(isSitemapUrl("https://example.com/page.html")).toBe(false);
+    });
+
+    it("should be case insensitive", () => {
+      expect(isSitemapUrl("https://example.com/Sitemap.XML")).toBe(true);
+    });
+
+    it("should handle relative URLs", () => {
+      expect(isSitemapUrl("/sitemap.xml")).toBe(true);
+      expect(isSitemapUrl("/blog/article")).toBe(false);
+    });
+  });
+
   describe("webFetch()", () => {
     const baseOptions = {
       baseUrl: "https://example.com",
@@ -264,10 +294,11 @@ describe("web-helpers", () => {
 
       const result = await webFetch("/page", baseOptions);
 
-      expect(result.body).toBe(responseBody);
-      expect(result.contentType).toBe("text/html; charset=utf-8");
-      expect(result.status).toBe(200);
-      expect(result.lastModified).toBe("Wed, 21 Oct 2015 07:28:00 GMT");
+      expect(result).not.toBeNull();
+      expect(result!.body).toBe(responseBody);
+      expect(result!.contentType).toBe("text/html; charset=utf-8");
+      expect(result!.status).toBe(200);
+      expect(result!.lastModified).toBe("Wed, 21 Oct 2015 07:28:00 GMT");
     });
 
     it("should throw on HTTP error", async () => {
@@ -281,6 +312,31 @@ describe("web-helpers", () => {
       await expect(webFetch("/missing", baseOptions)).rejects.toThrow(
         "Web fetch error: 404 Not Found",
       );
+    });
+
+    it("should return null on 304 Not Modified", async () => {
+      mockFetch.mockResolvedValueOnce(
+        new Response(null, { status: 304, statusText: "Not Modified" }),
+      );
+
+      const result = await webFetch("/page", baseOptions);
+      expect(result).toBeNull();
+    });
+
+    it("should send If-Modified-Since header when since is provided", async () => {
+      mockFetch.mockResolvedValueOnce(
+        new Response("<html></html>", {
+          status: 200,
+          headers: { "Content-Type": "text/html" },
+        }),
+      );
+
+      const since = new Date("2024-01-01T00:00:00Z").getTime();
+      await webFetch("/page", { ...baseOptions, since });
+
+      const [, options] = mockFetch.mock.calls[0] as unknown as [string, RequestInit];
+      const headers = options.headers as Record<string, string>;
+      expect(headers["If-Modified-Since"]).toBe(new Date(since).toUTCString());
     });
 
     it("should throw on 401 unauthorized", async () => {

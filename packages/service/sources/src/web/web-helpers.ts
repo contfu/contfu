@@ -76,6 +76,8 @@ export interface WebRequestOptions {
   credentials?: Buffer;
   /** Request timeout in milliseconds. */
   timeout?: number;
+  /** If set, send If-Modified-Since header (unix ms timestamp). */
+  since?: number;
 }
 
 /** Result of a web fetch request. */
@@ -96,7 +98,10 @@ export interface WebFetchResult {
  * Perform an authenticated fetch request to a web URL.
  * Handles auth headers, timeouts, and returns the response with metadata.
  */
-export async function webFetch(url: string, options: WebRequestOptions): Promise<WebFetchResult> {
+export async function webFetch(
+  url: string,
+  options: WebRequestOptions,
+): Promise<WebFetchResult | null> {
   const resolvedUrl = resolveUrl(url, options.baseUrl);
   const authHeader = buildAuthHeader(options.authType, options.credentials);
 
@@ -108,6 +113,10 @@ export async function webFetch(url: string, options: WebRequestOptions): Promise
     headers["Authorization"] = authHeader;
   }
 
+  if (options.since) {
+    headers["If-Modified-Since"] = new Date(options.since).toUTCString();
+  }
+
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), options.timeout ?? DEFAULT_TIMEOUT_MS);
 
@@ -116,6 +125,10 @@ export async function webFetch(url: string, options: WebRequestOptions): Promise
       headers,
       signal: controller.signal,
     });
+
+    if (response.status === 304) {
+      return null;
+    }
 
     if (!response.ok) {
       throw new Error(`Web fetch error: ${response.status} ${response.statusText}`);
@@ -160,6 +173,22 @@ export function getContentProcessor(contentType: string): ContentProcessor {
   }
 
   return null;
+}
+
+/**
+ * Check if a URL points to a sitemap.
+ * Returns true if the URL path ends with .xml/.xml.gz or contains "sitemap".
+ */
+export function isSitemapUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    const path = parsed.pathname.toLowerCase();
+    return path.endsWith(".xml") || path.endsWith(".xml.gz") || path.includes("sitemap");
+  } catch {
+    // For relative URLs, check the string directly
+    const lower = url.toLowerCase();
+    return lower.endsWith(".xml") || lower.endsWith(".xml.gz") || lower.includes("sitemap");
+  }
 }
 
 /**

@@ -97,6 +97,14 @@ export async function initialize(): Promise<void> {
     await worker.start();
   }
 
+  // Start the web sync scheduler (periodic polling for web sources).
+  // Skip in test mode for the same reasons as the sync worker above.
+  if (process.env.NODE_ENV !== "test") {
+    const { startWebSyncScheduler } =
+      await import("@contfu/svc-backend/infra/sync-scheduler/web-sync-scheduler");
+    startWebSyncScheduler();
+  }
+
   isInitialized = true;
   log.info("Server startup complete: StreamServer and SyncWorkerManager initialized");
 }
@@ -120,6 +128,10 @@ export async function shutdown(): Promise<void> {
   if (hasNats()) {
     await stopWebhookFetchWorker();
   }
+
+  const { stopWebSyncScheduler } =
+    await import("@contfu/svc-backend/infra/sync-scheduler/web-sync-scheduler");
+  stopWebSyncScheduler();
 
   // Clear singletons
   streamServer = null;
