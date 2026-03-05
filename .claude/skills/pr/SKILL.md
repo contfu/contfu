@@ -86,10 +86,10 @@ EOF
 
 ### 6. Wait for CI checks
 
-After creating the PR, wait for CI checks to complete and fix any failures:
+After creating the PR, wait for CI checks to complete and fix any failures. GitHub Actions needs a few seconds to register check runs on a new branch, so wait before polling:
 
 ```bash
-gh pr checks <pr-number> --watch
+sleep 5 && gh pr checks <pr-number> --watch
 ```
 
 If checks fail, fix the issue, amend the commit, and force push:
