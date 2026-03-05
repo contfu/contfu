@@ -193,7 +193,7 @@ export const updateCollectionSchema = command(
 
     const schemaChanged = JSON.stringify(oldSchema) !== JSON.stringify(schema);
     if (schemaChanged) {
-      await getSyncWorkerManager().broadcastSchemaAndResync(userId, data.id);
+      await getSyncWorkerManager().broadcastSchema(userId, data.id);
     }
 
     return { success: true };

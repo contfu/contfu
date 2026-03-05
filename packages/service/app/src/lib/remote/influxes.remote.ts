@@ -1,5 +1,6 @@
 import { command, form, query } from "$app/server";
 import { runWithUser } from "$lib/server/run";
+import { getSyncWorkerManager } from "$lib/server/startup";
 import { getUserId } from "$lib/server/user";
 import { SourceType } from "@contfu/core";
 import type { BackendInfluxWithDetails } from "@contfu/svc-backend/domain/types";
@@ -317,6 +318,10 @@ export const addInflux = command(
     );
 
     if (!result.success) return result;
+
+    // Resync the new influx's source collection
+    await getSyncWorkerManager().resyncSourceCollections([result.sourceCollectionId]);
+
     return {
       success: true as const,
       sourceCollectionId: encodeId("sourceCollection", result.sourceCollectionId),
@@ -447,9 +452,12 @@ export const updateInfluxMappings = command(
 
     const mappings = JSON.parse(data.mappings) as MappingRule[];
 
-    // Find influx by collectionId + sourceCollectionId
     const [influx] = await db
-      .select({ id: influxTable.id })
+      .select({
+        id: influxTable.id,
+        sourceCollectionId: influxTable.sourceCollectionId,
+        collectionId: influxTable.collectionId,
+      })
       .from(influxTable)
       .where(and(eq(influxTable.userId, userId), eq(influxTable.id, data.id)));
 
@@ -464,6 +472,11 @@ export const updateInfluxMappings = command(
         mappings,
       }),
     );
+
+    // Resync the affected source collection and broadcast schema
+    const manager = getSyncWorkerManager();
+    await manager.resyncSourceCollections([influx.sourceCollectionId]);
+    await manager.broadcastSchema(userId, influx.collectionId);
 
     return { success: true };
   },

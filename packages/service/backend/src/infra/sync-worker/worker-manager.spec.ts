@@ -15,7 +15,7 @@ import {
 import { SyncWorkerManager } from "./worker-manager";
 import { eq } from "drizzle-orm";
 
-describe("SyncWorkerManager broadcastSchemaAndResync", () => {
+describe("SyncWorkerManager broadcastSchema / resyncSourceCollections", () => {
   let userId: number;
   let collectionId: number;
   let sourceCollectionId: number;
@@ -54,12 +54,12 @@ describe("SyncWorkerManager broadcastSchemaAndResync", () => {
     });
   });
 
-  it("calls schemaCallback with merged schema", async () => {
+  it("broadcastSchema calls schemaCallback with merged schema", async () => {
     const manager = new SyncWorkerManager();
     const schemaCallback = mock(() => {});
     manager.onSchema(schemaCallback);
 
-    await manager.broadcastSchemaAndResync(userId, collectionId);
+    await manager.broadcastSchema(userId, collectionId);
 
     expect(schemaCallback).toHaveBeenCalledTimes(1);
     const [cbUserId, cbCollectionId, cbName, cbDisplayName, cbSchema] = schemaCallback.mock
@@ -71,22 +71,34 @@ describe("SyncWorkerManager broadcastSchemaAndResync", () => {
     expect(cbSchema).toEqual({ title: 1, body: 2 });
   });
 
-  it("broadcasts even if schema did not change (cache cleared)", async () => {
+  it("broadcastSchema broadcasts even if schema did not change (cache cleared)", async () => {
     const manager = new SyncWorkerManager();
     const schemaCallback = mock(() => {});
     manager.onSchema(schemaCallback);
 
-    await manager.broadcastSchemaAndResync(userId, collectionId);
-    await manager.broadcastSchemaAndResync(userId, collectionId);
+    await manager.broadcastSchema(userId, collectionId);
+    await manager.broadcastSchema(userId, collectionId);
 
     expect(schemaCallback).toHaveBeenCalledTimes(2);
   });
 
-  it("enqueues a sync job for the linked source collection", async () => {
+  it("broadcastSchema does not enqueue sync jobs", async () => {
     const manager = new SyncWorkerManager();
     manager.onSchema(mock(() => {}));
 
-    await manager.broadcastSchemaAndResync(userId, collectionId);
+    await manager.broadcastSchema(userId, collectionId);
+
+    const jobs = await db
+      .select()
+      .from(syncJobTable)
+      .where(eq(syncJobTable.sourceCollectionId, sourceCollectionId));
+    expect(jobs).toHaveLength(0);
+  });
+
+  it("resyncSourceCollections enqueues a sync job for given source collections", async () => {
+    const manager = new SyncWorkerManager();
+
+    await manager.resyncSourceCollections([sourceCollectionId]);
 
     const jobs = await db
       .select()
@@ -96,12 +108,11 @@ describe("SyncWorkerManager broadcastSchemaAndResync", () => {
     expect(jobs[0].status).toBe("pending");
   });
 
-  it("does not enqueue a duplicate sync job when one is already pending", async () => {
+  it("resyncSourceCollections does not enqueue a duplicate sync job when one is already pending", async () => {
     const manager = new SyncWorkerManager();
-    manager.onSchema(mock(() => {}));
 
-    await manager.broadcastSchemaAndResync(userId, collectionId);
-    await manager.broadcastSchemaAndResync(userId, collectionId);
+    await manager.resyncSourceCollections([sourceCollectionId]);
+    await manager.resyncSourceCollections([sourceCollectionId]);
 
     const jobs = await db
       .select()

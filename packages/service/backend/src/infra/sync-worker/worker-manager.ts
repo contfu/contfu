@@ -144,20 +144,15 @@ export class SyncWorkerManager {
     }
   }
 
-  async broadcastSchemaAndResync(userId: number, collectionId: number): Promise<void> {
+  async broadcastSchema(userId: number, collectionId: number): Promise<void> {
     // Force re-broadcast by clearing the cached schema for this collection
     this.lastBroadcastedSchema.delete(collectionId);
 
     // Broadcast updated COLLECTION_SCHEMA to all connected consumers
     await this.broadcastSchemaChanges(userId, [collectionId]);
+  }
 
-    // Enqueue sync jobs for all source collections linked to this collection
-    const influxes = await db
-      .selectDistinct({ sourceCollectionId: influxTable.sourceCollectionId })
-      .from(influxTable)
-      .where(and(eq(influxTable.userId, userId), eq(influxTable.collectionId, collectionId)));
-
-    const sourceCollectionIds = influxes.map((r) => r.sourceCollectionId);
+  async resyncSourceCollections(sourceCollectionIds: number[]): Promise<void> {
     if (sourceCollectionIds.length > 0) {
       await Effect.runPromise(enqueueSyncJobs(db, sourceCollectionIds));
     }

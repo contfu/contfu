@@ -51,6 +51,10 @@ export default async function globalSetup() {
   const { seedSchemaResyncData } = await import("./e2e/schema-resync.seed");
   await seedSchemaResyncData(db);
 
+  // Seed selective resync test data
+  const { seedSelectiveResyncData } = await import("./e2e/selective-resync.seed");
+  await seedSelectiveResyncData(db);
+
   // Release file lock so the server process can open the same database
   await closeDb();
 }
