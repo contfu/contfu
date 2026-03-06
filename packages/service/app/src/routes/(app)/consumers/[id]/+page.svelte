@@ -46,18 +46,31 @@
   let { params } = $props();
 
   let id = $derived(params.id);
-  const client = $derived(await getConsumer({ id }));
 
-  // Sync form fields when client changes
-  $effect(() => {
-    updateConsumer.fields.set(client);
-  });
+  // Create parameterless queries at top level so SvelteKit can track their lifecycle.
+  // Creating queries inside $derived prevents $effect.pre from running, which causes
+  // cache entries to be evicted after resolve, leading to infinite re-fetch loops
+  // during client-side navigation.
+  const collectionsQuery = getCollections();
 
-  // Query objects - auto-refresh after form submissions
+  // Parameterized queries must be in $derived to react to param changes
+  const consumerQuery = $derived(getConsumer({ id }));
   const connectionsQuery = $derived(
     getConnectionsByConsumer({ consumerId: params.id }),
   );
-  const allCollections = $derived(await getCollections());
+
+  // Await queries separately
+  const client = $derived(await consumerQuery);
+  const allCollections = $derived(await collectionsQuery);
+
+  // Sync form fields when client changes (guarded to prevent infinite loop)
+  let prevClient: typeof client;
+  $effect(() => {
+    if (client && client !== prevClient) {
+      prevClient = client;
+      updateConsumer.fields.set(client);
+    }
+  });
 
   // Derived from query.current
   const connectedCollectionIds = $derived(
@@ -143,7 +156,7 @@
                     namePopoverOpen = false;
                     await tcToast(async () => {
                       await submit().updates(
-                        getConsumer({ id }).withOverride((c) => ({
+                        consumerQuery.withOverride((c) => ({
                           ...c!,
                           ...data,
                         })),
@@ -196,7 +209,7 @@
           {...updateConsumer.enhance(async ({ submit }) => {
             await tcToast(async () => {
               await submit().updates(
-                getConsumer({ id }).withOverride((c) => ({
+                consumerQuery.withOverride((c) => ({
                   ...c!,
                   includeRef: !c!.includeRef,
                 })),
@@ -361,7 +374,10 @@
                 </form>
                 <form
                   {...remove.enhance(async ({ submit }) => {
-                    await submit();
+                    await submit().updates(
+                      consumerQuery,
+                      connectionsQuery,
+                    );
                     toast.success("Collection disconnected");
                   })}
                   class="inline"
@@ -405,7 +421,11 @@
       {#if availableCollections.length > 0}
         <form
           {...addConnection.enhance(async ({ submit }) => {
-            await submit();
+            await submit().updates(
+              consumerQuery,
+              connectionsQuery,
+            );
+            selectedCollectionId = null;
             toast.success("Collection connected");
           })}
           class="flex gap-2"

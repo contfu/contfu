@@ -65,21 +65,34 @@
   let { params } = $props();
 
   let id = $derived(params.id);
+
+  // Create parameterless queries at top level so SvelteKit can track their lifecycle.
+  // Creating queries inside $derived prevents $effect.pre from running, which causes
+  // cache entries to be evicted after resolve, leading to infinite re-fetch loops
+  // during client-side navigation.
+  const collectionsQuery = getCollections();
+  const consumersQuery = getConsumers();
+
+  // Parameterized queries must be in $derived to react to param changes
   const collectionQuery = $derived(getCollection({ id }));
-  const collection = $derived(await collectionQuery);
-  const allCollections = $derived(await getCollections());
-
-  // Sync form fields when collection changes
-  $effect(() => {
-    updateCollection.fields.set(collection);
-  });
-
-  // Query objects - auto-refresh after form submissions
   const influxesQuery = $derived(getInfluxes({ collectionId: params.id }));
   const connectionsQuery = $derived(
     getConnectionsByCollection({ collectionId: params.id }),
   );
-  const allConsumers = $derived(await getConsumers());
+
+  // Await queries separately
+  const collection = $derived(await collectionQuery);
+  const allCollections = $derived(await collectionsQuery);
+  const allConsumers = $derived(await consumersQuery);
+
+  // Sync form fields when collection changes (guarded to prevent infinite loop)
+  let prevCollection: typeof collection;
+  $effect(() => {
+    if (collection && collection !== prevCollection) {
+      prevCollection = collection;
+      updateCollection.fields.set(collection);
+    }
+  });
 
   // Pending (unsaved) influxes
   interface PendingInflux {
@@ -634,6 +647,7 @@
                         (c) => c.consumerId !== connection.consumerId,
                       ),
                     ),
+                    collectionQuery,
                   );
                   toast.success("Consumer disconnected");
                 })}
@@ -699,7 +713,9 @@
                   ...connections,
                   override,
                 ]),
+                collectionQuery,
               );
+              selectedConsumerId = null;
               toast.success("Consumer connected");
             });
           })}
