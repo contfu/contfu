@@ -1,5 +1,8 @@
 CREATE ROLE "app_user";--> statement-breakpoint
 CREATE ROLE "service_role";--> statement-breakpoint
+GRANT USAGE ON SCHEMA public TO "app_user", "service_role";--> statement-breakpoint
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO "app_user", "service_role";--> statement-breakpoint
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO "app_user", "service_role";--> statement-breakpoint
 CREATE TABLE "account" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "account_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
 	"accountId" text NOT NULL,

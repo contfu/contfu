@@ -2,7 +2,7 @@ import { Effect } from "effect";
 import { eq } from "drizzle-orm";
 import type { DrizzleDb } from "../../effect/services/Database";
 import { DatabaseError } from "../../effect/errors";
-import { sourceCollectionTable, sourceTable } from "../../infra/db/schema";
+import { integrationTable, sourceCollectionTable, sourceTable } from "../../infra/db/schema";
 import { decryptCredentials } from "../../infra/crypto/credentials";
 
 export interface JobConfig {
@@ -32,21 +32,24 @@ export const getJobConfig = (db: DrizzleDb, job: { sourceCollectionId: number })
           sourceType: sourceTable.type,
           sourceUrl: sourceTable.url,
           credentials: sourceTable.credentials,
+          integrationCredentials: integrationTable.credentials,
           collectionRef: sourceCollectionTable.ref,
           collectionId: sourceCollectionTable.id,
         })
         .from(sourceCollectionTable)
         .innerJoin(sourceTable, eq(sourceCollectionTable.sourceId, sourceTable.id))
+        .leftJoin(integrationTable, eq(sourceTable.integrationId, integrationTable.id))
         .where(eq(sourceCollectionTable.id, job.sourceCollectionId))
         .limit(1);
 
       if (!row) return null;
 
+      const encryptedCreds = row.credentials ?? row.integrationCredentials;
       return {
         userId: row.userId,
         sourceType: row.sourceType,
         sourceUrl: row.sourceUrl,
-        credentials: await decryptCredentials(row.userId, row.credentials),
+        credentials: await decryptCredentials(row.userId, encryptedCreds),
         collectionRef: row.collectionRef,
         collectionId: row.collectionId,
       } satisfies JobConfig;

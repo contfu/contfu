@@ -11,6 +11,7 @@ import {
   connectionTable,
   consumerTable,
   influxTable,
+  integrationTable,
   sourceCollectionTable,
   sourceTable,
 } from "../../infra/db/schema";
@@ -128,6 +129,7 @@ export const getConsumerSyncConfig = (userId: number, consumerId: number) =>
             sourceType: sourceTable.type,
             sourceUrl: sourceTable.url,
             credentials: sourceTable.credentials,
+            integrationCredentials: integrationTable.credentials,
             sourceIncludeRef: sourceTable.includeRef,
           })
           .from(sourceCollectionTable)
@@ -136,6 +138,13 @@ export const getConsumerSyncConfig = (userId: number, consumerId: number) =>
             and(
               eq(sourceCollectionTable.userId, sourceTable.userId),
               eq(sourceCollectionTable.sourceId, sourceTable.id),
+            ),
+          )
+          .leftJoin(
+            integrationTable,
+            and(
+              eq(sourceTable.integrationId, integrationTable.id),
+              eq(sourceTable.userId, integrationTable.userId),
             ),
           )
           .where(
@@ -178,7 +187,7 @@ export const getConsumerSyncConfig = (userId: number, consumerId: number) =>
         group = {
           sourceType: sc.sourceType,
           sourceUrl: sc.sourceUrl,
-          credentials: sc.credentials,
+          credentials: sc.credentials ?? sc.integrationCredentials,
           sourceIncludeRef: sc.sourceIncludeRef,
           sourceCollections: new Map(),
         };

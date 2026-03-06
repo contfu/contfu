@@ -129,6 +129,17 @@ async function persistSyncEvent(
     const schema = getCollectionSchemaByName(collection);
     const extracted = extractLinks(itemIdBuf, props, content, schema);
 
+    // Create/update item before inserting links (linkTable.from has FK → items.id)
+    await createOrUpdateItem({
+      id: itemId,
+      sourceType: event.item.sourceType,
+      ref: event.item.ref,
+      collection,
+      changedAt: event.item.changedAt,
+      props,
+      content,
+    });
+
     // Insert link records and get auto-increment IDs
     let linkIds: number[] = [];
     if (extracted.records.length > 0) {
@@ -142,16 +153,18 @@ async function persistSyncEvent(
     props = resolved.props;
     content = resolved.content ?? undefined;
 
-    // Create/update item (no FK constraints on links, so order doesn't matter)
-    await createOrUpdateItem({
-      id: itemId,
-      sourceType: event.item.sourceType,
-      ref: event.item.ref,
-      collection,
-      changedAt: event.item.changedAt,
-      props,
-      content,
-    });
+    // Update item with resolved props/content (link IDs substituted in)
+    if (extracted.records.length > 0) {
+      await createOrUpdateItem({
+        id: itemId,
+        sourceType: event.item.sourceType,
+        ref: event.item.ref,
+        collection,
+        changedAt: event.item.changedAt,
+        props,
+        content,
+      });
+    }
 
     if (mediaStore) {
       let needsUpdate = false;
