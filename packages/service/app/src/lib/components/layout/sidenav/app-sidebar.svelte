@@ -8,6 +8,7 @@
     FoldersIcon,
     KeyIcon,
     LayoutDashboardIcon,
+    PlugIcon,
     UserCogIcon,
     UsersIcon,
   } from "@lucide/svelte";
@@ -47,13 +48,18 @@
     ],
     navSecondary: [
       {
+        title: "integrations",
+        url: "/integrations",
+        icon: PlugIcon,
+      },
+      {
         title: "admin",
         url: "/admin",
         icon: UserCogIcon,
       },
       {
         title: "api-keys",
-        url: "/admin/api-keys",
+        url: "/api-keys",
         icon: KeyIcon,
       },
       {
@@ -95,7 +101,7 @@
   </Sidebar.Header>
   <Sidebar.Content>
     <NavMain items={navMainItems} {currentPath} />
-    <NavSecondary items={data.navSecondary} class="mt-auto" />
+    <NavSecondary items={data.navSecondary} {currentPath} class="mt-auto" />
   </Sidebar.Content>
   <Sidebar.Footer>
     <NavUser {user} />

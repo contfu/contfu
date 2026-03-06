@@ -1,5 +1,4 @@
 import { SourceType } from "@contfu/core";
-import { CredentialsSource } from "@contfu/svc-core";
 import { pack } from "msgpackr";
 import { sql } from "drizzle-orm";
 import {
@@ -125,6 +124,39 @@ export type ApiKey = typeof apikeyTable.$inferSelect;
 
 // Application tables
 
+export const integrationTable = pgTable.withRLS(
+  "integration",
+  {
+    id: integer().primaryKey().generatedAlwaysAsIdentity(),
+    userId: integer()
+      .notNull()
+      .references(() => userTable.id, { onDelete: "cascade" }),
+    /** Provider identifier (e.g. "notion") */
+    providerId: text().notNull(),
+    /** User-facing label */
+    label: text().notNull(),
+    /** Provider-side account/workspace ID for dedup */
+    accountId: text(),
+    /** Encrypted OAuth credentials */
+    credentials: bytea(),
+    createdAt: timestamp({ withTimezone: true, mode: "date" })
+      .default(sql`now()`)
+      .notNull(),
+    updatedAt: timestamp({ withTimezone: true, mode: "date" }),
+  },
+  (table) => [
+    index("integration_userId_idx").on(table.userId),
+    pgPolicy("integration_user_isolation", {
+      for: "all",
+      to: appUserRole,
+      using: sql`${table.userId} = ${currentUserIdSql}`,
+      withCheck: sql`${table.userId} = ${currentUserIdSql}`,
+    }),
+  ],
+);
+
+export type Integration = typeof integrationTable.$inferSelect;
+
 export const quotaTable = pgTable("quota", {
   id: integer()
     .primaryKey()
@@ -211,6 +243,8 @@ export const sourceTable = pgTable.withRLS(
     type: integer().$type<SourceType>().notNull(),
     /** Webhook secret for validating incoming webhooks (optional). */
     webhookSecret: bytea(),
+    /** FK to integration for OAuth-sourced credentials */
+    integrationId: integer().references(() => integrationTable.id, { onDelete: "set null" }),
     /**
      * Whether to include a ref field in Items linking back to the upstream SourceItem.
      */
@@ -221,8 +255,6 @@ export const sourceTable = pgTable.withRLS(
       .notNull(),
     /** The date the source was updated. */
     updatedAt: timestamp({ withTimezone: true, mode: "date" }),
-    /** How credentials were provided: 0 = USER_PROVIDED, 1 = OAUTH */
-    credentialsSource: integer().$type<CredentialsSource>(),
   },
   (table) => [
     index("source_userId_idx").on(table.userId),

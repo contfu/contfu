@@ -32,7 +32,7 @@ Commands:
   items query [options]             Query items from client app
   items count [options]             Count items from client app
 
-Resources: sources, collections, consumers, connections, influxes
+Resources: sources, collections, consumers, connections, influxes, integrations
 
 list options:
   -f, --format <fmt>           Output format: table (default) | json
@@ -67,6 +67,12 @@ influxes options:
       --[no-]include-ref          Include ref transmission
   -d, --data <json>               Raw JSON body (alternative to above flags)
 
+integrations options:
+  -n, --name <name>            Label (required for create)
+  -t, --type <provider>        Provider ID (default: notion)
+      --token <token>           API token (for manual token-based integrations)
+  -d, --data <json>            Raw JSON body (alternative to above flags)
+
 items options:
   -u, --client-url <url>       Base URL of the client HTTP server (required)
       --collection <name>      Filter by collection
@@ -98,6 +104,7 @@ async function main() {
       "source-collection-id": { type: "string" },
       "include-ref": { type: "boolean" },
       "no-include-ref": { type: "boolean" },
+      token: { type: "string" },
       format: { type: "string", short: "f" },
     },
     allowPositionals: true,
@@ -180,6 +187,7 @@ async function main() {
       "source-collection-id": values["source-collection-id"] as string | undefined,
       "include-ref": values["include-ref"] as boolean | undefined,
       "no-include-ref": values["no-include-ref"] as boolean | undefined,
+      token: values.token as string | undefined,
     };
 
     switch (action) {

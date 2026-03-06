@@ -1,3 +1,5 @@
+CREATE ROLE "app_user";--> statement-breakpoint
+CREATE ROLE "service_role";--> statement-breakpoint
 CREATE TABLE "account" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "account_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
 	"accountId" text NOT NULL,
@@ -14,31 +16,65 @@ CREATE TABLE "account" (
 	"updatedAt" timestamp with time zone NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE "apikey" (
+	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "apikey_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
+	"configId" text,
+	"name" text,
+	"start" text,
+	"prefix" text,
+	"key" text NOT NULL,
+	"userId" integer NOT NULL,
+	"refillInterval" integer,
+	"refillAmount" integer,
+	"lastRefillAt" timestamp(6) with time zone,
+	"enabled" boolean NOT NULL,
+	"rateLimitEnabled" boolean NOT NULL,
+	"rateLimitTimeWindow" integer,
+	"rateLimitMax" integer,
+	"requestCount" integer NOT NULL,
+	"remaining" integer,
+	"lastRequest" timestamp(6) with time zone,
+	"expiresAt" timestamp(6) with time zone,
+	"createdAt" timestamp(6) with time zone NOT NULL,
+	"updatedAt" timestamp(6) with time zone NOT NULL,
+	"permissions" text,
+	"metadata" text
+);
+--> statement-breakpoint
 CREATE TABLE "collection" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "collection_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
 	"userId" integer NOT NULL,
+	"displayName" text NOT NULL,
 	"name" text NOT NULL,
+	"schema" bytea NOT NULL,
+	"refTargets" bytea,
+	"includeRef" boolean DEFAULT true NOT NULL,
 	"createdAt" timestamp with time zone DEFAULT now() NOT NULL,
 	"updatedAt" timestamp with time zone
 );
 --> statement-breakpoint
+ALTER TABLE "collection" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "connection" (
 	"userId" integer NOT NULL,
 	"consumerId" integer,
 	"collectionId" integer,
+	"includeRef" boolean DEFAULT true NOT NULL,
 	"lastItemChanged" timestamp with time zone,
 	"lastConsistencyCheck" timestamp with time zone,
 	CONSTRAINT "connection_pkey" PRIMARY KEY("consumerId","collectionId")
 );
 --> statement-breakpoint
+ALTER TABLE "connection" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "consumer" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "consumer_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
 	"userId" integer NOT NULL,
 	"key" bytea UNIQUE,
 	"name" text NOT NULL,
+	"includeRef" boolean DEFAULT true NOT NULL,
 	"createdAt" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+ALTER TABLE "consumer" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "incident" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "incident_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
 	"userId" integer NOT NULL,
@@ -51,23 +87,45 @@ CREATE TABLE "incident" (
 	"resolvedAt" timestamp with time zone
 );
 --> statement-breakpoint
+ALTER TABLE "incident" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "influx" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "influx_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
 	"userId" integer NOT NULL,
 	"collectionId" integer NOT NULL,
 	"sourceCollectionId" integer NOT NULL,
 	"schema" bytea,
+	"mappings" bytea,
 	"filters" bytea,
-	"includeRef" boolean,
+	"includeRef" boolean DEFAULT true NOT NULL,
 	"createdAt" timestamp with time zone DEFAULT now() NOT NULL,
 	"updatedAt" timestamp with time zone
 );
 --> statement-breakpoint
+ALTER TABLE "influx" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+CREATE TABLE "integration" (
+	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "integration_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
+	"userId" integer NOT NULL,
+	"providerId" text NOT NULL,
+	"label" text NOT NULL,
+	"accountId" text,
+	"credentials" bytea,
+	"createdAt" timestamp with time zone DEFAULT now() NOT NULL,
+	"updatedAt" timestamp with time zone
+);
+--> statement-breakpoint
+ALTER TABLE "integration" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "item_id_conflict_resolution" (
 	"sourceCollectionId" integer,
 	"sourceItemId" bytea,
 	"id" integer NOT NULL,
 	CONSTRAINT "item_id_conflict_resolution_pkey" PRIMARY KEY("sourceCollectionId","sourceItemId")
+);
+--> statement-breakpoint
+CREATE TABLE "msgpackr_migration" (
+	"tablename" text,
+	"columnname" text,
+	"version" integer DEFAULT 0 NOT NULL,
+	CONSTRAINT "msgpackr_migration_pkey" PRIMARY KEY("tablename","columnname")
 );
 --> statement-breakpoint
 CREATE TABLE "quota" (
@@ -116,20 +174,23 @@ CREATE TABLE "source_collection" (
 	"updatedAt" timestamp with time zone
 );
 --> statement-breakpoint
+ALTER TABLE "source_collection" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "source" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "source_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
 	"userId" integer NOT NULL,
 	"uid" uuid NOT NULL UNIQUE,
-	"name" text,
+	"name" text NOT NULL,
 	"url" text,
 	"credentials" bytea,
 	"type" integer NOT NULL,
 	"webhookSecret" bytea,
-	"includeRef" boolean DEFAULT false NOT NULL,
+	"integrationId" integer,
+	"includeRef" boolean DEFAULT true NOT NULL,
 	"createdAt" timestamp with time zone DEFAULT now() NOT NULL,
 	"updatedAt" timestamp with time zone
 );
 --> statement-breakpoint
+ALTER TABLE "source" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "sync_job" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "sync_job_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
 	"sourceCollectionId" integer NOT NULL,
@@ -143,6 +204,7 @@ CREATE TABLE "sync_job" (
 	"workerId" text
 );
 --> statement-breakpoint
+ALTER TABLE "sync_job" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "user" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "user_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
 	"name" text NOT NULL,
@@ -175,6 +237,7 @@ CREATE TABLE "webhook_log" (
 	"timestamp" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+ALTER TABLE "webhook_log" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE INDEX "account_userId_idx" ON "account" ("userId");--> statement-breakpoint
 CREATE INDEX "collection_userId_idx" ON "collection" ("userId");--> statement-breakpoint
 CREATE INDEX "connection_userId_idx" ON "connection" ("userId");--> statement-breakpoint
@@ -186,6 +249,7 @@ CREATE INDEX "incident_influxId_idx" ON "incident" ("influxId");--> statement-br
 CREATE INDEX "influx_userId_idx" ON "influx" ("userId");--> statement-breakpoint
 CREATE INDEX "influx_collectionId_idx" ON "influx" ("collectionId");--> statement-breakpoint
 CREATE INDEX "influx_sourceCollectionId_idx" ON "influx" ("sourceCollectionId");--> statement-breakpoint
+CREATE INDEX "integration_userId_idx" ON "integration" ("userId");--> statement-breakpoint
 CREATE INDEX "item_id_conflict_sourceCollectionId_idx" ON "item_id_conflict_resolution" ("sourceCollectionId");--> statement-breakpoint
 CREATE INDEX "session_userId_idx" ON "session" ("userId");--> statement-breakpoint
 CREATE INDEX "source_collection_userId_idx" ON "source_collection" ("userId");--> statement-breakpoint
@@ -206,11 +270,51 @@ ALTER TABLE "incident" ADD CONSTRAINT "incident_influxId_influx_id_fkey" FOREIGN
 ALTER TABLE "influx" ADD CONSTRAINT "influx_userId_user_id_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE;--> statement-breakpoint
 ALTER TABLE "influx" ADD CONSTRAINT "influx_collectionId_collection_id_fkey" FOREIGN KEY ("collectionId") REFERENCES "collection"("id") ON DELETE CASCADE;--> statement-breakpoint
 ALTER TABLE "influx" ADD CONSTRAINT "influx_sourceCollectionId_source_collection_id_fkey" FOREIGN KEY ("sourceCollectionId") REFERENCES "source_collection"("id") ON DELETE CASCADE;--> statement-breakpoint
+ALTER TABLE "integration" ADD CONSTRAINT "integration_userId_user_id_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE;--> statement-breakpoint
 ALTER TABLE "item_id_conflict_resolution" ADD CONSTRAINT "item_id_conflict_resolution_3laooM9Jrtn7_fkey" FOREIGN KEY ("sourceCollectionId") REFERENCES "source_collection"("id") ON DELETE CASCADE;--> statement-breakpoint
 ALTER TABLE "quota" ADD CONSTRAINT "quota_id_user_id_fkey" FOREIGN KEY ("id") REFERENCES "user"("id") ON DELETE CASCADE;--> statement-breakpoint
 ALTER TABLE "session" ADD CONSTRAINT "session_userId_user_id_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE;--> statement-breakpoint
 ALTER TABLE "source_collection" ADD CONSTRAINT "source_collection_userId_user_id_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE;--> statement-breakpoint
 ALTER TABLE "source_collection" ADD CONSTRAINT "source_collection_sourceId_source_id_fkey" FOREIGN KEY ("sourceId") REFERENCES "source"("id") ON DELETE CASCADE;--> statement-breakpoint
 ALTER TABLE "source" ADD CONSTRAINT "source_userId_user_id_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE;--> statement-breakpoint
+ALTER TABLE "source" ADD CONSTRAINT "source_integrationId_integration_id_fkey" FOREIGN KEY ("integrationId") REFERENCES "integration"("id") ON DELETE SET NULL;--> statement-breakpoint
 ALTER TABLE "sync_job" ADD CONSTRAINT "sync_job_sourceCollectionId_source_collection_id_fkey" FOREIGN KEY ("sourceCollectionId") REFERENCES "source_collection"("id") ON DELETE CASCADE;--> statement-breakpoint
-ALTER TABLE "webhook_log" ADD CONSTRAINT "webhook_log_sourceId_source_id_fkey" FOREIGN KEY ("sourceId") REFERENCES "source"("id") ON DELETE CASCADE;
+ALTER TABLE "webhook_log" ADD CONSTRAINT "webhook_log_sourceId_source_id_fkey" FOREIGN KEY ("sourceId") REFERENCES "source"("id") ON DELETE CASCADE;--> statement-breakpoint
+CREATE POLICY "collection_user_isolation" ON "collection" AS PERMISSIVE FOR ALL TO "app_user" USING ("collection"."userId" = current_setting('app.current_user_id', true)::integer) WITH CHECK ("collection"."userId" = current_setting('app.current_user_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "connection_user_isolation" ON "connection" AS PERMISSIVE FOR ALL TO "app_user" USING ("connection"."userId" = current_setting('app.current_user_id', true)::integer) WITH CHECK ("connection"."userId" = current_setting('app.current_user_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "consumer_user_isolation" ON "consumer" AS PERMISSIVE FOR ALL TO "app_user" USING ("consumer"."userId" = current_setting('app.current_user_id', true)::integer) WITH CHECK ("consumer"."userId" = current_setting('app.current_user_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "incident_user_isolation" ON "incident" AS PERMISSIVE FOR ALL TO "app_user" USING ("incident"."userId" = current_setting('app.current_user_id', true)::integer) WITH CHECK ("incident"."userId" = current_setting('app.current_user_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "influx_user_isolation" ON "influx" AS PERMISSIVE FOR ALL TO "app_user" USING ("influx"."userId" = current_setting('app.current_user_id', true)::integer) WITH CHECK ("influx"."userId" = current_setting('app.current_user_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "integration_user_isolation" ON "integration" AS PERMISSIVE FOR ALL TO "app_user" USING ("integration"."userId" = current_setting('app.current_user_id', true)::integer) WITH CHECK ("integration"."userId" = current_setting('app.current_user_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "source_collection_user_isolation" ON "source_collection" AS PERMISSIVE FOR ALL TO "app_user" USING ("source_collection"."userId" = current_setting('app.current_user_id', true)::integer) WITH CHECK ("source_collection"."userId" = current_setting('app.current_user_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "source_user_isolation" ON "source" AS PERMISSIVE FOR ALL TO "app_user" USING ("source"."userId" = current_setting('app.current_user_id', true)::integer) WITH CHECK ("source"."userId" = current_setting('app.current_user_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "sync_job_user_isolation" ON "sync_job" AS PERMISSIVE FOR ALL TO "app_user" USING (
+        exists (
+          select 1
+          from "source_collection" sc
+          where sc.id = "sync_job"."sourceCollectionId"
+            and sc."userId" = current_setting('app.current_user_id', true)::integer
+        )
+      ) WITH CHECK (
+        exists (
+          select 1
+          from "source_collection" sc
+          where sc.id = "sync_job"."sourceCollectionId"
+            and sc."userId" = current_setting('app.current_user_id', true)::integer
+        )
+      );--> statement-breakpoint
+CREATE POLICY "webhook_log_user_isolation" ON "webhook_log" AS PERMISSIVE FOR ALL TO "app_user" USING (
+        exists (
+          select 1
+          from "source" s
+          where s.id = "webhook_log"."sourceId"
+            and s."userId" = current_setting('app.current_user_id', true)::integer
+        )
+      ) WITH CHECK (
+        exists (
+          select 1
+          from "source" s
+          where s.id = "webhook_log"."sourceId"
+            and s."userId" = current_setting('app.current_user_id', true)::integer
+        )
+      );

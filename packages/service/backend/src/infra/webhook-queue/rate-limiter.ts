@@ -46,8 +46,12 @@ function isCasConflict(error: unknown): boolean {
   return message.includes("wrong last sequence") || message.includes("sequence");
 }
 
-export function buildRateLimitKey(userId: number, sourceId: number): string {
-  return `${userId}.${sourceId}`;
+export function buildRateLimitKey(
+  userId: number,
+  sourceId: number,
+  integrationId?: number | null,
+): string {
+  return integrationId ? `${userId}.i${integrationId}` : `${userId}.${sourceId}`;
 }
 
 export async function acquireRateSlot(
@@ -55,9 +59,10 @@ export async function acquireRateSlot(
   sourceId: number,
   config: RateLimitConfig,
   kv: Pick<KV, "create" | "get" | "update"> | null = null,
+  integrationId?: number | null,
 ): Promise<number> {
   const store = kv ?? (await getRateLimitKv());
-  const key = buildRateLimitKey(userId, sourceId);
+  const key = buildRateLimitKey(userId, sourceId, integrationId);
 
   while (true) {
     const now = Date.now();

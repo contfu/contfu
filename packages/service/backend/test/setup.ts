@@ -19,6 +19,7 @@ export async function truncateAllTables(): Promise<void> {
       consumer,
       collection,
       source,
+      integration,
       quota,
       session,
       account,

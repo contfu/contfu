@@ -20,7 +20,7 @@ function mapToBackendSource(source: Source): BackendSource {
     type: source.type,
     hasCredentials: source.credentials !== null,
     hasWebhookSecret: source.webhookSecret !== null,
-    credentialsSource: source.credentialsSource,
+    integrationId: source.integrationId,
     createdAt: source.createdAt,
     updatedAt: source.updatedAt,
   };

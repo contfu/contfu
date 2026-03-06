@@ -15,9 +15,8 @@ import {
 } from "@contfu/svc-backend/features/sources/testSourceConnection";
 import { updateSource as updateSourceFeature } from "@contfu/svc-backend/features/sources/updateSource";
 import { validateSourceData } from "@contfu/svc-backend/features/sources/validateSourceData";
-import { getProviderAccessToken } from "@contfu/svc-backend/infra/auth/linked-accounts";
 import { encodeId, idSchema } from "@contfu/svc-backend/infra/ids";
-import { CredentialsSource, WebAuthType } from "@contfu/svc-core";
+import { WebAuthType } from "@contfu/svc-core";
 import {
   iterateDataSources,
   resolveDataSourceId,
@@ -112,8 +111,6 @@ export const createSource = form(
         type: data.type,
         url: data.type === SourceType.STRAPI || data.type === SourceType.WEB ? data.url : null,
         credentials: credentialsBuffer,
-        credentialsSource:
-          data.type === SourceType.NOTION ? CredentialsSource.USER_PROVIDED : undefined,
         includeRef: data.includeRef ?? true,
       }),
     );
@@ -123,12 +120,13 @@ export const createSource = form(
 );
 
 /**
- * Create a Notion source using the linked OAuth account.
- * Uses the access token from the user's linked Notion account.
+ * Create a Notion source using an OAuth integration.
+ * Links the source to the integration instead of copying credentials.
  */
 export const createNotionSourceFromOAuth = command(
   v.object({
     name: v.pipe(v.string(), v.nonEmpty("Name is required")),
+    integrationId: idSchema("integration"),
     includeRef: v.optional(
       v.pipe(
         v.union([v.string(), v.boolean()]),
@@ -139,10 +137,20 @@ export const createNotionSourceFromOAuth = command(
   async (data): Promise<{ id: string }> => {
     const userId = getUserId();
 
-    // Get the Notion access token from linked accounts
-    const accessToken = await getProviderAccessToken(userId, "notion");
+    // Verify integration exists and get credentials for connection test
+    const { getIntegrationWithCredentials } =
+      await import("@contfu/svc-backend/features/integrations/getIntegrationWithCredentials");
+    const integration = await runWithUser(
+      userId,
+      getIntegrationWithCredentials(userId, data.integrationId),
+    );
+    if (!integration) {
+      error(400, "Integration not found");
+    }
+
+    const accessToken = integration.credentials?.toString("utf-8");
     if (!accessToken) {
-      error(400, "No Notion account linked. Please connect Notion first.");
+      error(400, "Integration has no credentials");
     }
 
     // Test the connection
@@ -151,15 +159,14 @@ export const createNotionSourceFromOAuth = command(
       error(400, `Notion connection failed: ${testResult.message}`);
     }
 
-    // Insert the source
+    // Insert the source linked to the integration (no inline credentials)
     const source = await runWithUser(
       userId,
       createSourceFeature(userId, {
         name: data.name,
         type: SourceType.NOTION,
         url: null,
-        credentials: Buffer.from(accessToken, "utf-8"),
-        credentialsSource: CredentialsSource.OAUTH,
+        integrationId: data.integrationId,
         includeRef: data.includeRef ?? true,
       }),
     );

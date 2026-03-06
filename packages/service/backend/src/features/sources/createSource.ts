@@ -22,7 +22,7 @@ function mapToBackendSource(source: Source): BackendSource {
     type: source.type,
     hasCredentials: source.credentials !== null,
     hasWebhookSecret: source.webhookSecret !== null,
-    credentialsSource: source.credentialsSource,
+    integrationId: source.integrationId,
     createdAt: source.createdAt,
     updatedAt: source.updatedAt,
   };
@@ -69,7 +69,7 @@ export const createSource = (userId: number, input: CreateSourceInput) =>
             includeRef: input.includeRef ?? true,
             credentials: encryptedCredentials,
             webhookSecret: encryptedWebhookSecret,
-            credentialsSource: input.credentialsSource ?? null,
+            integrationId: input.integrationId ?? null,
           })
           .returning(),
       catch: (e) => new DatabaseError({ cause: e }),

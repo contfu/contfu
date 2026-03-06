@@ -9,7 +9,7 @@
   import { Label } from "$lib/components/ui/label";
   import { Select, Switch } from "@contfu/ui";
   import { SOURCE_TYPE_LABELS } from "$lib/domain/source";
-  import { listLinkedAccounts } from "$lib/remote/accounts.remote";
+  import { listIntegrations } from "$lib/remote/integrations.remote";
   import {
     createNotionSourceFromOAuth,
     createSource,
@@ -52,9 +52,9 @@
   let testPending = $state(false);
   let includeRef = $state(true);
   let useOAuth = $state(true);
-  let notionLinked = $state<boolean | null>(null);
   let oauthPending = $state(false);
   let oauthError = $state<string | null>(null);
+  let selectedIntegrationId = $state<string | null>(null);
 
   const isNotionSource = $derived(selectedType === SourceType.NOTION);
   const isWebSource = $derived(selectedType === SourceType.WEB);
@@ -64,10 +64,15 @@
       (isWebSource && selectedAuthType !== WebAuthType.NONE),
   );
 
-  // Check if Notion is linked when component mounts or when Notion is selected
+  // Load integrations when Notion is selected
+  let notionIntegrations = $state<
+    { id: string; label: string; providerId: string }[]
+  >([]);
+  let integrationsLoaded = $state(false);
+
   $effect(() => {
     if (isNotionSource) {
-      checkNotionLinked();
+      loadNotionIntegrations();
     }
   });
 
@@ -75,23 +80,19 @@
   $effect(() => {
     const params = page.url?.searchParams;
     if (params?.get("type") === "notion" && params?.get("linked") === "1") {
-      // Restore persisted form state
       const restored = restoreFormState();
       if (restored) {
-        // Restore state variables
         selectedType = restored.selectedType;
         selectedAuthType = restored.selectedAuthType;
         useOAuth = restored.useOAuth;
         includeRef = restored.includeRef;
 
-        // Restore name input value
         const nameInput =
           document.querySelector<HTMLInputElement>('input[name="name"]');
         if (nameInput && restored.name) {
           nameInput.value = restored.name;
         }
 
-        // Restore url input if present
         if (restored.url) {
           const urlInput =
             document.querySelector<HTMLInputElement>('input[name="url"]');
@@ -100,7 +101,6 @@
           }
         }
 
-        // Restore credentials if present
         if (restored._credentials) {
           const credentialsInput = document.querySelector<HTMLInputElement>(
             'input[name="_credentials"]',
@@ -110,20 +110,26 @@
           }
         }
 
-        // Update Notion linked status
-        notionLinked = true;
+        // Reload integrations after OAuth redirect
+        loadNotionIntegrations();
       }
     }
   });
 
-  async function checkNotionLinked() {
+  async function loadNotionIntegrations() {
     try {
-      const accounts = await listLinkedAccounts();
-      notionLinked = accounts.some(
-        (a) => a.providerId === "notion" && a.hasAccessToken,
+      const integrations = await listIntegrations();
+      notionIntegrations = integrations.filter(
+        (i) => i.providerId === "notion",
       );
+      integrationsLoaded = true;
+      // Auto-select first if available
+      if (notionIntegrations.length > 0 && !selectedIntegrationId) {
+        selectedIntegrationId = notionIntegrations[0].id;
+      }
     } catch {
-      notionLinked = false;
+      notionIntegrations = [];
+      integrationsLoaded = true;
     }
   }
 
@@ -131,7 +137,6 @@
     oauthPending = true;
     oauthError = null;
 
-    // Persist form state before OAuth redirect
     const nameInput =
       document.querySelector<HTMLInputElement>('input[name="name"]');
     const urlInput =
@@ -176,8 +181,18 @@
       return;
     }
 
+    if (!selectedIntegrationId) {
+      oauthError = "Please select an integration";
+      oauthPending = false;
+      return;
+    }
+
     try {
-      const result = await createNotionSourceFromOAuth({ name, includeRef });
+      const result = await createNotionSourceFromOAuth({
+        name,
+        integrationId: selectedIntegrationId,
+        includeRef,
+      });
       if ("error" in result) {
         oauthError = result.error as string;
       } else {
@@ -316,27 +331,33 @@
 
         {#if useOAuth}
           <div class="rounded-lg border bg-muted/50 p-4">
-            {#if notionLinked === null}
+            {#if !integrationsLoaded}
               <p class="text-sm text-muted-foreground">
-                Checking Notion connection...
+                Loading integrations...
               </p>
-            {:else if notionLinked}
-              <div class="flex items-center gap-2 text-sm text-green-600">
-                <svg
-                  class="h-4 w-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
-                Notion connected! Your workspace access will be used.
+            {:else if notionIntegrations.length > 0}
+              <div class="space-y-2">
+                <Label>Notion Integration</Label>
+                <Select
+                  class="w-full"
+                  bind:value={
+                    () => selectedIntegrationId ?? "",
+                    (v) => (selectedIntegrationId = v || null)
+                  }
+                  options={notionIntegrations.map((i) => ({
+                    value: i.id,
+                    label: i.label,
+                  }))}
+                />
               </div>
+              <p class="mt-2 text-xs text-muted-foreground">
+                Or <button
+                  type="button"
+                  class="underline hover:text-foreground"
+                  onclick={handleConnectNotion}
+                  disabled={oauthPending}
+                >connect a new Notion account</button>.
+              </p>
             {:else}
               <p class="text-sm text-muted-foreground mb-3">
                 Connect your Notion workspace to sync databases and pages.
@@ -453,7 +474,7 @@
         <Button
           type="button"
           onclick={handleCreateNotionSource}
-          disabled={oauthPending || !notionLinked}
+          disabled={oauthPending || !selectedIntegrationId}
         >
           {oauthPending ? "Creating..." : "Create Source"}
         </Button>

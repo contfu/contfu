@@ -8,11 +8,3 @@ export const SourceType = {
   STRAPI: 21,
   CONTENTFUL: 22,
 } as const;
-
-/** Credentials source identifiers. */
-export const CredentialsSource = {
-  USER_PROVIDED: 0,
-  OAUTH: 1,
-} as const;
-
-export type CredentialsSource = (typeof CredentialsSource)[keyof typeof CredentialsSource];

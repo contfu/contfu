@@ -1,6 +1,6 @@
 import type { KV } from "@nats-io/kv";
 import { describe, expect, it } from "bun:test";
-import { acquireRateSlot } from "./rate-limiter";
+import { acquireRateSlot, buildRateLimitKey } from "./rate-limiter";
 
 type Entry = {
   value: Uint8Array;
@@ -96,5 +96,24 @@ describe("rate-limiter", () => {
 
     const delay = await acquireRateSlot(1, 2, rateLimitConfig, kv);
     expect(delay).toBe(0);
+  });
+
+  it("shares rate limit across sources with the same integrationId", async () => {
+    const kv = new MockRateLimitKv();
+
+    // Two different sources (2 and 3) sharing integration 10
+    expect(await acquireRateSlot(1, 2, rateLimitConfig, kv, 10)).toBe(0);
+    expect(await acquireRateSlot(1, 3, rateLimitConfig, kv, 10)).toBe(0);
+    expect(await acquireRateSlot(1, 2, rateLimitConfig, kv, 10)).toBe(0);
+
+    // 4th request should be rate-limited (shared window)
+    const delay = await acquireRateSlot(1, 3, rateLimitConfig, kv, 10);
+    expect(delay).toBeGreaterThan(0);
+  });
+
+  it("uses source-level key when no integrationId", () => {
+    expect(buildRateLimitKey(1, 2)).toBe("1.2");
+    expect(buildRateLimitKey(1, 2, null)).toBe("1.2");
+    expect(buildRateLimitKey(1, 2, 10)).toBe("1.i10");
   });
 });

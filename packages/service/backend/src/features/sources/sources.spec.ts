@@ -4,6 +4,7 @@ import { runTest } from "../../../test/effect-helpers";
 import { truncateAllTables } from "../../../test/setup";
 import { db } from "../../infra/db/db";
 import { sourceCollectionTable, userTable } from "../../infra/db/schema";
+import { createIntegration } from "../integrations/createIntegration";
 import { createSource } from "./createSource";
 import { deleteSource } from "./deleteSource";
 import { getSource } from "./getSource";
@@ -119,45 +120,19 @@ describe("Source Features Happy Path", () => {
     expect(one!.collectionCount).toBe(2);
   });
 
-  it("should set credentialsSource to USER_PROVIDED for Notion source with custom token", async () => {
+  it("should create source with integrationId", async () => {
     const source = await runTest(
       createSource(userId, {
         name: "N",
         type: SourceType.NOTION,
-        credentialsSource: 0,
+        integrationId: null,
       }),
     );
 
-    expect(source.credentialsSource).toBe(0);
+    expect(source.integrationId).toBeNull();
   });
 
-  it("should set credentialsSource to OAUTH for Notion source via OAuth", async () => {
-    const source = await runTest(
-      createSource(userId, {
-        name: "N",
-        type: SourceType.NOTION,
-        credentialsSource: 1,
-      }),
-    );
-
-    expect(source.credentialsSource).toBe(1);
-  });
-
-  it("should return credentialsSource when fetching a source", async () => {
-    const created = await runTest(
-      createSource(userId, {
-        name: "N",
-        type: SourceType.NOTION,
-        credentialsSource: 0,
-      }),
-    );
-
-    const fetched = await runTest(getSource(userId, created.id));
-    expect(fetched).toBeDefined();
-    expect(fetched!.credentialsSource).toBe(0);
-  });
-
-  it("should return null credentialsSource when not set", async () => {
+  it("should return null integrationId when not set", async () => {
     const source = await runTest(
       createSource(userId, {
         name: "My Strapi",
@@ -166,6 +141,67 @@ describe("Source Features Happy Path", () => {
       }),
     );
 
-    expect(source.credentialsSource).toBeNull();
+    expect(source.integrationId).toBeNull();
+  });
+
+  it("should resolve credentials from linked integration", async () => {
+    const integration = await runTest(
+      createIntegration(userId, {
+        providerId: "notion",
+        label: "My Workspace",
+        credentials: Buffer.from("oauth-token-xyz"),
+      }),
+    );
+
+    const source = await runTest(
+      createSource(userId, {
+        name: "Notion via OAuth",
+        type: SourceType.NOTION,
+        integrationId: integration.id,
+      }),
+    );
+
+    expect(source.hasCredentials).toBe(false);
+    expect(source.integrationId).toBe(integration.id);
+
+    const internal = await runTest(getSourceWithCredentials(userId, source.id));
+    expect(internal).toBeDefined();
+    expect(internal!.credentials).toEqual(Buffer.from("oauth-token-xyz"));
+  });
+
+  it("should return null credentials when source has no integration and no inline credentials", async () => {
+    const source = await runTest(
+      createSource(userId, {
+        name: "No Creds",
+        type: SourceType.NOTION,
+      }),
+    );
+
+    const internal = await runTest(getSourceWithCredentials(userId, source.id));
+    expect(internal).toBeDefined();
+    expect(internal!.credentials).toBeNull();
+  });
+
+  it("should prefer inline credentials over integration", async () => {
+    const integration = await runTest(
+      createIntegration(userId, {
+        providerId: "notion",
+        label: "Workspace",
+        credentials: Buffer.from("integration-token"),
+      }),
+    );
+
+    const source = await runTest(
+      createSource(userId, {
+        name: "Notion with both",
+        type: SourceType.NOTION,
+        credentials: Buffer.from("inline-token"),
+        integrationId: integration.id,
+      }),
+    );
+
+    const internal = await runTest(getSourceWithCredentials(userId, source.id));
+    expect(internal).toBeDefined();
+    expect(internal!.credentials).toEqual(Buffer.from("inline-token"));
   });
 });

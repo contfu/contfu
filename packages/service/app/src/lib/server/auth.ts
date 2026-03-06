@@ -9,6 +9,7 @@ import * as schema from "@contfu/svc-backend/infra/db/schema";
 import { sendEmail } from "@contfu/svc-backend/infra/mail/mail";
 import { absolute, button, link } from "@contfu/svc-backend/infra/mail/mail-rendering";
 import { hasNats } from "@contfu/svc-backend/infra/nats/connection";
+import { upsertIntegrationFromOAuth } from "$lib/server/integration-sync";
 import { checkout, polar, portal, usage, webhooks } from "@polar-sh/better-auth";
 import { Polar } from "@polar-sh/sdk";
 import { betterAuth } from "better-auth";
@@ -82,6 +83,21 @@ export const auth = betterAuth({
               approved: isFirstUser, // First user is auto-approved
             },
           };
+        },
+      },
+    },
+    account: {
+      create: {
+        async after(account) {
+          // When a social account is linked, upsert an integration row
+          if (account.providerId !== "credential" && account.accessToken) {
+            await upsertIntegrationFromOAuth(
+              Number(account.userId),
+              account.providerId,
+              account.accountId,
+              account.accessToken,
+            );
+          }
         },
       },
     },

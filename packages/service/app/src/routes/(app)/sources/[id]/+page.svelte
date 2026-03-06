@@ -26,7 +26,6 @@
   import { cn } from "$lib/utils";
   import { tcToast } from "$lib/utils/toast";
   import { SourceType } from "@contfu/core";
-  import { CredentialsSource } from "@contfu/svc-core";
   import {
     ChevronRightIcon,
     SaveIcon,
@@ -82,7 +81,7 @@
   // Load webhook logs for Strapi and Notion sources
   const webhookLogsData = $derived(
     source?.type === SourceType.STRAPI ||
-    (source?.type === SourceType.NOTION && source.credentialsSource !== CredentialsSource.OAUTH)
+    (source?.type === SourceType.NOTION && !source.integrationId)
       ? await getWebhookLogs({ sourceId: id, limit: 10 })
       : [],
   );
@@ -672,18 +671,16 @@
         </h2>
         <div class="rounded-lg border border-border p-4">
           <p class="text-sm text-muted-foreground">
-            {#if source.credentialsSource === CredentialsSource.OAUTH}
-              Connected via OAuth
-            {:else if source.credentialsSource === CredentialsSource.USER_PROVIDED}
-              Custom integration token
+            {#if source.integrationId}
+              Connected via OAuth integration
             {:else}
-              Unknown (legacy)
+              Custom integration token
             {/if}
           </p>
         </div>
       </section>
 
-      {#if source.credentialsSource !== CredentialsSource.OAUTH}
+      {#if !source.integrationId}
       <!-- Webhook Configuration (Notion) -->
       <section class="mb-8">
         <h2

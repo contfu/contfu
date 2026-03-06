@@ -14,7 +14,7 @@
     "build": "[ -d dist ] || rm -f tsconfig.tsbuildinfo && tsc -b",
     "check": "tsc -p tsconfig.check.json",
     "clean": "rm -rf dist tsconfig.tsbuildinfo",
-    "db:generate": "drizzle-kit generate",
+    "db:generate": "rm -rf db/migrations/*; drizzle-kit generate --name init",
     "db:push": "drizzle-kit push",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio"

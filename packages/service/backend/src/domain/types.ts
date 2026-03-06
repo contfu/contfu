@@ -10,7 +10,6 @@
 
 import { SourceType } from "@contfu/core";
 import type {
-  CredentialsSource,
   ServiceCollection,
   ServiceIncidentWithDetails,
   ServiceInfluxDetails,
@@ -26,6 +25,31 @@ type DecodedIds<T, Ids extends keyof T & string> = Simplify<
     [K in Ids]: number;
   }
 >;
+
+// =============================================================================
+// Integration Types
+// =============================================================================
+
+/** An OAuth integration without sensitive credentials */
+export interface BackendIntegration {
+  id: number;
+  userId: number;
+  providerId: string;
+  label: string;
+  accountId: string | null;
+  hasCredentials: boolean;
+  createdAt: Date;
+  updatedAt: Date | null;
+}
+
+/** Input for creating a new integration */
+export interface CreateIntegrationInput {
+  providerId: string;
+  label: string;
+  accountId?: string | null;
+  /** Raw credentials (will be encrypted by the feature) */
+  credentials?: Buffer | null;
+}
 
 // =============================================================================
 // Source Types
@@ -52,11 +76,8 @@ export interface BackendSource {
    * Undefined for non-web sources.
    */
   webAuthType?: number;
-  /**
-   * How credentials were provided.
-   * Null for legacy sources.
-   */
-  credentialsSource?: CredentialsSource | null;
+  /** FK to integration (non-null means OAuth-sourced credentials) */
+  integrationId: number | null;
   createdAt: Date;
   updatedAt: Date | null;
 }
@@ -204,8 +225,8 @@ export interface CreateSourceInput {
   credentials?: Buffer | null;
   /** Raw webhook secret (will be encrypted by the feature) */
   webhookSecret?: Buffer | null;
-  /** How credentials were provided */
-  credentialsSource?: CredentialsSource | null;
+  /** FK to integration for OAuth-sourced credentials */
+  integrationId?: number | null;
 }
 
 /** Input for updating a source */

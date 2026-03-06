@@ -14,6 +14,7 @@ import {
   collectionTable,
   connectionTable,
   consumerTable,
+  integrationTable,
   sourceCollectionTable,
   sourceTable,
   webhookLogTable,
@@ -75,12 +76,27 @@ function wait(ms: number): Promise<void> {
 
 async function processJob(job: WebhookFetchJob, streamServer: StreamServer): Promise<number> {
   const [source] = await db
-    .select({ credentials: sourceTable.credentials, includeRef: sourceTable.includeRef })
+    .select({
+      credentials: sourceTable.credentials,
+      includeRef: sourceTable.includeRef,
+      integrationId: sourceTable.integrationId,
+    })
     .from(sourceTable)
     .where(and(eq(sourceTable.userId, job.userId), eq(sourceTable.id, job.sourceId)))
     .limit(1);
 
-  if (!source?.credentials) {
+  // Resolve credentials: inline on source, or fall through to integration
+  let encryptedCreds = source?.credentials ?? null;
+  if (!encryptedCreds && source?.integrationId) {
+    const [integration] = await db
+      .select({ credentials: integrationTable.credentials })
+      .from(integrationTable)
+      .where(eq(integrationTable.id, source.integrationId))
+      .limit(1);
+    encryptedCreds = integration?.credentials ?? null;
+  }
+
+  if (!encryptedCreds) {
     await logWebhookEvent(
       job.userId,
       job.sourceId,
@@ -92,7 +108,7 @@ async function processJob(job: WebhookFetchJob, streamServer: StreamServer): Pro
     return 0;
   }
 
-  const credentials = await decryptCredentials(job.userId, source.credentials);
+  const credentials = await decryptCredentials(job.userId, encryptedCreds);
   const token = credentials?.toString("utf8");
   if (!token) {
     await logWebhookEvent(
@@ -268,14 +284,17 @@ async function processJob(job: WebhookFetchJob, streamServer: StreamServer): Pro
   return itemsBroadcast;
 }
 
-async function getSourceType(userId: number, sourceId: number): Promise<SourceType | null> {
+async function getSourceMeta(
+  userId: number,
+  sourceId: number,
+): Promise<{ type: SourceType; integrationId: number | null } | null> {
   const [source] = await db
-    .select({ type: sourceTable.type })
+    .select({ type: sourceTable.type, integrationId: sourceTable.integrationId })
     .from(sourceTable)
     .where(and(eq(sourceTable.userId, userId), eq(sourceTable.id, sourceId)))
     .limit(1);
 
-  return source?.type ?? null;
+  return source ?? null;
 }
 
 async function runWorker(streamServer: StreamServer, signal: AbortSignal): Promise<void> {
@@ -301,12 +320,19 @@ async function runWorker(streamServer: StreamServer, signal: AbortSignal): Promi
     }
 
     try {
-      const sourceType = await getSourceType(job.userId, job.sourceId);
-      const rateLimitConfig = sourceType !== null ? getRateLimitForSourceType(sourceType) : null;
+      const sourceMeta = await getSourceMeta(job.userId, job.sourceId);
+      const rateLimitConfig =
+        sourceMeta !== null ? getRateLimitForSourceType(sourceMeta.type) : null;
 
       let shouldSkip = false;
       while (rateLimitConfig) {
-        const delay = await acquireRateSlot(job.userId, job.sourceId, rateLimitConfig);
+        const delay = await acquireRateSlot(
+          job.userId,
+          job.sourceId,
+          rateLimitConfig,
+          null,
+          sourceMeta?.integrationId,
+        );
         if (delay <= 0) {
           break;
         }

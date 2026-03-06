@@ -1,7 +1,14 @@
 import { SourceType, PropertyType } from "@contfu/core";
 import { apiFetch } from "../http";
 
-const RESOURCES = ["sources", "collections", "consumers", "connections", "influxes"] as const;
+const RESOURCES = [
+  "sources",
+  "collections",
+  "consumers",
+  "connections",
+  "influxes",
+  "integrations",
+] as const;
 type Resource = (typeof RESOURCES)[number];
 
 export function isResource(name: string): name is Resource {
@@ -18,6 +25,7 @@ export interface CliValues {
   "source-collection-id"?: string;
   "include-ref"?: boolean;
   "no-include-ref"?: boolean;
+  token?: string;
 }
 
 const REQUIRED_CREATE: Record<Resource, (keyof CliValues)[]> = {
@@ -26,6 +34,7 @@ const REQUIRED_CREATE: Record<Resource, (keyof CliValues)[]> = {
   consumers: ["name"],
   connections: ["consumer-id", "collection-id"],
   influxes: ["collection-id", "source-collection-id"],
+  integrations: ["name"],
 };
 
 function buildBody(
@@ -65,6 +74,16 @@ function buildBody(
 
   if (values["include-ref"] === true) body.includeRef = true;
   if (values["no-include-ref"] === true) body.includeRef = false;
+
+  // Integrations use different field names
+  if (resource === "integrations") {
+    const result: Record<string, unknown> = {};
+    if (values.name !== undefined) result.label = values.name;
+    if (values.type !== undefined) result.providerId = values.type;
+    else if (action === "create") result.providerId = "notion";
+    if (values.token !== undefined) result.token = values.token;
+    return result;
+  }
 
   return body;
 }
@@ -161,6 +180,13 @@ const TABLE_COLUMNS: Record<Resource, Column[]> = {
       header: "Type",
       format: (v) => SOURCE_TYPE_LABEL[v as number] ?? String(v),
     },
+  ],
+  integrations: [
+    { key: "id", header: "ID" },
+    { key: "label", header: "Label" },
+    { key: "providerId", header: "Provider" },
+    { key: "accountId", header: "Account" },
+    { key: "hasCredentials", header: "Credentials", format: (v) => (v ? "yes" : "no") },
   ],
 };
 

@@ -2,7 +2,7 @@
   import SiteHeader from "$lib/components/layout/site-header.svelte";
   import { Button } from "$lib/components/ui/button";
   import { getCollections } from "$lib/remote/collections.remote";
-  import { FoldersIcon, Plus } from "@lucide/svelte";
+  import { FoldersIcon, PlusIcon } from "@lucide/svelte";
 
   const collections = await getCollections();
 </script>
@@ -10,8 +10,8 @@
 <SiteHeader icon={FoldersIcon} title="collections">
   <div class="ml-auto">
     <Button href="/collections/new">
-      <Plus class="mr-1 size-3" />
-      new
+      <PlusIcon class="size-3" />
+      <span class="hidden sm:inline">add</span>
     </Button>
   </div>
 </SiteHeader>
@@ -32,22 +32,33 @@
       </Button>
     </div>
   {:else}
-    <div class="divide-y divide-border border border-border">
-      {#each collections as collection}
-        <a
-          href="/collections/{collection.id}"
-          class="flex items-center justify-between px-3 py-3 hover:bg-muted/30 transition-colors duration-100"
-        >
-          <div>
-            <span class="text-sm hover:text-primary transition-colors duration-150">{collection.name}</span>
-            <p class="text-xs text-muted-foreground">
-              {collection.influxCount} influx{collection.influxCount === 1 ? "" : "es"} ·
-              {collection.connectionCount} client{collection.connectionCount === 1 ? "" : "s"}
-            </p>
-          </div>
-          <span class="text-xs text-muted-foreground">></span>
-        </a>
-      {/each}
+    <div class="border border-border">
+      <table class="w-full text-xs">
+        <thead>
+          <tr class="border-b border-border bg-muted/50">
+            <th class="px-3 py-2 text-left font-medium text-muted-foreground">name</th>
+            <th class="px-3 py-2 text-right font-medium text-muted-foreground">influxes</th>
+            <th class="px-3 py-2 text-right font-medium text-muted-foreground">clients</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-border">
+          {#each collections as collection}
+            <tr class="hover:bg-muted/30 transition-colors duration-100">
+              <td class="px-3 py-2">
+                <a href="/collections/{collection.id}" class="hover:text-primary transition-colors duration-150">
+                  {collection.name}
+                </a>
+              </td>
+              <td class="px-3 py-2 text-right text-muted-foreground">
+                {collection.influxCount}
+              </td>
+              <td class="px-3 py-2 text-right text-muted-foreground">
+                {collection.connectionCount}
+              </td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
     </div>
   {/if}
 </div>
