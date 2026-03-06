@@ -14,7 +14,7 @@ export async function truncateAllTables(): Promise<void> {
       item_id_conflict_resolution,
       incident,
       influx,
-      connection,
+      consumer_collection,
       source_collection,
       consumer,
       collection,

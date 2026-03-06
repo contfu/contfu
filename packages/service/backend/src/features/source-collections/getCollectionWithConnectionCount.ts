@@ -7,7 +7,7 @@ import type {
 import { DatabaseError } from "../../effect/errors";
 import { Database } from "../../effect/services/Database";
 import {
-  connectionTable,
+  consumerCollectionTable,
   sourceCollectionTable,
   type SourceCollection,
 } from "../../infra/db/schema";
@@ -65,8 +65,13 @@ export const getCollectionWithConnectionCount = (userId: number, id: number) =>
       try: () =>
         db
           .select({ count: sql<number>`count(*)` })
-          .from(connectionTable)
-          .where(and(eq(connectionTable.userId, userId), eq(connectionTable.collectionId, id))),
+          .from(consumerCollectionTable)
+          .where(
+            and(
+              eq(consumerCollectionTable.userId, userId),
+              eq(consumerCollectionTable.collectionId, id),
+            ),
+          ),
       catch: (e) => new DatabaseError({ cause: e }),
     });
 

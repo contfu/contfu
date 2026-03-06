@@ -10,7 +10,7 @@ import { SourceType, PropertyType } from "@contfu/svc-core";
 import { encryptCredentials } from "@contfu/svc-backend/infra/crypto/credentials";
 import {
   collectionTable,
-  connectionTable,
+  consumerCollectionTable,
   consumerTable,
   influxTable,
   sourceCollectionTable,
@@ -161,7 +161,7 @@ export async function seedSelectiveResyncData(db: any): Promise<void> {
   if (!consumer) return;
 
   // Connection
-  await db.insert(connectionTable).values({
+  await db.insert(consumerCollectionTable).values({
     userId,
     consumerId: consumer.id,
     collectionId: collection.id,

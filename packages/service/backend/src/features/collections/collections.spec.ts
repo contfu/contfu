@@ -5,7 +5,7 @@ import { runTest } from "../../../test/effect-helpers";
 import { truncateAllTables } from "../../../test/setup";
 import { db } from "../../infra/db/db";
 import {
-  connectionTable,
+  consumerCollectionTable,
   consumerTable,
   influxTable,
   sourceCollectionTable,
@@ -114,7 +114,7 @@ describe("Collection Features Happy Path", () => {
       schema: null,
       filters: null,
     });
-    await db.insert(connectionTable).values({
+    await db.insert(consumerCollectionTable).values({
       userId,
       consumerId: consumer.id,
       collectionId: created.id,

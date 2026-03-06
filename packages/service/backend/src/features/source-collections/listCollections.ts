@@ -7,7 +7,7 @@ import type {
 import { DatabaseError } from "../../effect/errors";
 import { Database } from "../../effect/services/Database";
 import {
-  connectionTable,
+  consumerCollectionTable,
   sourceCollectionTable,
   type SourceCollection,
 } from "../../infra/db/schema";
@@ -63,12 +63,12 @@ export const listCollections = (userId: number) =>
       try: () =>
         db
           .select({
-            collectionId: connectionTable.collectionId,
+            collectionId: consumerCollectionTable.collectionId,
             count: sql<number>`count(*)`.as("count"),
           })
-          .from(connectionTable)
-          .where(eq(connectionTable.userId, userId))
-          .groupBy(connectionTable.collectionId),
+          .from(consumerCollectionTable)
+          .where(eq(consumerCollectionTable.userId, userId))
+          .groupBy(consumerCollectionTable.collectionId),
       catch: (e) => new DatabaseError({ cause: e }),
     });
 

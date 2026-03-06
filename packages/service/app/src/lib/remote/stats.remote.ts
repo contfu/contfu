@@ -3,7 +3,6 @@ import { getUserId } from "$lib/server/user";
 import { db } from "@contfu/svc-backend/infra/db/db";
 import {
   sourceCollectionTable,
-  connectionTable,
   consumerTable,
   sourceTable,
 } from "@contfu/svc-backend/infra/db/schema";
@@ -14,18 +13,17 @@ export type DashboardStats = {
   collectionCount: number;
   totalItemCount: number;
   consumerCount: number;
-  connectionCount: number;
 };
 
 /**
  * Get aggregated dashboard statistics for the current user.
- * Returns counts for sources, collections, total items, consumers, and connections.
+ * Returns counts for sources, collections, total items, and consumers.
  */
 export const getDashboardStats = query(async (): Promise<DashboardStats> => {
   const userId = getUserId();
 
   // Run all count queries in parallel for better performance
-  const [sourceResult, collectionResult, consumerResult, connectionResult] = await Promise.all([
+  const [sourceResult, collectionResult, consumerResult] = await Promise.all([
     // Count sources
     db
       .select({ count: sql<number>`count(*)` })
@@ -46,12 +44,6 @@ export const getDashboardStats = query(async (): Promise<DashboardStats> => {
       .select({ count: sql<number>`count(*)` })
       .from(consumerTable)
       .where(eq(consumerTable.userId, userId)),
-
-    // Count connections
-    db
-      .select({ count: sql<number>`count(*)` })
-      .from(connectionTable)
-      .where(eq(connectionTable.userId, userId)),
   ]);
 
   return {
@@ -59,6 +51,5 @@ export const getDashboardStats = query(async (): Promise<DashboardStats> => {
     collectionCount: collectionResult[0]?.count ?? 0,
     totalItemCount: collectionResult[0]?.totalItems ?? 0,
     consumerCount: consumerResult[0]?.count ?? 0,
-    connectionCount: connectionResult[0]?.count ?? 0,
   };
 });

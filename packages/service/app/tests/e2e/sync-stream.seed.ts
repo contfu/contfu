@@ -6,7 +6,7 @@
 import { pack } from "msgpackr";
 import {
   collectionTable,
-  connectionTable,
+  consumerCollectionTable,
   consumerTable,
   userTable,
 } from "@contfu/svc-backend/infra/db/schema";
@@ -81,7 +81,7 @@ export async function seedSyncData(db: any): Promise<void> {
   const consumerId = consumer.id;
 
   // Connection: consumer → collection
-  await db.insert(connectionTable).values({
+  await db.insert(consumerCollectionTable).values({
     userId,
     consumerId,
     collectionId: colId,

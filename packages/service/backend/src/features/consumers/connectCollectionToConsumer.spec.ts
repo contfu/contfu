@@ -11,9 +11,9 @@ import {
   sourceTable,
   userTable,
 } from "../../infra/db/schema";
-import { createConnection } from "./createConnection";
+import { connectCollectionToConsumer } from "./connectCollectionToConsumer";
 
-describe("createConnection", () => {
+describe("connectCollectionToConsumer", () => {
   beforeEach(async () => {
     // Clean up tables in correct order (respecting foreign keys)
     await db.delete(influxTable);
@@ -24,7 +24,7 @@ describe("createConnection", () => {
     await db.delete(userTable);
   });
 
-  it("should create a connection to a collection", async () => {
+  it("should create a consumer-collection join to a collection", async () => {
     // Create user
     const [user] = await db
       .insert(userTable)
@@ -53,17 +53,17 @@ describe("createConnection", () => {
       })
       .returning();
 
-    // Create connection to the collection
-    const connection = await runTest(
-      createConnection(user.id, {
+    // Create consumer-collection join
+    const cc = await runTest(
+      connectCollectionToConsumer(user.id, {
         consumerId: consumer.id,
         collectionId: collection.id,
       }),
     );
 
-    expect(connection.userId).toBe(user.id);
-    expect(connection.consumerId).toBe(consumer.id);
-    expect(connection.collectionId).toBe(collection.id);
+    expect(cc.userId).toBe(user.id);
+    expect(cc.consumerId).toBe(consumer.id);
+    expect(cc.collectionId).toBe(collection.id);
   });
 
   it("should fail if collection does not exist (foreign key constraint)", async () => {
@@ -88,7 +88,7 @@ describe("createConnection", () => {
     // Note: No collection created - this should fail with FK constraint
     await expect(
       runTest(
-        createConnection(user.id, {
+        connectCollectionToConsumer(user.id, {
           consumerId: consumer.id,
           collectionId: 999, // Non-existent collection
         }),
@@ -156,15 +156,15 @@ describe("createConnection", () => {
       })
       .returning();
 
-    // Create connection to the collection
-    const connection = await runTest(
-      createConnection(user.id, {
+    // Create consumer-collection join
+    const cc = await runTest(
+      connectCollectionToConsumer(user.id, {
         consumerId: consumer.id,
         collectionId: collection.id,
       }),
     );
 
-    expect(connection.collectionId).toBe(collection.id);
+    expect(cc.collectionId).toBe(collection.id);
   });
 
   it("should reject connecting to another user's consumer", async () => {
@@ -201,7 +201,7 @@ describe("createConnection", () => {
 
     await expect(
       runTest(
-        createConnection(user1.id, {
+        connectCollectionToConsumer(user1.id, {
           consumerId: consumer.id,
           collectionId: collection.id,
         }),
@@ -243,7 +243,7 @@ describe("createConnection", () => {
 
     await expect(
       runTest(
-        createConnection(user1.id, {
+        connectCollectionToConsumer(user1.id, {
           consumerId: consumer.id,
           collectionId: collection.id,
         }),

@@ -3,7 +3,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { Effect } from "effect";
 import { pack as msgpack } from "msgpackr";
 import { enqueueSyncJobs } from "../../features/sync-jobs/enqueueSyncJobs";
-import { collectionTable, connectionTable, consumerTable, db, influxTable } from "../db/db";
+import { collectionTable, consumerCollectionTable, consumerTable, db, influxTable } from "../db/db";
 import { createLogger } from "../logger/index";
 import { publishEvent, purgeEventsUpTo, type StoredWireItemEvent } from "../nats/event-stream";
 import { updateSnapshotAckedSeq } from "../nats/snapshot-stream";
@@ -568,9 +568,14 @@ export async function getConsumerCollectionIds(
   consumerId: number,
 ): Promise<number[]> {
   const rows = await db
-    .select({ collectionId: connectionTable.collectionId })
-    .from(connectionTable)
-    .where(and(eq(connectionTable.userId, userId), eq(connectionTable.consumerId, consumerId)));
+    .select({ collectionId: consumerCollectionTable.collectionId })
+    .from(consumerCollectionTable)
+    .where(
+      and(
+        eq(consumerCollectionTable.userId, userId),
+        eq(consumerCollectionTable.consumerId, consumerId),
+      ),
+    );
   return rows.map((r) => r.collectionId);
 }
 
@@ -580,27 +585,32 @@ export async function getConsumerCollectionRefPolicy(
 ): Promise<Map<number, boolean>> {
   const rows = await db
     .select({
-      collectionId: connectionTable.collectionId,
-      connectionIncludeRef: connectionTable.includeRef,
+      collectionId: consumerCollectionTable.collectionId,
+      connectionIncludeRef: consumerCollectionTable.includeRef,
       consumerIncludeRef: consumerTable.includeRef,
       collectionIncludeRef: collectionTable.includeRef,
     })
-    .from(connectionTable)
+    .from(consumerCollectionTable)
     .innerJoin(
       collectionTable,
       and(
-        eq(connectionTable.userId, collectionTable.userId),
-        eq(connectionTable.collectionId, collectionTable.id),
+        eq(consumerCollectionTable.userId, collectionTable.userId),
+        eq(consumerCollectionTable.collectionId, collectionTable.id),
       ),
     )
     .innerJoin(
       consumerTable,
       and(
-        eq(connectionTable.userId, consumerTable.userId),
-        eq(connectionTable.consumerId, consumerTable.id),
+        eq(consumerCollectionTable.userId, consumerTable.userId),
+        eq(consumerCollectionTable.consumerId, consumerTable.id),
       ),
     )
-    .where(and(eq(connectionTable.userId, userId), eq(connectionTable.consumerId, consumerId)));
+    .where(
+      and(
+        eq(consumerCollectionTable.userId, userId),
+        eq(consumerCollectionTable.consumerId, consumerId),
+      ),
+    );
 
   return new Map(
     rows.map((row) => [

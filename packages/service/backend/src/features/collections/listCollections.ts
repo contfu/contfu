@@ -3,7 +3,7 @@ import { eq, sql } from "drizzle-orm";
 import type { BackendCollection } from "../../domain/types";
 import { Database } from "../../effect/services/Database";
 import { DatabaseError } from "../../effect/errors";
-import { collectionTable, influxTable, connectionTable } from "../../infra/db/schema";
+import { collectionTable, influxTable, consumerCollectionTable } from "../../infra/db/schema";
 import { unpack } from "msgpackr";
 import type { CollectionSchema, RefTargets } from "@contfu/svc-core";
 
@@ -48,12 +48,12 @@ export const listCollections = (userId: number) =>
       try: () =>
         db
           .select({
-            collectionId: connectionTable.collectionId,
+            collectionId: consumerCollectionTable.collectionId,
             count: sql<number>`count(*)`.as("count"),
           })
-          .from(connectionTable)
-          .where(eq(connectionTable.userId, userId))
-          .groupBy(connectionTable.collectionId),
+          .from(consumerCollectionTable)
+          .where(eq(consumerCollectionTable.userId, userId))
+          .groupBy(consumerCollectionTable.collectionId),
       catch: (e) => new DatabaseError({ cause: e }),
     });
 

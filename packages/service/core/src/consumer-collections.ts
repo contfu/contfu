@@ -1,8 +1,8 @@
 /**
- * A connection between a consumer and a collection (service layer).
+ * A consumer-collection join (service layer).
  * Uses encoded string IDs for API exposure.
  */
-export interface ServiceConnection {
+export interface ServiceConsumerCollection {
   userId: string;
   consumerId: string;
   collectionId: string;
@@ -12,9 +12,9 @@ export interface ServiceConnection {
 }
 
 /**
- * A connection with resolved consumer and collection names.
+ * A consumer-collection join with resolved consumer and collection names.
  */
-export interface ServiceConnectionWithDetails extends ServiceConnection {
+export interface ServiceConsumerCollectionWithDetails extends ServiceConsumerCollection {
   consumerName: string;
   collectionName: string;
 }

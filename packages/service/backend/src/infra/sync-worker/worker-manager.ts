@@ -11,7 +11,7 @@ const log = createLogger("sync-worker-manager");
 
 import {
   collectionTable,
-  connectionTable,
+  consumerCollectionTable,
   consumerTable,
   db,
   influxTable,
@@ -231,31 +231,34 @@ async function getConnectionsForCollections(
   for (const collectionId of collectionIds) {
     const connections = await db
       .select({
-        userId: connectionTable.userId,
-        consumerId: connectionTable.consumerId,
-        collectionId: connectionTable.collectionId,
-        includeRef: connectionTable.includeRef,
+        userId: consumerCollectionTable.userId,
+        consumerId: consumerCollectionTable.consumerId,
+        collectionId: consumerCollectionTable.collectionId,
+        includeRef: consumerCollectionTable.includeRef,
         consumerIncludeRef: consumerTable.includeRef,
         collectionIncludeRef: collectionTable.includeRef,
-        lastItemChanged: connectionTable.lastItemChanged,
+        lastItemChanged: consumerCollectionTable.lastItemChanged,
       })
-      .from(connectionTable)
+      .from(consumerCollectionTable)
       .innerJoin(
         collectionTable,
         and(
-          eq(connectionTable.userId, collectionTable.userId),
-          eq(connectionTable.collectionId, collectionTable.id),
+          eq(consumerCollectionTable.userId, collectionTable.userId),
+          eq(consumerCollectionTable.collectionId, collectionTable.id),
         ),
       )
       .innerJoin(
         consumerTable,
         and(
-          eq(connectionTable.userId, consumerTable.userId),
-          eq(connectionTable.consumerId, consumerTable.id),
+          eq(consumerCollectionTable.userId, consumerTable.userId),
+          eq(consumerCollectionTable.consumerId, consumerTable.id),
         ),
       )
       .where(
-        and(eq(connectionTable.userId, userId), eq(connectionTable.collectionId, collectionId)),
+        and(
+          eq(consumerCollectionTable.userId, userId),
+          eq(consumerCollectionTable.collectionId, collectionId),
+        ),
       );
     for (const c of connections) {
       results.push({

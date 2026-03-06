@@ -3,7 +3,7 @@ import { runWithUser } from "$lib/server/run";
 import { getUserId } from "$lib/server/user";
 import type { BackendConsumerWithConnectionCount } from "@contfu/svc-backend/domain/types";
 import { getCollection } from "@contfu/svc-backend/features/collections/getCollection";
-import { listConnectionsByConsumer } from "@contfu/svc-backend/features/connections/listConnectionsByConsumer";
+import { listConsumerCollectionsByConsumer } from "@contfu/svc-backend/features/consumers/listConsumerCollectionsByConsumer";
 import { createConsumer as createConsumerFeature } from "@contfu/svc-backend/features/consumers/createConsumer";
 import { deleteConsumer as deleteConsumerFeature } from "@contfu/svc-backend/features/consumers/deleteConsumer";
 import { getConsumer as getConsumerFeature } from "@contfu/svc-backend/features/consumers/getConsumer";
@@ -158,7 +158,7 @@ export const regenerateKey = form(
  */
 export const getConsumerTypes = query(v.object({ id: idSchema("consumer") }), async ({ id }) => {
   const userId = getUserId();
-  const connections = await runWithUser(userId, listConnectionsByConsumer(userId, id));
+  const connections = await runWithUser(userId, listConsumerCollectionsByConsumer(userId, id));
 
   const collections: TypeGenerationInput[] = [];
   for (const conn of connections) {

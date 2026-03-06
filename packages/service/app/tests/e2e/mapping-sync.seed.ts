@@ -7,7 +7,7 @@ import { SourceType, PropertyType } from "@contfu/svc-core";
 import { encryptCredentials } from "@contfu/svc-backend/infra/crypto/credentials";
 import {
   collectionTable,
-  connectionTable,
+  consumerCollectionTable,
   consumerTable,
   influxTable,
   sourceCollectionTable,
@@ -178,7 +178,7 @@ export async function seedMappingSyncData(db: any): Promise<void> {
   if (!consumer) return;
 
   // Connection: consumer → collection
-  await db.insert(connectionTable).values({
+  await db.insert(consumerCollectionTable).values({
     userId,
     consumerId: consumer.id,
     collectionId: collection.id,
@@ -219,7 +219,7 @@ export async function seedMappingSyncData(db: any): Promise<void> {
   if (!valConsumer) return;
 
   // Connection: validation consumer → validation collection
-  await db.insert(connectionTable).values({
+  await db.insert(consumerCollectionTable).values({
     userId,
     consumerId: valConsumer.id,
     collectionId: valCollection.id,

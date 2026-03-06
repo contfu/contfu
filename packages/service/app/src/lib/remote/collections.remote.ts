@@ -10,7 +10,7 @@ import { deleteCollection as deleteCollectionFeature } from "@contfu/svc-backend
 import { getCollection as getCollectionFeature } from "@contfu/svc-backend/features/collections/getCollection";
 import { listCollections as listCollectionsFeature } from "@contfu/svc-backend/features/collections/listCollections";
 import { updateCollection as updateCollectionFeature } from "@contfu/svc-backend/features/collections/updateCollection";
-import { listConnectionsByCollection } from "@contfu/svc-backend/features/connections/listConnectionsByCollection";
+import { listConsumerCollectionsByCollection } from "@contfu/svc-backend/features/collections/listConsumerCollectionsByCollection";
 import { createInflux } from "@contfu/svc-backend/features/influxes/createInflux";
 import { createSourceCollection as createSourceCollectionFeature } from "@contfu/svc-backend/features/source-collections/createSourceCollection";
 import { getCollectionSchema } from "@contfu/svc-backend/features/source-collections/getCollectionSchema";
@@ -157,7 +157,7 @@ export const deleteCollection = form(v.object({ id: idSchema("collection") }), a
   // Fetch collection name and connections before delete (cascade deletes connections)
   const collection = await runWithUser(userId, getCollectionFeature(userId, data.id));
   const connections = collection
-    ? await runWithUser(userId, listConnectionsByCollection(userId, data.id))
+    ? await runWithUser(userId, listConsumerCollectionsByCollection(userId, data.id))
     : [];
 
   await runWithUser(userId, deleteCollectionFeature(userId, data.id));

@@ -8,7 +8,7 @@ import { truncateAllTables } from "../../../test/setup";
 import { encryptCredentials } from "../../infra/crypto/credentials";
 import {
   collectionTable,
-  connectionTable,
+  consumerCollectionTable,
   consumerTable,
   db,
   influxTable,
@@ -84,7 +84,7 @@ async function createFullChain(opts: {
     .returning();
 
   await db
-    .insert(connectionTable)
+    .insert(consumerCollectionTable)
     .values({
       userId: opts.userId,
       consumerId: consumer.id,
@@ -146,7 +146,7 @@ describe("getConsumerSyncConfig", () => {
         name: "Consumer",
       })
       .returning();
-    await db.insert(connectionTable).values({
+    await db.insert(consumerCollectionTable).values({
       userId: testUserId,
       consumerId: consumer.id,
       collectionId: collection.id,
@@ -244,7 +244,7 @@ describe("getConsumerSyncConfig", () => {
         key: Buffer.alloc(32, 0xab),
       })
       .returning();
-    await db.insert(connectionTable).values([
+    await db.insert(consumerCollectionTable).values([
       { userId: testUserId, consumerId: consumer.id, collectionId: collection1.id },
       { userId: testUserId, consumerId: consumer.id, collectionId: collection2.id },
     ]);
@@ -312,7 +312,7 @@ describe("getConsumerSyncConfig", () => {
         key: Buffer.alloc(32, 0xab),
       })
       .returning();
-    await db.insert(connectionTable).values([
+    await db.insert(consumerCollectionTable).values([
       { userId: testUserId, consumerId: consumer.id, collectionId: collection1.id },
       { userId: testUserId, consumerId: consumer.id, collectionId: collection2.id },
     ]);
@@ -373,7 +373,7 @@ describe("getConsumerSyncConfig", () => {
         key: Buffer.alloc(32, 0xab),
       })
       .returning();
-    await db.insert(connectionTable).values([
+    await db.insert(consumerCollectionTable).values([
       { userId: testUserId, consumerId: consumer.id, collectionId: collection1.id },
       { userId: testUserId, consumerId: consumer.id, collectionId: collection2.id },
     ]);

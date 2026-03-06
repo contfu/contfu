@@ -21,10 +21,10 @@
     updateCollectionSchema,
   } from "$lib/remote/collections.remote";
   import {
-    addConnection,
-    getConnectionsByCollection,
-    removeConnection,
-  } from "$lib/remote/connections.remote";
+    addConsumerCollection,
+    getConsumerCollectionsByCollection,
+    removeConsumerCollection,
+  } from "$lib/remote/consumer-collections.remote";
   import { getConsumers } from "$lib/remote/consumers.remote";
   import {
     addInfluxWithAutoCreate,
@@ -42,7 +42,7 @@
     Filter as FilterType,
     MappingRule,
     RefTargets,
-    ServiceConnectionWithDetails,
+    ServiceConsumerCollectionWithDetails,
   } from "@contfu/svc-core";
   import {
     Check,
@@ -77,7 +77,7 @@
   const collectionQuery = $derived(getCollection({ id }));
   const influxesQuery = $derived(getInfluxes({ collectionId: params.id }));
   const connectionsQuery = $derived(
-    getConnectionsByCollection({ collectionId: params.id }),
+    getConsumerCollectionsByCollection({ collectionId: params.id }),
   );
 
   // Await queries separately
@@ -628,7 +628,7 @@
         {/snippet}
         <div class="mb-4 space-y-2">
           {#each await connectionsQuery as connection}
-            {@const remove = removeConnection.for(connection.consumerId)}
+            {@const remove = removeConsumerCollection.for(connection.consumerId)}
             <div
               class="flex items-center justify-between rounded-md border border-border px-4 py-3"
             >
@@ -700,14 +700,14 @@
           (c) => c.id === selectedConsumerId,
         )}
         <form
-          {...addConnection.enhance(async ({ submit }) => {
+          {...addConsumerCollection.enhance(async ({ submit }) => {
             await tcToast(async () => {
               const override = {
                 collectionName: collection.name,
                 consumerName: selectedConsumer!.name,
                 consumerId: selectedConsumerId!,
                 collectionId: collection.id,
-              } as ServiceConnectionWithDetails;
+              } as ServiceConsumerCollectionWithDetails;
               await submit().updates(
                 connectionsQuery.withOverride((connections) => [
                   ...connections,
@@ -722,12 +722,12 @@
           class="flex gap-2"
         >
           <input
-            {...addConnection.fields.collectionId.as("text")}
+            {...addConsumerCollection.fields.collectionId.as("text")}
             type="hidden"
             value={collection.id}
           />
           <input
-            {...addConnection.fields.consumerId.as("text")}
+            {...addConsumerCollection.fields.consumerId.as("text")}
             type="hidden"
             value={selectedConsumerId!}
           />

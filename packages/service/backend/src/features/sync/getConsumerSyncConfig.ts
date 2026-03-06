@@ -8,7 +8,7 @@ import { Database } from "../../effect/services/Database";
 import { DatabaseError } from "../../effect/errors";
 import {
   collectionTable,
-  connectionTable,
+  consumerCollectionTable,
   consumerTable,
   influxTable,
   integrationTable,
@@ -54,28 +54,31 @@ export const getConsumerSyncConfig = (userId: number, consumerId: number) =>
       try: () =>
         db
           .select({
-            collectionId: connectionTable.collectionId,
-            connectionIncludeRef: connectionTable.includeRef,
+            collectionId: consumerCollectionTable.collectionId,
+            connectionIncludeRef: consumerCollectionTable.includeRef,
             consumerIncludeRef: consumerTable.includeRef,
             collectionIncludeRef: collectionTable.includeRef,
           })
-          .from(connectionTable)
+          .from(consumerCollectionTable)
           .innerJoin(
             collectionTable,
             and(
-              eq(connectionTable.userId, collectionTable.userId),
-              eq(connectionTable.collectionId, collectionTable.id),
+              eq(consumerCollectionTable.userId, collectionTable.userId),
+              eq(consumerCollectionTable.collectionId, collectionTable.id),
             ),
           )
           .innerJoin(
             consumerTable,
             and(
-              eq(connectionTable.userId, consumerTable.userId),
-              eq(connectionTable.consumerId, consumerTable.id),
+              eq(consumerCollectionTable.userId, consumerTable.userId),
+              eq(consumerCollectionTable.consumerId, consumerTable.id),
             ),
           )
           .where(
-            and(eq(connectionTable.userId, userId), eq(connectionTable.consumerId, consumerId)),
+            and(
+              eq(consumerCollectionTable.userId, userId),
+              eq(consumerCollectionTable.consumerId, consumerId),
+            ),
           ),
       catch: (e) => new DatabaseError({ cause: e }),
     });

@@ -2,29 +2,29 @@ import { Effect } from "effect";
 import { and, eq } from "drizzle-orm";
 import {
   collectionTable,
-  connectionTable,
+  consumerCollectionTable,
   consumerTable,
-  type Connection,
+  type ConsumerCollection,
 } from "../../infra/db/schema";
-import type { BackendConnection, CreateConnectionInput } from "../../domain/types";
+import type { BackendConsumerCollection, CreateConsumerCollectionInput } from "../../domain/types";
 import { Database } from "../../effect/services/Database";
 import { DatabaseError, NotFoundError } from "../../effect/errors";
 
-function mapToBackendConnection(connection: Connection): BackendConnection {
+function mapToBackendConsumerCollection(cc: ConsumerCollection): BackendConsumerCollection {
   return {
-    userId: connection.userId,
-    consumerId: connection.consumerId,
-    collectionId: connection.collectionId,
-    includeRef: connection.includeRef,
-    lastItemChanged: connection.lastItemChanged,
-    lastConsistencyCheck: connection.lastConsistencyCheck,
+    userId: cc.userId,
+    consumerId: cc.consumerId,
+    collectionId: cc.collectionId,
+    includeRef: cc.includeRef,
+    lastItemChanged: cc.lastItemChanged,
+    lastConsistencyCheck: cc.lastConsistencyCheck,
   };
 }
 
 /**
- * Create a new connection for a user.
+ * Create a new consumer-collection join for a user.
  */
-export const createConnection = (userId: number, input: CreateConnectionInput) =>
+export const connectCollectionToConsumer = (userId: number, input: CreateConsumerCollectionInput) =>
   Effect.gen(function* () {
     const { db } = yield* Database;
 
@@ -57,7 +57,7 @@ export const createConnection = (userId: number, input: CreateConnectionInput) =
     const [inserted] = yield* Effect.tryPromise({
       try: () =>
         db
-          .insert(connectionTable)
+          .insert(consumerCollectionTable)
           .values({
             userId,
             consumerId: input.consumerId,
@@ -70,5 +70,5 @@ export const createConnection = (userId: number, input: CreateConnectionInput) =
       catch: (e) => new DatabaseError({ cause: e }),
     });
 
-    return mapToBackendConnection(inserted);
-  }).pipe(Effect.withSpan("connections.create", { attributes: { userId } }));
+    return mapToBackendConsumerCollection(inserted);
+  }).pipe(Effect.withSpan("consumers.connectCollectionToConsumer", { attributes: { userId } }));

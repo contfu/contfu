@@ -199,3 +199,4 @@ logs/security/
 .worktree
 packages/client/app/data
 .claude/worktrees
+.claude/review.md

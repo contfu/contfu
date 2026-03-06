@@ -15,11 +15,11 @@
   } from "$lib/components/ui/tooltip";
   import { getCollections } from "$lib/remote/collections.remote";
   import {
-    addConnection,
-    getConnectionsByConsumer,
-    removeConnection,
-    updateConnectionIncludeRef,
-  } from "$lib/remote/connections.remote";
+    addConsumerCollection,
+    getConsumerCollectionsByConsumer,
+    removeConsumerCollection,
+    updateConsumerCollectionIncludeRef,
+  } from "$lib/remote/consumer-collections.remote";
   import {
     deleteConsumer,
     getConsumer,
@@ -56,7 +56,7 @@
   // Parameterized queries must be in $derived to react to param changes
   const consumerQuery = $derived(getConsumer({ id }));
   const connectionsQuery = $derived(
-    getConnectionsByConsumer({ consumerId: params.id }),
+    getConsumerCollectionsByConsumer({ consumerId: params.id }),
   );
 
   // Await queries separately
@@ -326,10 +326,10 @@
         {/snippet}
         <div class="mb-4 space-y-2">
           {#each await connectionsQuery as connection}
-            {@const update = updateConnectionIncludeRef.for(
+            {@const update = updateConsumerCollectionIncludeRef.for(
               connection.collectionId,
             )}
-            {@const remove = removeConnection.for(connection.collectionId)}
+            {@const remove = removeConsumerCollection.for(connection.collectionId)}
             <div
               class="flex items-center justify-between rounded-md border border-border px-4 py-3"
             >
@@ -420,7 +420,7 @@
 
       {#if availableCollections.length > 0}
         <form
-          {...addConnection.enhance(async ({ submit }) => {
+          {...addConsumerCollection.enhance(async ({ submit }) => {
             await submit().updates(
               consumerQuery,
               connectionsQuery,
@@ -431,7 +431,7 @@
           class="flex gap-2"
         >
           <input
-            {...addConnection.fields.consumerId.as("text")}
+            {...addConsumerCollection.fields.consumerId.as("text")}
             type="hidden"
             value={client.id}
           />

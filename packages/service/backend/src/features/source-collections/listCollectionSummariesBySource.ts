@@ -3,7 +3,7 @@ import { Effect } from "effect";
 import type { BackendSourceCollectionSummary } from "../../domain/types";
 import { DatabaseError } from "../../effect/errors";
 import { Database } from "../../effect/services/Database";
-import { connectionTable, sourceCollectionTable } from "../../infra/db/schema";
+import { consumerCollectionTable, sourceCollectionTable } from "../../infra/db/schema";
 
 /**
  * Get all collections for a user filtered by source ID with connection counts.
@@ -43,17 +43,17 @@ export const listCollectionSummariesBySource = (userId: number, sourceId: number
       try: () =>
         db
           .select({
-            collectionId: connectionTable.collectionId,
+            collectionId: consumerCollectionTable.collectionId,
             count: sql<number>`count(*)`.as("count"),
           })
-          .from(connectionTable)
+          .from(consumerCollectionTable)
           .where(
             and(
-              eq(connectionTable.userId, userId),
-              inArray(connectionTable.collectionId, collectionIds),
+              eq(consumerCollectionTable.userId, userId),
+              inArray(consumerCollectionTable.collectionId, collectionIds),
             ),
           )
-          .groupBy(connectionTable.collectionId),
+          .groupBy(consumerCollectionTable.collectionId),
       catch: (e) => new DatabaseError({ cause: e }),
     });
 

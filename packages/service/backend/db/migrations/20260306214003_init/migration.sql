@@ -57,17 +57,17 @@ CREATE TABLE "collection" (
 );
 --> statement-breakpoint
 ALTER TABLE "collection" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
-CREATE TABLE "connection" (
+CREATE TABLE "consumer_collection" (
 	"userId" integer NOT NULL,
 	"consumerId" integer,
 	"collectionId" integer,
 	"includeRef" boolean DEFAULT true NOT NULL,
 	"lastItemChanged" timestamp with time zone,
 	"lastConsistencyCheck" timestamp with time zone,
-	CONSTRAINT "connection_pkey" PRIMARY KEY("consumerId","collectionId")
+	CONSTRAINT "consumer_collection_pkey" PRIMARY KEY("consumerId","collectionId")
 );
 --> statement-breakpoint
-ALTER TABLE "connection" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE "consumer_collection" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "consumer" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "consumer_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
 	"userId" integer NOT NULL,
@@ -243,9 +243,9 @@ CREATE TABLE "webhook_log" (
 ALTER TABLE "webhook_log" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE INDEX "account_userId_idx" ON "account" ("userId");--> statement-breakpoint
 CREATE INDEX "collection_userId_idx" ON "collection" ("userId");--> statement-breakpoint
-CREATE INDEX "connection_userId_idx" ON "connection" ("userId");--> statement-breakpoint
-CREATE INDEX "connection_consumerId_idx" ON "connection" ("consumerId");--> statement-breakpoint
-CREATE INDEX "connection_collectionId_idx" ON "connection" ("collectionId");--> statement-breakpoint
+CREATE INDEX "consumer_collection_userId_idx" ON "consumer_collection" ("userId");--> statement-breakpoint
+CREATE INDEX "consumer_collection_consumerId_idx" ON "consumer_collection" ("consumerId");--> statement-breakpoint
+CREATE INDEX "consumer_collection_collectionId_idx" ON "consumer_collection" ("collectionId");--> statement-breakpoint
 CREATE INDEX "consumer_userId_idx" ON "consumer" ("userId");--> statement-breakpoint
 CREATE INDEX "incident_userId_idx" ON "incident" ("userId");--> statement-breakpoint
 CREATE INDEX "incident_influxId_idx" ON "incident" ("influxId");--> statement-breakpoint
@@ -264,9 +264,9 @@ CREATE INDEX "sync_job_status_idx" ON "sync_job" ("status","startedAt");--> stat
 CREATE INDEX "webhook_log_sourceId_idx" ON "webhook_log" ("sourceId");--> statement-breakpoint
 ALTER TABLE "account" ADD CONSTRAINT "account_userId_user_id_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE;--> statement-breakpoint
 ALTER TABLE "collection" ADD CONSTRAINT "collection_userId_user_id_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE;--> statement-breakpoint
-ALTER TABLE "connection" ADD CONSTRAINT "connection_userId_user_id_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE;--> statement-breakpoint
-ALTER TABLE "connection" ADD CONSTRAINT "connection_consumerId_consumer_id_fkey" FOREIGN KEY ("consumerId") REFERENCES "consumer"("id") ON DELETE CASCADE;--> statement-breakpoint
-ALTER TABLE "connection" ADD CONSTRAINT "connection_collectionId_collection_id_fkey" FOREIGN KEY ("collectionId") REFERENCES "collection"("id") ON DELETE CASCADE;--> statement-breakpoint
+ALTER TABLE "consumer_collection" ADD CONSTRAINT "consumer_collection_userId_user_id_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE;--> statement-breakpoint
+ALTER TABLE "consumer_collection" ADD CONSTRAINT "consumer_collection_consumerId_consumer_id_fkey" FOREIGN KEY ("consumerId") REFERENCES "consumer"("id") ON DELETE CASCADE;--> statement-breakpoint
+ALTER TABLE "consumer_collection" ADD CONSTRAINT "consumer_collection_collectionId_collection_id_fkey" FOREIGN KEY ("collectionId") REFERENCES "collection"("id") ON DELETE CASCADE;--> statement-breakpoint
 ALTER TABLE "consumer" ADD CONSTRAINT "consumer_userId_user_id_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE;--> statement-breakpoint
 ALTER TABLE "incident" ADD CONSTRAINT "incident_userId_user_id_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE;--> statement-breakpoint
 ALTER TABLE "incident" ADD CONSTRAINT "incident_influxId_influx_id_fkey" FOREIGN KEY ("influxId") REFERENCES "influx"("id") ON DELETE CASCADE;--> statement-breakpoint
@@ -284,7 +284,7 @@ ALTER TABLE "source" ADD CONSTRAINT "source_integrationId_integration_id_fkey" F
 ALTER TABLE "sync_job" ADD CONSTRAINT "sync_job_sourceCollectionId_source_collection_id_fkey" FOREIGN KEY ("sourceCollectionId") REFERENCES "source_collection"("id") ON DELETE CASCADE;--> statement-breakpoint
 ALTER TABLE "webhook_log" ADD CONSTRAINT "webhook_log_sourceId_source_id_fkey" FOREIGN KEY ("sourceId") REFERENCES "source"("id") ON DELETE CASCADE;--> statement-breakpoint
 CREATE POLICY "collection_user_isolation" ON "collection" AS PERMISSIVE FOR ALL TO "app_user" USING ("collection"."userId" = current_setting('app.current_user_id', true)::integer) WITH CHECK ("collection"."userId" = current_setting('app.current_user_id', true)::integer);--> statement-breakpoint
-CREATE POLICY "connection_user_isolation" ON "connection" AS PERMISSIVE FOR ALL TO "app_user" USING ("connection"."userId" = current_setting('app.current_user_id', true)::integer) WITH CHECK ("connection"."userId" = current_setting('app.current_user_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "consumer_collection_user_isolation" ON "consumer_collection" AS PERMISSIVE FOR ALL TO "app_user" USING ("consumer_collection"."userId" = current_setting('app.current_user_id', true)::integer) WITH CHECK ("consumer_collection"."userId" = current_setting('app.current_user_id', true)::integer);--> statement-breakpoint
 CREATE POLICY "consumer_user_isolation" ON "consumer" AS PERMISSIVE FOR ALL TO "app_user" USING ("consumer"."userId" = current_setting('app.current_user_id', true)::integer) WITH CHECK ("consumer"."userId" = current_setting('app.current_user_id', true)::integer);--> statement-breakpoint
 CREATE POLICY "incident_user_isolation" ON "incident" AS PERMISSIVE FOR ALL TO "app_user" USING ("incident"."userId" = current_setting('app.current_user_id', true)::integer) WITH CHECK ("incident"."userId" = current_setting('app.current_user_id', true)::integer);--> statement-breakpoint
 CREATE POLICY "influx_user_isolation" ON "influx" AS PERMISSIVE FOR ALL TO "app_user" USING ("influx"."userId" = current_setting('app.current_user_id', true)::integer) WITH CHECK ("influx"."userId" = current_setting('app.current_user_id', true)::integer);--> statement-breakpoint

@@ -3,7 +3,7 @@ import { and, eq, sql } from "drizzle-orm";
 import type { BackendCollection } from "../../domain/types";
 import { Database } from "../../effect/services/Database";
 import { DatabaseError } from "../../effect/errors";
-import { collectionTable, influxTable, connectionTable } from "../../infra/db/schema";
+import { collectionTable, influxTable, consumerCollectionTable } from "../../infra/db/schema";
 import { unpack } from "msgpackr";
 import type { CollectionSchema, RefTargets } from "@contfu/svc-core";
 
@@ -41,9 +41,12 @@ export const getCollection = (userId: number, collectionId: number) =>
       try: () =>
         db
           .select({ count: sql<number>`count(*)` })
-          .from(connectionTable)
+          .from(consumerCollectionTable)
           .where(
-            and(eq(connectionTable.userId, userId), eq(connectionTable.collectionId, collectionId)),
+            and(
+              eq(consumerCollectionTable.userId, userId),
+              eq(consumerCollectionTable.collectionId, collectionId),
+            ),
           ),
       catch: (e) => new DatabaseError({ cause: e }),
     });

@@ -1,5 +1,5 @@
 export * from "./collections";
-export * from "./connections";
+export * from "./consumer-collections";
 export * from "./utils";
 export * from "./constants";
 export * from "./filters";

@@ -2,7 +2,7 @@ import { json } from "@sveltejs/kit";
 import { authenticateApiKey } from "$lib/server/auth";
 import { runWithUser } from "$lib/server/run";
 import { listCollections } from "@contfu/svc-backend/features/collections/listCollections";
-import { listConnections } from "@contfu/svc-backend/features/connections/listConnections";
+import { listConsumerCollections } from "@contfu/svc-backend/features/consumers/listConsumerCollections";
 import { listConsumers } from "@contfu/svc-backend/features/consumers/listConsumers";
 import { listSources } from "@contfu/svc-backend/features/sources/listSources";
 
@@ -13,7 +13,7 @@ export async function GET({ request }: { request: Request }) {
     runWithUser(userId, listSources(userId)),
     runWithUser(userId, listCollections(userId)),
     runWithUser(userId, listConsumers(userId)),
-    runWithUser(userId, listConnections(userId)),
+    runWithUser(userId, listConsumerCollections(userId)),
   ]);
 
   return json({

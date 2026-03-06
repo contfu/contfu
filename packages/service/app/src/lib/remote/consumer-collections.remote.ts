@@ -3,59 +3,59 @@ import { runWithUser } from "$lib/server/run";
 import { getStreamServer } from "$lib/server/startup";
 import { getUserId } from "$lib/server/user";
 import { EventType, type WireEvent } from "@contfu/core";
-import type { BackendConnectionWithDetails } from "@contfu/svc-backend/domain/types";
+import type { BackendConsumerCollectionWithDetails } from "@contfu/svc-backend/domain/types";
 import { getCollection as getCollectionFeature } from "@contfu/svc-backend/features/collections/getCollection";
-import { createConnection as createConnectionFeature } from "@contfu/svc-backend/features/connections/createConnection";
-import { deleteConnection as deleteConnectionFeature } from "@contfu/svc-backend/features/connections/deleteConnection";
-import { getConnection as getConnectionFeature } from "@contfu/svc-backend/features/connections/getConnection";
-import { listConnections } from "@contfu/svc-backend/features/connections/listConnections";
-import { listConnectionsByCollection } from "@contfu/svc-backend/features/connections/listConnectionsByCollection";
-import { listConnectionsByConsumer } from "@contfu/svc-backend/features/connections/listConnectionsByConsumer";
-import { updateConnection as updateConnectionFeature } from "@contfu/svc-backend/features/connections/updateConnection";
+import { connectCollectionToConsumer as connectCollectionToConsumerFeature } from "@contfu/svc-backend/features/consumers/connectCollectionToConsumer";
+import { disconnectCollectionFromConsumer as disconnectCollectionFromConsumerFeature } from "@contfu/svc-backend/features/consumers/disconnectCollectionFromConsumer";
+import { getConsumerCollection as getConsumerCollectionFeature } from "@contfu/svc-backend/features/consumers/getConsumerCollection";
+import { listConsumerCollections } from "@contfu/svc-backend/features/consumers/listConsumerCollections";
+import { listConsumerCollectionsByCollection } from "@contfu/svc-backend/features/collections/listConsumerCollectionsByCollection";
+import { listConsumerCollectionsByConsumer } from "@contfu/svc-backend/features/consumers/listConsumerCollectionsByConsumer";
+import { updateConsumerCollection as updateConsumerCollectionFeature } from "@contfu/svc-backend/features/consumers/updateConsumerCollection";
 import { encodeId, idSchema } from "@contfu/svc-backend/infra/ids";
 import { invalid } from "@sveltejs/kit";
 import * as v from "valibot";
 
 /**
- * Get all connections for the current user.
+ * Get all consumer-collection joins for the current user.
  */
-export const getConnections = query(async () => {
+export const getConsumerCollections = query(async () => {
   const userId = getUserId();
-  const connections = await runWithUser(userId, listConnections(userId));
-  return connections.map(encodeConnection);
+  const rows = await runWithUser(userId, listConsumerCollections(userId));
+  return rows.map(encodeConsumerCollection);
 });
 
 /**
- * Get connections filtered by consumer ID.
+ * Get consumer-collection joins filtered by consumer ID.
  */
-export const getConnectionsByConsumer = query(
+export const getConsumerCollectionsByConsumer = query(
   v.object({ consumerId: idSchema("consumer") }),
   async ({ consumerId }) => {
     const userId = getUserId();
-    const connections = await runWithUser(userId, listConnectionsByConsumer(userId, consumerId));
-    return connections.map(encodeConnection);
+    const rows = await runWithUser(userId, listConsumerCollectionsByConsumer(userId, consumerId));
+    return rows.map(encodeConsumerCollection);
   },
 );
 
 /**
- * Get connections filtered by collection ID.
+ * Get consumer-collection joins filtered by collection ID.
  */
-export const getConnectionsByCollection = query(
+export const getConsumerCollectionsByCollection = query(
   v.object({ collectionId: idSchema("collection") }),
   async ({ collectionId }) => {
     const userId = getUserId();
-    const connections = await runWithUser(
+    const rows = await runWithUser(
       userId,
-      listConnectionsByCollection(userId, collectionId),
+      listConsumerCollectionsByCollection(userId, collectionId),
     );
-    return connections.map(encodeConnection);
+    return rows.map(encodeConsumerCollection);
   },
 );
 
 /**
- * Add a new connection between a consumer and a collection.
+ * Add a new consumer-collection join.
  */
-export const addConnection = form(
+export const addConsumerCollection = form(
   v.object({
     consumerId: idSchema("consumer"),
     collectionId: idSchema("collection"),
@@ -69,19 +69,19 @@ export const addConnection = form(
   async (data, issue) => {
     const userId = getUserId();
 
-    // Check if connection already exists
+    // Check if join already exists
     const existing = await runWithUser(
       userId,
-      getConnectionFeature(userId, data.consumerId, data.collectionId),
+      getConsumerCollectionFeature(userId, data.consumerId, data.collectionId),
     );
     if (existing) {
       invalid(issue.consumerId("Connection already exists"));
     }
 
-    // Insert the new connection
-    const connection = await runWithUser(
+    // Insert the new join
+    const cc = await runWithUser(
       userId,
-      createConnectionFeature(userId, {
+      connectCollectionToConsumerFeature(userId, {
         consumerId: data.consumerId,
         collectionId: data.collectionId,
         includeRef: data.includeRef ?? true,
@@ -101,14 +101,14 @@ export const addConnection = form(
       getStreamServer().sendToConsumer(userId, data.consumerId, schemaEvent);
     }
 
-    return { success: true, connection };
+    return { success: true, connection: cc };
   },
 );
 
 /**
- * Update connection-level ref transmission policy.
+ * Update consumer-collection ref transmission policy.
  */
-export const updateConnectionIncludeRef = form(
+export const updateConsumerCollectionIncludeRef = form(
   v.object({
     consumerId: idSchema("consumer"),
     collectionId: idSchema("collection"),
@@ -121,7 +121,7 @@ export const updateConnectionIncludeRef = form(
     const userId = getUserId();
     const updated = await runWithUser(
       userId,
-      updateConnectionFeature(userId, data.consumerId, data.collectionId, {
+      updateConsumerCollectionFeature(userId, data.consumerId, data.collectionId, {
         includeRef: data.includeRef,
       }),
     );
@@ -135,9 +135,9 @@ export const updateConnectionIncludeRef = form(
 );
 
 /**
- * Remove a connection between a consumer and a collection.
+ * Remove a consumer-collection join.
  */
-export const removeConnection = form(
+export const removeConsumerCollection = form(
   v.object({
     consumerId: idSchema("consumer"),
     collectionId: idSchema("collection"),
@@ -145,12 +145,12 @@ export const removeConnection = form(
   async (data, issue) => {
     const userId = getUserId();
 
-    // Fetch collection name before deleting the connection
+    // Fetch collection name before deleting the join
     const collection = await runWithUser(userId, getCollectionFeature(userId, data.collectionId));
 
     const deleted = await runWithUser(
       userId,
-      deleteConnectionFeature(userId, data.consumerId, data.collectionId),
+      disconnectCollectionFromConsumerFeature(userId, data.consumerId, data.collectionId),
     );
 
     if (!deleted) {
@@ -171,7 +171,7 @@ export const removeConnection = form(
 // Helpers
 // =============================================================================
 
-function encodeConnection(c: BackendConnectionWithDetails) {
+function encodeConsumerCollection(c: BackendConsumerCollectionWithDetails) {
   return {
     ...c,
     userId: encodeId("user", c.userId),

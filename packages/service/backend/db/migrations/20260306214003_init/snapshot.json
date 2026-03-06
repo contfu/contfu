@@ -1,7 +1,7 @@
 {
   "version": "8",
   "dialect": "postgres",
-  "id": "67c0c7d9-b3ec-4551-82ae-5c275d00ee55",
+  "id": "dc2de5b1-6c5a-4a5b-a9fa-41f83559af4d",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
@@ -26,7 +26,7 @@
     },
     {
       "isRlsEnabled": true,
-      "name": "connection",
+      "name": "consumer_collection",
       "entityType": "tables",
       "schema": "public"
     },
@@ -730,7 +730,7 @@
       "name": "userId",
       "entityType": "columns",
       "schema": "public",
-      "table": "connection"
+      "table": "consumer_collection"
     },
     {
       "type": "integer",
@@ -743,7 +743,7 @@
       "name": "consumerId",
       "entityType": "columns",
       "schema": "public",
-      "table": "connection"
+      "table": "consumer_collection"
     },
     {
       "type": "integer",
@@ -756,7 +756,7 @@
       "name": "collectionId",
       "entityType": "columns",
       "schema": "public",
-      "table": "connection"
+      "table": "consumer_collection"
     },
     {
       "type": "boolean",
@@ -769,7 +769,7 @@
       "name": "includeRef",
       "entityType": "columns",
       "schema": "public",
-      "table": "connection"
+      "table": "consumer_collection"
     },
     {
       "type": "timestamp with time zone",
@@ -782,7 +782,7 @@
       "name": "lastItemChanged",
       "entityType": "columns",
       "schema": "public",
-      "table": "connection"
+      "table": "consumer_collection"
     },
     {
       "type": "timestamp with time zone",
@@ -795,7 +795,7 @@
       "name": "lastConsistencyCheck",
       "entityType": "columns",
       "schema": "public",
-      "table": "connection"
+      "table": "consumer_collection"
     },
     {
       "type": "integer",
@@ -2488,10 +2488,10 @@
       "with": "",
       "method": "btree",
       "concurrently": false,
-      "name": "connection_userId_idx",
+      "name": "consumer_collection_userId_idx",
       "entityType": "indexes",
       "schema": "public",
-      "table": "connection"
+      "table": "consumer_collection"
     },
     {
       "nameExplicit": true,
@@ -2509,10 +2509,10 @@
       "with": "",
       "method": "btree",
       "concurrently": false,
-      "name": "connection_consumerId_idx",
+      "name": "consumer_collection_consumerId_idx",
       "entityType": "indexes",
       "schema": "public",
-      "table": "connection"
+      "table": "consumer_collection"
     },
     {
       "nameExplicit": true,
@@ -2530,10 +2530,10 @@
       "with": "",
       "method": "btree",
       "concurrently": false,
-      "name": "connection_collectionId_idx",
+      "name": "consumer_collection_collectionId_idx",
       "entityType": "indexes",
       "schema": "public",
-      "table": "connection"
+      "table": "consumer_collection"
     },
     {
       "nameExplicit": true,
@@ -2931,10 +2931,10 @@
       ],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
-      "name": "connection_userId_user_id_fkey",
+      "name": "consumer_collection_userId_user_id_fkey",
       "entityType": "fks",
       "schema": "public",
-      "table": "connection"
+      "table": "consumer_collection"
     },
     {
       "nameExplicit": false,
@@ -2948,10 +2948,10 @@
       ],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
-      "name": "connection_consumerId_consumer_id_fkey",
+      "name": "consumer_collection_consumerId_consumer_id_fkey",
       "entityType": "fks",
       "schema": "public",
-      "table": "connection"
+      "table": "consumer_collection"
     },
     {
       "nameExplicit": false,
@@ -2965,10 +2965,10 @@
       ],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
-      "name": "connection_collectionId_collection_id_fkey",
+      "name": "consumer_collection_collectionId_collection_id_fkey",
       "entityType": "fks",
       "schema": "public",
-      "table": "connection"
+      "table": "consumer_collection"
     },
     {
       "nameExplicit": false,
@@ -3248,10 +3248,10 @@
         "collectionId"
       ],
       "nameExplicit": false,
-      "name": "connection_pkey",
+      "name": "consumer_collection_pkey",
       "entityType": "pks",
       "schema": "public",
-      "table": "connection"
+      "table": "consumer_collection"
     },
     {
       "columns": [
@@ -3526,12 +3526,12 @@
       "roles": [
         "app_user"
       ],
-      "using": "\"connection\".\"userId\" = current_setting('app.current_user_id', true)::integer",
-      "withCheck": "\"connection\".\"userId\" = current_setting('app.current_user_id', true)::integer",
-      "name": "connection_user_isolation",
+      "using": "\"consumer_collection\".\"userId\" = current_setting('app.current_user_id', true)::integer",
+      "withCheck": "\"consumer_collection\".\"userId\" = current_setting('app.current_user_id', true)::integer",
+      "name": "consumer_collection_user_isolation",
       "entityType": "policies",
       "schema": "public",
-      "table": "connection"
+      "table": "consumer_collection"
     },
     {
       "as": "PERMISSIVE",

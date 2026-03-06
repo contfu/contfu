@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "bun:test";
 import { runTest } from "../../../test/effect-helpers";
 import { truncateAllTables } from "../../../test/setup";
 import { db } from "../../infra/db/db";
-import { collectionTable, connectionTable, userTable } from "../../infra/db/schema";
+import { collectionTable, consumerCollectionTable, userTable } from "../../infra/db/schema";
 import { createConsumer } from "./createConsumer";
 import { deleteConsumer } from "./deleteConsumer";
 import { findConsumerByKey } from "./findConsumerByKey";
@@ -157,7 +157,7 @@ describe("Consumer Features", () => {
         .returning();
 
       // Create connections
-      await db.insert(connectionTable).values([
+      await db.insert(consumerCollectionTable).values([
         {
           userId: testUserId,
           consumerId: 1,
@@ -370,7 +370,7 @@ describe("Consumer Features", () => {
       ]);
 
       // Create multiple connections
-      await db.insert(connectionTable).values([
+      await db.insert(consumerCollectionTable).values([
         { userId: testUserId, consumerId: 1, collectionId: 1 },
         { userId: testUserId, consumerId: 1, collectionId: 2 },
         { userId: testUserId, consumerId: 1, collectionId: 3 },

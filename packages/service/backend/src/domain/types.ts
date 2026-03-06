@@ -191,11 +191,11 @@ export interface BackendConsumerSummary {
 }
 
 // =============================================================================
-// Connection Types
+// ConsumerCollection Types
 // =============================================================================
 
-/** A connection between a consumer and a collection */
-export interface BackendConnection {
+/** A consumer-collection join between a consumer and a collection */
+export interface BackendConsumerCollection {
   userId: number;
   consumerId: number;
   collectionId: number;
@@ -205,8 +205,8 @@ export interface BackendConnection {
   lastConsistencyCheck: Date | null;
 }
 
-/** A connection with resolved consumer and collection names */
-export interface BackendConnectionWithDetails extends BackendConnection {
+/** A consumer-collection join with resolved consumer and collection names */
+export interface BackendConsumerCollectionWithDetails extends BackendConsumerCollection {
   consumerName: string;
   collectionName: string;
 }
@@ -270,8 +270,8 @@ export interface UpdateConsumerInput {
   key?: Buffer | null;
 }
 
-/** Input for creating a new connection */
-export interface CreateConnectionInput {
+/** Input for creating a new consumer-collection join */
+export interface CreateConsumerCollectionInput {
   consumerId: number;
   collectionId: number;
   includeRef?: boolean;
@@ -279,8 +279,8 @@ export interface CreateConnectionInput {
   lastConsistencyCheck?: Date | null;
 }
 
-/** Input for updating a connection */
-export interface UpdateConnectionInput {
+/** Input for updating a consumer-collection join */
+export interface UpdateConsumerCollectionInput {
   includeRef?: boolean;
   lastItemChanged?: Date | null;
   lastConsistencyCheck?: Date | null;

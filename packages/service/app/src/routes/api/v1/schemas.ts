@@ -8,8 +8,8 @@ export {
   UpdateCollectionSchema,
   CreateConsumerSchema,
   UpdateConsumerSchema,
-  CreateConnectionSchema,
-  UpdateConnectionSchema,
+  CreateConsumerCollectionSchema,
+  UpdateConsumerCollectionSchema,
   CreateInfluxSchema,
   UpdateInfluxSchema,
 } from "@contfu/svc-core";

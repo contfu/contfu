@@ -7,7 +7,7 @@ import { pack } from "msgpackr";
 import { encryptCredentials } from "@contfu/svc-backend/infra/crypto/credentials";
 import {
   collectionTable,
-  connectionTable,
+  consumerCollectionTable,
   consumerTable,
   influxTable,
   sourceCollectionTable,
@@ -112,7 +112,7 @@ export async function seedContentfulWebhookData(db: any): Promise<void> {
   if (!consumer) return;
   const consumerId = consumer.id;
 
-  await db.insert(connectionTable).values({
+  await db.insert(consumerCollectionTable).values({
     userId,
     consumerId,
     collectionId: colId,

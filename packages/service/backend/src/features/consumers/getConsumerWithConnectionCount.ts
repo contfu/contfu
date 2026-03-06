@@ -3,7 +3,7 @@ import { and, eq, sql } from "drizzle-orm";
 import type { BackendConsumer, BackendConsumerWithConnectionCount } from "../../domain/types";
 import { DatabaseError } from "../../effect/errors";
 import { Database } from "../../effect/services/Database";
-import { connectionTable, consumerTable, type Consumer } from "../../infra/db/schema";
+import { consumerCollectionTable, consumerTable, type Consumer } from "../../infra/db/schema";
 
 function mapToBackendConsumer(consumer: Consumer): BackendConsumer {
   return {
@@ -50,8 +50,8 @@ export const getConsumerWithConnectionCount = (userId: number, id: number) =>
       try: () =>
         db
           .select({ count: sql<number>`count(*)` })
-          .from(connectionTable)
-          .where(eq(connectionTable.consumerId, id)),
+          .from(consumerCollectionTable)
+          .where(eq(consumerCollectionTable.consumerId, id)),
       catch: (e) => new DatabaseError({ cause: e }),
     });
 

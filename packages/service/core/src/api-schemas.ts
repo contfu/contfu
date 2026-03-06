@@ -43,15 +43,15 @@ export const UpdateConsumerSchema = v.object({
   includeRef: v.optional(v.boolean()),
 });
 
-// --- Connections ---
+// --- ConsumerCollections ---
 
-export const CreateConnectionSchema = v.object({
+export const CreateConsumerCollectionSchema = v.object({
   consumerId: v.number(),
   collectionId: v.number(),
   includeRef: v.optional(v.boolean()),
 });
 
-export const UpdateConnectionSchema = v.object({
+export const UpdateConsumerCollectionSchema = v.object({
   includeRef: v.optional(v.boolean()),
 });
 

@@ -6,7 +6,7 @@
 import { SourceType, PropertyType } from "@contfu/svc-core";
 import {
   collectionTable,
-  connectionTable,
+  consumerCollectionTable,
   consumerTable,
   influxTable,
   sourceCollectionTable,
@@ -118,7 +118,7 @@ export async function seedSchemaResyncData(db: any): Promise<void> {
     .returning({ id: consumerTable.id });
   if (!consumer) return;
 
-  await db.insert(connectionTable).values({
+  await db.insert(consumerCollectionTable).values({
     userId,
     consumerId: consumer.id,
     collectionId: collection.id,

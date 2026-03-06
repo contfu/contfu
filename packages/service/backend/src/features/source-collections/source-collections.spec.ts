@@ -9,7 +9,7 @@ import { truncateAllTables } from "../../../test/setup";
 import { db } from "../../infra/db/db";
 import {
   collectionTable,
-  connectionTable,
+  consumerCollectionTable,
   consumerTable,
   influxTable,
   sourceCollectionTable,
@@ -124,7 +124,7 @@ describe("SourceCollection Features Happy Path", () => {
       })
       .returning();
 
-    await db.insert(connectionTable).values({
+    await db.insert(consumerCollectionTable).values({
       userId,
       consumerId: consumer.id,
       collectionId: collection.id,

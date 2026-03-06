@@ -14,7 +14,7 @@ import {
 import { db } from "@contfu/svc-backend/infra/db/db";
 import {
   collectionTable,
-  connectionTable,
+  consumerCollectionTable,
   consumerTable,
   sourceCollectionTable,
   sourceTable,
@@ -432,32 +432,32 @@ export const POST: RequestHandler = async ({ request, params }) => {
 
         const connections = await db
           .select({
-            consumerId: connectionTable.consumerId,
-            collectionId: connectionTable.collectionId,
-            connectionIncludeRef: connectionTable.includeRef,
+            consumerId: consumerCollectionTable.consumerId,
+            collectionId: consumerCollectionTable.collectionId,
+            connectionIncludeRef: consumerCollectionTable.includeRef,
             consumerIncludeRef: consumerTable.includeRef,
             collectionIncludeRef: collectionTable.includeRef,
-            lastItemChanged: connectionTable.lastItemChanged,
+            lastItemChanged: consumerCollectionTable.lastItemChanged,
           })
-          .from(connectionTable)
+          .from(consumerCollectionTable)
           .innerJoin(
             collectionTable,
             and(
-              eq(connectionTable.userId, collectionTable.userId),
-              eq(connectionTable.collectionId, collectionTable.id),
+              eq(consumerCollectionTable.userId, collectionTable.userId),
+              eq(consumerCollectionTable.collectionId, collectionTable.id),
             ),
           )
           .innerJoin(
             consumerTable,
             and(
-              eq(connectionTable.userId, consumerTable.userId),
-              eq(connectionTable.consumerId, consumerTable.id),
+              eq(consumerCollectionTable.userId, consumerTable.userId),
+              eq(consumerCollectionTable.consumerId, consumerTable.id),
             ),
           )
           .where(
             and(
-              eq(connectionTable.userId, source.userId),
-              inArray(connectionTable.collectionId, targetCollectionIds),
+              eq(consumerCollectionTable.userId, source.userId),
+              inArray(consumerCollectionTable.collectionId, targetCollectionIds),
             ),
           );
 
@@ -530,32 +530,32 @@ export const POST: RequestHandler = async ({ request, params }) => {
 
             const connections = await db
               .select({
-                consumerId: connectionTable.consumerId,
-                collectionId: connectionTable.collectionId,
-                connectionIncludeRef: connectionTable.includeRef,
+                consumerId: consumerCollectionTable.consumerId,
+                collectionId: consumerCollectionTable.collectionId,
+                connectionIncludeRef: consumerCollectionTable.includeRef,
                 consumerIncludeRef: consumerTable.includeRef,
                 collectionIncludeRef: collectionTable.includeRef,
-                lastItemChanged: connectionTable.lastItemChanged,
+                lastItemChanged: consumerCollectionTable.lastItemChanged,
               })
-              .from(connectionTable)
+              .from(consumerCollectionTable)
               .innerJoin(
                 collectionTable,
                 and(
-                  eq(connectionTable.userId, collectionTable.userId),
-                  eq(connectionTable.collectionId, collectionTable.id),
+                  eq(consumerCollectionTable.userId, collectionTable.userId),
+                  eq(consumerCollectionTable.collectionId, collectionTable.id),
                 ),
               )
               .innerJoin(
                 consumerTable,
                 and(
-                  eq(connectionTable.userId, consumerTable.userId),
-                  eq(connectionTable.consumerId, consumerTable.id),
+                  eq(consumerCollectionTable.userId, consumerTable.userId),
+                  eq(consumerCollectionTable.consumerId, consumerTable.id),
                 ),
               )
               .where(
                 and(
-                  eq(connectionTable.userId, sc.userId),
-                  inArray(connectionTable.collectionId, targetCollectionIds),
+                  eq(consumerCollectionTable.userId, sc.userId),
+                  inArray(consumerCollectionTable.collectionId, targetCollectionIds),
                 ),
               );
 
@@ -767,32 +767,32 @@ export const POST: RequestHandler = async ({ request, params }) => {
       if (targetCollectionIds.length > 0) {
         const connections = await db
           .select({
-            consumerId: connectionTable.consumerId,
-            collectionId: connectionTable.collectionId,
-            connectionIncludeRef: connectionTable.includeRef,
+            consumerId: consumerCollectionTable.consumerId,
+            collectionId: consumerCollectionTable.collectionId,
+            connectionIncludeRef: consumerCollectionTable.includeRef,
             consumerIncludeRef: consumerTable.includeRef,
             collectionIncludeRef: collectionTable.includeRef,
-            lastItemChanged: connectionTable.lastItemChanged,
+            lastItemChanged: consumerCollectionTable.lastItemChanged,
           })
-          .from(connectionTable)
+          .from(consumerCollectionTable)
           .innerJoin(
             collectionTable,
             and(
-              eq(connectionTable.userId, collectionTable.userId),
-              eq(connectionTable.collectionId, collectionTable.id),
+              eq(consumerCollectionTable.userId, collectionTable.userId),
+              eq(consumerCollectionTable.collectionId, collectionTable.id),
             ),
           )
           .innerJoin(
             consumerTable,
             and(
-              eq(connectionTable.userId, consumerTable.userId),
-              eq(connectionTable.consumerId, consumerTable.id),
+              eq(consumerCollectionTable.userId, consumerTable.userId),
+              eq(consumerCollectionTable.consumerId, consumerTable.id),
             ),
           )
           .where(
             and(
-              eq(connectionTable.userId, source.userId),
-              inArray(connectionTable.collectionId, targetCollectionIds),
+              eq(consumerCollectionTable.userId, source.userId),
+              inArray(consumerCollectionTable.collectionId, targetCollectionIds),
             ),
           );
 
@@ -901,32 +901,32 @@ export const POST: RequestHandler = async ({ request, params }) => {
 
         const connections = await db
           .select({
-            consumerId: connectionTable.consumerId,
-            collectionId: connectionTable.collectionId,
-            connectionIncludeRef: connectionTable.includeRef,
+            consumerId: consumerCollectionTable.consumerId,
+            collectionId: consumerCollectionTable.collectionId,
+            connectionIncludeRef: consumerCollectionTable.includeRef,
             consumerIncludeRef: consumerTable.includeRef,
             collectionIncludeRef: collectionTable.includeRef,
-            lastItemChanged: connectionTable.lastItemChanged,
+            lastItemChanged: consumerCollectionTable.lastItemChanged,
           })
-          .from(connectionTable)
+          .from(consumerCollectionTable)
           .innerJoin(
             collectionTable,
             and(
-              eq(connectionTable.userId, collectionTable.userId),
-              eq(connectionTable.collectionId, collectionTable.id),
+              eq(consumerCollectionTable.userId, collectionTable.userId),
+              eq(consumerCollectionTable.collectionId, collectionTable.id),
             ),
           )
           .innerJoin(
             consumerTable,
             and(
-              eq(connectionTable.userId, consumerTable.userId),
-              eq(connectionTable.consumerId, consumerTable.id),
+              eq(consumerCollectionTable.userId, consumerTable.userId),
+              eq(consumerCollectionTable.consumerId, consumerTable.id),
             ),
           )
           .where(
             and(
-              eq(connectionTable.userId, userId),
-              inArray(connectionTable.collectionId, targetCollectionIds),
+              eq(consumerCollectionTable.userId, userId),
+              inArray(consumerCollectionTable.collectionId, targetCollectionIds),
             ),
           );
 

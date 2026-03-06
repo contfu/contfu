@@ -9,7 +9,6 @@
     TooltipTrigger,
   } from "$lib/components/ui/tooltip";
   import { getCollections } from "$lib/remote/collections.remote";
-  import { getConnections } from "$lib/remote/connections.remote";
   import { getConsumers } from "$lib/remote/consumers.remote";
   import { getIncidentCount } from "$lib/remote/incidents.remote";
   import { getSources } from "$lib/remote/sources.remote";
@@ -18,7 +17,6 @@
     DatabaseIcon,
     FoldersIcon,
     LayoutDashboardIcon,
-    Link2Icon,
     PencilIcon,
     PlusIcon,
     UsersIcon,
@@ -28,19 +26,15 @@
     getSources(),
     getCollections(),
     getConsumers(),
-    getConnections(),
   ]);
 
-  const [sourcesResult, collectionsResult, consumersResult, connectionsResult] =
-    results;
+  const [sourcesResult, collectionsResult, consumersResult] = results;
   const sources =
     sourcesResult.status === "fulfilled" ? sourcesResult.value : [];
   const collections =
     collectionsResult.status === "fulfilled" ? collectionsResult.value : [];
   const consumers =
     consumersResult.status === "fulfilled" ? consumersResult.value : [];
-  const connections =
-    connectionsResult.status === "fulfilled" ? connectionsResult.value : [];
   const hasLoadErrors = results.some((result) => result.status === "rejected");
 
   const incidentCountQuery = getIncidentCount();
@@ -80,7 +74,7 @@
   {/if}
 
   <!-- Stats -->
-  <div class="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
+  <div class="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3">
     <div class="border border-border p-3">
       <div class="text-2xl font-semibold">{sources.length}</div>
       <div class="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -100,13 +94,6 @@
       <div class="flex items-center gap-1.5 text-xs text-muted-foreground">
         <UsersIcon class="size-3" />
         consumers
-      </div>
-    </div>
-    <div class="border border-border p-3">
-      <div class="text-2xl font-semibold">{connections.length}</div>
-      <div class="flex items-center gap-1.5 text-xs text-muted-foreground">
-        <Link2Icon class="size-3" />
-        connections
       </div>
     </div>
   </div>

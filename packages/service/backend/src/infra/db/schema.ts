@@ -422,8 +422,8 @@ export const influxTable = pgTable.withRLS(
 export type Influx = typeof influxTable.$inferSelect;
 
 /** The connection of the consumer to the collection. */
-export const connectionTable = pgTable.withRLS(
-  "connection",
+export const consumerCollectionTable = pgTable.withRLS(
+  "consumer_collection",
   {
     /** The user which owns the collection and consumer. */
     userId: integer()
@@ -446,10 +446,10 @@ export const connectionTable = pgTable.withRLS(
   },
   (table) => [
     primaryKey({ columns: [table.consumerId, table.collectionId] }),
-    index("connection_userId_idx").on(table.userId),
-    index("connection_consumerId_idx").on(table.consumerId),
-    index("connection_collectionId_idx").on(table.collectionId),
-    pgPolicy("connection_user_isolation", {
+    index("consumer_collection_userId_idx").on(table.userId),
+    index("consumer_collection_consumerId_idx").on(table.consumerId),
+    index("consumer_collection_collectionId_idx").on(table.collectionId),
+    pgPolicy("consumer_collection_user_isolation", {
       for: "all",
       to: appUserRole,
       using: sql`${table.userId} = ${currentUserIdSql}`,
@@ -458,7 +458,7 @@ export const connectionTable = pgTable.withRLS(
   ],
 );
 
-export type Connection = typeof connectionTable.$inferSelect;
+export type ConsumerCollection = typeof consumerCollectionTable.$inferSelect;
 
 export const itemIdConflictResolutionTable = pgTable(
   "item_id_conflict_resolution",
