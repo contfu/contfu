@@ -183,6 +183,11 @@
     @apply focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background;
   }
 
+  .page-shell {
+    @apply w-full mx-auto px-4 sm:px-6;
+    max-width: 1200px;
+  }
+
   .cursor-blink::after {
     content: "\2588";
     animation: cursor-blink 1s step-end infinite;

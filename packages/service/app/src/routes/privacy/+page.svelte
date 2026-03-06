@@ -6,7 +6,7 @@
   <title>Privacy Policy - Contfu</title>
 </svelte:head>
 
-<div class="container mx-auto max-w-4xl px-4 py-24">
+<div class="page-shell px-4 py-24">
   <a
     href="/"
     class="mb-8 inline-flex items-center text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"

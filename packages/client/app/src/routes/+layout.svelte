@@ -10,7 +10,7 @@
 <ModeWatcher modeStorageKey="theme" defaultMode="dark" />
 <div class="flex min-h-screen flex-col">
   <nav class="border-b border-border bg-card">
-    <div class="container mx-auto flex max-w-6xl items-center gap-1 px-4 py-2 text-sm">
+    <div class="page-shell flex items-center gap-1 py-2 text-sm">
       <a href="/" class="mr-4 flex items-center gap-2">
         <img src="/favicon.svg" alt="contfu" class="h-5 w-auto" />
         <span class="font-semibold tracking-tight">contfu</span>

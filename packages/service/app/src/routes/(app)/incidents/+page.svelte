@@ -35,7 +35,7 @@
 
 <SiteHeader icon={AlertTriangleIcon} title="incidents" />
 
-<div class="mx-auto max-w-3xl px-4 py-8 sm:px-6">
+<div class="page-shell px-4 py-8 sm:px-6">
   {#if incidents.length === 0}
     <div class="border border-dashed border-border p-12 text-center">
       <CheckCircleIcon class="mx-auto mb-3 size-8 text-success/50" />

@@ -13,6 +13,7 @@ import {
 import { consumerTypes } from "./commands/generate-types";
 import { queryItems, countItems } from "./commands/items";
 import { login, logout } from "./commands/login";
+import { status } from "./commands/status";
 
 function printUsage() {
   console.error(`Usage: contfu [--help] <command> [args...]
@@ -20,6 +21,7 @@ function printUsage() {
 Commands:
   login [--no-browser]              Authenticate
   logout                            Clear stored credentials
+  status                            Show resource summary
   <resource> list                   List all items
   <resource> get <id>               Get item by ID
   <resource> create [options]       Create item
@@ -121,6 +123,11 @@ async function main() {
 
   if (cmd === "logout") {
     await logout();
+    return;
+  }
+
+  if (cmd === "status") {
+    await status((values.format as string | undefined) ?? "table");
     return;
   }
 

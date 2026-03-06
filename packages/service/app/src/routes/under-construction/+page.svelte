@@ -4,7 +4,7 @@
 </svelte:head>
 
 <div class="flex min-h-screen flex-col items-center justify-center p-4">
-  <div class="max-w-md">
+  <div class="page-shell">
     <p class="text-xs text-muted-foreground mb-4">
       <span class="text-primary">$</span> contfu --status
     </p>

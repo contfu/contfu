@@ -328,7 +328,7 @@
 </SiteHeader>
 
 {#if collection}
-  <div class="mx-auto max-w-xl px-4 py-8 sm:px-6">
+  <div class="page-shell px-4 py-8 sm:px-6">
     <div class="mb-8">
       <div class="flex items-center gap-2">
         <h1 class="text-2xl font-semibold tracking-tight">{collection.displayName ?? collection.name}</h1>

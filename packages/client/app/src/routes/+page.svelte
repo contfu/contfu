@@ -49,7 +49,7 @@
   });
 </script>
 
-<div class="container mx-auto max-w-5xl p-6">
+<div class="page-shell p-6">
   <div class="mb-6 flex items-center justify-between">
     <h1 class="text-lg"><span class="text-primary">$</span> contfu status</h1>
     <CopyTextButton

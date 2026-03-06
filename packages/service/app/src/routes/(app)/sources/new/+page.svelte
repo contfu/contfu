@@ -230,9 +230,9 @@
   </a>
 </SiteHeader>
 
-<div class="mx-auto max-w-xl px-4 py-8 sm:px-6">
+<div class="page-shell px-4 py-8 sm:px-6">
   <p class="mb-8 text-xs text-muted-foreground">
-    <span class="text-primary">$</span> contfu sources --add
+    <span class="text-primary">$</span> contfu sources create
   </p>
 
   <form

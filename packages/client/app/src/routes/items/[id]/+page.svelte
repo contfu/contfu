@@ -115,7 +115,7 @@
   }
 </script>
 
-<div class="container mx-auto max-w-4xl space-y-6 p-6">
+<div class="page-shell space-y-6 p-6">
   <div class="flex items-center justify-between">
     <h1 class="text-xl font-semibold tracking-tight">Item Detail</h1>
     <Button href="/items" variant="ghost" size="sm">Back to items</Button>

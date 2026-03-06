@@ -320,7 +320,7 @@
 <main>
   <!-- Hero -->
   <section class="border-b border-border py-20 sm:py-28">
-    <div class="mx-auto max-w-3xl px-4 sm:px-6 scroll-stagger">
+    <div class="landing-shell px-4 sm:px-6 scroll-stagger">
       <div class="mb-8">
         <img src="/favicon.svg" alt="contfu" class="h-12 sm:h-14 w-auto" />
       </div>
@@ -343,7 +343,7 @@
 
   <!-- How It Works -->
   <section id="how-it-works" class="border-b border-border py-16 sm:py-24">
-    <div class="mx-auto max-w-3xl px-4 sm:px-6">
+    <div class="landing-shell px-4 sm:px-6">
       <div class="scroll-reveal text-xs text-muted-foreground mb-6">
         <span class="text-primary">$</span> contfu explain --how-it-works
       </div>
@@ -573,9 +573,9 @@
 
   <!-- CMS Integrations -->
   <section class="border-b border-border py-12">
-    <div class="mx-auto max-w-3xl px-4 sm:px-6">
+    <div class="landing-shell px-4 sm:px-6">
       <div class="scroll-reveal text-xs text-muted-foreground mb-6">
-        <span class="text-primary">$</span> contfu sources --list
+        <span class="text-primary">$</span> contfu sources list
       </div>
       <div class="grid grid-cols-2 gap-3 sm:grid-cols-5 scroll-stagger">
         {#each cmsSources as source}
@@ -598,7 +598,7 @@
 
   <!-- Features -->
   <section id="features" class="border-b border-border py-16 sm:py-24">
-    <div class="mx-auto max-w-3xl px-4 sm:px-6">
+    <div class="landing-shell px-4 sm:px-6">
       <div class="scroll-reveal text-xs text-muted-foreground mb-6">
         <span class="text-primary">$</span> contfu --features
       </div>
@@ -616,7 +616,7 @@
 
   <!-- Beta -->
   <section id="beta" class="py-16 sm:py-24">
-    <div class="mx-auto max-w-3xl px-4 sm:px-6">
+    <div class="landing-shell px-4 sm:px-6">
       <div class="scroll-reveal border border-primary/30 bg-primary/5 p-8">
         <div class="text-xs text-muted-foreground mb-4">
           <span class="text-primary">$</span> contfu beta --info
@@ -654,7 +654,7 @@
 
   <!-- Final CTA -->
   <section class="border-t border-border py-16 sm:py-24">
-    <div class="scroll-reveal mx-auto max-w-2xl px-4 sm:px-6 text-center">
+    <div class="scroll-reveal landing-shell px-4 sm:px-6 text-center">
       <div class="text-xs text-muted-foreground mb-4">
         <span class="text-primary">$</span> contfu init<span class="cursor-blink"></span>
       </div>

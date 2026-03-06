@@ -14,7 +14,7 @@
   });
 </script>
 
-<div class="container mx-auto max-w-6xl p-6">
+<div class="page-shell p-6">
   <div class="mb-6 flex items-center justify-between">
     <h1 class="text-xl font-semibold tracking-tight">Items</h1>
   </div>

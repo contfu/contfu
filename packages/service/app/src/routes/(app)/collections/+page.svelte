@@ -16,9 +16,9 @@
   </div>
 </SiteHeader>
 
-<div class="mx-auto max-w-4xl px-4 py-8 sm:px-6">
+<div class="page-shell px-4 py-8 sm:px-6">
   <p class="mb-6 text-xs text-muted-foreground">
-    <span class="text-primary">$</span> contfu collections --list
+    <span class="text-primary">$</span> contfu collections list
   </p>
 
   {#if collections.length === 0}

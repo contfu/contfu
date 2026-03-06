@@ -5,7 +5,7 @@
 </script>
 
 <div class="flex min-h-[calc(100vh-8rem)] items-center justify-center px-4">
-	<div class="w-full max-w-sm text-center">
+	<div class="page-shell text-center">
 		<div
 			class="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 dark:bg-emerald-950"
 		>

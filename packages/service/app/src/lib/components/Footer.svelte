@@ -3,7 +3,7 @@
 </script>
 
 <footer class="border-t border-border">
-  <div class="mx-auto max-w-5xl px-4 sm:px-6">
+  <div class="page-shell px-4 sm:px-6">
     <div class="flex items-center justify-between py-4 text-xs text-muted-foreground">
       <span>contfu &copy; {currentYear}</span>
       <nav class="flex items-center gap-4">

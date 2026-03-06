@@ -17,9 +17,9 @@
   });
 </script>
 
-<div class="container mx-auto max-w-6xl space-y-6 p-6">
+<div class="page-shell space-y-6 p-6">
   <div class="flex items-center justify-between">
-    <h1 class="text-lg"><span class="text-primary">$</span> contfu collections --show {data.collection.name}</h1>
+    <h1 class="text-lg"><span class="text-primary">$</span> contfu collections get {data.collection.name}</h1>
     <Button href="/collections" variant="ghost" size="sm">&lt;- back</Button>
   </div>
 

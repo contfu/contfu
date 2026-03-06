@@ -20,7 +20,7 @@
 </script>
 
 <header class="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-  <div class="mx-auto max-w-5xl px-4 sm:px-6">
+  <div class="page-shell px-4 sm:px-6">
     <div class="flex h-12 items-center justify-between">
       <a href="/" class="flex items-center gap-2" aria-label="Go to home">
         <img src="/favicon.svg" alt="contfu" class="h-6 w-auto" />

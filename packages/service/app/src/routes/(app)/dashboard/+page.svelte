@@ -55,9 +55,9 @@
 
 <SiteHeader icon={LayoutDashboardIcon} title="dashboard" />
 
-<div class="mx-auto max-w-4xl px-4 py-8 sm:px-6">
+<div class="page-shell px-4 py-8 sm:px-6">
   <p class="mb-6 text-xs text-muted-foreground">
-    <span class="text-primary">$</span> contfu status --overview
+    <span class="text-primary">$</span> contfu status
   </p>
 
   {#if hasLoadErrors}
@@ -115,7 +115,7 @@
   <section class="mb-8">
     <div class="mb-3 flex items-center justify-between">
       <h2 class="text-xs text-muted-foreground">
-        <span class="text-primary">$</span> contfu sources --list
+        <span class="text-primary">$</span> contfu sources list
       </h2>
       <Button size="sm" href="/sources/new">
         <PlusIcon class="size-3" />
@@ -184,7 +184,7 @@
   <section class="mb-8">
     <div class="mb-3 flex items-center justify-between">
       <h2 class="text-xs text-muted-foreground">
-        <span class="text-primary">$</span> contfu collections --list
+        <span class="text-primary">$</span> contfu collections list
       </h2>
       <Button size="sm" href="/collections/new">
         <PlusIcon class="size-3" />
@@ -253,7 +253,7 @@
   <section>
     <div class="mb-3 flex items-center justify-between">
       <h2 class="text-xs text-muted-foreground">
-        <span class="text-primary">$</span> contfu consumers --list
+        <span class="text-primary">$</span> contfu consumers list
       </h2>
       <Button size="sm" href="/consumers/new">
         <PlusIcon class="size-3" />

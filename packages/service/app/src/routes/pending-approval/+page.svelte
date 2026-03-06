@@ -19,7 +19,7 @@
 </svelte:head>
 
 <div class="flex min-h-screen flex-col items-center justify-center p-4">
-  <div class="w-full max-w-md border border-border p-8">
+  <div class="page-shell border border-border p-8">
     <div>
       <p class="text-xs text-muted-foreground mb-2">status/pending</p>
       <h1 class="text-xl font-semibold">

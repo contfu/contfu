@@ -42,7 +42,7 @@
 </script>
 
 <div class="flex min-h-[calc(100vh-8rem)] items-center justify-center px-4 py-12">
-	<div class="w-full max-w-sm">
+	<div class="auth-shell">
 		<div class="mb-6">
 			<p class="text-xs text-muted-foreground mb-1">session/register</p>
 			<h1 class="text-xl font-semibold">

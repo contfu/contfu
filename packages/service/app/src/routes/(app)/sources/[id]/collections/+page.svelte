@@ -40,7 +40,7 @@
 </SiteHeader>
 
 {#if source && collections}
-  <div class="mx-auto max-w-4xl px-4 py-8 sm:px-6">
+  <div class="page-shell px-4 py-8 sm:px-6">
     <div class="mb-6 flex items-center gap-3">
       <span
         class="rounded-md bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground"
@@ -116,7 +116,7 @@
     {/if}
   </div>
 {:else}
-  <div class="mx-auto max-w-2xl px-4 py-8 sm:px-6">
+  <div class="page-shell px-4 py-8 sm:px-6">
     <Alert.Root variant="destructive">
       <Alert.Title>Source not found</Alert.Title>
     </Alert.Root>

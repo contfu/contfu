@@ -202,6 +202,21 @@ html {
     @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
   }
 
+  .page-shell {
+    @apply w-full mx-auto px-4 sm:px-6;
+    max-width: 1200px;
+  }
+
+  .landing-shell {
+    @apply w-full mx-auto px-4 sm:px-6;
+    max-width: 960px;
+  }
+
+  .auth-shell {
+    @apply w-full mx-auto;
+    max-width: 420px;
+  }
+
   /* Terminal prompt cursor */
   .cursor-blink::after {
     content: "\2588";
