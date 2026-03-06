@@ -228,8 +228,44 @@
     flash(`con:${consumer}`);
   }
 
+  const headings = [
+    'Query Any CMS\nin Milliseconds',
+    'One Typesafe API\nfor Every CMS',
+    'Switch CMS Without\nRewriting Apps',
+  ];
+
+  let headingText = $state('');
+  let headingIndex = $state(0);
+
   onMount(() => {
     let active = true;
+
+    // Typewriter effect for hero headings
+    let charIndex = 0;
+    let typing = true;
+
+    const typeNext = () => {
+      if (!active) return;
+      const target = headings[headingIndex];
+      if (typing) {
+        if (charIndex <= target.length) {
+          headingText = target.slice(0, charIndex++);
+          setTimeout(typeNext, 45);
+        } else {
+          setTimeout(() => { typing = false; charIndex = target.length; typeNext(); }, 1800);
+        }
+      } else {
+        if (charIndex > 0) {
+          headingText = target.slice(0, charIndex--);
+          setTimeout(typeNext, 25);
+        } else {
+          headingIndex = (headingIndex + 1) % headings.length;
+          typing = true;
+          setTimeout(typeNext, 200);
+        }
+      }
+    };
+    typeNext();
 
     function scheduleEvent() {
       if (!active) return;
@@ -291,8 +327,8 @@
       <div class="text-xs text-muted-foreground mb-4">
         <span class="text-primary">$</span> contfu --version 0.1.0-beta
       </div>
-      <h1 class="text-3xl font-semibold sm:text-4xl">
-        Query Any CMS<br/>in Milliseconds
+      <h1 class="text-3xl font-semibold sm:text-4xl min-h-[4rem] sm:min-h-[5rem] whitespace-pre-line">
+        {headingText}<span class="cursor-blink"></span>
       </h1>
       <p class="mt-4 max-w-xl text-sm text-muted-foreground leading-relaxed">
         Sync content from Notion, Strapi, and more into a local SQLite database.
@@ -633,6 +669,7 @@
   @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 
   :global(.icon-blink) { animation: icon-blink 1.2s ease-in-out infinite; }
+
   @keyframes icon-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 
   .sys-row { display: flex; }
