@@ -10,7 +10,7 @@ import {
   listSourceTypes,
   type CliValues,
 } from "./commands/resources";
-import { collectionTypes, consumerTypes } from "./commands/generate-types";
+import { consumerTypes } from "./commands/generate-types";
 import { queryItems, countItems } from "./commands/items";
 import { login, logout } from "./commands/login";
 
@@ -26,7 +26,6 @@ Commands:
   <resource> update <id> [options]  Update item
   <resource> delete <id>            Delete item
   sources types                     List valid source types
-  collections types <id|name>       Print TypeScript types for a collection
   consumers types <id>              Print TypeScript types for a consumer's collections
   items query [options]             Query items from client app
   items count [options]             Count items from client app
@@ -150,14 +149,6 @@ async function main() {
     if (action === "types") {
       if (cmd === "sources") {
         listSourceTypes();
-        return;
-      }
-      if (cmd === "collections") {
-        if (!id) {
-          console.error("Missing collection ID or name");
-          process.exit(1);
-        }
-        await collectionTypes(id);
         return;
       }
       if (cmd === "consumers") {

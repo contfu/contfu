@@ -15,7 +15,6 @@ Review the current branch's changes against main and fix any issues found.
 2. **Read all changed files in full** (not just the diff hunks). Understanding the surrounding code is critical for catching real bugs vs false positives.
 
 3. **Review against these categories** (in priority order):
-
    - **Bugs** -- Logic errors, off-by-one, null/undefined access, race conditions, wrong return types
    - **Security** -- Injection (SQL, XSS, command), auth bypasses, secrets in code, OWASP top 10
    - **Missing tests** -- New logic without corresponding `*.spec.ts` coverage

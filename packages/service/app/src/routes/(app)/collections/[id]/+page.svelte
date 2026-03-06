@@ -15,6 +15,7 @@
   import {
     deleteCollection,
     getCollection,
+    getCollections,
     getSourceCollectionSchemaQuery,
     updateCollection,
     updateCollectionSchema,
@@ -40,6 +41,7 @@
     CollectionSchema,
     Filter as FilterType,
     MappingRule,
+    RefTargets,
     ServiceConnectionWithDetails,
   } from "@contfu/svc-core";
   import {
@@ -65,6 +67,7 @@
   let id = $derived(params.id);
   const collectionQuery = $derived(getCollection({ id }));
   const collection = $derived(await collectionQuery);
+  const allCollections = $derived(await getCollections());
 
   // Sync form fields when collection changes
   $effect(() => {
@@ -204,6 +207,7 @@
   let mappingChanges = $state<{
     targetSchema: CollectionSchema;
     influxMappings: Map<string, MappingRule[]>;
+    refTargets: RefTargets;
   } | null>(null);
   let savingMappings = $state(false);
   let mappingEditorRef: MappingEditor | undefined;
@@ -211,6 +215,7 @@
   function handleMappingChange(changes: {
     targetSchema: CollectionSchema;
     influxMappings: Map<string, MappingRule[]>;
+    refTargets: RefTargets;
   }) {
     mappingChanges = changes;
   }
@@ -268,6 +273,7 @@
         await updateCollectionSchema({
           id: collection.id,
           schema: JSON.stringify(mappingChanges.targetSchema),
+          refTargets: JSON.stringify(mappingChanges.refTargets),
         });
       }
 
@@ -555,6 +561,8 @@
       <MappingEditor
         bind:this={mappingEditorRef}
         targetSchema={collection.schema}
+        refTargets={collection.refTargets}
+        availableCollections={allCollections.map((c) => ({ name: c.name, displayName: c.displayName }))}
         influxes={combinedInfluxes}
         onchange={handleMappingChange}
       />

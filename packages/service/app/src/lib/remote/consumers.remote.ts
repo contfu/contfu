@@ -2,6 +2,8 @@ import { form, query } from "$app/server";
 import { runWithUser } from "$lib/server/run";
 import { getUserId } from "$lib/server/user";
 import type { BackendConsumerWithConnectionCount } from "@contfu/svc-backend/domain/types";
+import { getCollection } from "@contfu/svc-backend/features/collections/getCollection";
+import { listConnectionsByConsumer } from "@contfu/svc-backend/features/connections/listConnectionsByConsumer";
 import { createConsumer as createConsumerFeature } from "@contfu/svc-backend/features/consumers/createConsumer";
 import { deleteConsumer as deleteConsumerFeature } from "@contfu/svc-backend/features/consumers/deleteConsumer";
 import { getConsumer as getConsumerFeature } from "@contfu/svc-backend/features/consumers/getConsumer";
@@ -9,6 +11,7 @@ import { getConsumerWithConnectionCount } from "@contfu/svc-backend/features/con
 import { listConsumers } from "@contfu/svc-backend/features/consumers/listConsumers";
 import { updateConsumer as updateConsumerFeature } from "@contfu/svc-backend/features/consumers/updateConsumer";
 import { encodeId, idSchema } from "@contfu/svc-backend/infra/ids";
+import { generateConsumerTypes, type TypeGenerationInput } from "@contfu/svc-core";
 import { error, invalid, redirect } from "@sveltejs/kit";
 import * as v from "valibot";
 import { getStreamServer } from "$lib/server/startup";
@@ -149,6 +152,30 @@ export const regenerateKey = form(
     return { success: true, key: apiKey };
   },
 );
+
+/**
+ * Get generated TypeScript types for a consumer's connected collections.
+ */
+export const getConsumerTypes = query(v.object({ id: idSchema("consumer") }), async ({ id }) => {
+  const userId = getUserId();
+  const connections = await runWithUser(userId, listConnectionsByConsumer(userId, id));
+
+  const collections: TypeGenerationInput[] = [];
+  for (const conn of connections) {
+    const col = await runWithUser(userId, getCollection(userId, conn.collectionId));
+    if (col) {
+      collections.push({
+        name: col.name,
+        displayName: col.displayName,
+        schema: col.schema,
+        refTargets: col.refTargets,
+      });
+    }
+  }
+
+  if (collections.length === 0) return "";
+  return generateConsumerTypes(collections);
+});
 
 /**
  * Delete a consumer.

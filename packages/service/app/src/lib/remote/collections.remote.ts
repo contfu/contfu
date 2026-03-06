@@ -4,7 +4,7 @@ import { runWithUser } from "$lib/server/run";
 import { getStreamServer, getSyncWorkerManager } from "$lib/server/startup";
 import { getUserId } from "$lib/server/user";
 import { EventType, type WireEvent } from "@contfu/core";
-import type { CollectionSchema } from "@contfu/svc-core";
+import type { CollectionSchema, RefTargets } from "@contfu/svc-core";
 import { createCollection as createCollectionFeature } from "@contfu/svc-backend/features/collections/createCollection";
 import { deleteCollection as deleteCollectionFeature } from "@contfu/svc-backend/features/collections/deleteCollection";
 import { getCollection as getCollectionFeature } from "@contfu/svc-backend/features/collections/getCollection";
@@ -181,15 +181,17 @@ export const updateCollectionSchema = command(
   v.object({
     id: idSchema("collection"),
     schema: v.string(), // JSON string of CollectionSchema
+    refTargets: v.optional(v.string()), // JSON string of RefTargets
   }),
   async (data) => {
     const userId = getUserId();
     const schema = JSON.parse(data.schema) as CollectionSchema;
+    const refTargets = data.refTargets ? (JSON.parse(data.refTargets) as RefTargets) : undefined;
 
     const oldCollection = await runWithUser(userId, getCollectionFeature(userId, data.id));
     const oldSchema = oldCollection?.schema ?? null;
 
-    await runWithUser(userId, updateCollectionFeature(userId, data.id, { schema }));
+    await runWithUser(userId, updateCollectionFeature(userId, data.id, { schema, refTargets }));
 
     const schemaChanged = JSON.stringify(oldSchema) !== JSON.stringify(schema);
     if (schemaChanged) {

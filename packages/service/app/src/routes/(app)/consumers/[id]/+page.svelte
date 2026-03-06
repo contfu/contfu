@@ -23,12 +23,14 @@
   import {
     deleteConsumer,
     getConsumer,
+    getConsumerTypes,
     regenerateKey,
     updateConsumer,
   } from "$lib/remote/consumers.remote";
   import { cn } from "$lib/utils";
   import { tcToast } from "$lib/utils/toast";
   import {
+    CheckIcon,
     ClipboardIcon,
     LinkIcon,
     TrashIcon,
@@ -75,8 +77,18 @@
     }
   });
 
+  let typesCopied = $state(false);
+
   function copyToClipboard(text: string) {
     navigator.clipboard.writeText(text);
+  }
+
+  async function copyTypes() {
+    const types = await getConsumerTypes({ id: params.id });
+    if (!types) return;
+    await navigator.clipboard.writeText(types);
+    typesCopied = true;
+    setTimeout(() => (typesCopied = false), 1500);
   }
 </script>
 
@@ -214,6 +226,15 @@
               : "Enable Refs For Consumer"}
           </Button>
         </form>
+        <Button variant="outline" size="sm" onclick={copyTypes}>
+          {#if typesCopied}
+            <CheckIcon class="size-4" />
+            Types Copied
+          {:else}
+            <ClipboardIcon class="size-4" />
+            Copy Types
+          {/if}
+        </Button>
       </div>
     </div>
 

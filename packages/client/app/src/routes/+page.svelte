@@ -4,13 +4,12 @@
   import * as Alert from "$lib/components/ui/alert";
   import * as Card from "$lib/components/ui/card";
   import { subscribeLiveEvent } from "$lib/live/event-source";
-  import { getCollectionSchemasQuery } from "$lib/remote/collections.remote";
+  import { getCombinedCollectionTypesQuery } from "$lib/remote/collections.remote";
   import { getStats } from "$lib/remote/stats.remote";
-  import { buildCollectionsSchemaJson } from "$lib/schema-export";
   import { onMount } from "svelte";
 
-  const [stats, collectionSchemas] = $derived(
-    await Promise.all([getStats(), getCollectionSchemasQuery()]),
+  const [stats, combinedTypeString] = $derived(
+    await Promise.all([getStats(), getCombinedCollectionTypesQuery()]),
   );
 
   const syncLabel = $derived(
@@ -54,11 +53,11 @@
   <div class="mb-6 flex items-center justify-between">
     <h1 class="text-lg"><span class="text-primary">$</span> contfu status</h1>
     <CopyTextButton
-      label="copy schema"
-      copiedLabel="schema copied"
+      label="copy types"
+      copiedLabel="types copied"
       failedLabel="copy failed"
-      disabled={collectionSchemas.length === 0}
-      getText={() => buildCollectionsSchemaJson(collectionSchemas)}
+      disabled={!combinedTypeString}
+      text={combinedTypeString}
     />
   </div>
 

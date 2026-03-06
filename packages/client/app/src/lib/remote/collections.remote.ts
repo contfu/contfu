@@ -1,12 +1,16 @@
 import { query } from "$app/server";
 import {
-  getCollectionSchemaByName,
   generateTypes,
+  getCollectionSchemaByName,
   listCollections,
   queryItems,
   type QueryItemsInput,
 } from "contfu";
-import type { CollectionSchema } from "@contfu/core";
+import {
+  generateConsumerTypes,
+  type CollectionSchema,
+  type TypeGenerationInput,
+} from "@contfu/core";
 import * as v from "valibot";
 
 const propFilterSchema = v.object({
@@ -49,15 +53,16 @@ export const getCollectionSchemasQuery = query(async (): Promise<CollectionSchem
 export const getCombinedCollectionTypesQuery = query(async (): Promise<string> => {
   const collections = await listCollections();
 
-  const schemaEntries = await Promise.all(
-    collections.map(async ({ name }) => [name, await getCollectionSchemaByName(name)] as const),
-  );
+  const inputs: TypeGenerationInput[] = [];
+  for (const col of collections) {
+    const schema = await getCollectionSchemaByName(col.name);
+    if (schema) {
+      inputs.push({ name: col.name, displayName: col.displayName, schema });
+    }
+  }
 
-  const schemas = Object.fromEntries(
-    schemaEntries.filter((entry): entry is readonly [string, CollectionSchema] => entry[1] != null),
-  );
-
-  return generateTypes(schemas, true);
+  if (inputs.length === 0) return "";
+  return generateConsumerTypes(inputs);
 });
 
 export const getCollectionDetailQuery = query(

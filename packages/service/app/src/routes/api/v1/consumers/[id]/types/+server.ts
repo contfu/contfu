@@ -20,6 +20,7 @@ export async function GET({ request, params }: { request: Request; params: { id:
         name: col.name,
         displayName: col.displayName,
         schema: col.schema,
+        refTargets: col.refTargets,
       });
     }
   }

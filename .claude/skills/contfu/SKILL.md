@@ -32,6 +32,7 @@ contfu connections delete 5
 ### Create / Update flags per resource
 
 **sources** (required for create: `--name`, `--type`):
+
 ```bash
 contfu sources create --name "My CMS" --type contentful --url https://example.com
 contfu sources update 1 --name "Renamed"
@@ -40,23 +41,27 @@ contfu sources update 1 --name "Renamed"
 Run `contfu sources types` to see valid source types.
 
 **collections** (required for create: `--display-name`):
+
 ```bash
 contfu collections create --display-name "Blog Posts" --name blog-posts
 contfu collections update 1 --display-name "Articles"
 ```
 
 **consumers** (required for create: `--name`):
+
 ```bash
 contfu consumers create --name "website"
 contfu consumers update 1 --name "mobile-app"
 ```
 
 **connections** (required for create: `--consumer-id`, `--collection-id`):
+
 ```bash
 contfu connections create --consumer-id 1 --collection-id 2
 ```
 
 **influxes** (required for create: `--collection-id`, `--source-collection-id`):
+
 ```bash
 contfu influxes create --collection-id 1 --source-collection-id 3
 ```

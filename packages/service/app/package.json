@@ -5,9 +5,10 @@
   "description": "Contfu cloud service application",
   "type": "module",
   "scripts": {
-    "dev": "bun -b vite dev",
+    "dev": "bun kill; bun -b vite dev",
     "build": "SKIP_DB_INIT=true bun -b vite build",
     "preview": "bun -b vite preview",
+    "kill": "lsof -ti :8011 | xargs kill -9",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "serve": "bun build/index.js",
     "clean": "rm -rf .svelte-kit build",

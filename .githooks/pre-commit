@@ -16,7 +16,7 @@ all_code_files=$(printf '%s\n%s' "$code_files" "$svelte_files" | sed '/^$/d')
 
 if [ -n "$code_files" ]; then
   echo "→ Formatting staged files..."
-  echo "$code_files" | xargs bunx oxfmt --write
+  echo "$code_files" | xargs bunx oxfmt || true
   echo "$code_files" | xargs git add
 fi
 

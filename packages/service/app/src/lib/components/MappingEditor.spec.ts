@@ -73,7 +73,7 @@ import { render, cleanup } from "@testing-library/svelte";
 import { tick } from "svelte";
 import MappingEditor from "./MappingEditor.svelte";
 import { PropertyType } from "@contfu/svc-core";
-import type { CollectionSchema, MappingRule } from "@contfu/svc-core";
+import type { CollectionSchema, MappingRule, RefTargets } from "@contfu/svc-core";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -89,6 +89,7 @@ interface InfluxData {
 interface ChangePayload {
   targetSchema: CollectionSchema;
   influxMappings: Map<string, MappingRule[]>;
+  refTargets: RefTargets;
 }
 
 function renderEditor(props: {

@@ -305,6 +305,8 @@ export const collectionTable = pgTable.withRLS(
     schema: bytea()
       .notNull()
       .$default(() => pack({})),
+    /** Ref target constraints per property (MessagePack serialized RefTargets). */
+    refTargets: bytea(),
     /** Whether refs may be transmitted for this collection. */
     includeRef: boolean().notNull().default(true),
     /** The date the collection was created. */

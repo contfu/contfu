@@ -1,6 +1,5 @@
 <script lang="ts">
   import { invalidateAll } from "$app/navigation";
-  import CopyTextButton from "$lib/components/CopyTextButton.svelte";
   import { Button } from "$lib/components/ui/button";
   import { subscribeLiveEvent } from "$lib/live/event-source";
   import * as Table from "$lib/components/ui/table";
@@ -19,13 +18,6 @@
 <div class="container mx-auto max-w-6xl p-6">
   <div class="mb-6 flex items-center justify-between">
     <h1 class="text-lg"><span class="text-primary">$</span> contfu collections --list</h1>
-    <CopyTextButton
-      label="copy typings"
-      copiedLabel="typings copied"
-      failedLabel="copy failed"
-      disabled={!data.combinedTypeString}
-      text={data.combinedTypeString}
-    />
   </div>
 
   <div class="overflow-x-auto border border-border bg-card p-4">

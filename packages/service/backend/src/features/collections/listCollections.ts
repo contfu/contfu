@@ -5,7 +5,7 @@ import { Database } from "../../effect/services/Database";
 import { DatabaseError } from "../../effect/errors";
 import { collectionTable, influxTable, connectionTable } from "../../infra/db/schema";
 import { unpack } from "msgpackr";
-import type { CollectionSchema } from "@contfu/svc-core";
+import type { CollectionSchema, RefTargets } from "@contfu/svc-core";
 
 /**
  * List all Collections for a user with counts.
@@ -69,6 +69,7 @@ export const listCollections = (userId: number) =>
           displayName: c.displayName,
           name: c.name,
           schema: unpack(c.schema) as CollectionSchema,
+          refTargets: c.refTargets ? (unpack(c.refTargets) as RefTargets) : undefined,
           includeRef: c.includeRef,
           influxCount: influxCountMap.get(c.id) ?? 0,
           connectionCount: connectionCountMap.get(c.id) ?? 0,

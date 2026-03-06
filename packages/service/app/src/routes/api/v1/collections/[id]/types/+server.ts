@@ -13,6 +13,7 @@ export async function GET({ request, params }: { request: Request; params: { id:
       name: collection.name,
       displayName: collection.displayName,
       schema: collection.schema,
+      refTargets: collection.refTargets,
     },
   ]);
 

@@ -9,9 +9,10 @@
   "type": "module",
   "main": "src/index.ts",
   "scripts": {
-    "dev": "bun -b vite dev",
+    "dev": "bun kill; bun -b vite dev",
     "build": "bun -b vite build",
     "preview": "bun -b vite preview",
+    "kill": "lsof -ti :5173 | xargs kill -9",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "serve": "bun build/index.js",
     "clean": "rm -rf dist build .svelte-kit",

@@ -55,6 +55,30 @@ describe("Collection Features Happy Path", () => {
     expect(afterDelete).toBeNull();
   });
 
+  it("should store and return refTargets", async () => {
+    const created = await runTest(createCollection(userId, { displayName: "Blog Posts" }));
+
+    await runTest(
+      updateCollection(userId, created.id, {
+        schema: { author: 64, tags: 128 },
+        refTargets: { author: ["authors"], tags: ["tags", "categories"] },
+      }),
+    );
+
+    const fetched = await runTest(getCollection(userId, created.id));
+    expect(fetched).toBeDefined();
+    expect(fetched!.refTargets).toEqual({
+      author: ["authors"],
+      tags: ["tags", "categories"],
+    });
+
+    // Clear refTargets by setting to null
+    await runTest(updateCollection(userId, created.id, { refTargets: null }));
+
+    const cleared = await runTest(getCollection(userId, created.id));
+    expect(cleared!.refTargets).toBeUndefined();
+  });
+
   it("should list collections with influx and connection counts", async () => {
     const created = await runTest(createCollection(userId, { displayName: "Articles" }));
 

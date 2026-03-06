@@ -5,7 +5,7 @@ import { Database } from "../../effect/services/Database";
 import { DatabaseError } from "../../effect/errors";
 import { collectionTable, influxTable, connectionTable } from "../../infra/db/schema";
 import { unpack } from "msgpackr";
-import type { CollectionSchema } from "@contfu/svc-core";
+import type { CollectionSchema, RefTargets } from "@contfu/svc-core";
 
 /**
  * Get a single Collection by ID.
@@ -54,6 +54,7 @@ export const getCollection = (userId: number, collectionId: number) =>
       displayName: collection.displayName,
       name: collection.name,
       schema: unpack(collection.schema) as CollectionSchema,
+      refTargets: collection.refTargets ? (unpack(collection.refTargets) as RefTargets) : undefined,
       includeRef: collection.includeRef,
       influxCount: influxCount?.count ?? 0,
       connectionCount: connectionCount?.count ?? 0,

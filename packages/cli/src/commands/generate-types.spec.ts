@@ -1,11 +1,10 @@
 import { describe, test, expect, beforeEach, afterEach, mock, spyOn } from "bun:test";
-import { collectionTypes, consumerTypes } from "./generate-types";
+import { consumerTypes } from "./generate-types";
 
 const mockFetch = mock<typeof fetch>();
 globalThis.fetch = mockFetch as any;
 
 void mock.module("@contfu/core", () => ({
-  generateTypeScript: (cols: unknown[]) => `export interface ${(cols[0] as any).name} {}\n`,
   generateConsumerTypes: (cols: unknown[]) =>
     `export type ContfuCollections = { ${(cols as any[]).map((c) => c.name).join("; ")} };\n`,
 }));
@@ -31,35 +30,6 @@ beforeEach(() => {
 afterEach(() => {
   writeSpy.mockRestore();
   errorSpy.mockRestore();
-});
-
-describe("collectionTypes", () => {
-  test("fetches by collection ID when target is numeric", async () => {
-    mockFetch.mockResolvedValueOnce(
-      jsonResponse({ name: "posts", displayName: "Posts", schema: {} }),
-    );
-
-    await collectionTypes("42");
-
-    const url = (mockFetch.mock.calls[0] as unknown[])[0] as string;
-    expect(url).toBe("http://test.local/api/v1/collections/42");
-    expect(writeSpy).toHaveBeenCalledTimes(1);
-  });
-
-  test("fetches by collection name when target is string", async () => {
-    mockFetch.mockResolvedValueOnce(
-      jsonResponse([
-        { name: "posts", displayName: "Posts", schema: {} },
-        { name: "authors", displayName: "Authors", schema: {} },
-      ]),
-    );
-
-    await collectionTypes("posts");
-
-    const url = (mockFetch.mock.calls[0] as unknown[])[0] as string;
-    expect(url).toBe("http://test.local/api/v1/collections");
-    expect(writeSpy).toHaveBeenCalledTimes(1);
-  });
 });
 
 describe("consumerTypes", () => {

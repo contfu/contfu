@@ -219,6 +219,90 @@ describe("contfu flat format", () => {
   });
 });
 
+// --- Typed ref target tests ---
+// When generateConsumerTypes is configured with refTargets, REF/REFS properties
+// reference sibling collection types instead of plain strings. These tests verify
+// the query client types work correctly with that pattern.
+
+type RefTargetCollections = {
+  authors: { name: string };
+  tags: { label: string };
+  blogPosts: {
+    title: string;
+    author: RefTargetCollections["authors"]; // REF → single target
+    tags: RefTargetCollections["tags"][]; // REFS → array of targets
+  };
+};
+
+describe("contfu typed ref targets", () => {
+  const q = contfu<RefTargetCollections>();
+
+  beforeEach(async () => {
+    await truncateAllTables();
+    await setCollection("authors", "Authors", {});
+    await setCollection("tags", "Tags", {});
+    await setCollection("blogPosts", "Blog Posts", {});
+
+    await createItem({
+      id: makeId(10),
+      ref: "authors/alice",
+      collection: "authors",
+      props: { name: "Alice" },
+      changedAt: 100,
+    });
+    await createItem({
+      id: makeId(30),
+      ref: "tags/tech",
+      collection: "tags",
+      props: { label: "Tech" },
+      changedAt: 200,
+    });
+    await createItem({
+      id: makeId(1),
+      ref: "blogPosts/hello",
+      collection: "blogPosts",
+      props: {
+        title: "Hello",
+        author: { name: "Alice" },
+        tags: [{ label: "Tech" }],
+      },
+      changedAt: 300,
+    });
+  });
+
+  test("REF property is typed as the target collection", async () => {
+    const result = await q("blogPosts");
+    const post = result.data[0];
+
+    // At the type level: post.props.author is RefTargetCollections["authors"]
+    // which has { name: string }, so .name should be accessible.
+    const authorName: string = post.props.author.name;
+    expect(authorName).toBe("Alice");
+  });
+
+  test("REFS property is typed as array of target collection", async () => {
+    const result = await q("blogPosts");
+    const post = result.data[0];
+
+    // At the type level: post.props.tags is RefTargetCollections["tags"][]
+    // which is { label: string }[], so [0].label should be accessible.
+    const tagLabel: string = post.props.tags[0].label;
+    expect(tagLabel).toBe("Tech");
+  });
+
+  test("flat mode merges typed ref props to top level", async () => {
+    const flat = contfu<RefTargetCollections>({ flat: true });
+    const result = await flat("blogPosts");
+    const post = result.data[0];
+
+    // In flat mode, props are merged to top level
+    const authorName: string = post.author.name;
+    expect(authorName).toBe("Alice");
+    const tagLabel: string = post.tags[0].label;
+    expect(tagLabel).toBe("Tech");
+  });
+});
+
 // --- Link resolution tests ---
 
 type LinkCollections = {

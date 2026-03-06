@@ -32,6 +32,7 @@ CREATE TABLE "msgpackr_migration" (
 --> statement-breakpoint
 ALTER TABLE "collection" ADD COLUMN "displayName" text NOT NULL;--> statement-breakpoint
 ALTER TABLE "collection" ADD COLUMN "schema" bytea NOT NULL;--> statement-breakpoint
+ALTER TABLE "collection" ADD COLUMN "refTargets" bytea;--> statement-breakpoint
 ALTER TABLE "collection" ADD COLUMN "includeRef" boolean DEFAULT true NOT NULL;--> statement-breakpoint
 ALTER TABLE "connection" ADD COLUMN "includeRef" boolean DEFAULT true NOT NULL;--> statement-breakpoint
 ALTER TABLE "consumer" ADD COLUMN "includeRef" boolean DEFAULT true NOT NULL;--> statement-breakpoint

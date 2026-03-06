@@ -1,7 +1,7 @@
 {
   "version": "8",
   "dialect": "postgres",
-  "id": "607ab700-8d43-472f-927a-b735a7518c14",
+  "id": "ff305a75-222a-4fde-b27a-81bc74ad0123",
   "prevIds": [
     "bf198f14-ab30-498f-87a2-f95cd904d8ea"
   ],
@@ -657,6 +657,19 @@
       "generated": null,
       "identity": null,
       "name": "schema",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "collection"
+    },
+    {
+      "type": "bytea",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "refTargets",
       "entityType": "columns",
       "schema": "public",
       "table": "collection"

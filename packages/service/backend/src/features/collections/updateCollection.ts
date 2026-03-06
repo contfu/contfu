@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { Database } from "../../effect/services/Database";
 import { DatabaseError, ValidationError } from "../../effect/errors";
 import { collectionTable } from "../../infra/db/schema";
-import { toCamelCase, type CollectionSchema } from "@contfu/svc-core";
+import { toCamelCase, type CollectionSchema, type RefTargets } from "@contfu/svc-core";
 import { pack } from "msgpackr";
 
 export interface UpdateCollectionInput {
@@ -11,6 +11,7 @@ export interface UpdateCollectionInput {
   name?: string;
   includeRef?: boolean;
   schema?: CollectionSchema;
+  refTargets?: RefTargets | null;
 }
 
 const camelCasePattern = /^[a-z][a-zA-Z0-9]*$/;
@@ -48,6 +49,12 @@ export const updateCollection = (
             displayName: input.displayName,
             name,
             schema: input.schema ? pack(input.schema) : undefined,
+            refTargets:
+              input.refTargets === null
+                ? null
+                : input.refTargets
+                  ? pack(input.refTargets)
+                  : undefined,
             includeRef: input.includeRef,
             updatedAt: new Date(),
           })

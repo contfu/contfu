@@ -28,6 +28,7 @@ export const UpdateCollectionSchema = v.object({
   name: v.optional(v.string()),
   includeRef: v.optional(v.boolean()),
   schema: v.optional(v.record(v.string(), v.number())),
+  refTargets: v.optional(v.nullable(v.record(v.string(), v.array(v.string())))),
 });
 
 // --- Consumers ---

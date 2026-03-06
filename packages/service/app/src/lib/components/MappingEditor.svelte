@@ -14,6 +14,7 @@
     typeCompatibility,
     type CollectionSchema,
     type MappingRule,
+    type RefTargets,
   } from "@contfu/svc-core";
   import { Select } from "@contfu/ui";
   import AlertCircle from "@lucide/svelte/icons/alert-circle";
@@ -32,17 +33,21 @@
 
   interface Props {
     targetSchema: CollectionSchema;
+    refTargets?: RefTargets;
+    availableCollections?: { name: string; displayName: string }[];
     influxes: InfluxData[];
     onchange: (changes: {
       targetSchema: CollectionSchema;
       influxMappings: Map<string, MappingRule[]>;
+      refTargets: RefTargets;
     }) => void;
   }
 
-  let { targetSchema, influxes, onchange }: Props = $props();
+  let { targetSchema, refTargets, availableCollections, influxes, onchange }: Props = $props();
 
   // Local mutable state
   let localSchema = $state<CollectionSchema>({ ...targetSchema });
+  let localRefTargets = $state<RefTargets>({ ...refTargets });
   let localMappings = $state<Map<string, MappingRule[]>>(new Map());
   let openItems = $state<string[]>([]);
   let verifiedMappings = $state<Set<string>>(new Set());
@@ -54,6 +59,7 @@
   /** Reset internal state back to current props (used by cancel). */
   export function reset() {
     localSchema = { ...targetSchema };
+    localRefTargets = { ...refTargets };
     localMappings = new Map();
     verifiedMappings = new Set();
     knownIds = new Set();
@@ -328,6 +334,7 @@
     onchange({
       targetSchema: { ...localSchema },
       influxMappings: snap,
+      refTargets: { ...localRefTargets },
     });
   }
 
@@ -368,6 +375,11 @@
 
   export function setTargetType(propName: string, newType: number) {
     localSchema = { ...localSchema, [propName]: newType };
+    // Clear ref targets when type is no longer REF/REFS
+    if (!isRefType(newType) && propName in localRefTargets) {
+      const { [propName]: _, ...rest } = localRefTargets;
+      localRefTargets = rest;
+    }
     // Auto-derive casts for all influx mappings on this property
     for (const influx of influxes) {
       const rules = [...(localMappings.get(influx.id) ?? [])];
@@ -455,9 +467,25 @@
     emitChange();
   }
 
+  function setRefTargets(propName: string, targets: string[]) {
+    if (targets.length === 0) {
+      const { [propName]: _, ...rest } = localRefTargets;
+      localRefTargets = rest;
+    } else {
+      localRefTargets = { ...localRefTargets, [propName]: targets };
+    }
+    emitChange();
+  }
+
+  function isRefType(type: number): boolean {
+    return type === PropertyType.REF || type === PropertyType.REFS;
+  }
+
   export function removeProperty(name: string) {
     const { [name]: _, ...rest } = localSchema;
     localSchema = rest;
+    const { [name]: _rt, ...restRt } = localRefTargets;
+    localRefTargets = restRt;
     // Also remove from all influx mappings
     for (const [influxId, rules] of localMappings) {
       const filtered = rules.filter((r) => (r.target ?? r.source) !== name);
@@ -474,6 +502,10 @@
       newSchema[k === oldName ? newName : k] = v;
     }
     localSchema = newSchema;
+    if (oldName in localRefTargets) {
+      const { [oldName]: targets, ...rest } = localRefTargets;
+      localRefTargets = { ...rest, [newName]: targets };
+    }
     // Update mappings target references
     for (const [influxId, rules] of localMappings) {
       localMappings = new Map(localMappings).set(influxId, rules.map((r) =>
@@ -562,6 +594,36 @@
                   </Button>
                 </div>
               </div>
+
+              <!-- Ref target selector for REF/REFS properties -->
+              {#if isRefType(targetType) && availableCollections && availableCollections.length > 0}
+                {@const currentTargets = localRefTargets[propName] ?? []}
+                <div class="mb-1">
+                  <Label class="mb-1 text-xs text-muted-foreground">Target collections</Label>
+                  <div class="flex flex-wrap gap-1">
+                    {#each availableCollections as col}
+                      {@const isSelected = currentTargets.includes(col.name)}
+                      <button
+                        type="button"
+                        class="rounded-full border px-2 py-0.5 text-xs transition-colors {isSelected
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'border-border text-muted-foreground hover:border-primary/50'}"
+                        onclick={() => {
+                          const next = isSelected
+                            ? currentTargets.filter((n) => n !== col.name)
+                            : [...currentTargets, col.name];
+                          setRefTargets(propName, next);
+                        }}
+                      >
+                        {col.displayName}
+                      </button>
+                    {/each}
+                  </div>
+                  {#if currentTargets.length === 0}
+                    <p class="mt-1 text-[10px] text-muted-foreground">No target selected — generates <code>string</code></p>
+                  {/if}
+                </div>
+              {/if}
 
               <!-- One row per influx -->
               {#each influxes as influx (influx.id)}
