@@ -1,7 +1,7 @@
 import { describe, expect, it, mock, beforeEach, afterEach } from "bun:test";
-import type { Item } from "@contfu/core";
+import type { Item, PageProps } from "@contfu/core";
 
-const { iterateItems } = await import("./web-items");
+const { iterateItems, parseWebPage } = await import("./web-items");
 
 const originalFetch = globalThis.fetch;
 const mockFetch = mock(() => Promise.resolve(new Response()));
@@ -21,6 +21,10 @@ async function collectItems(opts: Parameters<typeof iterateItems>[0]): Promise<I
     items.push(item);
   }
   return items;
+}
+
+function props(item: Item): PageProps {
+  return item.props as PageProps;
 }
 
 describe("web-items", () => {
@@ -58,6 +62,67 @@ describe("web-items", () => {
       });
 
       expect(items).toHaveLength(0);
+    });
+  });
+
+  describe("field extraction", () => {
+    it("should extract absolute favicon URL from <link rel=icon>", () => {
+      const item = parseWebPage(
+        {
+          url: "https://example.com/page",
+          body: '<html><head><link rel="icon" href="/img/icon.png"></head><body>Hi</body></html>',
+          contentType: "text/html",
+        },
+        1,
+      );
+      expect(props(item).favicon).toBe("https://example.com/img/icon.png");
+    });
+
+    it("should fall back to /favicon.ico when no favicon link present", () => {
+      const item = parseWebPage(
+        {
+          url: "https://example.com/page",
+          body: "<html><head></head><body>Hi</body></html>",
+          contentType: "text/html",
+        },
+        1,
+      );
+      expect(props(item).favicon).toBe("https://example.com/favicon.ico");
+    });
+
+    it("should extract plain text content from <article>", () => {
+      const item = parseWebPage(
+        {
+          url: "https://example.com/page",
+          body: "<html><body><article>Hello world</article></body></html>",
+          contentType: "text/html",
+        },
+        1,
+      );
+      expect(props(item).content).toBe("Hello world");
+    });
+
+    it("markdown item: content equals markdown body, favicon is not set", () => {
+      const md = "# Title\n\nSome text here.";
+      const item = parseWebPage(
+        { url: "https://example.com/doc.md", body: md, contentType: "text/markdown" },
+        1,
+      );
+      expect(props(item).favicon).toBeUndefined();
+      expect(props(item).content).toBe(md.trim());
+    });
+
+    it("json item: favicon and content are not set", () => {
+      const item = parseWebPage(
+        {
+          url: "https://example.com/api/data.json",
+          body: '{"key":"value"}',
+          contentType: "application/json",
+        },
+        1,
+      );
+      expect(props(item).favicon).toBeUndefined();
+      expect(props(item).content).toBeUndefined();
     });
   });
 });

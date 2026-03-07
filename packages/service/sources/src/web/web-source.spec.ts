@@ -416,28 +416,80 @@ describe("WebSource", () => {
   });
 
   describe("getCollectionSchema()", () => {
-    it("should return the standard web page schema", async () => {
+    const SN = PropertyType.STRING | PropertyType.NULL;
+    const S = PropertyType.STRING;
+
+    it(".json URL → data schema", async () => {
       const source = new WebSource();
-      const schema = await source.getCollectionSchema(testOpts);
-
-      expect(schema).toHaveProperty("slug");
-      expect(schema).toHaveProperty("title");
-      expect(schema).toHaveProperty("description");
-      expect(schema).toHaveProperty("data");
-
-      // Verify property types
-      expect(schema.slug).toBe(PropertyType.STRING);
-      expect(schema.title).toBe(PropertyType.STRING | PropertyType.NULL);
-      expect(schema.description).toBe(PropertyType.STRING | PropertyType.NULL);
-      expect(schema.data).toBe(PropertyType.STRING | PropertyType.NULL);
+      const schema = await source.getCollectionSchema({
+        ...testOpts,
+        ref: Buffer.from("https://api.example.com/data.json", "utf8"),
+      });
+      expect(schema).toEqual({ slug: S, data: SN });
+      expect(mockFetch).not.toHaveBeenCalled();
     });
 
-    it("should not make any fetch calls", async () => {
+    it(".md URL → markdown schema", async () => {
       const source = new WebSource();
-      await source.getCollectionSchema(testOpts);
-
-      // Schema is static, no fetch needed
+      const schema = await source.getCollectionSchema({
+        ...testOpts,
+        ref: Buffer.from("/doc.md", "utf8"),
+      });
+      expect(schema).toEqual({ slug: S, title: SN, description: SN, content: SN });
       expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it("sitemap URL → html schema", async () => {
+      const source = new WebSource();
+      const schema = await source.getCollectionSchema({
+        ...testOpts,
+        ref: Buffer.from("https://example.com/sitemap.xml", "utf8"),
+      });
+      expect(schema).toEqual({
+        slug: S,
+        title: SN,
+        description: SN,
+        favicon: SN,
+        content: SN,
+      });
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it("mixed URLs → union schema", async () => {
+      const source = new WebSource();
+      const schema = await source.getCollectionSchema({
+        ...testOpts,
+        ref: Buffer.from("/page.html\n/data.json", "utf8"),
+      });
+      expect(schema).toEqual({
+        slug: S,
+        title: SN,
+        description: SN,
+        favicon: SN,
+        content: SN,
+        data: SN,
+      });
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it("uncertain URL + HEAD returning JSON content-type → data schema", async () => {
+      mockFetch.mockResolvedValueOnce(
+        new Response(null, {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+
+      const source = new WebSource();
+      const schema = await source.getCollectionSchema({
+        ...testOpts,
+        // .php has no extension classification → uncertain
+        ref: Buffer.from("https://example.com/api/feed.php", "utf8"),
+      });
+      expect(schema).toEqual({ slug: S, data: SN });
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      const [, options] = mockFetch.mock.calls[0] as unknown as [string, RequestInit];
+      expect((options as RequestInit & { method: string }).method).toBe("HEAD");
     });
   });
 });

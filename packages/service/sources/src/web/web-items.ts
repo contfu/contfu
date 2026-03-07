@@ -135,6 +135,10 @@ function parseHtmlItem(html: string, url: string, collection: number, lastModifi
   if (description) {
     props["description"] = description;
   }
+  const favicon = extractFavicon(root, url);
+  if (favicon) props["favicon"] = favicon;
+  const plainText = extractPlainTextContent(root);
+  if (plainText) props["content"] = plainText;
 
   props.createdAt = lastModified ?? now;
   const item: Item = {
@@ -179,6 +183,8 @@ function parseMarkdownItem(
   if (description) {
     props["description"] = description;
   }
+  const mdContent = markdown.trim();
+  if (mdContent) props["content"] = mdContent;
 
   props.createdAt = lastModified ?? now;
   const item: Item = {
@@ -270,6 +276,47 @@ function extractHtmlDescription(root: HTMLElement): string | null {
   }
 
   return null;
+}
+
+/**
+ * Extract the favicon URL from HTML.
+ * Checks <link rel="icon">, shortcut icon, apple-touch-icon, then falls back to /favicon.ico.
+ */
+function extractFavicon(root: HTMLElement, pageUrl: string): string | null {
+  const selectors = [
+    'link[rel="icon"]',
+    'link[rel="shortcut icon"]',
+    'link[rel="apple-touch-icon"]',
+  ];
+  for (const sel of selectors) {
+    const el = root.querySelector(sel);
+    const href = el?.getAttribute("href");
+    if (href) {
+      try {
+        return new URL(href, pageUrl).href;
+      } catch {
+        // ignore
+      }
+    }
+  }
+  try {
+    return new URL("/favicon.ico", pageUrl).href;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Extract plain text content from the main body element.
+ */
+function extractPlainTextContent(root: HTMLElement): string | null {
+  const el =
+    root.querySelector("article") ??
+    root.querySelector("main") ??
+    root.querySelector("body") ??
+    root;
+  const text = el.text?.trim();
+  return text || null;
 }
 
 /**

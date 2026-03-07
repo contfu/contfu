@@ -176,6 +176,67 @@ export function getContentProcessor(contentType: string): ContentProcessor {
 }
 
 /**
+ * Classify a URL's content type by its extension/pattern (no network request).
+ * Returns null if the type cannot be determined from the URL alone.
+ */
+export function classifyUrlContentType(url: string): ContentProcessor {
+  let path: string;
+  try {
+    path = new URL(url).pathname.toLowerCase();
+  } catch {
+    path = url.toLowerCase();
+  }
+
+  if (path.endsWith(".json")) return "json";
+  if (path.endsWith(".md")) return "markdown";
+
+  // Sitemap, .html, or no extension → html
+  if (
+    path.endsWith(".xml") ||
+    path.endsWith(".xml.gz") ||
+    path.includes("sitemap") ||
+    path.endsWith(".html") ||
+    path.endsWith(".htm") ||
+    /\/[^./]*$/.test(path) // no extension
+  ) {
+    return "html";
+  }
+
+  return null;
+}
+
+/**
+ * Perform a HEAD request to determine the content type of a URL.
+ * Returns null on failure or unknown content type.
+ */
+export async function webHead(url: string, options: WebRequestOptions): Promise<ContentProcessor> {
+  const resolvedUrl = resolveUrl(url, options.baseUrl);
+  const authHeader = buildAuthHeader(options.authType, options.credentials);
+  const headers: Record<string, string> = {};
+  if (authHeader) {
+    headers["Authorization"] = authHeader;
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), options.timeout ?? DEFAULT_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(resolvedUrl, {
+      method: "HEAD",
+      headers,
+      signal: controller.signal,
+    });
+    if (!response.ok) return null;
+    const contentType = response.headers.get("content-type") ?? "";
+    return getContentProcessor(contentType);
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+/**
  * Check if a URL points to a sitemap.
  * Returns true if the URL path ends with .xml/.xml.gz or contains "sitemap".
  */
