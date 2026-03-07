@@ -44,7 +44,7 @@ export interface ConsumerSyncConfig {
  * - Which source collections and sources provide the data
  * - Decrypted credentials, grouped by source to minimize duplicate fetches
  */
-export const getConsumerSyncConfig = (userId: number, consumerId: number) =>
+export const getConsumerSyncConfig = (userId: number, consumerId: number, filterCollectionIds?: number[]) =>
   Effect.gen(function* () {
     const { db } = yield* Database;
     const cryptoService = yield* Crypto;
@@ -78,6 +78,7 @@ export const getConsumerSyncConfig = (userId: number, consumerId: number) =>
             and(
               eq(consumerCollectionTable.userId, userId),
               eq(consumerCollectionTable.consumerId, consumerId),
+              filterCollectionIds ? inArray(consumerCollectionTable.collectionId, filterCollectionIds) : undefined,
             ),
           ),
       catch: (e) => new DatabaseError({ cause: e }),

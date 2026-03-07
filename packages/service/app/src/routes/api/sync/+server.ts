@@ -107,6 +107,10 @@ export const GET: RequestHandler = async ({ request, url }) => {
         await clearSnapshotProgress(consumer.userId, consumer.id);
         fromSeq = null;
       }
+    } else if (snapshotProgress?.inProgress && fromSeq === null) {
+      // Resume pre-built background snapshot triggered on connection creation.
+      resumeFromSnapshot = true;
+      fromSeq = 1;
     } else if (fromSeq !== null) {
       const available = await isSequenceAvailable(fromSeq);
       if (!available) {
