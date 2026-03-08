@@ -11,11 +11,10 @@ Create a pull request following the project's commit & PR workflow.
 
 1. **Run quality checks** — ensure all checks pass
 2. **Run code review** — invoke `/review` to catch bugs and security issues before the PR
-3. **Check branch status** — verify current branch and changes
-4. **Squash if needed** — ensure exactly one commit
-5. **Push branch** — create remote branch if needed
-6. **Create PR** — open pull request with proper format
-7. **Wait for CI** — watch checks, fix failures if any
+3. **Squash if needed** — ensure exactly one commit (branch status is preprocessed above)
+4. **Push branch** — create remote branch if needed
+5. **Create PR** — open pull request with proper format
+6. **Wait for CI** — watch checks, fix failures if any
 
 ## Pre-flight Checklist
 
@@ -26,6 +25,17 @@ bun test && bun run fmt && bun run lint
 ```
 
 All must pass.
+
+## Current State
+
+### Branch & Status
+!`git branch --show-current && git status --short`
+
+### Recent Commits
+!`git log --oneline -5`
+
+### Diff from last commit
+!`git diff HEAD~1...HEAD --stat`
 
 ## Steps
 
@@ -39,15 +49,7 @@ Invoke the review skill to analyze changes, fix issues, and produce `.claude/rev
 
 If the review made fixes, stage them before proceeding.
 
-### 2. Check current state
-
-```bash
-git status
-git log --oneline -5
-git diff HEAD~1...HEAD
-```
-
-### 3. Squash commits (if multiple)
+### 2. Squash commits (if multiple)
 
 ```bash
 git rebase -i HEAD~N
@@ -55,7 +57,7 @@ git rebase -i HEAD~N
 
 Mark all but the first as `squash` or `fixup`.
 
-### 4. Push branch
+### 3. Push branch
 
 ```bash
 git push -u origin HEAD
@@ -66,6 +68,16 @@ Or force with lease if already exists:
 ```bash
 git push --force-with-lease
 ```
+
+### 4. Link GitHub issues
+
+Before creating the PR, find matching issues to link. Search for issues related to the branch name or commit message keywords using the GitHub CLI:
+
+```bash
+gh issue list --search "<keywords from branch/commit>" --state open
+```
+
+Include `Closes #<issue-number>` lines in the PR body for each matching issue. This auto-closes them when the PR merges.
 
 ### 5. Create PR
 
@@ -80,6 +92,8 @@ gh pr create --title "<title>" --body "$(cat <<'EOF'
 
 - [ ] Tests pass locally
 - [ ] Lint/format checks pass
+
+Closes #<issue-number>
 EOF
 )"
 ```

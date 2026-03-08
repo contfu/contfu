@@ -7,9 +7,12 @@ description: Pick up a GitHub issue and implement it end-to-end. Use when you're
 
 Implement a GitHub issue from start to PR.
 
+## Issue Details
+!`gh issue view $0 --json number,title,body,labels`
+
 ## Workflow
 
-1. **Read the issue** — run `gh issue view <number>` to get the full description. Don't assume from the title alone.
+1. **Read the issue** — review the issue details above. If more context is needed, fetch linked issues.
 2. **Create a branch** — `feat/<number>-short-name` for enhancements, `fix/<number>-short-name` for bugs.
 3. **Explore** — read the relevant files listed in the issue and understand current state.
 4. **Plan** — enter plan mode and present the implementation approach for user approval.

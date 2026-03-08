@@ -8,9 +8,15 @@ model: sonnet
 
 Review the current branch's changes against main and fix any issues found.
 
+## Changed Files
+!`git diff --name-only main...HEAD`
+
+## Diff
+!`git diff main...HEAD`
+
 ## Steps
 
-1. **Get the diff.** Run `git diff main...HEAD` and identify all changed files.
+1. **Identify all changed files** from the diff above.
 
 2. **Read all changed files in full** (not just the diff hunks). Understanding the surrounding code is critical for catching real bugs vs false positives.
 

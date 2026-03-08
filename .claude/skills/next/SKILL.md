@@ -7,11 +7,18 @@ description: Pick the next issue to work on from the project board. Analyzes "Re
 
 Pick the best next issue to work on from the GitHub project board.
 
+## Current Board State
+
+### Ready Issues
+!`gh project item-list 1 --owner contfu --format json --limit 50 | jq '[.items[] | select(.status == "Ready")]'`
+
+### In Progress Issues
+!`gh project item-list 1 --owner contfu --format json --limit 50 | jq '[.items[] | select(.status == "In Progress")]'`
+
 ## Workflow
 
-1. **Fetch** all items from the project board via `gh project item-list 1 --owner contfu --format json`
-2. **Identify** issues with status "Ready"
-3. **Analyze** each "Ready" issue for:
+1. **Identify** issues with status "Ready" from the board state above
+2. **Analyze** each "Ready" issue for:
    - Dependencies on in-progress issues (read issue bodies for references like "depends on #X", "blocked by #X", or logical prerequisites)
    - Overlap with in-progress work (touching the same files or subsystems)
    - Complexity and self-containedness
@@ -28,9 +35,6 @@ Pick the best next issue to work on from the GitHub project board.
 ## Commands
 
 ```bash
-# Fetch project items
-gh project item-list 1 --owner contfu --format json --limit 50
-
 # Fetch issue details (for dependency analysis)
 gh issue view <number> --json number,title,body,labels
 
