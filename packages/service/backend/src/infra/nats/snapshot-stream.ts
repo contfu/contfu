@@ -64,13 +64,13 @@ export async function ensureSnapshotStream(): Promise<void> {
  */
 export async function publishSnapshot(
   userId: number,
-  consumerId: number,
+  connectionId: number,
   event: StoredWireItemEvent,
 ): Promise<number> {
   if (!hasNats()) return 0;
 
   const jsm = await getJetStreamManager();
-  const subject = `${SUBJECT_PREFIX}.${userId}.${consumerId}`;
+  const subject = `${SUBJECT_PREFIX}.${userId}.${connectionId}`;
   const ack = await jsm.jetstream().publish(subject, pack(event));
   return ack.seq;
 }
@@ -81,7 +81,7 @@ export async function publishSnapshot(
  */
 export async function isSnapshotSeqAvailable(
   userId: number,
-  consumerId: number,
+  connectionId: number,
   seq: number,
 ): Promise<boolean> {
   if (!hasNats()) return false;
@@ -102,7 +102,7 @@ export async function isSnapshotSeqAvailable(
  */
 export async function* replaySnapshotFrom(
   userId: number,
-  consumerId: number,
+  connectionId: number,
   fromSeq: number,
 ): AsyncGenerator<{ seq: number; event: StoredWireItemEvent }> {
   if (!hasNats()) return;
@@ -110,7 +110,7 @@ export async function* replaySnapshotFrom(
   const jsm = await getJetStreamManager();
   const stream = await jsm.streams.get(STREAM_NAME);
 
-  const filterSubject = `${SUBJECT_PREFIX}.${userId}.${consumerId}`;
+  const filterSubject = `${SUBJECT_PREFIX}.${userId}.${connectionId}`;
 
   const consumer = await stream.getConsumer({
     opt_start_seq: fromSeq,
@@ -132,11 +132,11 @@ export async function* replaySnapshotFrom(
 /**
  * Purge all snapshot messages for a specific consumer.
  */
-export async function purgeConsumerSnapshot(userId: number, consumerId: number): Promise<void> {
+export async function purgeConnectionSnapshot(userId: number, connectionId: number): Promise<void> {
   if (!hasNats()) return;
 
   const jsm = await getJetStreamManager();
-  const filterSubject = `${SUBJECT_PREFIX}.${userId}.${consumerId}`;
+  const filterSubject = `${SUBJECT_PREFIX}.${userId}.${connectionId}`;
   await jsm.streams.purge(STREAM_NAME, { filter: filterSubject });
 }
 
@@ -150,8 +150,8 @@ async function getProgressKv(): Promise<KV> {
   ));
 }
 
-function progressKey(userId: number, consumerId: number): string {
-  return `${userId}_${consumerId}`;
+function progressKey(userId: number, connectionId: number): string {
+  return `${userId}_${connectionId}`;
 }
 
 /**
@@ -161,11 +161,11 @@ function progressKey(userId: number, consumerId: number): string {
  */
 export async function setSnapshotProgress(
   userId: number,
-  consumerId: number,
+  connectionId: number,
   eventsStartSeq: number,
 ): Promise<void> {
   const kv = await getProgressKv();
-  const key = progressKey(userId, consumerId);
+  const key = progressKey(userId, connectionId);
   const value: SnapshotProgress = {
     inProgress: true,
     lastAckedSeq: 0,
@@ -179,10 +179,10 @@ export async function setSnapshotProgress(
  */
 export async function getSnapshotProgress(
   userId: number,
-  consumerId: number,
+  connectionId: number,
 ): Promise<SnapshotProgress | null> {
   const kv = await getProgressKv();
-  const key = progressKey(userId, consumerId);
+  const key = progressKey(userId, connectionId);
   const entry = (await kv.get(key)) as { value: Uint8Array } | null;
   if (!entry) return null;
   try {
@@ -197,11 +197,11 @@ export async function getSnapshotProgress(
  */
 export async function updateSnapshotAckedSeq(
   userId: number,
-  consumerId: number,
+  connectionId: number,
   seq: number,
 ): Promise<void> {
   const kv = await getProgressKv();
-  const key = progressKey(userId, consumerId);
+  const key = progressKey(userId, connectionId);
   const entry = (await kv.get(key)) as { value: Uint8Array; revision: number } | null;
   if (!entry) return;
   try {
@@ -216,9 +216,9 @@ export async function updateSnapshotAckedSeq(
 /**
  * Clear snapshot progress for a consumer.
  */
-export async function clearSnapshotProgress(userId: number, consumerId: number): Promise<void> {
+export async function clearSnapshotProgress(userId: number, connectionId: number): Promise<void> {
   const kv = await getProgressKv();
-  const key = progressKey(userId, consumerId);
+  const key = progressKey(userId, connectionId);
   try {
     await kv.delete(key);
   } catch {

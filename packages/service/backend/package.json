@@ -3,11 +3,12 @@
   "version": "0.0.1",
   "type": "module",
   "exports": {
-    "./domain/*": "./dist/domain/*.js",
-    "./infra/*": "./dist/infra/*.js",
-    "./features/*": "./dist/features/*.js",
-    "./features/influxes": "./dist/features/influxes/index.js",
-    "./effect/*": "./dist/effect/*.js"
+    "./domain/*": "./src/domain/*.ts",
+    "./infra/*": "./src/infra/*.ts",
+    "./features/*": "./src/features/*.ts",
+    "./features/inflows": "./src/features/inflows/index.ts",
+    "./effect/*": "./src/effect/*.ts",
+    "./push-worker/*": "./src/push-worker/*.ts"
   },
   "scripts": {
     "dev": "tsc -b --watch",

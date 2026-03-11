@@ -127,7 +127,7 @@ test.describe("Schema Resync — COLLECTION_SCHEMA re-broadcast after schema sav
     await link.click();
     await page.waitForLoadState("networkidle");
 
-    // Wait for influx rows to be visible
+    // Wait for inflow rows to be visible
     await expect(page.getByText("Schema Resync Source Collection").first()).toBeVisible({
       timeout: 5000,
     });

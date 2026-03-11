@@ -1,27 +1,25 @@
 /**
  * Schema resync E2E test seed data.
- * Creates a collection with an influx and a consumer connected to it,
- * so schema-update broadcasts and resync enqueuing can be verified.
+ * Creates a target collection with a flow from a source collection and a consumer
+ * collection connected via another flow, so schema-update broadcasts and resync
+ * enqueuing can be verified.
  */
-import { SourceType, PropertyType } from "@contfu/svc-core";
+import { ConnectionType, PropertyType } from "@contfu/svc-core";
 import {
   collectionTable,
-  consumerCollectionTable,
-  consumerTable,
-  influxTable,
-  sourceCollectionTable,
-  sourceTable,
+  connectionTable,
+  flowTable,
   userTable,
 } from "@contfu/svc-backend/infra/db/schema";
 import { pack } from "msgpackr";
 import { eq } from "drizzle-orm";
 import type { CollectionSchema, MappingRule } from "@contfu/svc-core";
 
-/** Well-known 32-byte consumer key for schema-resync tests. */
-export const SCHEMA_RESYNC_CONSUMER_KEY = Buffer.from(
-  "cc01020304050607080910111213141516171819202122232425262728293031",
-  "hex",
-);
+/** Well-known consumer key for schema-resync tests. */
+export const SCHEMA_RESYNC_CONSUMER_KEY = Buffer.from("00000000000000000000000000000004", "hex");
+
+/** Well-known consumer name for schema-resync tests. */
+export const SCHEMA_RESYNC_CONSUMER_NAME = "Schema Resync Consumer";
 
 export const SCHEMA_RESYNC_COLLECTION_NAME = "schemaResyncCollection";
 
@@ -42,7 +40,7 @@ export const SOURCE_SCHEMA: CollectionSchema = {
   body: PropertyType.STRING,
 };
 
-/** Mappings for the influx. */
+/** Mappings for the flow. */
 export const MAPPINGS: MappingRule[] = [
   { source: "title", target: "title" },
   { source: "body", target: "body" },
@@ -58,38 +56,41 @@ export async function seedSchemaResyncData(db: any): Promise<void> {
   if (!user) return;
   const userId = user.id;
 
-  // Idempotent check
+  // Idempotent check — look for client connection by name
   const [existing] = await db
-    .select({ id: consumerTable.id })
-    .from(consumerTable)
-    .where(eq(consumerTable.key, SCHEMA_RESYNC_CONSUMER_KEY))
+    .select({ id: connectionTable.id })
+    .from(connectionTable)
+    .where(eq(connectionTable.name, "Schema Resync Client"))
     .limit(1);
 
   if (existing) return;
 
-  const [source] = await db
-    .insert(sourceTable)
+  // Source connection (Strapi)
+  const [sourceConnection] = await db
+    .insert(connectionTable)
     .values({
       userId,
-      uid: "00000004-0000-4000-a000-000000000001",
-      name: "Schema Resync Source",
-      type: SourceType.STRAPI,
+      type: ConnectionType.STRAPI,
+      name: "Schema Resync Connection",
     })
-    .returning({ id: sourceTable.id });
-  if (!source) return;
+    .returning({ id: connectionTable.id });
+  if (!sourceConnection) return;
 
+  // Source collection
   const [sourceCollection] = await db
-    .insert(sourceCollectionTable)
+    .insert(collectionTable)
     .values({
       userId,
-      sourceId: source.id,
-      name: "Schema Resync Source Collection",
+      connectionId: sourceConnection.id,
+      name: "Schema Resync External Collection",
+      displayName: "Schema Resync External Collection",
       schema: pack(SOURCE_SCHEMA),
     })
-    .returning({ id: sourceCollectionTable.id });
+    .returning({ id: collectionTable.id });
   if (!sourceCollection) return;
 
-  const [collection] = await db
+  // Target collection
+  const [targetCollection] = await db
     .insert(collectionTable)
     .values({
       userId,
@@ -98,29 +99,45 @@ export async function seedSchemaResyncData(db: any): Promise<void> {
       schema: pack(INITIAL_TARGET_SCHEMA),
     })
     .returning({ id: collectionTable.id });
-  if (!collection) return;
+  if (!targetCollection) return;
 
-  await db.insert(influxTable).values({
+  // Flow: source → target
+  await db.insert(flowTable).values({
     userId,
-    collectionId: collection.id,
-    sourceCollectionId: sourceCollection.id,
+    sourceId: sourceCollection.id,
+    targetId: targetCollection.id,
     schema: pack(SOURCE_SCHEMA),
     mappings: pack(MAPPINGS),
   });
 
-  const [consumer] = await db
-    .insert(consumerTable)
+  // Client connection for consumer
+  const [clientConnection] = await db
+    .insert(connectionTable)
     .values({
       userId,
-      key: SCHEMA_RESYNC_CONSUMER_KEY,
-      name: "Schema Resync Consumer",
+      type: ConnectionType.CLIENT,
+      name: "Schema Resync Client",
+      credentials: SCHEMA_RESYNC_CONSUMER_KEY,
     })
-    .returning({ id: consumerTable.id });
-  if (!consumer) return;
+    .returning({ id: connectionTable.id });
+  if (!clientConnection) return;
 
-  await db.insert(consumerCollectionTable).values({
+  // Consumer collection
+  const [consumerCollection] = await db
+    .insert(collectionTable)
+    .values({
+      userId,
+      connectionId: clientConnection.id,
+      name: SCHEMA_RESYNC_CONSUMER_NAME,
+      displayName: SCHEMA_RESYNC_CONSUMER_NAME,
+    })
+    .returning({ id: collectionTable.id });
+  if (!consumerCollection) return;
+
+  // Flow: target → consumer collection
+  await db.insert(flowTable).values({
     userId,
-    consumerId: consumer.id,
-    collectionId: collection.id,
+    sourceId: targetCollection.id,
+    targetId: consumerCollection.id,
   });
 }

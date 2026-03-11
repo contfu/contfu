@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Button } from "$lib/components/ui/button";
-  import SourceTypeIcon from "$lib/components/icons/SourceTypeIcon.svelte";
-  import { SourceType } from "@contfu/core";
+  import ConnectionIcon from "$lib/components/icons/ConnectionIcon.svelte";
+  import { ConnectionType } from "@contfu/core";
   import {
     FilterIcon,
     DatabaseIcon,
@@ -25,13 +25,13 @@
   ];
 
   const cmsSources = [
-    { name: "notion", type: SourceType.NOTION, mode: "webhook" as const },
-    { name: "strapi", type: SourceType.STRAPI, mode: "webhook" as const },
-    { name: "web/url", type: SourceType.WEB, mode: "poll" as const },
+    { name: "notion", type: ConnectionType.NOTION, mode: "webhook" as const },
+    { name: "strapi", type: ConnectionType.STRAPI, mode: "webhook" as const },
+    { name: "web/url", type: ConnectionType.WEB, mode: "poll" as const },
   ] as const;
   const pendingSources = [
-    { name: "storyblok", type: SourceType.STRAPI },
-    { name: "wordpress", type: SourceType.WEB },
+    { name: "storyblok", type: ConnectionType.STRAPI },
+    { name: "wordpress", type: ConnectionType.WEB },
   ] as const;
   const appConsumers = ["website", "docs", "api"] as const;
   const contentTypes = ["page", "post", "image", "block", "asset", "entry"] as const;
@@ -313,7 +313,7 @@
   const consumerIcon = { website: MonitorIcon, docs: BookOpenIcon, api: CodeIcon };
 
   const engineStageLabel: Record<string, string> = { "filtering": "filter", "mapping": "map" };
-  const engineStageDetail: Record<string, string> = { "filtering": "applying influx rules", "mapping": "rename + cast props" };
+  const engineStageDetail: Record<string, string> = { "filtering": "applying inflow rules", "mapping": "rename + cast props" };
   const imageStepLabels = ["download", "resize", "optimize", "store"];
 </script>
 
@@ -380,7 +380,7 @@
               <div class="flex flex-wrap items-center gap-2">
                 {#each cmsSources as src}
                   <span class="sys-node {isFlashing(`src:${src.name}`) ? 'sys-node-flash' : ''}">
-                    <SourceTypeIcon type={src.type} class="size-3 {isFlashing(`src:${src.name}`) ? '' : 'opacity-40'}" />
+                    <ConnectionIcon type={src.type} class="size-3 {isFlashing(`src:${src.name}`) ? '' : 'opacity-40'}" />
                     <span>{src.name}</span>
                     <span class="text-[9px] text-muted-foreground">{src.mode === 'poll' ? 'poll' : 'hook'}</span>
                   </span>
@@ -580,14 +580,14 @@
       <div class="grid grid-cols-2 gap-3 sm:grid-cols-5 scroll-stagger">
         {#each cmsSources as source}
           <div class="border border-border p-3 text-center transition-all duration-200 hover:border-primary/50 hover:bg-primary/5">
-            <SourceTypeIcon type={source.type} class="size-4 mx-auto mb-1.5 text-foreground" />
+            <ConnectionIcon type={source.type} class="size-4 mx-auto mb-1.5 text-foreground" />
             <div class="text-xs font-medium">{source.name}</div>
             <div class="text-[10px] text-success mt-1">ready</div>
           </div>
         {/each}
         {#each pendingSources as source}
           <div class="border border-dashed border-muted-foreground p-3 text-center transition-all duration-200 hover:border-primary/50 hover:bg-primary/5">
-            <SourceTypeIcon type={source.type} class="size-4 mx-auto mb-1.5 text-muted-foreground" />
+            <ConnectionIcon type={source.type} class="size-4 mx-auto mb-1.5 text-muted-foreground" />
             <div class="text-xs text-muted-foreground">{source.name}</div>
             <div class="text-[10px] text-warning mt-1">soon</div>
           </div>

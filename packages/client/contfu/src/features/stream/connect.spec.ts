@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
-import { EventType, SourceType, type ImageBlock } from "@contfu/core";
+import { EventType, ConnectionType, type ImageBlock } from "@contfu/core";
 import { db } from "../../infra/db/db";
 import { assetTable, itemAssetTable, syncTable } from "../../infra/db/schema";
 import { truncateAllTables } from "../../../test/setup";
@@ -26,7 +26,7 @@ describe("contfu connect", () => {
           type: EventType.ITEM_CHANGED,
           item: {
             id: Buffer.from([1, 2, 3]),
-            sourceType: SourceType.WEB,
+            connectionType: ConnectionType.WEB,
             ref: "https://example.com/abc",
             collection: "article",
             changedAt: 1700000000,
@@ -101,7 +101,7 @@ describe("contfu connect", () => {
           type: EventType.ITEM_CHANGED,
           item: {
             id: Buffer.from([4, 5, 6]),
-            sourceType: SourceType.WEB,
+            connectionType: ConnectionType.WEB,
             ref: "https://example.com/post",
             collection: "article",
             changedAt: 1700000000,
@@ -137,7 +137,7 @@ describe("contfu connect", () => {
           type: EventType.ITEM_CHANGED,
           item: {
             id: Buffer.from([7, 8, 9]),
-            sourceType: SourceType.WEB,
+            connectionType: ConnectionType.WEB,
             ref: "https://example.com/post2",
             collection: "article",
             changedAt: 1700000000,

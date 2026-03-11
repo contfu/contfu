@@ -41,11 +41,11 @@ export interface ItemValidationErrorDetails {
  */
 export interface ServiceIncidentWithDetails {
   id: string;
-  influxId: string;
-  collectionId: string;
-  collectionName: string;
+  flowId: string;
   sourceCollectionId: string;
   sourceCollectionName: string;
+  targetCollectionId: string;
+  targetCollectionName: string;
   type: IncidentType;
   message: string;
   details: Record<string, unknown> | null;

@@ -1,6 +1,6 @@
-import { extractConsumerKey } from "$lib/server/consumer-auth";
+import { extractConnectionKey } from "$lib/server/connection-auth";
 import { getStreamServer } from "$lib/server/startup";
-import { EventType } from "@contfu/core";
+import { ConnectionType, EventType } from "@contfu/core";
 import { createLogger } from "@contfu/svc-backend/infra/logger/index";
 import { runEffectWithServices } from "@contfu/svc-backend/effect/run";
 import {
@@ -10,14 +10,8 @@ import {
 import { createIncident } from "@contfu/svc-backend/features/incidents/createIncident";
 import { IncidentType } from "@contfu/svc-core";
 import { pack } from "msgpackr";
-import { getConsumerSyncConfig } from "@contfu/svc-backend/features/sync/getConsumerSyncConfig";
-import {
-  collectionTable,
-  consumerTable,
-  db,
-  influxTable,
-  sourceCollectionTable,
-} from "@contfu/svc-backend/infra/db/db";
+import { getSyncConfig } from "@contfu/svc-backend/features/sync/getSyncConfig";
+import { collectionTable, connectionTable, flowTable, db } from "@contfu/svc-backend/infra/db/db";
 import { hasNats } from "@contfu/svc-backend/infra/nats/connection";
 import {
   getLastSequence,
@@ -29,14 +23,14 @@ import {
   getSnapshotProgress,
   isSnapshotSeqAvailable,
   publishSnapshot,
-  purgeConsumerSnapshot,
+  purgeConnectionSnapshot,
   replaySnapshotFrom,
   setSnapshotProgress,
 } from "@contfu/svc-backend/infra/nats/snapshot-stream";
 import {
   getCollectionNamesByIds,
-  getConsumerCollectionIds,
-  getConsumerCollectionRefPolicy,
+  getConnectionCollectionIds,
+  getConnectionRefPolicy,
   toWireItem,
 } from "@contfu/svc-backend/infra/stream/stream-server";
 import { and, eq, inArray } from "drizzle-orm";
@@ -50,7 +44,7 @@ const log = createLogger("api-sync");
 export const GET: RequestHandler = async ({ request, url }) => {
   const server = getStreamServer();
 
-  const auth = extractConsumerKey(url, request);
+  const auth = extractConnectionKey(url, request);
   if ("error" in auth) return auth.error;
   const { key } = auth;
 
@@ -60,36 +54,50 @@ export const GET: RequestHandler = async ({ request, url }) => {
     return new Response("Invalid 'from' parameter", { status: 400 });
   }
 
+  if (key.length < 20) {
+    return new Response("Invalid key format", { status: 401 });
+  }
+
   if (request.signal.aborted) {
     return new Response("Request aborted", { status: 499 });
   }
 
-  if (key.length !== 32) {
-    return new Response("Invalid key format", { status: 401 });
-  }
-
-  const consumers = await db
-    .select({ userId: consumerTable.userId, id: consumerTable.id })
-    .from(consumerTable)
-    .where(eq(consumerTable.key, key))
+  // Authenticate by finding the CLIENT connection with this key
+  const connections = await db
+    .select({ userId: connectionTable.userId, id: connectionTable.id })
+    .from(connectionTable)
+    .where(
+      and(eq(connectionTable.credentials, key), eq(connectionTable.type, ConnectionType.CLIENT)),
+    )
     .limit(1);
-  const consumer = consumers[0];
-  if (!consumer) {
+  const connection = connections[0];
+  if (!connection) {
+    log.warn("Auth rejected: no matching CLIENT connection found");
     return new Response("Invalid or unknown consumer key", { status: 401 });
   }
+
+  const clientConnectionId = connection.id;
 
   const authResult = await server.preAuthenticate(key);
   if (authResult.error) {
     switch (authResult.error) {
       case "E_AUTH":
+        log.warn(
+          { userId: connection.userId, clientConnectionId },
+          "Auth rejected by preAuthenticate: E_AUTH",
+        );
         return new Response("Invalid or unknown consumer key", { status: 401 });
       default:
+        log.warn(
+          { userId: connection.userId, clientConnectionId, error: authResult.error },
+          "Auth rejected by preAuthenticate",
+        );
         return new Response("Authentication failed", { status: 403 });
     }
   }
 
   log.info(
-    { userId: consumer.userId, consumerId: consumer.id, fromSeq: requestedFromSeq },
+    { userId: connection.userId, clientConnectionId, fromSeq: requestedFromSeq },
     "Consumer connected",
   );
 
@@ -97,18 +105,20 @@ export const GET: RequestHandler = async ({ request, url }) => {
   let resumeFromSnapshot = false;
 
   if (hasNats()) {
-    // Check if this consumer has an in-progress snapshot it can resume from.
-    const snapshotProgress = await getSnapshotProgress(consumer.userId, consumer.id);
+    const snapshotProgress = await getSnapshotProgress(connection.userId, clientConnectionId);
     if (snapshotProgress?.inProgress && fromSeq !== null) {
-      const available = await isSnapshotSeqAvailable(consumer.userId, consumer.id, fromSeq);
+      const available = await isSnapshotSeqAvailable(
+        connection.userId,
+        clientConnectionId,
+        fromSeq,
+      );
       if (available) {
         resumeFromSnapshot = true;
       } else {
-        await clearSnapshotProgress(consumer.userId, consumer.id);
+        await clearSnapshotProgress(connection.userId, clientConnectionId);
         fromSeq = null;
       }
     } else if (snapshotProgress?.inProgress && fromSeq === null) {
-      // Resume pre-built background snapshot triggered on connection creation.
       resumeFromSnapshot = true;
       fromSeq = 1;
     } else if (fromSeq !== null) {
@@ -118,9 +128,6 @@ export const GET: RequestHandler = async ({ request, url }) => {
       }
     }
   }
-  // When NATS is unavailable, fromSeq stays as-is.
-  // from != null means "I have data, skip snapshot."
-  // Replay phase is skipped anyway because hasNats() is false.
 
   let cleanupConnection: (() => void) | null = null;
 
@@ -166,19 +173,16 @@ export const GET: RequestHandler = async ({ request, url }) => {
         }
         connectionId = result;
         log.info(
-          { userId: consumer.userId, consumerId: consumer.id, connectionId },
+          { userId: connection.userId, clientConnectionId, connectionId },
           "Connection established",
         );
 
-        const info = server.getConnectionConsumerInfo(connectionId);
+        const info = server.getConnectionInfo(connectionId);
         if (!info || request.signal.aborted) {
           cleanup();
           return;
         }
 
-        // Start keepAlive pings before snapshot/replay so the client
-        // doesn't detect a stall during long-running phases where all
-        // events may be filtered out (e.g. snapshotSequences skip).
         keepAlive = setInterval(() => {
           try {
             if (!connectionId || !server.sendPingForConnection(connectionId)) {
@@ -190,8 +194,12 @@ export const GET: RequestHandler = async ({ request, url }) => {
         }, 10_000);
 
         const snapshotStartSeq = fromSeq === null ? await getLastSequence() : 0;
-        const collectionIds = await getConsumerCollectionIds(consumer.userId, consumer.id);
-        const collectionNames = await getCollectionNamesByIds(collectionIds, consumer.userId);
+        // Get collections owned by this CLIENT connection
+        const collectionIds = await getConnectionCollectionIds(
+          connection.userId,
+          clientConnectionId,
+        );
+        const collectionNames = await getCollectionNamesByIds(collectionIds, connection.userId);
 
         // Load displayName for each connected collection.
         const collectionDisplayNames = new Map<number, string>();
@@ -201,7 +209,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
             .from(collectionTable)
             .where(
               and(
-                eq(collectionTable.userId, consumer.userId),
+                eq(collectionTable.userId, connection.userId),
                 inArray(collectionTable.id, collectionIds),
               ),
             );
@@ -210,49 +218,45 @@ export const GET: RequestHandler = async ({ request, url }) => {
           }
         }
 
-        // Send merged schemas for each connected collection.
-        // Join sourceCollectionTable to fall back to its schema when
-        // the influx row has no schema of its own (common after initial setup).
+        // Send merged schemas for each collection.
+        // Compute from flows targeting these collections.
         if (collectionIds.length > 0) {
-          const influxRows = await db
+          // Get flows that target these collections, joined with source collection schema
+          const flowRows = await db
             .select({
-              collectionId: influxTable.collectionId,
-              influxSchema: influxTable.schema,
-              sourceSchema: sourceCollectionTable.schema,
-              mappings: influxTable.mappings,
+              targetId: flowTable.targetId,
+              sourceId: flowTable.sourceId,
+              flowSchema: flowTable.schema,
+              sourceCollectionSchema: collectionTable.schema,
+              mappings: flowTable.mappings,
             })
-            .from(influxTable)
-            .innerJoin(
-              sourceCollectionTable,
-              eq(influxTable.sourceCollectionId, sourceCollectionTable.id),
-            )
+            .from(flowTable)
+            .innerJoin(collectionTable, eq(flowTable.sourceId, collectionTable.id))
             .where(
               and(
-                eq(influxTable.userId, consumer.userId),
-                inArray(influxTable.collectionId, collectionIds),
+                eq(flowTable.userId, connection.userId),
+                inArray(flowTable.targetId, collectionIds),
               ),
             );
 
           const mergedSchemas = new Map<number, Record<string, number>>();
-          for (const row of influxRows) {
-            const schemaBuf = row.influxSchema ?? row.sourceSchema;
+          for (const row of flowRows) {
+            const schemaBuf = row.flowSchema ?? row.sourceCollectionSchema;
             if (!schemaBuf) continue;
             const rawSchema = unpack(schemaBuf) as CollectionSchema;
             const schema = row.mappings
               ? applyMappingsToSchema(rawSchema, unpack(row.mappings) as MappingRule[])
               : rawSchema;
-            const existing = mergedSchemas.get(row.collectionId);
+            const existing = mergedSchemas.get(row.targetId);
             if (existing) {
               for (const [prop, type] of Object.entries(schema)) {
                 existing[prop] = (existing[prop] ?? 0) | type;
               }
             } else {
-              mergedSchemas.set(row.collectionId, { ...schema });
+              mergedSchemas.set(row.targetId, { ...schema });
             }
           }
 
-          // Send SCHEMA for every connected collection so the client creates
-          // a collectionsTable row before any items arrive (even if schema is empty).
           for (const colId of collectionIds) {
             const name = collectionNames.get(colId);
             if (!name) continue;
@@ -263,21 +267,21 @@ export const GET: RequestHandler = async ({ request, url }) => {
         }
 
         if (fromSeq === null) {
-          log.debug({ userId: consumer.userId, consumerId: consumer.id }, "Starting snapshot");
+          log.debug({ userId: connection.userId, clientConnectionId }, "Starting snapshot");
           server.sendBinaryEvent(controller, [EventType.SNAPSHOT_START]);
 
-          await setSnapshotProgress(consumer.userId, consumer.id, snapshotStartSeq);
-          server.setSnapshotMode(consumer.userId, consumer.id);
+          await setSnapshotProgress(connection.userId, clientConnectionId, snapshotStartSeq);
+          server.setSnapshotMode(connection.userId, clientConnectionId);
 
           const config = await runEffectWithServices(
-            getConsumerSyncConfig(consumer.userId, consumer.id),
+            getSyncConfig(connection.userId, clientConnectionId),
           );
 
           const validationCollector = new ValidationErrorCollector();
           let snapshotItemCount = 0;
           for await (const item of fetchAndStreamItems(config, validationCollector)) {
             if (request.signal.aborted) break;
-            const wireEvent: [EventType.ITEM_CHANGED, ReturnType<typeof toWireItem>] = [
+            const wireEvent: [typeof EventType.ITEM_CHANGED, ReturnType<typeof toWireItem>] = [
               EventType.ITEM_CHANGED,
               toWireItem(
                 item,
@@ -285,17 +289,17 @@ export const GET: RequestHandler = async ({ request, url }) => {
                 item.includeRef,
               ),
             ];
-            const seq = await publishSnapshot(consumer.userId, consumer.id, wireEvent);
+            const seq = await publishSnapshot(connection.userId, clientConnectionId, wireEvent);
             snapshotItemCount++;
             server.sendIndexedItem(controller, seq, wireEvent, Boolean(item.includeRef));
           }
 
           server.sendBinaryEvent(controller, [EventType.SNAPSHOT_END]);
-          await purgeConsumerSnapshot(consumer.userId, consumer.id);
-          await clearSnapshotProgress(consumer.userId, consumer.id);
-          server.clearSnapshotMode(consumer.userId, consumer.id);
+          await purgeConnectionSnapshot(connection.userId, clientConnectionId);
+          await clearSnapshotProgress(connection.userId, clientConnectionId);
+          server.clearSnapshotMode(connection.userId, clientConnectionId);
           log.debug(
-            { userId: consumer.userId, consumerId: consumer.id, itemCount: snapshotItemCount },
+            { userId: connection.userId, clientConnectionId, itemCount: snapshotItemCount },
             "Snapshot complete",
           );
 
@@ -304,8 +308,8 @@ export const GET: RequestHandler = async ({ request, url }) => {
             for (const group of validationCollector.getGroups()) {
               try {
                 await runEffectWithServices(
-                  createIncident(consumer.userId, {
-                    influxId: group.influxId,
+                  createIncident(connection.userId, {
+                    flowId: group.flowId,
                     type: IncidentType.ItemValidationError,
                     message: `${group.total} item(s) dropped: cannot cast "${group.sourceProperty}" to ${group.cast} for "${group.property}"`,
                     details: {
@@ -326,12 +330,12 @@ export const GET: RequestHandler = async ({ request, url }) => {
 
         // Resume an interrupted snapshot from the dedicated snapshot stream.
         if (resumeFromSnapshot) {
-          server.setSnapshotMode(consumer.userId, consumer.id);
+          server.setSnapshotMode(connection.userId, clientConnectionId);
           server.sendBinaryEvent(controller, [EventType.SNAPSHOT_START]);
 
           for await (const { seq, event } of replaySnapshotFrom(
-            consumer.userId,
-            consumer.id,
+            connection.userId,
+            clientConnectionId,
             fromSeq!,
           )) {
             if (request.signal.aborted) break;
@@ -340,28 +344,30 @@ export const GET: RequestHandler = async ({ request, url }) => {
 
           server.sendBinaryEvent(controller, [EventType.SNAPSHOT_END]);
 
-          // Retrieve stored eventsStartSeq, clean up snapshot state
-          const progress = await getSnapshotProgress(consumer.userId, consumer.id);
+          const progress = await getSnapshotProgress(connection.userId, clientConnectionId);
           const eventsStartSeq = progress?.eventsStartSeq ?? 0;
-          await purgeConsumerSnapshot(consumer.userId, consumer.id);
-          await clearSnapshotProgress(consumer.userId, consumer.id);
-          server.clearSnapshotMode(consumer.userId, consumer.id);
+          await purgeConnectionSnapshot(connection.userId, clientConnectionId);
+          await clearSnapshotProgress(connection.userId, clientConnectionId);
+          server.clearSnapshotMode(connection.userId, clientConnectionId);
 
-          // Override fromSeq so events replay starts at the right point
           fromSeq = eventsStartSeq;
         }
 
         const replayStartSeq = fromSeq ?? snapshotStartSeq + 1;
         if (hasNats()) {
-          const collectionIds = await getConsumerCollectionIds(info.userId, info.consumerId);
-          const refPolicyByCollection = await getConsumerCollectionRefPolicy(
+          const collectionIds = await getConnectionCollectionIds(info.userId, info.connectionId);
+          const refPolicyByCollection = await getConnectionRefPolicy(
             info.userId,
-            info.consumerId,
+            info.connectionId,
           );
 
           if (collectionIds.length > 0 && replayStartSeq > 0 && !request.signal.aborted) {
             log.debug(
-              { userId: info.userId, consumerId: info.consumerId, fromSeq: replayStartSeq },
+              {
+                userId: info.userId,
+                clientConnectionId: info.connectionId,
+                fromSeq: replayStartSeq,
+              },
               "Starting replay",
             );
             for await (const { seq, collectionId, event } of replayEvents({
@@ -377,7 +383,10 @@ export const GET: RequestHandler = async ({ request, url }) => {
                 refPolicyByCollection.get(collectionId) ?? true,
               );
             }
-            log.debug({ userId: info.userId, consumerId: info.consumerId }, "Replay complete");
+            log.debug(
+              { userId: info.userId, clientConnectionId: info.connectionId },
+              "Replay complete",
+            );
           }
         }
       } catch (error) {

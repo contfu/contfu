@@ -1,7 +1,9 @@
-import { SourceType } from "@contfu/core";
+import { ConnectionType } from "@contfu/core";
 
-export const SOURCE_TYPE_LABELS: Record<SourceType, string> = {
-  [SourceType.NOTION]: "Notion",
-  [SourceType.STRAPI]: "Strapi",
-  [SourceType.WEB]: "Web",
+export const SOURCE_TYPE_LABELS: Record<ConnectionType, string> = {
+  [ConnectionType.NOTION]: "Notion",
+  [ConnectionType.STRAPI]: "Strapi",
+  [ConnectionType.WEB]: "Web",
+  [ConnectionType.CONTENTFUL]: "Contentful",
+  [ConnectionType.CLIENT]: "Client",
 };

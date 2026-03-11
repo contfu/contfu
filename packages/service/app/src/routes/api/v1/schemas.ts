@@ -2,16 +2,12 @@ import { error } from "@sveltejs/kit";
 import * as v from "valibot";
 
 export {
-  CreateSourceSchema,
-  UpdateSourceSchema,
+  CreateConnectionSchema,
+  UpdateConnectionSchema,
   CreateCollectionSchema,
   UpdateCollectionSchema,
-  CreateConsumerSchema,
-  UpdateConsumerSchema,
-  CreateConsumerCollectionSchema,
-  UpdateConsumerCollectionSchema,
-  CreateInfluxSchema,
-  UpdateInfluxSchema,
+  CreateFlowSchema,
+  UpdateFlowSchema,
 } from "@contfu/svc-core";
 
 export function parseBody<T>(schema: v.GenericSchema<T>, data: unknown): T {

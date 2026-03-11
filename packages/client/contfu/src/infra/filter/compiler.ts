@@ -8,7 +8,7 @@ const DIRECT_COLUMNS: Record<string, SQL> = {
   collection: sql`${itemsTable.collection}`,
   changedAt: sql`${itemsTable.changedAt}`,
   ref: sql`${itemsTable.ref}`,
-  sourceType: sql`${itemsTable.sourceType}`,
+  connectionType: sql`${itemsTable.connectionType}`,
 };
 
 const FUNCTION_MAP: Record<string, (args: string[]) => SQL> = {

@@ -72,17 +72,17 @@
     <div class="space-y-4 rounded-lg border border-border p-4">
       <div>
         <div class="mb-1.5 flex justify-between text-sm">
-          <span>Sources</span>
+          <span>Connections</span>
           <span class="font-mono"
-            >{quota?.sources ?? 0} / {quota?.maxSources ?? 1}</span
+            >{quota?.connections ?? 0} / {quota?.maxConnections ?? 1}</span
           >
         </div>
         <div class="h-1.5 w-full rounded-full bg-secondary">
           <div
             class="h-1.5 rounded-full bg-primary transition-all"
             style="width: {progressWidth(
-              quota?.sources ?? 0,
-              quota?.maxSources ?? 1,
+              quota?.connections ?? 0,
+              quota?.maxConnections ?? 1,
             )}"
           ></div>
         </div>
@@ -124,9 +124,9 @@
       </div>
       <div>
         <div class="mb-1.5 flex justify-between text-sm">
-          <span>Consumers</span>
+          <span>Connections</span>
           <span class="font-mono"
-            >{quota?.consumers ?? 0} / {quota?.maxConsumers ??
+            >{quota?.connections ?? 0} / {quota?.maxConnections ??
               1}</span
           >
         </div>
@@ -134,8 +134,8 @@
           <div
             class="h-1.5 rounded-full bg-primary transition-all"
             style="width: {progressWidth(
-              quota?.consumers ?? 0,
-              quota?.maxConsumers ?? 1,
+              quota?.connections ?? 0,
+              quota?.maxConnections ?? 1,
             )}"
           ></div>
         </div>
@@ -155,10 +155,10 @@
         <h3 class="font-semibold">Pro</h3>
         <p class="mt-1 text-sm text-muted-foreground">For growing teams</p>
         <ul class="mt-4 space-y-1.5 text-sm text-muted-foreground">
-          <li>10 sources</li>
+          <li>10 connections</li>
           <li>50 collections</li>
           <li>10,000 items</li>
-          <li>5 consumers</li>
+          <li>10 connections across source and client endpoints</li>
         </ul>
         <Button
           onclick={() => handleCheckout("pro_product_id")}
@@ -172,10 +172,10 @@
         <h3 class="font-semibold">Enterprise</h3>
         <p class="mt-1 text-sm text-muted-foreground">For large deployments</p>
         <ul class="mt-4 space-y-1.5 text-sm text-muted-foreground">
-          <li>100 sources</li>
+          <li>100 connections</li>
           <li>500 collections</li>
           <li>100,000 items</li>
-          <li>50 consumers</li>
+          <li>100 connections across source and client endpoints</li>
         </ul>
         <Button
           onclick={() => handleCheckout("enterprise_product_id")}

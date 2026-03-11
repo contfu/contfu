@@ -1,6 +1,6 @@
 import {
   EventType,
-  SourceType,
+  ConnectionType,
   type CollectionSchema,
   type Item as InternalItem,
   type PageProps,
@@ -14,7 +14,7 @@ export type Item<T extends PageProps = Record<never, never>> = Omit<
   InternalItem<T>,
   "collection" | "ref"
 > & {
-  sourceType: SourceType | null;
+  connectionType: ConnectionType | null;
   ref: string | null;
   collection: string;
 };
@@ -286,7 +286,7 @@ function fromWireEvent(wireEvent: WireEvent): SyncEvent | null {
   switch (type) {
     case EventType.ITEM_CHANGED: {
       const wireItem = wireEvent[1];
-      const [sourceType, ref, id, collection, changedAt, props, content] = wireItem;
+      const [connectionType, ref, id, collection, changedAt, props, content] = wireItem;
       const index = wireEvent[2];
 
       if (typeof index !== "number") {
@@ -295,7 +295,7 @@ function fromWireEvent(wireEvent: WireEvent): SyncEvent | null {
       }
 
       const item: Item = {
-        sourceType,
+        connectionType,
         ref: typeof ref === "string" ? ref : null,
         id: Buffer.from(id),
         collection,

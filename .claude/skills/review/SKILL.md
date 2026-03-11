@@ -9,9 +9,11 @@ model: sonnet
 Review the current branch's changes against main and fix any issues found.
 
 ## Changed Files
+
 !`git diff --name-only main...HEAD`
 
 ## Diff
+
 !`git diff main...HEAD`
 
 ## Steps

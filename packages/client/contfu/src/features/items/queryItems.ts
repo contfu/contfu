@@ -155,7 +155,7 @@ export async function queryItems(input: QueryItemsInput = {}, ctx = db): Promise
   const baseQuery = ctx
     .select({
       id: itemsTable.id,
-      sourceType: itemsTable.sourceType,
+      connectionType: itemsTable.connectionType,
       ref: itemsTable.ref,
       collectionName: itemsTable.collection,
       props: itemsTable.props,
@@ -179,7 +179,7 @@ export async function queryItems(input: QueryItemsInput = {}, ctx = db): Promise
 
       return {
         id: encodeId(row.id),
-        sourceType: row.sourceType ?? null,
+        connectionType: row.connectionType ?? null,
         ref: row.ref ?? null,
         collection: row.collectionName,
         props: props && typeof props === "object" ? props : {},

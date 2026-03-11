@@ -1,4 +1,4 @@
-import { SourceType } from "@contfu/core";
+import { ConnectionType } from "@contfu/core";
 import { pack } from "msgpackr";
 import { sql } from "drizzle-orm";
 import {
@@ -12,6 +12,7 @@ import {
   primaryKey,
   text,
   timestamp,
+  unique,
   uuid,
 } from "drizzle-orm/pg-core";
 import { UserRole, type UserRole as UserRoleType } from "../../domain/types";
@@ -19,7 +20,7 @@ import { UserRole, type UserRole as UserRoleType } from "../../domain/types";
 export const appUserRole = pgRole("app_user");
 export const serviceRole = pgRole("service_role");
 
-const currentUserIdSql = sql`current_setting('app.current_user_id', true)::integer`;
+export const currentUserIdSql = sql`current_setting('app.current_user_id', true)::integer`;
 
 // better-auth tables
 
@@ -124,29 +125,37 @@ export type ApiKey = typeof apikeyTable.$inferSelect;
 
 // Application tables
 
-export const integrationTable = pgTable.withRLS(
-  "integration",
+export const connectionTable = pgTable.withRLS(
+  "connection",
   {
     id: integer().primaryKey().generatedAlwaysAsIdentity(),
     userId: integer()
       .notNull()
       .references(() => userTable.id, { onDelete: "cascade" }),
-    /** Provider identifier (e.g. "notion") */
-    providerId: text().notNull(),
-    /** User-facing label */
-    label: text().notNull(),
+    /** Connection type (Notion, Strapi, Web, Client, etc.) */
+    type: integer().$type<ConnectionType>().notNull(),
+    /** User-facing name */
+    name: text().notNull(),
     /** Provider-side account/workspace ID for dedup */
     accountId: text(),
-    /** Encrypted OAuth credentials */
+    /** Encrypted credentials (OAuth tokens, API keys, client API keys) */
     credentials: bytea(),
+    /** URL for non-well-known services (e.g. Strapi instance URL) */
+    url: text(),
+    /** Globally unique identifier for webhook URLs. */
+    uid: uuid().unique(),
+    /** Webhook secret for validating incoming webhooks (optional). */
+    webhookSecret: bytea(),
+    /** Whether to include ref fields linking back to upstream items. */
+    includeRef: boolean().notNull().default(true),
     createdAt: timestamp({ withTimezone: true, mode: "date" })
       .default(sql`now()`)
       .notNull(),
     updatedAt: timestamp({ withTimezone: true, mode: "date" }),
   },
   (table) => [
-    index("integration_userId_idx").on(table.userId),
-    pgPolicy("integration_user_isolation", {
+    index("connection_userId_idx").on(table.userId),
+    pgPolicy("connection_user_isolation", {
       for: "all",
       to: appUserRole,
       using: sql`${table.userId} = ${currentUserIdSql}`,
@@ -155,7 +164,7 @@ export const integrationTable = pgTable.withRLS(
   ],
 );
 
-export type Integration = typeof integrationTable.$inferSelect;
+export type Connection = typeof connectionTable.$inferSelect;
 
 export const quotaTable = pgTable("quota", {
   id: integer()
@@ -169,156 +178,29 @@ export const quotaTable = pgTable("quota", {
   subscriptionStatus: text(),
   /** Current billing period end timestamp */
   currentPeriodEnd: timestamp({ withTimezone: true, mode: "date" }),
-  /** The number of sources. */
-  sources: integer().notNull().default(0),
-  /** The maximum number of sources. */
-  maxSources: integer().notNull(),
+  /** The number of connections. */
+  connections: integer().notNull().default(0),
+  /** The maximum number of connections. */
+  maxConnections: integer().notNull(),
   /** The number of collections. */
   collections: integer().notNull().default(0),
   /** The maximum number of collections. */
   maxCollections: integer().notNull(),
+  /** The number of flows. */
+  flows: integer().notNull().default(0),
+  /** The maximum number of flows. */
+  maxFlows: integer().notNull(),
   /** The number of items. */
   items: integer().notNull().default(0),
   /** The maximum number of items. */
   maxItems: integer().notNull(),
-  /** The number of consumers. */
-  consumers: integer().notNull().default(0),
-  /** The maximum number of consumers. */
-  maxConsumers: integer().notNull(),
 });
 
 export type Quota = typeof quotaTable.$inferSelect;
 
-export const consumerTable = pgTable.withRLS(
-  "consumer",
-  {
-    /** The globally unique id of the consumer. */
-    id: integer().primaryKey().generatedAlwaysAsIdentity(),
-    /** The user id that the consumer belongs to. */
-    userId: integer()
-      .notNull()
-      .references(() => userTable.id, { onDelete: "cascade" }),
-    /** The key of the consumer. If null, the consumer is internal. */
-    key: bytea().unique(),
-    /** The name of the consumer. */
-    name: text().notNull(),
-    /** Whether refs may be transmitted to this consumer. */
-    includeRef: boolean().notNull().default(true),
-    /** The time the consumer was created. */
-    createdAt: timestamp({ withTimezone: true, mode: "date" })
-      .default(sql`now()`)
-      .notNull(),
-  },
-  (table) => [
-    index("consumer_userId_idx").on(table.userId),
-    pgPolicy("consumer_user_isolation", {
-      for: "all",
-      to: appUserRole,
-      using: sql`${table.userId} = ${currentUserIdSql}`,
-      withCheck: sql`${table.userId} = ${currentUserIdSql}`,
-    }),
-  ],
-);
-
-export type Consumer = typeof consumerTable.$inferSelect;
-
-export const sourceTable = pgTable.withRLS(
-  "source",
-  {
-    /** The globally unique id of the source. */
-    id: integer().primaryKey().generatedAlwaysAsIdentity(),
-    /** The user which owns the source. */
-    userId: integer()
-      .references(() => userTable.id, { onDelete: "cascade" })
-      .notNull(),
-    /** Globally unique identifier for webhook URLs. */
-    uid: uuid().unique().notNull(),
-    /** The name of the source. */
-    name: text().notNull(),
-    /** The url of the upstream source. Can be empty, if it is a centralized SaaS source. */
-    url: text(),
-    /** An api key or other credentials for the source. Used to fetch data from the upstream source. */
-    credentials: bytea(),
-    /** The type of the source. */
-    type: integer().$type<SourceType>().notNull(),
-    /** Webhook secret for validating incoming webhooks (optional). */
-    webhookSecret: bytea(),
-    /** FK to integration for OAuth-sourced credentials */
-    integrationId: integer().references(() => integrationTable.id, { onDelete: "set null" }),
-    /**
-     * Whether to include a ref field in Items linking back to the upstream SourceItem.
-     */
-    includeRef: boolean().notNull().default(true),
-    /** The date the source was created. */
-    createdAt: timestamp({ withTimezone: true, mode: "date" })
-      .default(sql`now()`)
-      .notNull(),
-    /** The date the source was updated. */
-    updatedAt: timestamp({ withTimezone: true, mode: "date" }),
-  },
-  (table) => [
-    index("source_userId_idx").on(table.userId),
-    pgPolicy("source_user_isolation", {
-      for: "all",
-      to: appUserRole,
-      using: sql`${table.userId} = ${currentUserIdSql}`,
-      withCheck: sql`${table.userId} = ${currentUserIdSql}`,
-    }),
-  ],
-);
-
-export type Source = typeof sourceTable.$inferSelect;
-
-export const sourceCollectionTable = pgTable.withRLS(
-  "source_collection",
-  {
-    /** The globally unique id of the source collection. */
-    id: integer().primaryKey().generatedAlwaysAsIdentity(),
-    /** The user which owns the source collection. */
-    userId: integer()
-      .references(() => userTable.id, { onDelete: "cascade" })
-      .notNull(),
-    /** The source which the source collection is connected to. */
-    sourceId: integer()
-      .notNull()
-      .references(() => sourceTable.id, { onDelete: "cascade" }),
-    /** The name of the source collection (from upstream, may be fetched fresh). */
-    name: text().notNull(),
-    /**
-     * User-provided display name for generic URL sources.
-     * Takes precedence over `name` when set.
-     */
-    displayName: text(),
-    /** The reference to the upstream collection within the source. */
-    ref: bytea(),
-    /** The schema of the source collection (MessagePack serialized CollectionSchema). */
-    schema: bytea(),
-    /** The item ids that have been received for this source collection. **/
-    itemIds: bytea(),
-    /** The date the source collection was created. */
-    createdAt: timestamp({ withTimezone: true, mode: "date" })
-      .default(sql`now()`)
-      .notNull(),
-    /** The date the source collection was updated. */
-    updatedAt: timestamp({ withTimezone: true, mode: "date" }),
-  },
-  (table) => [
-    index("source_collection_userId_idx").on(table.userId),
-    index("source_collection_sourceId_idx").on(table.sourceId),
-    pgPolicy("source_collection_user_isolation", {
-      for: "all",
-      to: appUserRole,
-      using: sql`${table.userId} = ${currentUserIdSql}`,
-      withCheck: sql`${table.userId} = ${currentUserIdSql}`,
-    }),
-  ],
-);
-
-export type SourceCollection = typeof sourceCollectionTable.$inferSelect;
-
 /**
- * A collection is an aggregation target that consumers subscribe to.
- * It can receive items from multiple source collections via mappings.
+ * A collection is an aggregation target that can optionally be bound to a connection.
+ * Virtual collections (connectionId=null) have no external system backing.
  */
 export const collectionTable = pgTable.withRLS(
   "collection",
@@ -329,10 +211,14 @@ export const collectionTable = pgTable.withRLS(
     userId: integer()
       .references(() => userTable.id, { onDelete: "cascade" })
       .notNull(),
+    /** FK to connection (nullable — null means virtual collection). */
+    connectionId: integer().references(() => connectionTable.id, { onDelete: "set null" }),
     /** Human-readable display name (e.g. "Blog Posts"). */
     displayName: text().notNull(),
     /** The camelCase identifier name of the collection (e.g. "blogPosts"). */
     name: text().notNull(),
+    /** The reference to the upstream collection within the connection (e.g. Notion DB UUID). */
+    ref: bytea(),
     /** The target schema of the collection (MessagePack serialized CollectionSchema). */
     schema: bytea()
       .notNull()
@@ -350,6 +236,7 @@ export const collectionTable = pgTable.withRLS(
   },
   (table) => [
     index("collection_userId_idx").on(table.userId),
+    index("collection_connectionId_idx").on(table.connectionId),
     pgPolicy("collection_user_isolation", {
       for: "all",
       to: appUserRole,
@@ -362,29 +249,28 @@ export const collectionTable = pgTable.withRLS(
 export type Collection = typeof collectionTable.$inferSelect;
 
 /**
- * An Influx defines data flowing from a SourceCollection into a Collection.
- * Includes optional filters and a schema snapshot for validation.
+ * A flow defines data movement between two collections, forming a DAG.
+ * Includes optional filters, mappings, and a schema snapshot.
  */
-export const influxTable = pgTable.withRLS(
-  "influx",
+export const flowTable = pgTable.withRLS(
+  "flow",
   {
-    /** The globally unique id of the influx. */
+    /** The globally unique id of the flow. */
     id: integer().primaryKey().generatedAlwaysAsIdentity(),
-    /** The user which owns the influx. */
+    /** The user which owns the flow. */
     userId: integer()
       .references(() => userTable.id, { onDelete: "cascade" })
       .notNull(),
-    /** The target collection receiving items. */
-    collectionId: integer()
+    /** The source collection providing items. */
+    sourceId: integer()
       .notNull()
       .references(() => collectionTable.id, { onDelete: "cascade" }),
-    /** The source collection providing items. */
-    sourceCollectionId: integer()
+    /** The target collection receiving items. */
+    targetId: integer()
       .notNull()
-      .references(() => sourceCollectionTable.id, { onDelete: "cascade" }),
+      .references(() => collectionTable.id, { onDelete: "cascade" }),
     /**
      * Schema snapshot at creation/last valid sync (MessagePack serialized).
-     * Used for validating filters against schema changes.
      */
     schema: bytea(),
     /**
@@ -393,24 +279,23 @@ export const influxTable = pgTable.withRLS(
     mappings: bytea(),
     /**
      * Filters to apply to items from this source (MessagePack serialized).
-     * Format: [{property: string, operator: string, value?: unknown}]
-     * Empty/null means no filtering (all items pass through).
      */
     filters: bytea(),
-    /** Whether refs may be transmitted for this specific source->collection link. */
+    /** Whether refs may be transmitted for this specific flow. */
     includeRef: boolean().notNull().default(true),
-    /** The date the influx was created. */
+    /** The date the flow was created. */
     createdAt: timestamp({ withTimezone: true, mode: "date" })
       .default(sql`now()`)
       .notNull(),
-    /** The date the influx was last updated. */
+    /** The date the flow was last updated. */
     updatedAt: timestamp({ withTimezone: true, mode: "date" }),
   },
   (table) => [
-    index("influx_userId_idx").on(table.userId),
-    index("influx_collectionId_idx").on(table.collectionId),
-    index("influx_sourceCollectionId_idx").on(table.sourceCollectionId),
-    pgPolicy("influx_user_isolation", {
+    unique("flow_source_target_unique").on(table.sourceId, table.targetId),
+    index("flow_userId_idx").on(table.userId),
+    index("flow_sourceId_idx").on(table.sourceId),
+    index("flow_targetId_idx").on(table.targetId),
+    pgPolicy("flow_user_isolation", {
       for: "all",
       to: appUserRole,
       using: sql`${table.userId} = ${currentUserIdSql}`,
@@ -419,62 +304,23 @@ export const influxTable = pgTable.withRLS(
   ],
 );
 
-export type Influx = typeof influxTable.$inferSelect;
-
-/** The connection of the consumer to the collection. */
-export const consumerCollectionTable = pgTable.withRLS(
-  "consumer_collection",
-  {
-    /** The user which owns the collection and consumer. */
-    userId: integer()
-      .references(() => userTable.id, { onDelete: "cascade" })
-      .notNull(),
-    /** The consumer id. */
-    consumerId: integer()
-      .notNull()
-      .references(() => consumerTable.id, { onDelete: "cascade" }),
-    /** The collection which the consumer is connected to. */
-    collectionId: integer()
-      .notNull()
-      .references(() => collectionTable.id, { onDelete: "cascade" }),
-    /** Whether refs may be transmitted on this specific consumer->collection link. */
-    includeRef: boolean().notNull().default(true),
-    /** The most recent item change that was received by the consumer. */
-    lastItemChanged: timestamp({ withTimezone: true, mode: "date" }),
-    /** The date the collection was last checked for deleted items. */
-    lastConsistencyCheck: timestamp({ withTimezone: true, mode: "date" }),
-  },
-  (table) => [
-    primaryKey({ columns: [table.consumerId, table.collectionId] }),
-    index("consumer_collection_userId_idx").on(table.userId),
-    index("consumer_collection_consumerId_idx").on(table.consumerId),
-    index("consumer_collection_collectionId_idx").on(table.collectionId),
-    pgPolicy("consumer_collection_user_isolation", {
-      for: "all",
-      to: appUserRole,
-      using: sql`${table.userId} = ${currentUserIdSql}`,
-      withCheck: sql`${table.userId} = ${currentUserIdSql}`,
-    }),
-  ],
-);
-
-export type ConsumerCollection = typeof consumerCollectionTable.$inferSelect;
+export type Flow = typeof flowTable.$inferSelect;
 
 export const itemIdConflictResolutionTable = pgTable(
   "item_id_conflict_resolution",
   {
-    /** The source collection which the id mapping is connected to. */
-    sourceCollectionId: integer()
+    /** The collection which the id mapping is connected to. */
+    collectionId: integer()
       .notNull()
-      .references(() => sourceCollectionTable.id, { onDelete: "cascade" }),
-    /** The id which is unique within the source collection. */
+      .references(() => collectionTable.id, { onDelete: "cascade" }),
+    /** The id which is unique within the collection. */
     sourceItemId: bytea().notNull(),
-    /** The 4 byte id which is unique within the source collection. */
+    /** The 4 byte id which is unique within the collection. */
     id: integer().notNull(),
   },
   (table) => [
-    primaryKey({ columns: [table.sourceCollectionId, table.sourceItemId] }),
-    index("item_id_conflict_sourceCollectionId_idx").on(table.sourceCollectionId),
+    primaryKey({ columns: [table.collectionId, table.sourceItemId] }),
+    index("item_id_conflict_collectionId_idx").on(table.collectionId),
   ],
 );
 
@@ -486,10 +332,10 @@ export const webhookLogTable = pgTable.withRLS(
   "webhook_log",
   {
     id: integer().primaryKey().generatedAlwaysAsIdentity(),
-    /** The source that received the webhook. */
-    sourceId: integer()
+    /** The connection that received the webhook. */
+    connectionId: integer()
       .notNull()
-      .references(() => sourceTable.id, { onDelete: "cascade" }),
+      .references(() => connectionTable.id, { onDelete: "cascade" }),
     /** The webhook event type (e.g., entry.create, entry.update). */
     event: text().notNull(),
     /** The content type/model affected. */
@@ -506,24 +352,24 @@ export const webhookLogTable = pgTable.withRLS(
       .notNull(),
   },
   (table) => [
-    index("webhook_log_sourceId_idx").on(table.sourceId),
+    index("webhook_log_connectionId_idx").on(table.connectionId),
     pgPolicy("webhook_log_user_isolation", {
       for: "all",
       to: appUserRole,
       using: sql`
         exists (
           select 1
-          from "source" s
-          where s.id = ${table.sourceId}
-            and s."userId" = ${currentUserIdSql}
+          from "connection" c
+          where c.id = ${table.connectionId}
+            and c."userId" = ${currentUserIdSql}
         )
       `,
       withCheck: sql`
         exists (
           select 1
-          from "source" s
-          where s.id = ${table.sourceId}
-            and s."userId" = ${currentUserIdSql}
+          from "connection" c
+          where c.id = ${table.connectionId}
+            and c."userId" = ${currentUserIdSql}
         )
       `,
     }),
@@ -544,17 +390,16 @@ export const incidentTable = pgTable.withRLS(
     userId: integer()
       .references(() => userTable.id, { onDelete: "cascade" })
       .notNull(),
-    /** The influx that caused the incident. */
-    influxId: integer()
+    /** The flow that caused the incident. */
+    flowId: integer()
       .notNull()
-      .references(() => influxTable.id, { onDelete: "cascade" }),
+      .references(() => flowTable.id, { onDelete: "cascade" }),
     /** The type of incident. */
     type: integer().notNull(), // IncidentType enum
     /** Human-readable description of the incident. */
     message: text().notNull(),
     /**
      * Details about the incident (MessagePack serialized).
-     * For schema_incompatible: { oldSchema, newSchema, invalidFilters }
      */
     details: bytea(),
     /** Whether the incident has been resolved. */
@@ -568,7 +413,7 @@ export const incidentTable = pgTable.withRLS(
   },
   (table) => [
     index("incident_userId_idx").on(table.userId),
-    index("incident_influxId_idx").on(table.influxId),
+    index("incident_flowId_idx").on(table.flowId),
     pgPolicy("incident_user_isolation", {
       for: "all",
       to: appUserRole,
@@ -587,10 +432,10 @@ export const syncJobTable = pgTable.withRLS(
   "sync_job",
   {
     id: integer().primaryKey().generatedAlwaysAsIdentity(),
-    /** The source collection to sync. */
-    sourceCollectionId: integer()
+    /** The collection to sync. */
+    collectionId: integer()
       .notNull()
-      .references(() => sourceCollectionTable.id, { onDelete: "cascade" }),
+      .references(() => collectionTable.id, { onDelete: "cascade" }),
     /** Job status: pending | running | completed | failed */
     status: text().notNull().default("pending"),
     /** When the job is scheduled to run. */
@@ -611,7 +456,7 @@ export const syncJobTable = pgTable.withRLS(
     workerId: text(),
   },
   (table) => [
-    index("sync_job_sourceCollectionId_idx").on(table.sourceCollectionId),
+    index("sync_job_collectionId_idx").on(table.collectionId),
     index("sync_job_queue_idx").on(table.status, table.scheduledAt),
     index("sync_job_status_idx").on(table.status, table.startedAt),
     pgPolicy("sync_job_user_isolation", {
@@ -620,17 +465,17 @@ export const syncJobTable = pgTable.withRLS(
       using: sql`
         exists (
           select 1
-          from "source_collection" sc
-          where sc.id = ${table.sourceCollectionId}
-            and sc."userId" = ${currentUserIdSql}
+          from "collection" c
+          where c.id = ${table.collectionId}
+            and c."userId" = ${currentUserIdSql}
         )
       `,
       withCheck: sql`
         exists (
           select 1
-          from "source_collection" sc
-          where sc.id = ${table.sourceCollectionId}
-            and sc."userId" = ${currentUserIdSql}
+          from "collection" c
+          where c.id = ${table.collectionId}
+            and c."userId" = ${currentUserIdSql}
         )
       `,
     }),

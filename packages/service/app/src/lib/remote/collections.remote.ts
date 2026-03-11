@@ -3,17 +3,17 @@ import { encodeCollection } from "$lib/mappers/collection.mappers";
 import { runWithUser } from "$lib/server/run";
 import { getStreamServer, getSyncWorkerManager } from "$lib/server/startup";
 import { getUserId } from "$lib/server/user";
-import { EventType, type WireEvent } from "@contfu/core";
+import { ConnectionType, EventType, type WireEvent } from "@contfu/core";
 import type { CollectionSchema, RefTargets } from "@contfu/svc-core";
 import { createCollection as createCollectionFeature } from "@contfu/svc-backend/features/collections/createCollection";
 import { deleteCollection as deleteCollectionFeature } from "@contfu/svc-backend/features/collections/deleteCollection";
 import { getCollection as getCollectionFeature } from "@contfu/svc-backend/features/collections/getCollection";
+import { getCollectionSchema as getCollectionSchemaFeature } from "@contfu/svc-backend/features/collections/getCollectionSchema";
 import { listCollections as listCollectionsFeature } from "@contfu/svc-backend/features/collections/listCollections";
+import { listCollectionsByConnection as listCollectionsByConnectionFeature } from "@contfu/svc-backend/features/collections/listCollectionsByConnection";
 import { updateCollection as updateCollectionFeature } from "@contfu/svc-backend/features/collections/updateCollection";
-import { listConsumerCollectionsByCollection } from "@contfu/svc-backend/features/collections/listConsumerCollectionsByCollection";
-import { createInflux } from "@contfu/svc-backend/features/influxes/createInflux";
-import { createSourceCollection as createSourceCollectionFeature } from "@contfu/svc-backend/features/source-collections/createSourceCollection";
-import { getCollectionSchema } from "@contfu/svc-backend/features/source-collections/getCollectionSchema";
+import { listFlowsByCollection } from "@contfu/svc-backend/features/flows/listFlowsByCollection";
+import { getConnectionWithCredentials } from "@contfu/svc-backend/features/connections/getConnectionWithCredentials";
 import { encodeId, idSchema } from "@contfu/svc-backend/infra/ids";
 import { error, redirect } from "@sveltejs/kit";
 import * as v from "valibot";
@@ -23,7 +23,7 @@ import * as v from "valibot";
  */
 export const getCollections = query(async () => {
   const userId = getUserId();
-  const collections = await runWithUser(userId, listCollectionsFeature(userId));
+  const collections = await runWithUser(userId, listCollectionsFeature());
   return collections.map(encodeCollection);
 });
 
@@ -32,14 +32,26 @@ export const getCollections = query(async () => {
  */
 export const getCollection = query(v.object({ id: idSchema("collection") }), async ({ id }) => {
   const userId = getUserId();
-  const collection = await runWithUser(userId, getCollectionFeature(userId, id));
+  const collection = await runWithUser(userId, getCollectionFeature(id));
   if (!collection) error(404, "Collection not found");
   return encodeCollection(collection);
 });
 
 /**
+ * Get collections filtered by connection ID.
+ */
+export const getCollectionsByConnection = query(
+  v.object({ connectionId: idSchema("connection") }),
+  async ({ connectionId }) => {
+    const userId = getUserId();
+    const collections = await runWithUser(userId, listCollectionsByConnectionFeature(connectionId));
+    return collections.map(encodeCollection);
+  },
+);
+
+/**
  * Create a new Collection.
- * Optionally create a SourceCollection and link it via an influx in one step.
+ * Optionally bind it to a connection via connectionId + ref.
  */
 export const createCollection = form(
   v.object({
@@ -56,9 +68,8 @@ export const createCollection = form(
         v.transform((val) => (typeof val === "boolean" ? val : val === "true")),
       ),
     ),
-    // Optional: create and link a SourceCollection in one step
-    sourceId: v.optional(idSchema("source")),
-    ref: v.optional(v.string()), // Content type UID, e.g., "api::article.article"
+    connectionId: v.optional(idSchema("connection")),
+    ref: v.optional(v.string()),
   }),
   async (data) => {
     const userId = getUserId();
@@ -68,28 +79,10 @@ export const createCollection = form(
         displayName: data.displayName,
         name: data.name,
         includeRef: data.includeRef ?? true,
+        connectionId: data.connectionId,
+        ref: data.ref,
       }),
     );
-
-    // If sourceId + ref provided, create SourceCollection and link it via influx
-    if (data.sourceId && data.ref) {
-      const sourceCollection = await runWithUser(
-        userId,
-        createSourceCollectionFeature(userId, {
-          name: data.displayName,
-          sourceId: data.sourceId,
-          ref: Buffer.from(data.ref, "utf-8"),
-        }),
-      );
-      await runWithUser(
-        userId,
-        createInflux(userId, {
-          collectionId: collection.id,
-          sourceCollectionId: sourceCollection.id,
-          includeRef: true,
-        }),
-      );
-    }
 
     redirect(303, `/collections/${encodeId("collection", collection.id)}`);
   },
@@ -120,11 +113,11 @@ export const updateCollection = form(
     const userId = getUserId();
 
     // Fetch current collection before update to detect renames
-    const oldCollection = await runWithUser(userId, getCollectionFeature(userId, data.id));
+    const oldCollection = await runWithUser(userId, getCollectionFeature(data.id));
 
     await runWithUser(
       userId,
-      updateCollectionFeature(userId, data.id, {
+      updateCollectionFeature(data.id, {
         displayName: data.displayName,
         name: data.name,
         includeRef: data.includeRef,
@@ -154,20 +147,20 @@ export const updateCollection = form(
 export const deleteCollection = form(v.object({ id: idSchema("collection") }), async (data) => {
   const userId = getUserId();
 
-  // Fetch collection name and connections before delete (cascade deletes connections)
-  const collection = await runWithUser(userId, getCollectionFeature(userId, data.id));
-  const connections = collection
-    ? await runWithUser(userId, listConsumerCollectionsByCollection(userId, data.id))
-    : [];
+  // Fetch collection and its flows before delete (cascade deletes flows)
+  const collection = await runWithUser(userId, getCollectionFeature(data.id));
+  const flows = collection ? await runWithUser(userId, listFlowsByCollection(data.id)) : [];
 
-  await runWithUser(userId, deleteCollectionFeature(userId, data.id));
+  await runWithUser(userId, deleteCollectionFeature(data.id));
 
-  // Broadcast COLLECTION_REMOVED to formerly-connected consumers
+  // Broadcast COLLECTION_REMOVED to target collections of outbound flows
   if (collection) {
     const server = getStreamServer();
     const removedEvent: WireEvent = [EventType.COLLECTION_REMOVED, collection.name];
-    for (const conn of connections) {
-      server.sendToConsumer(conn.userId, conn.consumerId, removedEvent);
+    for (const flow of flows) {
+      if (flow.targetId !== data.id) {
+        server.broadcastToCollection(userId, flow.targetId, removedEvent);
+      }
     }
   }
 
@@ -188,10 +181,10 @@ export const updateCollectionSchema = command(
     const schema = JSON.parse(data.schema) as CollectionSchema;
     const refTargets = data.refTargets ? (JSON.parse(data.refTargets) as RefTargets) : undefined;
 
-    const oldCollection = await runWithUser(userId, getCollectionFeature(userId, data.id));
+    const oldCollection = await runWithUser(userId, getCollectionFeature(data.id));
     const oldSchema = oldCollection?.schema ?? null;
 
-    await runWithUser(userId, updateCollectionFeature(userId, data.id, { schema, refTargets }));
+    await runWithUser(userId, updateCollectionFeature(data.id, { schema, refTargets }));
 
     const schemaChanged = JSON.stringify(oldSchema) !== JSON.stringify(schema);
     if (schemaChanged) {
@@ -203,12 +196,124 @@ export const updateCollectionSchema = command(
 );
 
 /**
- * Get the schema for a source collection.
+ * Get the schema for a collection.
  */
-export const getSourceCollectionSchemaQuery = query(
-  v.object({ sourceCollectionId: idSchema("sourceCollection") }),
-  async ({ sourceCollectionId }): Promise<CollectionSchema | null> => {
+export const getCollectionSchema = query(
+  v.object({ collectionId: idSchema("collection") }),
+  async ({ collectionId }): Promise<CollectionSchema | null> => {
     const userId = getUserId();
-    return runWithUser(userId, getCollectionSchema(userId, sourceCollectionId));
+    return runWithUser(userId, getCollectionSchemaFeature(collectionId));
+  },
+);
+
+export type DiscoveredCollection = {
+  ref: string;
+  displayName: string;
+  alreadyImported: boolean;
+};
+
+/**
+ * Discover available collections from a connection (e.g. Notion databases).
+ */
+export const discoverCollections = query(
+  v.object({ connectionId: idSchema("connection") }),
+  async ({ connectionId }): Promise<DiscoveredCollection[]> => {
+    const userId = getUserId();
+    const connection = await runWithUser(userId, getConnectionWithCredentials(connectionId));
+    if (!connection) error(404, "Connection not found");
+
+    const credentials = connection.credentials?.toString("utf-8") ?? "";
+    if (!credentials) return [];
+
+    if (connection.type !== ConnectionType.NOTION && connection.type !== ConnectionType.STRAPI)
+      return [];
+
+    // Get already-imported refs for this connection
+    const existing = await runWithUser(userId, listCollectionsByConnectionFeature(connectionId));
+    const importedRefs = new Set(existing.map((c) => c.refString).filter(Boolean));
+
+    const discovered: DiscoveredCollection[] = [];
+
+    if (connection.type === ConnectionType.NOTION) {
+      const { iterateDataSources } = await import("@contfu/svc-sources/notion");
+      for await (const ds of iterateDataSources(credentials)) {
+        const titleParts = (ds as { title?: Array<{ plain_text?: string }> }).title ?? [];
+        const displayName = titleParts.map((t) => t.plain_text ?? "").join("") || "Untitled";
+        discovered.push({
+          ref: ds.id,
+          displayName,
+          alreadyImported: importedRefs.has(ds.id),
+        });
+      }
+    } else if (connection.type === ConnectionType.STRAPI) {
+      const url = connection.url ?? "";
+      const { iterateContentTypes } = await import("@contfu/svc-sources/strapi");
+      for await (const ct of iterateContentTypes(url, credentials)) {
+        discovered.push({
+          ref: ct.uid,
+          displayName: ct.info.displayName,
+          alreadyImported: importedRefs.has(ct.uid),
+        });
+      }
+    }
+
+    return discovered;
+  },
+);
+
+/**
+ * Import multiple collections from a connection at once.
+ */
+export const importCollections = command(
+  v.object({
+    connectionId: idSchema("connection"),
+    items: v.array(
+      v.object({
+        ref: v.string(),
+        displayName: v.string(),
+      }),
+    ),
+  }),
+  async (data) => {
+    const userId = getUserId();
+
+    // Fetch connection once (needed for schema seeding)
+    const connection = await runWithUser(userId, getConnectionWithCredentials(data.connectionId));
+
+    const results: Array<{ ref: string; id: string }> = [];
+    for (const item of data.items) {
+      const collection = await runWithUser(
+        userId,
+        createCollectionFeature(userId, {
+          displayName: item.displayName,
+          connectionId: data.connectionId,
+          ref: item.ref,
+        }),
+      );
+
+      // Seed schema immediately from Notion data source properties.
+      // item.ref is the data source ID (from iterateDataSources), so retrieve
+      // the data source directly rather than going via the database lookup.
+      if (connection?.type === ConnectionType.NOTION && connection.credentials) {
+        try {
+          const { notion, notionPropertiesToSchema, isFullDataSource } =
+            await import("@contfu/svc-sources/notion");
+          const auth = connection.credentials.toString("utf-8");
+          const dataSource = await notion.dataSources.retrieve({
+            auth,
+            data_source_id: item.ref,
+          });
+          if (isFullDataSource(dataSource)) {
+            const schema = notionPropertiesToSchema(dataSource.properties);
+            await runWithUser(userId, updateCollectionFeature(collection.id, { schema }));
+          }
+        } catch {
+          // Schema seeding is best-effort; collection is still usable
+        }
+      }
+
+      results.push({ ref: item.ref, id: encodeId("collection", collection.id) });
+    }
+    return { imported: results.length };
   },
 );

@@ -1,13 +1,12 @@
 /**
  * Mapping editor E2E test seed data.
- * Seeds a collection with two influxes, each with a known source schema and mappings.
+ * Seeds a collection with two flows, each with a known source schema and mappings.
  */
-import { SourceType, PropertyType } from "@contfu/svc-core";
+import { ConnectionType, PropertyType } from "@contfu/svc-core";
 import {
   collectionTable,
-  influxTable,
-  sourceCollectionTable,
-  sourceTable,
+  connectionTable,
+  flowTable,
   userTable,
 } from "@contfu/svc-backend/infra/db/schema";
 import { pack } from "msgpackr";
@@ -17,7 +16,7 @@ import type { CollectionSchema, MappingRule } from "@contfu/svc-core";
 /** Well-known UID for idempotent seeding. */
 export const MAPPING_SOURCE_UID = "00000002-0000-4000-a000-000000000002";
 
-/** Source schemas for the two influxes. */
+/** Source schemas for the two flows. */
 export const SOURCE_SCHEMA_A: CollectionSchema = {
   title: PropertyType.STRING,
   count: PropertyType.NUMBER,
@@ -39,7 +38,7 @@ export const TARGET_SCHEMA: CollectionSchema = {
   createdAt: PropertyType.DATE,
 };
 
-/** Initial mappings for influx A (identity). */
+/** Initial mappings for flow A (identity). */
 export const MAPPINGS_A: MappingRule[] = [
   { source: "title", target: "title" },
   { source: "count", target: "count" },
@@ -47,17 +46,17 @@ export const MAPPINGS_A: MappingRule[] = [
   { source: "createdAt", target: "createdAt" },
 ];
 
-/** Initial mappings for influx B (partial). */
+/** Initial mappings for flow B (partial). */
 export const MAPPINGS_B: MappingRule[] = [{ source: "title", target: "title" }];
 
 export const COLLECTION_NAME = "mappingTestCollection";
 export const COLLECTION_DISPLAY_NAME = "Mapping Test Collection";
 
-/** Second collection for "add second influx" testing. */
-export const COLLECTION2_NAME = "addInfluxTestCollection";
-export const COLLECTION2_DISPLAY_NAME = "Add Influx Test Collection";
+/** Second collection for "add second flow" testing. */
+export const COLLECTION2_NAME = "addInflowTestCollection";
+export const COLLECTION2_DISPLAY_NAME = "Add Inflow Test Collection";
 
-/** Source schema C — unlinked, used as a second influx. */
+/** Source schema C — unlinked, used as a second flow source. */
 export const SOURCE_SCHEMA_C: CollectionSchema = {
   title: PropertyType.STRING,
   summary: PropertyType.STRING,
@@ -77,54 +76,56 @@ export async function seedMappingEditorData(db: any): Promise<void> {
 
   // Idempotent check
   const [existing] = await db
-    .select({ id: sourceTable.id })
-    .from(sourceTable)
-    .where(and(eq(sourceTable.userId, userId), eq(sourceTable.uid, MAPPING_SOURCE_UID)))
+    .select({ id: connectionTable.id })
+    .from(connectionTable)
+    .where(and(eq(connectionTable.userId, userId), eq(connectionTable.uid, MAPPING_SOURCE_UID)))
     .limit(1);
 
   if (existing) return;
 
-  // Source (Strapi type — no external API calls needed)
-  const [source] = await db
-    .insert(sourceTable)
+  // Source connection (Strapi)
+  const [sourceConnection] = await db
+    .insert(connectionTable)
     .values({
       userId,
-      uid: MAPPING_SOURCE_UID,
-      name: "Test Mapping Source",
-      type: SourceType.STRAPI,
+      type: ConnectionType.STRAPI,
+      name: "Test Mapping Connection",
       url: "https://strapi.test.local",
+      uid: MAPPING_SOURCE_UID,
     })
-    .returning({ id: sourceTable.id });
-  if (!source) return;
+    .returning({ id: connectionTable.id });
+  if (!sourceConnection) return;
 
   // Source collection A
-  const [scA] = await db
-    .insert(sourceCollectionTable)
+  const [srcColA] = await db
+    .insert(collectionTable)
     .values({
       userId,
-      sourceId: source.id,
+      connectionId: sourceConnection.id,
       name: "Source A",
+      displayName: "Source A",
       ref: Buffer.from("source-a", "utf-8"),
       schema: pack(SOURCE_SCHEMA_A),
     })
-    .returning({ id: sourceCollectionTable.id });
-  if (!scA) return;
+    .returning({ id: collectionTable.id });
+  if (!srcColA) return;
 
   // Source collection B
-  const [scB] = await db
-    .insert(sourceCollectionTable)
+  const [srcColB] = await db
+    .insert(collectionTable)
     .values({
       userId,
-      sourceId: source.id,
+      connectionId: sourceConnection.id,
       name: "Source B",
+      displayName: "Source B",
       ref: Buffer.from("source-b", "utf-8"),
       schema: pack(SOURCE_SCHEMA_B),
     })
-    .returning({ id: sourceCollectionTable.id });
-  if (!scB) return;
+    .returning({ id: collectionTable.id });
+  if (!srcColB) return;
 
   // Target collection
-  const [collection] = await db
+  const [targetCollection] = await db
     .insert(collectionTable)
     .values({
       userId,
@@ -133,41 +134,42 @@ export async function seedMappingEditorData(db: any): Promise<void> {
       schema: pack(TARGET_SCHEMA),
     })
     .returning({ id: collectionTable.id });
-  if (!collection) return;
+  if (!targetCollection) return;
 
-  // Influx A with schema + mappings
-  await db.insert(influxTable).values({
+  // Flow A with schema + mappings
+  await db.insert(flowTable).values({
     userId,
-    collectionId: collection.id,
-    sourceCollectionId: scA.id,
+    sourceId: srcColA.id,
+    targetId: targetCollection.id,
     schema: pack(SOURCE_SCHEMA_A),
     mappings: pack(MAPPINGS_A),
   });
 
-  // Influx B with schema + partial mappings
-  await db.insert(influxTable).values({
+  // Flow B with schema + partial mappings
+  await db.insert(flowTable).values({
     userId,
-    collectionId: collection.id,
-    sourceCollectionId: scB.id,
+    sourceId: srcColB.id,
+    targetId: targetCollection.id,
     schema: pack(SOURCE_SCHEMA_B),
     mappings: pack(MAPPINGS_B),
   });
 
-  // Source collection C (unlinked — for "add second influx" test)
-  const [scC] = await db
-    .insert(sourceCollectionTable)
+  // Source collection C (unlinked — for "add second flow" test)
+  const [srcColC] = await db
+    .insert(collectionTable)
     .values({
       userId,
-      sourceId: source.id,
+      connectionId: sourceConnection.id,
       name: "Source C",
+      displayName: "Source C",
       ref: Buffer.from("source-c", "utf-8"),
       schema: pack(SOURCE_SCHEMA_C),
     })
-    .returning({ id: sourceCollectionTable.id });
-  if (!scC) return;
+    .returning({ id: collectionTable.id });
+  if (!srcColC) return;
 
-  // Second collection with one influx (Source A)
-  const [collection2] = await db
+  // Second target collection with one flow (Source A)
+  const [targetCollection2] = await db
     .insert(collectionTable)
     .values({
       userId,
@@ -176,12 +178,12 @@ export async function seedMappingEditorData(db: any): Promise<void> {
       schema: pack(SOURCE_SCHEMA_A),
     })
     .returning({ id: collectionTable.id });
-  if (!collection2) return;
+  if (!targetCollection2) return;
 
-  await db.insert(influxTable).values({
+  await db.insert(flowTable).values({
     userId,
-    collectionId: collection2.id,
-    sourceCollectionId: scA.id,
+    sourceId: srcColA.id,
+    targetId: targetCollection2.id,
     schema: pack(SOURCE_SCHEMA_A),
     mappings: pack(MAPPINGS_A),
   });

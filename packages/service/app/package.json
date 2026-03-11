@@ -23,6 +23,7 @@
     "@contfu/svc-core": "workspace:*",
     "@contfu/svc-sources": "workspace:*",
     "@contfu/ui": "workspace:*",
+    "@electric-sql/pglite": "^0.3.15",
     "@tanstack/table-core": "^8.21.3",
     "bits-ui": "^2.15.5",
     "clsx": "^2.1.1",

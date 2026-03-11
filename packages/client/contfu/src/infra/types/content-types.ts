@@ -1,5 +1,5 @@
 import type { ImageBlock, Block } from "@contfu/core";
-import type { SourceType } from "@contfu/core";
+import type { ConnectionType } from "@contfu/core";
 
 /** A resolved content link: partial item (internal) or URL string (external) */
 export type ResolvedLink = (Partial<ItemData> & { id: string }) | string | null;
@@ -9,7 +9,7 @@ export type ContentLinks = ResolvedLink[];
 
 export interface ItemData {
   id: string;
-  sourceType?: SourceType | null;
+  connectionType?: ConnectionType | null;
   ref: string | null;
   collection: string;
   props: Record<string, unknown>;

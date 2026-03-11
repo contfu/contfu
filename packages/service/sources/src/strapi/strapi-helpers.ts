@@ -5,6 +5,20 @@ import type {
   StrapiResponse,
 } from "./strapi";
 
+/** Iterate over user-created API content types (uid starts with "api::"). */
+export async function* iterateContentTypes(
+  url: string,
+  token: string,
+): AsyncGenerator<StrapiContentTypeSchema> {
+  const res = await fetch(`${url.replace(/\/$/, "")}/api/content-type-builder/content-types`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const json = (await res.json()) as { data?: StrapiContentTypeSchema[] };
+  for (const ct of json.data ?? []) {
+    if (ct.uid?.startsWith("api::")) yield ct;
+  }
+}
+
 /** Default page size for Strapi API requests. */
 const DEFAULT_PAGE_SIZE = 25;
 

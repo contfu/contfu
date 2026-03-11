@@ -6,7 +6,11 @@
   import { Input } from "$lib/components/ui/input";
   import { Label } from "$lib/components/ui/label";
   import { createCollection } from "$lib/remote/collections.remote";
+  import { getQuotaUsage } from "$lib/remote/billing.remote";
   import { useId } from "bits-ui";
+
+  const quota = $derived(await getQuotaUsage());
+  const atCollectionLimit = $derived(quota !== null && quota.maxCollections !== -1 && quota.collections >= quota.maxCollections);
 
   function toCamelCase(input: string): string {
     return input
@@ -20,8 +24,8 @@
   const displayNameId = useId();
   const nameId = useId();
 
-  // Optional query params for implicit SourceCollection creation (used by E2E tests)
-  const sourceId = page.url.searchParams.get("sourceId") ?? "";
+  // Optional query params for binding collection to a connection
+  const connectionId = page.url.searchParams.get("connectionId") ?? "";
   const ref = page.url.searchParams.get("ref") ?? "";
 
   let displayName = $state("");
@@ -45,6 +49,13 @@
   <p class="mb-8 text-xs text-muted-foreground">
     <span class="text-primary">$</span> contfu collections create
   </p>
+
+  {#if atCollectionLimit}
+    <p class="mb-6 text-sm text-muted-foreground">
+      Collection limit reached ({quota?.collections}/{quota?.maxCollections}).
+      <a href="/billing" class="underline hover:text-foreground">Upgrade your plan</a> to add more collections.
+    </p>
+  {/if}
 
   <form method="post" action={createCollection.action} class="space-y-5">
     <div class="space-y-1.5">
@@ -101,20 +112,17 @@
       <p class="text-xs text-muted-foreground">Auto-derived from display name. Used as a camelCase identifier in generated types.</p>
     </div>
 
-    <!-- Hidden fields for implicit SourceCollection creation (populated via URL params) -->
-    {#if sourceId}
-      <input type="hidden" name="sourceId" value={sourceId} />
+    <!-- Hidden fields for binding collection to a connection (populated via URL params) -->
+    {#if connectionId}
+      <input type="hidden" name="connectionId" value={connectionId} />
     {/if}
     {#if ref}
       <input type="hidden" name="ref" value={ref} />
     {/if}
 
     <div class="flex gap-3 pt-2">
-      <Button type="submit" disabled={!!createCollection.pending}>
+      <Button type="submit" disabled={!!createCollection.pending || atCollectionLimit}>
         {createCollection.pending ? "Creating..." : "Create Collection"}
-      </Button>
-      <Button type="button" variant="outline" href="/collections">
-        Cancel
       </Button>
     </div>
   </form>

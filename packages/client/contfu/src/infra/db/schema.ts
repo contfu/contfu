@@ -1,4 +1,4 @@
-import type { Block, SourceType } from "@contfu/core";
+import type { Block, ConnectionType } from "@contfu/core";
 import { blob, index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 export const collectionsTable = sqliteTable("collections", {
@@ -11,7 +11,7 @@ export const itemsTable = sqliteTable(
   "items",
   {
     id: blob({ mode: "buffer" }).primaryKey(),
-    sourceType: integer().$type<SourceType | null>(),
+    connectionType: integer().$type<ConnectionType | null>(),
     ref: text(),
     collection: text()
       .notNull()

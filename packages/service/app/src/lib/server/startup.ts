@@ -74,6 +74,8 @@ export async function initialize(): Promise<void> {
     await ensureEventStream();
     await ensureWebhookFetchQueue();
     startWebhookFetchWorker({ streamServer: stream });
+    const { startPushWorker } = await import("@contfu/svc-backend/push-worker/push-worker");
+    await startPushWorker();
   }
 
   // Start the sync worker (skip in test mode — E2E tests use webhook fixtures

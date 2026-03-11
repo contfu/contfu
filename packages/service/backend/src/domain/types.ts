@@ -8,15 +8,12 @@
  * feature functions.
  */
 
-import { SourceType } from "@contfu/core";
+import type { ConnectionType } from "@contfu/core";
 import type {
   ServiceCollection,
+  ServiceFlow,
+  ServiceFlowWithDetails,
   ServiceIncidentWithDetails,
-  ServiceInfluxDetails,
-  ServiceInfluxWithDetails,
-  ServiceSourceCollection,
-  ServiceSourceCollectionSummary,
-  ServiceSourceCollectionWithConnectionCount,
 } from "@contfu/svc-core";
 import type { Simplify } from "type-fest";
 
@@ -27,113 +24,113 @@ type DecodedIds<T, Ids extends keyof T & string> = Simplify<
 >;
 
 // =============================================================================
-// Integration Types
+// Connection Types
 // =============================================================================
 
-/** An OAuth integration without sensitive credentials */
-export interface BackendIntegration {
+/** A connection without sensitive credentials */
+export interface BackendConnection {
   id: number;
   userId: number;
-  providerId: string;
-  label: string;
+  type: ConnectionType;
+  name: string;
   accountId: string | null;
+  url: string | null;
+  uid: string | null;
   hasCredentials: boolean;
+  hasWebhookSecret: boolean;
+  includeRef: boolean;
   createdAt: Date;
   updatedAt: Date | null;
 }
 
-/** Input for creating a new integration */
-export interface CreateIntegrationInput {
-  providerId: string;
-  label: string;
+/** Input for creating a new connection */
+export interface CreateConnectionInput {
+  type: ConnectionType;
+  name: string;
   accountId?: string | null;
+  url?: string | null;
+  uid?: string | null;
+  includeRef?: boolean;
   /** Raw credentials (will be encrypted by the feature) */
   credentials?: Buffer | null;
+  /** Raw webhook secret (will be encrypted by the feature) */
+  webhookSecret?: Buffer | null;
+}
+
+/** Input for updating a connection */
+export interface UpdateConnectionInput {
+  name?: string;
+  includeRef?: boolean;
+  /** Raw credentials (will be encrypted by the feature unless skipCredentialsEncryption is true) */
+  credentials?: Buffer | null;
+  /** Raw webhook secret (will be encrypted by the feature) */
+  webhookSecret?: Buffer | null;
+  /** When true, credentials are stored as-is without encryption (used for CLIENT API keys). */
+  skipCredentialsEncryption?: boolean;
 }
 
 // =============================================================================
-// Source Types
-// =============================================================================
-
-/** A source without sensitive credentials - safe to expose to the app */
-export interface BackendSource {
-  id: number;
-  uid: string;
-  userId: number;
-  name: string;
-  url: string | null;
-  /** Whether refs are allowed to be transmitted from this source. */
-  includeRef: boolean;
-  /** Source type: 0 = Notion, 1 = Strapi, 2 = Web */
-  type: number;
-  /** Whether this source has credentials configured */
-  hasCredentials: boolean;
-  /** Whether this source has a webhook secret configured */
-  hasWebhookSecret: boolean;
-  /**
-   * For Web sources (type 2), the authentication type:
-   * 0 = None, 1 = Bearer Token, 2 = Basic Auth
-   * Undefined for non-web sources.
-   */
-  webAuthType?: number;
-  /** FK to integration (non-null means OAuth-sourced credentials) */
-  integrationId: number | null;
-  createdAt: Date;
-  updatedAt: Date | null;
-}
-
-/** A source with its collection count */
-export interface BackendSourceWithCollectionCount extends BackendSource {
-  collectionCount: number;
-}
-
-/** Minimal source summary for lists/dropdowns */
-export interface BackendSourceSummary {
-  id: number;
-  name: string | null;
-  /** Source type: 0 = Notion, 1 = Strapi, 2 = Web */
-  type: number;
-}
-
-// =============================================================================
-// Collection Types (consumer-facing aggregation targets)
+// Collection Types
 // =============================================================================
 
 /** A collection with numeric IDs (internal) */
-export type BackendCollection = Simplify<DecodedIds<ServiceCollection, "id"> & { userId: number }>;
-
-// =============================================================================
-// Source Collection Types (source-side collections)
-// =============================================================================
-
-/** A source collection with numeric IDs (internal) */
-export type BackendSourceCollection = Simplify<
-  DecodedIds<ServiceSourceCollection, "id" | "sourceId"> & { userId: number }
+export type BackendCollection = Simplify<
+  Omit<DecodedIds<ServiceCollection, "id">, "connectionId"> & {
+    userId: number;
+    connectionId: number | null;
+    connectionName: string | null;
+    connectionType: number | null;
+  }
 >;
 
-/** A source collection with its connection count */
-export type BackendSourceCollectionWithConnectionCount = Simplify<
-  DecodedIds<ServiceSourceCollectionWithConnectionCount, "id" | "sourceId"> & { userId: number }
->;
+/** Input for creating a new collection */
+export interface CreateCollectionInput {
+  displayName: string;
+  name?: string;
+  connectionId?: number | null;
+  ref?: Buffer | null;
+  includeRef?: boolean;
+}
 
-/** Minimal source collection summary */
-export type BackendSourceCollectionSummary = DecodedIds<ServiceSourceCollectionSummary, "id">;
+/** Input for updating a collection */
+export interface UpdateCollectionInput {
+  displayName?: string;
+  name?: string;
+  includeRef?: boolean;
+  schema?: Record<string, number>;
+  refTargets?: Record<string, string[]> | null;
+}
 
 // =============================================================================
-// Influx Types
+// Flow Types
 // =============================================================================
 
-/** Influx with resolved source details, numeric IDs */
-export type BackendInfluxWithDetails = DecodedIds<
-  ServiceInfluxWithDetails,
-  "id" | "sourceCollectionId" | "sourceId"
+/** A flow with numeric IDs (internal) */
+export type BackendFlow = DecodedIds<ServiceFlow, "id" | "sourceId" | "targetId">;
+
+/** A flow with resolved source/target details */
+export type BackendFlowWithDetails = DecodedIds<
+  ServiceFlowWithDetails,
+  "id" | "sourceId" | "targetId"
 >;
 
-/** Full influx details including collection info, numeric IDs */
-export type BackendInfluxDetails = DecodedIds<
-  ServiceInfluxDetails,
-  "id" | "userId" | "collectionId" | "sourceCollectionId" | "sourceId"
->;
+/** Input for creating a new flow */
+export interface CreateFlowInput {
+  sourceId: number;
+  targetId: number;
+  filters?: Buffer | null;
+  mappings?: Buffer | null;
+  schema?: Buffer | null;
+  includeRef?: boolean;
+}
+
+/** Input for updating a flow */
+export interface UpdateFlowInput {
+  filters?: Buffer | null;
+  mappings?: Buffer | null;
+  schema?: Buffer | null;
+  includeRef?: boolean;
+}
 
 // =============================================================================
 // Incident Types
@@ -142,7 +139,7 @@ export type BackendInfluxDetails = DecodedIds<
 /** Incident with resolved details, numeric IDs */
 export type BackendIncidentWithDetails = DecodedIds<
   ServiceIncidentWithDetails,
-  "id" | "influxId" | "collectionId" | "sourceCollectionId"
+  "id" | "flowId" | "sourceCollectionId" | "targetCollectionId"
 >;
 
 // =============================================================================
@@ -164,127 +161,8 @@ export interface BackendUserSummary {
 }
 
 // =============================================================================
-// Consumer Types
-// =============================================================================
-
-/** A consumer without the key buffer - safe to expose to the app */
-export interface BackendConsumer {
-  id: number;
-  userId: number;
-  name: string;
-  /** Whether refs are allowed to be transmitted to this consumer. */
-  includeRef: boolean;
-  /** Whether this consumer has an API key configured (internal consumers don't) */
-  hasKey: boolean;
-  createdAt: Date;
-}
-
-/** A consumer with its connection count */
-export interface BackendConsumerWithConnectionCount extends BackendConsumer {
-  connectionCount: number;
-}
-
-/** Minimal consumer summary for lists/dropdowns */
-export interface BackendConsumerSummary {
-  id: number;
-  name: string;
-}
-
-// =============================================================================
-// ConsumerCollection Types
-// =============================================================================
-
-/** A consumer-collection join between a consumer and a collection */
-export interface BackendConsumerCollection {
-  userId: number;
-  consumerId: number;
-  collectionId: number;
-  /** Whether refs are allowed on this specific connection. */
-  includeRef: boolean;
-  lastItemChanged: Date | null;
-  lastConsistencyCheck: Date | null;
-}
-
-/** A consumer-collection join with resolved consumer and collection names */
-export interface BackendConsumerCollectionWithDetails extends BackendConsumerCollection {
-  consumerName: string;
-  collectionName: string;
-}
-
-// =============================================================================
 // Input Types (for create/update operations)
 // =============================================================================
-
-/** Input for creating a new source */
-export interface CreateSourceInput {
-  name: string;
-  type: SourceType;
-  url?: string | null;
-  includeRef?: boolean;
-  /** Raw credentials (will be encrypted by the feature) */
-  credentials?: Buffer | null;
-  /** Raw webhook secret (will be encrypted by the feature) */
-  webhookSecret?: Buffer | null;
-  /** FK to integration for OAuth-sourced credentials */
-  integrationId?: number | null;
-}
-
-/** Input for updating a source */
-export interface UpdateSourceInput {
-  name?: string;
-  url?: string | null;
-  includeRef?: boolean;
-  /** Raw credentials (will be encrypted by the feature) */
-  credentials?: Buffer;
-  /** Raw webhook secret (will be encrypted by the feature) */
-  webhookSecret?: Buffer | null;
-}
-
-/** Input for creating a new source collection */
-export interface CreateSourceCollectionInput {
-  sourceId: number;
-  name: string;
-  ref?: Buffer | null;
-  itemIds?: Buffer | null;
-}
-
-/** Input for updating a source collection */
-export interface UpdateSourceCollectionInput {
-  name?: string;
-  ref?: Buffer | null;
-  itemIds?: Buffer | null;
-}
-
-/** Input for creating a new consumer */
-export interface CreateConsumerInput {
-  name: string;
-  includeRef?: boolean;
-  /** If provided, the consumer will have an API key (external consumer) */
-  key?: Buffer | null;
-}
-
-/** Input for updating a consumer */
-export interface UpdateConsumerInput {
-  name?: string;
-  includeRef?: boolean;
-  key?: Buffer | null;
-}
-
-/** Input for creating a new consumer-collection join */
-export interface CreateConsumerCollectionInput {
-  consumerId: number;
-  collectionId: number;
-  includeRef?: boolean;
-  lastItemChanged?: Date | null;
-  lastConsistencyCheck?: Date | null;
-}
-
-/** Input for updating a consumer-collection join */
-export interface UpdateConsumerCollectionInput {
-  includeRef?: boolean;
-  lastItemChanged?: Date | null;
-  lastConsistencyCheck?: Date | null;
-}
 
 /** User roles: 0 = user, 1 = admin */
 export const UserRole = {

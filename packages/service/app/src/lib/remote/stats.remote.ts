@@ -1,55 +1,48 @@
 import { query } from "$app/server";
 import { getUserId } from "$lib/server/user";
 import { db } from "@contfu/svc-backend/infra/db/db";
-import {
-  sourceCollectionTable,
-  consumerTable,
-  sourceTable,
-} from "@contfu/svc-backend/infra/db/schema";
+import { connectionTable, collectionTable, flowTable } from "@contfu/svc-backend/infra/db/schema";
 import { eq, sql } from "drizzle-orm";
 
 export type DashboardStats = {
-  sourceCount: number;
+  connectionCount: number;
   collectionCount: number;
+  flowCount: number;
   totalItemCount: number;
-  consumerCount: number;
 };
 
 /**
  * Get aggregated dashboard statistics for the current user.
- * Returns counts for sources, collections, total items, and consumers.
+ * Returns counts for connections, collections, flows, and total items.
  */
 export const getDashboardStats = query(async (): Promise<DashboardStats> => {
   const userId = getUserId();
 
   // Run all count queries in parallel for better performance
-  const [sourceResult, collectionResult, consumerResult] = await Promise.all([
-    // Count sources
+  const [connectionResult, collectionResult, flowResult] = await Promise.all([
+    // Count connections
     db
       .select({ count: sql<number>`count(*)` })
-      .from(sourceTable)
-      .where(eq(sourceTable.userId, userId)),
+      .from(connectionTable)
+      .where(eq(connectionTable.userId, userId)),
 
-    // Count collections and sum item counts (itemIds buffer length / 4 bytes per item ID)
-    db
-      .select({
-        count: sql<number>`count(*)`,
-        totalItems: sql<number>`coalesce(sum(length(${sourceCollectionTable.itemIds}) / 4), 0)`,
-      })
-      .from(sourceCollectionTable)
-      .where(eq(sourceCollectionTable.userId, userId)),
-
-    // Count consumers
+    // Count collections
     db
       .select({ count: sql<number>`count(*)` })
-      .from(consumerTable)
-      .where(eq(consumerTable.userId, userId)),
+      .from(collectionTable)
+      .where(eq(collectionTable.userId, userId)),
+
+    // Count flows
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(flowTable)
+      .where(eq(flowTable.userId, userId)),
   ]);
 
   return {
-    sourceCount: sourceResult[0]?.count ?? 0,
+    connectionCount: connectionResult[0]?.count ?? 0,
     collectionCount: collectionResult[0]?.count ?? 0,
-    totalItemCount: collectionResult[0]?.totalItems ?? 0,
-    consumerCount: consumerResult[0]?.count ?? 0,
+    flowCount: flowResult[0]?.count ?? 0,
+    totalItemCount: 0, // Total item count no longer tracked here
   };
 });

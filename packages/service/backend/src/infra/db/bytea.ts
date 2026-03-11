@@ -1,12 +1,9 @@
 import type { CollectionSchema, Filter } from "@contfu/svc-core";
 import type { SchemaIncompatibleDetails } from "@contfu/svc-core";
 import {
-  type sourceCollectionTable,
-  type influxTable,
-  type incidentTable,
-  sourceCollectionTable as sourceCollectionTableVal,
-  influxTable as influxTableVal,
   incidentTable as incidentTableVal,
+  flowTable as flowTableVal,
+  collectionTable as collectionTableVal,
 } from "./schema";
 
 /**
@@ -22,11 +19,10 @@ export type Encoding = "msgpackr" | "jsonb";
  * Must be kept in sync with ColumnTypes below.
  */
 export const columnEncodings = {
-  source_collection: {
+  collection: {
     schema: "msgpackr" as const,
-    itemIds: "msgpackr" as const,
   },
-  influx: {
+  flow: {
     schema: "msgpackr" as const,
     filters: "msgpackr" as const,
   },
@@ -40,11 +36,10 @@ export const columnEncodings = {
  * Must be kept in sync with columnEncodings above.
  */
 export interface ColumnTypes {
-  source_collection: {
+  collection: {
     schema: CollectionSchema;
-    itemIds: Uint8Array;
   };
-  influx: {
+  flow: {
     schema: CollectionSchema;
     filters: Filter[];
   };
@@ -58,7 +53,7 @@ export type ColumnName<T extends TableName> = keyof ColumnTypes[T];
 export type ColumnType<T extends TableName, C extends ColumnName<T>> = ColumnTypes[T][C];
 
 export const tables = {
-  source_collection: sourceCollectionTableVal,
-  influx: influxTableVal,
+  collection: collectionTableVal,
+  flow: flowTableVal,
   incident: incidentTableVal,
 } as const;

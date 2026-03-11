@@ -15,14 +15,14 @@
 
   // Group incidents by collection + source collection
   const grouped = $derived.by(() => {
-    const groups = new Map<string, { collectionName: string; sourceCollectionName: string; items: typeof incidents }>();
+    const groups = new Map<string, { collectionName: string; externalCollectionName: string; items: typeof incidents }>();
     for (const incident of incidents) {
-      const key = `${incident.collectionId}:${incident.sourceCollectionId}`;
+      const key = `${incident.collectionId}:${incident.externalCollectionId}`;
       let group = groups.get(key);
       if (!group) {
         group = {
           collectionName: incident.collectionName,
-          sourceCollectionName: incident.sourceCollectionName,
+          externalCollectionName: incident.externalCollectionName,
           items: [],
         };
         groups.set(key, group);
@@ -51,7 +51,7 @@
       {#each grouped as group}
         <section>
           <h2 class="mb-3 text-xs text-muted-foreground">
-            {group.sourceCollectionName} <span class="text-primary">></span> {group.collectionName}
+            {group.externalCollectionName} <span class="text-primary">></span> {group.collectionName}
           </h2>
           <div class="space-y-2">
             {#each group.items as incident (incident.id)}

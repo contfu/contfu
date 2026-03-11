@@ -2,6 +2,8 @@ import { PropertyType, toCamelCase, type CollectionSchema } from "@contfu/svc-co
 import { isFullDatabase, isFullDataSource } from "@notionhq/client";
 import { notion, parseNotionRef } from "./notion-helpers";
 
+export { isFullDataSource };
+
 export async function getCollectionSchema(key: string, id: Buffer) {
   const notionId = parseNotionRef(id);
   const db = await notion.databases.retrieve({

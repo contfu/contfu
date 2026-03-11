@@ -1,10 +1,10 @@
 /**
- * E2E test: snapshot triggered immediately on consumer-collection creation.
+ * E2E test: snapshot triggered immediately on flow creation.
  *
  * Flow:
- * 1. Look up seeded consumer and collection IDs via the API.
- * 2. POST /api/v1/consumer-collections — triggers background snapshot.
- * 3. Connect consumer immediately via GET /api/sync?key=…
+ * 1. Look up seeded connection and collection IDs via the API.
+ * 2. POST /api/v1/flows — creates target→consumer flow, triggers background snapshot.
+ * 3. Connect client immediately via GET /api/sync?key=…
  * 4. Verify SNAPSHOT_START + ITEM_CHANGED events + SNAPSHOT_END arrive.
  */
 import { test, expect } from "@playwright/test";
@@ -14,11 +14,12 @@ import {
   SNAPSHOT_ON_CONNECT_API_KEY,
   SNAPSHOT_ON_CONNECT_CONSUMER_KEY,
   SNAPSHOT_ON_CONNECT_COLLECTION_NAME,
+  SNAPSHOT_ON_CONNECT_CONSUMER_NAME,
 } from "./snapshot-on-connect.seed";
 
 const BASE_URL = "http://localhost:4173";
 const AUTH_HEADER = `Bearer ${SNAPSHOT_ON_CONNECT_API_KEY}`;
-const CONSUMER_KEY = SNAPSHOT_ON_CONNECT_CONSUMER_KEY.toString("base64url");
+const CONNECTION_KEY = SNAPSHOT_ON_CONNECT_CONSUMER_KEY.toString("base64url");
 
 async function readSyncEvents(opts: {
   key: string;
@@ -86,39 +87,38 @@ async function readSyncEvents(opts: {
   return events;
 }
 
-test.describe("Snapshot on consumer-collection creation", () => {
+test.describe("Snapshot on flow creation", () => {
   test.setTimeout(30_000);
 
-  test("consumer receives items immediately after connecting post-creation", async () => {
-    // 1. Look up consumer ID by name
-    const consumersRes = await fetch(`${BASE_URL}/api/v1/consumers`, {
-      headers: { Authorization: AUTH_HEADER },
-    });
-    expect(consumersRes.status).toBe(200);
-    const consumers = (await consumersRes.json()) as Array<{ id: number; name: string }>;
-    const consumer = consumers.find((c) => c.name === "Snapshot On Connect Consumer");
-    expect(consumer, "Consumer not found in API response").toBeDefined();
-
-    // 2. Look up collection ID by name
+  test("client receives items immediately after connecting post-creation", async () => {
+    // 1. Look up the target collection (the one the flow will connect to the consumer collection)
     const collectionsRes = await fetch(`${BASE_URL}/api/v1/collections`, {
       headers: { Authorization: AUTH_HEADER },
     });
     expect(collectionsRes.status).toBe(200);
     const collections = (await collectionsRes.json()) as Array<{ id: number; name: string }>;
-    const collection = collections.find((c) => c.name === SNAPSHOT_ON_CONNECT_COLLECTION_NAME);
-    expect(collection, "Collection not found in API response").toBeDefined();
 
-    // 3. Create the consumer-collection — triggers background snapshot
-    const connectRes = await fetch(`${BASE_URL}/api/v1/consumer-collections`, {
+    const targetCollection = collections.find(
+      (c) => c.name === SNAPSHOT_ON_CONNECT_COLLECTION_NAME,
+    );
+    expect(targetCollection, "Target collection not found in API response").toBeDefined();
+
+    const consumerCollection = collections.find(
+      (c) => c.name === SNAPSHOT_ON_CONNECT_CONSUMER_NAME,
+    );
+    expect(consumerCollection, "Consumer collection not found in API response").toBeDefined();
+
+    // 2. Create the flow (target → consumer collection) — triggers background snapshot
+    const flowRes = await fetch(`${BASE_URL}/api/v1/flows`, {
       method: "POST",
       headers: { Authorization: AUTH_HEADER, "Content-Type": "application/json" },
-      body: JSON.stringify({ consumerId: consumer!.id, collectionId: collection!.id }),
+      body: JSON.stringify({ sourceId: targetCollection!.id, targetId: consumerCollection!.id }),
     });
-    expect(connectRes.status).toBe(201);
+    expect(flowRes.status).toBe(201);
 
-    // 4. Connect consumer and wait for snapshot to complete
+    // 3. Connect client and wait for snapshot to complete
     const events = await readSyncEvents({
-      key: CONSUMER_KEY,
+      key: CONNECTION_KEY,
       until: (evts) => evts.some((e) => e[0] === EventType.SNAPSHOT_END),
       timeoutMs: 20_000,
     });

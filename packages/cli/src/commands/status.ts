@@ -1,10 +1,9 @@
 import { apiFetch } from "../http";
 
 export interface StatusSummary {
-  sources: number;
-  collections: number;
-  consumers: number;
   connections: number;
+  collections: number;
+  flows: number;
 }
 
 export async function status(format = "table") {
@@ -18,8 +17,7 @@ export async function status(format = "table") {
 
   console.log("contfu status");
   console.log("-------------");
-  console.log(`sources      ${data.sources}`);
-  console.log(`collections  ${data.collections}`);
-  console.log(`consumers    ${data.consumers}`);
   console.log(`connections  ${data.connections}`);
+  console.log(`collections  ${data.collections}`);
+  console.log(`flows        ${data.flows}`);
 }

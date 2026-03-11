@@ -1,23 +1,15 @@
-import { SourceType } from "@contfu/core";
+import { ConnectionType } from "@contfu/core";
 import { beforeEach, describe, expect, it, mock } from "bun:test";
-import crypto from "node:crypto";
 import { pack } from "msgpackr";
 import { truncateAllTables } from "../../../test/setup";
 import { db } from "../db/db";
-import {
-  collectionTable,
-  influxTable,
-  sourceCollectionTable,
-  sourceTable,
-  syncJobTable,
-  userTable,
-} from "../db/schema";
+import { collectionTable, connectionTable, flowTable, syncJobTable, userTable } from "../db/schema";
 import { SyncWorkerManager } from "./worker-manager";
 import { eq } from "drizzle-orm";
 
-describe("SyncWorkerManager broadcastSchema / resyncSourceCollections", () => {
+describe("SyncWorkerManager broadcastSchema / resyncCollections", () => {
   let userId: number;
-  let collectionId: number;
+  let targetCollectionId: number;
   let sourceCollectionId: number;
 
   beforeEach(async () => {
@@ -29,28 +21,34 @@ describe("SyncWorkerManager broadcastSchema / resyncSourceCollections", () => {
       .returning();
     userId = user.id;
 
-    const [collection] = await db
-      .insert(collectionTable)
-      .values({ userId, name: "articles", displayName: "Articles", schema: pack({}) })
-      .returning();
-    collectionId = collection.id;
-
-    const [source] = await db
-      .insert(sourceTable)
-      .values({ userId, uid: crypto.randomUUID(), name: "CMS", type: SourceType.STRAPI })
+    const [connection] = await db
+      .insert(connectionTable)
+      .values({ userId, name: "CMS", type: ConnectionType.STRAPI })
       .returning();
 
     const schema = pack({ title: 1, body: 2 });
     const [sourceCollection] = await db
-      .insert(sourceCollectionTable)
-      .values({ userId, sourceId: source.id, name: "articles", schema })
+      .insert(collectionTable)
+      .values({
+        userId,
+        connectionId: connection.id,
+        name: "articles",
+        displayName: "Articles",
+        schema,
+      })
       .returning();
     sourceCollectionId = sourceCollection.id;
 
-    await db.insert(influxTable).values({
+    const [targetCollection] = await db
+      .insert(collectionTable)
+      .values({ userId, name: "articles", displayName: "Articles", schema: pack({}) })
+      .returning();
+    targetCollectionId = targetCollection.id;
+
+    await db.insert(flowTable).values({
       userId,
-      collectionId,
-      sourceCollectionId,
+      sourceId: sourceCollectionId,
+      targetId: targetCollectionId,
     });
   });
 
@@ -59,13 +57,13 @@ describe("SyncWorkerManager broadcastSchema / resyncSourceCollections", () => {
     const schemaCallback = mock(() => {});
     manager.onSchema(schemaCallback);
 
-    await manager.broadcastSchema(userId, collectionId);
+    await manager.broadcastSchema(userId, targetCollectionId);
 
     expect(schemaCallback).toHaveBeenCalledTimes(1);
     const [cbUserId, cbCollectionId, cbName, cbDisplayName, cbSchema] = schemaCallback.mock
-      .calls[0] as [number, number, string, string, Record<string, number>];
+      .calls[0] as unknown as [number, number, string, string, Record<string, number>];
     expect(cbUserId).toBe(userId);
-    expect(cbCollectionId).toBe(collectionId);
+    expect(cbCollectionId).toBe(targetCollectionId);
     expect(cbName).toBe("articles");
     expect(cbDisplayName).toBe("Articles");
     expect(cbSchema).toEqual({ title: 1, body: 2 });
@@ -76,8 +74,8 @@ describe("SyncWorkerManager broadcastSchema / resyncSourceCollections", () => {
     const schemaCallback = mock(() => {});
     manager.onSchema(schemaCallback);
 
-    await manager.broadcastSchema(userId, collectionId);
-    await manager.broadcastSchema(userId, collectionId);
+    await manager.broadcastSchema(userId, targetCollectionId);
+    await manager.broadcastSchema(userId, targetCollectionId);
 
     expect(schemaCallback).toHaveBeenCalledTimes(2);
   });
@@ -86,38 +84,38 @@ describe("SyncWorkerManager broadcastSchema / resyncSourceCollections", () => {
     const manager = new SyncWorkerManager();
     manager.onSchema(mock(() => {}));
 
-    await manager.broadcastSchema(userId, collectionId);
+    await manager.broadcastSchema(userId, targetCollectionId);
 
     const jobs = await db
       .select()
       .from(syncJobTable)
-      .where(eq(syncJobTable.sourceCollectionId, sourceCollectionId));
+      .where(eq(syncJobTable.collectionId, sourceCollectionId));
     expect(jobs).toHaveLength(0);
   });
 
-  it("resyncSourceCollections enqueues a sync job for given source collections", async () => {
+  it("resyncCollections enqueues a sync job for given collections", async () => {
     const manager = new SyncWorkerManager();
 
-    await manager.resyncSourceCollections([sourceCollectionId]);
+    await manager.resyncCollections([sourceCollectionId]);
 
     const jobs = await db
       .select()
       .from(syncJobTable)
-      .where(eq(syncJobTable.sourceCollectionId, sourceCollectionId));
+      .where(eq(syncJobTable.collectionId, sourceCollectionId));
     expect(jobs).toHaveLength(1);
     expect(jobs[0].status).toBe("pending");
   });
 
-  it("resyncSourceCollections does not enqueue a duplicate sync job when one is already pending", async () => {
+  it("resyncCollections does not enqueue a duplicate sync job when one is already pending", async () => {
     const manager = new SyncWorkerManager();
 
-    await manager.resyncSourceCollections([sourceCollectionId]);
-    await manager.resyncSourceCollections([sourceCollectionId]);
+    await manager.resyncCollections([sourceCollectionId]);
+    await manager.resyncCollections([sourceCollectionId]);
 
     const jobs = await db
       .select()
       .from(syncJobTable)
-      .where(eq(syncJobTable.sourceCollectionId, sourceCollectionId));
+      .where(eq(syncJobTable.collectionId, sourceCollectionId));
     expect(jobs).toHaveLength(1);
   });
 });

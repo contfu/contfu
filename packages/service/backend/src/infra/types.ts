@@ -3,8 +3,7 @@
  */
 export type ConnectionInfo = {
   userId: number;
-  consumerId: number;
+  connectionId: number;
   collectionId: number;
   includeRef: boolean;
-  lastItemChanged: Date | null;
 };

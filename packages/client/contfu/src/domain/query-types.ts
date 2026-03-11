@@ -49,8 +49,8 @@ export type QueryMeta = {
   offset: number;
 };
 
-export type ItemWithRelations = Omit<ItemData, "sourceType" | "ref"> & {
-  sourceType?: ItemData["sourceType"];
+export type ItemWithRelations = Omit<ItemData, "connectionType" | "ref"> & {
+  connectionType?: ItemData["connectionType"];
   ref?: ItemData["ref"];
   assets?: AssetData[];
   rels?: Record<string, ItemWithRelations[] | ItemWithRelations | null>;

@@ -24,8 +24,8 @@ test.describe("Mapping Editor", () => {
     await page.waitForTimeout(150);
   }
 
-  /** Wait for influx rows to appear in the MappingEditor. */
-  async function waitForInfluxRows(page: import("@playwright/test").Page) {
+  /** Wait for inflow rows to appear in the MappingEditor. */
+  async function waitForInflowRows(page: import("@playwright/test").Page) {
     await expect(page.getByText("Source A").first()).toBeVisible({ timeout: 5000 });
   }
 
@@ -33,14 +33,14 @@ test.describe("Mapping Editor", () => {
     authenticatedPage: page,
   }) => {
     // Navigate to the collection, then reload to simulate a fresh page load
-    // with existing influxes (the exact scenario reported as broken).
+    // with existing inflowes (the exact scenario reported as broken).
     await goToCollection(page, COLLECTION_NAME);
-    await waitForInfluxRows(page);
+    await waitForInflowRows(page);
 
     // Hard reload
     await page.reload();
     await page.waitForLoadState("networkidle");
-    await waitForInfluxRows(page);
+    await waitForInflowRows(page);
 
     // Expand "title"
     await expandNth(page, 0);
@@ -57,7 +57,7 @@ test.describe("Mapping Editor", () => {
 
   test("should persist target type after save and reload", async ({ authenticatedPage: page }) => {
     await goToCollection(page, COLLECTION_NAME);
-    await waitForInfluxRows(page);
+    await waitForInflowRows(page);
 
     await expandNth(page, 1);
     const item = nthItem(page, 1);
@@ -73,7 +73,7 @@ test.describe("Mapping Editor", () => {
     await page.reload();
     await page.waitForLoadState("networkidle");
 
-    await waitForInfluxRows(page);
+    await waitForInflowRows(page);
     await expect(page.locator('[data-slot="accordion-trigger"]')).toHaveCount(4, { timeout: 3000 });
 
     await expandNth(page, 1);
@@ -86,7 +86,7 @@ test.describe("Mapping Editor", () => {
     authenticatedPage: page,
   }) => {
     await goToCollection(page, COLLECTION_NAME);
-    await waitForInfluxRows(page);
+    await waitForInflowRows(page);
 
     // "count" has no mapping from Source B, so it should show as nullable (?)
     // The type badge in the accordion trigger should contain "?"
@@ -109,18 +109,18 @@ test.describe("Mapping Editor", () => {
     await expect(countTrigger.getByText("?")).not.toBeVisible({ timeout: 2000 });
   });
 
-  test("should save mappings after adding a second influx and clear warnings", async ({
+  test("should save mappings after adding a second inflow and clear warnings", async ({
     authenticatedPage: page,
   }) => {
-    // Use collection2 which has 1 influx (Source A) and an unlinked Source C
+    // Use collection2 which has 1 inflow (Source A) and an unlinked Source C
     await goToCollection(page, COLLECTION2_NAME);
-    await waitForInfluxRows(page);
+    await waitForInflowRows(page);
 
     // Should have 4 properties from Source A's schema
     await expect(page.locator('[data-slot="accordion-trigger"]')).toHaveCount(4, { timeout: 3000 });
 
-    // Add second influx via the AddInfluxDialog
-    await page.getByRole("button", { name: "Add Influx" }).click();
+    // Add second inflow via the AddInflowDialog
+    await page.getByRole("button", { name: "Add Inflow" }).click();
     const dialog = page.locator('[role="dialog"]');
     await expect(dialog).toBeVisible({ timeout: 5000 });
 
@@ -128,7 +128,7 @@ test.describe("Mapping Editor", () => {
     await expect(sourceCItem).toBeVisible({ timeout: 5000 });
     await sourceCItem.click();
 
-    // Dialog should close, pending influx should appear with "unsaved" badge
+    // Dialog should close, pending inflow should appear with "unsaved" badge
     await expect(dialog).not.toBeVisible({ timeout: 2000 });
     await expect(page.getByText("unsaved").first()).toBeVisible({ timeout: 2000 });
 
@@ -154,7 +154,7 @@ test.describe("Mapping Editor", () => {
     // After save, warnings should be cleared
     await expect(warningIcons).toHaveCount(0, { timeout: 3000 });
 
-    // Verify: reload and check both influxes are present
+    // Verify: reload and check both inflowes are present
     await page.reload();
     await page.waitForLoadState("networkidle");
 
@@ -163,34 +163,34 @@ test.describe("Mapping Editor", () => {
     await expect(page.getByText("Source C").first()).toBeVisible({ timeout: 5000 });
   });
 
-  // Destructive test — must run last as it deletes influxes from collection2
-  test("should hide properties and Add property button when all influxes are removed", async ({
+  // Destructive test — must run last as it deletes inflowes from collection2
+  test("should hide properties and Add property button when all inflowes are removed", async ({
     authenticatedPage: page,
   }) => {
     await goToCollection(page, COLLECTION2_NAME);
-    await waitForInfluxRows(page);
+    await waitForInflowRows(page);
 
-    // Properties and Add property button should be visible with influxes present
+    // Properties and Add property button should be visible with inflowes present
     await expect(page.locator('[data-slot="accordion-trigger"]')).not.toHaveCount(0, {
       timeout: 3000,
     });
     await expect(page.getByText("Add property").first()).toBeVisible();
 
-    // Delete all influxes via their trash icons (inside influx row forms)
+    // Delete all inflowes via their trash icons (inside inflow row forms)
     // Collection2 now has Source A + Source C (from previous test)
-    // Each influx row is: div.flex > div + form > button[type=submit]
-    const influxForms = page.locator("div.flex.items-center.justify-between > form");
-    let formCount = await influxForms.count();
+    // Each inflow row is: div.flex > div + form > button[type=submit]
+    const inflowForms = page.locator("div.flex.items-center.justify-between > form");
+    let formCount = await inflowForms.count();
     while (formCount > 0) {
-      await influxForms.first().locator('button[type="submit"]').click();
+      await inflowForms.first().locator('button[type="submit"]').click();
       // Wait for removal to complete
-      await expect(influxForms).toHaveCount(formCount - 1, { timeout: 5000 });
-      formCount = await influxForms.count();
+      await expect(inflowForms).toHaveCount(formCount - 1, { timeout: 5000 });
+      formCount = await inflowForms.count();
     }
 
-    // After all influxes removed: properties gone, Add property hidden, empty message shown
+    // After all inflowes removed: properties gone, Add property hidden, empty message shown
     await expect(page.locator('[data-slot="accordion-trigger"]')).toHaveCount(0, { timeout: 5000 });
     await expect(page.getByText("Add property")).not.toBeVisible({ timeout: 2000 });
-    await expect(page.getByText("No influxes configured yet")).toBeVisible({ timeout: 2000 });
+    await expect(page.getByText("No inflows configured yet")).toBeVisible({ timeout: 2000 });
   });
 });

@@ -7,13 +7,19 @@ import { createCollection } from "@contfu/svc-backend/features/collections/creat
 
 export async function GET({ request }: { request: Request }) {
   const { userId } = await authenticateApiKey(request, "read");
-  const result = await runWithUser(userId, listCollections(userId));
+  const result = await runWithUser(userId, listCollections());
   return json(result);
 }
 
 export async function POST({ request }: { request: Request }) {
   const { userId } = await authenticateApiKey(request, "write");
   const body = parseBody(CreateCollectionSchema, await request.json());
-  const result = await runWithUser(userId, createCollection(userId, body));
+  const result = await runWithUser(
+    userId,
+    createCollection(userId, {
+      ...body,
+      connectionId: body.connectionId ?? undefined,
+    }),
+  );
   return json(result, { status: 201 });
 }

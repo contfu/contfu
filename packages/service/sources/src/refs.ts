@@ -1,4 +1,4 @@
-import { SourceType, type SourceType as SourceTypeValue } from "@contfu/core";
+import { ConnectionType } from "@contfu/core";
 
 export function notionRefUrlFromRawUuid(rawUuid: Buffer): string {
   if (rawUuid.length !== 16) {
@@ -40,28 +40,28 @@ export function getItemRefForSource(opts: {
   rawRef: Buffer;
   sourceUrl?: string | null;
   collectionRef?: Buffer | null;
-}): { sourceType: SourceTypeValue; ref: string } {
-  if (opts.sourceType === SourceType.NOTION) {
-    return { sourceType: SourceType.NOTION, ref: notionRefUrlFromRawUuid(opts.rawRef) };
+}): { sourceType: ConnectionType; ref: string } {
+  if (opts.sourceType === ConnectionType.NOTION) {
+    return { sourceType: ConnectionType.NOTION, ref: notionRefUrlFromRawUuid(opts.rawRef) };
   }
-  if (opts.sourceType === SourceType.STRAPI) {
+  if (opts.sourceType === ConnectionType.STRAPI) {
     if (!opts.sourceUrl) throw new Error("Missing sourceUrl for Strapi ref encoding");
     if (!opts.collectionRef) throw new Error("Missing collectionRef for Strapi ref encoding");
     return {
-      sourceType: SourceType.STRAPI,
+      sourceType: ConnectionType.STRAPI,
       ref: strapiRefUrl(opts.rawRef, opts.sourceUrl, opts.collectionRef),
     };
   }
-  if (opts.sourceType === SourceType.CONTENTFUL) {
+  if (opts.sourceType === ConnectionType.CONTENTFUL) {
     if (!opts.sourceUrl) throw new Error("Missing sourceUrl for Contentful ref encoding");
     if (!opts.collectionRef) throw new Error("Missing collectionRef for Contentful ref encoding");
     return {
-      sourceType: SourceType.CONTENTFUL,
+      sourceType: ConnectionType.CONTENTFUL,
       ref: contentfulRefUrl(opts.rawRef, opts.sourceUrl, opts.collectionRef),
     };
   }
-  if (opts.sourceType === SourceType.WEB) {
-    return { sourceType: SourceType.WEB, ref: webRefUrl(opts.rawRef) };
+  if (opts.sourceType === ConnectionType.WEB) {
+    return { sourceType: ConnectionType.WEB, ref: webRefUrl(opts.rawRef) };
   }
   throw new Error(`Unsupported source type: ${opts.sourceType}`);
 }

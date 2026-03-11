@@ -10,7 +10,7 @@ export {
   NOTION_RATE_LIMIT,
   STRAPI_RATE_LIMIT,
   WEB_RATE_LIMIT,
-  getRateLimitForSourceType,
+  getRateLimitForConnectionType,
   type RateLimitConfig,
   type WebhookFetchJob,
 } from "./types";

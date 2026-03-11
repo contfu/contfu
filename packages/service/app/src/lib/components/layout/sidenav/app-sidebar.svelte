@@ -3,14 +3,10 @@
   import * as Sidebar from "$lib/components/ui/sidebar";
   import {
     AlertTriangleIcon,
-    CreditCardIcon,
-    DatabaseIcon,
     FoldersIcon,
-    KeyIcon,
     LayoutDashboardIcon,
     PlugIcon,
     UserCogIcon,
-    UsersIcon,
   } from "@lucide/svelte";
   import type { ComponentProps } from "svelte";
   import NavMain from "./nav-main.svelte";
@@ -26,19 +22,14 @@
         icon: LayoutDashboardIcon,
       },
       {
-        title: "sources",
-        url: "/sources",
-        icon: DatabaseIcon,
+        title: "connections",
+        url: "/connections",
+        icon: PlugIcon,
       },
       {
         title: "collections",
         url: "/collections",
         icon: FoldersIcon,
-      },
-      {
-        title: "consumers",
-        url: "/consumers",
-        icon: UsersIcon,
       },
       {
         title: "incidents",
@@ -48,24 +39,9 @@
     ],
     navSecondary: [
       {
-        title: "integrations",
-        url: "/integrations",
-        icon: PlugIcon,
-      },
-      {
         title: "admin",
         url: "/admin",
         icon: UserCogIcon,
-      },
-      {
-        title: "api-keys",
-        url: "/api-keys",
-        icon: KeyIcon,
-      },
-      {
-        title: "billing",
-        url: "/billing",
-        icon: CreditCardIcon,
       },
     ],
   };

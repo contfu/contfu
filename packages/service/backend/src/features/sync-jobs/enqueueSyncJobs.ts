@@ -8,32 +8,32 @@ import { syncJobTable } from "../../infra/db/schema";
 const log = createLogger("sync-jobs");
 
 /**
- * Enqueue sync jobs for the given source collections.
- * Skips source collections that already have a pending or running job
+ * Enqueue sync jobs for the given collections.
+ * Skips collections that already have a pending or running job
  * to prevent duplicate work.
  *
  * @param db - Database connection (main thread or worker)
- * @param sourceCollectionIds - IDs of source collections to sync
+ * @param collectionIds - IDs of collections to sync
  * @returns Number of jobs enqueued
  */
-export const enqueueSyncJobs = (db: DrizzleDb, sourceCollectionIds: number[]) =>
+export const enqueueSyncJobs = (db: DrizzleDb, collectionIds: number[]) =>
   Effect.tryPromise({
     try: async () => {
-      if (sourceCollectionIds.length === 0) return 0;
+      if (collectionIds.length === 0) return 0;
 
-      // Find source collections that already have pending or running jobs
+      // Find collections that already have pending or running jobs
       const existing = await db
-        .select({ sourceCollectionId: syncJobTable.sourceCollectionId })
+        .select({ collectionId: syncJobTable.collectionId })
         .from(syncJobTable)
         .where(
           and(
-            inArray(syncJobTable.sourceCollectionId, sourceCollectionIds),
+            inArray(syncJobTable.collectionId, collectionIds),
             or(eq(syncJobTable.status, "pending"), eq(syncJobTable.status, "running")),
           ),
         );
 
-      const alreadyQueued = new Set(existing.map((r) => r.sourceCollectionId));
-      const toEnqueue = sourceCollectionIds.filter((id) => !alreadyQueued.has(id));
+      const alreadyQueued = new Set(existing.map((r) => r.collectionId));
+      const toEnqueue = collectionIds.filter((id) => !alreadyQueued.has(id));
 
       if (alreadyQueued.size > 0) {
         log.debug({ skippedCount: alreadyQueued.size }, "Sync jobs skipped (already queued)");
@@ -42,12 +42,12 @@ export const enqueueSyncJobs = (db: DrizzleDb, sourceCollectionIds: number[]) =>
       if (toEnqueue.length === 0) return 0;
 
       await db.insert(syncJobTable).values(
-        toEnqueue.map((sourceCollectionId) => ({
-          sourceCollectionId,
+        toEnqueue.map((collectionId) => ({
+          collectionId,
         })),
       );
 
-      log.info({ count: toEnqueue.length, sourceCollectionIds: toEnqueue }, "Sync jobs enqueued");
+      log.info({ count: toEnqueue.length, collectionIds: toEnqueue }, "Sync jobs enqueued");
 
       return toEnqueue.length;
     },

@@ -29,12 +29,15 @@ All must pass.
 ## Current State
 
 ### Branch & Status
+
 !`git branch --show-current && git status --short`
 
 ### Recent Commits
+
 !`git log --oneline -5`
 
 ### Diff from last commit
+
 !`git diff HEAD~1...HEAD --stat`
 
 ## Steps

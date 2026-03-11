@@ -1,5 +1,5 @@
 import { EventType } from "./events";
-import type { SourceType } from "./items";
+import type { ConnectionType } from "./items";
 
 /**
  * Wire format for binary stream events.
@@ -55,7 +55,7 @@ export type WireEvent =
  * [sourceType, ref, id, collection, changedAt, props, content?]
  */
 export type WireItem = [
-  SourceType | null, // sourceType (nullable when ref transmission is disabled)
+  ConnectionType | null, // sourceType (nullable when ref transmission is disabled)
   string | null, // absolute source ref URL (nullable when ref transmission is disabled)
   Uint8Array, // id
   string, // collection name

@@ -1,80 +1,70 @@
 import { Effect } from "effect";
-import { eq, sql } from "drizzle-orm";
-import type { BackendCollection } from "../../domain/types";
+import { eq, getTableColumns, sql } from "drizzle-orm";
 import { Database } from "../../effect/services/Database";
 import { DatabaseError } from "../../effect/errors";
-import { collectionTable, influxTable, consumerCollectionTable } from "../../infra/db/schema";
-import { unpack } from "msgpackr";
-import type { CollectionSchema, RefTargets } from "@contfu/svc-core";
+import { collectionTable, connectionTable, flowTable } from "../../infra/db/schema";
+import { mapToBackendCollection } from "./mapToBackendCollection";
 
 /**
- * List all Collections for a user with counts.
- * These are the collections that consumers can subscribe to.
+ * List all Collections for the current user with flow counts.
  */
-export const listCollections = (userId: number) =>
+export const listCollections = () =>
   Effect.gen(function* () {
     const { db } = yield* Database;
 
     const collections = yield* Effect.tryPromise({
       try: () =>
         db
-          .select()
+          .select({
+            ...getTableColumns(collectionTable),
+            connectionType: connectionTable.type,
+            connectionName: connectionTable.name,
+          })
           .from(collectionTable)
-          .where(eq(collectionTable.userId, userId))
+          .leftJoin(connectionTable, eq(collectionTable.connectionId, connectionTable.id))
           .orderBy(collectionTable.createdAt),
       catch: (e) => new DatabaseError({ cause: e }),
     });
 
-    // Get influx counts per collection
-    const influxCounts = yield* Effect.tryPromise({
+    const flowSourceCounts = yield* Effect.tryPromise({
       try: () =>
         db
           .select({
-            collectionId: influxTable.collectionId,
+            collectionId: flowTable.sourceId,
             count: sql<number>`count(*)`.as("count"),
           })
-          .from(influxTable)
-          .where(eq(influxTable.userId, userId))
-          .groupBy(influxTable.collectionId),
+          .from(flowTable)
+          .groupBy(flowTable.sourceId),
       catch: (e) => new DatabaseError({ cause: e }),
     });
 
-    const influxCountMap = new Map<number, number>(
-      influxCounts.map((c) => [c.collectionId, c.count]),
+    const flowSourceMap = new Map<number, number>(
+      flowSourceCounts.map((c) => [c.collectionId, c.count]),
     );
 
-    // Get connection counts per collection
-    const connectionCounts = yield* Effect.tryPromise({
+    const flowTargetCounts = yield* Effect.tryPromise({
       try: () =>
         db
           .select({
-            collectionId: consumerCollectionTable.collectionId,
+            collectionId: flowTable.targetId,
             count: sql<number>`count(*)`.as("count"),
           })
-          .from(consumerCollectionTable)
-          .where(eq(consumerCollectionTable.userId, userId))
-          .groupBy(consumerCollectionTable.collectionId),
+          .from(flowTable)
+          .groupBy(flowTable.targetId),
       catch: (e) => new DatabaseError({ cause: e }),
     });
 
-    const connectionCountMap = new Map<number, number>(
-      connectionCounts.map((c) => [c.collectionId, c.count]),
+    const flowTargetMap = new Map<number, number>(
+      flowTargetCounts.map((c) => [c.collectionId, c.count]),
     );
 
-    return collections.map(
-      (c) =>
-        ({
-          id: c.id,
-          userId: c.userId,
-          displayName: c.displayName,
-          name: c.name,
-          schema: unpack(c.schema) as CollectionSchema,
-          refTargets: c.refTargets ? (unpack(c.refTargets) as RefTargets) : undefined,
-          includeRef: c.includeRef,
-          influxCount: influxCountMap.get(c.id) ?? 0,
-          connectionCount: connectionCountMap.get(c.id) ?? 0,
-          createdAt: c.createdAt,
-          updatedAt: c.updatedAt,
-        }) satisfies BackendCollection,
+    return collections.map((c) =>
+      mapToBackendCollection(
+        c,
+        flowSourceMap.get(c.id) ?? 0,
+        flowTargetMap.get(c.id) ?? 0,
+        c.connectionType ?? null,
+        c.connectionName ?? null,
+      ),
     );
-  }).pipe(Effect.withSpan("collections.list", { attributes: { userId } }));
+  }).pipe(Effect.withSpan("collections.list"));

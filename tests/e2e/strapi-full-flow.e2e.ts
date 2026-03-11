@@ -1,12 +1,13 @@
 /**
- * End-to-end Playwright test for the full Strapi → Service → Client flow.
+ * End-to-end Playwright test for the full Strapi -> Service -> Client flow.
  *
  * This test uses captured webhook fixtures instead of starting a real Strapi instance.
  * The service app is started by global-setup.ts (shared across all test files).
  *
  * Flow:
  * 1. Service app already running (global-setup)
- * 2. Playwright: Login to service app, create Strapi source, create collection/consumer → capture API key
+ * 2. Playwright: Login, create Strapi connection, create source collection bound to it,
+ *    create CLIENT connection, create target collection, add flow, capture API key
  * 3. Start connect() from @contfu/contfu to stream events into an in-memory SQLite DB
  * 4. Send webhook payloads directly (simulating Strapi webhooks)
  * 5. Verify content via contfu() against the local DB and via HTTP
@@ -25,16 +26,7 @@ const TEST_USER = {
   password: "test",
 };
 
-async function selectSourceType(page: Page, typeLabel: "Web" | "Strapi" | "Notion"): Promise<void> {
-  const valueByType: Record<typeof typeLabel, string> = {
-    Notion: "0",
-    Strapi: "1",
-    Web: "2",
-  };
-  await page.getByLabel(/Type/i).selectOption({ value: valueByType[typeLabel] });
-}
-
-// Local query client — queries the in-process SQLite DB directly
+// Local query client -- queries the in-process SQLite DB directly
 const q = contfu<Record<string, Record<string, unknown>>>();
 
 /**
@@ -60,158 +52,174 @@ async function waitForItems(
 }
 
 /**
- * Setup service app: login/register, create Strapi source, create client
- * Returns API key and sourceUid for webhook configuration
+ * Login to the service app.
+ */
+async function login(page: Page): Promise<void> {
+  await page.goto(`${SERVICE_URL}/login`);
+  await page.waitForLoadState("networkidle");
+  await page.getByLabel(/Email/i).fill(TEST_USER.email);
+  await page.getByLabel(/Password/i).fill(TEST_USER.password);
+  await page.getByRole("button", { name: /Sign in|Log in|Login|Authenticate/i }).click();
+  await page.waitForURL(/\/dashboard/, { timeout: 10000 });
+}
+
+/**
+ * Setup service app: login, create Strapi connection, create collections,
+ * create CLIENT connection, add flow, capture API key.
+ * Returns API key and connection UID for webhook configuration.
  */
 async function setupServiceAppAndGetApiKey(
   page: Page,
   strapiUrl: string,
   strapiApiToken: string,
-): Promise<{ apiKey: string; sourceUid: string | null; collectionId: string | null }> {
+): Promise<{ apiKey: string; connectionUid: string }> {
   console.log("[E2E] Setting up service app...");
 
-  // Navigate directly to login page
-  await page.goto(`${SERVICE_URL}/login`);
+  // === Login ===
+  await login(page);
+
+  // === Create a Strapi connection ===
+  await page.goto(`${SERVICE_URL}/connections`);
   await page.waitForLoadState("networkidle");
 
-  // Fill login form with existing test credentials
-  await page.getByLabel(/Email/i).fill(TEST_USER.email);
-  await page.getByLabel(/Password/i).fill(TEST_USER.password);
-  await page.getByRole("button", { name: /Sign in|Log in|Login|Authenticate/i }).click();
+  // Click "add source" button to show the source form
+  await page.getByRole("button", { name: /add source/i }).click();
 
-  await page.waitForURL(/\/dashboard/, { timeout: 10000 });
+  // Fill the source connection form
+  // Select Strapi provider
+  const providerSelect = page.locator("select");
+  await providerSelect.first().selectOption("strapi");
 
-  // Create a Strapi source
-  await page.getByRole("link", { name: /Add Source/i }).click();
-  await page.waitForURL(/\/sources\/new/);
+  // Fill name
+  await page.locator('form input[placeholder="My workspace"]').fill("E2E Strapi Demo");
 
-  await page.getByLabel(/Name/i).fill("E2E Strapi Demo");
-  await selectSourceType(page, "Strapi");
-  await expect(page.locator('input[name="url"]')).toBeVisible({ timeout: 10000 });
-  await page.locator('input[name="url"]').fill(strapiUrl);
-  await page.locator('input[name="_credentials"]').fill(strapiApiToken);
-  await page.getByRole("button", { name: /Create Source/i }).click();
+  // Fill API token
+  await page.locator('form input[type="password"]').fill(strapiApiToken);
 
-  await page.waitForURL(/\/sources\/\d+/, { timeout: 10000 });
+  // Submit
+  await page.getByRole("button", { name: /Add Connection/i }).click();
+  await page.waitForLoadState("networkidle");
+  await sleep(1000);
 
-  // Capture source ID from URL and UID from the webhook URL input
-  const sourceUrl = page.url();
-  const sourceIdMatch = sourceUrl.match(/\/sources\/(\d+)/);
-  const sourceId = sourceIdMatch ? sourceIdMatch[1] : null;
-  console.log(`[E2E] Strapi source created (ID: ${sourceId})`);
+  // Find the Strapi connection in the list and navigate to its detail page
+  const strapiLink = page.getByRole("link", { name: /E2E Strapi Demo/i });
+  await strapiLink.waitFor({ state: "visible", timeout: 10000 });
+  await strapiLink.click();
+  await page.waitForURL(/\/connections\//, { timeout: 10000 });
 
-  // Get source UID from test API (source detail page may not render in test mode)
-  let sourceUid: string | null = null;
-  try {
-    const sourceResp = await fetch(`${SERVICE_URL}/api/test/source?id=${sourceId}`);
-    const contentType = sourceResp.headers.get("content-type") ?? "";
-    if (sourceResp.ok && contentType.includes("application/json")) {
-      const sourceData = await sourceResp.json();
-      sourceUid = sourceData.uid ?? null;
-    }
-  } catch {
-    // Fallback below
-  }
+  // Get connection UID from the detail page
+  const connectionUrl = page.url();
+  const connectionIdMatch = connectionUrl.match(/\/connections\/([^/]+)/);
+  const connectionId = connectionIdMatch ? connectionIdMatch[1] : null;
+  console.log(`[E2E] Strapi connection created (encoded ID: ${connectionId})`);
 
-  if (!sourceUid) {
-    const webhookInput = page.locator('input[readonly][type="text"]').first();
-    const webhookUrl = await webhookInput.inputValue();
-    const uid = webhookUrl.match(/\/webhooks\/strapi\/([^/]+)$/)?.[1];
-    sourceUid = uid ?? null;
-  }
-  console.log(`[E2E] Webhook URL for this source: ${SERVICE_URL}/webhooks/strapi/${sourceUid}`);
+  // Get the UID from the page (displayed as "uid: <code>...")
+  let connectionUid = "";
+  const uidCode = page.locator("code").first();
+  await uidCode.waitFor({ state: "visible", timeout: 5000 });
+  connectionUid = (await uidCode.textContent())?.trim() ?? "";
+  console.log(`[E2E] Connection UID: ${connectionUid}`);
+  console.log(`[E2E] Webhook URL: ${SERVICE_URL}/webhooks/strapi/${connectionUid}`);
 
-  // Create a Collection with implicit SourceCollection creation via UI
-  // Navigate to collections/new with sourceId and ref as query params
-  // The form has hidden fields that get populated from these params
-  await page.goto(`${SERVICE_URL}/collections/new?sourceId=${sourceId}&ref=api::article.article`);
-  await page.getByLabel(/Display Name/i).fill("Articles");
+  // === Create a source collection bound to the Strapi connection ===
+  // Navigate to collections/new with connectionId and ref for api::article.article
+  await page.goto(
+    `${SERVICE_URL}/collections/new?connectionId=${connectionId}&ref=api::article.article`,
+  );
+  await page.waitForLoadState("networkidle");
+
+  // Fill display name
+  const displayNameInput = page.locator('input[name="displayName"]');
+  await displayNameInput.fill("Articles");
   await page.getByRole("button", { name: /Create Collection/i }).click();
 
   // Wait for redirect to collection detail page
-  await page.waitForURL(/\/collections\/\d+/, { timeout: 10000 });
-  const collectionUrl = page.url();
-  const collectionIdMatch = collectionUrl.match(/\/collections\/(\d+)/);
-  const collectionId = collectionIdMatch ? collectionIdMatch[1] : null;
-  console.log(`[E2E] Collection created with linked SourceCollection (ID: ${collectionId})`);
+  await page.waitForURL(/\/collections\/[^/]+$/, { timeout: 10000 });
+  const sourceCollectionUrl = page.url();
+  const sourceCollectionId = sourceCollectionUrl.match(/\/collections\/([^/]+)/)![1];
+  console.log(`[E2E] Source collection created (ID: ${sourceCollectionId})`);
 
-  // Create a client for the consumer app
-  await page.goto(`${SERVICE_URL}/consumers`);
-  await page.getByRole("link", { name: /Add Consumer/i }).click();
-  await page.locator('input[name="name"]').fill("E2E Consumer App");
+  // === Create a CLIENT connection ===
+  await page.goto(`${SERVICE_URL}/connections`);
+  await page.waitForLoadState("networkidle");
+
+  // Click "add consumer" button
+  await page.getByRole("button", { name: /add consumer/i }).click();
+
+  // Fill consumer name
+  await page.locator('form input[placeholder="My App"]').fill("E2E Consumer App");
+
+  // Submit
   await page.getByRole("button", { name: /Create Consumer/i }).click();
-
-  // Wait for client creation
-  await page.waitForURL(/\/consumers\/\d+/, { timeout: 10000 });
-
-  // Connect client to Articles collection
-  // Wait for page to hydrate and load collections
   await page.waitForLoadState("networkidle");
-  await sleep(500);
-
-  // The COLLECTIONS section has a dropdown to select a collection and Connect button
-  const collectionDropdown = page.locator("select").first();
-  await collectionDropdown.waitFor({ state: "visible", timeout: 10000 });
-  await collectionDropdown.selectOption({ label: "Articles" });
-  await page.getByRole("button", { name: /^Connect$/i }).click();
   await sleep(1000);
-  console.log("[E2E] Connected consumer to Articles collection");
 
-  // Click Regenerate to generate/show the API key
-  // The key appears in an Alert with "New API Key" title after form submission
-  let apiKey = "";
+  // Capture the API key from the UI (shown after creation)
+  const apiKeyContainer = page.locator('[data-testid="created-api-key"]');
+  await apiKeyContainer.waitFor({ state: "visible", timeout: 10000 });
+  const apiKeyCode = apiKeyContainer.locator("code");
+  const apiKey = (await apiKeyCode.textContent())?.trim() ?? "";
 
-  // Wait for page to fully hydrate before clicking (ensures JS form enhancement is active)
-  await page.waitForLoadState("networkidle");
-  await sleep(500); // Extra buffer for Svelte hydration
-
-  const regenerateBtn = page.getByRole("button", { name: /^Regenerate$/i });
-  if (await regenerateBtn.isVisible().catch(() => false)) {
-    // Click and wait for the key to appear in UI
-    // Regenerate now uses a remote function (enhance), not a POST request
-    await regenerateBtn.click();
-
-    // Wait for the key to appear in the UI
-    await sleep(1500); // Wait for remote function to complete and UI to update
-
-    // Look for the key in a <code> element (base64url-like key, usually 40+ chars)
-    const codeElements = page.locator("code");
-    const count = await codeElements.count();
-
-    for (let i = 0; i < count; i++) {
-      const text = await codeElements.nth(i).textContent();
-      if (text && text.length > 30 && /^[A-Za-z0-9_-]+$/.test(text.trim())) {
-        apiKey = text.trim();
-        break;
-      }
-    }
-  }
-
-  if (!apiKey) {
-    // Take a screenshot for debugging
+  if (!apiKey || apiKey.length < 30) {
     await page.screenshot({ path: "api-key-capture-debug.png" });
     throw new Error(
       "Could not capture API key from service app UI - see api-key-capture-debug.png",
     );
   }
-
-  const trimmedKey = apiKey.trim();
   console.log(
-    `[E2E] Captured consumer API key from service app (length: ${trimmedKey.length}, first 8 chars: ${trimmedKey.slice(0, 8)}...)`,
+    `[E2E] Captured consumer API key (length: ${apiKey.length}, first 8: ${apiKey.slice(0, 8)}...)`,
   );
 
-  // Return apiKey, sourceUid, and collectionId
-  return { apiKey: trimmedKey, sourceUid, collectionId };
+  // Navigate to the CLIENT connection detail to get its ID
+  const clientLink = page.getByRole("link", { name: /E2E Consumer App/i });
+  await clientLink.waitFor({ state: "visible", timeout: 10000 });
+  await clientLink.click();
+  await page.waitForURL(/\/connections\//, { timeout: 10000 });
+
+  const clientConnectionUrl = page.url();
+  const clientConnectionId = clientConnectionUrl.match(/\/connections\/([^/]+)/)![1];
+  console.log(`[E2E] CLIENT connection created (ID: ${clientConnectionId})`);
+
+  // === Create a target collection bound to the CLIENT connection ===
+  await page.goto(`${SERVICE_URL}/collections/new?connectionId=${clientConnectionId}`);
+  await page.waitForLoadState("networkidle");
+
+  await page.locator('input[name="displayName"]').fill("Articles");
+  await page.getByRole("button", { name: /Create Collection/i }).click();
+  await page.waitForURL(/\/collections\/[^/]+$/, { timeout: 10000 });
+  const targetCollectionUrl = page.url();
+  const targetCollectionId = targetCollectionUrl.match(/\/collections\/([^/]+)/)![1];
+  console.log(`[E2E] Target collection created (ID: ${targetCollectionId})`);
+
+  // === Add a flow from source collection to target collection ===
+  // On the target collection detail page, add a source flow
+  await page.waitForLoadState("networkidle");
+  await sleep(500);
+
+  // Open the source collection combobox
+  const sourceCombobox = page.getByRole("combobox").first();
+  await sourceCombobox.waitFor({ state: "visible", timeout: 10000 });
+  await sourceCombobox.click();
+
+  // Select the source "Articles" collection
+  // The combobox shows collections from other connections
+  await page.getByRole("option", { name: /Articles/i }).click();
+
+  // Click "Add Source" button
+  await page.getByRole("button", { name: /Add Source/i }).click();
+  await sleep(1000);
+  console.log("[E2E] Flow added from source to target collection");
+
+  return { apiKey, connectionUid };
 }
 
 // TODO: Fix after UI redesign changed button/link labels (tracked separately)
-test.describe.skip("E2E: Strapi → Service → Consumer Full Flow (Fixtures)", () => {
+test.describe.skip("E2E: Strapi -> Service -> Consumer Full Flow (Fixtures)", () => {
   // Extend timeout for setup - UI automation takes time
   test.describe.configure({ timeout: 180000 }); // 3 minutes
 
   let consumerApiKey: string;
-  let sourceUid: string | null;
-  let collectionId: string | null;
+  let connectionUid: string;
   let abortController: AbortController;
   let connectPromise: Promise<void>;
 
@@ -223,21 +231,15 @@ test.describe.skip("E2E: Strapi → Service → Consumer Full Flow (Fixtures)", 
     console.log("[E2E] Using shared service app at " + SERVICE_URL);
 
     // ===== STEP 2: Setup Service app and get consumer API key =====
-    // Using dummy Strapi URL/token since we're using fixtures instead of real Strapi
     const context = await browser.newContext();
     const servicePage = await context.newPage();
-    const {
-      apiKey,
-      sourceUid: uid,
-      collectionId: colId,
-    } = await setupServiceAppAndGetApiKey(
+    const { apiKey, connectionUid: uid } = await setupServiceAppAndGetApiKey(
       servicePage,
       "http://localhost:1337",
       "dummy-token-for-fixtures",
     );
     consumerApiKey = apiKey;
-    sourceUid = uid;
-    collectionId = colId;
+    connectionUid = uid;
     await servicePage.close();
     await context.close();
 
@@ -291,7 +293,7 @@ test.describe.skip("E2E: Strapi → Service → Consumer Full Flow (Fixtures)", 
     };
 
     console.log("[E2E] Sending create webhook using fixture...");
-    const createResponse = await fetch(`${SERVICE_URL}/webhooks/strapi/${sourceUid}`, {
+    const createResponse = await fetch(`${SERVICE_URL}/webhooks/strapi/${connectionUid}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(createPayload),
@@ -332,7 +334,7 @@ test.describe.skip("E2E: Strapi → Service → Consumer Full Flow (Fixtures)", 
       },
     };
 
-    await fetch(`${SERVICE_URL}/webhooks/strapi/${sourceUid}`, {
+    await fetch(`${SERVICE_URL}/webhooks/strapi/${connectionUid}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(createPayload2),
@@ -362,7 +364,7 @@ test.describe.skip("E2E: Strapi → Service → Consumer Full Flow (Fixtures)", 
       },
     };
 
-    await fetch(`${SERVICE_URL}/webhooks/strapi/${sourceUid}`, {
+    await fetch(`${SERVICE_URL}/webhooks/strapi/${connectionUid}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(updatePayload),
@@ -393,16 +395,11 @@ test.describe.skip("E2E: Strapi → Service → Consumer Full Flow (Fixtures)", 
       },
     };
 
-    await fetch(`${SERVICE_URL}/webhooks/strapi/${sourceUid}`, {
+    await fetch(`${SERVICE_URL}/webhooks/strapi/${connectionUid}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(deletePayload),
     });
-
-    // Note: Delete event propagation via webhook is TODO - the webhook currently only
-    // broadcasts ITEM_CHANGED events, not ITEM_DELETED events. For now, just verify the webhook
-    // was accepted.
-    // TODO: Implement delete event broadcasting in webhook handler
 
     // Updated first article should still be there
     const result4 = await q({ collection: "articles", limit: 100 });
@@ -410,37 +407,29 @@ test.describe.skip("E2E: Strapi → Service → Consumer Full Flow (Fixtures)", 
   });
 
   test("should reflect collection rename in local DB", async ({ browser }) => {
-    // Create a dedicated collection for this test so we don't touch "articles"
     const context = await browser.newContext();
     const page = await context.newPage();
 
     // Login
-    await page.goto(`${SERVICE_URL}/login`);
-    await page.getByLabel(/Email/i).fill(TEST_USER.email);
-    await page.getByLabel(/Password/i).fill(TEST_USER.password);
-    await page.getByRole("button", { name: /Sign in|Log in|Login|Authenticate/i }).click();
-    await page.waitForURL(/\/dashboard/, { timeout: 10000 });
+    await login(page);
 
-    // Create a new collection (no sourceId/ref — standalone)
-    await page.goto(`${SERVICE_URL}/collections/new`);
-    await page.getByLabel(/Display Name/i).fill("Rename Test");
-    await page.getByRole("button", { name: /Create Collection/i }).click();
-    await page.waitForURL(/\/collections\/\d+/, { timeout: 10000 });
-
-    // Capture the new collection's ID from the redirect URL
-    const newCollectionId = page.url().match(/\/collections\/(\d+)/)![1];
-    console.log(`[E2E] Created dedicated collection for rename test (ID: ${newCollectionId})`);
-
-    // Connect the E2E consumer to this collection so events are broadcast to it
+    // Find the CLIENT connection to get its ID
+    await page.goto(`${SERVICE_URL}/connections`);
     await page.waitForLoadState("networkidle");
-    await sleep(500);
+    const clientLink = page.getByRole("link", { name: /E2E Consumer App/i });
+    await clientLink.click();
+    await page.waitForURL(/\/connections\//, { timeout: 10000 });
+    const clientConnectionId = page.url().match(/\/connections\/([^/]+)/)![1];
 
-    // Open the consumer combobox and select the E2E consumer
-    const comboboxTrigger = page.getByRole("combobox");
-    await comboboxTrigger.waitFor({ state: "visible", timeout: 10000 });
-    await comboboxTrigger.click();
-    await page.getByRole("option", { name: /E2E Consumer App/i }).click();
-    await page.getByRole("button", { name: /Connect Consumer/i }).click();
+    // Create a new standalone collection bound to the CLIENT connection
+    await page.goto(`${SERVICE_URL}/collections/new?connectionId=${clientConnectionId}`);
+    await page.waitForLoadState("networkidle");
+    await page.locator('input[name="displayName"]').fill("Rename Test");
+    await page.getByRole("button", { name: /Create Collection/i }).click();
+    await page.waitForURL(/\/collections\/[^/]+$/, { timeout: 10000 });
+
+    const newCollectionId = page.url().match(/\/collections\/([^/]+)/)![1];
+    console.log(`[E2E] Created dedicated collection for rename test (ID: ${newCollectionId})`);
 
     // Wait for the COLLECTION_SCHEMA event to create the collection in the local DB
     console.log("[E2E] Waiting for 'renameTest' collection to appear in local DB...");
@@ -460,6 +449,8 @@ test.describe.skip("E2E: Strapi → Service → Consumer Full Flow (Fixtures)", 
     console.log("[E2E] Renaming collection from 'renameTest' to 'renamedCollection' via UI...");
     await page.goto(`${SERVICE_URL}/collections/${newCollectionId}`);
     await page.waitForLoadState("networkidle");
+
+    // Click the pencil icon to open the rename popover
     await page.locator('[data-slot="popover-trigger"]').first().click();
     await page.waitForSelector('[data-slot="popover-content"]', { timeout: 5000 });
 
@@ -544,9 +535,7 @@ test.describe.skip("E2E: Strapi → Service → Consumer Full Flow (Fixtures)", 
       // Give the client app time to establish its sync stream connection
       await sleep(3000);
 
-      // Send a NEW webhook event — this will be broadcast in real-time to the
-      // client app's active sync stream (bypassing the snapshot+replay issue
-      // where historical events before the snapshot sequence are skipped).
+      // Send a NEW webhook event
       const httpTimestamp = Date.now();
       const httpArticlePayload = {
         event: "entry.create",
@@ -566,7 +555,7 @@ test.describe.skip("E2E: Strapi → Service → Consumer Full Flow (Fixtures)", 
       };
 
       console.log("[E2E] Sending webhook for HTTP test article...");
-      const webhookRes = await fetch(`${SERVICE_URL}/webhooks/strapi/${sourceUid}`, {
+      const webhookRes = await fetch(`${SERVICE_URL}/webhooks/strapi/${connectionUid}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(httpArticlePayload),

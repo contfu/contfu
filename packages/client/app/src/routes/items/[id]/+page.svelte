@@ -1,7 +1,7 @@
 <script lang="ts">
   import { browser } from "$app/environment";
   import { invalidateAll } from "$app/navigation";
-  import SourceTypeIcon from "$lib/components/icons/SourceTypeIcon.svelte";
+  import ConnectionIcon from "$lib/components/icons/ConnectionIcon.svelte";
   import { Button } from "$lib/components/ui/button";
   import * as Card from "$lib/components/ui/card";
   import * as HoverCard from "$lib/components/ui/hover-card";
@@ -14,7 +14,7 @@
   import type { PageData } from "./$types";
 
   let { data }: { data: PageData } = $props();
-  let sourceRef = $derived(parseSourceRef(data.item.sourceType, data.item.ref));
+  let sourceRef = $derived(parseSourceRef(data.item.connectionType, data.item.ref));
   let assetMap = $derived(
     new Map(data.assets.map((a: AssetData) => [a.id, a])),
   );
@@ -141,7 +141,7 @@
               >
                 {sourceRef.label}
                 {#if sourceRef.type !== null}
-                  <SourceTypeIcon type={sourceRef.type} class="h-3.5 w-3.5" />
+                  <ConnectionIcon type={sourceRef.type} class="h-3.5 w-3.5" />
                 {/if}
                 <ExternalLink class="h-3.5 w-3.5" />
               </Button>
@@ -153,7 +153,7 @@
                 title="Source link unavailable"
               >
                 {sourceRef.label}
-                <SourceTypeIcon type={sourceRef.type} class="h-3.5 w-3.5" />
+                <ConnectionIcon type={sourceRef.type} class="h-3.5 w-3.5" />
                 <Link2Off class="h-3.5 w-3.5" />
               </Button>
             {:else}

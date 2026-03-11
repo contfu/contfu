@@ -1,16 +1,16 @@
-import { SourceType, type SourceType as SourceTypeValue } from "@contfu/core";
+import { ConnectionType } from "@contfu/core";
 
 export type SourceRefLink = {
-  type: SourceTypeValue | null;
+  type: ConnectionType | null;
   label: string;
   href: string | null;
 };
 
 export function parseSourceRef(
-  sourceType: SourceTypeValue | null | undefined,
+  connectionType: ConnectionType | null | undefined,
   ref: string | null | undefined,
 ): SourceRefLink {
-  if (sourceType == null || !ref) {
+  if (connectionType == null || !ref) {
     return {
       type: null,
       label: "Unknown",
@@ -19,14 +19,14 @@ export function parseSourceRef(
   }
 
   const label =
-    sourceType === SourceType.NOTION
+    connectionType === ConnectionType.NOTION
       ? "Notion"
-      : sourceType === SourceType.STRAPI
+      : connectionType === ConnectionType.STRAPI
         ? "Strapi"
         : "Web";
 
   return {
-    type: sourceType,
+    type: connectionType,
     label,
     href: ref,
   };

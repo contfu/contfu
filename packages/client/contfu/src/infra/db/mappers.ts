@@ -32,7 +32,7 @@ export function itemToDb<T extends ItemData | Omit<ItemData, "links">>(
 ): ItemUpdate | NewItem {
   return {
     id: decodeId(item.id),
-    sourceType: item.sourceType ?? null,
+    connectionType: item.connectionType ?? null,
     ref: item.ref ?? null,
     collection: item.collection,
     props: item.props,
@@ -44,7 +44,7 @@ export function itemToDb<T extends ItemData | Omit<ItemData, "links">>(
 export function itemFromDb(dbo: DbItem, _ctx: any, links?: ContentLinks): ItemData {
   return deleteNulls({
     id: encodeId(dbo.id),
-    sourceType: dbo.sourceType ?? null,
+    connectionType: dbo.connectionType ?? null,
     ref: dbo.ref ?? null,
     collection: dbo.collection,
     props: dbo.props,

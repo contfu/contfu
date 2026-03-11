@@ -4,23 +4,24 @@
  * Constants are shared with sync-stream.e2e.ts.
  */
 import { pack } from "msgpackr";
+import { ConnectionType } from "@contfu/svc-core";
 import {
   collectionTable,
-  consumerCollectionTable,
-  consumerTable,
+  connectionTable,
+  flowTable,
   userTable,
 } from "@contfu/svc-backend/infra/db/schema";
 import { eq } from "drizzle-orm";
 
-/** Well-known 32-byte consumer key — must match the test file. */
-export const SYNC_CONSUMER_KEY = Buffer.from(
-  "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20",
-  "hex",
-);
+/** Well-known consumer key for sync stream tests. */
+export const SYNC_CONSUMER_KEY = Buffer.from("00000000000000000000000000000001", "hex");
+
+/** Well-known consumer name — must match the test file. */
+export const SYNC_CONSUMER_NAME = "Test Sync Consumer";
 
 /**
- * Seeds a consumer + collection for sync stream tests.
- * No source/influx is needed — fetchAndStreamItems yields nothing,
+ * Seeds a consumer connection + collection and a target collection for sync stream tests.
+ * No source/flow is needed — fetchAndStreamItems yields nothing,
  * producing an immediate empty snapshot (SNAPSHOT_START → SNAPSHOT_END).
  */
 export async function seedSyncData(db: any): Promise<void> {
@@ -46,17 +47,17 @@ export async function seedSyncData(db: any): Promise<void> {
 
   const userId = user.id;
 
-  // Idempotent — skip if the sync consumer key already exists
+  // Idempotent — skip if the sync consumer client connection already exists
   const [existing] = await db
-    .select({ id: consumerTable.id })
-    .from(consumerTable)
-    .where(eq(consumerTable.key, SYNC_CONSUMER_KEY))
+    .select({ id: connectionTable.id })
+    .from(connectionTable)
+    .where(eq(connectionTable.name, "Test Sync Client"))
     .limit(1);
 
   if (existing) return;
 
   // Target collection (no source needed for empty snapshot)
-  const [collection] = await db
+  const [targetCollection] = await db
     .insert(collectionTable)
     .values({
       userId,
@@ -65,25 +66,36 @@ export async function seedSyncData(db: any): Promise<void> {
       schema: pack({}),
     })
     .returning({ id: collectionTable.id });
-  if (!collection) return;
-  const colId = collection.id;
+  if (!targetCollection) return;
 
-  // Consumer with fixed well-known key
-  const [consumer] = await db
-    .insert(consumerTable)
+  // Client connection (replaces consumer)
+  const [clientConnection] = await db
+    .insert(connectionTable)
     .values({
       userId,
-      key: SYNC_CONSUMER_KEY,
-      name: "Test Sync Consumer",
+      type: ConnectionType.CLIENT,
+      name: "Test Sync Client",
+      credentials: SYNC_CONSUMER_KEY,
     })
-    .returning({ id: consumerTable.id });
-  if (!consumer) return;
-  const consumerId = consumer.id;
+    .returning({ id: connectionTable.id });
+  if (!clientConnection) return;
 
-  // Connection: consumer → collection
-  await db.insert(consumerCollectionTable).values({
+  // Consumer collection
+  const [consumerCollection] = await db
+    .insert(collectionTable)
+    .values({
+      userId,
+      connectionId: clientConnection.id,
+      name: SYNC_CONSUMER_NAME,
+      displayName: SYNC_CONSUMER_NAME,
+    })
+    .returning({ id: collectionTable.id });
+  if (!consumerCollection) return;
+
+  // Flow: target → consumer collection (replaces outflow)
+  await db.insert(flowTable).values({
     userId,
-    consumerId,
-    collectionId: colId,
+    sourceId: targetCollection.id,
+    targetId: consumerCollection.id,
   });
 }

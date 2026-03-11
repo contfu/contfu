@@ -3,7 +3,10 @@ import { sql } from "drizzle-orm";
 import type { PgAsyncDatabase } from "drizzle-orm/pg-core/async/db";
 import * as schema from "./schema";
 
-const isTestMode = process.env.NODE_ENV === "test";
+// Use PGLITE_DATA_DIR presence instead of NODE_ENV to detect test mode.
+// Vite inlines process.env.NODE_ENV as "production" during SSR builds,
+// which tree-shakes the PGLite path. PGLITE_DATA_DIR is not inlined.
+const isTestMode = !!process.env.PGLITE_DATA_DIR;
 const dbContext = new AsyncLocalStorage<PgAsyncDatabase<any, typeof schema, any>>();
 
 // Use MIGRATIONS_PATH env var for flexibility, or resolve from import.meta.url for direct imports
@@ -70,10 +73,6 @@ function getActiveDb(): PgAsyncDatabase<any, typeof schema, any> {
 }
 
 export async function withUserDbContext<T>(userId: number, fn: () => Promise<T>): Promise<T> {
-  if (isTestMode) {
-    return dbContext.run(rootDb, fn);
-  }
-
   return rootDb.transaction(async (tx) => {
     await tx.execute(sql`SET LOCAL ROLE app_user`);
     await tx.execute(sql`SET LOCAL app.current_user_id = '${sql.raw(String(userId))}'`);
@@ -95,8 +94,8 @@ export const db: PgAsyncDatabase<any, typeof schema, any> = new Proxy(
   },
 );
 
-// Seed development test user (only in non-production mode)
-if (process.env.SKIP_DB_INIT !== "true" && process.env.NODE_ENV !== "production") {
+// Seed development test user (only in test/dev mode)
+if (process.env.SKIP_DB_INIT !== "true" && isTestMode) {
   const { seedDevUser } = await import("./seed-dev");
   await seedDevUser(db);
 }

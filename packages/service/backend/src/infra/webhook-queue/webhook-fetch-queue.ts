@@ -56,7 +56,7 @@ export async function enqueueWebhookFetch(job: WebhookFetchJob): Promise<void> {
 
   await ensureWebhookFetchQueue();
   const jsm = await getJetStreamManager();
-  const subject = `${SUBJECT_PREFIX}.${job.userId}.${job.sourceId}`;
+  const subject = `${SUBJECT_PREFIX}.${job.userId}.${job.connectionId}`;
   await jsm.jetstream().publish(subject, Buffer.from(JSON.stringify(job), "utf8"), {
     retries: 10,
   });

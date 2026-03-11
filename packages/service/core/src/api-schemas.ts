@@ -1,17 +1,17 @@
 import * as v from "valibot";
 
-// --- Sources ---
+// --- Connections ---
 
-export const CreateSourceSchema = v.object({
+export const CreateConnectionSchema = v.object({
+  type: v.number(),
   name: v.string(),
-  type: v.picklist([0, 1, 2]),
+  accountId: v.optional(v.nullable(v.string())),
   url: v.optional(v.nullable(v.string())),
   includeRef: v.optional(v.boolean()),
 });
 
-export const UpdateSourceSchema = v.object({
+export const UpdateConnectionSchema = v.object({
   name: v.optional(v.string()),
-  url: v.optional(v.nullable(v.string())),
   includeRef: v.optional(v.boolean()),
 });
 
@@ -20,6 +20,7 @@ export const UpdateSourceSchema = v.object({
 export const CreateCollectionSchema = v.object({
   displayName: v.string(),
   name: v.optional(v.string()),
+  connectionId: v.optional(v.nullable(v.number())),
   includeRef: v.optional(v.boolean()),
 });
 
@@ -31,31 +32,7 @@ export const UpdateCollectionSchema = v.object({
   refTargets: v.optional(v.nullable(v.record(v.string(), v.array(v.string())))),
 });
 
-// --- Consumers ---
-
-export const CreateConsumerSchema = v.object({
-  name: v.string(),
-  includeRef: v.optional(v.boolean()),
-});
-
-export const UpdateConsumerSchema = v.object({
-  name: v.optional(v.string()),
-  includeRef: v.optional(v.boolean()),
-});
-
-// --- ConsumerCollections ---
-
-export const CreateConsumerCollectionSchema = v.object({
-  consumerId: v.number(),
-  collectionId: v.number(),
-  includeRef: v.optional(v.boolean()),
-});
-
-export const UpdateConsumerCollectionSchema = v.object({
-  includeRef: v.optional(v.boolean()),
-});
-
-// --- Influxes ---
+// --- Flows ---
 
 const FilterSchema = v.object({
   property: v.string(),
@@ -70,15 +47,15 @@ const MappingRuleSchema = v.object({
   cast: v.optional(v.string()),
 });
 
-export const CreateInfluxSchema = v.object({
-  collectionId: v.number(),
-  sourceCollectionId: v.number(),
+export const CreateFlowSchema = v.object({
+  sourceId: v.number(),
+  targetId: v.number(),
   filters: v.optional(v.array(FilterSchema)),
   schema: v.optional(v.record(v.string(), v.number())),
   includeRef: v.optional(v.boolean()),
 });
 
-export const UpdateInfluxSchema = v.object({
+export const UpdateFlowSchema = v.object({
   filters: v.optional(v.nullable(v.array(FilterSchema))),
   mappings: v.optional(v.nullable(v.array(MappingRuleSchema))),
   schema: v.optional(v.nullable(v.record(v.string(), v.number()))),

@@ -5,15 +5,7 @@ import * as v from "valibot";
 const BASE_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 const MIN_LENGTH = 6;
 
-export type EntityType =
-  | "user"
-  | "source"
-  | "collection"
-  | "consumer"
-  | "sourceCollection"
-  | "influx"
-  | "incident"
-  | "integration";
+export type EntityType = "user" | "collection" | "flow" | "incident" | "connection";
 
 // Lazy-initialized state
 let initialized = false;
@@ -33,16 +25,7 @@ function init() {
   passthrough = false;
   encoders = new Map();
 
-  const entities: EntityType[] = [
-    "user",
-    "source",
-    "collection",
-    "consumer",
-    "sourceCollection",
-    "influx",
-    "incident",
-    "integration",
-  ];
+  const entities: EntityType[] = ["user", "collection", "flow", "incident", "connection"];
   for (const entity of entities) {
     const alphabet = shuffleAlphabet(secret, entity);
     encoders.set(entity, new Sqids({ alphabet, minLength: MIN_LENGTH }));

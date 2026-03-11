@@ -1,14 +1,7 @@
-import { SourceType, PropertyType } from "@contfu/core";
+import { ConnectionType, PropertyType } from "@contfu/core";
 import { apiFetch } from "../http";
 
-const RESOURCES = [
-  "sources",
-  "collections",
-  "consumers",
-  "connections",
-  "influxes",
-  "integrations",
-] as const;
+const RESOURCES = ["connections", "collections", "flows"] as const;
 type Resource = (typeof RESOURCES)[number];
 
 export function isResource(name: string): name is Resource {
@@ -20,21 +13,18 @@ export interface CliValues {
   type?: string;
   url?: string;
   "display-name"?: string;
-  "consumer-id"?: string;
+  "source-id"?: string;
+  "target-id"?: string;
   "collection-id"?: string;
-  "source-collection-id"?: string;
   "include-ref"?: boolean;
   "no-include-ref"?: boolean;
   token?: string;
 }
 
 const REQUIRED_CREATE: Record<Resource, (keyof CliValues)[]> = {
-  sources: ["name", "type"],
+  connections: ["name"],
   collections: ["display-name"],
-  consumers: ["name"],
-  connections: ["consumer-id", "collection-id"],
-  influxes: ["collection-id", "source-collection-id"],
-  integrations: ["name"],
+  flows: ["source-id", "target-id"],
 };
 
 function buildBody(
@@ -50,33 +40,8 @@ function buildBody(
     }
   }
 
-  const body: Record<string, unknown> = {};
-
-  if (values.name !== undefined) body.name = values.name;
-  if (values["display-name"] !== undefined) body.displayName = values["display-name"];
-  if (values.url !== undefined) body.url = values.url;
-
-  if (values.type !== undefined) {
-    const key = values.type.toUpperCase() as keyof typeof SourceType;
-    if (!(key in SourceType)) {
-      console.error(
-        `Invalid --type "${values.type}". Run 'contfu sources types' to see valid values.`,
-      );
-      process.exit(1);
-    }
-    body.type = SourceType[key];
-  }
-
-  if (values["consumer-id"] !== undefined) body.consumerId = Number(values["consumer-id"]);
-  if (values["collection-id"] !== undefined) body.collectionId = Number(values["collection-id"]);
-  if (values["source-collection-id"] !== undefined)
-    body.sourceCollectionId = Number(values["source-collection-id"]);
-
-  if (values["include-ref"] === true) body.includeRef = true;
-  if (values["no-include-ref"] === true) body.includeRef = false;
-
-  // Integrations use different field names
-  if (resource === "integrations") {
+  // Connections use different field names
+  if (resource === "connections") {
     const result: Record<string, unknown> = {};
     if (values.name !== undefined) result.label = values.name;
     if (values.type !== undefined) result.providerId = values.type;
@@ -85,14 +50,27 @@ function buildBody(
     return result;
   }
 
+  // Flows
+  if (resource === "flows") {
+    const body: Record<string, unknown> = {};
+    if (values["source-id"] !== undefined) body.sourceId = Number(values["source-id"]);
+    if (values["target-id"] !== undefined) body.targetId = Number(values["target-id"]);
+    if (values["include-ref"] === true) body.includeRef = true;
+    if (values["no-include-ref"] === true) body.includeRef = false;
+    return body;
+  }
+
+  // Collections
+  const body: Record<string, unknown> = {};
+  if (values.name !== undefined) body.name = values.name;
+  if (values["display-name"] !== undefined) body.displayName = values["display-name"];
+  if (values["include-ref"] === true) body.includeRef = true;
+  if (values["no-include-ref"] === true) body.includeRef = false;
+
   return body;
 }
 
 type Column = { key: string; header: string; format?: (v: unknown) => string };
-
-const SOURCE_TYPE_LABEL: Record<number, string> = Object.fromEntries(
-  (Object.entries(SourceType) as [string, number][]).map(([k, v]) => [v, k.toLowerCase()]),
-);
 
 const PROPERTY_TYPE_LABEL: Record<number, string> = Object.fromEntries(
   (Object.entries(PropertyType) as [string, number][]).map(([k, v]) => [v, k.toLowerCase()]),
@@ -145,48 +123,27 @@ function printJson(data: unknown) {
 }
 
 const TABLE_COLUMNS: Record<Resource, Column[]> = {
-  sources: [
-    { key: "id", header: "ID" },
-    { key: "name", header: "Name" },
-    { key: "type", header: "Type", format: (v) => SOURCE_TYPE_LABEL[v as number] ?? String(v) },
-    { key: "url", header: "URL" },
-    { key: "collectionCount", header: "Collections" },
-  ],
-  collections: [
-    { key: "id", header: "ID" },
-    { key: "name", header: "Name" },
-    { key: "displayName", header: "Display Name" },
-    { key: "influxCount", header: "Influxes" },
-    { key: "connectionCount", header: "Connections" },
-  ],
-  consumers: [
-    { key: "id", header: "ID" },
-    { key: "name", header: "Name" },
-    { key: "connectionCount", header: "Connections" },
-    { key: "hasKey", header: "Has Key" },
-  ],
   connections: [
-    { key: "consumerId", header: "Consumer ID" },
-    { key: "consumerName", header: "Consumer" },
-    { key: "collectionId", header: "Collection ID" },
-    { key: "collectionName", header: "Collection" },
-  ],
-  influxes: [
-    { key: "id", header: "ID" },
-    { key: "sourceName", header: "Source" },
-    { key: "sourceCollectionName", header: "Source Collection" },
-    {
-      key: "sourceType",
-      header: "Type",
-      format: (v) => SOURCE_TYPE_LABEL[v as number] ?? String(v),
-    },
-  ],
-  integrations: [
     { key: "id", header: "ID" },
     { key: "label", header: "Label" },
     { key: "providerId", header: "Provider" },
     { key: "accountId", header: "Account" },
     { key: "hasCredentials", header: "Credentials", format: (v) => (v ? "yes" : "no") },
+  ],
+  collections: [
+    { key: "id", header: "ID" },
+    { key: "name", header: "Name" },
+    { key: "displayName", header: "Display Name" },
+    {
+      key: "connectionId",
+      header: "Connection",
+    },
+  ],
+  flows: [
+    { key: "id", header: "ID" },
+    { key: "sourceId", header: "Source" },
+    { key: "targetId", header: "Target" },
+    { key: "includeRef", header: "Ref", format: (v) => (v ? "yes" : "no") },
   ],
 };
 
@@ -259,8 +216,8 @@ export async function del(resource: Resource, id: string) {
   console.log(`Deleted ${resource.slice(0, -1)} ${id}`);
 }
 
-export function listSourceTypes() {
-  const entries = Object.entries(SourceType) as [string, number][];
+export function listConnectionTypes() {
+  const entries = Object.entries(ConnectionType) as [string, number][];
   const custom = entries
     .filter(([, v]) => v < 20)
     .map(([k]) => k.toLowerCase())

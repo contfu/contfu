@@ -1,11 +1,12 @@
-import { SourceType } from "@contfu/core";
+import { ConnectionType } from "@contfu/core";
 import { encryptCredentials } from "@contfu/svc-backend/infra/crypto/credentials";
 import { db } from "@contfu/svc-backend/infra/db/db";
-import { sourceCollectionTable, sourceTable, userTable } from "@contfu/svc-backend/infra/db/schema";
+import { connectionTable, collectionTable, userTable } from "@contfu/svc-backend/infra/db/schema";
+import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "bun:test";
 import crypto from "node:crypto";
 import { lru } from "tiny-lru";
-import type { DataSourceInfo } from "../../src/lib/remote/influxes.remote";
+import type { DataSourceInfo } from "../../src/lib/remote/inflows.remote";
 import { truncateAllTables } from "../../test/setup";
 
 /**
@@ -19,7 +20,7 @@ const isDbMocked = typeof db.delete !== "function";
 
 describe.skipIf(isDbMocked)("Notion Cache Integration", () => {
   let testUserId: number;
-  let testSourceId: number;
+  let testConnectionId: number;
 
   beforeEach(async () => {
     // Truncate all tables for clean slate
@@ -35,43 +36,43 @@ describe.skipIf(isDbMocked)("Notion Cache Integration", () => {
       .returning();
     testUserId = user.id;
 
-    // Create test Notion source
+    // Create test Notion connection
     const mockToken = "test-notion-token";
     const encryptedCreds = await encryptCredentials(testUserId, Buffer.from(mockToken, "utf8"));
 
-    const [source] = await db
-      .insert(sourceTable)
+    const [connection] = await db
+      .insert(connectionTable)
       .values({
         userId: testUserId,
-        uid: crypto.randomUUID(),
-        type: SourceType.NOTION,
-        name: "Test Notion Source",
+        type: ConnectionType.NOTION,
+        name: "Test Notion Connection",
         credentials: encryptedCreds,
+        uid: crypto.randomUUID(),
       })
       .returning();
-    testSourceId = source.id;
+    testConnectionId = connection.id;
   });
 
   describe("Cache Key Strategy", () => {
-    it("should generate consistent cache keys for user-source pairs", () => {
-      // Cache keys follow pattern: notion-ds:${userId}:${sourceId}
-      const cacheKey1 = `notion-ds:${testUserId}:${testSourceId}`;
-      const cacheKey2 = `notion-ds:${testUserId}:${testSourceId}`;
+    it("should generate consistent cache keys for user-connection pairs", () => {
+      // Cache keys follow pattern: notion-ds:${userId}:${connectionId}
+      const cacheKey1 = `notion-ds:${testUserId}:${testConnectionId}`;
+      const cacheKey2 = `notion-ds:${testUserId}:${testConnectionId}`;
 
       expect(cacheKey1).toBe(cacheKey2);
       expect(cacheKey1).toMatch(/^notion-ds:\d+:\d+$/);
     });
 
     it("should generate different keys for different users", () => {
-      const key1 = `notion-ds:${testUserId}:${testSourceId}`;
-      const key2 = `notion-ds:${testUserId + 1}:${testSourceId}`;
+      const key1 = `notion-ds:${testUserId}:${testConnectionId}`;
+      const key2 = `notion-ds:${testUserId + 1}:${testConnectionId}`;
 
       expect(key1).not.toBe(key2);
     });
 
-    it("should generate different keys for different sources", () => {
-      const key1 = `notion-ds:${testUserId}:${testSourceId}`;
-      const key2 = `notion-ds:${testUserId}:${testSourceId + 1}`;
+    it("should generate different keys for different connections", () => {
+      const key1 = `notion-ds:${testUserId}:${testConnectionId}`;
+      const key2 = `notion-ds:${testUserId}:${testConnectionId + 1}`;
 
       expect(key1).not.toBe(key2);
     });
@@ -80,7 +81,7 @@ describe.skipIf(isDbMocked)("Notion Cache Integration", () => {
   describe("Cache Structure and TTL", () => {
     it("should store data source info without DB-enriched fields", () => {
       // Create a mock cache to test structure
-      const testCache = lru<Omit<DataSourceInfo, "exists" | "sourceCollectionId">[]>(
+      const testCache = lru<Omit<DataSourceInfo, "exists" | "externalCollectionId">[]>(
         100,
         5 * 60 * 1000,
       );
@@ -89,12 +90,12 @@ describe.skipIf(isDbMocked)("Notion Cache Integration", () => {
         {
           id: "db-123",
           title: "Test Database",
-          icon: { type: "emoji" as const, value: "📚" },
+          icon: { type: "emoji" as const, value: "\u{1F4DA}" },
           schema: null,
         },
       ];
 
-      const cacheKey = `notion-ds:${testUserId}:${testSourceId}`;
+      const cacheKey = `notion-ds:${testUserId}:${testConnectionId}`;
       testCache.set(cacheKey, cachedData);
 
       const retrieved = testCache.get(cacheKey);
@@ -104,20 +105,18 @@ describe.skipIf(isDbMocked)("Notion Cache Integration", () => {
       expect(retrieved?.[0]).toHaveProperty("icon");
       expect(retrieved?.[0]).toHaveProperty("schema");
       expect(retrieved?.[0]).not.toHaveProperty("exists");
-      expect(retrieved?.[0]).not.toHaveProperty("sourceCollectionId");
+      expect(retrieved?.[0]).not.toHaveProperty("externalCollectionId");
     });
 
     it("should have 5-minute TTL", () => {
       const ttlMs = 5 * 60 * 1000;
-      const testCache = lru<any[]>(100, ttlMs);
-
       // Cache should have TTL set
       expect(ttlMs).toBe(300000); // 5 minutes in milliseconds
     });
 
     it("should support cache invalidation", () => {
       const testCache = lru<any[]>(100, 5 * 60 * 1000);
-      const cacheKey = `notion-ds:${testUserId}:${testSourceId}`;
+      const cacheKey = `notion-ds:${testUserId}:${testConnectionId}`;
 
       // Set data
       testCache.set(cacheKey, [{ id: "test", title: "Test", icon: null, schema: null }]);
@@ -130,14 +129,15 @@ describe.skipIf(isDbMocked)("Notion Cache Integration", () => {
   });
 
   describe("Data Enrichment from Database", () => {
-    it("should enrich cached data with exists flag and sourceCollectionId", async () => {
-      // Create a source collection in DB
-      const [sourceCollection] = await db
-        .insert(sourceCollectionTable)
+    it("should enrich cached data with exists flag and collectionId", async () => {
+      // Create a collection with connectionId in DB
+      const [collection] = await db
+        .insert(collectionTable)
         .values({
           userId: testUserId,
-          sourceId: testSourceId,
+          connectionId: testConnectionId,
           name: "Existing Collection",
+          displayName: "Existing Collection",
           ref: Buffer.from("db-123", "utf8"),
         })
         .returning();
@@ -151,19 +151,19 @@ describe.skipIf(isDbMocked)("Notion Cache Integration", () => {
       };
 
       // Simulate enrichment logic
-      const existingId = sourceCollection.id;
+      const existingId = collection.id;
       const enrichedDataSource = {
         ...cachedDataSource,
         exists: existingId !== undefined,
-        sourceCollectionId: existingId,
+        externalCollectionId: existingId,
       };
 
       expect(enrichedDataSource.exists).toBe(true);
-      expect(enrichedDataSource.sourceCollectionId).toBe(1);
+      expect(enrichedDataSource.externalCollectionId).toBe(1);
     });
 
     it("should mark non-existent data sources correctly", async () => {
-      // No source collection in DB
+      // No collection in DB
       const cachedDataSource = {
         id: "db-456",
         title: "New Database",
@@ -175,11 +175,11 @@ describe.skipIf(isDbMocked)("Notion Cache Integration", () => {
       const enrichedDataSource = {
         ...cachedDataSource,
         exists: false,
-        sourceCollectionId: undefined,
+        externalCollectionId: undefined,
       };
 
       expect(enrichedDataSource.exists).toBe(false);
-      expect(enrichedDataSource.sourceCollectionId).toBeUndefined();
+      expect(enrichedDataSource.externalCollectionId).toBeUndefined();
     });
   });
 
@@ -197,11 +197,11 @@ describe.skipIf(isDbMocked)("Notion Cache Integration", () => {
       const testCache = lru<any[]>(100, 5 * 60 * 1000);
 
       // Cache data for user 1
-      const key1 = `notion-ds:${testUserId}:${testSourceId}`;
+      const key1 = `notion-ds:${testUserId}:${testConnectionId}`;
       testCache.set(key1, [{ id: "db-1", title: "User 1 Data", icon: null, schema: null }]);
 
-      // Cache different data for user 2 with same source ID
-      const key2 = `notion-ds:${user2.id}:${testSourceId}`;
+      // Cache different data for user 2 with same connection ID
+      const key2 = `notion-ds:${user2.id}:${testConnectionId}`;
       testCache.set(key2, [{ id: "db-2", title: "User 2 Data", icon: null, schema: null }]);
 
       // Verify isolation
@@ -217,7 +217,7 @@ describe.skipIf(isDbMocked)("Notion Cache Integration", () => {
   describe("Error Handling Patterns", () => {
     it("should preserve cache structure on error", () => {
       const testCache = lru<any[]>(100, 5 * 60 * 1000);
-      const cacheKey = `notion-ds:${testUserId}:${testSourceId}`;
+      const cacheKey = `notion-ds:${testUserId}:${testConnectionId}`;
 
       // Set initial data
       const originalData = [{ id: "db-123", title: "Original", icon: null, schema: null }];
@@ -232,7 +232,7 @@ describe.skipIf(isDbMocked)("Notion Cache Integration", () => {
 
     it("should handle empty results", () => {
       const testCache = lru<any[]>(100, 5 * 60 * 1000);
-      const cacheKey = `notion-ds:${testUserId}:${testSourceId}`;
+      const cacheKey = `notion-ds:${testUserId}:${testConnectionId}`;
 
       // Cache empty array (valid result - no databases found)
       testCache.set(cacheKey, []);
@@ -245,47 +245,56 @@ describe.skipIf(isDbMocked)("Notion Cache Integration", () => {
   });
 
   describe("Refresh Command Requirements", () => {
-    it("should validate source exists before refresh", async () => {
-      // Valid source exists
-      const validSourceId = testSourceId;
+    it("should validate connection exists before refresh", async () => {
+      // Valid connection exists
+      const validConnectionId = testConnectionId;
 
-      const sources = await db.select().from(sourceTable);
-      const sourceExists = sources.some((s) => s.id === validSourceId);
+      const connections = await db.select().from(connectionTable);
+      const connectionExists = connections.some((c: any) => c.id === validConnectionId);
 
-      expect(sourceExists).toBe(true);
+      expect(connectionExists).toBe(true);
     });
 
-    it("should handle non-existent source gracefully", async () => {
-      const nonExistentSourceId = 99999;
+    it("should handle non-existent connection gracefully", async () => {
+      const nonExistentConnectionId = 99999;
 
-      const sources = await db.select().from(sourceTable);
-      const sourceExists = sources.some((s) => s.id === nonExistentSourceId);
+      const connections = await db.select().from(connectionTable);
+      const connectionExists = connections.some((c: any) => c.id === nonExistentConnectionId);
 
-      expect(sourceExists).toBe(false);
-      // In actual implementation, this would return { success: false, error: "Source not found" }
+      expect(connectionExists).toBe(false);
     });
 
-    it("should only refresh Notion sources", async () => {
-      // Create a Strapi source
-      const [strapiSource] = await db
-        .insert(sourceTable)
+    it("should only refresh Notion connections", async () => {
+      // Create a Strapi connection
+      const [strapiConn] = await db
+        .insert(connectionTable)
         .values({
           userId: testUserId,
-          uid: crypto.randomUUID(),
-          type: SourceType.STRAPI,
-          name: "Test Strapi Source",
+          type: ConnectionType.STRAPI,
+          name: "Test Strapi Connection",
         })
         .returning();
 
-      expect(testSourceId).toBe(1); // This is a Notion source
-      expect(strapiSource.type).toBe(SourceType.STRAPI);
-      expect(strapiSource.type).not.toBe(SourceType.NOTION);
+      // Verify via connection type
+      const [notionConn] = await db
+        .select({ type: connectionTable.type })
+        .from(connectionTable)
+        .where(eq(connectionTable.id, testConnectionId));
+
+      const [strapiConnType] = await db
+        .select({ type: connectionTable.type })
+        .from(connectionTable)
+        .where(eq(connectionTable.id, strapiConn.id));
+
+      expect(notionConn.type).toBe(ConnectionType.NOTION);
+      expect(strapiConnType.type).toBe(ConnectionType.STRAPI);
+      expect(strapiConnType.type).not.toBe(ConnectionType.NOTION);
     });
   });
 
   describe("Icon Type Handling", () => {
     it("should handle emoji icons", () => {
-      const emojiIcon = { type: "emoji" as const, value: "📚" };
+      const emojiIcon = { type: "emoji" as const, value: "\u{1F4DA}" };
 
       expect(emojiIcon.type).toBe("emoji");
       expect(emojiIcon.value).toMatch(/\p{Emoji}/u);

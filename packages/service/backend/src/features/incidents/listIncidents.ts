@@ -1,16 +1,15 @@
 import { Effect } from "effect";
-import { and, eq, desc, count } from "drizzle-orm";
+import { and, eq, desc } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { unpack } from "msgpackr";
 import { IncidentType } from "@contfu/svc-core";
 import type { BackendIncidentWithDetails } from "../../domain/types";
 import { Database } from "../../effect/services/Database";
 import { DatabaseError } from "../../effect/errors";
-import {
-  incidentTable,
-  influxTable,
-  collectionTable,
-  sourceCollectionTable,
-} from "../../infra/db/schema";
+import { incidentTable, flowTable, collectionTable } from "../../infra/db/schema";
+
+const sourceCollection = alias(collectionTable, "sourceCollection");
+const targetCollection = alias(collectionTable, "targetCollection");
 
 /**
  * List all incidents for a user, optionally filtered by resolved status.
@@ -23,39 +22,35 @@ export const listIncidents = (userId: number, options?: { resolved?: boolean }) 
     let query = db
       .select({
         id: incidentTable.id,
-        influxId: incidentTable.influxId,
+        flowId: incidentTable.flowId,
         type: incidentTable.type,
         message: incidentTable.message,
         details: incidentTable.details,
         resolved: incidentTable.resolved,
         createdAt: incidentTable.createdAt,
         resolvedAt: incidentTable.resolvedAt,
-        collectionId: influxTable.collectionId,
-        collectionName: collectionTable.displayName,
-        sourceCollectionId: influxTable.sourceCollectionId,
-        sourceCollectionName: sourceCollectionTable.name,
-        sourceCollectionDisplayName: sourceCollectionTable.displayName,
+        sourceCollectionId: flowTable.sourceId,
+        sourceCollectionName: sourceCollection.displayName,
+        targetCollectionId: flowTable.targetId,
+        targetCollectionName: targetCollection.displayName,
       })
       .from(incidentTable)
       .innerJoin(
-        influxTable,
+        flowTable,
+        and(eq(incidentTable.flowId, flowTable.id), eq(incidentTable.userId, flowTable.userId)),
+      )
+      .innerJoin(
+        sourceCollection,
         and(
-          eq(incidentTable.userId, influxTable.userId),
-          eq(incidentTable.influxId, influxTable.id),
+          eq(flowTable.sourceId, sourceCollection.id),
+          eq(flowTable.userId, sourceCollection.userId),
         ),
       )
       .innerJoin(
-        collectionTable,
+        targetCollection,
         and(
-          eq(influxTable.userId, collectionTable.userId),
-          eq(influxTable.collectionId, collectionTable.id),
-        ),
-      )
-      .innerJoin(
-        sourceCollectionTable,
-        and(
-          eq(influxTable.userId, sourceCollectionTable.userId),
-          eq(influxTable.sourceCollectionId, sourceCollectionTable.id),
+          eq(flowTable.targetId, targetCollection.id),
+          eq(flowTable.userId, targetCollection.userId),
         ),
       )
       .where(eq(incidentTable.userId, userId))
@@ -75,11 +70,11 @@ export const listIncidents = (userId: number, options?: { resolved?: boolean }) 
       (r) =>
         ({
           id: r.id,
-          influxId: r.influxId,
-          collectionId: r.collectionId,
-          collectionName: r.collectionName,
+          flowId: r.flowId,
           sourceCollectionId: r.sourceCollectionId,
-          sourceCollectionName: r.sourceCollectionDisplayName || r.sourceCollectionName,
+          sourceCollectionName: r.sourceCollectionName,
+          targetCollectionId: r.targetCollectionId,
+          targetCollectionName: r.targetCollectionName,
           type: Number(r.type) as IncidentType,
           message: r.message,
           details: r.details ? (unpack(r.details) as Record<string, unknown>) : null,
@@ -89,22 +84,3 @@ export const listIncidents = (userId: number, options?: { resolved?: boolean }) 
         }) satisfies BackendIncidentWithDetails,
     );
   }).pipe(Effect.withSpan("incidents.list", { attributes: { userId } }));
-
-/**
- * Count unresolved incidents for a user.
- */
-export const getUnresolvedIncidentCount = (userId: number) =>
-  Effect.gen(function* () {
-    const { db } = yield* Database;
-
-    const [result] = yield* Effect.tryPromise({
-      try: () =>
-        db
-          .select({ count: count() })
-          .from(incidentTable)
-          .where(and(eq(incidentTable.userId, userId), eq(incidentTable.resolved, false))),
-      catch: (e) => new DatabaseError({ cause: e }),
-    });
-
-    return result?.count ?? 0;
-  }).pipe(Effect.withSpan("incidents.unresolvedCount", { attributes: { userId } }));

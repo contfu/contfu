@@ -1,10 +1,10 @@
-import { SourceType } from "@contfu/core";
+import { ConnectionType } from "@contfu/core";
 import { Effect } from "effect";
 import { createLogger } from "../logger/index";
 import { hasNats } from "../nats/connection";
 import { raceForLeader } from "../nats/leader-election";
 import { db } from "../db/db";
-import { sourceTable, sourceCollectionTable, influxTable } from "../db/schema";
+import { collectionTable, connectionTable, flowTable } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { enqueueSyncJobs } from "../../features/sync-jobs/enqueueSyncJobs";
 
@@ -23,21 +23,21 @@ function getIntervalMs(): number {
   return DEFAULT_INTERVAL_MS;
 }
 
-async function getWebSourceCollectionIds(): Promise<number[]> {
+async function getWebCollectionIds(): Promise<number[]> {
   const rows = await db
-    .selectDistinct({ id: sourceCollectionTable.id })
-    .from(sourceCollectionTable)
-    .innerJoin(sourceTable, eq(sourceCollectionTable.sourceId, sourceTable.id))
-    .innerJoin(influxTable, eq(influxTable.sourceCollectionId, sourceCollectionTable.id))
-    .where(eq(sourceTable.type, SourceType.WEB));
+    .selectDistinct({ id: collectionTable.id })
+    .from(collectionTable)
+    .innerJoin(connectionTable, eq(collectionTable.connectionId, connectionTable.id))
+    .innerJoin(flowTable, eq(flowTable.sourceId, collectionTable.id))
+    .where(eq(connectionTable.type, ConnectionType.WEB));
 
   return rows.map((r) => r.id);
 }
 
 async function runSync(): Promise<void> {
-  const ids = await getWebSourceCollectionIds();
+  const ids = await getWebCollectionIds();
   if (ids.length === 0) {
-    log.debug("No web source collections with influxes found");
+    log.debug("No web collections with flows found");
     return;
   }
 

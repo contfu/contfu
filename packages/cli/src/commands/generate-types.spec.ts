@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, afterEach, mock, spyOn } from "bun:test";
-import { consumerTypes } from "./generate-types";
+import { connectionTypes } from "./generate-types";
 
 const mockFetch = mock<typeof fetch>();
 globalThis.fetch = mockFetch as any;
@@ -32,8 +32,8 @@ afterEach(() => {
   errorSpy.mockRestore();
 });
 
-describe("consumerTypes", () => {
-  test("fetches collections for consumer and prints map type", async () => {
+describe("connectionTypes", () => {
+  test("fetches collections for connection and prints map type", async () => {
     mockFetch.mockResolvedValueOnce(
       jsonResponse([
         { name: "posts", displayName: "Posts", schema: {} },
@@ -41,10 +41,10 @@ describe("consumerTypes", () => {
       ]),
     );
 
-    await consumerTypes("7");
+    await connectionTypes("7");
 
     const url = (mockFetch.mock.calls[0] as unknown[])[0] as string;
-    expect(url).toBe("http://test.local/api/v1/consumers/7/collections");
+    expect(url).toBe("http://test.local/api/v1/connections/7/types");
     expect(writeSpy).toHaveBeenCalledTimes(1);
     const output = (writeSpy.mock.calls[0] as unknown[])[0] as string;
     expect(output).toContain("ContfuCollections");

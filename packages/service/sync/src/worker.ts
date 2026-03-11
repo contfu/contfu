@@ -1,16 +1,14 @@
 /// <reference lib="webworker" />
 declare const self: Worker;
 
-import { SourceType } from "@contfu/core";
+import { ConnectionType } from "@contfu/core";
 import { createLogger, LoggerLive } from "@contfu/svc-backend/infra/logger/index";
 import { claimJobs } from "@contfu/svc-backend/features/sync-jobs/claimJobs";
 import { completeJob } from "@contfu/svc-backend/features/sync-jobs/completeJob";
 import { failJob } from "@contfu/svc-backend/features/sync-jobs/failJob";
 import { getJobConfig } from "@contfu/svc-backend/features/sync-jobs/getJobConfig";
-import { sourceCollectionTable } from "@contfu/svc-backend/infra/db/schema";
 import { SyncMessageType, type UserSyncItem } from "@contfu/svc-backend/infra/sync-worker/messages";
 import {
-  ITEM_ID_SIZE,
   getItemRefForSource,
   notionSource,
   strapiSource,
@@ -18,9 +16,7 @@ import {
   contentfulSource,
 } from "@contfu/svc-sources";
 import { Duration, Effect, Schedule } from "effect";
-import { eq } from "drizzle-orm";
 import { workerDb } from "./db/worker-db";
-import { SortedSet } from "./util/structures/sorted-set";
 
 const log = createLogger("sync-worker");
 
@@ -31,8 +27,6 @@ const MIN_FETCH_INTERVAL = Number(process.env.MIN_FETCH_INTERVAL ?? 10_000);
 // Worker identity
 const workerId = crypto.randomUUID();
 
-// Sources (singletons from @contfu/svc-sources)
-
 // Handle messages from the app
 self.onmessage = (e: MessageEvent) => {
   if (e.data.type === SyncMessageType.SHUTDOWN) {
@@ -41,34 +35,32 @@ self.onmessage = (e: MessageEvent) => {
 };
 
 // Job processing as an Effect
-const processJob = (job: { id: number; sourceCollectionId: number }) =>
+const processJob = (job: { id: number; collectionId: number }) =>
   Effect.gen(function* () {
     const config = yield* Effect.tryPromise({
-      try: () =>
-        Effect.runPromise(getJobConfig(workerDb, { sourceCollectionId: job.sourceCollectionId })),
+      try: () => Effect.runPromise(getJobConfig(workerDb, { collectionId: job.collectionId })),
       catch: (e) => e,
     });
     if (!config) {
-      yield* Effect.logWarning("Source collection config not found").pipe(
+      yield* Effect.logWarning("Collection config not found").pipe(
         Effect.annotateLogs({
           module: "sync-worker",
           jobId: job.id,
-          sourceCollectionId: job.sourceCollectionId,
+          collectionId: job.collectionId,
         }),
       );
       yield* Effect.tryPromise({
-        try: () =>
-          Effect.runPromise(failJob(workerDb, job.id, "Source collection config not found")),
+        try: () => Effect.runPromise(failJob(workerDb, job.id, "Collection config not found")),
         catch: (e) => e,
       });
       return;
     }
 
-    yield* Effect.logDebug("Fetching source collection").pipe(
+    yield* Effect.logDebug("Fetching collection").pipe(
       Effect.annotateLogs({
         module: "sync-worker",
         jobId: job.id,
-        sourceCollectionId: job.sourceCollectionId,
+        collectionId: job.collectionId,
         sourceType: config.sourceType,
       }),
     );
@@ -79,7 +71,7 @@ const processJob = (job: { id: number; sourceCollectionId: number }) =>
     // Dispatch to appropriate source adapter
     yield* Effect.tryPromise({
       try: async () => {
-        if (config.sourceType === SourceType.NOTION) {
+        if (config.sourceType === ConnectionType.NOTION) {
           for await (const item of notionSource.fetch({
             collection: config.collectionId,
             ref: config.collectionRef!,
@@ -98,7 +90,7 @@ const processJob = (job: { id: number; sourceCollectionId: number }) =>
               ref: sourceRef.ref,
             });
           }
-        } else if (config.sourceType === SourceType.STRAPI) {
+        } else if (config.sourceType === ConnectionType.STRAPI) {
           for await (const item of strapiSource.fetch({
             collection: config.collectionId,
             ref: config.collectionRef!,
@@ -118,7 +110,7 @@ const processJob = (job: { id: number; sourceCollectionId: number }) =>
               ref: sourceRef.ref,
             });
           }
-        } else if (config.sourceType === SourceType.CONTENTFUL) {
+        } else if (config.sourceType === ConnectionType.CONTENTFUL) {
           for await (const item of contentfulSource.fetch({
             collection: config.collectionId,
             ref: config.collectionRef!,
@@ -163,11 +155,11 @@ const processJob = (job: { id: number; sourceCollectionId: number }) =>
       catch: (e) => e,
     });
 
-    yield* Effect.logInfo("Source collection fetch complete").pipe(
+    yield* Effect.logInfo("Collection fetch complete").pipe(
       Effect.annotateLogs({
         module: "sync-worker",
         jobId: job.id,
-        sourceCollectionId: job.sourceCollectionId,
+        collectionId: job.collectionId,
         itemCount: fetchedItems.length,
       }),
     );
@@ -178,25 +170,15 @@ const processJob = (job: { id: number; sourceCollectionId: number }) =>
         type: SyncMessageType.ITEMS_FETCHED,
         items: fetchedItems,
         userId,
-        sourceCollectionId: job.sourceCollectionId,
+        collectionId: job.collectionId,
       });
       yield* Effect.logDebug("Items posted to main thread").pipe(
         Effect.annotateLogs({
           module: "sync-worker",
-          sourceCollectionId: job.sourceCollectionId,
+          collectionId: job.collectionId,
           itemCount: fetchedItems.length,
         }),
       );
-
-      // Update item IDs in source_collection directly
-      yield* Effect.tryPromise({
-        try: () =>
-          updateItemIds(
-            job.sourceCollectionId,
-            fetchedItems.map((i) => i.id),
-          ),
-        catch: (e) => e,
-      });
     }
 
     yield* Effect.tryPromise({
@@ -219,7 +201,7 @@ const processJob = (job: { id: number; sourceCollectionId: number }) =>
       }),
     ),
     Effect.withSpan("syncWorker.processJob", {
-      attributes: { jobId: job.id, sourceCollectionId: job.sourceCollectionId },
+      attributes: { jobId: job.id, collectionId: job.collectionId },
     }),
   );
 
@@ -246,41 +228,6 @@ const syncLoop = Effect.gen(function* () {
   ),
   Effect.repeat(Schedule.fixed(Duration.millis(MIN_FETCH_INTERVAL))),
 );
-
-// Item ID management (direct DB access)
-
-function deserializeIds(ids: Buffer): Buffer[] {
-  const count = ids.length / ITEM_ID_SIZE;
-  // oxlint-disable-next-line unicorn/no-new-array
-  const result = new Array<Buffer>(count);
-  for (let i = 0; i < count; i++) {
-    const idx = i * ITEM_ID_SIZE;
-    result[i] = ids.subarray(idx, idx + ITEM_ID_SIZE);
-  }
-  return result;
-}
-
-async function updateItemIds(sourceCollectionId: number, newIds: Buffer[]) {
-  const [row] = await workerDb
-    .select({ itemIds: sourceCollectionTable.itemIds })
-    .from(sourceCollectionTable)
-    .where(eq(sourceCollectionTable.id, sourceCollectionId));
-
-  const existingIds = row?.itemIds ? deserializeIds(row.itemIds) : [];
-
-  const ids = new SortedSet<Buffer>({
-    seed: existingIds,
-    isSorted: true,
-    compare: (a: Buffer, b: Buffer) => a.compare(b),
-  });
-
-  for (const id of newIds) ids.add(id);
-
-  await workerDb
-    .update(sourceCollectionTable)
-    .set({ itemIds: Buffer.concat(ids as unknown as Uint8Array[]) })
-    .where(eq(sourceCollectionTable.id, sourceCollectionId));
-}
 
 // Start the sync loop
 Effect.runFork(syncLoop.pipe(Effect.provide(LoggerLive)));

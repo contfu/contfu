@@ -9,6 +9,11 @@ export {
   notion,
   getImageUrl,
 } from "./notion-helpers";
-export { notionPropertiesToSchema, getCollectionSchema } from "./notion-collections";
+export {
+  notionPropertiesToSchema,
+  getCollectionSchema,
+  isFullDataSource,
+} from "./notion-collections";
 export { getContentBlocks, parseBlock } from "./notion-blocks";
 export { parseItem } from "./notion-items";
+export { writeItemToNotion } from "./notion-write";

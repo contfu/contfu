@@ -29,16 +29,16 @@ afterEach(() => {
 
 describe("isResource", () => {
   test("returns true for valid resources", () => {
-    expect(isResource("sources")).toBe(true);
-    expect(isResource("collections")).toBe(true);
-    expect(isResource("consumers")).toBe(true);
     expect(isResource("connections")).toBe(true);
-    expect(isResource("influxes")).toBe(true);
+    expect(isResource("collections")).toBe(true);
+    expect(isResource("flows")).toBe(true);
   });
 
   test("returns false for invalid resources", () => {
     expect(isResource("bogus")).toBe(false);
     expect(isResource("")).toBe(false);
+    expect(isResource("sources")).toBe(false);
+    expect(isResource("consumers")).toBe(false);
   });
 });
 
@@ -47,11 +47,11 @@ describe("list", () => {
     const data = [{ id: 1, name: "test" }];
     mockFetch.mockResolvedValueOnce(jsonResponse(data));
 
-    await list("sources", "json");
+    await list("connections", "json");
 
     expect(mockFetch).toHaveBeenCalledTimes(1);
     const url = (mockFetch.mock.calls[0] as unknown[])[0] as string;
-    expect(url).toBe("http://test.local/api/v1/sources");
+    expect(url).toBe("http://test.local/api/v1/connections");
     expect(logSpy).toHaveBeenCalledWith(JSON.stringify(data, null, 2));
   });
 });
@@ -61,10 +61,10 @@ describe("get", () => {
     const data = { id: 1, name: "test" };
     mockFetch.mockResolvedValueOnce(jsonResponse(data));
 
-    await get("sources", "1");
+    await get("connections", "1");
 
     const url = (mockFetch.mock.calls[0] as unknown[])[0] as string;
-    expect(url).toBe("http://test.local/api/v1/sources/1");
+    expect(url).toBe("http://test.local/api/v1/connections/1");
     expect(logSpy).toHaveBeenCalledWith(JSON.stringify(data, null, 2));
   });
 });
@@ -74,32 +74,32 @@ describe("create", () => {
     const data = { id: 1, name: "new" };
     mockFetch.mockResolvedValueOnce(jsonResponse(data));
 
-    await create("sources", '{"name":"new","type":1}', {});
+    await create("connections", '{"label":"new"}', {});
 
     const [url, opts] = mockFetch.mock.calls[0] as unknown[] as [string, RequestInit];
-    expect(url).toBe("http://test.local/api/v1/sources");
+    expect(url).toBe("http://test.local/api/v1/connections");
     expect(opts.method).toBe("POST");
     expect(logSpy).toHaveBeenCalledWith(JSON.stringify(data, null, 2));
   });
 
   test("posts with field flags", async () => {
-    const data = { id: 2, name: "flagged" };
+    const data = { id: 2, label: "flagged" };
     mockFetch.mockResolvedValueOnce(jsonResponse(data));
 
-    await create("sources", undefined, { name: "flagged", type: "notion" });
+    await create("connections", undefined, { name: "flagged" });
 
     const [url, opts] = mockFetch.mock.calls[0] as unknown[] as [string, RequestInit];
-    expect(url).toBe("http://test.local/api/v1/sources");
+    expect(url).toBe("http://test.local/api/v1/connections");
     expect(opts.method).toBe("POST");
-    expect(JSON.parse(opts.body as string)).toEqual({ name: "flagged", type: 0 });
+    expect(JSON.parse(opts.body as string)).toEqual({ label: "flagged", providerId: "notion" });
   });
 
   test("exits with error when required flags missing", async () => {
     const exitSpy = spyOn(process, "exit").mockImplementation(() => {
       throw new Error("exit");
     });
-    await expect(create("sources", undefined, { name: "only-name" })).rejects.toThrow("exit");
-    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("--type"));
+    await expect(create("collections", undefined, {})).rejects.toThrow("exit");
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("--display-name"));
     exitSpy.mockRestore();
   });
 });
@@ -109,24 +109,24 @@ describe("update", () => {
     const data = { id: 1, name: "updated" };
     mockFetch.mockResolvedValueOnce(jsonResponse(data));
 
-    await update("sources", "1", '{"name":"updated"}', {});
+    await update("connections", "1", '{"label":"updated"}', {});
 
     const [url, opts] = mockFetch.mock.calls[0] as unknown[] as [string, RequestInit];
-    expect(url).toBe("http://test.local/api/v1/sources/1");
+    expect(url).toBe("http://test.local/api/v1/connections/1");
     expect(opts.method).toBe("PATCH");
     expect(logSpy).toHaveBeenCalledWith(JSON.stringify(data, null, 2));
   });
 
   test("patches with field flags", async () => {
-    const data = { id: 1, name: "renamed" };
+    const data = { id: 1, label: "renamed" };
     mockFetch.mockResolvedValueOnce(jsonResponse(data));
 
-    await update("sources", "1", undefined, { name: "renamed" });
+    await update("connections", "1", undefined, { name: "renamed" });
 
     const [url, opts] = mockFetch.mock.calls[0] as unknown[] as [string, RequestInit];
-    expect(url).toBe("http://test.local/api/v1/sources/1");
+    expect(url).toBe("http://test.local/api/v1/connections/1");
     expect(opts.method).toBe("PATCH");
-    expect(JSON.parse(opts.body as string)).toEqual({ name: "renamed" });
+    expect(JSON.parse(opts.body as string)).toEqual({ label: "renamed" });
   });
 });
 
@@ -134,11 +134,11 @@ describe("del", () => {
   test("deletes and prints confirmation", async () => {
     mockFetch.mockResolvedValueOnce(new Response(null, { status: 200 }));
 
-    await del("sources", "42");
+    await del("connections", "42");
 
     const [url, opts] = mockFetch.mock.calls[0] as unknown[] as [string, RequestInit];
-    expect(url).toBe("http://test.local/api/v1/sources/42");
+    expect(url).toBe("http://test.local/api/v1/connections/42");
     expect(opts.method).toBe("DELETE");
-    expect(logSpy).toHaveBeenCalledWith("Deleted source 42");
+    expect(logSpy).toHaveBeenCalledWith("Deleted connection 42");
   });
 });

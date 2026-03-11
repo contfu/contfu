@@ -1,8 +1,8 @@
-import { SourceType } from "@contfu/core";
+import { ConnectionType } from "@contfu/core";
 
 export interface WebhookFetchJob {
   userId: number;
-  sourceId: number;
+  connectionId: number;
   pageId: string;
   eventType: string;
   parentDatabaseId?: string;
@@ -32,10 +32,10 @@ export const STRAPI_RATE_LIMIT: RateLimitConfig | null = null;
 export const CONTENTFUL_RATE_LIMIT: RateLimitConfig | null = null;
 export const WEB_RATE_LIMIT: RateLimitConfig | null = null;
 
-export function getRateLimitForSourceType(sourceType: SourceType): RateLimitConfig | null {
-  if (sourceType === SourceType.NOTION) return NOTION_RATE_LIMIT;
-  if (sourceType === SourceType.STRAPI) return STRAPI_RATE_LIMIT;
-  if (sourceType === SourceType.CONTENTFUL) return CONTENTFUL_RATE_LIMIT;
-  if (sourceType === SourceType.WEB) return WEB_RATE_LIMIT;
+export function getRateLimitForConnectionType(sourceType: ConnectionType): RateLimitConfig | null {
+  if (sourceType === ConnectionType.NOTION) return NOTION_RATE_LIMIT;
+  if (sourceType === ConnectionType.STRAPI) return STRAPI_RATE_LIMIT;
+  if (sourceType === ConnectionType.CONTENTFUL) return CONTENTFUL_RATE_LIMIT;
+  if (sourceType === ConnectionType.WEB) return WEB_RATE_LIMIT;
   return null;
 }

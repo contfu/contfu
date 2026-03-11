@@ -1,4 +1,4 @@
-import { SourceType } from "@contfu/core";
+import { ConnectionType } from "@contfu/core";
 import {
   applyMappings,
   matchesFilters,
@@ -9,15 +9,15 @@ import { createLogger } from "../../infra/logger/index";
 import { getItemRefForSource, notionSource, strapiSource, webSource } from "@contfu/svc-sources";
 import type { UserSyncItem } from "../../infra/sync-worker/messages";
 import { isItemQuotaExceeded } from "../../infra/nats/quota-kv";
-import { getRateLimitForSourceType } from "../../infra/webhook-queue/types";
-import type { ConsumerSyncConfig } from "./getConsumerSyncConfig";
+import { getRateLimitForConnectionType } from "../../infra/webhook-queue/types";
+import type { SyncConfig } from "./getSyncConfig";
 
 const log = createLogger("sync-fetch");
 
 /**
- * Fetches items from upstream sources for a consumer's sync config.
+ * Fetches items from upstream sources for a sync config.
  * Iterates source groups, creates appropriate source adapter calls,
- * applies influx filters, and yields items tagged with target collection IDs.
+ * applies flow filters, and yields items tagged with target collection IDs.
  *
  * Each source collection is fetched only once; results are fanned out
  * to all matching target collections.
@@ -26,7 +26,7 @@ export class ValidationErrorCollector {
   private groups = new Map<
     string,
     {
-      influxId: number;
+      flowId: number;
       property: string;
       cast: string;
       sourceProperty: string;
@@ -35,12 +35,12 @@ export class ValidationErrorCollector {
     }
   >();
 
-  add(influxId: number, err: SourceItemValidationError, timestamp: number, ref: string) {
-    const key = `${influxId}:${err.property}:${err.cast}`;
+  add(flowId: number, err: SourceItemValidationError, timestamp: number, ref: string) {
+    const key = `${flowId}:${err.property}:${err.cast}`;
     let g = this.groups.get(key);
     if (!g) {
       g = {
-        influxId,
+        flowId,
         property: err.property,
         cast: err.cast,
         sourceProperty: err.sourceProperty,
@@ -62,12 +62,12 @@ export class ValidationErrorCollector {
 }
 
 export async function* fetchAndStreamItems(
-  config: ConsumerSyncConfig,
+  config: SyncConfig,
   collector?: ValidationErrorCollector,
 ): AsyncGenerator<UserSyncItem> {
   const throttle = new FullSyncThrottle();
 
-  for (const group of config.sourceGroups) {
+  for (const group of config.connectionGroups) {
     for (const sc of group.sourceCollections) {
       try {
         const items = fetchSourceCollection(group, sc.collectionRef);
@@ -77,11 +77,11 @@ export async function* fetchAndStreamItems(
             log.info({ userId: config.userId }, "Item quota exceeded, aborting full sync");
             return;
           }
-          await throttle.wait(group.sourceType);
+          await throttle.wait(group.connectionType);
           const sourceRef = getItemRefForSource({
-            sourceType: group.sourceType,
+            sourceType: group.connectionType,
             rawRef: item.ref,
-            sourceUrl: group.sourceUrl,
+            sourceUrl: group.connectionUrl,
             collectionRef: sc.collectionRef,
           });
 
@@ -100,7 +100,7 @@ export async function* fetchAndStreamItems(
               const errors = validateSourceItem(item.props, target.mappings);
               if (errors.length > 0) {
                 for (const err of errors)
-                  collector.add(target.influxId, err, item.changedAt, sourceRef.ref);
+                  collector.add(target.flowId, err, item.changedAt, sourceRef.ref);
                 continue;
               }
             }
@@ -113,13 +113,13 @@ export async function* fetchAndStreamItems(
               ref: sourceRef.ref,
               sourceType: sourceRef.sourceType,
               user: config.userId,
-              collection: target.collectionId,
+              collection: target.targetCollectionId,
               includeRef: target.includeRef,
             };
           }
         }
-      } catch (error) {
-        log.error({ err: error, sourceCollectionId: sc.sourceCollectionId }, "Sync fetch error");
+      } catch {
+        log.error({ collectionId: sc.collectionId }, "Sync fetch error");
         // Skip failed source collection, continue with others
       }
     }
@@ -127,13 +127,13 @@ export async function* fetchAndStreamItems(
 }
 
 function fetchSourceCollection(
-  group: ConsumerSyncConfig["sourceGroups"][number],
+  group: SyncConfig["connectionGroups"][number],
   collectionRef: Buffer | null,
 ) {
   // Use a dummy collection ID — we override it per-target in the generator
   const collection = 0;
 
-  if (group.sourceType === SourceType.NOTION) {
+  if (group.connectionType === ConnectionType.NOTION) {
     return notionSource.fetch({
       collection,
       ref: collectionRef!,
@@ -141,11 +141,11 @@ function fetchSourceCollection(
     });
   }
 
-  if (group.sourceType === SourceType.STRAPI) {
+  if (group.connectionType === ConnectionType.STRAPI) {
     return strapiSource.fetch({
       collection,
       ref: collectionRef!,
-      url: group.sourceUrl!,
+      url: group.connectionUrl!,
       credentials: group.credentials!,
     });
   }
@@ -154,7 +154,7 @@ function fetchSourceCollection(
   return webSource.fetch({
     collection,
     ref: collectionRef!,
-    url: group.sourceUrl!,
+    url: group.connectionUrl!,
     credentials: group.credentials ?? undefined,
   });
 }
@@ -162,19 +162,19 @@ function fetchSourceCollection(
 class FullSyncThrottle {
   private nextAllowedAt = new Map<number, number>();
 
-  async wait(sourceType: SourceType): Promise<void> {
-    const rateLimit = getRateLimitForSourceType(sourceType);
+  async wait(connectionType: ConnectionType): Promise<void> {
+    const rateLimit = getRateLimitForConnectionType(connectionType);
     if (!rateLimit || rateLimit.maxRequests <= 0 || rateLimit.windowMs <= 0) {
       return;
     }
 
     const minIntervalMs = Math.ceil(rateLimit.windowMs / rateLimit.maxRequests);
     const now = Date.now();
-    const nextAt = this.nextAllowedAt.get(sourceType) ?? now;
+    const nextAt = this.nextAllowedAt.get(connectionType) ?? now;
     const waitMs = Math.max(0, nextAt - now);
     if (waitMs > 0) {
       await new Promise((resolve) => setTimeout(resolve, waitMs));
     }
-    this.nextAllowedAt.set(sourceType, Math.max(nextAt, now) + minIntervalMs);
+    this.nextAllowedAt.set(connectionType, Math.max(nextAt, now) + minIntervalMs);
   }
 }

@@ -111,7 +111,7 @@ test.describe("Sync Stream — GET /api/sync", () => {
     expect(response.status()).toBe(400);
   });
 
-  test("delivers SNAPSHOT_START and SNAPSHOT_END for new consumer", async () => {
+  test("delivers SNAPSHOT_START and SNAPSHOT_END for new client connection", async () => {
     const baseUrl = "http://localhost:4173";
 
     const events = await readSyncEvents({
@@ -151,7 +151,7 @@ test.describe("Sync Stream — GET /api/sync", () => {
 });
 
 test.describe("Sync Ack — POST /api/sync/ack", () => {
-  test("returns 204 for valid consumer key and seq", async ({ request }) => {
+  test("returns 204 for valid connection key and seq", async ({ request }) => {
     const response = await request.post(`/api/sync/ack?key=${VALID_KEY}&seq=1`);
     expect(response.status()).toBe(204);
   });

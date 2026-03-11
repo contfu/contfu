@@ -30,38 +30,42 @@ describe("Collection Features Access Control", () => {
 
   it("should not allow reading another user's collection", async () => {
     const collection = await runTest(
+      user1Id,
       createCollection(user1Id, { displayName: "User1 Collection" }),
     );
 
-    const result = await runTest(getCollection(user2Id, collection.id));
+    const result = await runTest(user2Id, getCollection(collection.id));
     expect(result).toBeNull();
   });
 
   it("should not allow updating another user's collection", async () => {
     const collection = await runTest(
+      user1Id,
       createCollection(user1Id, { displayName: "User1 Collection" }),
     );
 
     const updated = await runTest(
-      updateCollection(user2Id, collection.id, { displayName: "Hacked" }),
+      user2Id,
+      updateCollection(collection.id, { displayName: "Hacked" }),
     );
     expect(updated).toBe(false);
   });
 
   it("should not allow deleting another user's collection", async () => {
     const collection = await runTest(
+      user1Id,
       createCollection(user1Id, { displayName: "User1 Collection" }),
     );
 
-    const deleted = await runTest(deleteCollection(user2Id, collection.id));
+    const deleted = await runTest(user2Id, deleteCollection(collection.id));
     expect(deleted).toBe(false);
   });
 
   it("should only list collections owned by the current user", async () => {
-    await runTest(createCollection(user1Id, { displayName: "User1 Collection" }));
-    await runTest(createCollection(user2Id, { displayName: "User2 Collection" }));
+    await runTest(user1Id, createCollection(user1Id, { displayName: "User1 Collection" }));
+    await runTest(user2Id, createCollection(user2Id, { displayName: "User2 Collection" }));
 
-    const collections = await runTest(listCollections(user1Id));
+    const collections = await runTest(user1Id, listCollections());
     expect(collections).toHaveLength(1);
     expect(collections[0].userId).toBe(user1Id);
     expect(collections[0].displayName).toBe("User1 Collection");

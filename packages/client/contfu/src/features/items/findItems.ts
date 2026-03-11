@@ -88,7 +88,7 @@ function resolveColumn(field: string) {
   if (field === "collection") return itemsTable.collection;
   if (field === "changedAt") return itemsTable.changedAt;
   if (field === "ref") return itemsTable.ref;
-  if (field === "sourceType") return itemsTable.sourceType;
+  if (field === "connectionType") return itemsTable.connectionType;
   // Props field
   const prop = field.startsWith("props.") ? field.slice(6) : field;
   return sql`json_extract(${itemsTable.props}, ${"$." + prop})`;
@@ -106,7 +106,7 @@ export function findItems(options: QueryOptions = {}, ctx = defaultDb): QueryRes
   // Build select columns — exclude content by default
   const selectColumns = {
     id: itemsTable.id,
-    sourceType: itemsTable.sourceType,
+    connectionType: itemsTable.connectionType,
     ref: itemsTable.ref,
     collectionName: itemsTable.collection,
     props: itemsTable.props,
@@ -138,7 +138,7 @@ export function findItems(options: QueryOptions = {}, ctx = defaultDb): QueryRes
     const props = row.props;
     return {
       id: encodeId(row.id),
-      sourceType: row.sourceType,
+      connectionType: row.connectionType,
       ref: row.ref,
       collection: row.collectionName,
       props: (props && typeof props === "object" ? props : {}) as Record<string, unknown>,

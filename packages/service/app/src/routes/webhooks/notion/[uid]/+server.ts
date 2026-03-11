@@ -1,9 +1,8 @@
 import { getStreamServer } from "$lib/server/startup";
-import { SourceType } from "@contfu/core";
+import { ConnectionType } from "@contfu/core";
 import { createLogger } from "@contfu/svc-backend/infra/logger/index";
 import { getSetting } from "@contfu/svc-backend/features/admin/getSetting";
 import { upsertSetting } from "@contfu/svc-backend/features/admin/upsertSetting";
-import { listInfluxesBySourceCollections } from "@contfu/svc-backend/features/influxes/listInfluxesBySourceCollections";
 import { enqueueSyncJobs } from "@contfu/svc-backend/features/sync-jobs/enqueueSyncJobs";
 import { runEffectWithServices } from "@contfu/svc-backend/effect/run";
 import { Effect } from "effect";
@@ -14,10 +13,8 @@ import {
 import { db } from "@contfu/svc-backend/infra/db/db";
 import {
   collectionTable,
-  consumerCollectionTable,
-  consumerTable,
-  sourceCollectionTable,
-  sourceTable,
+  connectionTable,
+  flowTable,
   webhookLogTable,
 } from "@contfu/svc-backend/infra/db/schema";
 import { hasNats } from "@contfu/svc-backend/infra/nats/connection";
@@ -25,11 +22,11 @@ import { notionRefUrlFromRawUuid } from "@contfu/svc-sources";
 import type { UserSyncItem } from "@contfu/svc-backend/infra/sync-worker/messages";
 import { cancelPending, markPending } from "@contfu/svc-backend/infra/webhook-queue/pending-kv";
 import { enqueueWebhookFetch } from "@contfu/svc-backend/infra/webhook-queue/webhook-fetch-queue";
-import { matchesFilters } from "@contfu/svc-core";
+import { matchesFilters, type Filter } from "@contfu/svc-core";
 import { genUid, uuidToBuffer } from "@contfu/svc-sources";
 import { fetchNotionPage, notionPropertiesToSchema } from "@contfu/svc-sources/notion";
 import { and, desc, eq, inArray } from "drizzle-orm";
-import { pack } from "msgpackr";
+import { pack, unpack } from "msgpackr";
 import crypto from "node:crypto";
 import { lru } from "tiny-lru";
 import * as v from "valibot";
@@ -37,28 +34,23 @@ import type { RequestHandler } from "./$types";
 
 const log = createLogger("webhook-notion");
 
-/** Maximum webhook logs to keep per source. */
-const MAX_LOGS_PER_SOURCE = 50;
+const MAX_LOGS_PER_CONNECTION = 50;
 
-/** NOTION_WEBHOOK_SECRET env var for OAuth integration mode. */
 const NOTION_WEBHOOK_SECRET = process.env.NOTION_WEBHOOK_SECRET;
-
-/** Setting key for the stored OAuth verification token. */
 const SETTING_OAUTH_TOKEN = "notion_oauth_verification_token";
 
-type CachedSourceCollectionRef = {
+type CachedCollectionRef = {
   id: number;
   ref: Buffer | null;
 };
 
-type CachedGlobalSourceCollectionRef = CachedSourceCollectionRef & {
+type CachedGlobalCollectionRef = CachedCollectionRef & {
   userId: number;
-  sourceId: number;
+  connectionId: number;
 };
 
-/** LRU cache for source collections by ref. */
-const sourceCollectionCache = lru<CachedSourceCollectionRef[]>(500, 5 * 60 * 1000);
-const globalSourceCollectionCache = lru<CachedGlobalSourceCollectionRef[]>(500, 5 * 60 * 1000);
+const collectionCache = lru<CachedCollectionRef[]>(500, 5 * 60 * 1000);
+const globalCollectionCache = lru<CachedGlobalCollectionRef[]>(500, 5 * 60 * 1000);
 
 const NotionWebhookPayloadSchema = v.looseObject({
   verification_token: v.optional(v.string()),
@@ -81,7 +73,7 @@ const NotionWebhookPayloadSchema = v.looseObject({
   ),
 });
 
-type SourceInfo = {
+type ConnectionInfo = {
   userId: number;
   id: number;
   includeRef: boolean;
@@ -95,7 +87,7 @@ function isPageChangeEvent(eventType: string): boolean {
 
 async function logWebhookEvent(
   userId: number,
-  sourceId: number,
+  connectionId: number,
   event: string,
   model: string | null,
   status: "success" | "error" | "unauthorized",
@@ -104,7 +96,7 @@ async function logWebhookEvent(
 ): Promise<void> {
   try {
     await db.insert(webhookLogTable).values({
-      sourceId,
+      connectionId,
       event,
       model,
       status,
@@ -115,12 +107,12 @@ async function logWebhookEvent(
     const logs = await db
       .select({ id: webhookLogTable.id })
       .from(webhookLogTable)
-      .where(eq(webhookLogTable.sourceId, sourceId))
+      .where(eq(webhookLogTable.connectionId, connectionId))
       .orderBy(desc(webhookLogTable.timestamp))
       .limit(1000);
 
-    if (logs.length > MAX_LOGS_PER_SOURCE) {
-      const idsToDelete = logs.slice(MAX_LOGS_PER_SOURCE).map((l) => l.id);
+    if (logs.length > MAX_LOGS_PER_CONNECTION) {
+      const idsToDelete = logs.slice(MAX_LOGS_PER_CONNECTION).map((l) => l.id);
       await db.delete(webhookLogTable).where(inArray(webhookLogTable.id, idsToDelete));
     }
   } catch (err) {
@@ -128,9 +120,6 @@ async function logWebhookEvent(
   }
 }
 
-/**
- * Validates HMAC-SHA256 signature using the X-Notion-Signature header.
- */
 function validateSignature(body: string, headers: Headers, secret: string): boolean {
   const signature = headers.get("x-notion-signature");
   if (!signature) return false;
@@ -147,55 +136,103 @@ function validateSignature(body: string, headers: Headers, secret: string): bool
 }
 
 /**
- * Get source collections from cache or DB for a given ref.
+ * Find collections by connectionId + ref.
  */
-async function getSourceCollectionsByRef(
+async function getCollectionsByRef(
   userId: number,
-  sourceId: number,
+  connectionId: number,
   ref: Buffer,
 ): Promise<{ id: number; ref: Buffer | null }[]> {
-  const cacheKey = `${userId}:${sourceId}`;
-  const cached = sourceCollectionCache.get(cacheKey);
+  const cacheKey = `${userId}:${connectionId}`;
+  const cached = collectionCache.get(cacheKey);
   if (cached) return cached.filter((c) => c.ref && c.ref.equals(ref));
 
   const all = await db
-    .select({ id: sourceCollectionTable.id, ref: sourceCollectionTable.ref })
-    .from(sourceCollectionTable)
-    .where(
-      and(eq(sourceCollectionTable.userId, userId), eq(sourceCollectionTable.sourceId, sourceId)),
-    );
+    .select({ id: collectionTable.id, ref: collectionTable.ref })
+    .from(collectionTable)
+    .where(and(eq(collectionTable.userId, userId), eq(collectionTable.connectionId, connectionId)));
 
   const result = all.map((c) => ({ id: c.id, ref: c.ref }));
-  sourceCollectionCache.set(cacheKey, result);
+  collectionCache.set(cacheKey, result);
   return result.filter((c) => c.ref && c.ref.equals(ref));
 }
 
 /**
- * Get source collections across all users by ref (OAuth mode).
+ * Find collections across all users by ref (OAuth mode).
  */
-async function getSourceCollectionsByRefGlobal(ref: Buffer) {
+async function getCollectionsByRefGlobal(ref: Buffer) {
   const cacheKey = `ref:${ref.toString("hex")}`;
-  const cached = globalSourceCollectionCache.get(cacheKey);
+  const cached = globalCollectionCache.get(cacheKey);
   if (cached) return cached;
 
   const results = await db
     .select({
-      id: sourceCollectionTable.id,
-      ref: sourceCollectionTable.ref,
-      userId: sourceCollectionTable.userId,
-      sourceId: sourceCollectionTable.sourceId,
+      id: collectionTable.id,
+      ref: collectionTable.ref,
+      userId: collectionTable.userId,
+      connectionId: collectionTable.connectionId,
     })
-    .from(sourceCollectionTable)
-    .where(eq(sourceCollectionTable.ref, ref));
+    .from(collectionTable)
+    .where(eq(collectionTable.ref, ref));
 
   const mapped = results.map((c) => ({
     id: c.id,
     ref: c.ref,
     userId: c.userId,
-    sourceId: c.sourceId,
+    connectionId: c.connectionId!,
   }));
-  globalSourceCollectionCache.set(cacheKey, mapped);
+  globalCollectionCache.set(cacheKey, mapped);
   return mapped;
+}
+
+/**
+ * Get flows from source collections to target collections, and find CLIENT connections
+ * that own those target collections (for broadcasting).
+ */
+async function getFlowsAndClients(
+  userId: number,
+  sourceCollectionIds: number[],
+  _connectionIncludeRef: boolean,
+) {
+  if (sourceCollectionIds.length === 0) return { flows: [], clients: [] };
+
+  // Get flows from these source collections
+  const flows = await db
+    .select({
+      id: flowTable.id,
+      sourceId: flowTable.sourceId,
+      targetId: flowTable.targetId,
+      includeRef: flowTable.includeRef,
+      filters: flowTable.filters,
+      mappings: flowTable.mappings,
+    })
+    .from(flowTable)
+    .where(and(eq(flowTable.userId, userId), inArray(flowTable.sourceId, sourceCollectionIds)));
+
+  const targetCollectionIds = [...new Set(flows.map((f) => f.targetId))];
+  if (targetCollectionIds.length === 0) return { flows, clients: [] };
+
+  // Find CLIENT connections that own the target collections
+  const clients = await db
+    .select({
+      connectionId: connectionTable.id,
+      collectionId: collectionTable.id,
+      connectionIncludeRef: connectionTable.includeRef,
+      collectionIncludeRef: collectionTable.includeRef,
+    })
+    .from(collectionTable)
+    .innerJoin(
+      connectionTable,
+      and(
+        eq(collectionTable.connectionId, connectionTable.id),
+        eq(connectionTable.type, ConnectionType.CLIENT),
+      ),
+    )
+    .where(
+      and(eq(collectionTable.userId, userId), inArray(collectionTable.id, targetCollectionIds)),
+    );
+
+  return { flows, clients };
 }
 
 // ============================================================
@@ -221,7 +258,6 @@ export const POST: RequestHandler = async ({ request, params }) => {
   }
   const payload = parseResult.output;
 
-  // Determine mode: custom integration (uid matches a source) or OAuth (uid matches env var)
   const isOAuthMode = NOTION_WEBHOOK_SECRET && uid === NOTION_WEBHOOK_SECRET;
 
   // ---- Verification flow ----
@@ -229,7 +265,6 @@ export const POST: RequestHandler = async ({ request, params }) => {
     log.info("Verification request received");
 
     if (isOAuthMode) {
-      // OAuth mode: encrypt and store in settingTable
       const encrypted = await encryptCredentials(
         0,
         Buffer.from(payload.verification_token, "utf8"),
@@ -239,39 +274,43 @@ export const POST: RequestHandler = async ({ request, params }) => {
       }
       log.info("OAuth verification token stored in settings");
     } else {
-      // Custom integration: find source by uid, store as webhookSecret
-      const [source] = await db
-        .select({ userId: sourceTable.userId, id: sourceTable.id })
-        .from(sourceTable)
-        .where(and(eq(sourceTable.uid, uid), eq(sourceTable.type, SourceType.NOTION)))
+      // Custom integration: find connection by uid
+      const [connRow] = await db
+        .select({
+          userId: connectionTable.userId,
+          id: connectionTable.id,
+        })
+        .from(connectionTable)
+        .where(and(eq(connectionTable.uid, uid), eq(connectionTable.type, ConnectionType.NOTION)))
         .limit(1);
 
-      if (source) {
+      if (connRow) {
         const encrypted = await encryptCredentials(
-          source.userId,
+          connRow.userId,
           Buffer.from(payload.verification_token, "utf8"),
         );
         if (encrypted) {
           await db
-            .update(sourceTable)
+            .update(connectionTable)
             .set({ webhookSecret: encrypted })
-            .where(and(eq(sourceTable.userId, source.userId), eq(sourceTable.id, source.id)));
+            .where(
+              and(eq(connectionTable.userId, connRow.userId), eq(connectionTable.id, connRow.id)),
+            );
         }
-        // Log the verification token so user can see it in webhook logs
         await logWebhookEvent(
-          source.userId,
-          source.id,
+          connRow.userId,
+          connRow.id,
           "verification",
           payload.verification_token,
           "success",
         );
         log.info(
-          { userId: source.userId, sourceId: source.id },
-          "Verification token stored for source",
+          { userId: connRow.userId, connectionId: connRow.id },
+          "Verification token stored for connection",
         );
       } else {
-        log.warn({ uid }, "Source not found for verification");
-        return new Response("Source not found", { status: 404 });
+        log.warn({ uid }, "Connection not found for verification");
+        return new Response("Connection not found", { status: 404 });
       }
     }
 
@@ -296,35 +335,34 @@ export const POST: RequestHandler = async ({ request, params }) => {
     }
   }
 
-  let source: SourceInfo | null = null;
+  let conn: ConnectionInfo | null = null;
   if (!isOAuthMode) {
     const [found] = await db
       .select({
-        userId: sourceTable.userId,
-        id: sourceTable.id,
-        includeRef: sourceTable.includeRef,
-        webhookSecret: sourceTable.webhookSecret,
-        credentials: sourceTable.credentials,
+        userId: connectionTable.userId,
+        id: connectionTable.id,
+        includeRef: connectionTable.includeRef,
+        webhookSecret: connectionTable.webhookSecret,
+        credentials: connectionTable.credentials,
       })
-      .from(sourceTable)
-      .where(and(eq(sourceTable.uid, uid), eq(sourceTable.type, SourceType.NOTION)))
+      .from(connectionTable)
+      .where(and(eq(connectionTable.uid, uid), eq(connectionTable.type, ConnectionType.NOTION)))
       .limit(1);
 
     if (!found) {
-      log.warn({ uid }, "Source not found");
-      return new Response("Source not found", { status: 404 });
+      log.warn({ uid }, "Connection not found");
+      return new Response("Connection not found", { status: 404 });
     }
-    source = found;
+    conn = found;
 
-    // Validate signature for custom integration
-    if (source.webhookSecret) {
-      const decrypted = await decryptCredentials(source.userId, source.webhookSecret);
+    if (conn.webhookSecret) {
+      const decrypted = await decryptCredentials(conn.userId, conn.webhookSecret);
       const secret = decrypted?.toString("utf8");
       if (!secret || !validateSignature(body, request.headers, secret)) {
-        log.warn({ userId: source.userId, sourceId: source.id }, "Invalid signature");
+        log.warn({ userId: conn.userId, connectionId: conn.id }, "Invalid signature");
         await logWebhookEvent(
-          source.userId,
-          source.id,
+          conn.userId,
+          conn.id,
           payload.type ?? "unknown",
           null,
           "unauthorized",
@@ -333,10 +371,10 @@ export const POST: RequestHandler = async ({ request, params }) => {
         return new Response("Unauthorized", { status: 401 });
       }
     } else if (!payload.verification_token) {
-      log.warn({ userId: source.userId, sourceId: source.id }, "Webhook secret not configured");
+      log.warn({ userId: conn.userId, connectionId: conn.id }, "Webhook secret not configured");
       await logWebhookEvent(
-        source.userId,
-        source.id,
+        conn.userId,
+        conn.id,
         payload.type ?? "unknown",
         null,
         "unauthorized",
@@ -359,7 +397,6 @@ export const POST: RequestHandler = async ({ request, params }) => {
   if (eventType.startsWith("page.")) {
     const pageId = payload.entity.id;
 
-    // Ignore lock events
     if (eventType === "page.locked" || eventType === "page.unlocked") {
       return new Response("OK", { status: 200 });
     }
@@ -368,17 +405,16 @@ export const POST: RequestHandler = async ({ request, params }) => {
     if (eventType === "page.deleted") {
       const itemId = genUid(uuidToBuffer(pageId));
 
-      if (source) {
+      if (conn) {
         if (hasNats()) {
-          await cancelPending(source.userId, source.id, pageId);
+          await cancelPending(conn.userId, conn.id, pageId);
         }
 
-        // Custom mode: find source collections via parent database
         const parentDbId = payload.data?.parent?.database_id;
         if (!parentDbId) {
           await logWebhookEvent(
-            source.userId,
-            source.id,
+            conn.userId,
+            conn.id,
             eventType,
             pageId,
             "success",
@@ -389,189 +425,87 @@ export const POST: RequestHandler = async ({ request, params }) => {
         }
 
         const ref = uuidToBuffer(parentDbId);
-        const sourceCollections = await getSourceCollectionsByRef(source.userId, source.id, ref);
+        const sourceCollections = await getCollectionsByRef(conn.userId, conn.id, ref);
         if (sourceCollections.length === 0) {
           await logWebhookEvent(
-            source.userId,
-            source.id,
+            conn.userId,
+            conn.id,
             eventType,
             pageId,
             "success",
-            "No matching source collections",
+            "No matching collections",
             0,
           );
           return new Response("OK", { status: 200 });
         }
 
         const sourceCollectionIds = sourceCollections.map((c) => c.id);
-        const influxes = await runEffectWithServices(
-          listInfluxesBySourceCollections(source.userId, sourceCollectionIds),
+        const { flows, clients } = await getFlowsAndClients(
+          conn.userId,
+          sourceCollectionIds,
+          conn.includeRef,
         );
-        const targetCollectionIds = [...new Set(influxes.map((i) => i.collectionId))];
-        const collectionRefPolicy = new Map<number, boolean>();
-        for (const influx of influxes) {
-          const previous = collectionRefPolicy.get(influx.collectionId) ?? true;
-          collectionRefPolicy.set(
-            influx.collectionId,
-            previous && Boolean(source.includeRef) && Boolean(influx.includeRef),
-          );
-        }
 
+        const targetCollectionIds = [...new Set(flows.map((f) => f.targetId))];
         if (targetCollectionIds.length === 0) {
-          await logWebhookEvent(
-            source.userId,
-            source.id,
-            eventType,
-            pageId,
-            "success",
-            "No influxes",
-            0,
-          );
+          await logWebhookEvent(conn.userId, conn.id, eventType, pageId, "success", "No flows", 0);
           return new Response("OK", { status: 200 });
         }
 
-        const connections = await db
-          .select({
-            consumerId: consumerCollectionTable.consumerId,
-            collectionId: consumerCollectionTable.collectionId,
-            connectionIncludeRef: consumerCollectionTable.includeRef,
-            consumerIncludeRef: consumerTable.includeRef,
-            collectionIncludeRef: collectionTable.includeRef,
-            lastItemChanged: consumerCollectionTable.lastItemChanged,
-          })
-          .from(consumerCollectionTable)
-          .innerJoin(
-            collectionTable,
-            and(
-              eq(consumerCollectionTable.userId, collectionTable.userId),
-              eq(consumerCollectionTable.collectionId, collectionTable.id),
-            ),
-          )
-          .innerJoin(
-            consumerTable,
-            and(
-              eq(consumerCollectionTable.userId, consumerTable.userId),
-              eq(consumerCollectionTable.consumerId, consumerTable.id),
-            ),
-          )
-          .where(
-            and(
-              eq(consumerCollectionTable.userId, source.userId),
-              inArray(consumerCollectionTable.collectionId, targetCollectionIds),
-            ),
-          );
-
-        if (connections.length > 0) {
+        if (clients.length > 0) {
           await streamServer.broadcastDeleted(
             itemId,
-            connections.map((c) => ({
-              userId: source.userId,
-              consumerId: c.consumerId,
+            clients.map((c) => ({
+              userId: conn!.userId,
+              connectionId: c.connectionId,
               collectionId: c.collectionId,
               includeRef:
                 Boolean(c.connectionIncludeRef) &&
-                Boolean(c.consumerIncludeRef) &&
                 Boolean(c.collectionIncludeRef) &&
-                (collectionRefPolicy.get(c.collectionId) ?? true),
-              lastItemChanged: c.lastItemChanged,
+                Boolean(conn!.includeRef),
             })),
           );
         }
 
         await logWebhookEvent(
-          source.userId,
-          source.id,
+          conn.userId,
+          conn.id,
           eventType,
           pageId,
           "success",
           undefined,
-          connections.length,
+          clients.length,
         );
       } else {
         // OAuth mode
         const parentDbId = payload.data?.parent?.database_id;
         if (parentDbId) {
           const ref = uuidToBuffer(parentDbId);
-          const globalCollections = await getSourceCollectionsByRefGlobal(ref);
-          const groupedSources = new Map<string, { userId: number; sourceId: number }>();
-          for (const sc of globalCollections) {
-            groupedSources.set(`${sc.userId}:${sc.sourceId}`, {
-              userId: sc.userId,
-              sourceId: sc.sourceId,
+          const globalCollections = await getCollectionsByRefGlobal(ref);
+          const grouped = new Map<string, { userId: number; connectionId: number }>();
+          for (const gc of globalCollections) {
+            grouped.set(`${gc.userId}:${gc.connectionId}`, {
+              userId: gc.userId,
+              connectionId: gc.connectionId,
             });
           }
 
           if (hasNats()) {
-            for (const grouped of groupedSources.values()) {
-              await cancelPending(grouped.userId, grouped.sourceId, pageId);
+            for (const g of grouped.values()) {
+              await cancelPending(g.userId, g.connectionId, pageId);
             }
           }
 
-          for (const sc of globalCollections) {
-            const influxes = await runEffectWithServices(
-              listInfluxesBySourceCollections(sc.userId, [sc.id]),
-            );
-            const targetCollectionIds = [...new Set(influxes.map((i) => i.collectionId))];
-            if (targetCollectionIds.length === 0) continue;
-            const [src] = await db
-              .select({ includeRef: sourceTable.includeRef })
-              .from(sourceTable)
-              .where(and(eq(sourceTable.userId, sc.userId), eq(sourceTable.id, sc.sourceId)))
-              .limit(1);
-            if (!src) continue;
-            const collectionRefPolicy = new Map<number, boolean>();
-            for (const influx of influxes) {
-              const previous = collectionRefPolicy.get(influx.collectionId) ?? true;
-              collectionRefPolicy.set(
-                influx.collectionId,
-                previous && Boolean(src.includeRef) && Boolean(influx.includeRef),
-              );
-            }
-
-            const connections = await db
-              .select({
-                consumerId: consumerCollectionTable.consumerId,
-                collectionId: consumerCollectionTable.collectionId,
-                connectionIncludeRef: consumerCollectionTable.includeRef,
-                consumerIncludeRef: consumerTable.includeRef,
-                collectionIncludeRef: collectionTable.includeRef,
-                lastItemChanged: consumerCollectionTable.lastItemChanged,
-              })
-              .from(consumerCollectionTable)
-              .innerJoin(
-                collectionTable,
-                and(
-                  eq(consumerCollectionTable.userId, collectionTable.userId),
-                  eq(consumerCollectionTable.collectionId, collectionTable.id),
-                ),
-              )
-              .innerJoin(
-                consumerTable,
-                and(
-                  eq(consumerCollectionTable.userId, consumerTable.userId),
-                  eq(consumerCollectionTable.consumerId, consumerTable.id),
-                ),
-              )
-              .where(
-                and(
-                  eq(consumerCollectionTable.userId, sc.userId),
-                  inArray(consumerCollectionTable.collectionId, targetCollectionIds),
-                ),
-              );
-
-            if (connections.length > 0) {
+          for (const gc of globalCollections) {
+            const { clients } = await getFlowsAndClients(gc.userId, [gc.id], true);
+            if (clients.length > 0) {
               await streamServer.broadcastDeleted(
                 itemId,
-                connections.map((c) => ({
-                  userId: sc.userId,
-                  consumerId: c.consumerId,
+                clients.map((c) => ({
+                  userId: gc.userId,
+                  connectionId: c.connectionId,
                   collectionId: c.collectionId,
-                  includeRef:
-                    Boolean(c.connectionIncludeRef) &&
-                    Boolean(c.consumerIncludeRef) &&
-                    Boolean(c.collectionIncludeRef) &&
-                    (collectionRefPolicy.get(c.collectionId) ?? true),
-                  lastItemChanged: c.lastItemChanged,
+                  includeRef: Boolean(c.connectionIncludeRef) && Boolean(c.collectionIncludeRef),
                 })),
               );
             }
@@ -582,24 +516,24 @@ export const POST: RequestHandler = async ({ request, params }) => {
       return new Response("OK", { status: 200 });
     }
 
-    // ---- CHANGED (page.created, page.content_updated, page.properties_updated, page.moved, page.undeleted) ----
+    // ---- CHANGED (page.created, page.content_updated, etc.) ----
     if (isPageChangeEvent(eventType) && hasNats()) {
       const parentDbId = payload.data?.parent?.database_id;
 
-      if (source) {
-        const marked = await markPending(source.userId, source.id, pageId);
+      if (conn) {
+        const marked = await markPending(conn.userId, conn.id, pageId);
         if (marked) {
           await enqueueWebhookFetch({
-            userId: source.userId,
-            sourceId: source.id,
+            userId: conn.userId,
+            connectionId: conn.id,
             pageId,
             eventType,
             parentDatabaseId: parentDbId,
             enqueuedAt: Date.now(),
           });
           await logWebhookEvent(
-            source.userId,
-            source.id,
+            conn.userId,
+            conn.id,
             eventType,
             pageId,
             "success",
@@ -608,8 +542,8 @@ export const POST: RequestHandler = async ({ request, params }) => {
           );
         } else {
           await logWebhookEvent(
-            source.userId,
-            source.id,
+            conn.userId,
+            conn.id,
             eventType,
             pageId,
             "success",
@@ -626,45 +560,26 @@ export const POST: RequestHandler = async ({ request, params }) => {
       }
 
       const ref = uuidToBuffer(parentDbId);
-      const globalCollections = await getSourceCollectionsByRefGlobal(ref);
-      const groupedSources = new Map<string, { userId: number; sourceId: number }>();
-      for (const sc of globalCollections) {
-        groupedSources.set(`${sc.userId}:${sc.sourceId}`, {
-          userId: sc.userId,
-          sourceId: sc.sourceId,
+      const globalCollections = await getCollectionsByRefGlobal(ref);
+      const grouped = new Map<string, { userId: number; connectionId: number }>();
+      for (const gc of globalCollections) {
+        grouped.set(`${gc.userId}:${gc.connectionId}`, {
+          userId: gc.userId,
+          connectionId: gc.connectionId,
         });
       }
 
-      for (const grouped of groupedSources.values()) {
-        const marked = await markPending(grouped.userId, grouped.sourceId, pageId);
+      for (const g of grouped.values()) {
+        const marked = await markPending(g.userId, g.connectionId, pageId);
         if (marked) {
           await enqueueWebhookFetch({
-            userId: grouped.userId,
-            sourceId: grouped.sourceId,
+            userId: g.userId,
+            connectionId: g.connectionId,
             pageId,
             eventType,
             parentDatabaseId: parentDbId,
             enqueuedAt: Date.now(),
           });
-          await logWebhookEvent(
-            grouped.userId,
-            grouped.sourceId,
-            eventType,
-            pageId,
-            "success",
-            "Webhook fetch enqueued",
-            0,
-          );
-        } else {
-          await logWebhookEvent(
-            grouped.userId,
-            grouped.sourceId,
-            eventType,
-            pageId,
-            "success",
-            "Skipped duplicate pending webhook fetch",
-            0,
-          );
         }
       }
 
@@ -672,21 +587,13 @@ export const POST: RequestHandler = async ({ request, params }) => {
     }
 
     // ---- CHANGED (fallback inline mode without NATS) ----
-    if (source) {
-      // Custom mode
-      const credentials = source.credentials
-        ? await decryptCredentials(source.userId, source.credentials)
+    if (conn) {
+      const credentials = conn.credentials
+        ? await decryptCredentials(conn.userId, conn.credentials)
         : null;
       const token = credentials?.toString("utf8");
       if (!token) {
-        await logWebhookEvent(
-          source.userId,
-          source.id,
-          eventType,
-          pageId,
-          "error",
-          "No credentials",
-        );
+        await logWebhookEvent(conn.userId, conn.id, eventType, pageId, "error", "No credentials");
         return new Response("OK", { status: 200 });
       }
 
@@ -700,14 +607,14 @@ export const POST: RequestHandler = async ({ request, params }) => {
         }
       } catch (err) {
         log.error({ err, pageId }, "Failed to fetch page");
-        await logWebhookEvent(source.userId, source.id, eventType, pageId, "error", String(err));
+        await logWebhookEvent(conn.userId, conn.id, eventType, pageId, "error", String(err));
         return new Response("OK", { status: 200 });
       }
 
       if (!result || !parentDbId) {
         await logWebhookEvent(
-          source.userId,
-          source.id,
+          conn.userId,
+          conn.id,
           eventType,
           pageId,
           "success",
@@ -718,115 +625,81 @@ export const POST: RequestHandler = async ({ request, params }) => {
       }
 
       const ref = uuidToBuffer(parentDbId);
-      const sourceCollections = await getSourceCollectionsByRef(source.userId, source.id, ref);
+      const sourceCollections = await getCollectionsByRef(conn.userId, conn.id, ref);
       if (sourceCollections.length === 0) {
         await logWebhookEvent(
-          source.userId,
-          source.id,
+          conn.userId,
+          conn.id,
           eventType,
           pageId,
           "success",
-          "No matching source collections",
+          "No matching collections",
           0,
         );
         return new Response("OK", { status: 200 });
       }
 
       const sourceCollectionIds = sourceCollections.map((c) => c.id);
-      const influxes = await runEffectWithServices(
-        listInfluxesBySourceCollections(source.userId, sourceCollectionIds),
+      const { flows, clients } = await getFlowsAndClients(
+        conn.userId,
+        sourceCollectionIds,
+        conn.includeRef,
       );
-      if (influxes.length === 0) {
-        await logWebhookEvent(
-          source.userId,
-          source.id,
-          eventType,
-          pageId,
-          "success",
-          "No influxes",
-          0,
-        );
+
+      if (flows.length === 0) {
+        await logWebhookEvent(conn.userId, conn.id, eventType, pageId, "success", "No flows", 0);
         return new Response("OK", { status: 200 });
       }
 
+      // Apply filters and broadcast
       let itemsBroadcast = 0;
       const targetCollectionIds: number[] = [];
       const collectionRefPolicy = new Map<number, boolean>();
-      for (const influx of influxes) {
-        if (influx.filters.length > 0 && !matchesFilters(result.item.props, influx.filters)) {
-          continue;
+      for (const flow of flows) {
+        if (flow.filters) {
+          const filters = unpack(flow.filters) as Filter[];
+          if (filters.length > 0 && !matchesFilters(result.item.props, filters)) {
+            continue;
+          }
         }
-        targetCollectionIds.push(influx.collectionId);
-        const previous = collectionRefPolicy.get(influx.collectionId) ?? true;
+        targetCollectionIds.push(flow.targetId);
+        const previous = collectionRefPolicy.get(flow.targetId) ?? true;
         collectionRefPolicy.set(
-          influx.collectionId,
-          previous && Boolean(source.includeRef) && Boolean(influx.includeRef),
+          flow.targetId,
+          previous && Boolean(conn.includeRef) && Boolean(flow.includeRef),
         );
       }
 
-      if (targetCollectionIds.length > 0) {
-        const connections = await db
-          .select({
-            consumerId: consumerCollectionTable.consumerId,
-            collectionId: consumerCollectionTable.collectionId,
-            connectionIncludeRef: consumerCollectionTable.includeRef,
-            consumerIncludeRef: consumerTable.includeRef,
-            collectionIncludeRef: collectionTable.includeRef,
-            lastItemChanged: consumerCollectionTable.lastItemChanged,
-          })
-          .from(consumerCollectionTable)
-          .innerJoin(
-            collectionTable,
-            and(
-              eq(consumerCollectionTable.userId, collectionTable.userId),
-              eq(consumerCollectionTable.collectionId, collectionTable.id),
-            ),
-          )
-          .innerJoin(
-            consumerTable,
-            and(
-              eq(consumerCollectionTable.userId, consumerTable.userId),
-              eq(consumerCollectionTable.consumerId, consumerTable.id),
-            ),
-          )
-          .where(
-            and(
-              eq(consumerCollectionTable.userId, source.userId),
-              inArray(consumerCollectionTable.collectionId, targetCollectionIds),
-            ),
-          );
-
-        for (const collectionId of targetCollectionIds) {
+      if (targetCollectionIds.length > 0 && clients.length > 0) {
+        for (const collectionId of new Set(targetCollectionIds)) {
           const item: UserSyncItem = {
             ...result.item,
             ref: notionRefUrlFromRawUuid(result.item.ref),
-            sourceType: SourceType.NOTION,
-            user: source.userId,
+            sourceType: ConnectionType.NOTION,
+            user: conn.userId,
             collection: collectionId,
           };
-          const collectionConnections = connections
+          const collectionClients = clients
             .filter((c) => c.collectionId === collectionId)
             .map((c) => ({
-              userId: source.userId,
-              consumerId: c.consumerId,
+              userId: conn!.userId,
+              connectionId: c.connectionId,
               collectionId: c.collectionId,
               includeRef:
                 Boolean(c.connectionIncludeRef) &&
-                Boolean(c.consumerIncludeRef) &&
                 Boolean(c.collectionIncludeRef) &&
                 (collectionRefPolicy.get(c.collectionId) ?? true),
-              lastItemChanged: c.lastItemChanged,
             }));
-          if (collectionConnections.length > 0) {
-            await streamServer.broadcast([item], collectionConnections);
-            itemsBroadcast += collectionConnections.length;
+          if (collectionClients.length > 0) {
+            await streamServer.broadcast([item], collectionClients);
+            itemsBroadcast += collectionClients.length;
           }
         }
       }
 
       await logWebhookEvent(
-        source.userId,
-        source.id,
+        conn.userId,
+        conn.id,
         eventType,
         pageId,
         "success",
@@ -834,38 +707,35 @@ export const POST: RequestHandler = async ({ request, params }) => {
         itemsBroadcast,
       );
     } else {
-      // OAuth mode: route to all matching users
+      // OAuth mode inline
       let parentDbId = payload.data?.parent?.database_id;
-
-      if (!parentDbId) {
-        // Can't route without parent database
-        return new Response("OK", { status: 200 });
-      }
+      if (!parentDbId) return new Response("OK", { status: 200 });
 
       const ref = uuidToBuffer(parentDbId);
-      const globalCollections = await getSourceCollectionsByRefGlobal(ref);
+      const globalCollections = await getCollectionsByRefGlobal(ref);
 
-      // Group by userId:sourceId
       const groups = new Map<string, typeof globalCollections>();
-      for (const sc of globalCollections) {
-        const key = `${sc.userId}:${sc.sourceId}`;
+      for (const gc of globalCollections) {
+        const key = `${gc.userId}:${gc.connectionId}`;
         const group = groups.get(key) ?? [];
         if (group.length === 0) groups.set(key, group);
-        group.push(sc);
+        group.push(gc);
       }
 
       for (const [, group] of groups) {
-        const { userId, sourceId } = group[0];
+        const { userId, connectionId } = group[0];
 
-        // Get source credentials
-        const [srcRow] = await db
-          .select({ credentials: sourceTable.credentials, includeRef: sourceTable.includeRef })
-          .from(sourceTable)
-          .where(and(eq(sourceTable.userId, userId), eq(sourceTable.id, sourceId)))
+        const [connRow] = await db
+          .select({
+            credentials: connectionTable.credentials,
+            includeRef: connectionTable.includeRef,
+          })
+          .from(connectionTable)
+          .where(and(eq(connectionTable.userId, userId), eq(connectionTable.id, connectionId)))
           .limit(1);
 
-        if (!srcRow?.credentials) continue;
-        const credentials = await decryptCredentials(userId, srcRow.credentials);
+        if (!connRow?.credentials) continue;
+        const credentials = await decryptCredentials(userId, connRow.credentials);
         const token = credentials?.toString("utf8");
         if (!token) continue;
 
@@ -879,80 +749,50 @@ export const POST: RequestHandler = async ({ request, params }) => {
         if (!result) continue;
 
         const sourceCollectionIds = group.map((c) => c.id);
-        const influxes = await runEffectWithServices(
-          listInfluxesBySourceCollections(userId, sourceCollectionIds),
+        const { flows, clients } = await getFlowsAndClients(
+          userId,
+          sourceCollectionIds,
+          connRow.includeRef,
         );
 
         const targetCollectionIds: number[] = [];
         const collectionRefPolicy = new Map<number, boolean>();
-        for (const influx of influxes) {
-          if (influx.filters.length > 0 && !matchesFilters(result.item.props, influx.filters)) {
-            continue;
+        for (const flow of flows) {
+          if (flow.filters) {
+            const filters = unpack(flow.filters) as Filter[];
+            if (filters.length > 0 && !matchesFilters(result.item.props, filters)) continue;
           }
-          targetCollectionIds.push(influx.collectionId);
-          const previous = collectionRefPolicy.get(influx.collectionId) ?? true;
+          targetCollectionIds.push(flow.targetId);
+          const previous = collectionRefPolicy.get(flow.targetId) ?? true;
           collectionRefPolicy.set(
-            influx.collectionId,
-            previous && Boolean(srcRow.includeRef) && Boolean(influx.includeRef),
+            flow.targetId,
+            previous && Boolean(connRow.includeRef) && Boolean(flow.includeRef),
           );
         }
 
         if (targetCollectionIds.length === 0) continue;
 
-        const connections = await db
-          .select({
-            consumerId: consumerCollectionTable.consumerId,
-            collectionId: consumerCollectionTable.collectionId,
-            connectionIncludeRef: consumerCollectionTable.includeRef,
-            consumerIncludeRef: consumerTable.includeRef,
-            collectionIncludeRef: collectionTable.includeRef,
-            lastItemChanged: consumerCollectionTable.lastItemChanged,
-          })
-          .from(consumerCollectionTable)
-          .innerJoin(
-            collectionTable,
-            and(
-              eq(consumerCollectionTable.userId, collectionTable.userId),
-              eq(consumerCollectionTable.collectionId, collectionTable.id),
-            ),
-          )
-          .innerJoin(
-            consumerTable,
-            and(
-              eq(consumerCollectionTable.userId, consumerTable.userId),
-              eq(consumerCollectionTable.consumerId, consumerTable.id),
-            ),
-          )
-          .where(
-            and(
-              eq(consumerCollectionTable.userId, userId),
-              inArray(consumerCollectionTable.collectionId, targetCollectionIds),
-            ),
-          );
-
-        for (const collectionId of targetCollectionIds) {
+        for (const collectionId of new Set(targetCollectionIds)) {
           const item: UserSyncItem = {
             ...result.item,
             ref: notionRefUrlFromRawUuid(result.item.ref),
-            sourceType: SourceType.NOTION,
+            sourceType: ConnectionType.NOTION,
             user: userId,
             collection: collectionId,
           };
-          const collectionConnections = connections
+          const collectionClients = clients
             .filter((c) => c.collectionId === collectionId)
             .map((c) => ({
               userId,
-              consumerId: c.consumerId,
+              connectionId: c.connectionId,
               collectionId: c.collectionId,
               includeRef:
                 Boolean(c.connectionIncludeRef) &&
-                Boolean(c.consumerIncludeRef) &&
                 Boolean(c.collectionIncludeRef) &&
                 (collectionRefPolicy.get(c.collectionId) ?? true),
-              lastItemChanged: c.lastItemChanged,
             }));
-          if (collectionConnections.length > 0) {
-            await streamServer.broadcast([item], collectionConnections);
+          if (collectionClients.length > 0) {
+            await streamServer.broadcast([item], collectionClients);
           }
         }
       }
@@ -963,17 +803,16 @@ export const POST: RequestHandler = async ({ request, params }) => {
 
   // ---- Data source events ----
   if (eventType.startsWith("data_source.")) {
-    // Invalidate LRU cache on any data source event
-    sourceCollectionCache.clear();
-    globalSourceCollectionCache.clear();
+    collectionCache.clear();
+    globalCollectionCache.clear();
 
     if (eventType === "data_source.schema_updated") {
       const dataSourceId = payload.entity.id;
       log.info({ dataSourceId }, "Schema updated for data source");
 
-      if (source) {
-        const credentials = source.credentials
-          ? await decryptCredentials(source.userId, source.credentials)
+      if (conn) {
+        const credentials = conn.credentials
+          ? await decryptCredentials(conn.userId, conn.credentials)
           : null;
         const token = credentials?.toString("utf8");
         if (token) {
@@ -988,7 +827,6 @@ export const POST: RequestHandler = async ({ request, params }) => {
               const schema = notionPropertiesToSchema(dataSource.properties);
               const schemaBuf = Buffer.from(pack(schema));
 
-              // Find source collections using this data source's parent database
               const parentDbId =
                 "parent" in dataSource && dataSource.parent?.type === "database_id"
                   ? dataSource.parent.database_id
@@ -997,13 +835,13 @@ export const POST: RequestHandler = async ({ request, params }) => {
               if (parentDbId) {
                 const ref = uuidToBuffer(parentDbId);
                 await db
-                  .update(sourceCollectionTable)
+                  .update(collectionTable)
                   .set({ schema: schemaBuf })
                   .where(
                     and(
-                      eq(sourceCollectionTable.userId, source.userId),
-                      eq(sourceCollectionTable.sourceId, source.id),
-                      eq(sourceCollectionTable.ref, ref),
+                      eq(collectionTable.userId, conn.userId),
+                      eq(collectionTable.connectionId, conn.id),
+                      eq(collectionTable.ref, ref),
                     ),
                   );
               }
@@ -1012,7 +850,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
             log.error({ err }, "Failed to update schema");
           }
         }
-        await logWebhookEvent(source.userId, source.id, eventType, dataSourceId, "success");
+        await logWebhookEvent(conn.userId, conn.id, eventType, dataSourceId, "success");
       }
     }
 
@@ -1020,9 +858,9 @@ export const POST: RequestHandler = async ({ request, params }) => {
       const dataSourceId = payload.entity.id;
       log.info({ dataSourceId }, "Content updated for data source");
 
-      if (source) {
-        const credentials = source.credentials
-          ? await decryptCredentials(source.userId, source.credentials)
+      if (conn) {
+        const credentials = conn.credentials
+          ? await decryptCredentials(conn.userId, conn.credentials)
           : null;
         const token = credentials?.toString("utf8");
         if (token) {
@@ -1040,22 +878,22 @@ export const POST: RequestHandler = async ({ request, params }) => {
 
             if (parentDbId) {
               const ref = uuidToBuffer(parentDbId);
-              const sourceCollections = await db
-                .select({ id: sourceCollectionTable.id })
-                .from(sourceCollectionTable)
+              const collections = await db
+                .select({ id: collectionTable.id })
+                .from(collectionTable)
                 .where(
                   and(
-                    eq(sourceCollectionTable.userId, source.userId),
-                    eq(sourceCollectionTable.sourceId, source.id),
-                    eq(sourceCollectionTable.ref, ref),
+                    eq(collectionTable.userId, conn.userId),
+                    eq(collectionTable.connectionId, conn.id),
+                    eq(collectionTable.ref, ref),
                   ),
                 );
 
-              if (sourceCollections.length > 0) {
+              if (collections.length > 0) {
                 await Effect.runPromise(
                   enqueueSyncJobs(
                     db,
-                    sourceCollections.map((c) => c.id),
+                    collections.map((c) => c.id),
                   ),
                 );
               }
@@ -1064,13 +902,12 @@ export const POST: RequestHandler = async ({ request, params }) => {
             log.error({ err }, "Failed to retrieve data source");
           }
         }
-        await logWebhookEvent(source.userId, source.id, eventType, dataSourceId, "success");
+        await logWebhookEvent(conn.userId, conn.id, eventType, dataSourceId, "success");
       }
     }
 
     return new Response("OK", { status: 200 });
   }
 
-  // Unknown event type - acknowledge anyway
   return new Response("OK", { status: 200 });
 };

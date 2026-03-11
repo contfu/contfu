@@ -42,10 +42,10 @@ export const POST: RequestHandler = async ({ request }) => {
               subscriptionId: payload.id,
               subscriptionStatus: status,
               currentPeriodEnd,
-              maxSources: quota.maxSources,
+              maxConnections: quota.maxConnections,
               maxCollections: quota.maxCollections,
+              maxFlows: quota.maxFlows,
               maxItems: quota.maxItems,
-              maxConsumers: quota.maxConsumers,
             })
             .where(eq(quotaTable.polarCustomerId, customerId));
           await setLimits(existing[0].id, quota, currentPeriodEnd);
@@ -71,10 +71,9 @@ export const POST: RequestHandler = async ({ request }) => {
             subscriptionId: null,
             subscriptionStatus: "canceled",
             currentPeriodEnd: null,
-            maxSources: quota.maxSources,
+            maxConnections: quota.maxConnections,
             maxCollections: quota.maxCollections,
             maxItems: quota.maxItems,
-            maxConsumers: quota.maxConsumers,
           })
           .where(eq(quotaTable.polarCustomerId, customerId));
         if (existingRow.length > 0) {

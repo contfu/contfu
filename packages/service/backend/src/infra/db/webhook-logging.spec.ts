@@ -1,84 +1,47 @@
-import { SourceType } from "@contfu/core";
+import { ConnectionType } from "@contfu/core";
 import { beforeEach, describe, expect, it } from "bun:test";
-import crypto from "node:crypto";
 import { truncateAllTables } from "../../../test/setup";
 import { db } from "./db";
-import { sourceTable, userTable, webhookLogTable } from "./schema";
-
-/**
- * Unit tests for webhook logging functionality.
- * Uses real in-memory SQLite database, not mocks.
- *
- * Note: These tests require the real database and will be skipped
- * if running in an environment where db is mocked by other tests.
- */
-
-// Check if db is mocked (mocked db won't have delete as a function)
+import { connectionTable, userTable, webhookLogTable } from "./schema";
 
 describe("Webhook Logging", () => {
+  let connectionId: number;
+
   beforeEach(async () => {
     await truncateAllTables();
+
+    const [user] = await db
+      .insert(userTable)
+      .values({ name: "Test User", email: "webhook-test@test.com" })
+      .returning();
+
+    const [connection] = await db
+      .insert(connectionTable)
+      .values({ userId: user.id, type: ConnectionType.STRAPI, name: "Test Connection" })
+      .returning();
+    connectionId = connection.id;
   });
 
   describe("logWebhookEvent", () => {
     it("should log webhook event with correct userId type (number)", async () => {
-      // Create test user and source first (FK constraints)
-      const [user] = await db
-        .insert(userTable)
-        .values({
-          name: "Test User",
-          email: "webhook-test@test.com",
-        })
-        .returning();
-
-      const [source] = await db
-        .insert(sourceTable)
-        .values({
-          userId: user.id,
-          uid: crypto.randomUUID(),
-          type: SourceType.STRAPI,
-          name: "Test Source",
-        })
-        .returning();
-
-      // Insert webhook log
       await db.insert(webhookLogTable).values({
-        sourceId: source.id,
+        connectionId,
         event: "entry.publish",
         model: "article",
         status: "success",
         itemsBroadcast: 5,
       });
 
-      // Verify
       const [log] = await db.select().from(webhookLogTable).limit(1);
-      expect(log.sourceId).toBe(source.id);
-      expect(typeof log.sourceId).toBe("number");
+      expect(log.connectionId).toBe(connectionId);
+      expect(typeof log.connectionId).toBe("number");
       expect(log.status).toBe("success");
       expect(log.itemsBroadcast).toBe(5);
     });
 
     it("should log error status with error message", async () => {
-      const [user] = await db
-        .insert(userTable)
-        .values({
-          name: "Test User",
-          email: "webhook-error@test.com",
-        })
-        .returning();
-
-      const [source] = await db
-        .insert(sourceTable)
-        .values({
-          userId: user.id,
-          uid: crypto.randomUUID(),
-          type: SourceType.STRAPI,
-          name: "Test Source",
-        })
-        .returning();
-
       await db.insert(webhookLogTable).values({
-        sourceId: source.id,
+        connectionId,
         event: "entry.create",
         model: "product",
         status: "error",
@@ -92,26 +55,8 @@ describe("Webhook Logging", () => {
     });
 
     it("should log unauthorized status for invalid signatures", async () => {
-      const [user] = await db
-        .insert(userTable)
-        .values({
-          name: "Test User",
-          email: "webhook-unauth@test.com",
-        })
-        .returning();
-
-      const [source] = await db
-        .insert(sourceTable)
-        .values({
-          userId: user.id,
-          uid: crypto.randomUUID(),
-          type: SourceType.STRAPI,
-          name: "Test Source",
-        })
-        .returning();
-
       await db.insert(webhookLogTable).values({
-        sourceId: source.id,
+        connectionId,
         event: "entry.update",
         model: "article",
         status: "unauthorized",
@@ -125,26 +70,8 @@ describe("Webhook Logging", () => {
     });
 
     it("should handle null model gracefully", async () => {
-      const [user] = await db
-        .insert(userTable)
-        .values({
-          name: "Test User",
-          email: "webhook-null@test.com",
-        })
-        .returning();
-
-      const [source] = await db
-        .insert(sourceTable)
-        .values({
-          userId: user.id,
-          uid: crypto.randomUUID(),
-          type: SourceType.STRAPI,
-          name: "Test Source",
-        })
-        .returning();
-
       await db.insert(webhookLogTable).values({
-        sourceId: source.id,
+        connectionId,
         event: "entry.delete",
         model: null,
         status: "success",
@@ -157,35 +84,16 @@ describe("Webhook Logging", () => {
   });
 
   describe("userId type consistency", () => {
-    it("should use number for userId matching source table FK", async () => {
-      const [user] = await db
-        .insert(userTable)
-        .values({
-          name: "FK Test User",
-          email: "fk-test@test.com",
-        })
-        .returning();
-
-      const [source] = await db
-        .insert(sourceTable)
-        .values({
-          userId: user.id,
-          uid: crypto.randomUUID(),
-          type: SourceType.STRAPI,
-          name: "FK Test Source",
-        })
-        .returning();
-
+    it("should use number for connectionId matching connection table FK", async () => {
       await db.insert(webhookLogTable).values({
-        sourceId: source.id,
+        connectionId,
         event: "entry.publish",
         status: "success",
         itemsBroadcast: 0,
       });
 
-      // Verify FK relationship works
       const [log] = await db.select().from(webhookLogTable).limit(1);
-      expect(log.sourceId).toBe(source.id);
+      expect(log.connectionId).toBe(connectionId);
     });
   });
 });

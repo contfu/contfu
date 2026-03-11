@@ -1,11 +1,11 @@
 export type QuotaState = {
-  sources: number;
-  maxSources: number;
+  connections: number;
+  maxConnections: number;
   collections: number;
   maxCollections: number;
+  flows: number;
+  maxFlows: number;
   items: number;
   maxItems: number;
-  consumers: number;
-  maxConsumers: number;
   periodEnd: number;
 };

@@ -15,7 +15,7 @@ export function getItemById(
   const row = ctx
     .select({
       id: itemsTable.id,
-      sourceType: itemsTable.sourceType,
+      connectionType: itemsTable.connectionType,
       ref: itemsTable.ref,
       collectionName: itemsTable.collection,
       props: itemsTable.props,
@@ -31,7 +31,7 @@ export function getItemById(
   const props = row.props;
   const item: ItemWithRelations = {
     id: encodeId(row.id),
-    sourceType: row.sourceType,
+    connectionType: row.connectionType,
     ref: row.ref,
     collection: row.collectionName,
     props: (props && typeof props === "object" ? props : {}) as Record<string, unknown>,

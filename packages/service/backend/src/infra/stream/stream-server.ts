@@ -1,9 +1,15 @@
-import { EventType, type WireEvent, type WireItem, type WireItemEvent } from "@contfu/core";
+import {
+  ConnectionType,
+  EventType,
+  type WireEvent,
+  type WireItem,
+  type WireItemEvent,
+} from "@contfu/core";
 import { and, eq, inArray } from "drizzle-orm";
 import { Effect } from "effect";
 import { pack as msgpack } from "msgpackr";
 import { enqueueSyncJobs } from "../../features/sync-jobs/enqueueSyncJobs";
-import { collectionTable, consumerCollectionTable, consumerTable, db, influxTable } from "../db/db";
+import { collectionTable, connectionTable, flowTable, db } from "../db/db";
 import { createLogger } from "../logger/index";
 import { publishEvent, purgeEventsUpTo, type StoredWireItemEvent } from "../nats/event-stream";
 import { updateSnapshotAckedSeq } from "../nats/snapshot-stream";
@@ -33,10 +39,10 @@ class ConnectionError extends Error {
 
 /** Maps consumer key (hex) to stream connection. */
 const consumerToConnection = new Map<string, StreamConnection>();
-/** Maps connection ID to consumer key (hex). */
+/** Maps stream connection ID to consumer key (hex). */
 const connectionToConsumer = new Map<string, string>();
-/** Maps consumer key (hex) to consumer info. */
-const consumerInfo = new Map<string, { userId: number; consumerId: number }>();
+/** Maps consumer key (hex) to connection info (connectionId = CLIENT connection id). */
+const consumerInfo = new Map<string, { userId: number; connectionId: number }>();
 /** Temporary cache for pre-authenticated consumers (expires after 30s). */
 const preAuthCache = new Map<
   string,
@@ -44,44 +50,44 @@ const preAuthCache = new Map<
 >();
 const PRE_AUTH_TTL_MS = 30 * 1000;
 const CONNECTION_STALL_TIMEOUT_MS = 60 * 1000;
-/** Maps "userId:consumerId" to last acked sequence number. */
-const consumerAckedSeq = new Map<string, number>();
+/** Maps "userId:connectionId" to last acked sequence number. */
+const connectionAckedSeq = new Map<string, number>();
 
-/** Tracks consumers currently receiving snapshot data (not events). */
-const snapshotModeConsumers = new Set<string>();
+/** Tracks connections currently receiving snapshot data (not events). */
+const snapshotModeConnections = new Set<string>();
 
 export class StreamServer {
-  setSnapshotMode(userId: number, consumerId: number): void {
-    snapshotModeConsumers.add(`${userId}:${consumerId}`);
+  setSnapshotMode(userId: number, connectionId: number): void {
+    snapshotModeConnections.add(`${userId}:${connectionId}`);
   }
 
-  clearSnapshotMode(userId: number, consumerId: number): void {
-    snapshotModeConsumers.delete(`${userId}:${consumerId}`);
+  clearSnapshotMode(userId: number, connectionId: number): void {
+    snapshotModeConnections.delete(`${userId}:${connectionId}`);
   }
 
-  isInSnapshotMode(userId: number, consumerId: number): boolean {
-    return snapshotModeConsumers.has(`${userId}:${consumerId}`);
+  isInSnapshotMode(userId: number, connectionId: number): boolean {
+    return snapshotModeConnections.has(`${userId}:${connectionId}`);
   }
 
   /**
-   * Returns true when the given consumer currently has a live stream connection.
+   * Returns true when the given connection currently has a live stream connection.
    */
-  isConsumerActive(userId: number, consumerId: number): boolean {
+  isConnectionActive(userId: number, connectionId: number): boolean {
     this.pruneDeadConnections();
-    return this.findConsumerConnection(userId, consumerId) !== null;
+    return this.findConnectionStream(userId, connectionId) !== null;
   }
 
   /**
-   * Records the last-acked sequence for a consumer and attempts to purge
-   * events that all active consumers have acknowledged.
+   * Records the last-acked sequence for a connection and attempts to purge
+   * events that all active connections have acknowledged.
    */
-  async ackConsumerSequence(userId: number, consumerId: number, seq: number): Promise<void> {
-    if (this.isInSnapshotMode(userId, consumerId)) {
-      await updateSnapshotAckedSeq(userId, consumerId, seq);
+  async ackConnectionSequence(userId: number, connectionId: number, seq: number): Promise<void> {
+    if (this.isInSnapshotMode(userId, connectionId)) {
+      await updateSnapshotAckedSeq(userId, connectionId, seq);
       return;
     }
-    const key = `${userId}:${consumerId}`;
-    consumerAckedSeq.set(key, seq);
+    const key = `${userId}:${connectionId}`;
+    connectionAckedSeq.set(key, seq);
     await this.tryPurgeEvents();
   }
 
@@ -146,12 +152,12 @@ export class StreamServer {
     try {
       consumerToConnection.set(consumerKey, connection);
       connectionToConsumer.set(connectionId, consumerKey);
-      consumerInfo.set(consumerKey, { userId: client.userId, consumerId: client.id });
+      consumerInfo.set(consumerKey, { userId: client.userId, connectionId: client.id });
 
-      // Enqueue sync jobs for collections this consumer is connected to
-      const collectionIds = await getConsumerCollectionIds(client.userId, client.id);
+      // Enqueue sync jobs for source collections feeding this consumer's collections
+      const collectionIds = await getConnectionCollectionIds(client.userId, client.id);
       if (collectionIds.length > 0) {
-        const sourceCollectionIds = await getSourceCollectionIdsForCollections(
+        const sourceCollectionIds = await getSourceCollectionIdsForTargets(
           client.userId,
           collectionIds,
         );
@@ -163,7 +169,7 @@ export class StreamServer {
       log.info(
         {
           userId: client.userId,
-          consumerId: client.id,
+          clientConnectionId: client.id,
           connectionId,
           activeConnections: consumerToConnection.size,
         },
@@ -180,10 +186,10 @@ export class StreamServer {
   }
 
   /**
-   * Get the consumer info (userId, consumerId) for a given connection ID.
+   * Get the connection info (userId, connectionId) for a given stream connection ID.
    */
-  getConnectionConsumerInfo(connectionId: string): { userId: number; consumerId: number } | null {
-    const consumerKey = connectionToConsumer.get(connectionId);
+  getConnectionInfo(streamConnectionId: string): { userId: number; connectionId: number } | null {
+    const consumerKey = connectionToConsumer.get(streamConnectionId);
     if (!consumerKey) return null;
     return consumerInfo.get(consumerKey) ?? null;
   }
@@ -191,26 +197,26 @@ export class StreamServer {
   /**
    * Removes a stream connection and cleans up resources.
    */
-  removeConnection(connectionId: string) {
-    const consumerKey = connectionToConsumer.get(connectionId);
+  removeConnection(streamConnectionId: string) {
+    const consumerKey = connectionToConsumer.get(streamConnectionId);
     if (!consumerKey) return;
     const info = consumerInfo.get(consumerKey);
     log.debug(
       {
-        connectionId,
+        connectionId: streamConnectionId,
         userId: info?.userId,
-        consumerId: info?.consumerId,
+        clientConnectionId: info?.connectionId,
         activeConnections: consumerToConnection.size - 1,
       },
       "Connection removed",
     );
 
-    connectionToConsumer.delete(connectionId);
+    connectionToConsumer.delete(streamConnectionId);
     consumerToConnection.delete(consumerKey);
     consumerInfo.delete(consumerKey);
     if (info) {
-      consumerAckedSeq.delete(`${info.userId}:${info.consumerId}`);
-      snapshotModeConsumers.delete(`${info.userId}:${info.consumerId}`);
+      connectionAckedSeq.delete(`${info.userId}:${info.connectionId}`);
+      snapshotModeConnections.delete(`${info.userId}:${info.connectionId}`);
       void this.tryPurgeEvents();
     }
   }
@@ -235,8 +241,8 @@ export class StreamServer {
     this.pruneDeadConnections();
     for (const [consumerKey, info] of consumerInfo.entries()) {
       if (info.userId !== userId) continue;
-      const consumerCollectionIds = await getConsumerCollectionIds(userId, info.consumerId);
-      if (!consumerCollectionIds.includes(collectionId)) continue;
+      const collectionIds = await getConnectionCollectionIds(userId, info.connectionId);
+      if (!collectionIds.includes(collectionId)) continue;
       const connection = consumerToConnection.get(consumerKey);
       if (!connection) continue;
       try {
@@ -248,11 +254,11 @@ export class StreamServer {
   }
 
   /**
-   * Send a wire event to a specific consumer's active stream connection.
+   * Send a wire event to a specific connection's active stream.
    */
-  sendToConsumer(userId: number, consumerId: number, wireEvent: WireEvent) {
+  sendToConnection(userId: number, connectionId: number, wireEvent: WireEvent) {
     this.pruneDeadConnections();
-    const connection = this.findConsumerConnection(userId, consumerId);
+    const connection = this.findConnectionStream(userId, connectionId);
     if (!connection) return;
     try {
       this.sendBinary(connection.controller, wireEvent);
@@ -358,7 +364,7 @@ export class StreamServer {
       // Find connection by looking up consumer info
       let connection: StreamConnection | undefined;
       for (const [key, info] of consumerInfo.entries()) {
-        if (info.userId === conn.userId && info.consumerId === conn.consumerId) {
+        if (info.userId === conn.userId && info.connectionId === conn.connectionId) {
           connection = consumerToConnection.get(key);
           break;
         }
@@ -370,12 +376,6 @@ export class StreamServer {
       if (!changedItems) continue;
 
       for (const item of changedItems) {
-        if (
-          conn.lastItemChanged != null &&
-          item.changedAt < Math.floor(conn.lastItemChanged.getTime() / 1000)
-        ) {
-          continue;
-        }
         const collectionName =
           collectionNameById.get(conn.collectionId) ?? String(conn.collectionId);
         const wireItem = toWireItem(item, collectionName, conn.includeRef);
@@ -407,7 +407,7 @@ export class StreamServer {
     for (const conn of connections) {
       let connection: StreamConnection | undefined;
       for (const [key, info] of consumerInfo.entries()) {
-        if (info.userId === conn.userId && info.consumerId === conn.consumerId) {
+        if (info.userId === conn.userId && info.connectionId === conn.connectionId) {
           connection = consumerToConnection.get(key);
           break;
         }
@@ -483,9 +483,9 @@ export class StreamServer {
     return true;
   }
 
-  private findConsumerConnection(userId: number, consumerId: number): StreamConnection | null {
+  private findConnectionStream(userId: number, connectionId: number): StreamConnection | null {
     for (const [key, info] of consumerInfo.entries()) {
-      if (info.userId === userId && info.consumerId === consumerId) {
+      if (info.userId === userId && info.connectionId === connectionId) {
         return consumerToConnection.get(key) ?? null;
       }
     }
@@ -500,9 +500,9 @@ export class StreamServer {
 
     let minSeq = Number.POSITIVE_INFINITY;
     for (const [, info] of consumerInfo.entries()) {
-      const key = `${info.userId}:${info.consumerId}`;
-      const seq = consumerAckedSeq.get(key);
-      if (seq == null) return; // Not all consumers have acked yet
+      const key = `${info.userId}:${info.connectionId}`;
+      const seq = connectionAckedSeq.get(key);
+      if (seq == null) return; // Not all connections have acked yet
       minSeq = Math.min(minSeq, seq);
     }
 
@@ -553,71 +553,58 @@ function serializeProps(props: Record<string, unknown>): Record<string, unknown>
   return result;
 }
 
+/**
+ * Authenticate a consumer by looking up the key in the connection table.
+ * CLIENT connections store the consumer API key in credentials.
+ */
 async function authenticateConsumer(key: Buffer) {
-  if (key.length !== 32) return null;
-  const consumers = await db
-    .select()
-    .from(consumerTable)
-    .where(eq(consumerTable.key, key))
+  if (key.length < 20) return null;
+  const rows = await db
+    .select({ id: connectionTable.id, userId: connectionTable.userId })
+    .from(connectionTable)
+    .where(
+      and(eq(connectionTable.credentials, key), eq(connectionTable.type, ConnectionType.CLIENT)),
+    )
     .limit(1);
-  return consumers[0] ?? null;
+  return rows[0] ?? null;
 }
 
-export async function getConsumerCollectionIds(
+/**
+ * Get collection IDs owned by a CLIENT connection.
+ */
+export async function getConnectionCollectionIds(
   userId: number,
-  consumerId: number,
+  connectionId: number,
 ): Promise<number[]> {
   const rows = await db
-    .select({ collectionId: consumerCollectionTable.collectionId })
-    .from(consumerCollectionTable)
-    .where(
-      and(
-        eq(consumerCollectionTable.userId, userId),
-        eq(consumerCollectionTable.consumerId, consumerId),
-      ),
-    );
-  return rows.map((r) => r.collectionId);
+    .select({ id: collectionTable.id })
+    .from(collectionTable)
+    .where(and(eq(collectionTable.userId, userId), eq(collectionTable.connectionId, connectionId)));
+  return rows.map((r) => r.id);
 }
 
-export async function getConsumerCollectionRefPolicy(
+/**
+ * Get the ref policy for collections owned by a CLIENT connection.
+ * Combines connection.includeRef and collection.includeRef.
+ */
+export async function getConnectionRefPolicy(
   userId: number,
-  consumerId: number,
+  connectionId: number,
 ): Promise<Map<number, boolean>> {
   const rows = await db
     .select({
-      collectionId: consumerCollectionTable.collectionId,
-      connectionIncludeRef: consumerCollectionTable.includeRef,
-      consumerIncludeRef: consumerTable.includeRef,
+      collectionId: collectionTable.id,
+      connectionIncludeRef: connectionTable.includeRef,
       collectionIncludeRef: collectionTable.includeRef,
     })
-    .from(consumerCollectionTable)
-    .innerJoin(
-      collectionTable,
-      and(
-        eq(consumerCollectionTable.userId, collectionTable.userId),
-        eq(consumerCollectionTable.collectionId, collectionTable.id),
-      ),
-    )
-    .innerJoin(
-      consumerTable,
-      and(
-        eq(consumerCollectionTable.userId, consumerTable.userId),
-        eq(consumerCollectionTable.consumerId, consumerTable.id),
-      ),
-    )
-    .where(
-      and(
-        eq(consumerCollectionTable.userId, userId),
-        eq(consumerCollectionTable.consumerId, consumerId),
-      ),
-    );
+    .from(collectionTable)
+    .innerJoin(connectionTable, eq(collectionTable.connectionId, connectionTable.id))
+    .where(and(eq(collectionTable.userId, userId), eq(collectionTable.connectionId, connectionId)));
 
   return new Map(
     rows.map((row) => [
       row.collectionId,
-      Boolean(row.connectionIncludeRef) &&
-        Boolean(row.consumerIncludeRef) &&
-        Boolean(row.collectionIncludeRef),
+      Boolean(row.connectionIncludeRef) && Boolean(row.collectionIncludeRef),
     ]),
   );
 }
@@ -643,17 +630,17 @@ export async function getCollectionNamesByIds(
   return map;
 }
 
-async function getSourceCollectionIdsForCollections(
+/**
+ * Given target collection IDs, find the source collection IDs via flows.
+ */
+async function getSourceCollectionIdsForTargets(
   userId: number,
-  collectionIds: number[],
+  targetCollectionIds: number[],
 ): Promise<number[]> {
-  const rows: { sourceCollectionId: number }[] = [];
-  for (const collectionId of collectionIds) {
-    const influxes = await db
-      .selectDistinct({ sourceCollectionId: influxTable.sourceCollectionId })
-      .from(influxTable)
-      .where(and(eq(influxTable.userId, userId), eq(influxTable.collectionId, collectionId)));
-    rows.push(...influxes);
-  }
-  return [...new Set(rows.map((r) => r.sourceCollectionId))];
+  if (targetCollectionIds.length === 0) return [];
+  const rows = await db
+    .selectDistinct({ sourceId: flowTable.sourceId })
+    .from(flowTable)
+    .where(and(eq(flowTable.userId, userId), inArray(flowTable.targetId, targetCollectionIds)));
+  return rows.map((r) => r.sourceId);
 }

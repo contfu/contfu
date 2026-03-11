@@ -2,24 +2,24 @@ import { command, query } from "$app/server";
 import { runWithUser } from "$lib/server/run";
 import { getUserId } from "$lib/server/user";
 import { listIncidents } from "@contfu/svc-backend/features/incidents/listIncidents";
-import { getUnresolvedIncidentCount } from "@contfu/svc-backend/features/incidents/listIncidents";
+import { getUnresolvedIncidentCount } from "@contfu/svc-backend/features/incidents/getUnresolvedIncidentCount";
 import { resolveIncident as resolveIncidentFeature } from "@contfu/svc-backend/features/incidents/resolveIncident";
 import { encodeId, idSchema } from "@contfu/svc-backend/infra/ids";
 import * as v from "valibot";
 
 function encodeIncident(i: {
   id: number;
-  influxId: number;
-  collectionId: number;
+  flowId: number;
   sourceCollectionId: number;
+  targetCollectionId: number;
   [key: string]: unknown;
 }) {
   return {
     ...i,
     id: encodeId("incident", i.id),
-    influxId: encodeId("influx", i.influxId),
-    collectionId: encodeId("collection", i.collectionId),
-    sourceCollectionId: encodeId("sourceCollection", i.sourceCollectionId),
+    flowId: encodeId("flow", i.flowId),
+    sourceCollectionId: encodeId("collection", i.sourceCollectionId),
+    targetCollectionId: encodeId("collection", i.targetCollectionId),
   };
 }
 

@@ -77,10 +77,10 @@ async function readSyncEvents(opts: {
   return events;
 }
 
-test.describe("Selective Influx Resync — mapping save triggers resync for changed influx", () => {
+test.describe("Selective Inflow Resync — mapping save triggers resync for changed inflow", () => {
   test.setTimeout(45_000);
 
-  test("saving influx mappings triggers a resync and items arrive with updated mappings", async ({
+  test("saving inflow mappings triggers a resync and items arrive with updated mappings", async ({
     authenticatedPage: page,
   }) => {
     const baseUrl = "http://localhost:4173";
@@ -112,7 +112,7 @@ test.describe("Selective Influx Resync — mapping save triggers resync for chan
     await link.click();
     await page.waitForLoadState("networkidle");
 
-    // Wait for influx rows
+    // Wait for inflow rows
     await expect(page.getByText("Articles (selective)").first()).toBeVisible({ timeout: 5000 });
 
     // 3. Add a new target property "hits" and map it from Source A's "views"

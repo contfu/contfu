@@ -5,19 +5,12 @@ import {
   type WorkerToAppMessage,
 } from "./messages";
 import { createLogger } from "../logger/index";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 const log = createLogger("sync-worker-manager");
 
-import {
-  collectionTable,
-  consumerCollectionTable,
-  consumerTable,
-  db,
-  influxTable,
-  sourceCollectionTable,
-  sourceTable,
-} from "../db/db";
+import { collectionTable, connectionTable, flowTable, db } from "../db/db";
+import { ConnectionType } from "@contfu/core";
 import type { ConnectionInfo } from "../types";
 import { unpack } from "msgpackr";
 import type { CollectionSchema } from "@contfu/core";
@@ -114,33 +107,30 @@ export class SyncWorkerManager {
       {
         itemCount: msg.items.length,
         userId: msg.userId,
-        sourceCollectionId: msg.sourceCollectionId,
+        collectionId: msg.collectionId,
       },
       "Items received from worker",
     );
 
-    // Look up which collections receive items from this source collection (via influx)
-    const collectionIds = await getCollectionIdsForSourceCollection(
+    // Look up which target collections receive items from this source collection (via flows)
+    const targetCollectionIds = await getTargetCollectionIdsForSource(msg.userId, msg.collectionId);
+    const flowRefPolicies = await getFlowRefPolicies(
       msg.userId,
-      msg.sourceCollectionId,
-    );
-    const collectionRefPolicies = await getCollectionRefPolicies(
-      msg.userId,
-      msg.sourceCollectionId,
-      collectionIds,
+      msg.collectionId,
+      targetCollectionIds,
     );
 
-    // Get connections for those collections
+    // Get CLIENT connections for those target collections
     const connections = await getConnectionsForCollections(
       msg.userId,
-      collectionIds,
-      collectionRefPolicies,
+      targetCollectionIds,
+      flowRefPolicies,
     );
     this.itemsCallback(msg.items, connections);
 
     // Broadcast schema changes if callback is registered
     if (this.schemaCallback) {
-      await this.broadcastSchemaChanges(msg.userId, collectionIds);
+      await this.broadcastSchemaChanges(msg.userId, targetCollectionIds);
     }
   }
 
@@ -152,31 +142,28 @@ export class SyncWorkerManager {
     await this.broadcastSchemaChanges(userId, [collectionId]);
   }
 
-  async resyncSourceCollections(sourceCollectionIds: number[]): Promise<void> {
-    if (sourceCollectionIds.length > 0) {
-      await Effect.runPromise(enqueueSyncJobs(db, sourceCollectionIds));
+  async resyncCollections(collectionIds: number[]): Promise<void> {
+    if (collectionIds.length > 0) {
+      await Effect.runPromise(enqueueSyncJobs(db, collectionIds));
     }
   }
 
   private async broadcastSchemaChanges(userId: number, collectionIds: number[]) {
     for (const collectionId of collectionIds) {
-      // Compute merged schema (same pattern as /api/sync)
-      const influxRows = await db
+      // Compute merged schema from all flows targeting this collection
+      const flowRows = await db
         .select({
-          influxSchema: influxTable.schema,
-          sourceSchema: sourceCollectionTable.schema,
-          mappings: influxTable.mappings,
+          flowSchema: flowTable.schema,
+          sourceSchema: collectionTable.schema,
+          mappings: flowTable.mappings,
         })
-        .from(influxTable)
-        .innerJoin(
-          sourceCollectionTable,
-          eq(influxTable.sourceCollectionId, sourceCollectionTable.id),
-        )
-        .where(and(eq(influxTable.userId, userId), eq(influxTable.collectionId, collectionId)));
+        .from(flowTable)
+        .innerJoin(collectionTable, eq(flowTable.sourceId, collectionTable.id))
+        .where(and(eq(flowTable.userId, userId), eq(flowTable.targetId, collectionId)));
 
       const merged: Record<string, number> = {};
-      for (const row of influxRows) {
-        const schemaBuf = row.influxSchema ?? row.sourceSchema;
+      for (const row of flowRows) {
+        const schemaBuf = row.flowSchema ?? row.sourceSchema;
         if (!schemaBuf) continue;
         const rawSchema = unpack(schemaBuf) as CollectionSchema;
         const schema = row.mappings
@@ -208,17 +195,15 @@ export class SyncWorkerManager {
   }
 }
 
-async function getCollectionIdsForSourceCollection(
+async function getTargetCollectionIdsForSource(
   userId: number,
   sourceCollectionId: number,
 ): Promise<number[]> {
   const rows = await db
-    .selectDistinct({ collectionId: influxTable.collectionId })
-    .from(influxTable)
-    .where(
-      and(eq(influxTable.userId, userId), eq(influxTable.sourceCollectionId, sourceCollectionId)),
-    );
-  return rows.map((r) => r.collectionId);
+    .selectDistinct({ targetId: flowTable.targetId })
+    .from(flowTable)
+    .where(and(eq(flowTable.userId, userId), eq(flowTable.sourceId, sourceCollectionId)));
+  return rows.map((r) => r.targetId);
 }
 
 async function getConnectionsForCollections(
@@ -227,106 +212,65 @@ async function getConnectionsForCollections(
   collectionRefPolicies: Map<number, boolean>,
 ): Promise<ConnectionInfo[]> {
   if (collectionIds.length === 0) return [];
-  const results: ConnectionInfo[] = [];
-  for (const collectionId of collectionIds) {
-    const connections = await db
-      .select({
-        userId: consumerCollectionTable.userId,
-        consumerId: consumerCollectionTable.consumerId,
-        collectionId: consumerCollectionTable.collectionId,
-        includeRef: consumerCollectionTable.includeRef,
-        consumerIncludeRef: consumerTable.includeRef,
-        collectionIncludeRef: collectionTable.includeRef,
-        lastItemChanged: consumerCollectionTable.lastItemChanged,
-      })
-      .from(consumerCollectionTable)
-      .innerJoin(
-        collectionTable,
-        and(
-          eq(consumerCollectionTable.userId, collectionTable.userId),
-          eq(consumerCollectionTable.collectionId, collectionTable.id),
-        ),
-      )
-      .innerJoin(
-        consumerTable,
-        and(
-          eq(consumerCollectionTable.userId, consumerTable.userId),
-          eq(consumerCollectionTable.consumerId, consumerTable.id),
-        ),
-      )
-      .where(
-        and(
-          eq(consumerCollectionTable.userId, userId),
-          eq(consumerCollectionTable.collectionId, collectionId),
-        ),
-      );
-    for (const c of connections) {
-      results.push({
-        userId: c.userId,
-        consumerId: c.consumerId,
-        collectionId: c.collectionId,
-        includeRef:
-          Boolean(c.includeRef) &&
-          Boolean(c.consumerIncludeRef) &&
-          Boolean(c.collectionIncludeRef) &&
-          (collectionRefPolicies.get(c.collectionId) ?? true),
-        lastItemChanged: c.lastItemChanged,
-      });
-    }
-  }
-  return results;
+
+  // Find CLIENT connections that own the target collections
+  const rows = await db
+    .select({
+      connectionId: connectionTable.id,
+      collectionId: collectionTable.id,
+      connectionIncludeRef: connectionTable.includeRef,
+      collectionIncludeRef: collectionTable.includeRef,
+    })
+    .from(collectionTable)
+    .innerJoin(
+      connectionTable,
+      and(
+        eq(collectionTable.connectionId, connectionTable.id),
+        eq(connectionTable.type, ConnectionType.CLIENT),
+      ),
+    )
+    .where(and(eq(collectionTable.userId, userId), inArray(collectionTable.id, collectionIds)));
+
+  return rows.map((r) => ({
+    userId,
+    connectionId: r.connectionId,
+    collectionId: r.collectionId,
+    includeRef:
+      Boolean(r.connectionIncludeRef) &&
+      Boolean(r.collectionIncludeRef) &&
+      (collectionRefPolicies.get(r.collectionId) ?? true),
+  }));
 }
 
-async function getCollectionRefPolicies(
+async function getFlowRefPolicies(
   userId: number,
   sourceCollectionId: number,
-  collectionIds: number[],
+  targetCollectionIds: number[],
 ): Promise<Map<number, boolean>> {
-  if (collectionIds.length === 0) return new Map();
+  if (targetCollectionIds.length === 0) return new Map();
 
   const rows = await db
     .select({
-      collectionId: influxTable.collectionId,
-      influxIncludeRef: influxTable.includeRef,
-      sourceIncludeRef: sourceTable.includeRef,
-      collectionIncludeRef: collectionTable.includeRef,
+      targetId: flowTable.targetId,
+      flowIncludeRef: flowTable.includeRef,
+      sourceConnectionIncludeRef: connectionTable.includeRef,
+      sourceCollectionIncludeRef: collectionTable.includeRef,
     })
-    .from(influxTable)
-    .innerJoin(
-      collectionTable,
-      and(
-        eq(influxTable.userId, collectionTable.userId),
-        eq(influxTable.collectionId, collectionTable.id),
-      ),
-    )
-    .innerJoin(
-      sourceCollectionTable,
-      and(
-        eq(influxTable.userId, sourceCollectionTable.userId),
-        eq(influxTable.sourceCollectionId, sourceCollectionTable.id),
-      ),
-    )
-    .innerJoin(
-      sourceTable,
-      and(
-        eq(sourceCollectionTable.userId, sourceTable.userId),
-        eq(sourceCollectionTable.sourceId, sourceTable.id),
-      ),
-    )
-    .where(
-      and(eq(influxTable.userId, userId), eq(influxTable.sourceCollectionId, sourceCollectionId)),
-    );
+    .from(flowTable)
+    .innerJoin(collectionTable, eq(flowTable.sourceId, collectionTable.id))
+    .innerJoin(connectionTable, eq(collectionTable.connectionId, connectionTable.id))
+    .where(and(eq(flowTable.userId, userId), eq(flowTable.sourceId, sourceCollectionId)));
 
   const policies = new Map<number, boolean>();
-  for (const collectionId of collectionIds) policies.set(collectionId, true);
+  for (const id of targetCollectionIds) policies.set(id, true);
 
   for (const row of rows) {
-    const prev = policies.get(row.collectionId) ?? true;
+    const prev = policies.get(row.targetId) ?? true;
     const allow =
-      Boolean(row.sourceIncludeRef) &&
-      Boolean(row.influxIncludeRef) &&
-      Boolean(row.collectionIncludeRef);
-    policies.set(row.collectionId, prev && allow);
+      Boolean(row.sourceConnectionIncludeRef) &&
+      Boolean(row.flowIncludeRef) &&
+      Boolean(row.sourceCollectionIncludeRef);
+    policies.set(row.targetId, prev && allow);
   }
 
   return policies;

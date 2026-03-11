@@ -10,9 +10,11 @@ Pick the best next issue to work on from the GitHub project board.
 ## Current Board State
 
 ### Ready Issues
+
 !`gh project item-list 1 --owner contfu --format json --limit 50 | jq '[.items[] | select(.status == "Ready")]'`
 
 ### In Progress Issues
+
 !`gh project item-list 1 --owner contfu --format json --limit 50 | jq '[.items[] | select(.status == "In Progress")]'`
 
 ## Workflow
@@ -22,15 +24,15 @@ Pick the best next issue to work on from the GitHub project board.
    - Dependencies on in-progress issues (read issue bodies for references like "depends on #X", "blocked by #X", or logical prerequisites)
    - Overlap with in-progress work (touching the same files or subsystems)
    - Complexity and self-containedness
-4. **Recommend** the best candidate — prefer issues that:
+3. **Recommend** the best candidate — prefer issues that:
    - Have no dependency on in-progress issues
    - Touch different files/areas than in-progress work (minimize merge conflicts)
    - Are self-contained and can be completed independently
-5. **Confirm** — use `AskUserQuestion` to present the recommendation with reasoning and let the user pick (options: recommended issue, other "Ready" issues)
-6. **Worktree** — use `EnterWorktree` to create an isolated worktree, then create a concise branch from `origin/main`:
+4. **Confirm** — use `AskUserQuestion` to present the recommendation with reasoning and let the user pick (options: recommended issue, other "Ready" issues)
+5. **Worktree** — use `EnterWorktree` to create an isolated worktree, then create a concise branch from `origin/main`:
    - `fix/<slug>` for bugs, `feat/<slug>` for enhancements, `docs/<slug>` for documentation
    - Slug: kebab-case, max 30 chars, derived from issue topic (not the full title)
-7. **Enter plan mode** to analyze the chosen issue and design the implementation approach
+6. **Enter plan mode** to analyze the chosen issue and design the implementation approach
 
 ## Commands
 

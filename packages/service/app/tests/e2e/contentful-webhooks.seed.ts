@@ -2,20 +2,16 @@
  * Contentful Webhook E2E test seed data.
  * Called by global-setup.ts before the server starts.
  */
-import { SourceType } from "@contfu/core";
+import { ConnectionType } from "@contfu/core";
 import { pack } from "msgpackr";
 import { encryptCredentials } from "@contfu/svc-backend/infra/crypto/credentials";
 import {
   collectionTable,
-  consumerCollectionTable,
-  consumerTable,
-  influxTable,
-  sourceCollectionTable,
-  sourceTable,
+  connectionTable,
+  flowTable,
   userTable,
 } from "@contfu/svc-backend/infra/db/schema";
 import { and, eq } from "drizzle-orm";
-import crypto from "node:crypto";
 
 export const SOURCE_UID = "00000002-0000-4000-a000-000000000001";
 
@@ -46,44 +42,47 @@ export async function seedContentfulWebhookData(db: any): Promise<void> {
 
   const userId = user.id;
 
+  // Idempotent check
   const [existing] = await db
-    .select({ id: sourceTable.id })
-    .from(sourceTable)
-    .where(and(eq(sourceTable.userId, userId), eq(sourceTable.uid, SOURCE_UID)))
+    .select({ id: connectionTable.id })
+    .from(connectionTable)
+    .where(and(eq(connectionTable.userId, userId), eq(connectionTable.uid, SOURCE_UID)))
     .limit(1);
 
   if (existing) return;
 
   const encryptedCredentials = await encryptCredentials(userId, Buffer.from(MOCK_TOKEN, "utf8"));
 
-  const [source] = await db
-    .insert(sourceTable)
+  // Source connection (Contentful)
+  const [sourceConnection] = await db
+    .insert(connectionTable)
     .values({
       userId,
-      uid: SOURCE_UID,
-      name: "Test Contentful Webhook Source",
-      type: SourceType.CONTENTFUL,
+      type: ConnectionType.CONTENTFUL,
+      name: "Test Contentful Webhook Connection",
       credentials: encryptedCredentials,
       url: `https://cdn.contentful.com/spaces/${MOCK_SPACE_ID}`,
+      uid: SOURCE_UID,
     })
-    .returning({ id: sourceTable.id });
-  if (!source) return;
-  const sourceId = source.id;
+    .returning({ id: connectionTable.id });
+  if (!sourceConnection) return;
 
+  // Source collection (external collection equivalent)
   const ref = Buffer.from(MOCK_CONTENT_TYPE, "utf8");
   const [sourceCollection] = await db
-    .insert(sourceCollectionTable)
+    .insert(collectionTable)
     .values({
       userId,
-      sourceId,
+      connectionId: sourceConnection.id,
       name: "Blog Post",
+      displayName: "Blog Post",
       ref,
     })
-    .returning({ id: sourceCollectionTable.id });
+    .returning({ id: collectionTable.id });
   if (!sourceCollection) return;
-  const scId = sourceCollection.id;
 
-  const [collection] = await db
+  // Target collection
+  const [targetCollection] = await db
     .insert(collectionTable)
     .values({
       userId,
@@ -92,29 +91,42 @@ export async function seedContentfulWebhookData(db: any): Promise<void> {
       schema: pack({}),
     })
     .returning({ id: collectionTable.id });
-  if (!collection) return;
-  const colId = collection.id;
+  if (!targetCollection) return;
 
-  await db.insert(influxTable).values({
+  // Flow: source → target (replaces inflow)
+  await db.insert(flowTable).values({
     userId,
-    collectionId: colId,
-    sourceCollectionId: scId,
+    sourceId: sourceCollection.id,
+    targetId: targetCollection.id,
   });
 
-  const [consumer] = await db
-    .insert(consumerTable)
+  // Client connection (replaces consumer)
+  const [clientConnection] = await db
+    .insert(connectionTable)
     .values({
       userId,
-      key: crypto.randomBytes(32),
-      name: "Test Contentful Webhook Consumer",
+      type: ConnectionType.CLIENT,
+      name: "Contentful Webhook Client",
     })
-    .returning({ id: consumerTable.id });
-  if (!consumer) return;
-  const consumerId = consumer.id;
+    .returning({ id: connectionTable.id });
+  if (!clientConnection) return;
 
-  await db.insert(consumerCollectionTable).values({
+  // Consumer collection
+  const [consumerCollection] = await db
+    .insert(collectionTable)
+    .values({
+      userId,
+      connectionId: clientConnection.id,
+      name: "Test Contentful Webhook Consumer",
+      displayName: "Test Contentful Webhook Consumer",
+    })
+    .returning({ id: collectionTable.id });
+  if (!consumerCollection) return;
+
+  // Flow: target → consumer (replaces outflow)
+  await db.insert(flowTable).values({
     userId,
-    consumerId,
-    collectionId: colId,
+    sourceId: targetCollection.id,
+    targetId: consumerCollection.id,
   });
 }

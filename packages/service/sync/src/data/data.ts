@@ -1,9 +1,5 @@
 import { Block } from "@contfu/core";
 
-export enum SourceType {
-  NOTION = 1,
-}
-
 export type ServerPageProps = Record<
   string,
   | string

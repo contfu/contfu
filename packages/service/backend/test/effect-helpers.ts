@@ -1,5 +1,5 @@
 import { Effect, Layer, ManagedRuntime } from "effect";
-import { DatabaseLive } from "../src/effect/services/Database";
+import { Database, DatabaseLive } from "../src/effect/services/Database";
 import { CryptoLive } from "../src/effect/services/Crypto";
 
 /**
@@ -11,9 +11,10 @@ const TestLive = Layer.mergeAll(DatabaseLive, CryptoLive);
 const testRuntime = ManagedRuntime.make(TestLive);
 
 /**
- * Run an Effect in the test environment.
- * Provides Database and Crypto services automatically.
+ * Run an Effect in the test environment within the given user's DB context.
+ * Sets up RLS via withUserContext so queries are scoped to the user.
  */
-export function runTest<A, E, R>(effect: Effect.Effect<A, E, R>): Promise<A> {
-  return (testRuntime as any).runPromise(effect) as Promise<A>;
+export function runTest<A, E, R>(userId: number, effect: Effect.Effect<A, E, R>): Promise<A> {
+  const wrapped = Effect.flatMap(Database, (db) => db.withUserContext(userId, effect));
+  return (testRuntime as any).runPromise(wrapped) as Promise<A>;
 }

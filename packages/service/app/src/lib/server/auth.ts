@@ -9,7 +9,8 @@ import * as schema from "@contfu/svc-backend/infra/db/schema";
 import { sendEmail } from "@contfu/svc-backend/infra/mail/mail";
 import { absolute, button, link } from "@contfu/svc-backend/infra/mail/mail-rendering";
 import { hasNats } from "@contfu/svc-backend/infra/nats/connection";
-import { upsertIntegrationFromOAuth } from "$lib/server/integration-sync";
+import { saveOAuthConnection } from "@contfu/svc-backend/features/connections/saveOAuthConnection";
+import { runWithUser } from "$lib/server/run";
 import { checkout, polar, portal, usage, webhooks } from "@polar-sh/better-auth";
 import { Polar } from "@polar-sh/sdk";
 import { betterAuth } from "better-auth";
@@ -89,13 +90,26 @@ export const auth = betterAuth({
     account: {
       create: {
         async after(account) {
-          // When a social account is linked, upsert an integration row
           if (account.providerId !== "credential" && account.accessToken) {
-            await upsertIntegrationFromOAuth(
+            await saveOAuthConnection(
               Number(account.userId),
               account.providerId,
               account.accountId,
               account.accessToken,
+              (effect) => runWithUser(Number(account.userId), effect),
+            );
+          }
+        },
+      },
+      update: {
+        async after(account) {
+          if (account.providerId !== "credential" && account.accessToken) {
+            await saveOAuthConnection(
+              Number(account.userId),
+              account.providerId,
+              account.accountId,
+              account.accessToken,
+              (effect) => runWithUser(Number(account.userId), effect),
             );
           }
         },
@@ -190,6 +204,27 @@ export const auth = betterAuth({
           notion: {
             clientId: process.env.NOTION_CLIENT_ID,
             clientSecret: process.env.NOTION_CLIENT_SECRET,
+            getUserInfo: async (token: { accessToken: string }) => {
+              const res = await fetch("https://api.notion.com/v1/users/me", {
+                headers: {
+                  Authorization: `Bearer ${token.accessToken}`,
+                  "Notion-Version": "2022-06-28",
+                },
+              });
+              if (!res.ok) return null;
+              const profile = await res.json();
+              const ownerUser = profile.bot?.owner?.user;
+              return {
+                user: {
+                  id: profile.id, // bot ID — unique per workspace
+                  name: ownerUser?.name || "Notion User",
+                  email: ownerUser?.person?.email || null,
+                  image: ownerUser?.avatar_url,
+                  emailVerified: false,
+                },
+                data: profile,
+              };
+            },
           },
         }
       : {}),

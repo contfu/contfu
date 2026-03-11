@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { SourceType } from "@contfu/core";
+import { ConnectionType } from "@contfu/core";
 import {
   contentfulRefUrl,
   getItemRefForSource,
@@ -49,21 +49,21 @@ describe("encode-ref", () => {
 
   test("builds sourceType + ref for source selector", () => {
     const encoded = getItemRefForSource({
-      sourceType: SourceType.WEB,
+      sourceType: ConnectionType.WEB,
       rawRef: Buffer.from("https://example.com/a", "utf8"),
     });
-    expect(encoded).toEqual({ sourceType: SourceType.WEB, ref: "https://example.com/a" });
+    expect(encoded).toEqual({ sourceType: ConnectionType.WEB, ref: "https://example.com/a" });
   });
 
   test("getItemRefForSource with Contentful", () => {
     const encoded = getItemRefForSource({
-      sourceType: SourceType.CONTENTFUL,
+      sourceType: ConnectionType.CONTENTFUL,
       rawRef: Buffer.from("abc123def456", "utf8"),
       sourceUrl: "https://cms.contentful.com",
       collectionRef: Buffer.from("blogPost", "utf8"),
     });
     expect(encoded).toEqual({
-      sourceType: SourceType.CONTENTFUL,
+      sourceType: ConnectionType.CONTENTFUL,
       ref: "https://cms.contentful.com/entries/abc123def456",
     });
   });
@@ -71,7 +71,7 @@ describe("encode-ref", () => {
   test("getItemRefForSource throws for Contentful without sourceUrl", () => {
     expect(() =>
       getItemRefForSource({
-        sourceType: SourceType.CONTENTFUL,
+        sourceType: ConnectionType.CONTENTFUL,
         rawRef: Buffer.from("abc123def456", "utf8"),
         collectionRef: Buffer.from("blogPost", "utf8"),
       }),
@@ -81,7 +81,7 @@ describe("encode-ref", () => {
   test("getItemRefForSource throws for Contentful without collectionRef", () => {
     expect(() =>
       getItemRefForSource({
-        sourceType: SourceType.CONTENTFUL,
+        sourceType: ConnectionType.CONTENTFUL,
         rawRef: Buffer.from("abc123def456", "utf8"),
         sourceUrl: "https://cms.contentful.com",
       }),

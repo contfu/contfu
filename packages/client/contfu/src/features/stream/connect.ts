@@ -132,7 +132,7 @@ async function persistSyncEvent(
     // Create/update item before inserting links (linkTable.from has FK → items.id)
     await createOrUpdateItem({
       id: itemId,
-      sourceType: event.item.sourceType,
+      connectionType: event.item.connectionType,
       ref: event.item.ref,
       collection,
       changedAt: event.item.changedAt,
@@ -157,7 +157,7 @@ async function persistSyncEvent(
     if (extracted.records.length > 0) {
       await createOrUpdateItem({
         id: itemId,
-        sourceType: event.item.sourceType,
+        connectionType: event.item.connectionType,
         ref: event.item.ref,
         collection,
         changedAt: event.item.changedAt,
@@ -198,7 +198,7 @@ async function persistSyncEvent(
       if (needsUpdate) {
         await createOrUpdateItem({
           id: itemId,
-          sourceType: event.item.sourceType,
+          connectionType: event.item.connectionType,
           ref: event.item.ref,
           collection,
           changedAt: event.item.changedAt,

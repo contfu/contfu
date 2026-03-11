@@ -10,15 +10,13 @@ import "./setup-svelte";
 export async function truncateAllTables(): Promise<void> {
   await db.execute(sql`
     TRUNCATE TABLE
+      sync_job,
       webhook_log,
       item_id_conflict_resolution,
       incident,
-      influx,
-      consumer_collection,
-      source_collection,
-      consumer,
+      flow,
       collection,
-      source,
+      connection,
       quota,
       session,
       account,

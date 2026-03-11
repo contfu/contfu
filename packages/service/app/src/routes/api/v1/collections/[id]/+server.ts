@@ -9,7 +9,7 @@ import { updateCollection } from "@contfu/svc-backend/features/collections/updat
 
 export async function GET({ request, params }: { request: Request; params: { id: string } }) {
   const { userId } = await authenticateApiKey(request, "read");
-  const result = await runWithUser(userId, getCollection(userId, Number(params.id)));
+  const result = await runWithUser(userId, getCollection(Number(params.id)));
   if (!result) return new Response("Not found", { status: 404 });
   return json(result);
 }
@@ -19,7 +19,7 @@ export async function PATCH({ request, params }: { request: Request; params: { i
   const body = parseBody(UpdateCollectionSchema, await request.json());
   const updateResult = await runWithUser(
     userId,
-    Effect.catchTag(updateCollection(userId, Number(params.id), body), "ValidationError", (e) =>
+    Effect.catchTag(updateCollection(Number(params.id), body), "ValidationError", (e) =>
       Effect.succeed({ _validationError: e.message } as const),
     ),
   );
@@ -31,13 +31,13 @@ export async function PATCH({ request, params }: { request: Request; params: { i
     return json({ message: updateResult._validationError }, { status: 400 });
   }
   if (!updateResult) return new Response("Not found", { status: 404 });
-  const result = await runWithUser(userId, getCollection(userId, Number(params.id)));
+  const result = await runWithUser(userId, getCollection(Number(params.id)));
   return json(result);
 }
 
 export async function DELETE({ request, params }: { request: Request; params: { id: string } }) {
   const { userId } = await authenticateApiKey(request, "write");
-  const deleted = await runWithUser(userId, deleteCollection(userId, Number(params.id)));
+  const deleted = await runWithUser(userId, deleteCollection(Number(params.id)));
   if (!deleted) return new Response("Not found", { status: 404 });
   return new Response(null, { status: 204 });
 }

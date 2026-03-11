@@ -1,5 +1,4 @@
 import { query } from "$app/server";
-import { getUserId } from "$lib/server/user";
 import { db } from "@contfu/svc-backend/infra/db/db";
 import { webhookLogTable } from "@contfu/svc-backend/infra/db/schema";
 import { idSchema } from "@contfu/svc-backend/infra/ids";
@@ -20,20 +19,18 @@ export interface WebhookLogEntry {
 }
 
 /**
- * Get webhook logs for a source.
+ * Get webhook logs for a connection.
  */
 export const getWebhookLogs = query(
   v.object({
-    sourceId: idSchema("source"),
+    connectionId: idSchema("connection"),
     limit: v.optional(v.number(), 20),
   }),
-  async ({ sourceId, limit }): Promise<WebhookLogEntry[]> => {
-    const userId = getUserId();
-
+  async ({ connectionId, limit }): Promise<WebhookLogEntry[]> => {
     const logs = await db
       .select()
       .from(webhookLogTable)
-      .where(and(eq(webhookLogTable.sourceId, sourceId)))
+      .where(and(eq(webhookLogTable.connectionId, connectionId)))
       .orderBy(desc(webhookLogTable.timestamp))
       .limit(limit ?? 20);
 

@@ -1,39 +1,36 @@
 /**
  * Mapping sync E2E test seed data.
- * Creates two Strapi source collections pointing at a mock Strapi server (port 4175),
+ * Creates two source collections pointing at a mock Strapi server (port 4175),
  * each with different property names, both mapped to the same target collection schema.
  */
-import { SourceType, PropertyType } from "@contfu/svc-core";
+import { ConnectionType, PropertyType } from "@contfu/svc-core";
 import { encryptCredentials } from "@contfu/svc-backend/infra/crypto/credentials";
 import {
   collectionTable,
-  consumerCollectionTable,
-  consumerTable,
-  influxTable,
-  sourceCollectionTable,
-  sourceTable,
+  connectionTable,
+  flowTable,
   userTable,
 } from "@contfu/svc-backend/infra/db/schema";
 import { pack } from "msgpackr";
 import { eq } from "drizzle-orm";
 import type { CollectionSchema, MappingRule } from "@contfu/svc-core";
 
-/** Well-known 32-byte consumer key — must match the test file. */
-export const MAPPING_SYNC_CONSUMER_KEY = Buffer.from(
-  "aa01020304050607080910111213141516171819202122232425262728293031",
-  "hex",
-);
+/** Well-known consumer key for mapping-sync tests. */
+export const MAPPING_SYNC_CONSUMER_KEY = Buffer.from("00000000000000000000000000000002", "hex");
 
-/** Separate consumer key for validation tests. */
-export const VALIDATION_CONSUMER_KEY = Buffer.from(
-  "bb01020304050607080910111213141516171819202122232425262728293031",
-  "hex",
-);
+/** Well-known consumer key for validation tests. */
+export const VALIDATION_CONSUMER_KEY = Buffer.from("00000000000000000000000000000003", "hex");
+
+/** Well-known consumer name — must match the test file. */
+export const MAPPING_SYNC_CONSUMER_NAME = "Mapping Sync Consumer";
+
+/** Separate consumer name for validation tests. */
+export const VALIDATION_CONSUMER_NAME = "Validation Sync Consumer";
 
 export const COLLECTION_NAME = "mappingSyncCollection";
 export const VALIDATION_COLLECTION_NAME = "validationSyncCollection";
 
-/** Target schema: both influxes merge into these target property names. */
+/** Target schema: both flows merge into these target property names. */
 export const TARGET_SCHEMA: CollectionSchema = {
   title: PropertyType.STRING,
   score: PropertyType.STRING,
@@ -51,13 +48,13 @@ export const SOURCE_SCHEMA_B: CollectionSchema = {
   rating: PropertyType.NUMBER,
 };
 
-/** Mappings for influx A: title→title, views→score (cast string). */
+/** Mappings for flow A: title→title, views→score (cast string). */
 export const MAPPINGS_A: MappingRule[] = [
   { source: "title", target: "title" },
   { source: "views", target: "score", cast: "string" },
 ];
 
-/** Mappings for influx B: heading→title, rating→score (cast string). */
+/** Mappings for flow B: heading→title, rating→score (cast string). */
 export const MAPPINGS_B: MappingRule[] = [
   { source: "heading", target: "title" },
   { source: "rating", target: "score", cast: "string" },
@@ -86,58 +83,59 @@ export async function seedMappingSyncData(db: any): Promise<void> {
   if (!user) return;
   const userId = user.id;
 
-  // Idempotent check
+  // Idempotent check — look for consumer connection by name
   const [existing] = await db
-    .select({ id: consumerTable.id })
-    .from(consumerTable)
-    .where(eq(consumerTable.key, MAPPING_SYNC_CONSUMER_KEY))
+    .select({ id: connectionTable.id })
+    .from(connectionTable)
+    .where(eq(connectionTable.name, "Mapping Sync Client"))
     .limit(1);
 
   if (existing) return;
 
-  // Source pointing at mock Strapi on port 4175
+  // Source connection (Strapi)
   const encCreds = await encryptCredentials(userId, Buffer.from("mock-strapi-token", "utf-8"));
-  const [source] = await db
-    .insert(sourceTable)
+  const [sourceConnection] = await db
+    .insert(connectionTable)
     .values({
       userId,
-      uid: "00000003-0000-4000-a000-000000000001",
-      name: "Mock Strapi (mapping-sync)",
-      type: SourceType.STRAPI,
-      url: "http://localhost:4175",
+      type: ConnectionType.STRAPI,
+      name: "Mock Strapi Connection (mapping-sync)",
       credentials: encCreds,
+      url: "http://localhost:4175",
     })
-    .returning({ id: sourceTable.id });
-  if (!source) return;
+    .returning({ id: connectionTable.id });
+  if (!sourceConnection) return;
 
   // Source collection A: api::article.article → /api/articles
-  const [scA] = await db
-    .insert(sourceCollectionTable)
+  const [srcColA] = await db
+    .insert(collectionTable)
     .values({
       userId,
-      sourceId: source.id,
+      connectionId: sourceConnection.id,
       name: "Articles",
+      displayName: "Articles",
       ref: Buffer.from("api::article.article", "utf-8"),
       schema: pack(SOURCE_SCHEMA_A),
     })
-    .returning({ id: sourceCollectionTable.id });
-  if (!scA) return;
+    .returning({ id: collectionTable.id });
+  if (!srcColA) return;
 
   // Source collection B: api::post.post → /api/posts
-  const [scB] = await db
-    .insert(sourceCollectionTable)
+  const [srcColB] = await db
+    .insert(collectionTable)
     .values({
       userId,
-      sourceId: source.id,
+      connectionId: sourceConnection.id,
       name: "Posts",
+      displayName: "Posts",
       ref: Buffer.from("api::post.post", "utf-8"),
       schema: pack(SOURCE_SCHEMA_B),
     })
-    .returning({ id: sourceCollectionTable.id });
-  if (!scB) return;
+    .returning({ id: collectionTable.id });
+  if (!srcColB) return;
 
   // Target collection
-  const [collection] = await db
+  const [targetCollection] = await db
     .insert(collectionTable)
     .values({
       userId,
@@ -146,48 +144,61 @@ export async function seedMappingSyncData(db: any): Promise<void> {
       schema: pack(TARGET_SCHEMA),
     })
     .returning({ id: collectionTable.id });
-  if (!collection) return;
+  if (!targetCollection) return;
 
-  // Influx A: articles → collection, with mappings
-  await db.insert(influxTable).values({
+  // Flow A: articles → target collection, with mappings
+  await db.insert(flowTable).values({
     userId,
-    collectionId: collection.id,
-    sourceCollectionId: scA.id,
+    sourceId: srcColA.id,
+    targetId: targetCollection.id,
     schema: pack(SOURCE_SCHEMA_A),
     mappings: pack(MAPPINGS_A),
   });
 
-  // Influx B: posts → collection, with mappings
-  await db.insert(influxTable).values({
+  // Flow B: posts → target collection, with mappings
+  await db.insert(flowTable).values({
     userId,
-    collectionId: collection.id,
-    sourceCollectionId: scB.id,
+    sourceId: srcColB.id,
+    targetId: targetCollection.id,
     schema: pack(SOURCE_SCHEMA_B),
     mappings: pack(MAPPINGS_B),
   });
 
-  // Consumer with well-known key
-  const [consumer] = await db
-    .insert(consumerTable)
+  // Client connection for consumer
+  const [clientConnection] = await db
+    .insert(connectionTable)
     .values({
       userId,
-      key: MAPPING_SYNC_CONSUMER_KEY,
-      name: "Mapping Sync Consumer",
+      type: ConnectionType.CLIENT,
+      name: "Mapping Sync Client",
+      credentials: MAPPING_SYNC_CONSUMER_KEY,
     })
-    .returning({ id: consumerTable.id });
-  if (!consumer) return;
+    .returning({ id: connectionTable.id });
+  if (!clientConnection) return;
 
-  // Connection: consumer → collection
-  await db.insert(consumerCollectionTable).values({
+  // Consumer collection
+  const [consumerCollection] = await db
+    .insert(collectionTable)
+    .values({
+      userId,
+      connectionId: clientConnection.id,
+      name: MAPPING_SYNC_CONSUMER_NAME,
+      displayName: MAPPING_SYNC_CONSUMER_NAME,
+    })
+    .returning({ id: collectionTable.id });
+  if (!consumerCollection) return;
+
+  // Flow: target → consumer collection (replaces outflow)
+  await db.insert(flowTable).values({
     userId,
-    consumerId: consumer.id,
-    collectionId: collection.id,
+    sourceId: targetCollection.id,
+    targetId: consumerCollection.id,
   });
 
   // ---- Validation test data ----
 
   // Target collection with number-typed views
-  const [valCollection] = await db
+  const [valTargetCollection] = await db
     .insert(collectionTable)
     .values({
       userId,
@@ -196,32 +207,45 @@ export async function seedMappingSyncData(db: any): Promise<void> {
       schema: pack(VALIDATION_TARGET_SCHEMA),
     })
     .returning({ id: collectionTable.id });
-  if (!valCollection) return;
+  if (!valTargetCollection) return;
 
-  // Influx: articles → validation collection, with number cast on views
-  await db.insert(influxTable).values({
+  // Flow: articles → validation target collection, with number cast on views
+  await db.insert(flowTable).values({
     userId,
-    collectionId: valCollection.id,
-    sourceCollectionId: scA.id,
+    sourceId: srcColA.id,
+    targetId: valTargetCollection.id,
     schema: pack(SOURCE_SCHEMA_A),
     mappings: pack(VALIDATION_MAPPINGS),
   });
 
-  // Validation consumer
-  const [valConsumer] = await db
-    .insert(consumerTable)
+  // Client connection for validation consumer
+  const [valClientConnection] = await db
+    .insert(connectionTable)
     .values({
       userId,
-      key: VALIDATION_CONSUMER_KEY,
-      name: "Validation Sync Consumer",
+      type: ConnectionType.CLIENT,
+      name: "Validation Sync Client",
+      credentials: VALIDATION_CONSUMER_KEY,
     })
-    .returning({ id: consumerTable.id });
-  if (!valConsumer) return;
+    .returning({ id: connectionTable.id });
+  if (!valClientConnection) return;
 
-  // Connection: validation consumer → validation collection
-  await db.insert(consumerCollectionTable).values({
+  // Validation consumer collection
+  const [valConsumerCollection] = await db
+    .insert(collectionTable)
+    .values({
+      userId,
+      connectionId: valClientConnection.id,
+      name: VALIDATION_CONSUMER_NAME,
+      displayName: VALIDATION_CONSUMER_NAME,
+    })
+    .returning({ id: collectionTable.id });
+  if (!valConsumerCollection) return;
+
+  // Flow: validation target → validation consumer collection
+  await db.insert(flowTable).values({
     userId,
-    consumerId: valConsumer.id,
-    collectionId: valCollection.id,
+    sourceId: valTargetCollection.id,
+    targetId: valConsumerCollection.id,
   });
 }

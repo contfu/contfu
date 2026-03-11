@@ -1,29 +1,26 @@
 import { getStreamServer } from "$lib/server/startup";
-import { SourceType } from "@contfu/core";
+import { ConnectionType } from "@contfu/core";
 import { createLogger } from "@contfu/svc-backend/infra/logger/index";
-import { listInfluxesBySourceCollections } from "@contfu/svc-backend/features/influxes/listInfluxesBySourceCollections";
-import { runEffectWithServices } from "@contfu/svc-backend/effect/run";
 import { decryptCredentials } from "@contfu/svc-backend/infra/crypto/credentials";
 import { db } from "@contfu/svc-backend/infra/db/db";
 import {
   collectionTable,
-  consumerCollectionTable,
-  consumerTable,
-  sourceCollectionTable,
-  sourceTable,
+  connectionTable,
+  flowTable,
   webhookLogTable,
 } from "@contfu/svc-backend/infra/db/schema";
 import type { UserSyncItem } from "@contfu/svc-backend/infra/sync-worker/messages";
 import { contentfulRefUrl } from "@contfu/svc-sources";
-import { matchesFilters } from "@contfu/svc-core";
+import { matchesFilters, type Filter } from "@contfu/svc-core";
 import { genUid } from "@contfu/svc-sources";
 import { and, desc, eq, inArray } from "drizzle-orm";
+import { unpack } from "msgpackr";
 import crypto from "node:crypto";
 import type { RequestHandler } from "./$types";
 
 const log = createLogger("webhook-contentful");
 
-const MAX_LOGS_PER_SOURCE = 50;
+const MAX_LOGS_PER_CONNECTION = 50;
 
 type ContentfulEvent =
   | "ContentManagement.Entry.publish"
@@ -62,7 +59,7 @@ interface ContentfulWebhookTopic {
 
 async function logWebhookEvent(
   _userId: number,
-  sourceId: number,
+  connectionId: number,
   event: string,
   contentType: string | null,
   status: "success" | "error" | "unauthorized",
@@ -71,7 +68,7 @@ async function logWebhookEvent(
 ): Promise<void> {
   try {
     await db.insert(webhookLogTable).values({
-      sourceId,
+      connectionId,
       event,
       model: contentType,
       status,
@@ -82,12 +79,12 @@ async function logWebhookEvent(
     const logs = await db
       .select({ id: webhookLogTable.id })
       .from(webhookLogTable)
-      .where(eq(webhookLogTable.sourceId, sourceId))
+      .where(eq(webhookLogTable.connectionId, connectionId))
       .orderBy(desc(webhookLogTable.timestamp))
       .limit(1000);
 
-    if (logs.length > MAX_LOGS_PER_SOURCE) {
-      const idsToDelete = logs.slice(MAX_LOGS_PER_SOURCE).map((l) => l.id);
+    if (logs.length > MAX_LOGS_PER_CONNECTION) {
+      const idsToDelete = logs.slice(MAX_LOGS_PER_CONNECTION).map((l) => l.id);
       await db.delete(webhookLogTable).where(inArray(webhookLogTable.id, idsToDelete));
     }
   } catch (err) {
@@ -147,7 +144,7 @@ function entryToItem(
   return {
     user: userId,
     collection: collectionId,
-    sourceType: SourceType.CONTENTFUL,
+    sourceType: ConnectionType.CONTENTFUL,
     ref,
     id,
     changedAt,
@@ -185,27 +182,28 @@ export const POST: RequestHandler = async ({ request, params }) => {
   }
 
   const entryId = payload.sys.id;
-  const ctId = contentTypeId ?? payload.sys.contentType?.sys.id;
+  const ctId = contentTypeId ?? payload.sys.contentType?.sys.id ?? null;
 
   if (!entryId) {
     log.warn("Missing entry ID in payload");
     return new Response("Missing entry ID", { status: 400 });
   }
 
-  const sources = await db
+  // Find connections by uid with type CONTENTFUL
+  const connRows = await db
     .select({
-      userId: sourceTable.userId,
-      id: sourceTable.id,
-      url: sourceTable.url,
-      includeRef: sourceTable.includeRef,
-      webhookSecret: sourceTable.webhookSecret,
+      userId: connectionTable.userId,
+      id: connectionTable.id,
+      url: connectionTable.url,
+      includeRef: connectionTable.includeRef,
+      webhookSecret: connectionTable.webhookSecret,
     })
-    .from(sourceTable)
-    .where(and(eq(sourceTable.uid, uid), eq(sourceTable.type, SourceType.CONTENTFUL)));
+    .from(connectionTable)
+    .where(and(eq(connectionTable.uid, uid), eq(connectionTable.type, ConnectionType.CONTENTFUL)));
 
-  if (sources.length === 0) {
-    log.warn({ uid }, "Source not found");
-    return new Response("Source not found", { status: 404 });
+  if (connRows.length === 0) {
+    log.warn({ uid }, "Connection not found");
+    return new Response("Connection not found", { status: 404 });
   }
 
   const streamServer = getStreamServer();
@@ -214,20 +212,21 @@ export const POST: RequestHandler = async ({ request, params }) => {
   const fields = (payload as unknown as ContentfulWebhookPayload).fields;
   const props = extractProps(fields);
 
-  for (const source of sources) {
-    if (source.webhookSecret) {
+  for (const conn of connRows) {
+    // Validate signature if configured
+    if (conn.webhookSecret) {
       let webhookSecret: string | null = null;
       try {
-        const decryptedSecret = await decryptCredentials(source.userId, source.webhookSecret);
+        const decryptedSecret = await decryptCredentials(conn.userId, conn.webhookSecret);
         webhookSecret = decryptedSecret?.toString("utf8") ?? null;
       } catch (err) {
         log.error(
-          { err, userId: source.userId, sourceId: source.id },
+          { err, userId: conn.userId, connectionId: conn.id },
           "Failed to decrypt webhook secret",
         );
         await logWebhookEvent(
-          source.userId,
-          source.id,
+          conn.userId,
+          conn.id,
           event,
           ctId,
           "error",
@@ -236,10 +235,10 @@ export const POST: RequestHandler = async ({ request, params }) => {
         continue;
       }
       if (webhookSecret && !validateSignature(body, request.headers, webhookSecret)) {
-        log.warn({ userId: source.userId, sourceId: source.id }, "Invalid signature");
+        log.warn({ userId: conn.userId, connectionId: conn.id }, "Invalid signature");
         await logWebhookEvent(
-          source.userId,
-          source.id,
+          conn.userId,
+          conn.id,
           event,
           ctId,
           "unauthorized",
@@ -249,31 +248,32 @@ export const POST: RequestHandler = async ({ request, params }) => {
       }
     }
 
+    // Find source collections by connectionId + ref (content type ID)
     const refBuffer = Buffer.from(ctId ?? "", "utf8");
 
     const sourceCollections = await db
-      .select({ id: sourceCollectionTable.id })
-      .from(sourceCollectionTable)
+      .select({ id: collectionTable.id })
+      .from(collectionTable)
       .where(
         and(
-          eq(sourceCollectionTable.userId, source.userId),
-          eq(sourceCollectionTable.sourceId, source.id),
-          eq(sourceCollectionTable.ref, refBuffer),
+          eq(collectionTable.userId, conn.userId),
+          eq(collectionTable.connectionId, conn.id),
+          eq(collectionTable.ref, refBuffer),
         ),
       );
 
     if (sourceCollections.length === 0) {
       log.debug(
-        { contentTypeId: ctId, userId: source.userId, sourceId: source.id },
-        "No source collections found for content type",
+        { contentTypeId: ctId, userId: conn.userId, connectionId: conn.id },
+        "No collections found for content type",
       );
       await logWebhookEvent(
-        source.userId,
-        source.id,
+        conn.userId,
+        conn.id,
         event,
         ctId,
         "success",
-        `No source collections for content type ${ctId}`,
+        `No collections for content type ${ctId}`,
         0,
       );
       continue;
@@ -281,98 +281,86 @@ export const POST: RequestHandler = async ({ request, params }) => {
 
     const sourceCollectionIds = sourceCollections.map((c) => c.id);
 
-    const influxes = await runEffectWithServices(
-      listInfluxesBySourceCollections(source.userId, sourceCollectionIds),
-    );
-
-    if (influxes.length === 0) {
-      log.debug("No influxes for source collections");
-      await logWebhookEvent(
-        source.userId,
-        source.id,
-        event,
-        ctId,
-        "success",
-        "No influxes configured",
-        0,
+    // Get flows from source collections
+    const flows = await db
+      .select({
+        id: flowTable.id,
+        sourceId: flowTable.sourceId,
+        targetId: flowTable.targetId,
+        includeRef: flowTable.includeRef,
+        filters: flowTable.filters,
+      })
+      .from(flowTable)
+      .where(
+        and(eq(flowTable.userId, conn.userId), inArray(flowTable.sourceId, sourceCollectionIds)),
       );
+
+    if (flows.length === 0) {
+      log.debug("No flows for source collections");
+      await logWebhookEvent(conn.userId, conn.id, event, ctId, "success", "No flows configured", 0);
       continue;
     }
 
+    // Apply filters
     const targetCollectionIds: number[] = [];
     const collectionRefPolicy = new Map<number, boolean>();
     let filteredOutCount = 0;
 
-    for (const influx of influxes) {
-      if (influx.filters.length > 0) {
-        if (!matchesFilters(props, influx.filters)) {
+    for (const flow of flows) {
+      if (flow.filters) {
+        const filters = unpack(flow.filters) as Filter[];
+        if (filters.length > 0 && !matchesFilters(props, filters)) {
           filteredOutCount++;
-          log.debug(
-            { collectionId: influx.collectionId, filterCount: influx.filters.length },
-            "Entry filtered out",
-          );
           continue;
         }
       }
-
-      targetCollectionIds.push(influx.collectionId);
-      const previous = collectionRefPolicy.get(influx.collectionId) ?? true;
-      collectionRefPolicy.set(
-        influx.collectionId,
-        previous && source.includeRef && influx.includeRef,
-      );
+      targetCollectionIds.push(flow.targetId);
+      const previous = collectionRefPolicy.get(flow.targetId) ?? true;
+      collectionRefPolicy.set(flow.targetId, previous && conn.includeRef && flow.includeRef);
     }
 
     if (targetCollectionIds.length === 0) {
       log.debug({ filteredOutCount }, "All items filtered out");
       await logWebhookEvent(
-        source.userId,
-        source.id,
+        conn.userId,
+        conn.id,
         event,
         ctId,
         "success",
-        `All items filtered out (${filteredOutCount} influxes)`,
+        `All items filtered out (${filteredOutCount} flows)`,
         0,
       );
       continue;
     }
 
-    const connections = await db
+    // Find CLIENT connections that own the target collections
+    const clients = await db
       .select({
-        consumerId: consumerCollectionTable.consumerId,
-        collectionId: consumerCollectionTable.collectionId,
-        connectionIncludeRef: consumerCollectionTable.includeRef,
-        consumerIncludeRef: consumerTable.includeRef,
+        clientConnectionId: connectionTable.id,
+        collectionId: collectionTable.id,
+        connectionIncludeRef: connectionTable.includeRef,
         collectionIncludeRef: collectionTable.includeRef,
-        lastItemChanged: consumerCollectionTable.lastItemChanged,
       })
-      .from(consumerCollectionTable)
+      .from(collectionTable)
       .innerJoin(
-        collectionTable,
+        connectionTable,
         and(
-          eq(consumerCollectionTable.userId, collectionTable.userId),
-          eq(consumerCollectionTable.collectionId, collectionTable.id),
-        ),
-      )
-      .innerJoin(
-        consumerTable,
-        and(
-          eq(consumerCollectionTable.userId, consumerTable.userId),
-          eq(consumerCollectionTable.consumerId, consumerTable.id),
+          eq(collectionTable.connectionId, connectionTable.id),
+          eq(connectionTable.type, ConnectionType.CLIENT),
         ),
       )
       .where(
         and(
-          eq(consumerCollectionTable.userId, source.userId),
-          inArray(consumerCollectionTable.collectionId, targetCollectionIds),
+          eq(collectionTable.userId, conn.userId),
+          inArray(collectionTable.id, [...new Set(targetCollectionIds)]),
         ),
       );
 
-    if (connections.length === 0) {
-      log.debug("No consumer connections for target collections");
+    if (clients.length === 0) {
+      log.debug("No CLIENT connections for target collections");
       await logWebhookEvent(
-        source.userId,
-        source.id,
+        conn.userId,
+        conn.id,
         event,
         ctId,
         "success",
@@ -383,55 +371,45 @@ export const POST: RequestHandler = async ({ request, params }) => {
     }
 
     let itemsBroadcast = 0;
-    for (const collectionId of targetCollectionIds) {
+    for (const collectionId of new Set(targetCollectionIds)) {
       const item = entryToItem(
         entryId,
         ctId ?? "",
         collectionId,
-        source.userId,
-        source.url ?? "",
+        conn.userId,
+        conn.url ?? "",
         props,
         new Date().toISOString(),
       );
 
-      const collectionConnections = connections
+      const collectionClients = clients
         .filter((c) => c.collectionId === collectionId)
         .map((c) => ({
-          userId: source.userId,
-          consumerId: c.consumerId,
+          userId: conn.userId,
+          connectionId: c.clientConnectionId,
           collectionId: c.collectionId,
           includeRef:
             Boolean(c.connectionIncludeRef) &&
-            Boolean(c.consumerIncludeRef) &&
             Boolean(c.collectionIncludeRef) &&
             (collectionRefPolicy.get(c.collectionId) ?? true),
-          lastItemChanged: c.lastItemChanged,
         }));
 
-      if (collectionConnections.length > 0) {
+      if (collectionClients.length > 0) {
         log.debug(
-          { consumerCount: collectionConnections.length, collectionId },
+          { consumerCount: collectionClients.length, collectionId },
           "Broadcasting to consumers",
         );
-        void streamServer.broadcast([item], collectionConnections);
-        itemsBroadcast += collectionConnections.length;
+        void streamServer.broadcast([item], collectionClients);
+        itemsBroadcast += collectionClients.length;
       }
     }
 
     _totalItemsBroadcast += itemsBroadcast;
 
     const logMessage = filteredOutCount > 0 ? `${filteredOutCount} items filtered out` : undefined;
-    await logWebhookEvent(
-      source.userId,
-      source.id,
-      event,
-      ctId,
-      "success",
-      logMessage,
-      itemsBroadcast,
-    );
+    await logWebhookEvent(conn.userId, conn.id, event, ctId, "success", logMessage, itemsBroadcast);
 
-    log.info({ userId: source.userId, sourceId: source.id }, "Webhook processed");
+    log.info({ userId: conn.userId, connectionId: conn.id }, "Webhook processed");
   }
 
   return new Response("OK", { status: 200 });

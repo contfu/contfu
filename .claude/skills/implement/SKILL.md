@@ -8,6 +8,7 @@ description: Pick up a GitHub issue and implement it end-to-end. Use when you're
 Implement a GitHub issue from start to PR.
 
 ## Issue Details
+
 !`gh issue view $0 --json number,title,body,labels`
 
 ## Workflow

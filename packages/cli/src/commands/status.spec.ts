@@ -31,10 +31,9 @@ describe("status", () => {
   test("fetches and prints status summary", async () => {
     mockFetch.mockResolvedValueOnce(
       jsonResponse({
-        sources: 1,
-        collections: 2,
-        consumers: 3,
         connections: 4,
+        collections: 2,
+        flows: 3,
       }),
     );
 
@@ -45,18 +44,16 @@ describe("status", () => {
     expect(url).toBe("http://test.local/api/v1/status");
     expect(logSpy).toHaveBeenNthCalledWith(1, "contfu status");
     expect(logSpy).toHaveBeenNthCalledWith(2, "-------------");
-    expect(logSpy).toHaveBeenNthCalledWith(3, "sources      1");
+    expect(logSpy).toHaveBeenNthCalledWith(3, "connections  4");
     expect(logSpy).toHaveBeenNthCalledWith(4, "collections  2");
-    expect(logSpy).toHaveBeenNthCalledWith(5, "consumers    3");
-    expect(logSpy).toHaveBeenNthCalledWith(6, "connections  4");
+    expect(logSpy).toHaveBeenNthCalledWith(5, "flows        3");
   });
 
   test("prints json when requested", async () => {
     const data = {
-      sources: 1,
-      collections: 2,
-      consumers: 3,
       connections: 4,
+      collections: 2,
+      flows: 3,
     };
     mockFetch.mockResolvedValueOnce(jsonResponse(data));
 

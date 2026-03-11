@@ -8,43 +8,73 @@
     TooltipProvider,
     TooltipTrigger,
   } from "$lib/components/ui/tooltip";
+  import { getQuota, getQuotaUsage } from "$lib/remote/billing.remote";
   import { getCollections } from "$lib/remote/collections.remote";
-  import { getConsumers } from "$lib/remote/consumers.remote";
+  import { listConnections } from "$lib/remote/connections.remote";
   import { getIncidentCount } from "$lib/remote/incidents.remote";
-  import { getSources } from "$lib/remote/sources.remote";
+  import { getDashboardStats } from "$lib/remote/stats.remote";
+  import { ConnectionTypeMeta } from "@contfu/svc-core";
+  import ConnectionIcon from "$lib/components/icons/ConnectionIcon.svelte";
   import {
     AlertTriangleIcon,
-    DatabaseIcon,
+    ArrowRightLeftIcon,
+    BoxIcon,
     FoldersIcon,
     LayoutDashboardIcon,
     PencilIcon,
+    PlugIcon,
     PlusIcon,
-    UsersIcon,
   } from "@lucide/svelte";
 
+  const FREE_LIMITS = { maxConnections: 2, maxCollections: 5, maxFlows: 5, maxItems: 100 };
+
   const results = await Promise.allSettled([
-    getSources(),
+    listConnections(),
     getCollections(),
-    getConsumers(),
+    getDashboardStats(),
+    getQuotaUsage(),
+    getQuota(),
   ]);
 
-  const [sourcesResult, collectionsResult, consumersResult] = results;
-  const sources =
-    sourcesResult.status === "fulfilled" ? sourcesResult.value : [];
+  const [connectionsResult, collectionsResult, statsResult, quotaUsageResult, quotaDbResult] = results;
+  const connections =
+    connectionsResult.status === "fulfilled" ? connectionsResult.value : [];
   const collections =
     collectionsResult.status === "fulfilled" ? collectionsResult.value : [];
-  const consumers =
-    consumersResult.status === "fulfilled" ? consumersResult.value : [];
+  const stats =
+    statsResult.status === "fulfilled" ? statsResult.value : null;
+  // NATS quota (has live counts + limits), DB quota (has limits only), fallback to free tier
+  const quotaUsage = quotaUsageResult.status === "fulfilled" ? quotaUsageResult.value : null;
+  const quotaDb = quotaDbResult.status === "fulfilled" ? quotaDbResult.value : null;
+  const limits = quotaDb ?? FREE_LIMITS;
   const hasLoadErrors = results.some((result) => result.status === "rejected");
+
+  const connCount = quotaUsage?.connections ?? stats?.connectionCount ?? connections.length;
+  const collCount = quotaUsage?.collections ?? stats?.collectionCount ?? collections.length;
+  const flowCount = quotaUsage?.flows ?? stats?.flowCount ?? 0;
+  const itemCount = quotaUsage?.items ?? stats?.totalItemCount ?? 0;
 
   const incidentCountQuery = getIncidentCount();
   const incidentCount = $derived(incidentCountQuery?.current ?? 0);
 
-  const SOURCE_TYPE_LABELS: Record<number, string> = {
-    0: "notion",
-    1: "strapi",
-    2: "web",
-  };
+  function quotaPercent(current: number, max: number): number {
+    if (max <= 0) return 0;
+    return Math.min(100, Math.round((current / max) * 100));
+  }
+
+  function itemsColor(current: number, max: number): string {
+    if (max <= 0) return "bg-muted";
+    const pct = (current / max) * 100;
+    if (pct >= 90) return "bg-destructive";
+    if (pct >= 70) return "bg-yellow-500";
+    return "bg-success";
+  }
+
+  function formatQuota(current: number, max: number): string {
+    if (max === -1) return `${current} / unlimited`;
+    return `${current} / ${max}`;
+  }
+
 </script>
 
 <SiteHeader icon={LayoutDashboardIcon} title="dashboard" />
@@ -74,46 +104,73 @@
   {/if}
 
   <!-- Stats -->
-  <div class="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3">
+  <div class="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
     <div class="border border-border p-3">
-      <div class="text-2xl font-semibold">{sources.length}</div>
+      <div class="text-2xl font-semibold">{formatQuota(connCount, limits.maxConnections)}</div>
       <div class="flex items-center gap-1.5 text-xs text-muted-foreground">
-        <DatabaseIcon class="size-3" />
-        sources
+        <PlugIcon class="size-3" />
+        connections
       </div>
+      {#if limits.maxConnections > 0}
+        <div class="mt-2 h-1.5 w-full rounded-full bg-muted">
+          <div class="bg-primary h-1.5 rounded-full transition-all" style="width: {quotaPercent(connCount, limits.maxConnections)}%"></div>
+        </div>
+      {/if}
     </div>
     <div class="border border-border p-3">
-      <div class="text-2xl font-semibold">{collections.length}</div>
+      <div class="text-2xl font-semibold">{formatQuota(collCount, limits.maxCollections)}</div>
       <div class="flex items-center gap-1.5 text-xs text-muted-foreground">
         <FoldersIcon class="size-3" />
         collections
       </div>
+      {#if limits.maxCollections > 0}
+        <div class="mt-2 h-1.5 w-full rounded-full bg-muted">
+          <div class="bg-primary h-1.5 rounded-full transition-all" style="width: {quotaPercent(collCount, limits.maxCollections)}%"></div>
+        </div>
+      {/if}
     </div>
     <div class="border border-border p-3">
-      <div class="text-2xl font-semibold">{consumers.length}</div>
+      <div class="text-2xl font-semibold">{formatQuota(flowCount, limits.maxFlows)}</div>
       <div class="flex items-center gap-1.5 text-xs text-muted-foreground">
-        <UsersIcon class="size-3" />
-        consumers
+        <ArrowRightLeftIcon class="size-3" />
+        flows
       </div>
+      {#if limits.maxFlows > 0}
+        <div class="mt-2 h-1.5 w-full rounded-full bg-muted">
+          <div class="bg-primary h-1.5 rounded-full transition-all" style="width: {quotaPercent(flowCount, limits.maxFlows)}%"></div>
+        </div>
+      {/if}
+    </div>
+    <div class="border border-border p-3">
+      <div class="text-2xl font-semibold">{formatQuota(itemCount, limits.maxItems)}</div>
+      <div class="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <BoxIcon class="size-3" />
+        item syncs
+      </div>
+      {#if limits.maxItems > 0}
+        <div class="mt-2 h-1.5 w-full rounded-full bg-muted">
+          <div class="{itemsColor(itemCount, limits.maxItems)} h-1.5 rounded-full transition-all" style="width: {quotaPercent(itemCount, limits.maxItems)}%"></div>
+        </div>
+      {/if}
     </div>
   </div>
 
-  <!-- Sources -->
+  <!-- Connections -->
   <section class="mb-8">
     <div class="mb-3 flex items-center justify-between">
       <h2 class="text-xs text-muted-foreground">
-        <span class="text-primary">$</span> contfu sources list
+        <span class="text-primary">$</span> contfu connections list
       </h2>
-      <Button size="sm" href="/sources/new">
+      <Button size="sm" href="/connections">
         <PlusIcon class="size-3" />
         <span class="hidden sm:inline">add</span>
       </Button>
     </div>
 
-    {#if sources.length === 0}
+    {#if connections.length === 0}
       <div class="border border-dashed border-border p-8 text-center">
-        <p class="text-xs text-muted-foreground">no sources configured</p>
-        <Button variant="link" href="/sources/new" class="mt-2 text-xs">add source</Button>
+        <p class="text-xs text-muted-foreground">no connections configured</p>
+        <Button variant="link" href="/connections" class="mt-2 text-xs">add connection</Button>
       </div>
     {:else}
       <div class="border border-border">
@@ -122,29 +179,28 @@
             <tr class="border-b border-border bg-muted/50">
               <th class="px-3 py-2 text-left font-medium text-muted-foreground">name</th>
               <th class="px-3 py-2 text-left font-medium text-muted-foreground">type</th>
-              <th class="px-3 py-2 text-right font-medium text-muted-foreground">collections</th>
               <th class="px-3 py-2 text-right font-medium text-muted-foreground"></th>
             </tr>
           </thead>
           <tbody class="divide-y divide-border">
-            {#each sources.slice(0, 5) as source}
+            {#each connections.slice(0, 5) as connection}
               <tr class="hover:bg-muted/30 transition-colors duration-100">
                 <td class="px-3 py-2">
-                  <a href="/sources/{source.id}" class="hover:text-primary transition-colors duration-150">
-                    {source.name || "unnamed"}
+                  <a href="/connections/{connection.id}" class="hover:text-primary transition-colors duration-150">
+                    {connection.name || "unnamed"}
                   </a>
                 </td>
                 <td class="px-3 py-2 text-muted-foreground">
-                  {SOURCE_TYPE_LABELS[source.type] ?? "unknown"}
-                </td>
-                <td class="px-3 py-2 text-right text-muted-foreground">
-                  {source.collectionCount}
+                  <span class="flex items-center gap-1.5">
+                    <ConnectionIcon type={connection.type} class="size-3" />
+                    {ConnectionTypeMeta[connection.type]?.label ?? connection.type}
+                  </span>
                 </td>
                 <td class="px-3 py-2 text-right">
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger>
-                        <Button href="/sources/{source.id}" variant="ghost" size="icon-sm">
+                        <Button href="/connections/{connection.id}" variant="ghost" size="icon-sm">
                           <PencilIcon class="size-3" />
                         </Button>
                       </TooltipTrigger>
@@ -157,10 +213,10 @@
           </tbody>
         </table>
       </div>
-      {#if sources.length > 5}
+      {#if connections.length > 5}
         <div class="mt-2">
-          <Button variant="link" href="/sources" class="h-auto p-0 text-xs">
-            view all {sources.length} sources
+          <Button variant="link" href="/connections" class="h-auto p-0 text-xs">
+            view all {connections.length} connections
           </Button>
         </div>
       {/if}
@@ -190,8 +246,8 @@
           <thead>
             <tr class="border-b border-border bg-muted/50">
               <th class="px-3 py-2 text-left font-medium text-muted-foreground">name</th>
-              <th class="px-3 py-2 text-right font-medium text-muted-foreground">sources</th>
-              <th class="px-3 py-2 text-right font-medium text-muted-foreground">consumers</th>
+              <th class="px-3 py-2 text-right font-medium text-muted-foreground">source flows</th>
+              <th class="px-3 py-2 text-right font-medium text-muted-foreground">target flows</th>
               <th class="px-3 py-2 text-right font-medium text-muted-foreground"></th>
             </tr>
           </thead>
@@ -204,10 +260,10 @@
                   </a>
                 </td>
                 <td class="px-3 py-2 text-right text-muted-foreground">
-                  {collection.influxCount}
+                  {collection.flowSourceCount}
                 </td>
                 <td class="px-3 py-2 text-right text-muted-foreground">
-                  {collection.connectionCount}
+                  {collection.flowTargetCount}
                 </td>
                 <td class="px-3 py-2 text-right">
                   <TooltipProvider>
@@ -230,71 +286,6 @@
         <div class="mt-2">
           <Button variant="link" href="/collections" class="h-auto p-0 text-xs">
             view all {collections.length} collections
-          </Button>
-        </div>
-      {/if}
-    {/if}
-  </section>
-
-  <!-- Consumers -->
-  <section>
-    <div class="mb-3 flex items-center justify-between">
-      <h2 class="text-xs text-muted-foreground">
-        <span class="text-primary">$</span> contfu consumers list
-      </h2>
-      <Button size="sm" href="/consumers/new">
-        <PlusIcon class="size-3" />
-        <span class="hidden sm:inline">add</span>
-      </Button>
-    </div>
-
-    {#if consumers.length === 0}
-      <div class="border border-dashed border-border p-8 text-center">
-        <p class="text-xs text-muted-foreground">no consumers configured</p>
-        <Button variant="link" href="/consumers/new" class="mt-2 text-xs">add consumer</Button>
-      </div>
-    {:else}
-      <div class="border border-border">
-        <table class="w-full text-xs">
-          <thead>
-            <tr class="border-b border-border bg-muted/50">
-              <th class="px-3 py-2 text-left font-medium text-muted-foreground">name</th>
-              <th class="px-3 py-2 text-right font-medium text-muted-foreground">connections</th>
-              <th class="px-3 py-2 text-right font-medium text-muted-foreground"></th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-border">
-            {#each consumers.slice(0, 5) as consumer}
-              <tr class="hover:bg-muted/30 transition-colors duration-100">
-                <td class="px-3 py-2">
-                  <a href="/consumers/{consumer.id}" class="hover:text-primary transition-colors duration-150">
-                    {consumer.name || "unnamed"}
-                  </a>
-                </td>
-                <td class="px-3 py-2 text-right text-muted-foreground">
-                  {consumer.connectionCount}
-                </td>
-                <td class="px-3 py-2 text-right">
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger>
-                        <Button href="/consumers/{consumer.id}" variant="ghost" size="icon-sm">
-                          <PencilIcon class="size-3" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>edit</TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </td>
-              </tr>
-            {/each}
-          </tbody>
-        </table>
-      </div>
-      {#if consumers.length > 5}
-        <div class="mt-2">
-          <Button variant="link" href="/consumers" class="h-auto p-0 text-xs">
-            view all {consumers.length} consumers
           </Button>
         </div>
       {/if}

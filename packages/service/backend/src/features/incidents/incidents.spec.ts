@@ -2,14 +2,13 @@ import { beforeEach, describe, expect, it } from "bun:test";
 import { db } from "../../infra/db/db";
 import {
   collectionTable,
+  connectionTable,
+  flowTable,
   incidentTable,
-  influxTable,
-  sourceCollectionTable,
-  sourceTable,
   userTable,
 } from "../../infra/db/schema";
 import { pack } from "msgpackr";
-import crypto from "node:crypto";
+import { ConnectionType } from "@contfu/core";
 import { FilterOperator, PropertyType, type CollectionSchema } from "@contfu/svc-core";
 import { IncidentType, type SchemaIncompatibleDetails } from "@contfu/svc-core";
 import { runTest } from "../../../test/effect-helpers";
@@ -17,7 +16,7 @@ import { createIncident } from "./createIncident";
 import { listIncidents } from "./listIncidents";
 import { getUnresolvedIncidentCount } from "./getUnresolvedIncidentCount";
 import { resolveIncident } from "./resolveIncident";
-import { autoResolveIncidentsForInflux } from "./autoResolveIncidentsForInflux";
+import { autoResolveIncidentsForFlow } from "./autoResolveIncidentsForFlow";
 
 /**
  * Unit tests for incident tracking operations.
@@ -26,9 +25,9 @@ import { autoResolveIncidentsForInflux } from "./autoResolveIncidentsForInflux";
 
 describe("Incident Features", () => {
   let testUserId: number;
-  let testInfluxId: number;
-  let testCollectionId: number;
+  let testFlowId: number;
   let testSourceCollectionId: number;
+  let testTargetCollectionId: number;
 
   const testSchema: CollectionSchema = {
     title: PropertyType.STRING,
@@ -38,10 +37,9 @@ describe("Incident Features", () => {
   beforeEach(async () => {
     // Delete in correct order for foreign keys
     await db.delete(incidentTable);
-    await db.delete(influxTable);
+    await db.delete(flowTable);
     await db.delete(collectionTable);
-    await db.delete(sourceCollectionTable);
-    await db.delete(sourceTable);
+    await db.delete(connectionTable);
     await db.delete(userTable);
 
     // Create test user
@@ -54,31 +52,31 @@ describe("Incident Features", () => {
       .returning();
     testUserId = user.id;
 
-    // Create test source
-    const [source] = await db
-      .insert(sourceTable)
+    // Create test connection
+    const [connection] = await db
+      .insert(connectionTable)
       .values({
         userId: testUserId,
-        uid: crypto.randomUUID(),
-        type: 1,
-        name: "Test Source",
+        type: ConnectionType.STRAPI,
+        name: "Test Connection",
       })
       .returning();
 
-    // Create test source collection
+    // Create source collection (external, linked to connection)
     const [sourceCollection] = await db
-      .insert(sourceCollectionTable)
+      .insert(collectionTable)
       .values({
         userId: testUserId,
-        sourceId: source.id,
-        name: "Articles",
+        connectionId: connection.id,
+        displayName: "Articles",
+        name: "articles",
         schema: pack(testSchema),
       })
       .returning();
     testSourceCollectionId = sourceCollection.id;
 
-    // Create test collection
-    const [collection] = await db
+    // Create target collection (virtual, no connection)
+    const [targetCollection] = await db
       .insert(collectionTable)
       .values({
         userId: testUserId,
@@ -86,26 +84,27 @@ describe("Incident Features", () => {
         name: "myCollection",
       })
       .returning();
-    testCollectionId = collection.id;
+    testTargetCollectionId = targetCollection.id;
 
-    // Create test influx
-    const [influx] = await db
-      .insert(influxTable)
+    // Create test flow
+    const [flow] = await db
+      .insert(flowTable)
       .values({
         userId: testUserId,
-        collectionId: testCollectionId,
-        sourceCollectionId: testSourceCollectionId,
+        sourceId: testSourceCollectionId,
+        targetId: testTargetCollectionId,
         schema: pack(testSchema),
       })
       .returning();
-    testInfluxId = influx.id;
+    testFlowId = flow.id;
   });
 
   describe("createIncident", () => {
     it("should create a basic incident", async () => {
       const incident = await runTest(
+        testUserId,
         createIncident(testUserId, {
-          influxId: testInfluxId,
+          flowId: testFlowId,
           type: IncidentType.SchemaIncompatible,
           message: "Schema changed: field 'title' removed",
         }),
@@ -113,7 +112,7 @@ describe("Incident Features", () => {
 
       expect(incident.id).toBeGreaterThan(0);
       expect(incident.userId).toBe(testUserId);
-      expect(incident.influxId).toBe(testInfluxId);
+      expect(incident.flowId).toBe(testFlowId);
       expect(incident.type).toBe(IncidentType.SchemaIncompatible);
       expect(incident.message).toBe("Schema changed: field 'title' removed");
       expect(incident.resolved).toBe(false);
@@ -129,8 +128,9 @@ describe("Incident Features", () => {
       };
 
       const incident = await runTest(
+        testUserId,
         createIncident(testUserId, {
-          influxId: testInfluxId,
+          flowId: testFlowId,
           type: IncidentType.SchemaIncompatible,
           message: "Schema type changed",
           details,
@@ -142,15 +142,17 @@ describe("Incident Features", () => {
 
     it("should auto-increment incident IDs per user", async () => {
       const incident1 = await runTest(
+        testUserId,
         createIncident(testUserId, {
-          influxId: testInfluxId,
+          flowId: testFlowId,
           type: IncidentType.SchemaIncompatible,
           message: "First incident",
         }),
       );
       const incident2 = await runTest(
+        testUserId,
         createIncident(testUserId, {
-          influxId: testInfluxId,
+          flowId: testFlowId,
           type: IncidentType.SyncError,
           message: "Second incident",
         }),
@@ -161,22 +163,25 @@ describe("Incident Features", () => {
 
     it("should support different incident types", async () => {
       const schemaIncident = await runTest(
+        testUserId,
         createIncident(testUserId, {
-          influxId: testInfluxId,
+          flowId: testFlowId,
           type: IncidentType.SchemaIncompatible,
           message: "Schema changed",
         }),
       );
       const filterIncident = await runTest(
+        testUserId,
         createIncident(testUserId, {
-          influxId: testInfluxId,
+          flowId: testFlowId,
           type: IncidentType.FilterInvalid,
           message: "Filter references missing field",
         }),
       );
       const syncIncident = await runTest(
+        testUserId,
         createIncident(testUserId, {
-          influxId: testInfluxId,
+          flowId: testFlowId,
           type: IncidentType.SyncError,
           message: "Failed to sync data",
         }),
@@ -187,105 +192,110 @@ describe("Incident Features", () => {
       expect(syncIncident.type).toBe(IncidentType.SyncError);
     });
 
-    it("should reject creating an incident for another user's influx", async () => {
+    it("should reject creating an incident for another user's flow", async () => {
       const [user2] = await db
         .insert(userTable)
         .values({ name: "User 2", email: "user2-z@test.com" })
         .returning();
 
-      const [source2] = await db
-        .insert(sourceTable)
+      const [connection2] = await db
+        .insert(connectionTable)
         .values({
           userId: user2.id,
-          uid: crypto.randomUUID(),
-          type: 1,
-          name: "User2 Source",
+          type: ConnectionType.STRAPI,
+          name: "User2 Connection",
         })
         .returning();
       const [sourceCollection2] = await db
-        .insert(sourceCollectionTable)
-        .values({
-          userId: user2.id,
-          sourceId: source2.id,
-          name: "User2 Source Collection",
-        })
-        .returning();
-      const [collection2] = await db
         .insert(collectionTable)
         .values({
           userId: user2.id,
-          displayName: "User2 Collection",
-          name: "user2Collection",
+          connectionId: connection2.id,
+          displayName: "User2 Source Collection",
+          name: "user2Source",
         })
         .returning();
-      const [influx2] = await db
-        .insert(influxTable)
+      const [targetCollection2] = await db
+        .insert(collectionTable)
         .values({
           userId: user2.id,
-          collectionId: collection2.id,
-          sourceCollectionId: sourceCollection2.id,
+          displayName: "User2 Target Collection",
+          name: "user2Target",
+        })
+        .returning();
+      const [flow2] = await db
+        .insert(flowTable)
+        .values({
+          userId: user2.id,
+          sourceId: sourceCollection2.id,
+          targetId: targetCollection2.id,
         })
         .returning();
 
       await expect(
         runTest(
+          testUserId,
           createIncident(testUserId, {
-            influxId: influx2.id,
+            flowId: flow2.id,
             type: IncidentType.SyncError,
             message: "Cross-tenant write attempt",
           }),
         ),
-      ).rejects.toThrow("Influx not found");
+      ).rejects.toThrow("Flow not found");
     });
   });
 
   describe("listIncidents", () => {
     it("should return empty array when no incidents exist", async () => {
-      const incidents = await runTest(listIncidents(testUserId));
+      const incidents = await runTest(testUserId, listIncidents(testUserId));
 
       expect(incidents).toEqual([]);
     });
 
     it("should return all incidents with details", async () => {
       await runTest(
+        testUserId,
         createIncident(testUserId, {
-          influxId: testInfluxId,
+          flowId: testFlowId,
           type: IncidentType.SchemaIncompatible,
           message: "Schema changed",
         }),
       );
       await runTest(
+        testUserId,
         createIncident(testUserId, {
-          influxId: testInfluxId,
+          flowId: testFlowId,
           type: IncidentType.SyncError,
           message: "Sync failed",
         }),
       );
 
-      const incidents = await runTest(listIncidents(testUserId));
+      const incidents = await runTest(testUserId, listIncidents(testUserId));
 
       expect(incidents.length).toBe(2);
-      expect(incidents[0].collectionName).toBe("My Collection");
+      expect(incidents[0].targetCollectionName).toBe("My Collection");
       expect(incidents[0].sourceCollectionName).toBe("Articles");
     });
 
     it("should return incidents ordered by creation (most recent first)", async () => {
       await runTest(
+        testUserId,
         createIncident(testUserId, {
-          influxId: testInfluxId,
+          flowId: testFlowId,
           type: IncidentType.SchemaIncompatible,
           message: "First",
         }),
       );
       await runTest(
+        testUserId,
         createIncident(testUserId, {
-          influxId: testInfluxId,
+          flowId: testFlowId,
           type: IncidentType.SyncError,
           message: "Second",
         }),
       );
 
-      const incidents = await runTest(listIncidents(testUserId));
+      const incidents = await runTest(testUserId, listIncidents(testUserId));
 
       // Verify we have both incidents (order depends on DB implementation)
       expect(incidents.length).toBe(2);
@@ -295,15 +305,16 @@ describe("Incident Features", () => {
 
     it("should filter by resolved status", async () => {
       await runTest(
+        testUserId,
         createIncident(testUserId, {
-          influxId: testInfluxId,
+          flowId: testFlowId,
           type: IncidentType.SchemaIncompatible,
           message: "Unresolved",
         }),
       );
 
-      const unresolved = await runTest(listIncidents(testUserId, { resolved: false }));
-      const resolved = await runTest(listIncidents(testUserId, { resolved: true }));
+      const unresolved = await runTest(testUserId, listIncidents(testUserId, { resolved: false }));
+      const resolved = await runTest(testUserId, listIncidents(testUserId, { resolved: true }));
 
       expect(unresolved.length).toBe(1);
       expect(resolved.length).toBe(0);
@@ -311,8 +322,9 @@ describe("Incident Features", () => {
 
     it("should only return incidents for the specified user", async () => {
       await runTest(
+        testUserId,
         createIncident(testUserId, {
-          influxId: testInfluxId,
+          flowId: testFlowId,
           type: IncidentType.SchemaIncompatible,
           message: "User1 incident",
         }),
@@ -324,7 +336,7 @@ describe("Incident Features", () => {
         .values({ name: "User 2", email: "user2@test.com" })
         .returning();
 
-      const incidents = await runTest(listIncidents(user2.id));
+      const incidents = await runTest(user2.id, listIncidents(user2.id));
 
       expect(incidents).toEqual([]);
     });
@@ -332,28 +344,30 @@ describe("Incident Features", () => {
 
   describe("getUnresolvedIncidentCount", () => {
     it("should return 0 when no incidents exist", async () => {
-      const count = await runTest(getUnresolvedIncidentCount(testUserId));
+      const count = await runTest(testUserId, getUnresolvedIncidentCount(testUserId));
 
       expect(count).toBe(0);
     });
 
     it("should count only unresolved incidents", async () => {
       await runTest(
+        testUserId,
         createIncident(testUserId, {
-          influxId: testInfluxId,
+          flowId: testFlowId,
           type: IncidentType.SchemaIncompatible,
           message: "First",
         }),
       );
       await runTest(
+        testUserId,
         createIncident(testUserId, {
-          influxId: testInfluxId,
+          flowId: testFlowId,
           type: IncidentType.SyncError,
           message: "Second",
         }),
       );
 
-      const count = await runTest(getUnresolvedIncidentCount(testUserId));
+      const count = await runTest(testUserId, getUnresolvedIncidentCount(testUserId));
 
       expect(count).toBe(2);
     });
@@ -362,32 +376,34 @@ describe("Incident Features", () => {
   describe("resolveIncident", () => {
     it("should resolve and delete an incident", async () => {
       const incident = await runTest(
+        testUserId,
         createIncident(testUserId, {
-          influxId: testInfluxId,
+          flowId: testFlowId,
           type: IncidentType.SchemaIncompatible,
           message: "To resolve",
         }),
       );
 
-      const resolved = await runTest(resolveIncident(testUserId, incident.id));
+      const resolved = await runTest(testUserId, resolveIncident(testUserId, incident.id));
 
       expect(resolved).toBe(true);
 
       // Verify it's deleted
-      const incidents = await runTest(listIncidents(testUserId));
+      const incidents = await runTest(testUserId, listIncidents(testUserId));
       expect(incidents.length).toBe(0);
     });
 
     it("should return false for non-existent incident", async () => {
-      const resolved = await runTest(resolveIncident(testUserId, 999));
+      const resolved = await runTest(testUserId, resolveIncident(testUserId, 999));
 
       expect(resolved).toBe(false);
     });
 
     it("should not resolve another user's incident", async () => {
       const incident = await runTest(
+        testUserId,
         createIncident(testUserId, {
-          influxId: testInfluxId,
+          flowId: testFlowId,
           type: IncidentType.SchemaIncompatible,
           message: "Protected",
         }),
@@ -398,82 +414,94 @@ describe("Incident Features", () => {
         .values({ name: "User 2", email: "user2@test.com" })
         .returning();
 
-      const resolved = await runTest(resolveIncident(user2.id, incident.id));
+      const resolved = await runTest(user2.id, resolveIncident(user2.id, incident.id));
 
       expect(resolved).toBe(false);
 
       // Verify original exists
-      const incidents = await runTest(listIncidents(testUserId));
+      const incidents = await runTest(testUserId, listIncidents(testUserId));
       expect(incidents.length).toBe(1);
     });
   });
 
-  describe("autoResolveIncidentsForInflux", () => {
-    it("should resolve all unresolved incidents for an influx", async () => {
+  describe("autoResolveIncidentsForFlow", () => {
+    it("should resolve all unresolved incidents for a flow", async () => {
       await runTest(
+        testUserId,
         createIncident(testUserId, {
-          influxId: testInfluxId,
+          flowId: testFlowId,
           type: IncidentType.SchemaIncompatible,
           message: "First",
         }),
       );
       await runTest(
+        testUserId,
         createIncident(testUserId, {
-          influxId: testInfluxId,
+          flowId: testFlowId,
           type: IncidentType.FilterInvalid,
           message: "Second",
         }),
       );
 
-      const count = await runTest(autoResolveIncidentsForInflux(testUserId, testInfluxId));
+      const count = await runTest(testUserId, autoResolveIncidentsForFlow(testUserId, testFlowId));
 
       expect(count).toBe(2);
 
       // Verify they're deleted
-      const incidents = await runTest(listIncidents(testUserId));
+      const incidents = await runTest(testUserId, listIncidents(testUserId));
       expect(incidents.length).toBe(0);
     });
 
     it("should return 0 when no incidents exist", async () => {
-      const count = await runTest(autoResolveIncidentsForInflux(testUserId, testInfluxId));
+      const count = await runTest(testUserId, autoResolveIncidentsForFlow(testUserId, testFlowId));
 
       expect(count).toBe(0);
     });
 
-    it("should only resolve incidents for the specified influx", async () => {
-      // Create second influx
-      const [influx2] = await db
-        .insert(influxTable)
+    it("should only resolve incidents for the specified flow", async () => {
+      // Create a second target collection for flow2 (unique constraint on source+target)
+      const [targetCollection2] = await db
+        .insert(collectionTable)
         .values({
           userId: testUserId,
-          collectionId: testCollectionId,
-          sourceCollectionId: testSourceCollectionId,
+          displayName: "Second Collection",
+          name: "secondCollection",
+        })
+        .returning();
+      const [flow2] = await db
+        .insert(flowTable)
+        .values({
+          userId: testUserId,
+          sourceId: testSourceCollectionId,
+          targetId: targetCollection2.id,
         })
         .returning();
 
       await runTest(
+        testUserId,
         createIncident(testUserId, {
-          influxId: testInfluxId,
+          flowId: testFlowId,
           type: IncidentType.SchemaIncompatible,
-          message: "Influx 1 incident",
+          message: "Flow 1 incident",
         }),
       );
       await runTest(
+        testUserId,
         createIncident(testUserId, {
-          influxId: influx2.id,
+          flowId: flow2.id,
           type: IncidentType.SchemaIncompatible,
-          message: "Influx 2 incident",
+          message: "Flow 2 incident",
         }),
       );
 
-      const count = await runTest(autoResolveIncidentsForInflux(testUserId, testInfluxId));
+      const count = await runTest(testUserId, autoResolveIncidentsForFlow(testUserId, testFlowId));
 
       expect(count).toBe(1);
 
-      // Verify influx 2's incident still exists
-      const incidents = await runTest(listIncidents(testUserId));
+      // Verify flow 2's incident still exists
+      const incidents = await runTest(testUserId, listIncidents(testUserId));
       expect(incidents.length).toBe(1);
-      expect(incidents[0].influxId).toBe(influx2.id);
+      expect(incidents[0].flowId).toBe(flow2.id);
     });
   });
 });

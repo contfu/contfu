@@ -1,40 +1,42 @@
 /**
  * Snapshot-on-connect E2E test seed data.
  *
- * Creates a consumer, collection, and Strapi source/influx — but deliberately
- * does NOT create the consumer-collection. The test creates it via the API to
- * exercise the snapshot-on-connect feature.
+ * Creates a client connection + consumer collection, a source connection + source collection,
+ * a target collection, and a flow (source→target) — but deliberately does NOT create
+ * the flow (target→consumer). The test creates it via the API to exercise the
+ * snapshot-on-connect feature.
  *
  * The API key is inserted with a pre-computed SHA-256 hash so the seed can run
  * before the server starts (no live auth calls needed).
  */
 import { createHash } from "node:crypto";
-import { SourceType, PropertyType } from "@contfu/svc-core";
+import { ConnectionType, PropertyType } from "@contfu/svc-core";
 import { encryptCredentials } from "@contfu/svc-backend/infra/crypto/credentials";
 import {
   apikeyTable,
   collectionTable,
-  consumerTable,
-  influxTable,
-  sourceCollectionTable,
-  sourceTable,
+  connectionTable,
+  flowTable,
   userTable,
 } from "@contfu/svc-backend/infra/db/schema";
 import { pack } from "msgpackr";
 import { eq } from "drizzle-orm";
 import type { CollectionSchema } from "@contfu/svc-core";
 
-/** Raw API key used to call POST /api/v1/consumer-collections in the test. Must be ≥ 64 chars. */
+/** Raw API key used to call POST /api/v1/flows in the test. Must be >= 64 chars. */
 export const SNAPSHOT_ON_CONNECT_API_KEY =
   "snapshot_on_connect_e2e_test_api_key_aaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
-/** Well-known 32-byte consumer key for the sync stream. */
+/** Well-known consumer key for the sync stream. */
 export const SNAPSHOT_ON_CONNECT_CONSUMER_KEY = Buffer.from(
-  "aa01020304050607080910111213141516171819202122232425262728293031",
+  "00000000000000000000000000000006",
   "hex",
 );
 
-/** Source collection ref used in the influx. */
+/** Well-known consumer name for the sync stream. */
+export const SNAPSHOT_ON_CONNECT_CONSUMER_NAME = "Snapshot On Connect Consumer";
+
+/** Source collection ref used in the flow. */
 export const SNAPSHOT_ON_CONNECT_COLLECTION_NAME = "snapshotOnConnectCollection";
 
 const SOURCE_SCHEMA: CollectionSchema = {
@@ -56,45 +58,45 @@ export async function seedSnapshotOnConnectData(db: any): Promise<void> {
   if (!user) return;
   const userId = user.id;
 
-  // Idempotent check
+  // Idempotent check — look for client connection by name
   const [existing] = await db
-    .select({ id: consumerTable.id })
-    .from(consumerTable)
-    .where(eq(consumerTable.key, SNAPSHOT_ON_CONNECT_CONSUMER_KEY))
+    .select({ id: connectionTable.id })
+    .from(connectionTable)
+    .where(eq(connectionTable.name, "Snapshot On Connect Client"))
     .limit(1);
 
   if (existing) return;
 
-  // Source pointing at the shared mock Strapi on port 4175
+  // Source connection (Strapi)
   const encCreds = await encryptCredentials(userId, Buffer.from("mock-strapi-token", "utf-8"));
-  const [source] = await db
-    .insert(sourceTable)
+  const [sourceConnection] = await db
+    .insert(connectionTable)
     .values({
       userId,
-      uid: "00000006-0000-4000-a000-000000000001",
-      name: "Mock Strapi (snapshot-on-connect)",
-      type: SourceType.STRAPI,
-      url: "http://localhost:4175",
+      type: ConnectionType.STRAPI,
+      name: "Mock Strapi Connection (snapshot-on-connect)",
       credentials: encCreds,
+      url: "http://localhost:4175",
     })
-    .returning({ id: sourceTable.id });
-  if (!source) return;
+    .returning({ id: connectionTable.id });
+  if (!sourceConnection) return;
 
   // Source collection: articles
-  const [sc] = await db
-    .insert(sourceCollectionTable)
+  const [sourceCollection] = await db
+    .insert(collectionTable)
     .values({
       userId,
-      sourceId: source.id,
+      connectionId: sourceConnection.id,
       name: "Articles (snapshot-on-connect)",
+      displayName: "Articles (snapshot-on-connect)",
       ref: Buffer.from("api::article.article", "utf-8"),
       schema: pack(SOURCE_SCHEMA),
     })
-    .returning({ id: sourceCollectionTable.id });
-  if (!sc) return;
+    .returning({ id: collectionTable.id });
+  if (!sourceCollection) return;
 
   // Target collection
-  const [collection] = await db
+  const [targetCollection] = await db
     .insert(collectionTable)
     .values({
       userId,
@@ -103,28 +105,40 @@ export async function seedSnapshotOnConnectData(db: any): Promise<void> {
       schema: pack(SOURCE_SCHEMA),
     })
     .returning({ id: collectionTable.id });
-  if (!collection) return;
+  if (!targetCollection) return;
 
-  // Influx: articles → collection
-  await db.insert(influxTable).values({
+  // Flow: source collection → target collection
+  await db.insert(flowTable).values({
     userId,
-    collectionId: collection.id,
-    sourceCollectionId: sc.id,
+    sourceId: sourceCollection.id,
+    targetId: targetCollection.id,
     schema: pack(SOURCE_SCHEMA),
   });
 
-  // Consumer (no consumer-collection — created via API in the test)
-  const [consumer] = await db
-    .insert(consumerTable)
+  // Client connection (replaces consumer)
+  const [clientConnection] = await db
+    .insert(connectionTable)
     .values({
       userId,
-      key: SNAPSHOT_ON_CONNECT_CONSUMER_KEY,
-      name: "Snapshot On Connect Consumer",
+      type: ConnectionType.CLIENT,
+      name: "Snapshot On Connect Client",
+      credentials: SNAPSHOT_ON_CONNECT_CONSUMER_KEY,
     })
-    .returning({ id: consumerTable.id });
-  if (!consumer) return;
+    .returning({ id: connectionTable.id });
+  if (!clientConnection) return;
 
-  // API key for creating the consumer-collection via POST /api/v1/consumer-collections
+  // Consumer collection (no flow to target — created via API in the test)
+  await db
+    .insert(collectionTable)
+    .values({
+      userId,
+      connectionId: clientConnection.id,
+      name: SNAPSHOT_ON_CONNECT_CONSUMER_NAME,
+      displayName: SNAPSHOT_ON_CONNECT_CONSUMER_NAME,
+    })
+    .returning({ id: collectionTable.id });
+
+  // API key for creating the flow via the API
   const now = new Date();
   await db.insert(apikeyTable).values({
     userId,
@@ -137,8 +151,4 @@ export async function seedSnapshotOnConnectData(db: any): Promise<void> {
     createdAt: now,
     updatedAt: now,
   });
-
-  // Store consumer and collection IDs so the test can look them up by consumer key
-  // (both will be needed for the POST body)
-  // The test retrieves them via GET /api/v1/consumers and /api/v1/collections
 }

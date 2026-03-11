@@ -1,11 +1,12 @@
-import { extractConsumerKey } from "$lib/server/consumer-auth";
+import { extractConnectionKey } from "$lib/server/connection-auth";
 import { getStreamServer } from "$lib/server/startup";
-import { consumerTable, db } from "@contfu/svc-backend/infra/db/db";
-import { eq } from "drizzle-orm";
+import { ConnectionType } from "@contfu/core";
+import { connectionTable, db } from "@contfu/svc-backend/infra/db/db";
+import { and, eq } from "drizzle-orm";
 import type { RequestHandler } from "./$types";
 
 export const POST: RequestHandler = async ({ request, url }) => {
-  const auth = extractConsumerKey(url, request);
+  const auth = extractConnectionKey(url, request);
   if ("error" in auth) return auth.error;
   const { key } = auth;
 
@@ -19,16 +20,19 @@ export const POST: RequestHandler = async ({ request, url }) => {
     return new Response("Invalid 'seq' parameter", { status: 400 });
   }
 
-  const consumers = await db
-    .select({ userId: consumerTable.userId, id: consumerTable.id })
-    .from(consumerTable)
-    .where(eq(consumerTable.key, key))
+  // Authenticate by finding the CLIENT connection with this key
+  const connections = await db
+    .select({ userId: connectionTable.userId, id: connectionTable.id })
+    .from(connectionTable)
+    .where(
+      and(eq(connectionTable.credentials, key), eq(connectionTable.type, ConnectionType.CLIENT)),
+    )
     .limit(1);
-  const consumer = consumers[0];
-  if (!consumer) {
+  const connection = connections[0];
+  if (!connection) {
     return new Response("Invalid or unknown consumer key", { status: 401 });
   }
 
-  await getStreamServer().ackConsumerSequence(consumer.userId, consumer.id, seq);
+  await getStreamServer().ackConnectionSequence(connection.userId, connection.id, seq);
   return new Response(null, { status: 204 });
 };

@@ -5,7 +5,7 @@ import { generateTypeScript } from "@contfu/svc-core";
 
 export async function GET({ request, params }: { request: Request; params: { id: string } }) {
   const { userId } = await authenticateApiKey(request, "read");
-  const collection = await runWithUser(userId, getCollection(userId, Number(params.id)));
+  const collection = await runWithUser(userId, getCollection(Number(params.id)));
   if (!collection) return new Response("Not found", { status: 404 });
 
   const ts = generateTypeScript([

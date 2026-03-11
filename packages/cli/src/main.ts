@@ -7,10 +7,10 @@ import {
   create,
   update,
   del,
-  listSourceTypes,
+  listConnectionTypes,
   type CliValues,
 } from "./commands/resources";
-import { consumerTypes } from "./commands/generate-types";
+import { connectionTypes } from "./commands/generate-types";
 import { queryItems, countItems } from "./commands/items";
 import { login, logout } from "./commands/login";
 import { status } from "./commands/status";
@@ -27,22 +27,12 @@ Commands:
   <resource> create [options]       Create item
   <resource> update <id> [options]  Update item
   <resource> delete <id>            Delete item
-  sources types                     List valid source types
-  consumers types <id>              Print TypeScript types for a consumer's collections
+  connections types                  List valid connection types
+  connections types <id>             Print TypeScript types for a connection's collections
   items query [options]             Query items from client app
   items count [options]             Count items from client app
 
-Resources: sources, collections, consumers, connections, influxes, integrations
-
-list options:
-  -f, --format <fmt>           Output format: table (default) | json
-
-sources options:
-  -n, --name <name>            Name (required for create)
-  -t, --type <type>            Source type (required for create; see 'sources types')
-      --url <url>              Source URL
-      --[no-]include-ref       Include ref transmission
-  -d, --data <json>            Raw JSON body (alternative to above flags)
+Resources: connections, collections, flows
 
 collections options:
       --display-name <name>    Display name (required for create)
@@ -50,27 +40,16 @@ collections options:
       --[no-]include-ref       Include ref transmission
   -d, --data <json>            Raw JSON body (alternative to above flags)
 
-consumers options:
-  -n, --name <name>            Name (required for create)
-      --[no-]include-ref       Include ref transmission
-  -d, --data <json>            Raw JSON body (alternative to above flags)
-
 connections options:
-      --consumer-id <id>       Consumer ID (required for create)
-      --collection-id <id>     Collection ID (required for create)
-      --[no-]include-ref       Include ref transmission
-  -d, --data <json>            Raw JSON body (alternative to above flags)
-
-influxes options:
-      --collection-id <id>        Collection ID (required for create)
-      --source-collection-id <id> Source collection ID (required for create)
-      --[no-]include-ref          Include ref transmission
-  -d, --data <json>               Raw JSON body (alternative to above flags)
-
-integrations options:
   -n, --name <name>            Label (required for create)
   -t, --type <provider>        Provider ID (default: notion)
-      --token <token>           API token (for manual token-based integrations)
+      --token <token>           API token (for manual token-based connections)
+  -d, --data <json>            Raw JSON body (alternative to above flags)
+
+flows options:
+      --source-id <id>         Source collection ID (required for create)
+      --target-id <id>         Target collection ID (required for create)
+      --[no-]include-ref       Include ref transmission
   -d, --data <json>            Raw JSON body (alternative to above flags)
 
 items options:
@@ -83,6 +62,9 @@ items options:
       --include <fields>       Comma-separated includes (query only)
       --fields <fields>        Comma-separated field selection (query only)
       --flat                   Flatten nested props (query only)
+
+list options:
+  -f, --format <fmt>           Output format: table (default) | json
 
 Environment:
   CONTFU_API_KEY   API key (overrides stored config)`);
@@ -99,9 +81,9 @@ async function main() {
       type: { type: "string", short: "t" },
       url: { type: "string" },
       "display-name": { type: "string" },
-      "consumer-id": { type: "string" },
+      "source-id": { type: "string" },
+      "target-id": { type: "string" },
       "collection-id": { type: "string" },
-      "source-collection-id": { type: "string" },
       "include-ref": { type: "boolean" },
       "no-include-ref": { type: "boolean" },
       token: { type: "string" },
@@ -161,16 +143,12 @@ async function main() {
 
     // Special subcommands per resource
     if (action === "types") {
-      if (cmd === "sources") {
-        listSourceTypes();
-        return;
-      }
-      if (cmd === "consumers") {
+      if (cmd === "connections") {
         if (!id) {
-          console.error("Missing consumer ID");
-          process.exit(1);
+          listConnectionTypes();
+        } else {
+          await connectionTypes(id);
         }
-        await consumerTypes(id);
         return;
       }
       console.error(`'types' is not available for ${cmd}`);
@@ -182,9 +160,9 @@ async function main() {
       type: values.type as string | undefined,
       url: values.url as string | undefined,
       "display-name": values["display-name"] as string | undefined,
-      "consumer-id": values["consumer-id"] as string | undefined,
+      "source-id": values["source-id"] as string | undefined,
+      "target-id": values["target-id"] as string | undefined,
       "collection-id": values["collection-id"] as string | undefined,
-      "source-collection-id": values["source-collection-id"] as string | undefined,
       "include-ref": values["include-ref"] as boolean | undefined,
       "no-include-ref": values["no-include-ref"] as boolean | undefined,
       token: values.token as string | undefined,

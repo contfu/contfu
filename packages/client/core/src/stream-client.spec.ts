@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { EventType, SourceType, type Block } from "@contfu/core";
+import { EventType, ConnectionType, type Block } from "@contfu/core";
 import { pack } from "msgpackr";
 import { connectToStream } from "./stream-client";
 
@@ -106,7 +106,7 @@ describe("stream-client", () => {
         publishedAt: 1700000000,
         createdAt: 1699000000,
       };
-      const wireItem = [SourceType.WEB, ref, id, "article", 1700500000, props, content];
+      const wireItem = [ConnectionType.WEB, ref, id, "article", 1700500000, props, content];
       mockFetch(createMockStream([createBinaryMessage([EventType.ITEM_CHANGED, wireItem, 42])]));
 
       const events: unknown[] = [];
@@ -127,7 +127,7 @@ describe("stream-client", () => {
       expect(changedEvent.type).toBe(EventType.ITEM_CHANGED);
       expect(changedEvent.index).toBe(42);
       expect(changedEvent.item.collection).toBe("article");
-      expect(changedEvent.item.sourceType).toBe(SourceType.WEB);
+      expect(changedEvent.item.connectionType).toBe(ConnectionType.WEB);
       expect(changedEvent.item.ref).toBe(ref);
       const itemProps = changedEvent.item.props as Record<string, unknown>;
       expect(itemProps.publishedAt).toBe(1700000000);

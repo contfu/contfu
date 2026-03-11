@@ -79,7 +79,7 @@ import type { CollectionSchema, MappingRule, RefTargets } from "@contfu/svc-core
 // Helpers
 // ---------------------------------------------------------------------------
 
-interface InfluxData {
+interface InflowData {
   id: string;
   name: string;
   sourceSchema: CollectionSchema | null;
@@ -88,19 +88,19 @@ interface InfluxData {
 
 interface ChangePayload {
   targetSchema: CollectionSchema;
-  influxMappings: Map<string, MappingRule[]>;
+  inflowMappings: Map<string, MappingRule[]>;
   refTargets: RefTargets;
 }
 
 function renderEditor(props: {
   targetSchema?: CollectionSchema;
-  influxes?: InfluxData[];
+  inflows?: InflowData[];
   onchange?: (c: ChangePayload) => void;
 }) {
   return render(MappingEditor, {
     props: {
       targetSchema: props.targetSchema ?? {},
-      influxes: props.influxes ?? [],
+      inflows: props.inflows ?? [],
       onchange: props.onchange ?? (() => {}),
     },
   });
@@ -115,15 +115,15 @@ beforeEach(() => {
 });
 
 describe("MappingEditor", () => {
-  it("shows empty state when no influxes and no schema", async () => {
+  it("shows empty state when no inflows and no schema", async () => {
     const { container } = renderEditor({});
     await tick();
     expect(container.textContent).toContain("No target schema defined");
   });
 
-  it("shows waiting state when influxes exist but no source schema", async () => {
+  it("shows waiting state when inflows exist but no source schema", async () => {
     const { container } = renderEditor({
-      influxes: [{ id: "i1", name: "Test", sourceSchema: null, mappings: [] }],
+      inflows: [{ id: "i1", name: "Test", sourceSchema: null, mappings: [] }],
     });
     await tick();
     expect(container.textContent).toContain("Waiting for source schema");
@@ -137,7 +137,7 @@ describe("MappingEditor", () => {
     };
 
     renderEditor({
-      influxes: [{ id: "i1", name: "Source", sourceSchema, mappings: [] }],
+      inflows: [{ id: "i1", name: "Source", sourceSchema, mappings: [] }],
       onchange,
     });
     await tick();
@@ -146,7 +146,7 @@ describe("MappingEditor", () => {
     expect(onchange).toHaveBeenCalled();
     const call = (onchange.mock.calls[0] as unknown[])[0] as ChangePayload;
     expect(call.targetSchema).toEqual(sourceSchema);
-    const mappings = call.influxMappings.get("i1")!;
+    const mappings = call.inflowMappings.get("i1")!;
     expect(mappings).toHaveLength(2);
     expect(mappings.map((m: MappingRule) => m.source).sort()).toEqual(["slug", "title"]);
   });
@@ -159,7 +159,7 @@ describe("MappingEditor", () => {
 
     const { container } = renderEditor({
       targetSchema,
-      influxes: [
+      inflows: [
         {
           id: "i1",
           name: "Source",
@@ -179,13 +179,13 @@ describe("MappingEditor", () => {
     expect(container.textContent).not.toContain("guessed");
   });
 
-  it("preserves existing influx when second is added", async () => {
+  it("preserves existing inflowwhen second is added", async () => {
     const onchange = mock(() => {});
     const targetSchema: CollectionSchema = { title: PropertyType.STRING };
 
     const { rerender } = renderEditor({
       targetSchema,
-      influxes: [
+      inflows: [
         {
           id: "i1",
           name: "First",
@@ -201,7 +201,7 @@ describe("MappingEditor", () => {
 
     rerender({
       targetSchema,
-      influxes: [
+      inflows: [
         {
           id: "i1",
           name: "First",
@@ -221,17 +221,17 @@ describe("MappingEditor", () => {
     await tick();
 
     // No schema change, so onchange should NOT have been called
-    // (the second influx auto-wires but doesn't change schema)
+    // (the second inflowauto-wires but doesn't change schema)
     expect(onchange).not.toHaveBeenCalled();
   });
 
-  it("resets when all influxes are removed", async () => {
+  it("resets when all inflows are removed", async () => {
     const onchange = mock(() => {});
     const targetSchema: CollectionSchema = { title: PropertyType.STRING };
 
     const { rerender } = renderEditor({
       targetSchema,
-      influxes: [
+      inflows: [
         {
           id: "i1",
           name: "Source",
@@ -245,13 +245,13 @@ describe("MappingEditor", () => {
     await tick();
     onchange.mockClear();
 
-    rerender({ targetSchema, influxes: [], onchange });
+    rerender({ targetSchema, inflows: [], onchange });
     await tick();
     await tick();
 
     expect(onchange).toHaveBeenCalled();
     const call = (onchange.mock.calls[0] as unknown[])[0] as ChangePayload;
-    expect(call.influxMappings.size).toBe(0);
+    expect(call.inflowMappings.size).toBe(0);
   });
 
   it("auto-wire leaves unmapped properties when source has no match", async () => {
@@ -263,7 +263,7 @@ describe("MappingEditor", () => {
 
     renderEditor({
       targetSchema,
-      influxes: [
+      inflows: [
         {
           id: "i1",
           name: "Source",
@@ -290,7 +290,7 @@ describe("MappingEditor", () => {
 
     const { component } = renderEditor({
       targetSchema,
-      influxes: [
+      inflows: [
         {
           id: "i1",
           name: "Source",
@@ -312,7 +312,7 @@ describe("MappingEditor", () => {
 
     expect(onchange).toHaveBeenCalledTimes(1);
     const call = (onchange.mock.calls[0] as unknown[])[0] as ChangePayload;
-    const rules = call.influxMappings.get("i1")!;
+    const rules = call.inflowMappings.get("i1")!;
     expect(rules).toHaveLength(1);
     expect(rules[0].source).toBe("name");
     expect(rules[0].target).toBe("title");
@@ -324,7 +324,7 @@ describe("MappingEditor", () => {
 
     const { component, container } = renderEditor({
       targetSchema,
-      influxes: [
+      inflows: [
         {
           id: "i1",
           name: "Source",
@@ -356,7 +356,7 @@ describe("MappingEditor", () => {
 
     const { component } = renderEditor({
       targetSchema,
-      influxes: [{ id: "i1", name: "Source", sourceSchema, mappings: [] }],
+      inflows: [{ id: "i1", name: "Source", sourceSchema, mappings: [] }],
       onchange,
     });
     await tick();
@@ -391,7 +391,7 @@ describe("MappingEditor", () => {
 
     const { component } = renderEditor({
       targetSchema,
-      influxes: [
+      inflows: [
         {
           id: "i1",
           name: "Source",
@@ -438,7 +438,7 @@ describe("MappingEditor", () => {
 
     renderEditor({
       targetSchema,
-      influxes: [{ id: "i1", name: "Source", sourceSchema, mappings: [] }],
+      inflows: [{ id: "i1", name: "Source", sourceSchema, mappings: [] }],
       onchange,
     });
     await tick();
@@ -459,7 +459,7 @@ describe("MappingEditor", () => {
 
     const { component } = renderEditor({
       targetSchema,
-      influxes: [
+      inflows: [
         {
           id: "i1",
           name: "Source",
@@ -484,7 +484,7 @@ describe("MappingEditor", () => {
     expect(onchange).toHaveBeenCalled();
     const call = (onchange.mock.calls[0] as unknown[])[0] as ChangePayload;
     expect(call.targetSchema.count).toBe(PropertyType.NUMBER);
-    const rules = call.influxMappings.get("i1");
+    const rules = call.inflowMappings.get("i1");
     // Cast should be removed (undefined) since NUMBER→NUMBER is direct
     expect(rules?.[0]?.cast).toBeUndefined();
   });
@@ -499,7 +499,7 @@ describe("MappingEditor", () => {
 
     const { component } = renderEditor({
       targetSchema,
-      influxes: [
+      inflows: [
         {
           id: "i1",
           name: "Source",
@@ -522,7 +522,7 @@ describe("MappingEditor", () => {
     expect(onchange).toHaveBeenCalled();
     const call = (onchange.mock.calls[0] as unknown[])[0] as ChangePayload;
     expect("slug" in call.targetSchema).toBe(true);
-    const rules = call.influxMappings.get("i1")!;
+    const rules = call.inflowMappings.get("i1")!;
     expect(rules.some((r: MappingRule) => r.source === "slug")).toBe(true);
   });
 
@@ -532,7 +532,7 @@ describe("MappingEditor", () => {
 
     const { component } = renderEditor({
       targetSchema,
-      influxes: [
+      inflows: [
         {
           id: "i1",
           name: "Source",
@@ -556,7 +556,7 @@ describe("MappingEditor", () => {
     const call = (onchange.mock.calls[0] as unknown[])[0] as ChangePayload;
     expect("heading" in call.targetSchema).toBe(true);
     expect("title" in call.targetSchema).toBe(false);
-    const rules = call.influxMappings.get("i1")!;
+    const rules = call.inflowMappings.get("i1")!;
     expect(rules[0].target).toBe("heading");
   });
 
@@ -572,7 +572,7 @@ describe("MappingEditor", () => {
 
     const { container } = renderEditor({
       targetSchema,
-      influxes: [
+      inflows: [
         {
           id: "i1",
           name: "Source A",

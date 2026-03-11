@@ -6,14 +6,14 @@ import type { ProductQuota } from "../polar/products";
 import { getKvManager } from "./kvm";
 import { hasNats } from "./connection";
 import { db } from "../db/db";
-import { sourceTable, collectionTable, consumerTable } from "../db/schema";
+import { connectionTable, collectionTable, flowTable } from "../db/schema";
 import { createLogger } from "../logger/index";
 
 const log = createLogger("quota-kv");
 
 const QUOTA_BUCKET = "quota";
 
-type CountField = "sources" | "collections" | "consumers";
+type CountField = "connections" | "collections" | "flows";
 
 type KvEntry = {
   value: Uint8Array;
@@ -62,16 +62,16 @@ export async function getQuota(userId: number): Promise<QuotaState | null> {
 
 async function countFromDb(
   userId: number,
-): Promise<{ sources: number; collections: number; consumers: number }> {
-  const [[srcRow], [colRow], [conRow]] = await Promise.all([
-    db.select({ c: count() }).from(sourceTable).where(eq(sourceTable.userId, userId)),
+): Promise<{ connections: number; collections: number; flows: number }> {
+  const [[connRow], [colRow], [flowRow]] = await Promise.all([
+    db.select({ c: count() }).from(connectionTable).where(eq(connectionTable.userId, userId)),
     db.select({ c: count() }).from(collectionTable).where(eq(collectionTable.userId, userId)),
-    db.select({ c: count() }).from(consumerTable).where(eq(consumerTable.userId, userId)),
+    db.select({ c: count() }).from(flowTable).where(eq(flowTable.userId, userId)),
   ]);
   return {
-    sources: srcRow.c,
+    connections: connRow.c,
     collections: colRow.c,
-    consumers: conRow.c,
+    flows: flowRow.c,
   };
 }
 
@@ -88,14 +88,14 @@ export async function ensureQuota(
 
   const counts = await countFromDb(userId);
   const state: QuotaState = {
-    sources: counts.sources,
-    maxSources: limits.maxSources,
+    connections: counts.connections,
+    maxConnections: limits.maxConnections,
     collections: counts.collections,
     maxCollections: limits.maxCollections,
+    flows: counts.flows,
+    maxFlows: limits.maxFlows,
     items: 0,
     maxItems: limits.maxItems,
-    consumers: counts.consumers,
-    maxConsumers: limits.maxConsumers,
     periodEnd: periodEndToTimestamp(periodEnd),
   };
 
@@ -128,10 +128,10 @@ export async function setLimits(
 
     const updated: QuotaState = {
       ...state,
-      maxSources: limits.maxSources,
+      maxConnections: limits.maxConnections,
       maxCollections: limits.maxCollections,
+      maxFlows: limits.maxFlows,
       maxItems: limits.maxItems,
-      maxConsumers: limits.maxConsumers,
       periodEnd: periodEndToTimestamp(periodEnd),
     };
 
