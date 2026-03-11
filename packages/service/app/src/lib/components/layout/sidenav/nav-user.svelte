@@ -4,7 +4,7 @@
   import * as Avatar from "$lib/components/ui/avatar/index.js";
   import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index.js";
   import * as Sidebar from "$lib/components/ui/sidebar/index.js";
-  import { CreditCardIcon, EllipsisVerticalIcon, KeyIcon, LogOutIcon, UserCogIcon } from "@lucide/svelte";
+  import { CreditCardIcon, EllipsisVerticalIcon, KeyIcon, LogOutIcon } from "@lucide/svelte";
   import type { DisplayUser } from "$lib/components/Header.svelte";
 
   const sidebar = Sidebar.useSidebar();
@@ -74,10 +74,6 @@
           <DropdownMenu.Item onclick={() => goto("/api-keys")}>
             <KeyIcon />
             API Keys
-          </DropdownMenu.Item>
-          <DropdownMenu.Item onclick={() => goto("/admin")}>
-            <UserCogIcon />
-            Admin
           </DropdownMenu.Item>
         </DropdownMenu.Group>
         <DropdownMenu.Separator />

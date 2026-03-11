@@ -1,5 +1,6 @@
 import { hashPassword } from "better-auth/crypto";
 import { eq } from "drizzle-orm";
+import { UserRole } from "../../domain/types";
 import { accountTable, userTable } from "./schema";
 
 /**
@@ -52,6 +53,7 @@ export async function seedDevUser(database: any): Promise<void> {
       email: TEST_USER.email,
       emailVerified: true,
       approved: true,
+      role: UserRole.ADMIN,
       createdAt: now,
       updatedAt: now,
     })
