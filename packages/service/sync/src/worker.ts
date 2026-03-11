@@ -7,6 +7,7 @@ import { claimJobs } from "@contfu/svc-backend/features/sync-jobs/claimJobs";
 import { completeJob } from "@contfu/svc-backend/features/sync-jobs/completeJob";
 import { failJob } from "@contfu/svc-backend/features/sync-jobs/failJob";
 import { getJobConfig } from "@contfu/svc-backend/features/sync-jobs/getJobConfig";
+import { Database } from "@contfu/svc-backend/effect/services/Database";
 import { SyncMessageType, type UserSyncItem } from "@contfu/svc-backend/infra/sync-worker/messages";
 import {
   getItemRefForSource,
@@ -15,7 +16,7 @@ import {
   webSource,
   contentfulSource,
 } from "@contfu/svc-sources";
-import { Duration, Effect, Schedule } from "effect";
+import { Duration, Effect, Layer, Schedule } from "effect";
 import { workerDb } from "./db/worker-db";
 
 const log = createLogger("sync-worker");
@@ -27,6 +28,12 @@ const MIN_FETCH_INTERVAL = Number(process.env.MIN_FETCH_INTERVAL ?? 10_000);
 // Worker identity
 const workerId = crypto.randomUUID();
 
+// Database layer for the sync worker — uses workerDb directly, no RLS
+const WorkerDbLayer = Layer.succeed(Database)({
+  db: workerDb,
+  withUserContext: (_userId, effect) => effect,
+});
+
 // Handle messages from the app
 self.onmessage = (e: MessageEvent) => {
   if (e.data.type === SyncMessageType.SHUTDOWN) {
@@ -37,10 +44,7 @@ self.onmessage = (e: MessageEvent) => {
 // Job processing as an Effect
 const processJob = (job: { id: number; collectionId: number }) =>
   Effect.gen(function* () {
-    const config = yield* Effect.tryPromise({
-      try: () => Effect.runPromise(getJobConfig(workerDb, { collectionId: job.collectionId })),
-      catch: (e) => e,
-    });
+    const config = yield* getJobConfig({ collectionId: job.collectionId });
     if (!config) {
       yield* Effect.logWarning("Collection config not found").pipe(
         Effect.annotateLogs({
@@ -49,10 +53,7 @@ const processJob = (job: { id: number; collectionId: number }) =>
           collectionId: job.collectionId,
         }),
       );
-      yield* Effect.tryPromise({
-        try: () => Effect.runPromise(failJob(workerDb, job.id, "Collection config not found")),
-        catch: (e) => e,
-      });
+      yield* failJob(job.id, "Collection config not found");
       return;
     }
 
@@ -181,23 +182,17 @@ const processJob = (job: { id: number; collectionId: number }) =>
       );
     }
 
-    yield* Effect.tryPromise({
-      try: () => Effect.runPromise(completeJob(workerDb, job.id)),
-      catch: (e) => e,
-    });
+    yield* completeJob(job.id);
     yield* Effect.logDebug("Job completed").pipe(
       Effect.annotateLogs({ module: "sync-worker", jobId: job.id }),
     );
   }).pipe(
-    Effect.catchAll((e) =>
+    Effect.catch((e) =>
       Effect.gen(function* () {
         yield* Effect.logError("Job failed").pipe(
           Effect.annotateLogs({ module: "sync-worker", err: e, jobId: job.id }),
         );
-        yield* Effect.tryPromise({
-          try: () => Effect.runPromise(failJob(workerDb, job.id, String(e))),
-          catch: () => void 0,
-        });
+        yield* failJob(job.id, String(e));
       }),
     ),
     Effect.withSpan("syncWorker.processJob", {
@@ -207,10 +202,7 @@ const processJob = (job: { id: number; collectionId: number }) =>
 
 // Sync loop as an Effect
 const syncLoop = Effect.gen(function* () {
-  const jobs = yield* Effect.tryPromise({
-    try: () => Effect.runPromise(claimJobs(workerDb, workerId, MAX_COLLECTION_PULL_SIZE)),
-    catch: (e) => e,
-  });
+  const jobs = yield* claimJobs(workerId, MAX_COLLECTION_PULL_SIZE);
 
   if (jobs.length > 0) {
     yield* Effect.logDebug("Claimed sync jobs").pipe(
@@ -223,14 +215,14 @@ const syncLoop = Effect.gen(function* () {
   }
 }).pipe(
   Effect.withSpan("syncWorker.syncLoop"),
-  Effect.catchAll((e) =>
+  Effect.catch((e) =>
     Effect.logError("Sync error").pipe(Effect.annotateLogs({ module: "sync-worker", err: e })),
   ),
   Effect.repeat(Schedule.fixed(Duration.millis(MIN_FETCH_INTERVAL))),
 );
 
 // Start the sync loop
-Effect.runFork(syncLoop.pipe(Effect.provide(LoggerLive)));
+Effect.runFork(syncLoop.pipe(Effect.provide(Layer.mergeAll(WorkerDbLayer, LoggerLive))));
 
 // Signal ready
 log.info({ workerId }, "Sync worker ready");

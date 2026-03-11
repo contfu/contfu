@@ -11,7 +11,7 @@ import { StreamServerLive } from "../services/StreamServer";
 /**
  * No-op NATS client for tests.
  */
-const NatsClientTest = Layer.succeed(NatsClient, {
+const NatsClientTest = Layer.succeed(NatsClient)({
   connection: Option.none(),
   hasNats: false,
 });
@@ -19,7 +19,7 @@ const NatsClientTest = Layer.succeed(NatsClient, {
 /**
  * No-op EventStream for tests.
  */
-const EventStreamTest = Layer.succeed(EventStream, {
+const EventStreamTest = Layer.succeed(EventStream)({
   ensureStream: Effect.void,
   publishEvent: () => Effect.succeed(0),
   getLastSequence: Effect.succeed(0),
@@ -30,14 +30,14 @@ const EventStreamTest = Layer.succeed(EventStream, {
 /**
  * No-op Mail for tests.
  */
-const MailTest = Layer.succeed(Mail, {
+const MailTest = Layer.succeed(Mail)({
   sendEmail: () => Effect.void,
 });
 
 /**
  * No-op Queue for tests.
  */
-const QueueTest = Layer.succeed(Queue, {
+const QueueTest = Layer.succeed(Queue)({
   push: () => Effect.void,
   consume: async function* () {},
   // eslint-disable-next-line typescript/require-await -- async generator required by AsyncGenerator return type

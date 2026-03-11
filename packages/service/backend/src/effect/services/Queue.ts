@@ -1,20 +1,19 @@
-import { Context, Effect, Layer } from "effect";
+import { Effect, Layer, ServiceMap } from "effect";
 import type { Job, Queue as QueueInterface } from "../../infra/queue/queue";
 
-export class Queue extends Context.Tag("@contfu/Queue")<
+export class Queue extends ServiceMap.Service<
   Queue,
   {
     readonly push: (job: Job) => Effect.Effect<void>;
     readonly consume: () => AsyncGenerator<Job>;
     readonly isScheduler: () => AsyncGenerator<boolean>;
   }
->() {}
+>()("@contfu/Queue") {}
 
 /**
  * Production layer — wraps the existing queue module (NATS or local fallback).
  */
-export const QueueLive = Layer.effect(
-  Queue,
+export const QueueLive = Layer.effect(Queue)(
   Effect.gen(function* () {
     const mod = yield* Effect.tryPromise({
       try: () => import("../../infra/queue/index"),

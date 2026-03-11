@@ -1,7 +1,7 @@
-import { Config, Effect } from "effect";
+import { Config, Effect, Layer, ServiceMap } from "effect";
 
-export class AppConfig extends Effect.Service<AppConfig>()("@contfu/AppConfig", {
-  effect: Effect.gen(function* () {
+export class AppConfig extends ServiceMap.Service<AppConfig>()("@contfu/AppConfig", {
+  make: Effect.gen(function* () {
     return {
       databaseUrl: yield* Config.string("DATABASE_URL"),
       natsServer: yield* Config.option(Config.string("NATS_SERVER")),
@@ -16,10 +16,15 @@ export class AppConfig extends Effect.Service<AppConfig>()("@contfu/AppConfig", 
       otelEndpoint: yield* Config.option(Config.string("OTEL_EXPORTER_OTLP_ENDPOINT")),
       syncWorkerPath: yield* Config.option(Config.string("SYNC_WORKER_PATH")),
       maxCollectionPullSize: yield* Config.withDefault(
-        Config.integer("MAX_COLLECTION_PULL_SIZE"),
+        Config.number("MAX_COLLECTION_PULL_SIZE").pipe(Config.map(Math.trunc)),
         10_000,
       ),
-      minFetchInterval: yield* Config.withDefault(Config.integer("MIN_FETCH_INTERVAL"), 10_000),
+      minFetchInterval: yield* Config.withDefault(
+        Config.number("MIN_FETCH_INTERVAL").pipe(Config.map(Math.trunc)),
+        10_000,
+      ),
     };
   }),
-}) {}
+}) {
+  static readonly layer = Layer.effect(this)(this.make);
+}

@@ -13,7 +13,7 @@ let _minimalRuntime: ManagedRuntime.ManagedRuntime<any, any> | null = null;
 
 function getMinimalRuntime() {
   if (!_minimalRuntime) {
-    _minimalRuntime = ManagedRuntime.make(MinimalLive);
+    _minimalRuntime = ManagedRuntime.make(MinimalLive as Layer.Layer<any, any, never>);
   }
   return _minimalRuntime;
 }

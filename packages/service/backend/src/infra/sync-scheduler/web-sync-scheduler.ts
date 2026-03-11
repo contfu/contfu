@@ -1,5 +1,5 @@
 import { ConnectionType } from "@contfu/core";
-import { Effect } from "effect";
+import { Effect, Layer } from "effect";
 import { createLogger } from "../logger/index";
 import { hasNats } from "../nats/connection";
 import { raceForLeader } from "../nats/leader-election";
@@ -7,6 +7,7 @@ import { db } from "../db/db";
 import { collectionTable, connectionTable, flowTable } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { enqueueSyncJobs } from "../../features/sync-jobs/enqueueSyncJobs";
+import { Database } from "../../effect/services/Database";
 
 const log = createLogger("web-sync-scheduler");
 
@@ -42,7 +43,11 @@ async function runSync(): Promise<void> {
   }
 
   log.info({ count: ids.length, ids }, "Enqueuing web sync jobs");
-  await Effect.runPromise(enqueueSyncJobs(db, ids));
+  await Effect.runPromise(
+    enqueueSyncJobs(ids).pipe(
+      Effect.provide(Layer.succeed(Database)({ db, withUserContext: (_, e) => e })),
+    ),
+  );
 }
 
 export async function startWebSyncScheduler(): Promise<void> {

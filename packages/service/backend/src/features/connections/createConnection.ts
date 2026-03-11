@@ -4,7 +4,7 @@ import { ConnectionType } from "@contfu/core";
 import type { CreateConnectionInput } from "../../domain/types";
 import { Crypto } from "../../effect/services/Crypto";
 import { Database } from "../../effect/services/Database";
-import { DatabaseError } from "../../effect/errors";
+import { DatabaseError, QuotaError } from "../../effect/errors";
 import { connectionTable, currentUserIdSql } from "../../infra/db/schema";
 import { incrementCount, checkQuota } from "../../infra/nats/quota-kv";
 import { mapToBackendConnection } from "./mapToBackendConnection";
@@ -17,10 +17,10 @@ export const createConnection = (userId: number, input: CreateConnectionInput) =
     const quota = yield* Effect.promise(() => checkQuota(userId, "connections"));
     if (!quota.allowed) {
       yield* Effect.fail(
-        new DatabaseError({
-          cause: new Error(
-            `Connection limit reached (${quota.current}/${quota.max}). Upgrade your plan to add more.`,
-          ),
+        new QuotaError({
+          resource: "connections",
+          current: quota.current,
+          max: quota.max,
         }),
       );
     }

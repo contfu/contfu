@@ -6,9 +6,10 @@ import {
   type WireItemEvent,
 } from "@contfu/core";
 import { and, eq, inArray } from "drizzle-orm";
-import { Effect } from "effect";
+import { Effect, Layer } from "effect";
 import { pack as msgpack } from "msgpackr";
 import { enqueueSyncJobs } from "../../features/sync-jobs/enqueueSyncJobs";
+import { Database } from "../../effect/services/Database";
 import { collectionTable, connectionTable, flowTable, db } from "../db/db";
 import { createLogger } from "../logger/index";
 import { publishEvent, purgeEventsUpTo, type StoredWireItemEvent } from "../nats/event-stream";
@@ -162,7 +163,11 @@ export class StreamServer {
           collectionIds,
         );
         if (sourceCollectionIds.length > 0) {
-          await Effect.runPromise(enqueueSyncJobs(db, sourceCollectionIds));
+          await Effect.runPromise(
+            enqueueSyncJobs(sourceCollectionIds).pipe(
+              Effect.provide(Layer.succeed(Database)({ db, withUserContext: (_, e) => e })),
+            ),
+          );
         }
       }
 

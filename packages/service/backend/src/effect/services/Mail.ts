@@ -1,6 +1,6 @@
-import { Context, Effect, Layer } from "effect";
+import { Effect, Layer, ServiceMap } from "effect";
 
-export class Mail extends Context.Tag("@contfu/Mail")<
+export class Mail extends ServiceMap.Service<
   Mail,
   {
     readonly sendEmail: (
@@ -10,13 +10,12 @@ export class Mail extends Context.Tag("@contfu/Mail")<
       text: string,
     ) => Effect.Effect<void>;
   }
->() {}
+>()("@contfu/Mail") {}
 
 /**
  * Production layer — wraps the existing mail module.
  */
-export const MailLive = Layer.effect(
-  Mail,
+export const MailLive = Layer.effect(Mail)(
   Effect.gen(function* () {
     const mod = yield* Effect.tryPromise({
       try: () => import("../../infra/mail/mail"),

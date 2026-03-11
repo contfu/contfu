@@ -39,3 +39,15 @@ export class ValidationError extends Data.TaggedError("ValidationError")<{
 export class StreamConnectionError extends Data.TaggedError("StreamConnectionError")<{
   code: "E_AUTH" | "E_ACCESS" | "E_STALLED";
 }> {}
+
+export class QuotaError extends Data.TaggedError("QuotaError")<{
+  resource: string;
+  current: number;
+  max: number;
+}> {}
+
+export class ConflictError extends Data.TaggedError("ConflictError")<{
+  entity: string;
+  field: string;
+  value: string;
+}> {}

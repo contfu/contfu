@@ -15,6 +15,9 @@ const testRuntime = ManagedRuntime.make(TestLive);
  * Sets up RLS via withUserContext so queries are scoped to the user.
  */
 export function runTest<A, E, R>(userId: number, effect: Effect.Effect<A, E, R>): Promise<A> {
-  const wrapped = Effect.flatMap(Database, (db) => db.withUserContext(userId, effect));
+  const wrapped = Effect.gen(function* () {
+    const db = yield* Database;
+    return yield* db.withUserContext(userId, effect);
+  });
   return (testRuntime as any).runPromise(wrapped) as Promise<A>;
 }

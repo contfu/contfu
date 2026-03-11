@@ -1,20 +1,19 @@
-import { Context, Effect, Layer, Option } from "effect";
+import { Effect, Layer, Option, ServiceMap } from "effect";
 import type { NatsConnection } from "@nats-io/transport-node";
 import { NatsError } from "../errors";
 
-export class NatsClient extends Context.Tag("@contfu/NatsClient")<
+export class NatsClient extends ServiceMap.Service<
   NatsClient,
   {
     readonly connection: Option.Option<NatsConnection>;
     readonly hasNats: boolean;
   }
->() {}
+>()("@contfu/NatsClient") {}
 
 /**
  * Production layer — connects to NATS if NATS_SERVER is configured, otherwise provides a no-op.
  */
-export const NatsClientLive = Layer.effect(
-  NatsClient,
+export const NatsClientLive = Layer.effect(NatsClient)(
   Effect.gen(function* () {
     const mod = yield* Effect.tryPromise({
       try: () => import("../../infra/nats/connection"),

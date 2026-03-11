@@ -1,9 +1,9 @@
-import { Context, Effect, Layer } from "effect";
+import { Effect, Layer, ServiceMap } from "effect";
 import type { StoredWireItemEvent } from "../../infra/nats/event-stream";
 import { NatsError } from "../errors";
 import { NatsClient } from "./NatsClient";
 
-export class EventStream extends Context.Tag("@contfu/EventStream")<
+export class EventStream extends ServiceMap.Service<
   EventStream,
   {
     readonly ensureStream: Effect.Effect<void, NatsError>;
@@ -20,13 +20,12 @@ export class EventStream extends Context.Tag("@contfu/EventStream")<
       collectionIds: number[];
     }) => AsyncGenerator<{ seq: number; collectionId: number; event: StoredWireItemEvent }>;
   }
->() {}
+>()("@contfu/EventStream") {}
 
 /**
  * Production layer — wraps the existing event-stream module.
  */
-export const EventStreamLive = Layer.effect(
-  EventStream,
+export const EventStreamLive = Layer.effect(EventStream)(
   Effect.gen(function* () {
     const nats = yield* NatsClient;
     const mod = yield* Effect.tryPromise({

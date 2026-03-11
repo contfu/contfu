@@ -5,7 +5,6 @@ import { getSetting } from "@contfu/svc-backend/features/admin/getSetting";
 import { upsertSetting } from "@contfu/svc-backend/features/admin/upsertSetting";
 import { enqueueSyncJobs } from "@contfu/svc-backend/features/sync-jobs/enqueueSyncJobs";
 import { runEffectWithServices } from "@contfu/svc-backend/effect/run";
-import { Effect } from "effect";
 import {
   decryptCredentials,
   encryptCredentials,
@@ -890,12 +889,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
                 );
 
               if (collections.length > 0) {
-                await Effect.runPromise(
-                  enqueueSyncJobs(
-                    db,
-                    collections.map((c) => c.id),
-                  ),
-                );
+                await runEffectWithServices(enqueueSyncJobs(collections.map((c) => c.id)));
               }
             }
           } catch (err) {

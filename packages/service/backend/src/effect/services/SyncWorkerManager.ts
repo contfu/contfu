@@ -1,17 +1,16 @@
-import { Context, Effect, Layer } from "effect";
+import { Effect, Layer, ServiceMap } from "effect";
 import { SyncWorkerManager as SyncWorkerManagerClass } from "../../infra/sync-worker/worker-manager";
 
-export class SyncWorkerManagerService extends Context.Tag("@contfu/SyncWorkerManager")<
+export class SyncWorkerManagerService extends ServiceMap.Service<
   SyncWorkerManagerService,
   SyncWorkerManagerClass
->() {}
+>()("@contfu/SyncWorkerManager") {}
 
 /**
  * Production layer — creates a SyncWorkerManager with acquire/release lifecycle.
  * The worker is started on layer creation and stopped on disposal.
  */
-export const SyncWorkerManagerLive = Layer.scoped(
-  SyncWorkerManagerService,
+export const SyncWorkerManagerLive = Layer.effect(SyncWorkerManagerService)(
   Effect.acquireRelease(
     Effect.gen(function* () {
       const manager = new SyncWorkerManagerClass();

@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 import { Database } from "../../effect/services/Database";
-import { DatabaseError } from "../../effect/errors";
+import { DatabaseError, QuotaError, ValidationError } from "../../effect/errors";
 import { collectionTable, currentUserIdSql } from "../../infra/db/schema";
 import { toCamelCase } from "@contfu/svc-core";
 import { incrementCount, checkQuota } from "../../infra/nats/quota-kv";
@@ -29,10 +29,9 @@ export const createCollection = (userId: number, input: CreateCollectionInput) =
 
     if (!camelCasePattern.test(name)) {
       yield* Effect.fail(
-        new DatabaseError({
-          cause: new Error(
-            `Collection name "${name}" must be a camelCase identifier (e.g. "blogPosts")`,
-          ),
+        new ValidationError({
+          field: "name",
+          message: `Collection name "${name}" must be a camelCase identifier (e.g. "blogPosts")`,
         }),
       );
     }
@@ -40,10 +39,10 @@ export const createCollection = (userId: number, input: CreateCollectionInput) =
     const quota = yield* Effect.promise(() => checkQuota(userId, "collections"));
     if (!quota.allowed) {
       yield* Effect.fail(
-        new DatabaseError({
-          cause: new Error(
-            `Collection limit reached (${quota.current}/${quota.max}). Upgrade your plan to add more.`,
-          ),
+        new QuotaError({
+          resource: "collections",
+          current: quota.current,
+          max: quota.max,
         }),
       );
     }

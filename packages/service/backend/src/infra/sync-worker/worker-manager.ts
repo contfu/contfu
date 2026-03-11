@@ -16,7 +16,8 @@ import { unpack } from "msgpackr";
 import type { CollectionSchema } from "@contfu/core";
 import { applyMappingsToSchema, type MappingRule } from "@contfu/svc-core";
 import { enqueueSyncJobs } from "../../features/sync-jobs/enqueueSyncJobs";
-import { Effect } from "effect";
+import { Database } from "../../effect/services/Database";
+import { Effect, Layer } from "effect";
 
 type ItemsCallback = (items: UserSyncItem[], connections: ConnectionInfo[]) => void;
 type SchemaCallback = (
@@ -144,7 +145,11 @@ export class SyncWorkerManager {
 
   async resyncCollections(collectionIds: number[]): Promise<void> {
     if (collectionIds.length > 0) {
-      await Effect.runPromise(enqueueSyncJobs(db, collectionIds));
+      await Effect.runPromise(
+        enqueueSyncJobs(collectionIds).pipe(
+          Effect.provide(Layer.succeed(Database)({ db, withUserContext: (_, e) => e })),
+        ),
+      );
     }
   }
 

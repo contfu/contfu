@@ -1,13 +1,11 @@
-import { Effect, Layer, Logger, LogLevel, ManagedRuntime } from "effect";
-
-type LogLevelLiteral = "All" | "Fatal" | "Error" | "Warning" | "Info" | "Debug" | "Trace" | "None";
+import { Effect, Layer, Logger, type LogLevel, ManagedRuntime, References } from "effect";
 
 const isDev = process.env.NODE_ENV !== "production";
-const level = (process.env.LOG_LEVEL ?? (isDev ? "Debug" : "Info")) as LogLevelLiteral;
+const level = (process.env.LOG_LEVEL ?? (isDev ? "Debug" : "Info")) as LogLevel.LogLevel;
 
 export const LoggerLive = Layer.mergeAll(
-  isDev ? Logger.pretty : Logger.logFmt,
-  Logger.minimumLogLevel(LogLevel.fromLiteral(level)),
+  Logger.layer([isDev ? Logger.consolePretty() : Logger.consoleLogFmt]),
+  Layer.succeed(References.MinimumLogLevel)(level),
 );
 
 const logRuntime = ManagedRuntime.make(LoggerLive);

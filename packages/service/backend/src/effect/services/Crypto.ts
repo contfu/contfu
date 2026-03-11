@@ -1,7 +1,7 @@
-import { Context, Effect, Layer } from "effect";
+import { Effect, Layer, ServiceMap } from "effect";
 import { CryptoError } from "../errors";
 
-export class Crypto extends Context.Tag("@contfu/Crypto")<
+export class Crypto extends ServiceMap.Service<
   Crypto,
   {
     readonly encryptCredentials: (
@@ -13,13 +13,12 @@ export class Crypto extends Context.Tag("@contfu/Crypto")<
       encryptedCredentials: Buffer | null | undefined,
     ) => Effect.Effect<Buffer | null, CryptoError>;
   }
->() {}
+>()("@contfu/Crypto") {}
 
 /**
  * Production layer — wraps the existing crypto/credentials module.
  */
-export const CryptoLive = Layer.effect(
-  Crypto,
+export const CryptoLive = Layer.effect(Crypto)(
   Effect.gen(function* () {
     const mod = yield* Effect.tryPromise({
       try: () => import("../../infra/crypto/credentials"),

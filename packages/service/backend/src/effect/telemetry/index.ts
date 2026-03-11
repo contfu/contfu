@@ -1,5 +1,5 @@
-import { Otlp } from "@effect/opentelemetry";
-import { FetchHttpClient } from "@effect/platform";
+import { Otlp } from "effect/unstable/observability";
+import { FetchHttpClient } from "effect/unstable/http";
 import { Layer } from "effect";
 
 const OTLP_ENDPOINT = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
