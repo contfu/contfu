@@ -10,7 +10,20 @@ export interface MediaStore {
 /**
  * Supported image formats for optimization.
  */
-export type ImageFormat = "avif" | "webp" | "jpeg" | "png";
+export type ImageFormat =
+  | "avif"
+  | "webp"
+  | "jpeg"
+  | "png"
+  | "tiff"
+  | "dz"
+  | "ppm"
+  | "fits"
+  | "gif"
+  | "svg"
+  | "heif"
+  | "pdf"
+  | "jp2";
 
 /**
  * Supported audio formats.
@@ -25,10 +38,20 @@ export type VideoFormat = "mp4" | "webm" | "mov";
 /**
  * Options for image optimization.
  * Keys are format names, values are arrays of [width, height?, quality?] tuples.
+ * `base` carries transform-level options applied to every variant.
  */
 export type OptimizeImageOpts = Partial<
   Record<ImageFormat, (number | [number?, number?, number?])[]>
->;
+> & {
+  base?: {
+    rotate?: number;
+    crop?: { left?: number; top?: number; width: number; height: number };
+    keepMetadata?: boolean;
+    keepExif?: boolean;
+    keepIcc?: boolean;
+    colorspace?: string;
+  };
+};
 
 /**
  * Metadata about a generated variant.
@@ -43,40 +66,85 @@ export interface VariantResult {
   data: Buffer;
 }
 
-/** Storage constraints for images */
+/** Storage constraints and conversion options for images */
 export interface ImageConstraints {
+  mediaType: "image";
   format?: ImageFormat;
-  maxWidth?: number;
-  maxHeight?: number;
+  ext?: string;
   quality?: number;
+  rotate?: number;
+  resize?: {
+    width?: number;
+    height?: number;
+    fit?: "contain" | "cover" | "fill" | "inside" | "outside";
+  };
+  keepMetadata?: boolean;
+  keepExif?: boolean;
+  keepIcc?: boolean;
+  colorspace?: string;
+  crop?: { left?: number; top?: number; width: number; height: number };
+  /** Whitelist: only convert these extensions */
+  include?: string[];
+  /** Blacklist: skip these extensions */
+  exclude?: string[];
+  /** Limit rule to these collection names */
+  collections?: string[];
 }
 
-/** Storage constraints for video */
+/** Storage constraints and conversion options for video */
 export interface VideoConstraints {
-  format?: VideoFormat;
+  mediaType: "video";
+  format?: string;
+  ext?: string;
   videoCodec?: string;
-  videoBitrate?: string;
+  videoBitrate?: number | string;
+  videoFilters?: string;
+  audioCodec?: string;
+  audioBitrate?: number | string;
+  audioFilters?: string;
+  fps?: number;
+  size?: string;
   width?: number;
   height?: number;
-  fps?: number;
-  audioCodec?: string;
-  audioBitrate?: string;
+  aspect?: number | string;
+  frames?: number;
+  duration?: number | string;
+  seek?: number | string;
+  inputFormat?: string;
+  pad?: string;
+  complexFilters?: string;
+  args?: string[];
+  /** Whitelist: only convert these extensions */
+  include?: string[];
+  /** Blacklist: skip these extensions */
+  exclude?: string[];
+  /** Limit rule to these collection names */
+  collections?: string[];
 }
 
-/** Storage constraints for audio */
+/** Storage constraints and conversion options for audio */
 export interface AudioConstraints {
-  format?: AudioFormat;
+  mediaType: "audio";
+  format?: string;
+  ext?: string;
   codec?: string;
-  bitrate?: string;
+  bitrate?: number | string;
+  filters?: string;
+  complexFilters?: string;
+  duration?: number | string;
+  seek?: number | string;
+  inputFormat?: string;
+  args?: string[];
+  /** Whitelist: only convert these extensions */
+  include?: string[];
+  /** Blacklist: skip these extensions */
+  exclude?: string[];
+  /** Limit rule to these collection names */
+  collections?: string[];
 }
 
-/** Storage constraints keyed by media type */
-export type MediaConstraints = {
-  image?: ImageConstraints;
-  video?: VideoConstraints;
-  audio?: AudioConstraints;
-  document?: never;
-};
+/** Discriminated union of all media conversion rules */
+export type TransformMediaRule = ImageConstraints | VideoConstraints | AudioConstraints;
 
 /**
  * MediaOptimizer interface for optimizing media.
@@ -92,21 +160,40 @@ export interface MediaOptimizer {
 
 /** Options for video optimization */
 export interface OptimizeVideoOpts {
-  format?: VideoFormat;
+  format?: string;
+  ext?: string;
   videoCodec?: string;
-  videoBitrate?: string;
+  videoBitrate?: number | string;
+  videoFilters?: string;
+  audioCodec?: string;
+  audioBitrate?: number | string;
+  audioFilters?: string;
+  fps?: number;
+  size?: string;
   width?: number;
   height?: number;
-  fps?: number;
-  audioCodec?: string;
-  audioBitrate?: string;
+  aspect?: number | string;
+  frames?: number;
+  duration?: number | string;
+  seek?: number | string;
+  inputFormat?: string;
+  pad?: string;
+  complexFilters?: string;
+  args?: string[];
 }
 
 /** Options for audio optimization */
 export interface OptimizeAudioOpts {
-  format?: AudioFormat;
+  format?: string;
+  ext?: string;
   codec?: string;
-  bitrate?: string;
+  bitrate?: number | string;
+  filters?: string;
+  complexFilters?: string;
+  duration?: number | string;
+  seek?: number | string;
+  inputFormat?: string;
+  args?: string[];
 }
 
 /** A single variant definition for pre-generation */

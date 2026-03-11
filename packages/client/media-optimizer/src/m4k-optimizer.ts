@@ -62,8 +62,11 @@ export class M4kOptimizer implements MediaOptimizer {
     const m4kOpts: ImageOptions[] = [];
     const pathTemplates: { width?: number; height?: number; ext: string; quality?: number }[] = [];
 
+    const baseTransform = opts.base;
+
     for (const [format, entries] of Object.entries(opts)) {
-      for (const entry of entries) {
+      if (format === "base") continue;
+      for (const entry of entries as (number | [number?, number?, number?])[]) {
         const [width, height, quality] = (typeof entry === "number" ? [entry] : entry).map(
           (v) => v ?? undefined,
         );
@@ -72,6 +75,7 @@ export class M4kOptimizer implements MediaOptimizer {
           format: format as ImageFormat,
           ext: format as ImageFormat,
           quality,
+          ...baseTransform,
         };
         if (width || height) {
           imageOpt.resize = { width, height, fit: "inside" };
@@ -120,12 +124,24 @@ export class M4kOptimizer implements MediaOptimizer {
     const ext = opts?.format ?? "mp4";
     const videoOpts: VideoOptions = {};
     if (opts?.format) videoOpts.format = opts.format;
+    if (opts?.ext) videoOpts.ext = opts.ext;
     if (opts?.videoCodec) videoOpts.videoCodec = opts.videoCodec;
     if (opts?.videoBitrate) videoOpts.videoBitrate = opts.videoBitrate;
+    if (opts?.videoFilters) videoOpts.videoFilters = opts.videoFilters;
     if (opts?.width || opts?.height) videoOpts.size = formatSize(opts?.width, opts?.height);
+    if (opts?.size) videoOpts.size = opts.size;
     if (opts?.fps) videoOpts.fps = opts.fps;
     if (opts?.audioCodec) videoOpts.audioCodec = opts.audioCodec;
     if (opts?.audioBitrate) videoOpts.audioBitrate = opts.audioBitrate;
+    if (opts?.audioFilters) videoOpts.audioFilters = opts.audioFilters;
+    if (opts?.aspect != null) videoOpts.aspect = opts.aspect;
+    if (opts?.frames != null) videoOpts.frames = opts.frames;
+    if (opts?.duration != null) videoOpts.duration = opts.duration;
+    if (opts?.seek != null) videoOpts.seek = opts.seek;
+    if (opts?.inputFormat) videoOpts.inputFormat = opts.inputFormat;
+    if (opts?.pad) videoOpts.pad = opts.pad;
+    if (opts?.complexFilters) videoOpts.complexFilters = opts.complexFilters;
+    if (opts?.args) videoOpts.args = opts.args;
 
     const buf = input instanceof Buffer ? input : await streamToBuffer(input as ReadableStream);
     const iterable = processVideo(toAsyncIterable(buf), videoOpts);
@@ -157,8 +173,15 @@ export class M4kOptimizer implements MediaOptimizer {
     const ext = opts?.format ?? "mp3";
     const audioOpts: AudioOptions = {};
     if (opts?.format) audioOpts.format = opts.format;
+    if (opts?.ext) audioOpts.ext = opts.ext;
     if (opts?.codec) audioOpts.codec = opts.codec;
     if (opts?.bitrate) audioOpts.bitrate = opts.bitrate;
+    if (opts?.filters) audioOpts.filters = opts.filters;
+    if (opts?.complexFilters) audioOpts.complexFilters = opts.complexFilters;
+    if (opts?.duration != null) audioOpts.duration = opts.duration;
+    if (opts?.seek != null) audioOpts.seek = opts.seek;
+    if (opts?.inputFormat) audioOpts.inputFormat = opts.inputFormat;
+    if (opts?.args) audioOpts.args = opts.args;
 
     const buf = input instanceof Buffer ? input : await streamToBuffer(input as ReadableStream);
     const iterable = processAudio(toAsyncIterable(buf), audioOpts);

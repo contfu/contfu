@@ -16,9 +16,9 @@ import { db } from "../../infra/db/db";
 import { collectionsTable, linkTable } from "../../infra/db/schema";
 import type {
   CollectionVariants,
-  MediaConstraints,
   MediaOptimizer,
   MediaStore,
+  TransformMediaRule,
   VariantDef,
 } from "../media/media";
 import { mediaStore as defaultMediaStore } from "../../infra/media/media-defaults";
@@ -35,7 +35,7 @@ export async function* connect(opts?: {
   connectionEvents?: boolean;
   mediaStore?: MediaStore;
   mediaOptimizer?: MediaOptimizer;
-  mediaConstraints?: MediaConstraints;
+  transformMedia?: TransformMediaRule[];
   collectionVariants?: CollectionVariants;
 }): AsyncGenerator<ItemEvent | StreamEvent> {
   const persistedFrom = await getSyncIndex();
@@ -44,7 +44,7 @@ export async function* connect(opts?: {
     connectionEvents: _connectionEvents,
     mediaStore: userMediaStore,
     mediaOptimizer,
-    mediaConstraints,
+    transformMedia,
     collectionVariants,
     ...restOpts
   } = opts ?? {};
@@ -66,7 +66,7 @@ export async function* connect(opts?: {
         event,
         resolvedMediaStore,
         mediaOptimizer,
-        mediaConstraints,
+        transformMedia,
         collectionVariants,
       );
       yield event;
@@ -79,7 +79,7 @@ export async function* connect(opts?: {
       event,
       resolvedMediaStore,
       mediaOptimizer,
-      mediaConstraints,
+      transformMedia,
       collectionVariants,
     );
     yield event;
@@ -90,7 +90,7 @@ async function persistSyncEvent(
   event: ItemEvent,
   mediaStore?: MediaStore,
   mediaOptimizer?: MediaOptimizer,
-  mediaConstraints?: MediaConstraints,
+  transformMedia?: TransformMediaRule[],
   collectionVariants?: CollectionVariants,
 ): Promise<void> {
   if (event.type === EventType.COLLECTION_SCHEMA) {
@@ -175,7 +175,8 @@ async function persistSyncEvent(
           content,
           mediaStore,
           mediaOptimizer,
-          mediaConstraints,
+          transformMedia,
+          collection,
           collectionVariants: variants,
         });
         needsUpdate = true;
@@ -189,7 +190,8 @@ async function persistSyncEvent(
           schema,
           mediaStore,
           mediaOptimizer,
-          mediaConstraints,
+          transformMedia,
+          collection,
           collectionVariants: variants,
         });
         needsUpdate = true;

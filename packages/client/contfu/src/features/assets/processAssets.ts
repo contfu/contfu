@@ -11,12 +11,12 @@ import { mediaVariantTable } from "../../infra/db/schema";
 import type {
   AudioConstraints,
   ImageConstraints,
-  MediaConstraints,
   MediaOptimizer,
   MediaStore,
   OptimizeAudioOpts,
   OptimizeImageOpts,
   OptimizeVideoOpts,
+  TransformMediaRule,
   VariantDef,
   VariantResult,
   VideoConstraints,
@@ -37,6 +37,16 @@ function detectMediaType(url: string): string {
 }
 
 /**
+ * Check whether an extension is allowed by a rule's include/exclude filter.
+ */
+export function isExtensionAllowed(ext: string, rule: TransformMediaRule): boolean {
+  const normalized = ext.toLowerCase();
+  if (rule.include) return rule.include.includes(normalized);
+  if (rule.exclude) return !rule.exclude.includes(normalized);
+  return true;
+}
+
+/**
  * Build combined OptimizeImageOpts from constraints and predefined variants.
  */
 function buildImageOptimizerOpts(
@@ -45,8 +55,8 @@ function buildImageOptimizerOpts(
 ): OptimizeImageOpts {
   const masterFormat = constraints?.format ?? "avif";
   const masterEntry: [number?, number?, number?] = [
-    constraints?.maxWidth,
-    constraints?.maxHeight,
+    constraints?.resize?.width,
+    constraints?.resize?.height,
     constraints?.quality,
   ];
 
@@ -60,7 +70,19 @@ function buildImageOptimizerOpts(
     variantsByFormat.set(fmt, entries);
   }
 
-  return Object.fromEntries(variantsByFormat) as OptimizeImageOpts;
+  const result = Object.fromEntries(variantsByFormat) as OptimizeImageOpts;
+
+  // Attach base transform options
+  const base: NonNullable<OptimizeImageOpts["base"]> = {};
+  if (constraints?.rotate != null) base.rotate = constraints.rotate;
+  if (constraints?.crop) base.crop = constraints.crop;
+  if (constraints?.keepMetadata) base.keepMetadata = constraints.keepMetadata;
+  if (constraints?.keepExif) base.keepExif = constraints.keepExif;
+  if (constraints?.keepIcc) base.keepIcc = constraints.keepIcc;
+  if (constraints?.colorspace) base.colorspace = constraints.colorspace;
+  if (Object.keys(base).length > 0) result.base = base;
+
+  return result;
 }
 
 /**
@@ -69,13 +91,25 @@ function buildImageOptimizerOpts(
 function buildVideoOptimizerOpts(constraints?: VideoConstraints): OptimizeVideoOpts {
   return {
     format: constraints?.format,
+    ext: constraints?.ext,
     videoCodec: constraints?.videoCodec,
     videoBitrate: constraints?.videoBitrate,
-    width: constraints?.width,
-    height: constraints?.height,
-    fps: constraints?.fps,
+    videoFilters: constraints?.videoFilters,
     audioCodec: constraints?.audioCodec,
     audioBitrate: constraints?.audioBitrate,
+    audioFilters: constraints?.audioFilters,
+    fps: constraints?.fps,
+    size: constraints?.size,
+    width: constraints?.width,
+    height: constraints?.height,
+    aspect: constraints?.aspect,
+    frames: constraints?.frames,
+    duration: constraints?.duration,
+    seek: constraints?.seek,
+    inputFormat: constraints?.inputFormat,
+    pad: constraints?.pad,
+    complexFilters: constraints?.complexFilters,
+    args: constraints?.args,
   };
 }
 
@@ -85,8 +119,15 @@ function buildVideoOptimizerOpts(constraints?: VideoConstraints): OptimizeVideoO
 function buildAudioOptimizerOpts(constraints?: AudioConstraints): OptimizeAudioOpts {
   return {
     format: constraints?.format,
+    ext: constraints?.ext,
     codec: constraints?.codec,
     bitrate: constraints?.bitrate,
+    filters: constraints?.filters,
+    complexFilters: constraints?.complexFilters,
+    duration: constraints?.duration,
+    seek: constraints?.seek,
+    inputFormat: constraints?.inputFormat,
+    args: constraints?.args,
   };
 }
 
@@ -125,8 +166,9 @@ async function downloadAndStoreAsset(
   originalUrl: string,
   mediaStore: MediaStore,
   mediaOptimizer?: MediaOptimizer,
-  mediaConstraints?: MediaConstraints,
+  transformMedia?: TransformMediaRule[],
   collectionVariants?: VariantDef[],
+  collection?: string,
 ): Promise<string> {
   const assetId = idFromUrl(originalUrl);
   const ext = extFromUrl(originalUrl) ?? "bin";
@@ -147,15 +189,22 @@ async function downloadAndStoreAsset(
 
   const buffer = Buffer.from(await res.arrayBuffer());
   const mediaType = detectMediaType(originalUrl);
-  const constraints = mediaConstraints?.[mediaType as keyof MediaConstraints];
+
+  // Find matching rule for this media type and collection
+  const rule = transformMedia?.find(
+    (r) =>
+      r.mediaType === mediaType && (!r.collections || r.collections.includes(collection ?? "")),
+  );
+  const extAllowed = rule ? isExtensionAllowed(ext, rule) : true;
+
   const storeKey = `${assetId}.${ext}`;
 
   let masterExt: string;
   let masterData: Buffer;
   let variantResults: VariantResult[] = [];
 
-  if (mediaOptimizer && mediaType === "image") {
-    const imageConstraints = constraints as ImageConstraints | undefined;
+  if (mediaOptimizer && mediaType === "image" && extAllowed) {
+    const imageConstraints = rule as ImageConstraints | undefined;
     const hasConstraints = imageConstraints != null;
     const hasVariants = collectionVariants != null && collectionVariants.length > 0;
 
@@ -167,14 +216,14 @@ async function downloadAndStoreAsset(
     }
     masterExt = imageConstraints?.format ?? "avif";
     masterData = variantResults.length > 0 ? variantResults[0].data : buffer;
-  } else if (mediaOptimizer && mediaType === "video") {
-    const videoConstraints = constraints as VideoConstraints | undefined;
+  } else if (mediaOptimizer && mediaType === "video" && extAllowed) {
+    const videoConstraints = rule as VideoConstraints | undefined;
     const opts = buildVideoOptimizerOpts(videoConstraints);
     variantResults = await mediaOptimizer.optimize(storeKey, buffer, "video", opts);
     masterExt = videoConstraints?.format ?? ext;
     masterData = variantResults.length > 0 ? variantResults[0].data : buffer;
-  } else if (mediaOptimizer && mediaType === "audio") {
-    const audioConstraints = constraints as AudioConstraints | undefined;
+  } else if (mediaOptimizer && mediaType === "audio" && extAllowed) {
+    const audioConstraints = rule as AudioConstraints | undefined;
     const opts = buildAudioOptimizerOpts(audioConstraints);
     variantResults = await mediaOptimizer.optimize(storeKey, buffer, "audio", opts);
     masterExt = audioConstraints?.format ?? ext;
@@ -222,11 +271,19 @@ export async function processAssets(opts: {
   content: Block[];
   mediaStore: MediaStore;
   mediaOptimizer?: MediaOptimizer;
-  mediaConstraints?: MediaConstraints;
+  transformMedia?: TransformMediaRule[];
+  collection?: string;
   collectionVariants?: VariantDef[];
 }): Promise<Block[]> {
-  const { itemId, content, mediaStore, mediaOptimizer, mediaConstraints, collectionVariants } =
-    opts;
+  const {
+    itemId,
+    content,
+    mediaStore,
+    mediaOptimizer,
+    transformMedia,
+    collection,
+    collectionVariants,
+  } = opts;
 
   const imageBlocks = content.filter(isImg);
   if (imageBlocks.length === 0) return content;
@@ -247,8 +304,9 @@ export async function processAssets(opts: {
           originalUrl,
           mediaStore,
           mediaOptimizer,
-          mediaConstraints,
+          transformMedia,
           collectionVariants,
+          collection,
         ),
       );
     }
@@ -276,7 +334,8 @@ export async function processPropertyAssets(opts: {
   schema: CollectionSchema;
   mediaStore: MediaStore;
   mediaOptimizer?: MediaOptimizer;
-  mediaConstraints?: MediaConstraints;
+  transformMedia?: TransformMediaRule[];
+  collection?: string;
   collectionVariants?: VariantDef[];
 }): Promise<Record<string, unknown>> {
   const {
@@ -285,7 +344,8 @@ export async function processPropertyAssets(opts: {
     schema,
     mediaStore,
     mediaOptimizer,
-    mediaConstraints,
+    transformMedia,
+    collection,
     collectionVariants,
   } = opts;
   const result = { ...props };
@@ -311,8 +371,9 @@ export async function processPropertyAssets(opts: {
               url,
               mediaStore,
               mediaOptimizer,
-              mediaConstraints,
+              transformMedia,
               collectionVariants,
+              collection,
             ),
           );
         } else {
@@ -331,8 +392,9 @@ export async function processPropertyAssets(opts: {
           value,
           mediaStore,
           mediaOptimizer,
-          mediaConstraints,
+          transformMedia,
           collectionVariants,
+          collection,
         ).then((id) => {
           result[propName] = id;
         }),
@@ -345,7 +407,7 @@ export async function processPropertyAssets(opts: {
   return result;
 }
 
-function idFromUrl(url: string): string {
+export function idFromUrl(url: string): string {
   let pathname: string;
   try {
     pathname = new URL(url).pathname;
@@ -355,7 +417,7 @@ function idFromUrl(url: string): string {
   return createHash("sha256").update(pathname).digest("hex").slice(0, 16);
 }
 
-function extFromUrl(url: string): string | undefined {
+export function extFromUrl(url: string): string | undefined {
   try {
     const pathname = new URL(url).pathname;
     const dot = pathname.lastIndexOf(".");

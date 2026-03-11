@@ -4,7 +4,7 @@ import { db } from "../../infra/db/db";
 import { assetTable, itemAssetTable, itemsTable } from "../../infra/db/schema";
 import { truncateAllTables } from "../../../test/setup";
 import { setCollection } from "../collections/setCollection";
-import type { MediaOptimizer, MediaStore } from "../media/media";
+import type { MediaOptimizer, MediaStore, TransformMediaRule } from "../media/media";
 import { processAssets, processPropertyAssets } from "./processAssets";
 
 const itemId = Buffer.from([1, 2, 3]).toString("base64url");
@@ -275,6 +275,108 @@ describe("processAssets", () => {
 
     const assets = await db.select().from(assetTable).all();
     expect(assets).toHaveLength(1);
+  });
+
+  test("whitelist: skips optimizer for non-whitelisted extension", async () => {
+    const mediaStore = makeMediaStore();
+    const mediaOptimizer = makeMediaOptimizer();
+    const transformMedia: TransformMediaRule[] = [{ mediaType: "image", include: ["jpg", "jpeg"] }];
+    const content: Block[] = [makeImageBlock("https://example.com/photo.png")];
+
+    await processAssets({ itemId, content, mediaStore, mediaOptimizer, transformMedia });
+
+    // PNG not in whitelist → optimizer should NOT be called
+    expect(mediaOptimizer.optimize).not.toHaveBeenCalled();
+
+    const assets = await db.select().from(assetTable).all();
+    expect(assets).toHaveLength(1);
+    // Stored as-is with original extension
+    expect(assets[0].ext).toBe("png");
+  });
+
+  test("whitelist: optimizes whitelisted extension", async () => {
+    const mediaStore = makeMediaStore();
+    const mediaOptimizer = makeMediaOptimizer();
+    const transformMedia: TransformMediaRule[] = [
+      { mediaType: "image", include: ["jpg", "jpeg", "png"] },
+    ];
+    const content: Block[] = [makeImageBlock("https://example.com/photo.png")];
+
+    await processAssets({ itemId, content, mediaStore, mediaOptimizer, transformMedia });
+
+    // PNG is in whitelist → optimizer should be called
+    expect(mediaOptimizer.optimize).toHaveBeenCalledTimes(1);
+  });
+
+  test("blacklist: skips optimizer for blacklisted extension", async () => {
+    const mediaStore = makeMediaStore();
+    const mediaOptimizer = makeMediaOptimizer();
+    const transformMedia: TransformMediaRule[] = [{ mediaType: "image", exclude: ["png"] }];
+    const content: Block[] = [makeImageBlock("https://example.com/photo.png")];
+
+    await processAssets({ itemId, content, mediaStore, mediaOptimizer, transformMedia });
+
+    // PNG is blacklisted → optimizer should NOT be called
+    expect(mediaOptimizer.optimize).not.toHaveBeenCalled();
+
+    const assets = await db.select().from(assetTable).all();
+    expect(assets).toHaveLength(1);
+    expect(assets[0].ext).toBe("png");
+  });
+
+  test("blacklist: optimizes non-blacklisted extension", async () => {
+    const mediaStore = makeMediaStore();
+    const mediaOptimizer = makeMediaOptimizer();
+    const transformMedia: TransformMediaRule[] = [{ mediaType: "image", exclude: ["gif"] }];
+    const content: Block[] = [makeImageBlock("https://example.com/photo.png")];
+
+    await processAssets({ itemId, content, mediaStore, mediaOptimizer, transformMedia });
+
+    // PNG is not blacklisted → optimizer should be called
+    expect(mediaOptimizer.optimize).toHaveBeenCalledTimes(1);
+  });
+
+  test("collection-scoped rule: ignores rule for non-matching collection", async () => {
+    const mediaStore = makeMediaStore();
+    const mediaOptimizer = makeMediaOptimizer();
+    const transformMedia: TransformMediaRule[] = [
+      // This rule applies only to "other" collection, not "test"
+      { mediaType: "image", exclude: ["png"], collections: ["other"] },
+    ];
+    const content: Block[] = [makeImageBlock("https://example.com/photo.png")];
+
+    await processAssets({
+      itemId,
+      content,
+      mediaStore,
+      mediaOptimizer,
+      transformMedia,
+      collection: "test",
+    });
+
+    // Rule doesn't apply to "test" collection → optimizer IS called normally
+    expect(mediaOptimizer.optimize).toHaveBeenCalledTimes(1);
+  });
+
+  test("collection-scoped rule: applies rule for matching collection", async () => {
+    const mediaStore = makeMediaStore();
+    const mediaOptimizer = makeMediaOptimizer();
+    const transformMedia: TransformMediaRule[] = [
+      { mediaType: "image", exclude: ["png"], collections: ["test"] },
+    ];
+    const content: Block[] = [makeImageBlock("https://example.com/photo.png")];
+
+    await processAssets({
+      itemId,
+      content,
+      mediaStore,
+      mediaOptimizer,
+      transformMedia,
+      collection: "test",
+    });
+
+    // Rule applies to "test" collection and PNG is excluded → optimizer NOT called
+    expect(mediaOptimizer.optimize).not.toHaveBeenCalled();
   });
 });
 
