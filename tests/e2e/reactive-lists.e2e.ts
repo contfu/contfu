@@ -100,12 +100,12 @@ test.describe("Reactive List Updates", () => {
     // Verify no outflows initially
     await expect(page.getByText("No outflows configured yet.")).toBeVisible();
 
-    // Add outflow via the combobox in the "Outflows" section
+    // Add outflow via the select in the "Outflows" section
     const outflowSection = page
       .locator("section")
       .filter({ has: page.getByRole("heading", { name: /Outflows/i }) });
 
-    await outflowSection.getByRole("combobox").click();
+    await outflowSection.locator("[data-select-trigger]").click();
     await page.getByRole("option", { name: new RegExp(`Target Flow Col ${RUN_ID}`, "i") }).click();
     await outflowSection.getByRole("button", { name: /Add Outflow/i }).click();
 

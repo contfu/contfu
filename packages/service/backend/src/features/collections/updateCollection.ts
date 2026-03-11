@@ -5,6 +5,7 @@ import { DatabaseError, ValidationError } from "../../effect/errors";
 import { collectionTable } from "../../infra/db/schema";
 import { toCamelCase, type CollectionSchema, type RefTargets } from "@contfu/svc-core";
 import { pack } from "msgpackr";
+import type { CollectionIcon } from "@contfu/core";
 
 export interface UpdateCollectionInput {
   displayName?: string;
@@ -12,6 +13,7 @@ export interface UpdateCollectionInput {
   includeRef?: boolean;
   schema?: CollectionSchema;
   refTargets?: RefTargets | null;
+  icon?: CollectionIcon | null;
 }
 
 const camelCasePattern = /^[a-z][a-zA-Z0-9]*$/;
@@ -52,6 +54,7 @@ export const updateCollection = (collectionId: number, input: UpdateCollectionIn
                   ? pack(input.refTargets)
                   : undefined,
             includeRef: input.includeRef,
+            icon: input.icon === null ? null : input.icon ? pack(input.icon) : undefined,
             updatedAt: new Date(),
           })
           .where(eq(collectionTable.id, collectionId))

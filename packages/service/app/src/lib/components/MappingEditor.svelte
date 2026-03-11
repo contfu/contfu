@@ -4,6 +4,7 @@
   import { Badge } from "$lib/components/ui/badge";
   import { Button } from "$lib/components/ui/button";
   import * as Command from "$lib/components/ui/command";
+  import ConnectionIcon from "$lib/components/icons/ConnectionIcon.svelte";
   import { Input } from "$lib/components/ui/input";
   import { Label } from "$lib/components/ui/label";
   import * as Popover from "$lib/components/ui/popover";
@@ -20,6 +21,7 @@
     type RefTargets,
   } from "@contfu/svc-core";
   import { Select } from "@contfu/ui";
+  import { BoxesIcon, ShapesIcon } from "@lucide/svelte";
   import AlertCircle from "@lucide/svelte/icons/alert-circle";
   import CircleCheck from "@lucide/svelte/icons/circle-check";
   import Plus from "@lucide/svelte/icons/plus";
@@ -27,9 +29,19 @@
   import TriangleAlert from "@lucide/svelte/icons/triangle-alert";
   import { untrack } from "svelte";
 
+  interface InflowIcon {
+    type: "emoji" | "image";
+    value?: string;
+    url?: string;
+  }
+
   interface InflowData {
     id: string;
     name: string;
+    icon?: InflowIcon | null;
+    connectionId?: string | null;
+    connectionName?: string | null;
+    connectionType?: number | null;
     sourceSchema: CollectionSchema | null;
     mappings: MappingRule[];
     filters?: Filter[];
@@ -66,6 +78,24 @@
   };
 
   let { readonly = false, targetSchema, refTargets, availableCollections, inflows, onchange }: Props = $props();
+
+  function groupInflowsByConnection(items: InflowData[]) {
+    const order: (string | null)[] = [];
+    const groups = new Map<string | null, { connectionId: string | null; connectionType: number | null; name: string; items: InflowData[] }>();
+    for (const item of items) {
+      const key = item.connectionId ?? null;
+      if (!groups.has(key)) {
+        order.push(key);
+        groups.set(key, { connectionId: key, connectionType: item.connectionType ?? null, name: item.connectionName ?? "standalone", items: [] });
+      }
+      groups.get(key)!.items.push(item);
+    }
+    return [null, ...order.filter((k) => k !== null)]
+      .filter((k) => groups.has(k))
+      .map((k) => groups.get(k)!);
+  }
+
+  const groupedInflows = $derived(groupInflowsByConnection(inflows));
 
   // Local mutable state
   let localSchema = $state<CollectionSchema>({ ...targetSchema });
@@ -621,11 +651,29 @@
   {#if inflows.length > 0}
     <div class="space-y-2">
       <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Filters</p>
-      {#each inflows as inflow (inflow.id)}
+      {#each groupedInflows as group}
+        <div class="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground first:mt-0">
+          {#if group.connectionId !== null && group.connectionType != null}
+            <ConnectionIcon type={group.connectionType} class="h-3 w-3" />
+          {:else}
+            <ShapesIcon class="h-3 w-3" />
+          {/if}
+          <span>{group.name}</span>
+        </div>
+      {#each group.items as inflow (inflow.id)}
         {@const filters = getFiltersForInflow(inflow.id)}
         <div class="rounded-md border border-border p-3">
           <div class="mb-2 flex items-center justify-between">
-            <span class="text-xs font-medium text-muted-foreground">{inflow.name}</span>
+            <span class="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+              {#if inflow.icon?.type === "emoji"}
+                <span class="flex h-3.5 w-3.5 shrink-0 items-center justify-center text-xs leading-none">{inflow.icon.value}</span>
+              {:else if inflow.icon?.type === "image"}
+                <img src={inflow.icon.url} alt="" class="h-3.5 w-3.5 shrink-0 object-contain" />
+              {:else}
+                <BoxesIcon class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              {/if}
+              {inflow.name}
+            </span>
             {#if !readonly}
               <Button variant="ghost" size="sm" class="h-6 gap-1 px-2 text-xs" onclick={() => addFilter(inflow.id)}>
                 <Plus class="h-3 w-3" />
@@ -680,6 +728,7 @@
             </div>
           {/if}
         </div>
+      {/each}
       {/each}
     </div>
   {/if}
@@ -791,8 +840,17 @@
                 </div>
               {/if}
 
-              <!-- One row per inflow -->
-              {#each inflows as inflow (inflow.id)}
+              <!-- One row per inflow, grouped by connection -->
+              {#each groupedInflows as mappingGroup}
+                <div class="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground first:mt-0">
+                  {#if mappingGroup.connectionId !== null && mappingGroup.connectionType != null}
+                    <ConnectionIcon type={mappingGroup.connectionType} class="h-3 w-3" />
+                  {:else}
+                    <ShapesIcon class="h-3 w-3" />
+                  {/if}
+                  <span>{mappingGroup.name}</span>
+                </div>
+              {#each mappingGroup.items as inflow (inflow.id)}
                 {@const guessed = isGuessed(inflow.id, propName)}
                 {@const unmapped = isUnmapped(inflow.id, propName)}
                 {@const mappingWarn = hasMappingWarning(inflow.id, propName)}
@@ -804,9 +862,16 @@
                     : 'border-border'}"
                 >
                   <div class="mb-2 flex items-center gap-1.5">
-                    <span class="text-xs font-medium text-muted-foreground"
-                      >{inflow.name}</span
-                    >
+                    <span class="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                      {#if inflow.icon?.type === "emoji"}
+                        <span class="flex h-3.5 w-3.5 shrink-0 items-center justify-center text-xs leading-none">{inflow.icon.value}</span>
+                      {:else if inflow.icon?.type === "image"}
+                        <img src={inflow.icon.url} alt="" class="h-3.5 w-3.5 shrink-0 object-contain" />
+                      {:else}
+                        <BoxesIcon class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                      {/if}
+                      {inflow.name}
+                    </span>
                     {#if mappingWarn && guessed}
                       <span
                         class="flex items-center gap-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-400"
@@ -921,6 +986,7 @@
                     {/if}
                   </div>
                 </div>
+              {/each}
               {/each}
             </div>
           </Accordion.Content>

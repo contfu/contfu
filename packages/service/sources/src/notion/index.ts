@@ -13,6 +13,7 @@ export {
   notionPropertiesToSchema,
   getCollectionSchema,
   isFullDataSource,
+  extractNotionIcon,
 } from "./notion-collections";
 export { getContentBlocks, parseBlock } from "./notion-blocks";
 export { parseItem } from "./notion-items";

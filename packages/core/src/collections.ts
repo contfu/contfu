@@ -6,10 +6,13 @@
  **/
 import type { CollectionSchema, RefTargets } from "./schemas";
 
+export type CollectionIcon = { type: "emoji"; value: string } | { type: "image"; url: string };
+
 export interface Collection {
   id: string;
   name: string;
   includeRef: boolean;
   schema: CollectionSchema;
   refTargets?: RefTargets;
+  icon?: CollectionIcon | null;
 }

@@ -6,6 +6,7 @@ import { toCamelCase } from "@contfu/svc-core";
 import { incrementCount, checkQuota } from "../../infra/nats/quota-kv";
 import { pack } from "msgpackr";
 import { mapToBackendCollection } from "./mapToBackendCollection";
+import type { CollectionIcon } from "@contfu/core";
 
 export interface CreateCollectionInput {
   displayName: string;
@@ -13,6 +14,7 @@ export interface CreateCollectionInput {
   includeRef?: boolean;
   connectionId?: number;
   ref?: string;
+  icon?: CollectionIcon | null;
 }
 
 const camelCasePattern = /^[a-z][a-zA-Z0-9]*$/;
@@ -59,6 +61,7 @@ export const createCollection = (userId: number, input: CreateCollectionInput) =
             schema: pack({}),
             connectionId: input.connectionId ?? null,
             ref: input.ref ? Buffer.from(input.ref, "utf-8") : null,
+            icon: input.icon ? pack(input.icon) : null,
           })
           .returning(),
       catch: (e) => new DatabaseError({ cause: e }),

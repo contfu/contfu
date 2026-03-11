@@ -19,6 +19,7 @@
     AlertTriangleIcon,
     ArrowRightLeftIcon,
     BoxIcon,
+    BoxesIcon,
     FoldersIcon,
     LayoutDashboardIcon,
     PencilIcon,
@@ -255,7 +256,14 @@
             {#each collections.slice(0, 5) as collection}
               <tr class="hover:bg-muted/30 transition-colors duration-100">
                 <td class="px-3 py-2">
-                  <a href="/collections/{collection.id}" class="hover:text-primary transition-colors duration-150">
+                  <a href="/collections/{collection.id}" class="flex items-center gap-1.5 hover:text-primary transition-colors duration-150">
+                    {#if collection.icon?.type === "emoji"}
+                      <span class="flex h-4 w-4 shrink-0 items-center justify-center text-sm leading-none">{collection.icon.value}</span>
+                    {:else if collection.icon?.type === "image"}
+                      <img src={collection.icon.url} alt="" class="h-4 w-4 shrink-0 object-contain" />
+                    {:else}
+                      <BoxesIcon class="h-4 w-4 shrink-0 text-muted-foreground" />
+                    {/if}
                     {collection.name || "unnamed"}
                   </a>
                 </td>

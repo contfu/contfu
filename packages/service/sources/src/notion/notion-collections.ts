@@ -1,5 +1,7 @@
 import { PropertyType, toCamelCase, type CollectionSchema } from "@contfu/svc-core";
+import type { CollectionIcon } from "@contfu/core";
 import { isFullDatabase, isFullDataSource } from "@notionhq/client";
+import type { DataSourceObjectResponse } from "@notionhq/client/build/src/api-endpoints";
 import { notion, parseNotionRef } from "./notion-helpers";
 
 export { isFullDataSource };
@@ -91,4 +93,16 @@ export function notionPropertiesToSchema(
     }
   }
   return schema;
+}
+
+/**
+ * Extract a CollectionIcon from a Notion data source's icon field.
+ */
+export function extractNotionIcon(dataSource: DataSourceObjectResponse): CollectionIcon | null {
+  const icon = dataSource.icon;
+  if (!icon) return null;
+  if (icon.type === "emoji") return { type: "emoji", value: icon.emoji };
+  if (icon.type === "external") return { type: "image", url: icon.external.url };
+  if (icon.type === "file") return { type: "image", url: icon.file.url };
+  return null;
 }

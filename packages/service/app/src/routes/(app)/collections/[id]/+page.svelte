@@ -1,15 +1,16 @@
 <script lang="ts">
   // @ts-nocheck
   import { goto } from "$app/navigation";
+  import IconPicker from "$lib/components/IconPicker.svelte";
   import MappingEditor from "$lib/components/MappingEditor.svelte";
   import ConnectionIcon from "$lib/components/icons/ConnectionIcon.svelte";
   import SiteHeader from "$lib/components/layout/site-header.svelte";
   import { Button, buttonVariants } from "$lib/components/ui/button";
-  import * as Command from "$lib/components/ui/command";
   import { Input } from "$lib/components/ui/input";
   import { Label } from "$lib/components/ui/label";
   import * as Popover from "$lib/components/ui/popover";
   import * as Tooltip from "$lib/components/ui/tooltip";
+  import * as Select from "$lib/components/ui/select";
   import {
     deleteCollection,
     getCollection,
@@ -34,13 +35,7 @@
     ServiceFlowWithDetails,
   } from "@contfu/svc-core";
   import { ConnectionTypeMeta } from "@contfu/svc-core";
-  import {
-    Check,
-    ChevronsUpDown,
-    LinkIcon,
-    TrashIcon,
-    UnlinkIcon,
-  } from "@lucide/svelte";
+  import { BoxesIcon, LinkIcon, ShapesIcon, TrashIcon, UnlinkIcon } from "@lucide/svelte";
   import Pencil from "@lucide/svelte/icons/pencil";
   import { useId } from "bits-ui";
   import { toast } from "svelte-sonner";
@@ -55,12 +50,17 @@
   const collection = $derived(await (id !== "new" ? getCollection({ id }) : null));
   const allCollections = $derived(await getCollections());
 
-  // Sync form fields when collection changes
+  // Sync form fields when collection changes (always set, even for non-editable
+  // collections, so the form framework's internal state stays valid)
   let prevCollection: typeof collection;
   $effect(() => {
     if (collection && collection !== prevCollection) {
       prevCollection = collection;
-      updateCollection.fields.set(collection);
+      updateCollection.fields.set({
+        id: collection.id,
+        displayName: collection.displayName,
+        name: collection.name,
+      });
     }
   });
 
@@ -93,10 +93,61 @@
   );
 
   let namePopoverOpen = $state(false);
-  let sourceComboboxOpen = $state(false);
-  let targetComboboxOpen = $state(false);
-  let selectedSourceId = $state<string | null>(null);
-  let selectedTargetId = $state<string | null>(null);
+  let iconPopoverOpen = $state(false);
+  let pendingIcon = $state<string | null>(null);
+  $effect(() => {
+    if (iconPopoverOpen) {
+      // Reset pendingIcon to current collection icon when opening popover
+      pendingIcon = collection?.icon ? JSON.stringify(collection.icon) : null;
+    }
+  });
+  let selectedSourceId = $state<string>("");
+  let selectedTargetId = $state<string>("");
+
+  function groupByConnection<T extends { connectionId: string | null; connectionName: string | null; connectionType: number | null }>(
+    items: T[],
+  ) {
+    const order: (string | null)[] = [];
+    const groups = new Map<string | null, { connectionId: string | null; connectionType: number | null; name: string; items: T[] }>();
+    for (const c of items) {
+      const key = c.connectionId ?? null;
+      if (!groups.has(key)) {
+        order.push(key);
+        groups.set(key, { connectionId: key, connectionType: c.connectionType ?? null, name: c.connectionName ?? "standalone", items: [] });
+      }
+      groups.get(key)!.items.push(c);
+    }
+    return [null, ...order.filter((k) => k !== null)]
+      .filter((k) => groups.has(k))
+      .map((k) => groups.get(k)!);
+  }
+
+  function groupFlowsByConnection(
+    flowList: ServiceFlowWithDetails[],
+    direction: 'source' | 'target',
+  ) {
+    const order: (string | null)[] = [];
+    const groups = new Map<string | null, { connectionId: string | null; connectionType: number | null; name: string; items: ServiceFlowWithDetails[] }>();
+    for (const flow of flowList) {
+      const colId = direction === 'source' ? flow.sourceId : flow.targetId;
+      const col = allCollections.find((c) => c.id === colId);
+      const key = col?.connectionId ?? null;
+      if (!groups.has(key)) {
+        order.push(key);
+        groups.set(key, { connectionId: key, connectionType: col?.connectionType ?? null, name: col?.connectionName ?? "standalone", items: [] });
+      }
+      groups.get(key)!.items.push(flow);
+    }
+    return [null, ...order.filter((k) => k !== null)]
+      .filter((k) => groups.has(k))
+      .map((k) => groups.get(k)!);
+  }
+
+  const groupedSourceCollections = $derived(groupByConnection(availableSourceCollections));
+  const groupedTargetCollections = $derived(groupByConnection(availableTargetCollections));
+
+  const groupedSourceFlows = $derived(groupFlowsByConnection(sourceFlows, 'source'));
+  const groupedTargetFlows = $derived(groupFlowsByConnection(targetFlows, 'target'));
 
   // Schema & Mappings state
   let mappingChanges = $state<{
@@ -119,13 +170,20 @@
 
   // Combine source flows for MappingEditor (source flows feed INTO this collection)
   const combinedInflows = $derived.by(() => {
-    return sourceFlows.map((flow) => ({
-      id: flow.id,
-      name: flow.sourceCollectionDisplayName ?? flow.sourceCollectionName,
-      sourceSchema: flow.schema,
-      mappings: flow.mappings ?? [],
-      filters: flow.filters ?? [],
-    }));
+    return sourceFlows.map((flow) => {
+      const sourceCol = allCollections.find((c) => c.id === flow.sourceId);
+      return {
+        id: flow.id,
+        name: flow.sourceCollectionDisplayName ?? flow.sourceCollectionName,
+        icon: sourceCol?.icon ?? null,
+        connectionId: sourceCol?.connectionId ?? null,
+        connectionName: sourceCol?.connectionName ?? null,
+        connectionType: sourceCol?.connectionType ?? null,
+        sourceSchema: flow.schema,
+        mappings: flow.mappings ?? [],
+        filters: flow.filters ?? [],
+      };
+    });
   });
 
   async function saveMappings() {
@@ -182,7 +240,7 @@
       });
       if (result.success) {
         toast.success("Inflow added");
-        selectedSourceId = null;
+        selectedSourceId = "";
         await getFlowsByCollection({ collectionId: id }).refresh();
       } else {
         toast.error(result.error);
@@ -201,7 +259,7 @@
       });
       if (result.success) {
         toast.success("Outflow added");
-        selectedTargetId = null;
+        selectedTargetId = "";
         await getFlowsByCollection({ collectionId: id }).refresh();
       } else {
         toast.error(result.error);
@@ -234,12 +292,87 @@
 {#if collection}
   {@const meta = collection.connectionType != null ? ConnectionTypeMeta[collection.connectionType] : null}
   {@const canEditSchema = !meta || meta.editable}
+  {@const canEditMeta = !meta || meta.editable}
   {@const showInflows = !meta || meta.target}
   {@const showOutflows = !meta || meta.source}
+  {@const collectionIcon = collection.icon ?? null}
   <div class="page-shell px-4 py-8 sm:px-6">
     <div class="mb-8">
       <div class="flex items-center gap-2">
+        <!-- Icon display (+ edit popover if editable) -->
+        {#if canEditMeta}
+          <Popover.Root bind:open={iconPopoverOpen}>
+            <Popover.Trigger
+              class={cn(
+                buttonVariants({ variant: "ghost", size: "icon" }),
+                "h-10 w-10 rounded-md text-2xl hover:bg-accent",
+              )}
+            >
+              {#if collectionIcon?.type === "emoji"}
+                <span>{collectionIcon.value}</span>
+              {:else if collectionIcon?.type === "image"}
+                <img src={collectionIcon.url} alt="" class="h-7 w-7 object-contain" />
+              {:else}
+                <BoxesIcon class="h-7 w-7 text-muted-foreground" />
+              {/if}
+            </Popover.Trigger>
+            <Popover.Portal>
+              <Popover.Content class="w-72" align="start">
+                <form
+                  {...updateCollection
+                    .preflight(v.object({ id: v.string(), icon: v.optional(v.string()) }))
+                    .enhance(async ({ submit }) => {
+                      iconPopoverOpen = false;
+                      await tcToast(async () => {
+                        await submit().updates(
+                          getCollection({ id }).withOverride((c) => ({
+                            ...c!,
+                            icon: pendingIcon ? JSON.parse(pendingIcon) : null,
+                          })),
+                        );
+                        toast.success("Icon updated");
+                      });
+                    })}
+                  class="space-y-3"
+                >
+                  <input {...updateCollection.fields.id.as("text")} type="hidden" />
+                  <input
+                    type="hidden"
+                    name="icon"
+                    value={pendingIcon === null ? "null" : (pendingIcon ?? "")}
+                  />
+                  <p class="text-xs font-medium text-muted-foreground">Collection icon</p>
+                  <IconPicker
+                    value={collectionIcon ? JSON.stringify(collectionIcon) : null}
+                    onchange={(v) => { pendingIcon = v; }}
+                  />
+                  <div class="flex justify-end gap-2">
+                    <Popover.Close>
+                      <Button type="button" variant="outline" size="sm">Cancel</Button>
+                    </Popover.Close>
+                    <Button type="submit" size="sm" disabled={!!updateCollection.pending}>
+                      {updateCollection.pending ? "Saving..." : "Save"}
+                    </Button>
+                  </div>
+                </form>
+              </Popover.Content>
+            </Popover.Portal>
+          </Popover.Root>
+        {/if}
+        {#if !canEditMeta}
+          <div class="flex h-10 w-10 items-center justify-center text-2xl">
+            {#if collectionIcon?.type === "emoji"}
+              <span>{collectionIcon.value}</span>
+            {:else if collectionIcon?.type === "image"}
+              <img src={collectionIcon.url} alt="" class="h-7 w-7 object-contain" />
+            {:else}
+              <BoxesIcon class="h-7 w-7 text-muted-foreground" />
+            {/if}
+          </div>
+        {/if}
+
         <h1 class="text-2xl font-semibold tracking-tight">{collection.displayName ?? collection.name}</h1>
+        {#if canEditMeta}
         <Popover.Root bind:open={namePopoverOpen}>
           <Popover.Trigger
             class={cn(
@@ -321,6 +454,7 @@
             </Popover.Content>
           </Popover.Portal>
         </Popover.Root>
+        {/if}
       </div>
       <p class="mt-1 text-sm text-muted-foreground">
         {collection.flowSourceCount} inflow{collection.flowSourceCount === 1
@@ -354,39 +488,51 @@
 
       <!-- Source flow list -->
       <div class="mb-4 space-y-2">
-        {#each sourceFlows as flow (flow.id)}
-          <div class="flex items-center justify-between rounded-md border border-border px-3 py-2">
-            <div class="flex items-center gap-2">
-              {#if flow.sourceConnectionType != null}
-                <ConnectionIcon
-                  type={flow.sourceConnectionType}
-                  class="h-4 w-4 text-muted-foreground"
-                />
-              {/if}
-              <a href="/collections/{flow.sourceId}" class="text-sm hover:text-primary transition-colors duration-150">
-                {flow.sourceCollectionDisplayName ?? flow.sourceCollectionName}
-              </a>
-            </div>
-            <Tooltip.Provider>
-              <Tooltip.Root>
-                <Tooltip.Trigger>
-                  {#snippet child({ props })}
-                    <Button
-                      {...props}
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      class="h-7 w-7 text-muted-foreground hover:text-destructive"
-                      onclick={() => handleRemoveFlow(flow.id)}
-                    >
-                      <TrashIcon class="size-3.5" />
-                    </Button>
-                  {/snippet}
-                </Tooltip.Trigger>
-                <Tooltip.Content>Remove</Tooltip.Content>
-              </Tooltip.Root>
-            </Tooltip.Provider>
+        {#each groupedSourceFlows as group}
+          <div class="mb-1 mt-2 flex items-center gap-1.5 text-xs text-muted-foreground first:mt-0">
+            {#if group.connectionId !== null && group.connectionType != null}
+              <ConnectionIcon type={group.connectionType} class="h-3 w-3" />
+            {:else}
+              <ShapesIcon class="h-3 w-3" />
+            {/if}
+            <span>{group.name}</span>
           </div>
+          {#each group.items as flow (flow.id)}
+            {@const flowSourceCol = allCollections.find((c) => c.id === flow.sourceId)}
+            <div class="flex items-center justify-between rounded-md border border-border px-3 py-2">
+              <div class="flex items-center gap-2">
+                {#if flowSourceCol?.icon?.type === "emoji"}
+                  <span class="flex h-4 w-4 shrink-0 items-center justify-center text-sm leading-none">{flowSourceCol.icon.value}</span>
+                {:else if flowSourceCol?.icon?.type === "image"}
+                  <img src={flowSourceCol.icon.url} alt="" class="h-4 w-4 shrink-0 object-contain" />
+                {:else}
+                  <BoxesIcon class="h-4 w-4 shrink-0 text-muted-foreground" />
+                {/if}
+                <a href="/collections/{flow.sourceId}" class="text-sm hover:text-primary transition-colors duration-150">
+                  {flow.sourceCollectionDisplayName ?? flow.sourceCollectionName}
+                </a>
+              </div>
+              <Tooltip.Provider>
+                <Tooltip.Root>
+                  <Tooltip.Trigger>
+                    {#snippet child({ props })}
+                      <Button
+                        {...props}
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        class="h-7 w-7 text-muted-foreground hover:text-destructive"
+                        onclick={() => handleRemoveFlow(flow.id)}
+                      >
+                        <TrashIcon class="size-3.5" />
+                      </Button>
+                    {/snippet}
+                  </Tooltip.Trigger>
+                  <Tooltip.Content>Remove</Tooltip.Content>
+                </Tooltip.Root>
+              </Tooltip.Provider>
+            </div>
+          {/each}
         {/each}
 
         {#if sourceFlows.length === 0}
@@ -398,49 +544,70 @@
 
       <!-- Add source flow -->
       {#if availableSourceCollections.length > 0}
-        <div class="flex gap-2">
-          <Popover.Root bind:open={sourceComboboxOpen}>
-            <Popover.Trigger
-              class="inline-flex flex-1 items-center justify-between gap-2 whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              role="combobox"
-              aria-expanded={sourceComboboxOpen}
-            >
-              {#if selectedSourceId}
-                {@const selected = availableSourceCollections.find((c) => c.id === selectedSourceId)}
-                {selected?.displayName ?? selected?.name ?? "Select collection..."}
+        {@const selectedSource = availableSourceCollections.find((c) => c.id === selectedSourceId)}
+        <div class="flex items-center gap-2">
+          <Select.Root bind:value={selectedSourceId} type="single">
+            <Select.Trigger class="flex-1">
+              {#if selectedSource}
+                {#if selectedSource.icon?.type === "emoji"}
+                  <span class="flex h-4 w-4 shrink-0 items-center justify-center text-sm leading-none">{selectedSource.icon.value}</span>
+                {:else if selectedSource.icon?.type === "image"}
+                  <img src={selectedSource.icon.url} alt="" class="h-4 w-4 shrink-0 object-contain" />
+                {:else}
+                  <BoxesIcon class="h-4 w-4 shrink-0 text-muted-foreground" />
+                {/if}
+                <span class="truncate">{selectedSource.displayName ?? selectedSource.name}</span>
               {:else}
-                Select inflow source...
+                <span class="text-muted-foreground">Select inflow source...</span>
               {/if}
-              <ChevronsUpDown class="ml-2 size-4 shrink-0 opacity-50" />
-            </Popover.Trigger>
-            <Popover.Content class="w-(--radix-popover-trigger-width) p-0" align="start">
-              <Command.Root>
-                <Command.Input placeholder="Search collections..." />
-                <Command.List>
-                  <Command.Empty>No collection found.</Command.Empty>
-                  <Command.Group>
-                    {#each availableSourceCollections as col}
-                      <Command.Item
-                        value={`${col.displayName ?? col.name} ${col.id}`}
-                        onSelect={() => {
-                          selectedSourceId = col.id;
-                          sourceComboboxOpen = false;
-                        }}
-                      >
-                        {col.displayName ?? col.name}
-                        {#if selectedSourceId === col.id}
-                          <Check class="ml-auto size-4" />
-                        {/if}
-                      </Command.Item>
+            </Select.Trigger>
+            <Select.Portal>
+              <Select.Content position="popper">
+                {#each groupedSourceCollections as group}
+                  {#if group.connectionId !== null}
+                    <Select.Group>
+                      <Select.GroupLabel>
+                        <span class="flex items-center gap-1.5">
+                          {#if group.connectionType != null}
+                            <ConnectionIcon type={group.connectionType} class="h-3 w-3" />
+                          {/if}
+                          {group.name}
+                        </span>
+                      </Select.GroupLabel>
+                      {#each group.items as col}
+                        <Select.Item value={col.id} label={col.displayName ?? col.name}>
+                          {#snippet icon()}
+                            {#if col.icon?.type === "emoji"}
+                              <span class="flex h-4 w-4 shrink-0 items-center justify-center text-sm leading-none">{col.icon.value}</span>
+                            {:else if col.icon?.type === "image"}
+                              <img src={col.icon.url} alt="" class="h-4 w-4 shrink-0 object-contain" />
+                            {:else}
+                              <BoxesIcon class="h-4 w-4 shrink-0 text-muted-foreground" />
+                            {/if}
+                          {/snippet}
+                        </Select.Item>
+                      {/each}
+                    </Select.Group>
+                  {:else}
+                    {#each group.items as col}
+                      <Select.Item value={col.id} label={col.displayName ?? col.name}>
+                        {#snippet icon()}
+                          {#if col.icon?.type === "emoji"}
+                            <span class="flex h-4 w-4 shrink-0 items-center justify-center text-sm leading-none">{col.icon.value}</span>
+                          {:else if col.icon?.type === "image"}
+                            <img src={col.icon.url} alt="" class="h-4 w-4 shrink-0 object-contain" />
+                          {/if}
+                        {/snippet}
+                      </Select.Item>
                     {/each}
-                  </Command.Group>
-                </Command.List>
-              </Command.Root>
-            </Popover.Content>
-          </Popover.Root>
+                  {/if}
+                {/each}
+              </Select.Content>
+            </Select.Portal>
+          </Select.Root>
           <Button
             variant="outline"
-            disabled={selectedSourceId === null}
+            disabled={!selectedSourceId}
             onclick={handleAddSourceFlow}
           >
             <LinkIcon class="size-4" />
@@ -515,86 +682,126 @@
       </p>
 
       <div class="mb-4 space-y-2">
-        {#each targetFlows as flow (flow.id)}
-          <div
-            class="flex items-center justify-between rounded-md border border-border px-4 py-3"
-          >
-            <a
-              href="/collections/{flow.targetId}"
-              class="text-sm font-medium hover:underline"
-            >
-              {flow.targetCollectionDisplayName ?? flow.targetCollectionName}
-            </a>
-            <Tooltip.Provider>
-              <Tooltip.Root>
-                <Tooltip.Trigger>
-                  {#snippet child({ props })}
-                    <Button
-                      {...props}
-                      type="button"
-                      variant="destructive"
-                      size="sm"
-                      onclick={() => handleRemoveFlow(flow.id)}
-                    >
-                      <UnlinkIcon class="size-4" />
-                    </Button>
-                  {/snippet}
-                </Tooltip.Trigger>
-                <Tooltip.Content>Disconnect</Tooltip.Content>
-              </Tooltip.Root>
-            </Tooltip.Provider>
+        {#each groupedTargetFlows as group}
+          <div class="mb-1 mt-2 flex items-center gap-1.5 text-xs text-muted-foreground first:mt-0">
+            {#if group.connectionId !== null && group.connectionType != null}
+              <ConnectionIcon type={group.connectionType} class="h-3 w-3" />
+            {:else}
+              <ShapesIcon class="h-3 w-3" />
+            {/if}
+            <span>{group.name}</span>
           </div>
-        {:else}
+          {#each group.items as flow (flow.id)}
+            {@const flowTargetCol = allCollections.find((c) => c.id === flow.targetId)}
+            <div
+              class="flex items-center justify-between rounded-md border border-border px-4 py-3"
+            >
+              <a
+                href="/collections/{flow.targetId}"
+                class="flex items-center gap-1.5 text-sm font-medium hover:underline"
+              >
+                {#if flowTargetCol?.icon?.type === "emoji"}
+                  <span class="flex h-4 w-4 shrink-0 items-center justify-center text-sm leading-none">{flowTargetCol.icon.value}</span>
+                {:else if flowTargetCol?.icon?.type === "image"}
+                  <img src={flowTargetCol.icon.url} alt="" class="h-4 w-4 shrink-0 object-contain" />
+                {:else}
+                  <BoxesIcon class="h-4 w-4 shrink-0 text-muted-foreground" />
+                {/if}
+                {flow.targetCollectionDisplayName ?? flow.targetCollectionName}
+              </a>
+              <Tooltip.Provider>
+                <Tooltip.Root>
+                  <Tooltip.Trigger>
+                    {#snippet child({ props })}
+                      <Button
+                        {...props}
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        onclick={() => handleRemoveFlow(flow.id)}
+                      >
+                        <UnlinkIcon class="size-4" />
+                      </Button>
+                    {/snippet}
+                  </Tooltip.Trigger>
+                  <Tooltip.Content>Disconnect</Tooltip.Content>
+                </Tooltip.Root>
+              </Tooltip.Provider>
+            </div>
+          {/each}
+        {/each}
+        {#if targetFlows.length === 0}
           <p class="text-sm text-muted-foreground">
             No outflows configured yet.
           </p>
-        {/each}
+        {/if}
       </div>
 
       {#if availableTargetCollections.length > 0}
-        <div class="flex gap-2">
-          <Popover.Root bind:open={targetComboboxOpen}>
-            <Popover.Trigger
-              class="inline-flex flex-1 items-center justify-between gap-2 whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              role="combobox"
-              aria-expanded={targetComboboxOpen}
-            >
-              {#if selectedTargetId}
-                {@const selected = availableTargetCollections.find((c) => c.id === selectedTargetId)}
-                {selected?.displayName ?? selected?.name ?? "Select collection..."}
+        {@const selectedTarget = availableTargetCollections.find((c) => c.id === selectedTargetId)}
+        <div class="flex items-center gap-2">
+          <Select.Root bind:value={selectedTargetId} type="single">
+            <Select.Trigger class="flex-1">
+              {#if selectedTarget}
+                {#if selectedTarget.icon?.type === "emoji"}
+                  <span class="flex h-4 w-4 shrink-0 items-center justify-center text-sm leading-none">{selectedTarget.icon.value}</span>
+                {:else if selectedTarget.icon?.type === "image"}
+                  <img src={selectedTarget.icon.url} alt="" class="h-4 w-4 shrink-0 object-contain" />
+                {:else}
+                  <BoxesIcon class="h-4 w-4 shrink-0 text-muted-foreground" />
+                {/if}
+                <span class="truncate">{selectedTarget.displayName ?? selectedTarget.name}</span>
               {:else}
-                Select outflow target...
+                <span class="text-muted-foreground">Select outflow target...</span>
               {/if}
-              <ChevronsUpDown class="ml-2 size-4 shrink-0 opacity-50" />
-            </Popover.Trigger>
-            <Popover.Content class="w-(--radix-popover-trigger-width) p-0" align="start">
-              <Command.Root>
-                <Command.Input placeholder="Search collections..." />
-                <Command.List>
-                  <Command.Empty>No collection found.</Command.Empty>
-                  <Command.Group>
-                    {#each availableTargetCollections as col}
-                      <Command.Item
-                        value={`${col.displayName ?? col.name} ${col.id}`}
-                        onSelect={() => {
-                          selectedTargetId = col.id;
-                          targetComboboxOpen = false;
-                        }}
-                      >
-                        {col.displayName ?? col.name}
-                        {#if selectedTargetId === col.id}
-                          <Check class="ml-auto size-4" />
-                        {/if}
-                      </Command.Item>
+            </Select.Trigger>
+            <Select.Portal>
+              <Select.Content position="popper">
+                {#each groupedTargetCollections as group}
+                  {#if group.connectionId !== null}
+                    <Select.Group>
+                      <Select.GroupLabel>
+                        <span class="flex items-center gap-1.5">
+                          {#if group.connectionType != null}
+                            <ConnectionIcon type={group.connectionType} class="h-3 w-3" />
+                          {/if}
+                          {group.name}
+                        </span>
+                      </Select.GroupLabel>
+                      {#each group.items as col}
+                        <Select.Item value={col.id} label={col.displayName ?? col.name}>
+                          {#snippet icon()}
+                            {#if col.icon?.type === "emoji"}
+                              <span class="flex h-4 w-4 shrink-0 items-center justify-center text-sm leading-none">{col.icon.value}</span>
+                            {:else if col.icon?.type === "image"}
+                              <img src={col.icon.url} alt="" class="h-4 w-4 shrink-0 object-contain" />
+                            {:else}
+                              <BoxesIcon class="h-4 w-4 shrink-0 text-muted-foreground" />
+                            {/if}
+                          {/snippet}
+                        </Select.Item>
+                      {/each}
+                    </Select.Group>
+                  {:else}
+                    {#each group.items as col}
+                      <Select.Item value={col.id} label={col.displayName ?? col.name}>
+                        {#snippet icon()}
+                          {#if col.icon?.type === "emoji"}
+                            <span class="flex h-4 w-4 shrink-0 items-center justify-center text-sm leading-none">{col.icon.value}</span>
+                          {:else if col.icon?.type === "image"}
+                            <img src={col.icon.url} alt="" class="h-4 w-4 shrink-0 object-contain" />
+                          {/if}
+                        {/snippet}
+                      </Select.Item>
                     {/each}
-                  </Command.Group>
-                </Command.List>
-              </Command.Root>
-            </Popover.Content>
-          </Popover.Root>
+                  {/if}
+                {/each}
+              </Select.Content>
+            </Select.Portal>
+          </Select.Root>
           <Button
             variant="outline"
-            disabled={selectedTargetId === null}
+            disabled={!selectedTargetId}
             onclick={handleAddTargetFlow}
           >
             <LinkIcon class="size-4" />

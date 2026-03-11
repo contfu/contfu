@@ -227,6 +227,8 @@ export const collectionTable = pgTable.withRLS(
     refTargets: bytea(),
     /** Whether refs may be transmitted for this collection. */
     includeRef: boolean().notNull().default(true),
+    /** Optional visual icon for the collection (MessagePack serialized CollectionIcon). */
+    icon: bytea(),
     /** The date the collection was created. */
     createdAt: timestamp({ withTimezone: true, mode: "date" })
       .default(sql`now()`)

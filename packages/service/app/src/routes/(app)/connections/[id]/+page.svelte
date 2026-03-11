@@ -23,6 +23,7 @@
   } from "$lib/remote/collections.remote";
   import { getQuotaUsage } from "$lib/remote/billing.remote";
   import {
+    BoxesIcon,
     CheckIcon,
     ClipboardCopyIcon,
     KeyIcon,
@@ -383,7 +384,14 @@
         <div class="mb-4 space-y-2">
           {#each collections as col}
             <div class="flex items-center justify-between rounded-md border border-border px-3 py-2">
-              <a href="/collections/{col.id}" class="text-sm hover:text-primary transition-colors duration-150">
+              <a href="/collections/{col.id}" class="flex items-center gap-1.5 text-sm hover:text-primary transition-colors duration-150">
+                {#if col.icon?.type === "emoji"}
+                  <span class="flex h-4 w-4 shrink-0 items-center justify-center text-sm leading-none">{col.icon.value}</span>
+                {:else if col.icon?.type === "image"}
+                  <img src={col.icon.url} alt="" class="h-4 w-4 shrink-0 object-contain" />
+                {:else}
+                  <BoxesIcon class="h-4 w-4 shrink-0 text-muted-foreground" />
+                {/if}
                 {col.displayName ?? col.name}
               </a>
               <span class="text-xs text-muted-foreground">
@@ -406,6 +414,13 @@
                 checked={selectedRefs.has(ds.ref)}
                 onchange={() => toggleRef(ds.ref)}
               />
+              {#if ds.icon?.type === "emoji"}
+                <span class="flex h-4 w-4 shrink-0 items-center justify-center text-sm leading-none">{ds.icon.value}</span>
+              {:else if ds.icon?.type === "image"}
+                <img src={ds.icon.url} alt="" class="h-4 w-4 shrink-0 object-contain" />
+              {:else}
+                <BoxesIcon class="h-4 w-4 shrink-0 text-muted-foreground" />
+              {/if}
               <span class="flex-1">{ds.displayName}</span>
               {#if ds.alreadyImported}
                 <span class="text-muted-foreground">already added</span>

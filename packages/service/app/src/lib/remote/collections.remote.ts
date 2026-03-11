@@ -3,7 +3,18 @@ import { encodeCollection } from "$lib/mappers/collection.mappers";
 import { runWithUser } from "$lib/server/run";
 import { getStreamServer, getSyncWorkerManager } from "$lib/server/startup";
 import { getUserId } from "$lib/server/user";
-import { ConnectionType, EventType, type WireEvent } from "@contfu/core";
+import { processIconForStorage } from "$lib/server/icon-image";
+import { ConnectionType, EventType, type CollectionIcon, type WireEvent } from "@contfu/core";
+
+function parseIconJson(raw: string | undefined): CollectionIcon | null | undefined {
+  if (!raw) return undefined;
+  if (raw === "null") return null;
+  try {
+    return JSON.parse(raw) as CollectionIcon;
+  } catch {
+    return undefined;
+  }
+}
 import type { CollectionSchema, RefTargets } from "@contfu/svc-core";
 import { createCollection as createCollectionFeature } from "@contfu/svc-backend/features/collections/createCollection";
 import { deleteCollection as deleteCollectionFeature } from "@contfu/svc-backend/features/collections/deleteCollection";
@@ -70,6 +81,7 @@ export const createCollection = form(
     ),
     connectionId: v.optional(idSchema("connection")),
     ref: v.optional(v.string()),
+    icon: v.optional(v.string()), // JSON-serialized CollectionIcon
   }),
   async (data) => {
     const userId = getUserId();
@@ -81,6 +93,7 @@ export const createCollection = form(
         includeRef: data.includeRef ?? true,
         connectionId: data.connectionId,
         ref: data.ref,
+        icon: await processIconForStorage(parseIconJson(data.icon)),
       }),
     );
 
@@ -108,6 +121,7 @@ export const updateCollection = form(
       ),
     ),
     schema: v.optional(v.string()), // JSON string of CollectionSchema
+    icon: v.optional(v.string()), // JSON-serialized CollectionIcon, or "null" to clear
   }),
   async (data) => {
     const userId = getUserId();
@@ -122,6 +136,7 @@ export const updateCollection = form(
         name: data.name,
         includeRef: data.includeRef,
         schema: data.schema && JSON.parse(data.schema),
+        icon: await processIconForStorage(parseIconJson(data.icon)),
       }),
     );
 
@@ -210,6 +225,7 @@ export type DiscoveredCollection = {
   ref: string;
   displayName: string;
   alreadyImported: boolean;
+  icon?: CollectionIcon | null;
 };
 
 /**
@@ -235,7 +251,7 @@ export const discoverCollections = query(
     const discovered: DiscoveredCollection[] = [];
 
     if (connection.type === ConnectionType.NOTION) {
-      const { iterateDataSources } = await import("@contfu/svc-sources/notion");
+      const { iterateDataSources, extractNotionIcon } = await import("@contfu/svc-sources/notion");
       for await (const ds of iterateDataSources(credentials)) {
         const titleParts = (ds as { title?: Array<{ plain_text?: string }> }).title ?? [];
         const displayName = titleParts.map((t) => t.plain_text ?? "").join("") || "Untitled";
@@ -243,6 +259,7 @@ export const discoverCollections = query(
           ref: ds.id,
           displayName,
           alreadyImported: importedRefs.has(ds.id),
+          icon: extractNotionIcon(ds),
         });
       }
     } else if (connection.type === ConnectionType.STRAPI) {
@@ -280,33 +297,56 @@ export const importCollections = command(
     // Fetch connection once (needed for schema seeding)
     const connection = await runWithUser(userId, getConnectionWithCredentials(data.connectionId));
 
+    // Pre-fetch all Notion data sources in parallel to avoid sequential round-trips.
+    // Schema seeding is best-effort so failures are silenced individually.
+    type SeedData = {
+      schema: import("@contfu/svc-core").CollectionSchema;
+      icon: CollectionIcon | null | undefined;
+    } | null;
+    let seedMap = new Map<string, SeedData>();
+    if (connection?.type === ConnectionType.NOTION && connection.credentials) {
+      const { notion, notionPropertiesToSchema, isFullDataSource, extractNotionIcon } =
+        await import("@contfu/svc-sources/notion");
+      const auth = connection.credentials.toString("utf-8");
+      const fetched = await Promise.allSettled(
+        data.items.map(async (item) => {
+          const dataSource = await notion.dataSources.retrieve({
+            auth,
+            data_source_id: item.ref,
+          });
+          if (!isFullDataSource(dataSource)) return { ref: item.ref, seed: null };
+          const schema = notionPropertiesToSchema(dataSource.properties);
+          const icon = await processIconForStorage(extractNotionIcon(dataSource));
+          return { ref: item.ref, seed: { schema, icon } };
+        }),
+      );
+      for (const result of fetched) {
+        if (result.status === "fulfilled" && result.value) {
+          seedMap.set(result.value.ref, result.value.seed);
+        }
+      }
+    }
+
+    // Create collections sequentially to avoid quota race conditions.
     const results: Array<{ ref: string; id: string }> = [];
     for (const item of data.items) {
+      const seed = seedMap.get(item.ref);
       const collection = await runWithUser(
         userId,
         createCollectionFeature(userId, {
           displayName: item.displayName,
           connectionId: data.connectionId,
           ref: item.ref,
+          icon: seed?.icon,
         }),
       );
 
-      // Seed schema immediately from Notion data source properties.
-      // item.ref is the data source ID (from iterateDataSources), so retrieve
-      // the data source directly rather than going via the database lookup.
-      if (connection?.type === ConnectionType.NOTION && connection.credentials) {
+      if (seed?.schema) {
         try {
-          const { notion, notionPropertiesToSchema, isFullDataSource } =
-            await import("@contfu/svc-sources/notion");
-          const auth = connection.credentials.toString("utf-8");
-          const dataSource = await notion.dataSources.retrieve({
-            auth,
-            data_source_id: item.ref,
-          });
-          if (isFullDataSource(dataSource)) {
-            const schema = notionPropertiesToSchema(dataSource.properties);
-            await runWithUser(userId, updateCollectionFeature(collection.id, { schema }));
-          }
+          await runWithUser(
+            userId,
+            updateCollectionFeature(collection.id, { schema: seed.schema }),
+          );
         } catch {
           // Schema seeding is best-effort; collection is still usable
         }

@@ -5,7 +5,7 @@
   import { getCollections } from "$lib/remote/collections.remote";
   import { getQuotaUsage } from "$lib/remote/billing.remote";
   import { ConnectionType, type ServiceCollection } from "@contfu/svc-core";
-  import { FoldersIcon, PlusIcon } from "@lucide/svelte";
+  import { BoxesIcon, FoldersIcon, PlusIcon, ShapesIcon } from "@lucide/svelte";
 
   const collections = $derived(await getCollections());
   const quota = $derived(await getQuotaUsage());
@@ -105,6 +105,7 @@
                   </a>
                 {:else}
                   <span class="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                    <ShapesIcon class="h-3 w-3" />
                     {group.name}
                   </span>
                 {/if}
@@ -113,7 +114,14 @@
             {#each group.items as collection}
               <tr class="hover:bg-muted/30 transition-colors duration-100">
                 <td class="px-3 py-2 pl-6">
-                  <a href="/collections/{collection.id}" class="hover:text-primary transition-colors duration-150">
+                  <a href="/collections/{collection.id}" class="flex items-center gap-1.5 hover:text-primary transition-colors duration-150">
+                    {#if collection.icon?.type === "emoji"}
+                      <span class="flex h-4 w-4 shrink-0 items-center justify-center text-sm leading-none">{collection.icon.value}</span>
+                    {:else if collection.icon?.type === "image"}
+                      <img src={collection.icon.url} alt="" class="h-4 w-4 shrink-0 object-contain" />
+                    {:else}
+                      <BoxesIcon class="h-4 w-4 shrink-0 text-muted-foreground" />
+                    {/if}
                     {collection.displayName}
                     <span class="ml-1 text-muted-foreground">{collection.name}</span>
                   </a>

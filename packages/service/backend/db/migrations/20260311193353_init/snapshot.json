@@ -1,7 +1,7 @@
 {
   "version": "8",
   "dialect": "postgres",
-  "id": "df9de828-9cc6-4a84-8381-3be2d0e3e8b8",
+  "id": "979dd2e6-c265-45ca-bb5e-373a738e89fa",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
@@ -696,6 +696,19 @@
       "table": "collection"
     },
     {
+      "type": "bytea",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "icon",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "collection"
+    },
+    {
       "type": "timestamp with time zone",
       "typeSchema": null,
       "notNull": true,
@@ -1342,6 +1355,32 @@
       "generated": null,
       "identity": null,
       "name": "maxCollections",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "quota"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "0",
+      "generated": null,
+      "identity": null,
+      "name": "flows",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "quota"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "maxFlows",
       "entityType": "columns",
       "schema": "public",
       "table": "quota"

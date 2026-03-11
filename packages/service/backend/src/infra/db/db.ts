@@ -94,10 +94,10 @@ export const db: PgAsyncDatabase<any, typeof schema, any> = new Proxy(
   },
 );
 
-// Seed development test user (only in test/dev mode)
-if (process.env.SKIP_DB_INIT !== "true" && isTestMode) {
+// Seed development test user (skipped in production and during build)
+if (process.env.SKIP_DB_INIT !== "true" && process.env.NODE_ENV !== "production") {
   const { seedDevUser } = await import("./seed-dev");
-  await seedDevUser(db);
+  await seedDevUser(rootDb);
 }
 
 // Re-export schema tables for convenience

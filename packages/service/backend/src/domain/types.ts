@@ -8,7 +8,7 @@
  * feature functions.
  */
 
-import type { ConnectionType } from "@contfu/core";
+import type { CollectionIcon, ConnectionType } from "@contfu/core";
 import type {
   ServiceCollection,
   ServiceFlow,
@@ -90,6 +90,7 @@ export interface CreateCollectionInput {
   connectionId?: number | null;
   ref?: Buffer | null;
   includeRef?: boolean;
+  icon?: CollectionIcon | null;
 }
 
 /** Input for updating a collection */
@@ -99,6 +100,7 @@ export interface UpdateCollectionInput {
   includeRef?: boolean;
   schema?: Record<string, number>;
   refTargets?: Record<string, string[]> | null;
+  icon?: CollectionIcon | null;
 }
 
 // =============================================================================

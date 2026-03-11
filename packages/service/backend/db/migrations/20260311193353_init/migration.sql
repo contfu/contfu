@@ -54,6 +54,7 @@ CREATE TABLE "collection" (
 	"schema" bytea NOT NULL,
 	"refTargets" bytea,
 	"includeRef" boolean DEFAULT true NOT NULL,
+	"icon" bytea,
 	"createdAt" timestamp with time zone DEFAULT now() NOT NULL,
 	"updatedAt" timestamp with time zone
 );

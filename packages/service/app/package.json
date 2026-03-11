@@ -29,6 +29,7 @@
     "clsx": "^2.1.1",
     "effect": "^4.0.0-beta.30",
     "msgpackr": "^1.11.8",
+    "sharp": "^0.34.5",
     "tailwind-merge": "^3.4.0",
     "tailwind-variants": "^3.2.2",
     "tiny-lru": "^11.4.7"
