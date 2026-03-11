@@ -51,6 +51,7 @@ const preAuthCache = new Map<
 >();
 const PRE_AUTH_TTL_MS = 30 * 1000;
 const CONNECTION_STALL_TIMEOUT_MS = 60 * 1000;
+const HEALTH_CHECK_INTERVAL_MS = 30 * 1000;
 /** Maps "userId:connectionId" to last acked sequence number. */
 const connectionAckedSeq = new Map<string, number>();
 
@@ -58,6 +59,22 @@ const connectionAckedSeq = new Map<string, number>();
 const snapshotModeConnections = new Set<string>();
 
 export class StreamServer {
+  private healthCheckTimer: ReturnType<typeof setInterval> | null = null;
+
+  constructor() {
+    this.healthCheckTimer = setInterval(
+      () => this.pruneDeadConnections(),
+      HEALTH_CHECK_INTERVAL_MS,
+    );
+  }
+
+  shutdown(): void {
+    if (this.healthCheckTimer !== null) {
+      clearInterval(this.healthCheckTimer);
+      this.healthCheckTimer = null;
+    }
+  }
+
   setSnapshotMode(userId: number, connectionId: number): void {
     snapshotModeConnections.add(`${userId}:${connectionId}`);
   }
@@ -452,6 +469,7 @@ export class StreamServer {
     controller: ReadableStreamDefaultController<Uint8Array>,
     wireEvent: WireEvent,
   ) {
+    if (controller.desiredSize === null) return;
     const encoded = msgpack(wireEvent);
 
     // Create length prefix (4 bytes, big-endian)

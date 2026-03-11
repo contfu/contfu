@@ -136,6 +136,9 @@ export async function shutdown(): Promise<void> {
   stopWebSyncScheduler();
 
   // Clear singletons
+  if (streamServer) {
+    streamServer.shutdown();
+  }
   streamServer = null;
   workerManager = null;
   isInitialized = false;
