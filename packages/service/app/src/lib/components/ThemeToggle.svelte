@@ -1,17 +1,13 @@
 <script lang="ts">
-  import { MoonIcon, SunIcon } from "@lucide/svelte";
-  import { mode, setMode } from "mode-watcher";
-  import Button from "./ui/button/button.svelte";
+  import { MoonIcon, SunIcon, SunMoonIcon } from "@lucide/svelte";
+  import { userPrefersMode } from "mode-watcher";
 </script>
 
-<Button
-  variant="outline"
-  size="icon"
-  onclick={() => setMode(mode.current === "dark" ? "light" : "dark")}
->
-  {#if mode.current === "dark"}
-    <MoonIcon />
-  {:else}
-    <SunIcon />
-  {/if}
-</Button>
+{#if userPrefersMode.current === "dark"}
+  <MoonIcon class="size-4 opacity-50" />
+{:else if userPrefersMode.current === "light"}
+  <SunIcon class="size-4 opacity-50" />
+{:else}
+  <SunMoonIcon class="size-4 opacity-50" />
+{/if}
+<span>Theme</span>

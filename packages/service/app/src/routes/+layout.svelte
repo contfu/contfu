@@ -22,7 +22,7 @@
     },
   }}
 />
-<ModeWatcher modeStorageKey="theme" defaultMode="dark" />
+<ModeWatcher modeStorageKey="theme" defaultMode="system" />
 {#if data.user}
   {@render children()}
 {:else}

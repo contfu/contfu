@@ -1,10 +1,12 @@
 <script lang="ts">
+  import ThemeToggle from "$lib/components/ThemeToggle.svelte";
   import * as Sidebar from "$lib/components/ui/sidebar";
-  import { MoonIcon, SunIcon } from "@lucide/svelte";
   import type { Icon } from "@lucide/svelte";
-  import { mode, setMode } from "mode-watcher";
+  import { userPrefersMode, setMode } from "mode-watcher";
 
   let { items, currentPath }: { items: { title: string; url: string; icon: typeof Icon }[]; currentPath: string } = $props();
+
+  const nextMode = { light: "dark", dark: "system", system: "light" } as const;
 
   function isActive(itemUrl: string): boolean {
     return currentPath.startsWith(itemUrl);
@@ -29,15 +31,10 @@
       {/each}
       <Sidebar.MenuItem>
         <Sidebar.MenuButton
-          onclick={() => setMode(mode.current === "dark" ? "light" : "dark")}
+          onclick={() => setMode(nextMode[userPrefersMode.current ?? "system"])}
           class="font-mono text-sm"
         >
-          {#if mode.current === "dark"}
-            <MoonIcon class="size-4 opacity-50" />
-          {:else}
-            <SunIcon class="size-4 opacity-50" />
-          {/if}
-          <span>theme</span>
+          <ThemeToggle />
         </Sidebar.MenuButton>
       </Sidebar.MenuItem>
     </Sidebar.Menu>
