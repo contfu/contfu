@@ -13,6 +13,7 @@ import { listFlows as listFlowsFeature } from "@contfu/svc-backend/features/flow
 import { listFlowsByCollection as listFlowsByCollectionFeature } from "@contfu/svc-backend/features/flows/listFlowsByCollection";
 import { updateFlow as updateFlowFeature } from "@contfu/svc-backend/features/flows/updateFlow";
 import { encodeId, idSchema } from "@contfu/svc-backend/infra/ids";
+import { triggerSnapshotForCollection } from "@contfu/svc-backend/features/consumers/triggerConsumerSnapshot";
 import { autoWireMappings } from "@contfu/svc-core";
 import type { Filter, MappingRule } from "@contfu/svc-core";
 import { error, invalid } from "@sveltejs/kit";
@@ -132,9 +133,11 @@ export const addFlow = command(
       await runWithUser(userId, updateCollectionFeature(data.targetId, { schema: sourceSchema }));
     }
 
-    // Resync source collections and broadcast schema to target
+    // Resync source collections, broadcast schema, and trigger a full snapshot
+    // so existing source items are delivered to the new target consumer.
     await getSyncWorkerManager().resyncCollections([data.sourceId]);
     await getSyncWorkerManager().broadcastSchema(userId, data.targetId);
+    triggerSnapshotForCollection(userId, data.targetId).catch(() => {});
 
     // Send COLLECTION_SCHEMA to the target collection's connections
     const targetCollection = await runWithUser(userId, getCollection(data.targetId));
@@ -284,10 +287,12 @@ export const updateFlowMappings = command(
       }),
     );
 
-    // Resync source collections and broadcast schema to target
+    // Resync source collections, broadcast schema, and trigger a snapshot
+    // so items are re-delivered with updated mappings applied.
     const manager = getSyncWorkerManager();
     await manager.resyncCollections([flow.sourceId]);
     await manager.broadcastSchema(userId, flow.targetId);
+    triggerSnapshotForCollection(userId, flow.targetId).catch(() => {});
 
     return { success: true };
   },

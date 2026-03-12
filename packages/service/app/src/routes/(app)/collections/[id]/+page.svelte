@@ -156,6 +156,12 @@
     inflowFilters: Map<string, Filter[]>;
     refTargets: RefTargets;
   } | null>(null);
+
+  const requiresResync = $derived(
+    mappingChanges && collection
+      ? Object.keys(mappingChanges.targetSchema).some((k) => !(k in collection.schema))
+      : false
+  );
   let savingMappings = $state(false);
   let mappingEditorRef = $state<MappingEditor | undefined>();
 
@@ -642,9 +648,15 @@
 
       {#if mappingChanges && canEditSchema}
         <div class="mt-4 space-y-2">
-          <p class="text-xs text-amber-600 dark:text-amber-400">
-            Schema changes trigger a full resync for connected consumers.
-          </p>
+          {#if requiresResync}
+            <p class="text-xs text-amber-600 dark:text-amber-400">
+              New properties detected — saving will trigger a full resync for connected consumers.
+            </p>
+          {:else}
+            <p class="text-xs text-muted-foreground">
+              Saving will update item properties for connected consumers without a full resync.
+            </p>
+          {/if}
           <div class="flex gap-2">
             <Button
               size="sm"

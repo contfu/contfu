@@ -25,9 +25,10 @@ export type WireItemEvent =
 /** Schema event: sends collection schema to consumers. */
 export type WireSchemaEvent = [
   typeof EventType.COLLECTION_SCHEMA,
-  string,
-  string,
-  CollectionSchema,
+  string, // collectionName
+  string, // displayName
+  CollectionSchema, // schema
+  Record<string, string>?, // renames: oldName → newName (optional)
 ];
 
 /** Collection renamed event: notifies consumers of a collection name change. */

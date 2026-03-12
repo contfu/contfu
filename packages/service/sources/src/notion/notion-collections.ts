@@ -4,7 +4,7 @@ import { isFullDatabase, isFullDataSource } from "@notionhq/client";
 import type { DataSourceObjectResponse } from "@notionhq/client/build/src/api-endpoints";
 import { notion, parseNotionRef } from "./notion-helpers";
 
-export { isFullDataSource };
+export { isFullDatabase, isFullDataSource };
 
 export async function getCollectionSchema(key: string, id: Buffer) {
   const notionId = parseNotionRef(id);
@@ -34,11 +34,16 @@ export async function getCollectionSchema(key: string, id: Buffer) {
 }
 
 /**
- * Convert Notion data source properties to a CollectionSchema.
+ * Convert Notion data source properties to a CollectionSchema and a map of
+ * stable Notion property IDs to internal camelCase names.
+ *
+ * The ID map is used to detect precise renames/deletions when processing
+ * `database.schema_updated` webhook events.
  */
-export function notionPropertiesToSchema(
-  properties: Record<string, { type: string } & Record<string, unknown>>,
-): CollectionSchema {
+export function notionPropertiesToSchemaWithIds(
+  properties: Record<string, { type: string; id?: string } & Record<string, unknown>>,
+): { schema: CollectionSchema; notionPropertyIds: Record<string, string> } {
+  const notionPropertyIds: Record<string, string> = {};
   const schema = {
     cover: PropertyType.FILE | PropertyType.NULL,
     icon: PropertyType.FILE | PropertyType.NULL,
@@ -46,6 +51,8 @@ export function notionPropertiesToSchema(
   for (const key in properties) {
     const prop = properties[key];
     const camelKey = toCamelCase(key);
+    // Track stable Notion property ID → internal name (skip synthetic cover/icon props)
+    if (prop.id) notionPropertyIds[prop.id] = camelKey;
     switch (prop.type) {
       case "title":
       case "rich_text":
@@ -100,7 +107,17 @@ export function notionPropertiesToSchema(
         break;
     }
   }
-  return schema;
+  return { schema, notionPropertyIds };
+}
+
+/**
+ * Convert Notion data source properties to a CollectionSchema.
+ * @deprecated Use `notionPropertiesToSchemaWithIds` to also persist stable property IDs.
+ */
+export function notionPropertiesToSchema(
+  properties: Record<string, { type: string } & Record<string, unknown>>,
+): CollectionSchema {
+  return notionPropertiesToSchemaWithIds(properties).schema;
 }
 
 /**

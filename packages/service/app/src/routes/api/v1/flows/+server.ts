@@ -4,6 +4,8 @@ import { parseBody, CreateFlowSchema } from "../schemas";
 import { runWithUser } from "$lib/server/run";
 import { listFlows } from "@contfu/svc-backend/features/flows/listFlows";
 import { createFlow } from "@contfu/svc-backend/features/flows/createFlow";
+import { triggerSnapshotForCollection } from "@contfu/svc-backend/features/consumers/triggerConsumerSnapshot";
+import { getSyncWorkerManager } from "$lib/server/startup";
 import { Effect } from "effect";
 import { pack } from "msgpackr";
 
@@ -33,5 +35,13 @@ export async function POST({ request }: { request: Request }) {
   if (result != null && typeof result === "object" && "_validationError" in result) {
     return json({ message: result._validationError }, { status: 400 });
   }
+
+  // Broadcast updated schema to connected clients and trigger a snapshot so existing
+  // items from the source collection are delivered to the new influx target.
+  getSyncWorkerManager()
+    .broadcastSchema(userId, result.targetId)
+    .catch(() => {});
+  triggerSnapshotForCollection(userId, result.targetId).catch(() => {});
+
   return json(result, { status: 201 });
 }

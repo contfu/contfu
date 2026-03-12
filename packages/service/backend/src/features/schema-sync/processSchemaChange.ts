@@ -26,6 +26,8 @@ export const processSchemaChange = (
   userId: number,
   collectionId: number,
   newSchema: CollectionSchema,
+  /** Stable Notion property ID → internal camelCase name; persisted for rename detection. */
+  notionPropertyIds?: Record<string, string>,
 ) =>
   Effect.gen(function* () {
     const { db } = yield* Database;
@@ -45,14 +47,15 @@ export const processSchemaChange = (
 
     const oldSchema: CollectionSchema = collection.schema ? unpack(collection.schema) : {};
 
-    // 2. Update schema
+    // 2. Update schema (and notionPropertyIds when provided)
     const schemaBuf = Buffer.from(pack(newSchema));
+    const setValues: Record<string, unknown> = { schema: schemaBuf };
+    if (notionPropertyIds !== undefined) {
+      setValues.notionPropertyIds = Buffer.from(pack(notionPropertyIds));
+    }
     yield* Effect.tryPromise({
       try: () =>
-        db
-          .update(collectionTable)
-          .set({ schema: schemaBuf })
-          .where(eq(collectionTable.id, collectionId)),
+        db.update(collectionTable).set(setValues).where(eq(collectionTable.id, collectionId)),
       catch: (e) => new DatabaseError({ cause: e }),
     });
 

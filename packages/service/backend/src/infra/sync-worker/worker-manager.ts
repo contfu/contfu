@@ -5,7 +5,7 @@ import {
   type WorkerToAppMessage,
 } from "./messages";
 import { createLogger } from "../logger/index";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNotNull } from "drizzle-orm";
 
 const log = createLogger("sync-worker-manager");
 
@@ -14,10 +14,33 @@ import { ConnectionType } from "@contfu/core";
 import type { ConnectionInfo } from "../types";
 import { unpack } from "msgpackr";
 import type { CollectionSchema } from "@contfu/core";
-import { applyMappingsToSchema, mergeSchemaValues, type MappingRule } from "@contfu/svc-core";
+import {
+  applyMappings,
+  applyMappingsToSchema,
+  matchesFilters,
+  mergeSchemaValues,
+  type Filter,
+  type MappingRule,
+} from "@contfu/svc-core";
 import { enqueueSyncJobs } from "../../features/sync-jobs/enqueueSyncJobs";
 import { Database } from "../../effect/services/Database";
 import { Effect, Layer } from "effect";
+import { triggerConsumerSnapshot } from "../../features/consumers/triggerConsumerSnapshot";
+import { applySchemaTransform } from "../../features/consumers/applySchemaTransform";
+
+/**
+ * Precise schema change hints derived from CMS webhook payloads (e.g. Notion's
+ * `database.schema_updated`). When provided to `broadcastSchema`, the heuristic
+ * rename detection in `broadcastSchemaChanges` is bypassed entirely.
+ */
+export interface SchemaChangeHints {
+  /** Internal property names that are genuinely new (require a full CMS snapshot). */
+  additions: string[];
+  /** Internal property names that were removed (apply local NATS transform). */
+  removals: string[];
+  /** oldInternalName → newInternalName for renamed properties. */
+  renames: Record<string, string>;
+}
 
 type ItemsCallback = (items: UserSyncItem[], connections: ConnectionInfo[]) => void;
 type SchemaCallback = (
@@ -26,6 +49,7 @@ type SchemaCallback = (
   name: string,
   displayName: string,
   schema: CollectionSchema,
+  renames: Record<string, string>,
 ) => void;
 
 export class SyncWorkerManager {
@@ -35,7 +59,13 @@ export class SyncWorkerManager {
   private isReady = false;
   private itemsCallback: ItemsCallback | null = null;
   private schemaCallback: SchemaCallback | null = null;
-  private lastBroadcastedSchema = new Map<number, string>();
+  private lastBroadcastedSchema = new Map<
+    number,
+    {
+      serialized: string; // JSON.stringify(merged) — change detection
+      provenance: Record<string, string>; // targetName → sourceName
+    }
+  >();
 
   async start() {
     this.readyPromise = new Promise((resolve) => {
@@ -127,7 +157,21 @@ export class SyncWorkerManager {
       targetCollectionIds,
       flowRefPolicies,
     );
-    this.itemsCallback(msg.items, connections);
+
+    // Fan out items to target collections, applying flow filters and mappings.
+    // The sync worker tags items with the source collection ID; we must re-tag them
+    // with the target collection ID so broadcast() can match items to connections.
+    const flows = await getFlowsFromSource(msg.userId, msg.collectionId);
+    const mappedItems: UserSyncItem[] = [];
+    for (const item of msg.items) {
+      for (const flow of flows) {
+        if (flow.filters.length > 0 && !matchesFilters(item.props, flow.filters)) continue;
+        const mappedProps = flow.mappings ? applyMappings(item.props, flow.mappings) : item.props;
+        mappedItems.push({ ...item, collection: flow.targetId, props: mappedProps });
+      }
+    }
+
+    this.itemsCallback(mappedItems, connections);
 
     // Broadcast schema changes if callback is registered
     if (this.schemaCallback) {
@@ -135,12 +179,14 @@ export class SyncWorkerManager {
     }
   }
 
-  async broadcastSchema(userId: number, collectionId: number): Promise<void> {
-    // Force re-broadcast by clearing the cached schema for this collection
-    this.lastBroadcastedSchema.delete(collectionId);
-
-    // Broadcast updated COLLECTION_SCHEMA to all connected consumers
-    await this.broadcastSchemaChanges(userId, [collectionId]);
+  async broadcastSchema(
+    userId: number,
+    collectionId: number,
+    hints?: SchemaChangeHints,
+  ): Promise<void> {
+    // Force re-broadcast even if merged schema is unchanged (e.g. after a CMS webhook).
+    // Preserves the previous cache entry so rename detection still works.
+    await this.broadcastSchemaChanges(userId, [collectionId], { force: true, hints });
   }
 
   async resyncCollections(collectionIds: number[]): Promise<void> {
@@ -153,7 +199,11 @@ export class SyncWorkerManager {
     }
   }
 
-  private async broadcastSchemaChanges(userId: number, collectionIds: number[]) {
+  private async broadcastSchemaChanges(
+    userId: number,
+    collectionIds: number[],
+    options?: { force?: boolean; hints?: SchemaChangeHints },
+  ) {
     for (const collectionId of collectionIds) {
       // Compute merged schema from all flows targeting this collection
       const flowRows = await db
@@ -181,10 +231,28 @@ export class SyncWorkerManager {
 
       if (Object.keys(merged).length === 0) continue;
 
-      // Only broadcast if schema actually changed
+      // Build current provenance map: targetName → sourceName (from mapping rules)
+      const currentProvenance: Record<string, string> = {};
+      for (const row of flowRows) {
+        const schemaBuf = row.flowSchema ?? row.sourceSchema;
+        if (!schemaBuf) continue;
+        const rawSchema = unpack(schemaBuf) as CollectionSchema;
+        if (row.mappings) {
+          for (const rule of unpack(row.mappings) as MappingRule[]) {
+            if (rule.source in rawSchema) {
+              currentProvenance[rule.target ?? rule.source] = rule.source;
+            }
+          }
+        } else {
+          for (const key of Object.keys(rawSchema)) currentProvenance[key] = key;
+        }
+      }
+
+      // Only broadcast if schema actually changed (unless forced)
       const serialized = JSON.stringify(merged);
-      if (this.lastBroadcastedSchema.get(collectionId) === serialized) continue;
-      this.lastBroadcastedSchema.set(collectionId, serialized);
+      const previous = this.lastBroadcastedSchema.get(collectionId);
+      if (!options?.force && previous?.serialized === serialized) continue;
+      this.lastBroadcastedSchema.set(collectionId, { serialized, provenance: currentProvenance });
 
       // Fetch collection name + displayName
       const [col] = await db
@@ -193,9 +261,89 @@ export class SyncWorkerManager {
         .where(and(eq(collectionTable.userId, userId), eq(collectionTable.id, collectionId)))
         .limit(1);
 
-      if (col) {
-        this.schemaCallback!(userId, collectionId, col.name, col.displayName, merged);
+      if (!col) continue;
+
+      // Dispatch per-consumer work and detect renames.
+      // Skip heuristic rename detection on first broadcast (no previous to compare against),
+      // but still honour explicit webhook hints so schema changes trigger snapshots even when
+      // no items have been synced yet (i.e. previous is undefined).
+      const renames: Record<string, string> = {}; // oldName → newName (for COLLECTION_SCHEMA event)
+      if (options?.hints || previous) {
+        let addedKeys: string[] = [];
+        let removedKeys: string[] = [];
+
+        if (options?.hints) {
+          // Precise hints from CMS webhook — bypass the heuristic entirely
+          Object.assign(renames, options.hints.renames);
+          addedKeys = options.hints.additions;
+          removedKeys = options.hints.removals;
+        } else if (previous) {
+          // Heuristic rename detection via provenance comparison
+          const previousSchema = JSON.parse(previous.serialized) as Record<string, number>;
+
+          for (const [newTarget, source] of Object.entries(currentProvenance)) {
+            if (newTarget in previousSchema) continue; // already existed
+            for (const [prevTarget, prevSource] of Object.entries(previous.provenance)) {
+              if (prevSource === source && !(prevTarget in merged)) {
+                renames[prevTarget] = newTarget;
+                break;
+              }
+            }
+          }
+
+          const renamedOldNames = new Set(Object.keys(renames));
+          const renamedNewNames = new Set(Object.values(renames));
+          addedKeys = Object.keys(merged).filter(
+            (k) => !(k in previousSchema) && !renamedNewNames.has(k),
+          );
+          removedKeys = Object.keys(previousSchema).filter(
+            (k) => !(k in merged) && !renamedOldNames.has(k),
+          );
+        }
+
+        const consumers = await db
+          .select({ consumerId: collectionTable.connectionId })
+          .from(collectionTable)
+          .innerJoin(
+            connectionTable,
+            and(
+              eq(collectionTable.connectionId, connectionTable.id),
+              eq(connectionTable.type, ConnectionType.CLIENT),
+            ),
+          )
+          .where(
+            and(
+              eq(collectionTable.userId, userId),
+              eq(collectionTable.id, collectionId),
+              isNotNull(collectionTable.connectionId),
+            ),
+          );
+
+        for (const { consumerId } of consumers) {
+          if (consumerId === null) continue;
+          if (addedKeys.length > 0) {
+            triggerConsumerSnapshot(userId, consumerId, collectionId).catch((err) => {
+              log.error(
+                { err, userId, consumerId, collectionId },
+                "triggerConsumerSnapshot failed",
+              );
+            });
+          } else if (Object.keys(renames).length > 0 || removedKeys.length > 0) {
+            applySchemaTransform(
+              userId,
+              consumerId,
+              col.name,
+              collectionId,
+              renames,
+              removedKeys,
+            ).catch((err) => {
+              log.error({ err, userId, consumerId, collectionId }, "applySchemaTransform failed");
+            });
+          }
+        }
       }
+
+      this.schemaCallback?.(userId, collectionId, col.name, col.displayName, merged, renames);
     }
   }
 }
@@ -279,4 +427,28 @@ async function getFlowRefPolicies(
   }
 
   return policies;
+}
+
+/**
+ * Returns the flows from a source collection with their mappings and filters.
+ * Used to fan out raw source items to target collections in handleItemsFetched.
+ */
+async function getFlowsFromSource(
+  userId: number,
+  sourceCollectionId: number,
+): Promise<{ targetId: number; mappings: MappingRule[] | null; filters: Filter[] }[]> {
+  const rows = await db
+    .select({
+      targetId: flowTable.targetId,
+      mappings: flowTable.mappings,
+      filters: flowTable.filters,
+    })
+    .from(flowTable)
+    .where(and(eq(flowTable.userId, userId), eq(flowTable.sourceId, sourceCollectionId)));
+
+  return rows.map((row) => ({
+    targetId: row.targetId,
+    mappings: row.mappings ? (unpack(row.mappings) as MappingRule[]) : null,
+    filters: row.filters ? (unpack(row.filters) as Filter[]) : [],
+  }));
 }

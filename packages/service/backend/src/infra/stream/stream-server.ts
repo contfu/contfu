@@ -403,7 +403,7 @@ export class StreamServer {
           collectionNameById.get(conn.collectionId) ?? String(conn.collectionId);
         const wireItem = toWireItem(item, collectionName, conn.includeRef);
         const seq = itemSequences.get(item);
-        if (!seq) continue;
+        if (seq == null) continue;
         this.sendBinary(connection.controller, [EventType.ITEM_CHANGED, wireItem, seq]);
       }
     }
@@ -437,7 +437,7 @@ export class StreamServer {
       }
       if (!connection) continue;
       const seq = seqByCollection.get(conn.collectionId);
-      if (!seq) continue;
+      if (seq == null) continue;
       this.sendBinary(connection.controller, [EventType.ITEM_DELETED, new Uint8Array(itemId), seq]);
     }
   }

@@ -97,6 +97,15 @@ export const createCollection = form(
       }),
     );
 
+    if (data.connectionId != null) {
+      getStreamServer().sendToConnection(userId, data.connectionId, [
+        EventType.COLLECTION_SCHEMA,
+        collection.name,
+        collection.displayName,
+        {},
+      ]);
+    }
+
     redirect(303, `/collections/${encodeId("collection", collection.id)}`);
   },
 );

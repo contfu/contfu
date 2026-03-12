@@ -1,4 +1,4 @@
-import { EventType } from "@contfu/core";
+import { EventType, type WireEvent } from "@contfu/core";
 import { createLogger } from "@contfu/svc-backend/infra/logger/index";
 import { ensureEventStream } from "@contfu/svc-backend/infra/nats/event-stream";
 import { hasNats } from "@contfu/svc-backend/infra/nats/connection";
@@ -87,13 +87,12 @@ export async function initialize(): Promise<void> {
     });
 
     // Wire the onSchema callback to broadcast schema changes to consumers
-    worker.onSchema((userId, collectionId, name, displayName, schema) => {
-      stream.broadcastToCollection(userId, collectionId, [
-        EventType.COLLECTION_SCHEMA,
-        name,
-        displayName,
-        schema,
-      ]);
+    worker.onSchema((userId, collectionId, name, displayName, schema, renames) => {
+      const event: WireEvent =
+        Object.keys(renames).length > 0
+          ? [EventType.COLLECTION_SCHEMA, name, displayName, schema, renames]
+          : [EventType.COLLECTION_SCHEMA, name, displayName, schema];
+      stream.broadcastToCollection(userId, collectionId, event);
     });
 
     await worker.start();

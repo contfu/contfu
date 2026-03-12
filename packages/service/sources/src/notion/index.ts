@@ -11,7 +11,9 @@ export {
 } from "./notion-helpers";
 export {
   notionPropertiesToSchema,
+  notionPropertiesToSchemaWithIds,
   getCollectionSchema,
+  isFullDatabase,
   isFullDataSource,
   extractNotionIcon,
 } from "./notion-collections";

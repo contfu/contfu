@@ -229,6 +229,8 @@ export const collectionTable = pgTable.withRLS(
     includeRef: boolean().notNull().default(true),
     /** Optional visual icon for the collection (MessagePack serialized CollectionIcon). */
     icon: bytea(),
+    /** Notion property ID → internal camelCase name (MessagePack Record<notionId, name>). */
+    notionPropertyIds: bytea(),
     /** The date the collection was created. */
     createdAt: timestamp({ withTimezone: true, mode: "date" })
       .default(sql`now()`)

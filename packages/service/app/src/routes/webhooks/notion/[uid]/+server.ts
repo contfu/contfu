@@ -26,7 +26,9 @@ import { cancelPending, markPending } from "@contfu/svc-backend/infra/webhook-qu
 import { enqueueWebhookFetch } from "@contfu/svc-backend/infra/webhook-queue/webhook-fetch-queue";
 import { matchesFilters, type Filter } from "@contfu/svc-core";
 import { genUid, uuidToBuffer } from "@contfu/svc-sources";
-import { fetchNotionPage, notionPropertiesToSchema } from "@contfu/svc-sources/notion";
+import { fetchNotionPage, notionPropertiesToSchemaWithIds } from "@contfu/svc-sources/notion";
+import type { SchemaChangeHints } from "@contfu/svc-backend/infra/sync-worker/worker-manager";
+import { getSyncWorkerManager } from "$lib/server/startup";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { unpack } from "msgpackr";
 import crypto from "node:crypto";
@@ -70,6 +72,16 @@ const NotionWebhookPayloadSchema = v.looseObject({
           type: v.string(),
           database_id: v.optional(v.string()),
         }),
+      ),
+      // Present on database.schema_updated events
+      updated_properties: v.optional(
+        v.array(
+          v.looseObject({
+            id: v.string(),
+            name: v.string(),
+            action: v.picklist(["created", "updated", "deleted"]),
+          }),
+        ),
       ),
     }),
   ),
@@ -803,6 +815,105 @@ export const POST: RequestHandler = async ({ request, params }) => {
     return new Response("OK", { status: 200 });
   }
 
+  // ---- Database events ----
+  if (eventType === "database.schema_updated") {
+    const databaseId = payload.entity.id; // entity.id IS the Notion database UUID
+    const updatedProperties = payload.data?.updated_properties;
+    log.info({ databaseId, updatedProperties }, "Database schema updated");
+
+    if (conn && updatedProperties) {
+      const credentials = conn.credentials
+        ? await decryptCredentials(conn.userId, conn.credentials)
+        : null;
+      const token = credentials?.toString("utf8");
+
+      if (token) {
+        try {
+          const { notion, isFullDatabase } = await import("@contfu/svc-sources/notion");
+          const database = await notion.databases.retrieve({
+            auth: token,
+            database_id: databaseId,
+          });
+          if (isFullDatabase(database) && database.data_sources?.[0]?.id) {
+            const dataSource = await notion.dataSources.retrieve({
+              auth: token,
+              data_source_id: database.data_sources[0].id,
+            });
+            if ("properties" in dataSource && dataSource.properties) {
+              const { schema, notionPropertyIds: newIdMap } = notionPropertiesToSchemaWithIds(
+                dataSource.properties,
+              );
+
+              const ref = uuidToBuffer(databaseId);
+              const [collection] = await db
+                .select({
+                  id: collectionTable.id,
+                  notionPropertyIds: collectionTable.notionPropertyIds,
+                })
+                .from(collectionTable)
+                .where(
+                  and(
+                    eq(collectionTable.userId, conn.userId),
+                    eq(collectionTable.connectionId, conn.id),
+                    eq(collectionTable.ref, ref),
+                  ),
+                )
+                .limit(1);
+
+              if (collection) {
+                // Build precise SchemaChangeHints when stored IDs are available
+                let hints: SchemaChangeHints | undefined;
+                const storedIds: Record<string, string> | null = collection.notionPropertyIds
+                  ? (unpack(collection.notionPropertyIds) as Record<string, string>)
+                  : null;
+
+                if (storedIds) {
+                  const renames: Record<string, string> = {};
+                  const additions: string[] = [];
+                  const removals: string[] = [];
+                  for (const prop of updatedProperties) {
+                    const newInternalName = newIdMap[prop.id];
+                    const oldInternalName = storedIds[prop.id];
+                    if (prop.action === "created" && newInternalName) {
+                      additions.push(newInternalName);
+                    } else if (prop.action === "deleted" && oldInternalName) {
+                      removals.push(oldInternalName);
+                    } else if (
+                      prop.action === "updated" &&
+                      oldInternalName &&
+                      newInternalName &&
+                      oldInternalName !== newInternalName
+                    ) {
+                      renames[oldInternalName] = newInternalName;
+                    }
+                  }
+                  hints = { renames, additions, removals };
+                  log.info({ hints }, "Precise schema change hints computed");
+                } else {
+                  log.info({ databaseId }, "No stored property IDs; falling back to heuristic");
+                }
+
+                await runEffectWithServices(
+                  Effect.flatMap(Database, ({ withUserContext }) =>
+                    withUserContext(
+                      conn.userId,
+                      processSchemaChange(conn.userId, collection.id, schema, newIdMap),
+                    ),
+                  ),
+                );
+                await getSyncWorkerManager().broadcastSchema(conn.userId, collection.id, hints);
+              }
+            }
+          }
+        } catch (err) {
+          log.error({ err }, "Failed to handle database.schema_updated");
+        }
+      }
+      await logWebhookEvent(conn.userId, conn.id, eventType, databaseId, "success");
+    }
+    return new Response("OK", { status: 200 });
+  }
+
   // ---- Data source events ----
   if (eventType.startsWith("data_source.")) {
     collectionCache.clear();
@@ -826,7 +937,9 @@ export const POST: RequestHandler = async ({ request, params }) => {
             });
 
             if ("properties" in dataSource && dataSource.properties) {
-              const schema = notionPropertiesToSchema(dataSource.properties);
+              const { schema, notionPropertyIds } = notionPropertiesToSchemaWithIds(
+                dataSource.properties,
+              );
 
               const parentDbId =
                 "parent" in dataSource && dataSource.parent?.type === "database_id"
@@ -852,10 +965,12 @@ export const POST: RequestHandler = async ({ request, params }) => {
                     Effect.flatMap(Database, ({ withUserContext }) =>
                       withUserContext(
                         conn.userId,
-                        processSchemaChange(conn.userId, collection.id, schema),
+                        processSchemaChange(conn.userId, collection.id, schema, notionPropertyIds),
                       ),
                     ),
                   );
+                  // Broadcast updated schema to live consumers (heuristic rename detection)
+                  await getSyncWorkerManager().broadcastSchema(conn.userId, collection.id);
                 }
               }
             }
