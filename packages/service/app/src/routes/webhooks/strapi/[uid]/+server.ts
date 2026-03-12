@@ -1,6 +1,10 @@
 import { getStreamServer } from "$lib/server/startup";
 import { ConnectionType } from "@contfu/core";
 import { createLogger } from "@contfu/svc-backend/infra/logger/index";
+import { runEffectWithServices } from "@contfu/svc-backend/effect/run";
+import { Database } from "@contfu/svc-backend/effect/services/Database";
+import { processSchemaChange } from "@contfu/svc-backend/features/schema-sync";
+import { Effect } from "effect";
 import { decryptCredentials } from "@contfu/svc-backend/infra/crypto/credentials";
 import { db } from "@contfu/svc-backend/infra/db/db";
 import {
@@ -11,7 +15,8 @@ import {
 } from "@contfu/svc-backend/infra/db/schema";
 import type { UserSyncItem } from "@contfu/svc-backend/infra/sync-worker/messages";
 import { strapiRefUrl } from "@contfu/svc-sources";
-import { matchesFilters, type Filter } from "@contfu/svc-core";
+import { getCollectionSchema } from "@contfu/svc-sources/strapi";
+import { matchesFilters, type CollectionSchema, type Filter } from "@contfu/svc-core";
 import { genUid } from "@contfu/svc-sources";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { unpack } from "msgpackr";
@@ -21,6 +26,10 @@ import type { RequestHandler } from "./$types";
 const log = createLogger("webhook-strapi");
 
 const MAX_LOGS_PER_CONNECTION = 50;
+
+/** TTL cache to avoid fetching schema on every webhook (5 min per connection+contentType) */
+const schemaCheckCache = new Map<string, number>();
+const SCHEMA_CHECK_TTL_MS = 5 * 60 * 1000;
 
 type StrapiEvent =
   | "entry.create"
@@ -172,6 +181,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
       userId: connectionTable.userId,
       id: connectionTable.id,
       url: connectionTable.url,
+      credentials: connectionTable.credentials,
       includeRef: connectionTable.includeRef,
       webhookSecret: connectionTable.webhookSecret,
     })
@@ -229,7 +239,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
     const refBuffer = Buffer.from(contentTypeUid, "utf8");
 
     const sourceCollections = await db
-      .select({ id: collectionTable.id })
+      .select({ id: collectionTable.id, schema: collectionTable.schema })
       .from(collectionTable)
       .where(
         and(
@@ -257,6 +267,42 @@ export const POST: RequestHandler = async ({ request, params }) => {
     }
 
     const sourceCollectionIds = sourceCollections.map((c) => c.id);
+
+    // Check for schema drift (throttled by TTL cache)
+    const cacheKey = `${conn.id}:${contentTypeUid}`;
+    const lastCheck = schemaCheckCache.get(cacheKey) ?? 0;
+    if (Date.now() - lastCheck > SCHEMA_CHECK_TTL_MS && conn.credentials) {
+      schemaCheckCache.set(cacheKey, Date.now());
+      try {
+        const token = await decryptCredentials(conn.userId, conn.credentials);
+        if (token && conn.url) {
+          const currentSchema = await getCollectionSchema(conn.url, refBuffer, token);
+          for (const col of sourceCollections) {
+            const storedSchema: CollectionSchema = col.schema ? unpack(col.schema) : {};
+            const keys = new Set([...Object.keys(storedSchema), ...Object.keys(currentSchema)]);
+            let changed = false;
+            for (const k of keys) {
+              if (storedSchema[k] !== currentSchema[k]) {
+                changed = true;
+                break;
+              }
+            }
+            if (changed) {
+              await runEffectWithServices(
+                Effect.flatMap(Database, ({ withUserContext }) =>
+                  withUserContext(
+                    conn.userId,
+                    processSchemaChange(conn.userId, col.id, currentSchema),
+                  ),
+                ),
+              );
+            }
+          }
+        }
+      } catch (err) {
+        log.warn({ err, connectionId: conn.id }, "Failed to check schema drift");
+      }
+    }
 
     // Get flows from source collections
     const flows = await db

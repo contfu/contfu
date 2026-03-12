@@ -59,6 +59,38 @@ const MOCK_DATA_SOURCE_RESPONSE = {
   },
 };
 
+// Schema-sync test: data source IDs and their responses
+// Must match schema-sync.seed.ts constants
+const SCHEMA_SYNC_DB_ID = "22222222-3333-4444-5555-666666666666";
+const SCHEMA_BREAK_DS_ID = "ffffffff-bbbb-cccc-dddd-111111111111";
+const SCHEMA_FIX_DS_ID = "ffffffff-bbbb-cccc-dddd-222222222222";
+
+/** Breaking schema — only Title, no Status. Filter on "status" will be invalid. */
+const SCHEMA_BREAK_RESPONSE = {
+  object: "database",
+  id: SCHEMA_BREAK_DS_ID,
+  parent: { type: "database_id", database_id: SCHEMA_SYNC_DB_ID },
+  properties: {
+    Title: { id: "title", type: "title", title: {} },
+  },
+};
+
+/** Compatible schema — has both Title and Status. Filter on "status" is valid. */
+const SCHEMA_FIX_RESPONSE = {
+  object: "database",
+  id: SCHEMA_FIX_DS_ID,
+  parent: { type: "database_id", database_id: SCHEMA_SYNC_DB_ID },
+  properties: {
+    Title: { id: "title", type: "title", title: {} },
+    Status: { id: "status", type: "status", status: {} },
+  },
+};
+
+const DATA_SOURCE_RESPONSES: Record<string, object> = {
+  [SCHEMA_BREAK_DS_ID]: SCHEMA_BREAK_RESPONSE,
+  [SCHEMA_FIX_DS_ID]: SCHEMA_FIX_RESPONSE,
+};
+
 const server = Bun.serve({
   port: 4174,
   fetch(req) {
@@ -77,7 +109,9 @@ const server = Bun.serve({
 
     // GET /v1/data-sources/:dataSourceId
     if (req.method === "GET" && path.match(/^\/v1\/data-sources\/[^/]+$/)) {
-      return Response.json(MOCK_DATA_SOURCE_RESPONSE);
+      const dsId = path.split("/").pop()!;
+      const specific = DATA_SOURCE_RESPONSES[dsId];
+      return Response.json(specific ?? MOCK_DATA_SOURCE_RESPONSE);
     }
 
     // GET /v1/blocks/:blockId/children

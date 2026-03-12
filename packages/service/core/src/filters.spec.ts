@@ -4,6 +4,7 @@ import {
   matchesFilter,
   matchesFilters,
   getOperatorsForType,
+  findInvalidFilters,
   type Filter,
 } from "./filters";
 import { PropertyType } from "./schemas";
@@ -223,6 +224,70 @@ describe("filters", () => {
       expect(ops).toContain(FilterOperator.LT);
       expect(ops).toContain(FilterOperator.GT);
       expect(ops).not.toContain(FilterOperator.CONTAINS);
+    });
+
+    test("nullable type strips NULL flag and returns base type operators", () => {
+      const ops = getOperatorsForType(PropertyType.STRING | PropertyType.NULL);
+      expect(ops).toContain(FilterOperator.CONTAINS);
+      expect(ops).toContain(FilterOperator.STARTS_WITH);
+      expect(ops).toContain(FilterOperator.IS_NULL);
+    });
+  });
+
+  describe("findInvalidFilters", () => {
+    test("returns empty array when all filters are valid", () => {
+      const schema = { status: PropertyType.STRING, price: PropertyType.NUMBER };
+      const filters: Filter[] = [
+        { property: "status", operator: FilterOperator.EQ, value: "published" },
+        { property: "price", operator: FilterOperator.GT, value: 100 },
+      ];
+      expect(findInvalidFilters(filters, schema)).toEqual([]);
+    });
+
+    test("detects filter on missing property", () => {
+      const schema = { title: PropertyType.STRING };
+      const filters: Filter[] = [
+        { property: "title", operator: FilterOperator.EQ, value: "test" },
+        { property: "removed", operator: FilterOperator.EQ, value: "x" },
+      ];
+      const invalid = findInvalidFilters(filters, schema);
+      expect(invalid).toHaveLength(1);
+      expect(invalid[0].property).toBe("removed");
+    });
+
+    test("detects operator invalid for new type", () => {
+      // Property changed from STRING to BOOLEAN — CONTAINS is no longer valid
+      const schema = { field: PropertyType.BOOLEAN };
+      const filters: Filter[] = [
+        { property: "field", operator: FilterOperator.CONTAINS, value: "abc" },
+      ];
+      const invalid = findInvalidFilters(filters, schema);
+      expect(invalid).toHaveLength(1);
+      expect(invalid[0].operator).toBe(FilterOperator.CONTAINS);
+    });
+
+    test("returns empty array for empty filters", () => {
+      expect(findInvalidFilters([], { a: PropertyType.STRING })).toEqual([]);
+    });
+
+    test("handles nullable property types", () => {
+      const schema = { name: PropertyType.STRING | PropertyType.NULL };
+      const filters: Filter[] = [
+        { property: "name", operator: FilterOperator.CONTAINS, value: "test" },
+      ];
+      expect(findInvalidFilters(filters, schema)).toEqual([]);
+    });
+
+    test("multiple invalid filters", () => {
+      const schema = { remaining: PropertyType.BOOLEAN };
+      const filters: Filter[] = [
+        { property: "gone1", operator: FilterOperator.EQ, value: "a" },
+        { property: "remaining", operator: FilterOperator.EQ, value: true },
+        { property: "gone2", operator: FilterOperator.GT, value: 5 },
+      ];
+      const invalid = findInvalidFilters(filters, schema);
+      expect(invalid).toHaveLength(2);
+      expect(invalid.map((f) => f.property)).toEqual(["gone1", "gone2"]);
     });
   });
 });

@@ -59,6 +59,10 @@ export default async function globalSetup() {
   const { seedSnapshotOnConnectData } = await import("./e2e/snapshot-on-connect.seed");
   await seedSnapshotOnConnectData(db);
 
+  // Seed schema-sync test data
+  const { seedSchemaSyncData } = await import("./e2e/schema-sync.seed");
+  await seedSchemaSyncData(db);
+
   // Release file lock so the server process can open the same database
   await closeDb();
 }

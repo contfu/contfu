@@ -7,6 +7,7 @@
     "./infra/*": "./src/infra/*.ts",
     "./features/*": "./src/features/*.ts",
     "./features/inflows": "./src/features/inflows/index.ts",
+    "./features/schema-sync": "./src/features/schema-sync/index.ts",
     "./effect/*": "./src/effect/*.ts",
     "./push-worker/*": "./src/push-worker/*.ts"
   },

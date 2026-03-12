@@ -1,3 +1,5 @@
+import { PropertyType, type CollectionSchema } from "./schemas";
+
 /**
  * Filter operators for collection filtering.
  * Values are integers stored in the database.
@@ -41,16 +43,6 @@ export interface Filter {
  * Get valid operators for a given property type.
  */
 export function getOperatorsForType(propertyType: number): FilterOperator[] {
-  // PropertyType enum values from collections.ts
-  const STRING = 2;
-  const NUMBER = 8;
-  const DATE = 1024;
-  const BOOLEAN = 4;
-  const REF = 16;
-  const REFS = 32;
-  const FILE = 64;
-  const FILES = 128;
-
   const common: FilterOperator[] = [FilterOperator.IS_NULL, FilterOperator.IS_NOT_NULL];
   const equality: FilterOperator[] = [FilterOperator.EQ, FilterOperator.NE];
   const comparison: FilterOperator[] = [
@@ -66,24 +58,45 @@ export function getOperatorsForType(propertyType: number): FilterOperator[] {
     FilterOperator.ENDS_WITH,
   ];
 
-  switch (propertyType) {
-    case STRING:
+  // Strip nullable flag to get the base type
+  const baseType = propertyType & ~PropertyType.NULL;
+
+  switch (baseType) {
+    case PropertyType.STRING:
+    case PropertyType.STRINGS:
       return [...equality, ...stringOps, ...arrayOps, ...common];
-    case NUMBER:
+    case PropertyType.NUMBER:
+    case PropertyType.NUMBERS:
       return [...equality, ...comparison, ...arrayOps, ...common];
-    case DATE:
+    case PropertyType.DATE:
       return [...equality, ...comparison, ...common];
-    case BOOLEAN:
+    case PropertyType.BOOLEAN:
       return [...equality, ...common];
-    case REF:
-    case REFS:
+    case PropertyType.REF:
+    case PropertyType.REFS:
       return [...equality, ...arrayOps, ...common];
-    case FILE:
-    case FILES:
+    case PropertyType.FILE:
+    case PropertyType.FILES:
       return common;
     default:
       return [...equality, ...common];
   }
+}
+
+/**
+ * Find filters that are invalid against a given schema.
+ * A filter is invalid if:
+ * - Its property does not exist in the schema
+ * - Its operator is not valid for the property's type in the new schema
+ */
+export function findInvalidFilters(filters: Filter[], schema: CollectionSchema): Filter[] {
+  return filters.filter((filter) => {
+    const propertyType = schema[filter.property];
+    if (propertyType === undefined) return true;
+
+    const validOperators = getOperatorsForType(propertyType);
+    return !validOperators.includes(filter.operator);
+  });
 }
 
 /**

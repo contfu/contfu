@@ -1,0 +1,1 @@
+export { processSchemaChange } from "./processSchemaChange";

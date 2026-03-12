@@ -4,7 +4,10 @@ import { createLogger } from "@contfu/svc-backend/infra/logger/index";
 import { getSetting } from "@contfu/svc-backend/features/admin/getSetting";
 import { upsertSetting } from "@contfu/svc-backend/features/admin/upsertSetting";
 import { enqueueSyncJobs } from "@contfu/svc-backend/features/sync-jobs/enqueueSyncJobs";
+import { processSchemaChange } from "@contfu/svc-backend/features/schema-sync";
 import { runEffectWithServices } from "@contfu/svc-backend/effect/run";
+import { Database } from "@contfu/svc-backend/effect/services/Database";
+import { Effect } from "effect";
 import {
   decryptCredentials,
   encryptCredentials,
@@ -25,7 +28,7 @@ import { matchesFilters, type Filter } from "@contfu/svc-core";
 import { genUid, uuidToBuffer } from "@contfu/svc-sources";
 import { fetchNotionPage, notionPropertiesToSchema } from "@contfu/svc-sources/notion";
 import { and, desc, eq, inArray } from "drizzle-orm";
-import { pack, unpack } from "msgpackr";
+import { unpack } from "msgpackr";
 import crypto from "node:crypto";
 import { lru } from "tiny-lru";
 import * as v from "valibot";
@@ -824,7 +827,6 @@ export const POST: RequestHandler = async ({ request, params }) => {
 
             if ("properties" in dataSource && dataSource.properties) {
               const schema = notionPropertiesToSchema(dataSource.properties);
-              const schemaBuf = Buffer.from(pack(schema));
 
               const parentDbId =
                 "parent" in dataSource && dataSource.parent?.type === "database_id"
@@ -833,16 +835,28 @@ export const POST: RequestHandler = async ({ request, params }) => {
 
               if (parentDbId) {
                 const ref = uuidToBuffer(parentDbId);
-                await db
-                  .update(collectionTable)
-                  .set({ schema: schemaBuf })
+                const [collection] = await db
+                  .select({ id: collectionTable.id })
+                  .from(collectionTable)
                   .where(
                     and(
                       eq(collectionTable.userId, conn.userId),
                       eq(collectionTable.connectionId, conn.id),
                       eq(collectionTable.ref, ref),
                     ),
+                  )
+                  .limit(1);
+
+                if (collection) {
+                  await runEffectWithServices(
+                    Effect.flatMap(Database, ({ withUserContext }) =>
+                      withUserContext(
+                        conn.userId,
+                        processSchemaChange(conn.userId, collection.id, schema),
+                      ),
+                    ),
                   );
+                }
               }
             }
           } catch (err) {
