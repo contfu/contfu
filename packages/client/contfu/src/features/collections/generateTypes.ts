@@ -1,5 +1,5 @@
-import type { CollectionSchema } from "@contfu/core";
-import { PropertyType } from "@contfu/core";
+import type { CollectionSchema, SchemaValue } from "@contfu/core";
+import { PropertyType, schemaType, schemaEnumValues } from "@contfu/core";
 
 const TYPE_MAP: Record<number, string> = {
   [PropertyType.STRING]: "string",
@@ -12,7 +12,28 @@ const TYPE_MAP: Record<number, string> = {
   [PropertyType.FILE]: "string",
   [PropertyType.FILES]: "string[]",
   [PropertyType.DATE]: "number",
+  [PropertyType.ENUM]: "string",
+  [PropertyType.ENUMS]: "string[]",
 };
+
+function schemaValueToType(value: SchemaValue): string {
+  const numType = schemaType(value);
+  const enumVals = schemaEnumValues(value);
+  if (numType === PropertyType.ENUM) {
+    if (enumVals && enumVals.length > 0) {
+      return enumVals.map((v) => JSON.stringify(v)).join(" | ");
+    }
+    return "string";
+  }
+  if (numType === PropertyType.ENUMS) {
+    if (enumVals && enumVals.length > 0) {
+      const union = enumVals.map((v) => JSON.stringify(v)).join(" | ");
+      return enumVals.length > 1 ? `(${union})[]` : `${union}[]`;
+    }
+    return "string[]";
+  }
+  return TYPE_MAP[numType] ?? "unknown";
+}
 
 function collectionNameToTypeName(name: string): string {
   return name.charAt(0).toUpperCase() + name.slice(1) + "Props";
@@ -29,7 +50,7 @@ export function generateTypes(
 
   const interfaces = entries.map(([name, schema]) => {
     const props = Object.entries(schema)
-      .map(([key, type]) => `  ${key}: ${TYPE_MAP[type] ?? "unknown"};`)
+      .map(([key, value]) => `  ${key}: ${schemaValueToType(value)};`)
       .join("\n");
     return `export type ${typeNames[name]} = {\n${props}\n};`;
   });

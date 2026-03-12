@@ -1,4 +1,4 @@
-import { PropertyType, type CollectionSchema } from "./schemas";
+import { PropertyType, schemaType, type CollectionSchema } from "./schemas";
 
 /**
  * Filter operators for collection filtering.
@@ -64,6 +64,8 @@ export function getOperatorsForType(propertyType: number): FilterOperator[] {
   switch (baseType) {
     case PropertyType.STRING:
     case PropertyType.STRINGS:
+    case PropertyType.ENUM:
+    case PropertyType.ENUMS:
       return [...equality, ...stringOps, ...arrayOps, ...common];
     case PropertyType.NUMBER:
     case PropertyType.NUMBERS:
@@ -91,10 +93,10 @@ export function getOperatorsForType(propertyType: number): FilterOperator[] {
  */
 export function findInvalidFilters(filters: Filter[], schema: CollectionSchema): Filter[] {
   return filters.filter((filter) => {
-    const propertyType = schema[filter.property];
-    if (propertyType === undefined) return true;
+    const propertyValue = schema[filter.property];
+    if (propertyValue === undefined) return true;
 
-    const validOperators = getOperatorsForType(propertyType);
+    const validOperators = getOperatorsForType(schemaType(propertyValue));
     return !validOperators.includes(filter.operator);
   });
 }

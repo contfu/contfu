@@ -1,4 +1,9 @@
-import { CollectionSchema, PropertyType, toCamelCase } from "@contfu/svc-core";
+import {
+  type CollectionSchema,
+  type SchemaValue,
+  PropertyType,
+  toCamelCase,
+} from "@contfu/svc-core";
 import { fetchContentTypeSchema } from "./strapi-helpers";
 import type { StrapiSchemaAttribute } from "./strapi";
 
@@ -31,9 +36,9 @@ function convertSchema(attributes: Record<string, StrapiSchemaAttribute>): Colle
 }
 
 /**
- * Map a Strapi attribute type to a PropertyType.
+ * Map a Strapi attribute type to a SchemaValue.
  */
-function mapAttributeType(attr: StrapiSchemaAttribute): number | null {
+function mapAttributeType(attr: StrapiSchemaAttribute): SchemaValue | null {
   const nullable = attr.required !== true;
 
   switch (attr.type) {
@@ -43,8 +48,12 @@ function mapAttributeType(attr: StrapiSchemaAttribute): number | null {
     case "richtext":
     case "email":
     case "uid":
-    case "enumeration":
       return nullable ? PropertyType.STRING | PropertyType.NULL : PropertyType.STRING;
+
+    case "enumeration": {
+      const baseType = nullable ? PropertyType.ENUM | PropertyType.NULL : PropertyType.ENUM;
+      return [baseType, attr.enum ?? []];
+    }
 
     // Numeric types
     case "integer":

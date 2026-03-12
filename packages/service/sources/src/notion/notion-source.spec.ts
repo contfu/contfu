@@ -353,7 +353,9 @@ describe("NotionSource", () => {
 
       expect(schema.title).toBe(PropertyType.STRING | PropertyType.NULL);
       expect(schema.description).toBe(PropertyType.STRING | PropertyType.NULL);
-      expect(schema.status).toBe(PropertyType.STRING | PropertyType.NULL);
+      // select maps to ENUM tuple
+      expect(Array.isArray(schema.status)).toBe(true);
+      expect((schema.status as [number, string[]])[0]).toBe(PropertyType.ENUM | PropertyType.NULL);
       expect(schema.count).toBe(PropertyType.NUMBER | PropertyType.NULL);
       expect(schema.done).toBe(PropertyType.BOOLEAN);
 

@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
-import { isImg, type Block, type CollectionSchema, PropertyType } from "@contfu/core";
+import { isImg, type Block, type CollectionSchema, PropertyType, schemaType } from "@contfu/core";
 import { mimeTypes } from "m4k/lib/util/mime.js";
 import { createAsset } from "./createAsset";
 import { getAsset } from "./getAsset";
@@ -352,7 +352,8 @@ export async function processPropertyAssets(opts: {
 
   const promises: Promise<void>[] = [];
 
-  for (const [propName, propType] of Object.entries(schema)) {
+  for (const [propName, propValue] of Object.entries(schema)) {
+    const propType = schemaType(propValue);
     const isFile = (propType & PropertyType.FILE) !== 0;
     const isFiles = (propType & PropertyType.FILES) !== 0;
 

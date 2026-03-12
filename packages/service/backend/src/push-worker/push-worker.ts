@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import { EventType, ConnectionType, type WireItem } from "@contfu/core";
+import { EventType, ConnectionType, type WireItem, type CollectionSchema } from "@contfu/core";
 import { writeItemToNotion } from "@contfu/svc-sources/notion";
 import { eq } from "drizzle-orm";
 import { unpack } from "msgpackr";
@@ -105,7 +105,7 @@ async function processPushMessage(
     }
 
     // Get the collection schema
-    const collectionSchema = schema ? (unpack(schema) as Record<string, number>) : {};
+    const collectionSchema = schema ? (unpack(schema) as CollectionSchema) : {};
 
     // Get the Notion database ID from the collection's ref
     if (!ref) {

@@ -249,6 +249,85 @@ describe("validateSourceItem", () => {
   });
 });
 
+describe("ENUM/ENUMS safe casts", () => {
+  test("STRING → ENUM cast is 'enum'", () => {
+    expect(safeCast(T.STRING, T.ENUM)).toBe("enum");
+  });
+
+  test("STRINGS → ENUMS cast is 'enum'", () => {
+    expect(safeCast(T.STRINGS, T.ENUMS)).toBe("enum");
+  });
+
+  test("ENUM → STRING cast is 'string'", () => {
+    expect(safeCast(T.ENUM, T.STRING)).toBe("string");
+  });
+
+  test("ENUMS → STRINGS cast is 'string'", () => {
+    expect(safeCast(T.ENUMS, T.STRINGS)).toBe("string");
+  });
+
+  test("ENUM is compatible with ENUM", () => {
+    expect(typeCompatibility(T.ENUM, T.ENUM)).toEqual({ compatible: true, cast: null });
+  });
+
+  test("ENUMS is compatible with ENUMS", () => {
+    expect(typeCompatibility(T.ENUMS, T.ENUMS)).toEqual({ compatible: true, cast: null });
+  });
+});
+
+describe("autoWireMappings with ENUM schema values", () => {
+  test("ENUM source matches ENUM target directly", () => {
+    const source = { status: [T.ENUM | T.NULL, ["draft", "published"]] as [number, string[]] };
+    const target = { status: [T.ENUM | T.NULL, ["draft", "published"]] as [number, string[]] };
+    const rules = autoWireMappings(target, source);
+    expect(rules).toEqual([{ source: "status", target: "status" }]);
+  });
+
+  test("ENUM source matches STRING target via 'string' cast", () => {
+    const source = { status: [T.ENUM | T.NULL, ["a", "b"]] as [number, string[]] };
+    const target = { status: T.STRING | T.NULL };
+    const rules = autoWireMappings(target, source);
+    expect(rules).toEqual([{ source: "status", target: "status", cast: "string", guessed: true }]);
+  });
+});
+
+describe("validateSourceItem with enum cast", () => {
+  test("passes when value is in enum list (via targetSchema)", () => {
+    const errors = validateSourceItem({ status: "draft" }, [{ source: "status", cast: "enum" }], {
+      status: [T.ENUM, ["draft", "published"]],
+    });
+    expect(errors).toEqual([]);
+  });
+
+  test("fails when value is not in enum list (via targetSchema)", () => {
+    const errors = validateSourceItem({ status: "invalid" }, [{ source: "status", cast: "enum" }], {
+      status: [T.ENUM, ["draft", "published"]],
+    });
+    expect(errors).toEqual([{ property: "status", sourceProperty: "status", cast: "enum" }]);
+  });
+
+  test("passes when value is in rule.enumValues", () => {
+    const errors = validateSourceItem({ status: "active" }, [
+      { source: "status", cast: "enum", enumValues: ["active", "inactive"] },
+    ]);
+    expect(errors).toEqual([]);
+  });
+
+  test("fails when value is not in rule.enumValues", () => {
+    const errors = validateSourceItem({ status: "unknown" }, [
+      { source: "status", cast: "enum", enumValues: ["active", "inactive"] },
+    ]);
+    expect(errors).toEqual([{ property: "status", sourceProperty: "status", cast: "enum" }]);
+  });
+
+  test("skips null values for enum cast", () => {
+    const errors = validateSourceItem({ status: null }, [
+      { source: "status", cast: "enum", enumValues: ["active"] },
+    ]);
+    expect(errors).toEqual([]);
+  });
+});
+
 describe("applyMappingsToSchema", () => {
   test("passes through unchanged when mappings is null", () => {
     const schema = { title: T.STRING };
@@ -285,5 +364,43 @@ describe("applyMappingsToSchema", () => {
       { source: "missing", target: "gone" },
     ];
     expect(applyMappingsToSchema(schema, mappings)).toEqual({ title: T.STRING });
+  });
+
+  test("preserves enum tuple when remapping schema keys", () => {
+    const schema = { status: [T.ENUM | T.NULL, ["draft", "published"]] as [number, string[]] };
+    const mappings: MappingRule[] = [{ source: "status", target: "articleStatus" }];
+    const result = applyMappingsToSchema(schema, mappings);
+    expect(result).toEqual({
+      articleStatus: [T.ENUM | T.NULL, ["draft", "published"]],
+    });
+  });
+
+  test("converts STRING to ENUM schema value when cast is 'enum'", () => {
+    const schema = { type: T.STRING | T.NULL };
+    const mappings: MappingRule[] = [
+      { source: "type", target: "type", cast: "enum", enumValues: ["blog", "page"] },
+    ];
+    const result = applyMappingsToSchema(schema, mappings);
+    expect(Array.isArray(result.type)).toBe(true);
+    expect((result.type as [number, string[]])[0]).toBe(T.ENUM | T.NULL);
+    expect((result.type as [number, string[]])[1]).toEqual(["blog", "page"]);
+  });
+
+  test("merges enum values when two source properties map to the same target", () => {
+    const schema = {
+      statusA: [T.ENUM | T.NULL, ["draft", "published"]] as [number, string[]],
+      statusB: [T.ENUM | T.NULL, ["active", "inactive"]] as [number, string[]],
+    };
+    const mappings: MappingRule[] = [
+      { source: "statusA", target: "status" },
+      { source: "statusB", target: "status" },
+    ];
+    const result = applyMappingsToSchema(schema, mappings);
+    expect(Array.isArray(result.status)).toBe(true);
+    const vals = (result.status as [number, string[]])[1];
+    expect(vals).toContain("draft");
+    expect(vals).toContain("published");
+    expect(vals).toContain("active");
+    expect(vals).toContain("inactive");
   });
 });

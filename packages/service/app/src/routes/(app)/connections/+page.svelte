@@ -31,6 +31,7 @@
       return;
     try {
       await deleteConnection({ id });
+      await Promise.all([listConnections().refresh(), getQuotaUsage().refresh()]);
       toast.success("Connection removed");
     } catch {
       toast.error("Failed to remove connection");
@@ -52,6 +53,7 @@
     if (!trimmed) return;
     try {
       await renameConnection({ id, name: trimmed });
+      await listConnections().refresh();
       toast.success("Renamed");
     } catch {
       toast.error("Failed to rename");

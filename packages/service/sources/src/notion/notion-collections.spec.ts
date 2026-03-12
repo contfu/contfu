@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach } from "bun:test";
-import { PropertyType } from "@contfu/svc-core";
+import { PropertyType, schemaType, schemaEnumValues } from "@contfu/svc-core";
 import { mockClient } from "./__tests__/notion-mock-setup";
 
 // Import after mock setup
@@ -105,7 +105,7 @@ describe("notion-collections", () => {
       expect(schema.phone).toBe(PropertyType.STRING | PropertyType.NULL);
     });
 
-    it("should map status property to STRING | NULL", async () => {
+    it("should map status property to ENUM | NULL tuple with option names", async () => {
       setupMocks(testId, {
         Status: createDbProperty("status", {
           options: [{ name: "Active" }, { name: "Done" }],
@@ -114,10 +114,11 @@ describe("notion-collections", () => {
 
       const schema = await getCollectionSchema(testKey, testId);
 
-      expect(schema.status).toBe(PropertyType.STRING | PropertyType.NULL);
+      expect(schemaType(schema.status)).toBe(PropertyType.ENUM | PropertyType.NULL);
+      expect(schemaEnumValues(schema.status)).toEqual(["Active", "Done"]);
     });
 
-    it("should map select property to STRING | NULL", async () => {
+    it("should map select property to ENUM | NULL tuple with option names", async () => {
       setupMocks(testId, {
         Category: createDbProperty("select", {
           options: [{ name: "A" }, { name: "B" }],
@@ -126,7 +127,8 @@ describe("notion-collections", () => {
 
       const schema = await getCollectionSchema(testKey, testId);
 
-      expect(schema.category).toBe(PropertyType.STRING | PropertyType.NULL);
+      expect(schemaType(schema.category)).toBe(PropertyType.ENUM | PropertyType.NULL);
+      expect(schemaEnumValues(schema.category)).toEqual(["A", "B"]);
     });
 
     it("should map number property to NUMBER | NULL", async () => {
@@ -245,14 +247,28 @@ describe("notion-collections", () => {
       expect(schema.rollup).toBeUndefined();
     });
 
-    it("should map multi_select property to STRINGS | NULL", async () => {
+    it("should map multi_select property to ENUMS | NULL tuple with option names", async () => {
+      setupMocks(testId, {
+        Tags: createDbProperty("multi_select", {
+          options: [{ name: "TypeScript" }, { name: "Svelte" }],
+        }),
+      });
+
+      const schema = await getCollectionSchema(testKey, testId);
+
+      expect(schemaType(schema.tags)).toBe(PropertyType.ENUMS | PropertyType.NULL);
+      expect(schemaEnumValues(schema.tags)).toEqual(["TypeScript", "Svelte"]);
+    });
+
+    it("should map multi_select with empty options to ENUMS | NULL tuple with empty array", async () => {
       setupMocks(testId, {
         Tags: createDbProperty("multi_select", { options: [] }),
       });
 
       const schema = await getCollectionSchema(testKey, testId);
 
-      expect(schema.tags).toBe(PropertyType.STRINGS | PropertyType.NULL);
+      expect(schemaType(schema.tags)).toBe(PropertyType.ENUMS | PropertyType.NULL);
+      expect(schemaEnumValues(schema.tags)).toEqual([]);
     });
 
     it("should map unique_id property to STRING", async () => {
@@ -287,8 +303,8 @@ describe("notion-collections", () => {
       // Verify all expected properties are present (keys are camelCased)
       expect(schema.title).toBe(PropertyType.STRING | PropertyType.NULL);
       expect(schema.description).toBe(PropertyType.STRING | PropertyType.NULL);
-      expect(schema.status).toBe(PropertyType.STRING | PropertyType.NULL);
-      expect(schema.priority).toBe(PropertyType.STRING | PropertyType.NULL);
+      expect(schemaType(schema.status)).toBe(PropertyType.ENUM | PropertyType.NULL);
+      expect(schemaType(schema.priority)).toBe(PropertyType.ENUM | PropertyType.NULL);
       expect(schema.count).toBe(PropertyType.NUMBER | PropertyType.NULL);
       expect(schema.dueDate).toBe(PropertyType.DATE | PropertyType.NULL);
       expect(schema.done).toBe(PropertyType.BOOLEAN);

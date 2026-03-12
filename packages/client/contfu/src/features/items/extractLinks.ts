@@ -1,6 +1,6 @@
 import type { Block, Inline } from "@contfu/core";
 import { isAnchor } from "@contfu/core";
-import { PropertyType, type CollectionSchema } from "@contfu/core";
+import { PropertyType, schemaType, type CollectionSchema } from "@contfu/core";
 import type { NewItemLink } from "../../infra/db/schema";
 
 const PLACEHOLDER_BASE = -1;
@@ -140,7 +140,8 @@ export function extractLinks(
 
   // Extract REF/REFS from props
   if (schema && props) {
-    for (const [propName, propType] of Object.entries(schema)) {
+    for (const [propName, propValue] of Object.entries(schema)) {
+      const propType = schemaType(propValue);
       if (propType === PropertyType.REF) {
         const value = props[propName];
         if (value != null) {
@@ -198,7 +199,8 @@ export function replacePlaceholders(
 
   // Replace prop placeholders with actual link IDs
   if (schema) {
-    for (const [propName, propType] of Object.entries(schema)) {
+    for (const [propName, propValue] of Object.entries(schema)) {
+      const propType = schemaType(propValue);
       if (propType === PropertyType.REF) {
         const value = newProps[propName];
         if (typeof value === "number" && value <= PLACEHOLDER_BASE) {

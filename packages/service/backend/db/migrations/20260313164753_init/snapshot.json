@@ -1,7 +1,7 @@
 {
   "version": "8",
   "dialect": "postgres",
-  "id": "979dd2e6-c265-45ca-bb5e-373a738e89fa",
+  "id": "d31d5b4d-edfd-45ed-b0d4-3debbd287964",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
@@ -2402,7 +2402,7 @@
         "id"
       ],
       "onUpdate": "NO ACTION",
-      "onDelete": "SET NULL",
+      "onDelete": "CASCADE",
       "name": "collection_connectionId_connection_id_fkey",
       "entityType": "fks",
       "schema": "public",

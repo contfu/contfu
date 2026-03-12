@@ -215,7 +215,7 @@ CREATE INDEX "sync_job_status_idx" ON "sync_job" ("status","startedAt");--> stat
 CREATE INDEX "webhook_log_connectionId_idx" ON "webhook_log" ("connectionId");--> statement-breakpoint
 ALTER TABLE "account" ADD CONSTRAINT "account_userId_user_id_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE;--> statement-breakpoint
 ALTER TABLE "collection" ADD CONSTRAINT "collection_userId_user_id_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE;--> statement-breakpoint
-ALTER TABLE "collection" ADD CONSTRAINT "collection_connectionId_connection_id_fkey" FOREIGN KEY ("connectionId") REFERENCES "connection"("id") ON DELETE SET NULL;--> statement-breakpoint
+ALTER TABLE "collection" ADD CONSTRAINT "collection_connectionId_connection_id_fkey" FOREIGN KEY ("connectionId") REFERENCES "connection"("id") ON DELETE CASCADE;--> statement-breakpoint
 ALTER TABLE "connection" ADD CONSTRAINT "connection_userId_user_id_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE;--> statement-breakpoint
 ALTER TABLE "flow" ADD CONSTRAINT "flow_userId_user_id_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE;--> statement-breakpoint
 ALTER TABLE "flow" ADD CONSTRAINT "flow_sourceId_collection_id_fkey" FOREIGN KEY ("sourceId") REFERENCES "collection"("id") ON DELETE CASCADE;--> statement-breakpoint

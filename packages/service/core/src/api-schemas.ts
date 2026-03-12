@@ -24,11 +24,13 @@ export const CreateCollectionSchema = v.object({
   includeRef: v.optional(v.boolean()),
 });
 
+const SchemaValueSchema = v.union([v.number(), v.tuple([v.number(), v.array(v.string())])]);
+
 export const UpdateCollectionSchema = v.object({
   displayName: v.optional(v.string()),
   name: v.optional(v.string()),
   includeRef: v.optional(v.boolean()),
-  schema: v.optional(v.record(v.string(), v.number())),
+  schema: v.optional(v.record(v.string(), SchemaValueSchema)),
   refTargets: v.optional(v.nullable(v.record(v.string(), v.array(v.string())))),
 });
 
@@ -51,13 +53,13 @@ export const CreateFlowSchema = v.object({
   sourceId: v.number(),
   targetId: v.number(),
   filters: v.optional(v.array(FilterSchema)),
-  schema: v.optional(v.record(v.string(), v.number())),
+  schema: v.optional(v.record(v.string(), SchemaValueSchema)),
   includeRef: v.optional(v.boolean()),
 });
 
 export const UpdateFlowSchema = v.object({
   filters: v.optional(v.nullable(v.array(FilterSchema))),
   mappings: v.optional(v.nullable(v.array(MappingRuleSchema))),
-  schema: v.optional(v.nullable(v.record(v.string(), v.number()))),
+  schema: v.optional(v.nullable(v.record(v.string(), SchemaValueSchema))),
   includeRef: v.optional(v.boolean()),
 });

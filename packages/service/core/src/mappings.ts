@@ -1,4 +1,11 @@
-import { PropertyType, type CollectionSchema } from "./schemas";
+import {
+  PropertyType,
+  schemaType,
+  schemaEnumValues,
+  mergeSchemaValues,
+  type CollectionSchema,
+  type SchemaValue,
+} from "./schemas";
 
 /**
  * A mapping rule defining how a source property maps to a target property.
@@ -17,6 +24,8 @@ export interface MappingRule {
    * The user should verify guessed mappings before relying on them.
    */
   guessed?: boolean;
+  /** Allowed enum values for cast === "enum" validation. */
+  enumValues?: string[];
 }
 
 // ---------------------------------------------------------------------------
@@ -62,6 +71,11 @@ const SAFE_CASTS: [number, number, string][] = [
   [PropertyType.REFS, PropertyType.STRINGS, "string"],
   [PropertyType.BOOLEAN, PropertyType.STRING, "string"],
   [PropertyType.DATE, PropertyType.STRING, "string"],
+  // ENUM ↔ STRING casts
+  [PropertyType.STRING, PropertyType.ENUM, "enum"],
+  [PropertyType.STRINGS, PropertyType.ENUMS, "enum"],
+  [PropertyType.ENUM, PropertyType.STRING, "string"],
+  [PropertyType.ENUMS, PropertyType.STRINGS, "string"],
 ];
 
 /**
@@ -108,6 +122,7 @@ const CAST_FNS: Record<string, (v: unknown) => unknown> = {
   string: (v) => String(v),
   number: (v) => Number(v),
   boolean: (v) => Boolean(v),
+  enum: (v) => v, // pass-through — validation happens in validateSourceItem
 };
 
 /**
@@ -145,8 +160,28 @@ export function applyMappings(
 }
 
 /**
+ * Apply a mapping rule's cast to a source schema value.
+ * For "enum" cast: converts STRING→ENUM (or STRINGS→ENUMS), preserving nullable flag
+ * and carrying enum values from rule.enumValues or the source if already a tuple.
+ */
+function castSchemaValue(sourceValue: SchemaValue, rule: MappingRule): SchemaValue {
+  if (rule.cast !== "enum") return sourceValue;
+
+  const srcType = schemaType(sourceValue);
+  const nullable = !!(srcType & PropertyType.NULL);
+  const isMulti = !!(srcType & PropertyType.STRINGS) || !!(srcType & PropertyType.ENUMS);
+  const baseType = isMulti ? PropertyType.ENUMS : PropertyType.ENUM;
+  const enumType = nullable ? baseType | PropertyType.NULL : baseType;
+
+  // Prefer explicit rule.enumValues, then values already in the source tuple
+  const enumVals = rule.enumValues ?? schemaEnumValues(sourceValue) ?? [];
+  return [enumType, enumVals];
+}
+
+/**
  * Remap a collection schema according to mapping rules.
  * Keys are renamed from source→target; unmapped keys are dropped.
+ * If a rule has cast="enum", the schema value is converted from STRING to ENUM.
  */
 export function applyMappingsToSchema(
   schema: CollectionSchema,
@@ -158,7 +193,8 @@ export function applyMappingsToSchema(
   for (const rule of mappings) {
     const target = rule.target ?? rule.source;
     if (rule.source in schema) {
-      result[target] = schema[rule.source];
+      const incoming = castSchemaValue(schema[rule.source], rule);
+      result[target] = target in result ? mergeSchemaValues(result[target], incoming) : incoming;
     }
   }
   return result;
@@ -181,10 +217,13 @@ export interface SourceItemValidationError {
  * Validate a source item against mapping rules before applying them.
  * Returns errors for each rule whose cast would produce an invalid result.
  * Empty array means the item is valid.
+ *
+ * @param targetSchema Optional target schema used to look up enum values for "enum" cast validation.
  */
 export function validateSourceItem(
   props: Record<string, unknown>,
   mappings: MappingRule[] | null,
+  targetSchema?: CollectionSchema,
 ): SourceItemValidationError[] {
   if (!mappings || mappings.length === 0) return [];
 
@@ -210,6 +249,18 @@ export function validateSourceItem(
           cast: rule.cast,
         });
       }
+    } else if (rule.cast === "enum" && value != null) {
+      // Resolve enum values from explicit rule.enumValues or target schema
+      const targetKey = rule.target ?? rule.source;
+      const enumValues =
+        rule.enumValues ?? (targetSchema ? schemaEnumValues(targetSchema[targetKey]) : undefined);
+      if (enumValues && !enumValues.includes(String(value))) {
+        errors.push({
+          property: targetKey,
+          sourceProperty: rule.source,
+          cast: rule.cast,
+        });
+      }
     }
   }
   return errors;
@@ -221,11 +272,13 @@ export function autoWireMappings(
 ): MappingRule[] {
   const rules: MappingRule[] = [];
 
-  for (const [targetProp, targetType] of Object.entries(targetSchema)) {
+  for (const [targetProp, targetValue] of Object.entries(targetSchema)) {
+    const targetType = schemaType(targetValue);
     let best: MappingRule | null = null;
     let bestScore = -1; // higher = better; 3=exact+direct, 2=exact+cast, 1=synonym+direct, 0=synonym+cast
 
-    for (const [sourceProp, sourceType] of Object.entries(sourceSchema)) {
+    for (const [sourceProp, sourceValue] of Object.entries(sourceSchema)) {
+      const sourceType = schemaType(sourceValue);
       const nameExact = sourceProp === targetProp;
       const nameSynonym = !nameExact && areSynonyms(sourceProp, targetProp);
       if (!nameExact && !nameSynonym) continue;

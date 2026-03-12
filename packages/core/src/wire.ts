@@ -1,5 +1,6 @@
 import { EventType } from "./events";
 import type { ConnectionType } from "./items";
+import type { CollectionSchema } from "./schemas";
 
 /**
  * Wire format for binary stream events.
@@ -26,7 +27,7 @@ export type WireSchemaEvent = [
   typeof EventType.COLLECTION_SCHEMA,
   string,
   string,
-  Record<string, number>,
+  CollectionSchema,
 ];
 
 /** Collection renamed event: notifies consumers of a collection name change. */

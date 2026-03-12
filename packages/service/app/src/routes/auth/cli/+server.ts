@@ -1,9 +1,9 @@
 import { auth } from "$lib/server/auth";
 import { storeCliToken } from "$lib/server/cli-token-store";
 import { redirect } from "@sveltejs/kit";
-import type { RequestHandler } from "./$types";
-import { hostname } from "node:os";
 import { randomBytes } from "node:crypto";
+import { hostname } from "node:os";
+import type { RequestHandler } from "./$types";
 
 export const GET: RequestHandler = async ({ request, url }) => {
   const callback = url.searchParams.get("callback");

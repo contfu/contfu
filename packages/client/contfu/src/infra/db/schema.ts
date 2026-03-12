@@ -1,10 +1,10 @@
-import type { Block, ConnectionType } from "@contfu/core";
+import type { Block, CollectionSchema, ConnectionType } from "@contfu/core";
 import { blob, index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 export const collectionsTable = sqliteTable("collections", {
   name: text().primaryKey(),
   displayName: text().notNull(),
-  schema: blob({ mode: "json" }).notNull().$type<Record<string, number>>(),
+  schema: blob({ mode: "json" }).notNull().$type<CollectionSchema>(),
 });
 
 export const itemsTable = sqliteTable(

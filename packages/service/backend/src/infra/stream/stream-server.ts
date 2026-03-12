@@ -1,6 +1,7 @@
 import {
   ConnectionType,
   EventType,
+  type CollectionSchema,
   type WireEvent,
   type WireItem,
   type WireItemEvent,
@@ -250,7 +251,7 @@ export class StreamServer {
     controller: ReadableStreamDefaultController<Uint8Array>,
     collectionName: string,
     displayName: string,
-    schema: Record<string, number>,
+    schema: CollectionSchema,
   ) {
     this.sendBinary(controller, [EventType.COLLECTION_SCHEMA, collectionName, displayName, schema]);
   }

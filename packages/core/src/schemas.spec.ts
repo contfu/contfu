@@ -1,7 +1,15 @@
 import { describe, expect, it } from "bun:test";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { generateTypeScript, generateConsumerTypes, PropertyType } from "./schemas";
+import {
+  generateTypeScript,
+  generateConsumerTypes,
+  PropertyType,
+  schemaType,
+  schemaEnumValues,
+  mergeSchemaValues,
+  type CollectionSchema,
+} from "./schemas";
 
 /**
  * Write generated TS code + assertion lines to a temp file
@@ -109,6 +117,42 @@ describe("generateTypeScript", () => {
       },
     ]);
     expect(ts).toContain("related: (Articles | Videos)[];");
+  });
+
+  it("generates enum union for ENUM with values", () => {
+    const ts = generateTypeScript([
+      {
+        name: "posts",
+        displayName: "Posts",
+        schema: { status: [PropertyType.ENUM, ["draft", "published", "archived"]] },
+      },
+    ]);
+    expect(ts).toContain(`status: "draft" | "published" | "archived";`);
+  });
+
+  it("generates string for ENUM without values", () => {
+    const ts = generateTypeScript([
+      { name: "posts", displayName: "Posts", schema: { status: PropertyType.ENUM } },
+    ]);
+    expect(ts).toContain("status: string;");
+  });
+
+  it("generates enum array for ENUMS with values", () => {
+    const ts = generateTypeScript([
+      {
+        name: "posts",
+        displayName: "Posts",
+        schema: { tags: [PropertyType.ENUMS, ["a", "b"]] },
+      },
+    ]);
+    expect(ts).toContain(`tags: ("a" | "b")[];`);
+  });
+
+  it("generates string[] for ENUMS without values", () => {
+    const ts = generateTypeScript([
+      { name: "posts", displayName: "Posts", schema: { tags: PropertyType.ENUMS } },
+    ]);
+    expect(ts).toContain("tags: string[];");
   });
 
   it("generates string[] for REFS without refTargets", () => {
@@ -348,5 +392,78 @@ describe("generated types compile-time checks", () => {
       `,
       "consumer types with query client pattern",
     );
+  });
+});
+
+describe("generateTypeScript with merged enum schemas", () => {
+  it("emits union of all values when two ENUM schemas are merged before generation", () => {
+    const schemaA: CollectionSchema = {
+      status: [PropertyType.ENUM | PropertyType.NULL, ["draft", "published"]],
+    };
+    const schemaB: CollectionSchema = {
+      status: [PropertyType.ENUM | PropertyType.NULL, ["active", "inactive"]],
+    };
+
+    // Simulate what broadcastSchemaChanges does: merge per-property
+    const merged: CollectionSchema = {};
+    for (const [prop, value] of Object.entries(schemaA)) {
+      merged[prop] = mergeSchemaValues(merged[prop] ?? 0, value);
+    }
+    for (const [prop, value] of Object.entries(schemaB)) {
+      merged[prop] = mergeSchemaValues(merged[prop] ?? 0, value);
+    }
+
+    const ts = generateTypeScript([{ name: "posts", displayName: "Posts", schema: merged }]);
+    expect(ts).toContain(`status: "draft" | "published" | "active" | "inactive"`);
+  });
+});
+
+describe("schemaType", () => {
+  it("returns number as-is", () => {
+    expect(schemaType(PropertyType.STRING)).toBe(PropertyType.STRING);
+    expect(schemaType(0)).toBe(0);
+  });
+
+  it("extracts number from tuple", () => {
+    expect(schemaType([PropertyType.ENUM, ["a", "b"]])).toBe(PropertyType.ENUM);
+  });
+});
+
+describe("schemaEnumValues", () => {
+  it("returns undefined for plain number", () => {
+    expect(schemaEnumValues(PropertyType.STRING)).toBeUndefined();
+  });
+
+  it("returns array from tuple", () => {
+    expect(schemaEnumValues([PropertyType.ENUM, ["x", "y"]])).toEqual(["x", "y"]);
+  });
+});
+
+describe("mergeSchemaValues", () => {
+  it("ORs two plain numbers", () => {
+    expect(mergeSchemaValues(PropertyType.ENUM, PropertyType.NULL)).toBe(
+      PropertyType.ENUM | PropertyType.NULL,
+    );
+  });
+
+  it("merges a number with a tuple — produces tuple", () => {
+    const result = mergeSchemaValues(0, [PropertyType.ENUM, ["a", "b"]]);
+    expect(Array.isArray(result)).toBe(true);
+    expect(schemaType(result)).toBe(PropertyType.ENUM);
+    expect(schemaEnumValues(result)).toEqual(["a", "b"]);
+  });
+
+  it("unions enum values from two tuples", () => {
+    const result = mergeSchemaValues(
+      [PropertyType.ENUM, ["a", "b"]],
+      [PropertyType.ENUM, ["b", "c"]],
+    );
+    expect(Array.isArray(result)).toBe(true);
+    expect(schemaEnumValues(result)).toEqual(["a", "b", "c"]);
+  });
+
+  it("ORs types when merging tuples", () => {
+    const result = mergeSchemaValues([PropertyType.ENUM, ["a"]], [PropertyType.NULL, []]);
+    expect(schemaType(result)).toBe(PropertyType.ENUM | PropertyType.NULL);
   });
 });

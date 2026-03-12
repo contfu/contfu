@@ -36,7 +36,7 @@ import {
 import { and, eq, inArray } from "drizzle-orm";
 import { unpack } from "msgpackr";
 import type { CollectionSchema } from "@contfu/core";
-import { applyMappingsToSchema, type MappingRule } from "@contfu/svc-core";
+import { applyMappingsToSchema, mergeSchemaValues, type MappingRule } from "@contfu/svc-core";
 import type { RequestHandler } from "./$types";
 
 const log = createLogger("api-sync");
@@ -239,9 +239,9 @@ export const GET: RequestHandler = async ({ request, url }) => {
               ),
             );
 
-          const mergedSchemas = new Map<number, Record<string, number>>();
+          const mergedSchemas = new Map<number, CollectionSchema>();
           for (const row of flowRows) {
-            const schemaBuf = row.flowSchema ?? row.sourceCollectionSchema;
+            const schemaBuf = row.sourceCollectionSchema ?? row.flowSchema;
             if (!schemaBuf) continue;
             const rawSchema = unpack(schemaBuf) as CollectionSchema;
             const schema = row.mappings
@@ -249,8 +249,8 @@ export const GET: RequestHandler = async ({ request, url }) => {
               : rawSchema;
             const existing = mergedSchemas.get(row.targetId);
             if (existing) {
-              for (const [prop, type] of Object.entries(schema)) {
-                existing[prop] = (existing[prop] ?? 0) | type;
+              for (const [prop, value] of Object.entries(schema)) {
+                existing[prop] = mergeSchemaValues(existing[prop] ?? 0, value);
               }
             } else {
               mergedSchemas.set(row.targetId, { ...schema });

@@ -14,8 +14,12 @@
     getOperatorsForType,
     PropertyType,
     safeCast,
+    schemaType,
+    schemaEnumValues,
+    mergeSchemaValues,
     typeCompatibility,
     type CollectionSchema,
+    type SchemaValue,
     type Filter,
     type MappingRule,
     type RefTargets,
@@ -239,6 +243,8 @@
     { value: String(PropertyType.FILE), label: "file" },
     { value: String(PropertyType.FILES), label: "files" },
     { value: String(PropertyType.DATE), label: "date" },
+    { value: String(PropertyType.ENUM), label: "enum" },
+    { value: String(PropertyType.ENUMS), label: "enums" },
   ];
 
   const targetProperties = $derived(Object.entries(localSchema));
@@ -263,7 +269,8 @@
   let addPropertyOpen = $state(false);
   let addPropertySearch = $state("");
 
-  function getTypeName(bitmask: number): string {
+  function getTypeName(value: SchemaValue): string {
+    const bitmask = schemaType(value);
     const names: string[] = [];
     if (bitmask & PropertyType.STRING) names.push("text");
     if (bitmask & PropertyType.STRINGS) names.push("texts");
@@ -275,6 +282,8 @@
     if (bitmask & PropertyType.FILE) names.push("file");
     if (bitmask & PropertyType.FILES) names.push("files");
     if (bitmask & PropertyType.DATE) names.push("date");
+    if (bitmask & PropertyType.ENUM) names.push("enum");
+    if (bitmask & PropertyType.ENUMS) names.push("enums");
     if (bitmask & PropertyType.NULL) names.push("null");
     return names.length > 0 ? names.join(" | ") : "unknown";
   }
@@ -363,8 +372,9 @@
     return `${inflowId}:${propName}:default`;
   }
 
-  function validateDefault(value: string, targetType: number): string | null {
+  function validateDefault(value: string, targetValue: SchemaValue): string | null {
     if (value === "") return null;
+    const targetType = schemaType(targetValue);
     if (targetType & PropertyType.NUMBER || targetType & PropertyType.NUMBERS) {
       if (Number.isNaN(Number(value))) return "Must be a valid number";
     }
@@ -382,8 +392,8 @@
   }
 
   function updateValidation(inflowId: string, propName: string, value: string) {
-    const targetType = localSchema[propName] || 0;
-    const error = validateDefault(value, targetType);
+    const targetValue = localSchema[propName] ?? 0;
+    const error = validateDefault(value, targetValue);
     const key = validationKey(inflowId, propName);
     const next = new Map(validationErrors);
     if (error) {
@@ -399,13 +409,71 @@
     return validationErrors.size > 0;
   }
 
+  // ---------------------------------------------------------------------------
+  // Enum values helpers (for STRING→ENUM cast)
+  // ---------------------------------------------------------------------------
+
+  /** Per-row input buffer for the enum value tag input, keyed by "inflowId:propName". */
+  let enumInputValues = $state(new Map<string, string>());
+
+  function enumInputKey(inflowId: string, propName: string): string {
+    return `${inflowId}:${propName}`;
+  }
+
+  function getEnumValues(inflowId: string, propName: string): string[] {
+    return getMappingForProperty(inflowId, propName)?.enumValues ?? [];
+  }
+
+  function setEnumValues(inflowId: string, propName: string, values: string[]) {
+    const rules = [...(localMappings.get(inflowId) ?? [])];
+    const idx = rules.findIndex((r) => (r.target ?? r.source) === propName);
+    if (idx >= 0) {
+      rules[idx] = { ...rules[idx], enumValues: values.length > 0 ? values : undefined };
+      localMappings = new Map(localMappings).set(inflowId, rules);
+      emitChange();
+    }
+  }
+
+  function addEnumValue(inflowId: string, propName: string, raw: string) {
+    const val = raw.trim();
+    if (!val) return;
+    const current = getEnumValues(inflowId, propName);
+    if (!current.includes(val)) setEnumValues(inflowId, propName, [...current, val]);
+    enumInputValues = new Map(enumInputValues).set(enumInputKey(inflowId, propName), "");
+  }
+
   function emitChange() {
     // Deep-clone to detach from reactive proxies so the snapshot
     // remains stable even if local state changes later.
     const snap = $state.snapshot(localMappings);
     const filterSnap = $state.snapshot(localFilters);
+
+    // Augment ENUM/ENUMS properties with merged enum values from all inflow sources.
+    const augmentedSchema: CollectionSchema = { ...localSchema };
+    for (const [propName, propValue] of Object.entries(localSchema)) {
+      const baseType = schemaType(propValue);
+      if (baseType === PropertyType.ENUM || baseType === PropertyType.ENUMS) {
+        const mergedEnumValues: string[] = [...(schemaEnumValues(propValue) ?? [])];
+        for (const inflow of inflows) {
+          const rules = localMappings.get(inflow.id) ?? [];
+          const rule = rules.find((r) => (r.target ?? r.source) === propName);
+          if (rule?.source) {
+            // Values from source schema (ENUM→ENUM) or user-defined (STRING→ENUM via rule.enumValues)
+            const fromSource = inflow.sourceSchema ? schemaEnumValues(inflow.sourceSchema[rule.source]) : undefined;
+            const combined = [...(fromSource ?? []), ...(rule.enumValues ?? [])];
+            for (const v of combined) {
+              if (!mergedEnumValues.includes(v)) mergedEnumValues.push(v);
+            }
+          }
+        }
+        augmentedSchema[propName] = mergedEnumValues.length > 0
+          ? [schemaType(propValue), mergedEnumValues]
+          : schemaType(propValue);
+      }
+    }
+
     onchange({
-      targetSchema: { ...localSchema },
+      targetSchema: augmentedSchema,
       inflowMappings: snap,
       inflowFilters: filterSnap,
       refTargets: { ...localRefTargets },
@@ -423,8 +491,8 @@
   function addFilter(inflowId: string) {
     const inflow = inflows.find((i) => i.id === inflowId);
     const firstProp = inflow?.sourceSchema ? Object.keys(inflow.sourceSchema)[0] : "";
-    const propType = firstProp && inflow?.sourceSchema ? inflow.sourceSchema[firstProp] : 0;
-    const ops = getOperatorsForType(propType);
+    const propValue = firstProp && inflow?.sourceSchema ? inflow.sourceSchema[firstProp] : 0;
+    const ops = getOperatorsForType(schemaType(propValue));
     const filter: Filter = { property: firstProp, operator: ops[0] ?? FilterOperator.EQ };
     localFilters = new Map(localFilters).set(inflowId, [...getFiltersForInflow(inflowId), filter]);
     emitChange();
@@ -452,8 +520,8 @@
 
   function operatorOptions(inflowId: string, propName: string) {
     const inflow = inflows.find((i) => i.id === inflowId);
-    const propType = propName && inflow?.sourceSchema ? (inflow.sourceSchema[propName] ?? 0) : 0;
-    return getOperatorsForType(propType).map((op) => ({ value: String(op), label: operatorLabels[op] ?? String(op) }));
+    const propValue = propName && inflow?.sourceSchema ? (inflow.sourceSchema[propName] ?? 0) : 0;
+    return getOperatorsForType(schemaType(propValue)).map((op) => ({ value: String(op), label: operatorLabels[op] ?? String(op) }));
   }
 
   function needsValue(operator: number): boolean {
@@ -473,11 +541,11 @@
     } else {
       // User explicitly set source → auto-derive cast from types
       const inflow = inflows.find((i) => i.id === inflowId);
-      const sourceType = inflow?.sourceSchema?.[sourceProp];
-      const targetType = localSchema[targetProp];
+      const sourceValue = inflow?.sourceSchema?.[sourceProp];
+      const targetValue = localSchema[targetProp];
       const cast =
-        sourceType !== undefined && targetType !== undefined
-          ? (safeCast(sourceType, targetType) ?? undefined)
+        sourceValue !== undefined && targetValue !== undefined
+          ? (safeCast(schemaType(sourceValue), schemaType(targetValue)) ?? undefined)
           : undefined;
       const rule: MappingRule = {
         source: sourceProp,
@@ -507,9 +575,9 @@
       const rules = [...(localMappings.get(inflow.id) ?? [])];
       const idx = rules.findIndex((r) => (r.target ?? r.source) === propName);
       if (idx >= 0 && inflow.sourceSchema) {
-        const sourceType = inflow.sourceSchema[rules[idx].source];
-        if (sourceType !== undefined) {
-          const cast = safeCast(sourceType, newType);
+        const sourceValue = inflow.sourceSchema[rules[idx].source];
+        if (sourceValue !== undefined) {
+          const cast = safeCast(schemaType(sourceValue), newType);
           rules[idx] = { ...rules[idx], cast: cast ?? undefined };
           localMappings = new Map(localMappings).set(inflow.id, rules);
         }
@@ -518,16 +586,24 @@
     emitChange();
   }
 
+  function getSourceEnumValues(inflowId: string, targetProp: string): string[] | undefined {
+    const rule = getMappingForProperty(inflowId, targetProp);
+    if (!rule?.source) return undefined;
+    const inflow = inflows.find((i) => i.id === inflowId);
+    if (!inflow?.sourceSchema) return undefined;
+    return schemaEnumValues(inflow.sourceSchema[rule.source]);
+  }
+
   function getAutoCast(inflowId: string, targetProp: string): string | null {
     const rule = getMappingForProperty(inflowId, targetProp);
     if (!rule) return null;
     const inflow = inflows.find((i) => i.id === inflowId);
     if (!inflow?.sourceSchema) return null;
-    const sourceType = inflow.sourceSchema[rule.source];
-    if (sourceType === undefined) return null;
-    const targetType = localSchema[targetProp];
-    if (targetType === undefined) return null;
-    return safeCast(sourceType, targetType);
+    const sourceValue = inflow.sourceSchema[rule.source];
+    if (sourceValue === undefined) return null;
+    const targetValue = localSchema[targetProp];
+    if (targetValue === undefined) return null;
+    return safeCast(schemaType(sourceValue), schemaType(targetValue));
   }
 
   function setDefault(
@@ -555,15 +631,16 @@
   export function addPropertyByName(name: string) {
     if (!name || name in localSchema) return;
 
-    // Derive type from source schemas
-    let type = 0;
+    // Derive type from source schemas — merge enum values if any
+    let merged: SchemaValue = 0;
     for (const inflow of inflows) {
-      if (inflow.sourceSchema?.[name] !== undefined) {
-        type |= inflow.sourceSchema[name];
+      const srcVal = inflow.sourceSchema?.[name];
+      if (srcVal !== undefined) {
+        merged = mergeSchemaValues(merged, srcVal);
       }
     }
 
-    localSchema = { ...localSchema, [name]: type || PropertyType.STRING };
+    localSchema = { ...localSchema, [name]: schemaType(merged) !== 0 ? merged : PropertyType.STRING };
 
     // Auto-fill bindings for each inflow
     for (const inflow of inflows) {
@@ -787,7 +864,7 @@
                   <Select
                     size="sm"
                     class="w-full text-sm"
-                    value={String(localSchema[propName] || 0)}
+                    value={String(schemaType(localSchema[propName] ?? 0))}
                     onchange={(e) =>
                       setTargetType(propName, Number(e.currentTarget.value))}
                     options={targetTypeOptions}
@@ -856,6 +933,7 @@
                 {@const mappingWarn = hasMappingWarning(inflow.id, propName)}
                 {@const hasHint = guessed || unmapped}
                 {@const autoCast = getAutoCast(inflow.id, propName)}
+                {@const sourceEnumValues = getSourceEnumValues(inflow.id, propName)}
                 <div
                   class="rounded-md border bg-muted/30 p-3 {mappingWarn
                     ? 'border-amber-400/60 dark:border-amber-500/50'
@@ -918,7 +996,7 @@
                           { value: "", label: "---" },
                           ...(inflow.sourceSchema
                             ? Object.entries(inflow.sourceSchema)
-                                .filter(([, srcType]) => typeCompatibility(srcType, targetType).compatible)
+                                .filter(([, srcValue]) => typeCompatibility(schemaType(srcValue), schemaType(targetType)).compatible)
                                 .map(([k]) => ({
                                   value: k,
                                   label: k,
@@ -938,13 +1016,66 @@
                         </Badge>
                       </div>
                     {/if}
-                    {#if getSourcePropForInflow(inflow.id, propName) === "" || targetType & PropertyType.NULL}
+                    {#if autoCast === "enum" && getSourcePropForInflow(inflow.id, propName) !== ""}
+                      {@const currentEnumVals = getEnumValues(inflow.id, propName)}
+                      {@const inputKey = enumInputKey(inflow.id, propName)}
+                      <div class="w-full mt-2">
+                        <Label class="mb-1 text-xs text-muted-foreground">Allowed values</Label>
+                        <div class="flex flex-wrap gap-1 mb-1.5">
+                          {#each currentEnumVals as val}
+                            <span class="inline-flex items-center gap-0.5 rounded-full border border-primary/30 bg-primary/10 pl-1.5 pr-0.5 py-0.5 text-[10px] text-primary">
+                              {val}
+                              {#if !readonly}
+                                <button
+                                  type="button"
+                                  class="flex h-3 w-3 items-center justify-center rounded-full hover:bg-primary/20"
+                                  onclick={() => setEnumValues(inflow.id, propName, currentEnumVals.filter((v) => v !== val))}
+                                  aria-label="Remove {val}"
+                                >×</button>
+                              {/if}
+                            </span>
+                          {/each}
+                          {#if currentEnumVals.length === 0}
+                            <span class="text-[10px] text-muted-foreground italic">no values — all strings pass through</span>
+                          {/if}
+                        </div>
+                        {#if !readonly}
+                          <Input
+                            type="text"
+                            placeholder="type value, press Enter"
+                            value={enumInputValues.get(inputKey) ?? ""}
+                            oninput={(e) => enumInputValues = new Map(enumInputValues).set(inputKey, e.currentTarget.value)}
+                            onkeydown={(e) => {
+                              if (e.key === "Enter" || e.key === ",") {
+                                e.preventDefault();
+                                addEnumValue(inflow.id, propName, e.currentTarget.value);
+                              }
+                            }}
+                            onblur={(e) => {
+                              if (e.currentTarget.value.trim()) addEnumValue(inflow.id, propName, e.currentTarget.value);
+                            }}
+                            class="h-7 text-xs"
+                          />
+                        {/if}
+                      </div>
+                    {/if}
+                    {#if sourceEnumValues && sourceEnumValues.length > 0}
+                      <div class="w-full mt-1">
+                        <p class="mb-1 text-[10px] text-muted-foreground">enum values</p>
+                        <div class="flex flex-wrap gap-1">
+                          {#each sourceEnumValues as val}
+                            <span class="rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">{val}</span>
+                          {/each}
+                        </div>
+                      </div>
+                    {/if}
+                    {#if getSourcePropForInflow(inflow.id, propName) === "" || schemaType(targetType) & PropertyType.NULL}
                       {@const defaultError = getValidationError(inflow.id, propName)}
                       <div class="min-w-[100px] flex-1">
                         <Label class="mb-1 text-xs text-muted-foreground"
                           >Default</Label
                         >
-                        {#if targetType === PropertyType.BOOLEAN}
+                        {#if schemaType(targetType) === PropertyType.BOOLEAN}
                           <Select
                             size="sm"
                             class="w-full text-sm"
@@ -958,7 +1089,7 @@
                             ]}
                             disabled={readonly}
                           />
-                        {:else if targetType & PropertyType.NUMBER || targetType & PropertyType.NUMBERS}
+                        {:else if schemaType(targetType) & PropertyType.NUMBER || schemaType(targetType) & PropertyType.NUMBERS}
                           <Input
                             type="number"
                             placeholder="Default value"

@@ -1,3 +1,4 @@
+export * from "./computeCollectionSchema";
 export * from "./createCollection";
 export * from "./getCollection";
 export * from "./getCollectionSchema";

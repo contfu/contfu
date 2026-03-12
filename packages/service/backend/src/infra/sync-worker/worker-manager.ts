@@ -14,7 +14,7 @@ import { ConnectionType } from "@contfu/core";
 import type { ConnectionInfo } from "../types";
 import { unpack } from "msgpackr";
 import type { CollectionSchema } from "@contfu/core";
-import { applyMappingsToSchema, type MappingRule } from "@contfu/svc-core";
+import { applyMappingsToSchema, mergeSchemaValues, type MappingRule } from "@contfu/svc-core";
 import { enqueueSyncJobs } from "../../features/sync-jobs/enqueueSyncJobs";
 import { Database } from "../../effect/services/Database";
 import { Effect, Layer } from "effect";
@@ -25,7 +25,7 @@ type SchemaCallback = (
   collectionId: number,
   name: string,
   displayName: string,
-  schema: Record<string, number>,
+  schema: CollectionSchema,
 ) => void;
 
 export class SyncWorkerManager {
@@ -166,16 +166,16 @@ export class SyncWorkerManager {
         .innerJoin(collectionTable, eq(flowTable.sourceId, collectionTable.id))
         .where(and(eq(flowTable.userId, userId), eq(flowTable.targetId, collectionId)));
 
-      const merged: Record<string, number> = {};
+      const merged: CollectionSchema = {};
       for (const row of flowRows) {
-        const schemaBuf = row.flowSchema ?? row.sourceSchema;
+        const schemaBuf = row.sourceSchema ?? row.flowSchema;
         if (!schemaBuf) continue;
         const rawSchema = unpack(schemaBuf) as CollectionSchema;
         const schema = row.mappings
           ? applyMappingsToSchema(rawSchema, unpack(row.mappings) as MappingRule[])
           : rawSchema;
-        for (const [prop, type] of Object.entries(schema)) {
-          merged[prop] = (merged[prop] ?? 0) | type;
+        for (const [prop, value] of Object.entries(schema)) {
+          merged[prop] = mergeSchemaValues(merged[prop] ?? 0, value);
         }
       }
 

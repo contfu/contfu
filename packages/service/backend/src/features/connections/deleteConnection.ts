@@ -10,14 +10,12 @@ export const deleteConnection = (id: number) =>
   Effect.gen(function* () {
     const { db } = yield* Database;
 
-    // Find collections belonging to this connection that are flow targets,
+    // Find all flows targeting collections of this connection before deletion,
     // so we can teardown their NATS push consumers.
     const targetFlows = yield* Effect.tryPromise({
       try: () =>
         db
-          .select({
-            targetId: flowTable.targetId,
-          })
+          .select({ targetId: flowTable.targetId })
           .from(flowTable)
           .innerJoin(collectionTable, eq(flowTable.targetId, collectionTable.id))
           .where(eq(collectionTable.connectionId, id)),
@@ -29,6 +27,7 @@ export const deleteConnection = (id: number) =>
       catch: (e) => new DatabaseError({ cause: e }),
     });
 
+    // The cascade delete removes all collections (and their flows) automatically.
     const deleted = result.length > 0;
     if (deleted) {
       yield* Effect.promise(() => decrementCount(result[0].userId, "connections"));

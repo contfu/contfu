@@ -124,6 +124,7 @@ export interface StrapiSchemaAttribute {
   component?: string;
   repeatable?: boolean;
   allowedTypes?: string[];
+  enum?: string[];
 }
 
 /** Strapi content type schema. */

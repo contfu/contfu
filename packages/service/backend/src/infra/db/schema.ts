@@ -212,7 +212,7 @@ export const collectionTable = pgTable.withRLS(
       .references(() => userTable.id, { onDelete: "cascade" })
       .notNull(),
     /** FK to connection (nullable — null means virtual collection). */
-    connectionId: integer().references(() => connectionTable.id, { onDelete: "set null" }),
+    connectionId: integer().references(() => connectionTable.id, { onDelete: "cascade" }),
     /** Human-readable display name (e.g. "Blog Posts"). */
     displayName: text().notNull(),
     /** The camelCase identifier name of the collection (e.g. "blogPosts"). */

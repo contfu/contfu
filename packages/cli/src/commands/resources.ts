@@ -1,4 +1,4 @@
-import { ConnectionType, PropertyType } from "@contfu/core";
+import { ConnectionType, PropertyType, schemaType } from "@contfu/core";
 import { apiFetch } from "../http";
 
 const RESOURCES = ["connections", "collections", "flows"] as const;
@@ -106,10 +106,15 @@ function transformSchema(obj: unknown): unknown {
   for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
     if (k === "schema" && v !== null && typeof v === "object" && !Array.isArray(v)) {
       result[k] = Object.fromEntries(
-        Object.entries(v as Record<string, number>).map(([prop, type]) => [
-          prop,
-          PROPERTY_TYPE_LABEL[type] ?? type,
-        ]),
+        Object.entries(v as Record<string, number | [number, string[]]>).map(([prop, value]) => {
+          const type = schemaType(value);
+          const label = PROPERTY_TYPE_LABEL[type] ?? type;
+          const enumVals = Array.isArray(value) ? value[1] : undefined;
+          return [
+            prop,
+            enumVals && enumVals.length > 0 ? `${label}(${enumVals.join("|")})` : label,
+          ];
+        }),
       );
     } else {
       result[k] = transformSchema(v);

@@ -1,5 +1,5 @@
 import { describe, expect, it, mock, beforeEach } from "bun:test";
-import { PropertyType } from "@contfu/svc-core";
+import { PropertyType, schemaType, schemaEnumValues } from "@contfu/svc-core";
 import { articleSchema } from "./__fixtures__/strapi-api-results";
 
 // Mock fetch globally
@@ -131,7 +131,41 @@ describe("strapi-collections", () => {
       expect(schema.richtextField).toBe(PropertyType.STRING | PropertyType.NULL);
       expect(schema.emailField).toBe(PropertyType.STRING | PropertyType.NULL);
       expect(schema.uidField).toBe(PropertyType.STRING | PropertyType.NULL);
-      expect(schema.enumField).toBe(PropertyType.STRING | PropertyType.NULL);
+      // enumField without enum values → ENUM | NULL tuple with empty array
+      expect(schemaType(schema.enumField)).toBe(PropertyType.ENUM | PropertyType.NULL);
+      expect(schemaEnumValues(schema.enumField)).toEqual([]);
+    });
+
+    it("should map enumeration field with values to ENUM | NULL tuple", async () => {
+      const enumSchema = {
+        uid: "api::test.test",
+        apiID: "test",
+        kind: "collectionType",
+        info: { displayName: "Test", singularName: "test", pluralName: "tests" },
+        attributes: {
+          status: { type: "enumeration", enum: ["draft", "review", "published"] },
+          requiredStatus: { type: "enumeration", required: true, enum: ["active", "inactive"] },
+        },
+      };
+
+      mockFetch.mockResolvedValueOnce(
+        new Response(JSON.stringify({ data: enumSchema }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+
+      const schema = await getCollectionSchema(
+        "https://strapi.example.com",
+        Buffer.from("api::test.test", "utf8"),
+        Buffer.from("test-token", "utf8"),
+      );
+
+      expect(schemaType(schema.status)).toBe(PropertyType.ENUM | PropertyType.NULL);
+      expect(schemaEnumValues(schema.status)).toEqual(["draft", "review", "published"]);
+
+      expect(schemaType(schema.requiredStatus)).toBe(PropertyType.ENUM);
+      expect(schemaEnumValues(schema.requiredStatus)).toEqual(["active", "inactive"]);
     });
 
     it("should map all numeric field types correctly", async () => {

@@ -282,7 +282,9 @@ export const POST: RequestHandler = async ({ request, params }) => {
             const keys = new Set([...Object.keys(storedSchema), ...Object.keys(currentSchema)]);
             let changed = false;
             for (const k of keys) {
-              if (storedSchema[k] !== currentSchema[k]) {
+              const a = storedSchema[k];
+              const b = currentSchema[k];
+              if (a !== b && JSON.stringify(a) !== JSON.stringify(b)) {
                 changed = true;
                 break;
               }

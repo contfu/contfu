@@ -13,6 +13,7 @@ import { updateConnection as updateConnectionFeature } from "@contfu/svc-backend
 import { listFlowsByCollection } from "@contfu/svc-backend/features/flows/listFlowsByCollection";
 import { listCollectionsByConnection } from "@contfu/svc-backend/features/collections/listCollectionsByConnection";
 import { getCollection } from "@contfu/svc-backend/features/collections/getCollection";
+import { computeCollectionSchema } from "@contfu/svc-backend/features/collections/computeCollectionSchema";
 import { encodeId, idSchema } from "@contfu/svc-backend/infra/ids";
 import { generateConsumerTypes, type TypeGenerationInput } from "@contfu/svc-core";
 import { getStreamServer } from "$lib/server/startup";
@@ -323,10 +324,15 @@ export const getConnectionTypes = query(
           seen.add(flow.targetId);
           const target = await runWithUser(userId, getCollection(flow.targetId));
           if (target) {
+            // Compute schema from flows to get ENUM values embedded via mappings
+            const schema = await runWithUser(
+              userId,
+              computeCollectionSchema(userId, flow.targetId),
+            );
             allCollections.push({
               name: target.name,
               displayName: target.displayName,
-              schema: target.schema,
+              schema: Object.keys(schema).length > 0 ? schema : target.schema,
               refTargets: target.refTargets,
             });
           }

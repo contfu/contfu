@@ -3,6 +3,7 @@
   import { Button } from "$lib/components/ui/button";
   import * as Dialog from "$lib/components/ui/dialog";
   import { authClient } from "$lib/auth-client";
+  import { createApiKey } from "$lib/remote/apiKeys.remote";
   import { KeyIcon, CopyIcon, TrashIcon } from "@lucide/svelte";
   import { onMount } from "svelte";
 
@@ -25,15 +26,9 @@
   }
 
   async function createKey() {
-    const permissions = newKeyScope === "full"
-      ? { api: ["read", "write"] }
-      : { api: ["read"] };
-    const res = await authClient.apiKey.create({
-      name: newKeyName || "Unnamed key",
-      permissions,
-    });
-    if (res.data?.key) {
-      createdKey = res.data.key;
+    const res = await createApiKey({ name: newKeyName || "Unnamed key", scope: newKeyScope });
+    if (res.key) {
+      createdKey = res.key;
       newKeyName = "";
       newKeyScope = "full";
       await loadKeys();

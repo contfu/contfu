@@ -94,14 +94,14 @@ describe("processSchemaChange", () => {
 
   it("creates incident when filters break due to removed property", async () => {
     // Remove "title" from schema — the CONTAINS filter on it becomes invalid
-    const newSchema: CollectionSchema = { price: PropertyType.NUMBER, active: PropertyType.BOOLEAN };
+    const newSchema: CollectionSchema = {
+      price: PropertyType.NUMBER,
+      active: PropertyType.BOOLEAN,
+    };
 
     await runTest(userId, processSchemaChange(userId, collectionId, newSchema));
 
-    const incidents = await db
-      .select()
-      .from(incidentTable)
-      .where(eq(incidentTable.flowId, flowId));
+    const incidents = await db.select().from(incidentTable).where(eq(incidentTable.flowId, flowId));
     expect(incidents).toHaveLength(1);
     expect(incidents[0].type).toBe(IncidentType.SchemaIncompatible);
     expect(incidents[0].resolved).toBe(false);
@@ -117,10 +117,7 @@ describe("processSchemaChange", () => {
 
     await runTest(userId, processSchemaChange(userId, collectionId, newSchema));
 
-    const incidents = await db
-      .select()
-      .from(incidentTable)
-      .where(eq(incidentTable.flowId, flowId));
+    const incidents = await db.select().from(incidentTable).where(eq(incidentTable.flowId, flowId));
     expect(incidents).toHaveLength(1);
   });
 
@@ -129,10 +126,7 @@ describe("processSchemaChange", () => {
     const brokenSchema: CollectionSchema = { price: PropertyType.NUMBER };
     await runTest(userId, processSchemaChange(userId, collectionId, brokenSchema));
 
-    let incidents = await db
-      .select()
-      .from(incidentTable)
-      .where(eq(incidentTable.flowId, flowId));
+    let incidents = await db.select().from(incidentTable).where(eq(incidentTable.flowId, flowId));
     expect(incidents).toHaveLength(1);
 
     // Now fix the schema — add back all properties so filters are valid

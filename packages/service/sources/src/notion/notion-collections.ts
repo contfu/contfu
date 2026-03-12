@@ -37,7 +37,7 @@ export async function getCollectionSchema(key: string, id: Buffer) {
  * Convert Notion data source properties to a CollectionSchema.
  */
 export function notionPropertiesToSchema(
-  properties: Record<string, { type: string }>,
+  properties: Record<string, { type: string } & Record<string, unknown>>,
 ): CollectionSchema {
   const schema = {
     cover: PropertyType.FILE | PropertyType.NULL,
@@ -52,10 +52,15 @@ export function notionPropertiesToSchema(
       case "url":
       case "email":
       case "phone_number":
-      case "status":
-      case "select":
         schema[camelKey] = PropertyType.STRING | PropertyType.NULL;
         break;
+      case "status":
+      case "select": {
+        const typeData = prop[prop.type] as { options?: { name: string }[] } | undefined;
+        const names = (typeData?.options ?? []).map((o) => o.name);
+        schema[camelKey] = [PropertyType.ENUM | PropertyType.NULL, names];
+        break;
+      }
       case "number":
         schema[camelKey] = PropertyType.NUMBER | PropertyType.NULL;
         break;
@@ -80,9 +85,12 @@ export function notionPropertiesToSchema(
       case "last_edited_by":
         schema[camelKey] = PropertyType.REF;
         break;
-      case "multi_select":
-        schema[camelKey] = PropertyType.STRINGS | PropertyType.NULL;
+      case "multi_select": {
+        const typeData = prop["multi_select"] as { options?: { name: string }[] } | undefined;
+        const names = (typeData?.options ?? []).map((o) => o.name);
+        schema[camelKey] = [PropertyType.ENUMS | PropertyType.NULL, names];
         break;
+      }
       case "unique_id":
         schema[camelKey] = PropertyType.STRING;
         break;

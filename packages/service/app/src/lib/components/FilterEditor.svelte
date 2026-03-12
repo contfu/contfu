@@ -4,7 +4,7 @@
   import { Input } from "$lib/components/ui/input";
   import { Label } from "$lib/components/ui/label";
   import { Select } from "@contfu/ui";
-  import { FilterOperator, getOperatorsForType, PropertyType, type Filter, type CollectionSchema } from "@contfu/svc-core";
+  import { FilterOperator, getOperatorsForType, PropertyType, schemaType, type Filter, type CollectionSchema } from "@contfu/svc-core";
   import X from "@lucide/svelte/icons/x";
   import Plus from "@lucide/svelte/icons/plus";
 
@@ -33,7 +33,7 @@
   };
 
   const properties = $derived(
-    schema ? Object.entries(schema).map(([name, type]) => ({ name, type })) : []
+    schema ? Object.entries(schema).map(([name, value]) => ({ name, type: schemaType(value) })) : []
   );
 
   function addFilter() {
@@ -53,7 +53,7 @@
     
     // If property changed, update operator to a valid one for the new type
     if (updates.property && updates.property !== current.property) {
-      const newType = schema?.[updates.property] ?? PropertyType.STRING;
+      const newType = schemaType(schema?.[updates.property] ?? PropertyType.STRING);
       const validOps = getOperatorsForType(newType);
       if (!validOps.includes(current.operator)) {
         updates.operator = validOps[0];
@@ -65,7 +65,7 @@
   }
 
   function getOperatorsForProperty(propertyName: string) {
-    const type = schema?.[propertyName] ?? PropertyType.STRING;
+    const type = schemaType(schema?.[propertyName] ?? PropertyType.STRING);
     return getOperatorsForType(type);
   }
 
@@ -85,6 +85,8 @@
       [PropertyType.FILE]: "file",
       [PropertyType.FILES]: "files",
       [PropertyType.DATE]: "date",
+      [PropertyType.ENUM]: "enum",
+      [PropertyType.ENUMS]: "enums",
     };
     return names[type] ?? "unknown";
   }

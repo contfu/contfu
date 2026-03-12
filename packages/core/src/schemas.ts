@@ -10,10 +10,38 @@ export const PropertyType = {
   FILE: 256,
   FILES: 512,
   DATE: 1024,
+  ENUM: 2048,
+  ENUMS: 4096,
 } as const;
 export type PropertyType = (typeof PropertyType)[keyof typeof PropertyType];
 
-export type CollectionSchema = Record<string, number>;
+export type SchemaValue = number | [number, string[]];
+export type CollectionSchema = Record<string, SchemaValue>;
+
+/** Extract the numeric type from a schema value (tuple or plain number). */
+export function schemaType(v: SchemaValue): number {
+  return Array.isArray(v) ? v[0] : v;
+}
+
+/** Extract enum values from a schema value, or undefined if not an enum tuple. */
+export function schemaEnumValues(v: SchemaValue): string[] | undefined {
+  return Array.isArray(v) ? v[1] : undefined;
+}
+
+/**
+ * Merge two schema values for the same property (e.g. from multiple inflows).
+ * Bitwise-ORs the types; unions the enum values if either side has them.
+ */
+export function mergeSchemaValues(a: SchemaValue, b: SchemaValue): SchemaValue {
+  const merged = schemaType(a) | schemaType(b);
+  const valsA = schemaEnumValues(a);
+  const valsB = schemaEnumValues(b);
+  if (valsA || valsB) {
+    const combined = [...new Set([...(valsA ?? []), ...(valsB ?? [])])];
+    return [merged, combined];
+  }
+  return merged;
+}
 
 export type RefTargets = Record<string, string[]>;
 
@@ -34,6 +62,7 @@ function propertyTypeToTs(
   type: number,
   targets?: string[],
   refFormat: RefFormat = "interface",
+  enumValues?: string[],
 ): string {
   switch (type) {
     case PropertyType.STRING:
@@ -63,6 +92,17 @@ function propertyTypeToTs(
       return "{ url: string; alt?: string }[]";
     case PropertyType.DATE:
       return "string";
+    case PropertyType.ENUM:
+      if (enumValues && enumValues.length > 0) {
+        return enumValues.map((v) => JSON.stringify(v)).join(" | ");
+      }
+      return "string";
+    case PropertyType.ENUMS:
+      if (enumValues && enumValues.length > 0) {
+        const union = enumValues.map((v) => JSON.stringify(v)).join(" | ");
+        return enumValues.length > 1 ? `(${union})[]` : `${union}[]`;
+      }
+      return "string[]";
     default:
       return "unknown";
   }
@@ -83,8 +123,10 @@ export function generateTypeScript(collections: TypeGenerationInput[]): string {
     lines.push(`/** ${col.displayName} */`);
     lines.push(`export interface ${interfaceName} {`);
 
-    for (const [key, type] of Object.entries(col.schema)) {
-      lines.push(`  ${key}: ${propertyTypeToTs(type, col.refTargets?.[key])};`);
+    for (const [key, value] of Object.entries(col.schema)) {
+      lines.push(
+        `  ${key}: ${propertyTypeToTs(schemaType(value), col.refTargets?.[key], "interface", schemaEnumValues(value))};`,
+      );
     }
 
     lines.push("}");
@@ -103,8 +145,10 @@ export function generateConsumerTypes(collections: TypeGenerationInput[]): strin
     lines.push(`  /** ${col.displayName} */`);
     lines.push(`  ${col.name}: {`);
 
-    for (const [key, type] of Object.entries(col.schema)) {
-      lines.push(`    ${key}: ${propertyTypeToTs(type, col.refTargets?.[key], "lookup")};`);
+    for (const [key, value] of Object.entries(col.schema)) {
+      lines.push(
+        `    ${key}: ${propertyTypeToTs(schemaType(value), col.refTargets?.[key], "lookup", schemaEnumValues(value))};`,
+      );
     }
 
     lines.push(`  };`);
