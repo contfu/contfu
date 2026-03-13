@@ -1,32 +1,27 @@
+import type { EmptyRelations } from "drizzle-orm";
+import type { NodeSQLiteDatabase } from "drizzle-orm/node-sqlite";
 import { dbUrl, ensureDbDir, resolveMigrationsFolder } from "./db-shared";
 import * as schema from "./schema";
 
-const dynamicImport = (path: string) => new Function("p", "return import(p)")(path) as Promise<any>;
-const betterSqlite3Pkg = ["better", "sqlite3"].join("-");
-const drizzleBetterSqlite3Pkg = ["drizzle-orm", betterSqlite3Pkg].join("/");
-const drizzleBetterSqlite3MigratorPkg = ["drizzle-orm", betterSqlite3Pkg, "migrator"].join("/");
+export type Database = NodeSQLiteDatabase<typeof schema, EmptyRelations>;
 
-export async function createNodeDatabaseClient(url: string) {
+export async function createNodeDatabaseClient(url: string): Promise<Database> {
   const migrationsFolder = resolveMigrationsFolder();
   await ensureDbDir(url);
 
-  // @ts-ignore - better-sqlite3 is an optional dependency
-  const Database = await dynamicImport(betterSqlite3Pkg);
-  const { drizzle } = await dynamicImport(drizzleBetterSqlite3Pkg);
-  const { migrate } = await dynamicImport(drizzleBetterSqlite3MigratorPkg);
+  const { DatabaseSync } = await import("node:sqlite");
+  const { drizzle } = await import("drizzle-orm/node-sqlite");
+  const { migrate } = await import("drizzle-orm/node-sqlite/migrator");
 
-  const DatabaseClass = Database.default || Database;
-  const client = new DatabaseClass(url);
-  client.pragma("foreign_keys = ON");
-  client.pragma("journal_mode = WAL");
+  const client = new DatabaseSync(url);
+  client.exec("PRAGMA foreign_keys = ON");
+  client.exec("PRAGMA journal_mode = WAL");
 
-  const db = drizzle(client, { schema });
+  const db = drizzle({ client, schema });
   if (migrationsFolder) {
     migrate(db, { migrationsFolder });
   }
   return db;
 }
-
-export type Database = Awaited<ReturnType<typeof createNodeDatabaseClient>>;
 
 export const db: Database = await createNodeDatabaseClient(dbUrl);

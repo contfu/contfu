@@ -21,25 +21,23 @@
     "clean": "rm -rf dist tsconfig.tsbuildinfo",
     "db:generate": "rm -rf db/migrations && drizzle-kit generate --name init",
     "build:lib": "tsc -b",
-    "build:db:node": "bun build ./src/infra/db/db-node.ts --target=node --outfile ./dist/db-node.js --external better-sqlite3 --external drizzle-orm/better-sqlite3 --external drizzle-orm/better-sqlite3/migrator",
+    "build:db:node": "bun build ./src/infra/db/db-node.ts --target=node --outfile ./dist/db-node.js --external node:sqlite --external drizzle-orm/node-sqlite --external drizzle-orm/node-sqlite/migrator",
     "build:db:bun": "bun build ./src/infra/db/db-bun.ts --target=bun --outfile ./dist/db-bun.js",
     "build": "bun run build:lib && bun run build:db:node && bun run build:db:bun"
   },
   "dependencies": {
     "@contfu/client": "workspace:*",
     "@contfu/core": "workspace:*",
-    "drizzle-orm": "1.0.0-beta.15-859cf75",
+    "drizzle-orm": "1.0.0-beta.17-67b1795",
     "m4k": "^0.2.4"
   },
   "devDependencies": {
     "@types/bun": "^1.3.9",
-    "drizzle-kit": "1.0.0-beta.15-859cf75",
+    "drizzle-kit": "1.0.0-beta.17-67b1795",
     "ts-essentials": "^10.1.1"
   },
   "peerDependencies": {
     "typescript": "^5.9.3"
   },
-  "optionalDependencies": {
-    "better-sqlite3": "^12.6.2"
-  }
+  "optionalDependencies": {}
 }
