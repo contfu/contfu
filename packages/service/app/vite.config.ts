@@ -8,8 +8,19 @@ function watchBackend(): Plugin {
     configureServer(server) {
       const watcher = server.watcher;
       watcher.add("../backend/src/**/*.ts");
-      watcher.on("change", (file) => {
+      watcher.on("change", async (file) => {
         if (file.includes("/backend/src/")) {
+          // Close DB pool and running services before restart to prevent
+          // connection leaks — Vite restart re-evaluates modules (creating
+          // a new pool) but doesn't fire SIGTERM/SIGINT.
+          try {
+            const startup = await server.ssrLoadModule("$lib/server/startup");
+            const db = await server.ssrLoadModule("@contfu/svc-backend/infra/db/db");
+            await startup.shutdown();
+            await db.closeDb();
+          } catch {
+            // Modules may not be loaded yet on first change — safe to ignore
+          }
           server.restart();
         }
       });

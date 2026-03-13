@@ -25,6 +25,10 @@ export async function closeDb() {
     await pgliteClient.close();
     pgliteClient = undefined;
   }
+  if (dbClient) {
+    await dbClient.close();
+    dbClient = undefined;
+  }
 }
 
 async function createDb() {

@@ -2,6 +2,7 @@ import { building } from "$app/environment";
 import { auth } from "$lib/server/auth";
 import { getRuntime } from "$lib/server/effect-runtime";
 import { initialize, shutdown } from "$lib/server/startup";
+import { closeDb } from "@contfu/svc-backend/infra/db/db";
 import { createLogger } from "@contfu/svc-backend/infra/logger/index";
 import type { Handle } from "@sveltejs/kit";
 import { svelteKitHandler } from "better-auth/svelte-kit";
@@ -18,11 +19,13 @@ if (!building) {
   // Register shutdown handlers for graceful cleanup
   process.on("SIGTERM", () => {
     void shutdown();
+    void closeDb();
     void getRuntime().dispose();
   });
 
   process.on("SIGINT", () => {
     void shutdown();
+    void closeDb();
     void getRuntime().dispose();
   });
 }
