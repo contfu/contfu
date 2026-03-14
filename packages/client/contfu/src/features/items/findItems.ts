@@ -2,35 +2,50 @@ import { and, asc, count, desc, sql, type SQL } from "drizzle-orm";
 import { db as defaultDb } from "../../infra/db/db";
 import { itemsTable } from "../../infra/db/schema";
 import { encodeId } from "../../infra/ids";
+import { resolveIncludes } from "../../infra/db/resolve-includes";
+import { resolveRelations } from "../../infra/db/resolve-relations";
 import { compileFilter } from "../../infra/filter/compiler";
 import { tokenize } from "../../infra/filter/lexer";
 import { parse } from "../../infra/filter/parser";
-import { resolveIncludes } from "../../infra/db/resolve-includes";
-import { resolveRelations } from "../../infra/db/resolve-relations";
 import type {
+  ItemWithRelations,
   QueryOptions,
   QueryResult,
-  ItemWithRelations,
+  QuerySystemFields,
   SortOption,
 } from "../../domain/query-types";
 
 const DEFAULT_LIMIT = 20;
 
-function flattenItem(item: ItemWithRelations): Record<string, unknown> {
-  const { props, rels, ...core } = item;
-  const flatRels: Record<string, unknown> = {};
-  if (rels) {
-    for (const [key, value] of Object.entries(rels)) {
-      if (value === null) {
-        flatRels[key] = null;
-      } else if (Array.isArray(value)) {
-        flatRels[key] = value.map(flattenItem);
-      } else {
-        flatRels[key] = flattenItem(value);
-      }
-    }
-  }
-  return { ...core, ...props, ...flatRels };
+type SelectableFieldMap = QuerySystemFields & Record<string, unknown>;
+
+function encodeDbId(value: ArrayBuffer | Buffer | Uint8Array): string {
+  if (Buffer.isBuffer(value)) return encodeId(value);
+  if (value instanceof Uint8Array) return encodeId(Buffer.from(value));
+  return encodeId(Buffer.from(new Uint8Array(value)));
+}
+
+function toSelectableFields(row: {
+  id: Uint8Array | Buffer | ArrayBuffer;
+  connectionType: number | null;
+  ref: string | null;
+  collectionName: string;
+  props: unknown;
+  changedAt: number;
+}) {
+  const props =
+    row.props && typeof row.props === "object" && !Array.isArray(row.props)
+      ? (row.props as Record<string, unknown>)
+      : {};
+
+  return {
+    $id: encodeDbId(row.id),
+    $connectionType: row.connectionType as QuerySystemFields["$connectionType"],
+    $ref: row.ref,
+    $collection: row.collectionName,
+    $changedAt: row.changedAt,
+    ...props,
+  };
 }
 
 function buildWhere(options: QueryOptions): SQL | undefined {
@@ -42,7 +57,6 @@ function buildWhere(options: QueryOptions): SQL | undefined {
   }
 
   if (options.search) {
-    // Search across title prop and ref
     const pattern = `%${options.search}%`;
     conditions.push(
       sql`(json_extract(${itemsTable.props}, '$.title') LIKE ${pattern} OR ${itemsTable.ref} LIKE ${pattern})`,
@@ -60,7 +74,6 @@ function buildOrderBy(sort: SortOption | SortOption[] | undefined) {
   const sorts = Array.isArray(sort) ? sort : [sort];
   const clauses = sorts.map((s) => {
     if (typeof s === "string") {
-      // "field" or "-field" for desc
       if (s.startsWith("-")) {
         return descColumn(s.slice(1));
       }
@@ -69,29 +82,51 @@ function buildOrderBy(sort: SortOption | SortOption[] | undefined) {
     return s.direction === "desc" ? descColumn(s.field) : ascColumn(s.field);
   });
 
-  // Always add id tiebreaker
   clauses.push(asc(itemsTable.id));
   return clauses;
 }
 
 function ascColumn(field: string) {
-  const col = resolveColumn(field);
-  return asc(col);
+  return asc(resolveColumn(field));
 }
 
 function descColumn(field: string) {
-  const col = resolveColumn(field);
-  return desc(col);
+  return desc(resolveColumn(field));
 }
 
 function resolveColumn(field: string) {
-  if (field === "collection") return itemsTable.collection;
-  if (field === "changedAt") return itemsTable.changedAt;
-  if (field === "ref") return itemsTable.ref;
-  if (field === "connectionType") return itemsTable.connectionType;
-  // Props field
-  const prop = field.startsWith("props.") ? field.slice(6) : field;
-  return sql`json_extract(${itemsTable.props}, ${"$." + prop})`;
+  if (field === "$collection") return itemsTable.collection;
+  if (field === "$changedAt") return itemsTable.changedAt;
+  if (field === "$ref") return itemsTable.ref;
+  if (field === "$connectionType") return itemsTable.connectionType;
+  if (field === "$id") return itemsTable.id;
+  return sql`json_extract(${itemsTable.props}, ${"$." + field})`;
+}
+
+function pickRequestedFields(
+  rawItem: SelectableFieldMap,
+  resolvedItem: ItemWithRelations,
+  fields: string[] | undefined,
+): ItemWithRelations {
+  const projected: Record<string, unknown> = {};
+
+  if (fields === undefined) {
+    Object.assign(projected, rawItem);
+  } else {
+    for (const field of fields) {
+      if (field in rawItem) {
+        projected[field] = rawItem[field];
+      }
+    }
+  }
+
+  for (const [key, value] of Object.entries(resolvedItem)) {
+    if (!(key in rawItem) || rawItem[key] !== value) {
+      projected[key] = value;
+    }
+  }
+
+  return projected as ItemWithRelations;
 }
 
 export function findItems(options: QueryOptions = {}, ctx = defaultDb): QueryResult {
@@ -103,7 +138,6 @@ export function findItems(options: QueryOptions = {}, ctx = defaultDb): QueryRes
 
   const includeContent = options.include?.includes("content");
 
-  // Build select columns — exclude content by default
   const selectColumns = {
     id: itemsTable.id,
     connectionType: itemsTable.connectionType,
@@ -129,44 +163,32 @@ export function findItems(options: QueryOptions = {}, ctx = defaultDb): QueryRes
         .offset(offset)
         .all();
 
-  // Count query
   const countQuery = ctx.select({ value: count() }).from(itemsTable);
   const total = (where ? countQuery.where(where).get() : countQuery.get())?.value ?? 0;
 
-  // Map to domain objects
-  const data: ItemWithRelations[] = rows.map((row) => {
-    const props = row.props;
-    return {
-      id: encodeId(row.id),
-      connectionType: row.connectionType,
-      ref: row.ref,
-      collection: row.collectionName,
-      props: (props && typeof props === "object" ? props : {}) as Record<string, unknown>,
-      changedAt: row.changedAt,
-      ...("content" in row && row.content
-        ? { content: Array.isArray(row.content) ? row.content : undefined }
-        : {}),
-      links: [],
-    };
-  });
+  const rawItems = rows.map((row) => toSelectableFields(row));
 
-  // Resolve includes (assets, links)
+  const data: ItemWithRelations[] = rows.map((row, index) => ({
+    ...rawItems[index],
+    ...("content" in row && row.content
+      ? { content: Array.isArray(row.content) ? row.content : undefined }
+      : {}),
+    links: [],
+  }));
+
   const includes = options.include?.filter((i) => i !== "content") ?? [];
   if (includes.length > 0) {
     resolveIncludes(data, includes, ctx);
   }
 
-  // Resolve computed relations
   if (options.with && Object.keys(options.with).length > 0) {
     resolveRelations(data, options.with, findItems, ctx);
   }
 
-  if (options.flat) {
-    return { data: data.map(flattenItem) as any, meta: { total, limit, offset } };
-  }
-
   return {
-    data,
+    data: data.map((item, index) =>
+      pickRequestedFields(rawItems[index] as SelectableFieldMap, item, options.fields),
+    ),
     meta: { total, limit, offset },
   };
 }

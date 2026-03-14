@@ -14,11 +14,11 @@ function makeId(seed: number): string {
 
 function makeItem(seed: number, collection = "articles"): ItemWithRelations {
   return {
-    id: makeId(seed),
-    ref: `test/${seed}`,
-    collection,
-    props: { title: `Item ${seed}` },
-    changedAt: seed * 100,
+    $id: makeId(seed),
+    $ref: `test/${seed}`,
+    $collection: collection,
+    title: `Item ${seed}`,
+    $changedAt: seed * 100,
     links: [],
   };
 }
@@ -80,8 +80,8 @@ describe("resolveIncludes", () => {
 
     // Only content links (prop IS NULL) should be resolved
     expect(items[0].links).toHaveLength(2);
-    expect((items[0].links[0] as any).id).toBe(makeId(2));
-    expect((items[0].links[1] as any).id).toBe(makeId(3));
+    expect((items[0].links[0] as any).$id).toBe(makeId(2));
+    expect((items[0].links[1] as any).$id).toBe(makeId(3));
     expect(items[1].links).toEqual([]);
   });
 

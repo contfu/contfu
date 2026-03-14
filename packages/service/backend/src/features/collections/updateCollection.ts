@@ -18,6 +18,11 @@ export interface UpdateCollectionInput {
 
 const camelCasePattern = /^[a-z][a-zA-Z0-9]*$/;
 
+function getReservedSchemaProperty(schema?: CollectionSchema): string | null {
+  if (!schema) return null;
+  return Object.keys(schema).find((key) => key.startsWith("$")) ?? null;
+}
+
 /**
  * Update a Collection.
  */
@@ -35,6 +40,16 @@ export const updateCollection = (collectionId: number, input: UpdateCollectionIn
         new ValidationError({
           field: "name",
           message: `Collection name "${name}" must be a camelCase identifier (e.g. "blogPosts")`,
+        }),
+      );
+    }
+
+    const reservedProperty = getReservedSchemaProperty(input.schema);
+    if (reservedProperty) {
+      yield* Effect.fail(
+        new ValidationError({
+          field: "schema",
+          message: `Collection property "${reservedProperty}" is invalid because names starting with "$" are reserved for system fields`,
         }),
       );
     }

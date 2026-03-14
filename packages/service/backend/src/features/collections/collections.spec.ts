@@ -11,6 +11,7 @@ import { listCollections } from "./listCollections";
 import { listCollectionsByConnection } from "./listCollectionsByConnection";
 import { updateCollection } from "./updateCollection";
 import { createFlow } from "../flows/createFlow";
+import { ValidationError } from "../../effect/errors";
 
 describe("Collection Features Happy Path", () => {
   let userId: number;
@@ -71,6 +72,16 @@ describe("Collection Features Happy Path", () => {
 
     // Clear refTargets by setting to null (should not throw)
     await runTest(userId, updateCollection(created.id, { refTargets: null }));
+  });
+
+  it("rejects schema properties that start with $", async () => {
+    const created = await runTest(userId, createCollection(userId, { displayName: "Articles" }));
+
+    await expect(
+      runTest(userId, updateCollection(created.id, { schema: { $title: 1 } as any })),
+    ).rejects.toMatchObject({
+      _tag: ValidationError._tag,
+    });
   });
 
   it("should list collections with flow source and target counts", async () => {

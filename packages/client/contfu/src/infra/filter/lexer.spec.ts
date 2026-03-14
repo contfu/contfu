@@ -4,40 +4,40 @@ import { TokenType } from "./types";
 
 describe("tokenize", () => {
   test("tokenizes simple comparison", () => {
-    const tokens = tokenize('collection = "articles"');
+    const tokens = tokenize('$collection = "articles"');
     expect(tokens).toEqual([
-      { type: TokenType.Identifier, value: "collection" },
+      { type: TokenType.SystemField, value: "$collection" },
       { type: TokenType.Eq, value: "=" },
       { type: TokenType.String, value: "articles" },
     ]);
   });
 
-  test("tokenizes dot-notation identifier", () => {
-    const tokens = tokenize('props.category = "news"');
+  test("tokenizes property identifier", () => {
+    const tokens = tokenize('category = "news"');
     expect(tokens).toEqual([
-      { type: TokenType.Identifier, value: "props.category" },
+      { type: TokenType.Identifier, value: "category" },
       { type: TokenType.Eq, value: "=" },
       { type: TokenType.String, value: "news" },
     ]);
   });
 
   test("tokenizes numbers", () => {
-    const tokens = tokenize("changedAt >= 100");
+    const tokens = tokenize("$changedAt >= 100");
     expect(tokens).toEqual([
-      { type: TokenType.Identifier, value: "changedAt" },
+      { type: TokenType.SystemField, value: "$changedAt" },
       { type: TokenType.Gte, value: ">=" },
       { type: TokenType.Number, value: "100" },
     ]);
   });
 
   test("tokenizes booleans and null", () => {
-    const tokens = tokenize("props.featured = true && ref != null");
+    const tokens = tokenize("featured = true && $ref != null");
     expect(tokens).toEqual([
-      { type: TokenType.Identifier, value: "props.featured" },
+      { type: TokenType.Identifier, value: "featured" },
       { type: TokenType.Eq, value: "=" },
       { type: TokenType.Boolean, value: "true" },
       { type: TokenType.And, value: "&&" },
-      { type: TokenType.Identifier, value: "ref" },
+      { type: TokenType.SystemField, value: "$ref" },
       { type: TokenType.Neq, value: "!=" },
       { type: TokenType.Null, value: "null" },
     ]);
@@ -87,15 +87,20 @@ describe("tokenize", () => {
   });
 
   test("tokenizes function call syntax", () => {
-    const tokens = tokenize("depth(ref) = 2");
+    const tokens = tokenize("depth($ref) = 2");
     expect(tokens).toEqual([
       { type: TokenType.Identifier, value: "depth" },
       { type: TokenType.LParen, value: "(" },
-      { type: TokenType.Identifier, value: "ref" },
+      { type: TokenType.SystemField, value: "$ref" },
       { type: TokenType.RParen, value: ")" },
       { type: TokenType.Eq, value: "=" },
       { type: TokenType.Number, value: "2" },
     ]);
+  });
+
+  test("tokenizes system fields", () => {
+    const tokens = tokenize('$id = "abc"');
+    expect(tokens[0]).toEqual({ type: TokenType.SystemField, value: "$id" });
   });
 
   test("throws on unexpected character", () => {

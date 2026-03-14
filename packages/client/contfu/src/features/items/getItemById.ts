@@ -1,9 +1,9 @@
 import { eq } from "drizzle-orm";
 import { db as defaultDb } from "../../infra/db/db";
-import { itemsTable } from "../../infra/db/schema";
-import { decodeId, encodeId } from "../../infra/ids";
 import { resolveIncludes } from "../../infra/db/resolve-includes";
 import { resolveRelations } from "../../infra/db/resolve-relations";
+import { itemsTable } from "../../infra/db/schema";
+import { decodeId, encodeId } from "../../infra/ids";
 import { findItems } from "./findItems";
 import type { IncludeOption, ItemWithRelations, WithClause } from "../../domain/query-types";
 
@@ -28,14 +28,18 @@ export function getItemById(
 
   if (!row) return null;
 
-  const props = row.props;
+  const props =
+    row.props && typeof row.props === "object" && !Array.isArray(row.props)
+      ? (row.props as Record<string, unknown>)
+      : {};
+
   const item: ItemWithRelations = {
-    id: encodeId(row.id),
-    connectionType: row.connectionType,
-    ref: row.ref,
-    collection: row.collectionName,
-    props: (props && typeof props === "object" ? props : {}) as Record<string, unknown>,
-    changedAt: row.changedAt,
+    $id: encodeId(Buffer.from(row.id)),
+    $connectionType: row.connectionType ?? undefined,
+    $ref: row.ref,
+    $collection: row.collectionName,
+    $changedAt: row.changedAt,
+    ...props,
     content: Array.isArray(row.content) ? row.content : undefined,
     links: [],
   };

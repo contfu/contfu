@@ -1,3 +1,5 @@
+import { SYSTEM_FIELD_SET, type SystemFieldName } from "./system-fields";
+
 const FIELD_REF_TAG = Symbol("FieldRef");
 
 export type FieldRef = {
@@ -5,36 +7,30 @@ export type FieldRef = {
   path: string;
 };
 
+type SystemFieldRefs = { [K in SystemFieldName]: FieldRef };
+
+export type ItemRef<Props> = SystemFieldRefs & { [K in keyof Props & string]: FieldRef } & Record<
+    string,
+    FieldRef
+  >;
+
 export function isFieldRef(value: unknown): value is FieldRef {
   return typeof value === "object" && value !== null && FIELD_REF_TAG in value;
 }
 
-/** Proxy shape for typed property access on an item */
-export type ItemRef<Props> = {
-  id: FieldRef;
-  ref: FieldRef;
-  collection: FieldRef;
-  props: { [K in keyof Props]: FieldRef };
-};
-
 export function createItemRef<Props>(level: number): ItemRef<Props> {
   const prefix = level === 0 ? "" : `$${level}.`;
-
-  const propsProxy = new Proxy(
-    {},
-    {
-      get(_target, prop: string): FieldRef {
-        return { [FIELD_REF_TAG]: true, path: `${prefix}props.${prop}` } as FieldRef;
-      },
-    },
-  );
 
   return new Proxy(
     {},
     {
       get(_target, prop: string) {
-        if (prop === "props") return propsProxy;
-        return { [FIELD_REF_TAG]: true, path: `${prefix}${prop}` } as FieldRef;
+        if (typeof prop !== "string") return undefined;
+        const path =
+          SYSTEM_FIELD_SET.has(prop) || prop.startsWith("$")
+            ? `${prefix}${prop}`
+            : `${prefix}${prop}`;
+        return { [FIELD_REF_TAG]: true, path } as FieldRef;
       },
     },
   ) as ItemRef<Props>;
@@ -83,8 +79,6 @@ export function or(...exprs: string[]): string {
   return exprs.map((e) => `(${e})`).join(" || ");
 }
 
-// --- With-clause helpers ---
-
 export function all<C extends string>(collection: C): { collection: C };
 export function all<C extends string>(
   collection: C,
@@ -99,8 +93,9 @@ export function all(
   filterOrOpts?: string | ((self: any) => string) | Record<string, unknown>,
 ) {
   if (filterOrOpts == null) return { collection };
-  if (typeof filterOrOpts === "string" || typeof filterOrOpts === "function")
+  if (typeof filterOrOpts === "string" || typeof filterOrOpts === "function") {
     return { collection, filter: filterOrOpts };
+  }
   return { collection, ...filterOrOpts };
 }
 
@@ -118,12 +113,11 @@ export function oneOf(
   filterOrOpts?: string | ((self: any) => string) | Record<string, unknown>,
 ) {
   if (filterOrOpts == null) return { collection, single: true as const };
-  if (typeof filterOrOpts === "string" || typeof filterOrOpts === "function")
+  if (typeof filterOrOpts === "string" || typeof filterOrOpts === "function") {
     return { collection, single: true as const, filter: filterOrOpts };
+  }
   return { collection, single: true as const, ...filterOrOpts };
 }
-
-// --- With-clause function resolution ---
 
 import type { TypedWithEntry, TypedWithInput, WithClause } from "./query-types";
 

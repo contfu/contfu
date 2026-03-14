@@ -24,11 +24,7 @@ import {
   resolveWithFunctions,
 } from "../../domain/filter-helpers";
 
-export function createHttpTypedClient<_CMap>(
-  baseUrl: string,
-  apiKey?: string,
-  flatDefault = false,
-): any {
+export function createHttpTypedClient<_CMap>(baseUrl: string, apiKey?: string): any {
   const headers: Record<string, string> = {
     Accept: "application/json",
   };
@@ -47,15 +43,15 @@ export function createHttpTypedClient<_CMap>(
   function normalizeArgs(
     first?: string | Record<string, any>,
     second?: any,
-    third?: any,
-  ): { options: Record<string, any>; config?: { flat?: boolean } } {
+  ): { options: Record<string, any> } {
     if (typeof first === "string") {
       if (second == null) return { options: { collection: first } };
-      if (typeof second === "string" || typeof second === "function")
-        return { options: { collection: first, filter: second }, config: third };
-      return { options: { collection: first, ...second }, config: third };
+      if (typeof second === "string" || typeof second === "function") {
+        return { options: { collection: first, filter: second } };
+      }
+      return { options: { collection: first, ...second } };
     }
-    return { options: first ?? {}, config: second };
+    return { options: first ?? {} };
   }
 
   function resolveFilter(filter: unknown): string | undefined {
@@ -63,19 +59,20 @@ export function createHttpTypedClient<_CMap>(
     return filter as string | undefined;
   }
 
-  const callable = async (first?: any, second?: any, third?: any) => {
-    const { options, config } = normalizeArgs(first, second, third);
+  const callable = async (first?: any, second?: any) => {
+    const { options } = normalizeArgs(first, second);
     const { collection, ...rest } = options;
-    const flat = config?.flat ?? flatDefault;
     const filter = resolveFilter(rest.filter);
     const resolvedWith =
       rest.with && typeof rest.with === "function" ? resolveWithFunctions(rest.with, 1) : rest.with;
-    const params = serializeQueryParams({ ...rest, flat, filter, with: resolvedWith });
+    const params = serializeQueryParams({ ...rest, filter, with: resolvedWith });
+
     if (collection) {
       const basePath = `${baseUrl}/api/collections/${encodeURIComponent(collection)}/items`;
       const url = `${basePath}?${params}`;
       return fetchJson<QueryResult>(url);
     }
+
     const url = `${baseUrl}/api/items?${params}`;
     return fetchJson<QueryResult>(url);
   };
@@ -120,8 +117,7 @@ export function serializeQueryParams(options: QueryOptions): URLSearchParams {
   if (options.offset !== undefined) params.set("offset", String(options.offset));
   if (options.include?.length) params.set("include", options.include.join(","));
   if (options.with) params.set("with", JSON.stringify(options.with));
-  if (options.fields?.length) params.set("fields", options.fields.join(","));
-  if (options.flat) params.set("flat", "true");
+  if (options.fields !== undefined) params.set("fields", options.fields.join(","));
 
   return params;
 }
@@ -159,10 +155,9 @@ export function deserializeQueryParams(params: URLSearchParams): QueryOptions {
   }
 
   const fields = params.get("fields");
-  if (fields) options.fields = fields.split(",").map((s) => s.trim());
-
-  const flat = params.get("flat");
-  if (flat === "true") options.flat = true;
+  if (fields !== null) {
+    options.fields = fields === "" ? [] : fields.split(",").map((s) => s.trim());
+  }
 
   return options;
 }

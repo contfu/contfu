@@ -25,7 +25,7 @@ export function resolveRelations(
     for (const item of items) {
       let filter = relationDef.filter ?? "";
       if (relationDef.collection) {
-        const collectionFilter = `collection = "${relationDef.collection}"`;
+        const collectionFilter = `$collection = "${relationDef.collection}"`;
         filter = filter ? `${collectionFilter} && (${filter})` : collectionFilter;
       }
       const itemAncestors = [...ancestors, item];
@@ -43,13 +43,7 @@ export function resolveRelations(
         ctx,
       );
 
-      if (!item.rels) item.rels = {};
-
-      if (relationDef.single) {
-        item.rels[relationName] = result.data[0] ?? null;
-      } else {
-        item.rels[relationName] = result.data;
-      }
+      item[relationName] = relationDef.single ? (result.data[0] ?? null) : result.data;
     }
   }
 }
@@ -71,7 +65,6 @@ function resolveLinkIds(linkIds: number[], ctx: DbCtx): string[] {
     .from(linkTable)
     .where(inArray(linkTable.id, linkIds))
     .all();
-  // Preserve order and filter to internal links
   const idMap = new Map<number, string>();
   for (const row of rows) {
     if (row.internal) {
@@ -86,40 +79,39 @@ function substitutePlaceholders(
   ancestors: ItemWithRelations[],
   ctx: DbCtx,
 ): string {
-  return filter.replace(/\$(\d+)\.(\w+(?:\.\w+)*)/g, (_match, levelStr: string, path: string) => {
+  return filter.replace(/\$(\d+)\.(\$?\w+)/g, (_match, levelStr: string, path: string) => {
     const level = parseInt(levelStr, 10);
     const item = ancestors[ancestors.length - level];
     if (!item) return `"$${levelStr}.${path}"`;
 
-    if (path === "id") return `"${item.id}"`;
-    if (path === "ref") return item.ref !== null ? `"${item.ref}"` : "null";
-    if (path === "collection") return `"${item.collection}"`;
+    const value = item[path];
 
-    if (path.startsWith("props.")) {
-      const propKey = path.slice(6);
-      const value = item.props[propKey];
-      if (value === null || value === undefined) return "null";
-
-      // REF: single link ID → resolve to target item ID
-      if (typeof value === "number") {
-        const resolved = resolveLinkId(value, ctx);
-        return resolved ? `"${resolved}"` : "null";
-      }
-
-      // REFS: array of link IDs → resolve to target item IDs
-      if (Array.isArray(value) && value.length > 0 && typeof value[0] === "number") {
-        const resolved = resolveLinkIds(value as number[], ctx);
-        if (resolved.length === 0) return "null";
-        if (resolved.length === 1) return `"${resolved[0]}"`;
-        // Multiple values: return as comma-separated quoted list for IN-style filters
-        return resolved.map((id) => `"${id}"`).join(", ");
-      }
-
-      if (typeof value === "string") return `"${value}"`;
-      if (typeof value === "boolean") return value ? "true" : "false";
-      return String(value);
+    if (path === "$id") return `"${item.$id}"`;
+    if (path === "$ref") return item.$ref !== null ? `"${item.$ref}"` : "null";
+    if (path === "$collection") return `"${item.$collection}"`;
+    if (path === "$changedAt") return String(item.$changedAt);
+    if (path === "$connectionType") {
+      return item.$connectionType !== undefined && item.$connectionType !== null
+        ? String(item.$connectionType)
+        : "null";
     }
 
-    return `"${path}"`;
+    if (value === null || value === undefined) return "null";
+
+    if (typeof value === "number") {
+      const resolved = resolveLinkId(value, ctx);
+      return resolved ? `"${resolved}"` : String(value);
+    }
+
+    if (Array.isArray(value) && value.length > 0 && typeof value[0] === "number") {
+      const resolved = resolveLinkIds(value as unknown as number[], ctx);
+      if (resolved.length === 0) return "null";
+      if (resolved.length === 1) return `"${resolved[0]}"`;
+      return resolved.map((id) => `"${id}"`).join(", ");
+    }
+
+    if (typeof value === "string") return `"${value}"`;
+    if (typeof value === "boolean") return value ? "true" : "false";
+    return String(value);
   });
 }

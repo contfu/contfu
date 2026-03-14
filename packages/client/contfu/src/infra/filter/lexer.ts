@@ -1,3 +1,4 @@
+import { SYSTEM_FIELD_SET } from "../../domain/system-fields";
 import { TokenType, type Token } from "./types";
 
 export function tokenize(input: string): Token[] {
@@ -7,13 +8,11 @@ export function tokenize(input: string): Token[] {
   while (i < input.length) {
     const ch = input[i];
 
-    // Skip whitespace
     if (ch === " " || ch === "\t" || ch === "\n" || ch === "\r") {
       i++;
       continue;
     }
 
-    // Quoted strings (single or double)
     if (ch === '"' || ch === "'") {
       const quote = ch;
       i++;
@@ -27,12 +26,11 @@ export function tokenize(input: string): Token[] {
         }
         i++;
       }
-      if (i < input.length) i++; // skip closing quote
+      if (i < input.length) i++;
       tokens.push({ type: TokenType.String, value });
       continue;
     }
 
-    // Two-char operators
     if (i + 1 < input.length) {
       const two = input[i] + input[i + 1];
       if (two === "!=") {
@@ -72,7 +70,6 @@ export function tokenize(input: string): Token[] {
       }
     }
 
-    // Single-char operators
     if (ch === "=") {
       tokens.push({ type: TokenType.Eq, value: ch });
       i++;
@@ -109,7 +106,6 @@ export function tokenize(input: string): Token[] {
       continue;
     }
 
-    // Numbers (including negative)
     if (ch === "-" || (ch >= "0" && ch <= "9")) {
       let num = ch;
       i++;
@@ -127,7 +123,6 @@ export function tokenize(input: string): Token[] {
           break;
         }
       }
-      // If it's just a minus sign, treat as error
       if (num === "-") {
         throw new Error(`Unexpected character: ${ch} at position ${i - 1}`);
       }
@@ -135,7 +130,15 @@ export function tokenize(input: string): Token[] {
       continue;
     }
 
-    // Identifiers (including dot-notation like props.category)
+    if (ch === "$") {
+      const systemField = readSystemField(input, i);
+      if (systemField) {
+        tokens.push({ type: TokenType.SystemField, value: systemField.value });
+        i = systemField.nextIndex;
+        continue;
+      }
+    }
+
     if (isIdentStart(ch)) {
       let ident = ch;
       i++;
@@ -144,7 +147,6 @@ export function tokenize(input: string): Token[] {
         i++;
       }
 
-      // Check for keywords
       if (ident === "true" || ident === "false") {
         tokens.push({ type: TokenType.Boolean, value: ident });
       } else if (ident === "null") {
@@ -161,10 +163,30 @@ export function tokenize(input: string): Token[] {
   return tokens;
 }
 
+function readSystemField(
+  input: string,
+  start: number,
+): { value: string; nextIndex: number } | null {
+  let i = start + 1;
+  if (i >= input.length || !isIdentStart(input[i])) return null;
+
+  let ident = "$";
+  while (i < input.length && isIdentPart(input[i])) {
+    ident += input[i];
+    i++;
+  }
+
+  if (!SYSTEM_FIELD_SET.has(ident)) {
+    throw new Error(`Unknown system field: ${ident}`);
+  }
+
+  return { value: ident, nextIndex: i };
+}
+
 function isIdentStart(ch: string): boolean {
   return (ch >= "a" && ch <= "z") || (ch >= "A" && ch <= "Z") || ch === "_";
 }
 
 function isIdentPart(ch: string): boolean {
-  return isIdentStart(ch) || (ch >= "0" && ch <= "9") || ch === ".";
+  return isIdentStart(ch) || (ch >= "0" && ch <= "9");
 }

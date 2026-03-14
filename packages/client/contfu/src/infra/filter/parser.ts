@@ -33,11 +33,16 @@ export function parse(tokens: Token[]): FilterAST {
 
   function expectArg(): Token {
     const t = peek();
-    if (t && (t.type === TokenType.Identifier || t.type === TokenType.String)) {
+    if (
+      t &&
+      (t.type === TokenType.Identifier ||
+        t.type === TokenType.SystemField ||
+        t.type === TokenType.String)
+    ) {
       return advance();
     }
     throw new Error(
-      `Expected identifier or string argument, got ${t ? t.type : "EOF"} at position ${pos}`,
+      `Expected identifier, system field, or string argument, got ${t ? t.type : "EOF"} at position ${pos}`,
     );
   }
 
@@ -77,7 +82,7 @@ export function parse(tokens: Token[]): FilterAST {
     }
 
     // Identifier — could be a field comparison or function call
-    if (t.type === TokenType.Identifier) {
+    if (t.type === TokenType.Identifier || t.type === TokenType.SystemField) {
       const ident = advance();
 
       // Check for function call: identifier followed by (

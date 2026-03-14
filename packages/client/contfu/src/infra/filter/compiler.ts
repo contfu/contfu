@@ -5,10 +5,11 @@ import { basenameExpr, depthExpr, parentExpr } from "./path-helpers";
 import type { FilterAST } from "./types";
 
 const DIRECT_COLUMNS: Record<string, SQL> = {
-  collection: sql`${itemsTable.collection}`,
-  changedAt: sql`${itemsTable.changedAt}`,
-  ref: sql`${itemsTable.ref}`,
-  connectionType: sql`${itemsTable.connectionType}`,
+  $collection: sql`${itemsTable.collection}`,
+  $changedAt: sql`${itemsTable.changedAt}`,
+  $ref: sql`${itemsTable.ref}`,
+  $connectionType: sql`${itemsTable.connectionType}`,
+  $id: sql`${itemsTable.id}`,
 };
 
 const FUNCTION_MAP: Record<string, (args: string[]) => SQL> = {
@@ -21,9 +22,7 @@ const FUNCTION_MAP: Record<string, (args: string[]) => SQL> = {
 };
 
 function jsonExtract(field: string): SQL {
-  // props.X → json_extract(props, '$.X')
-  const path = field.startsWith("props.") ? field.slice(6) : field;
-  return sql`json_extract(${itemsTable.props}, ${"$." + path})`;
+  return sql`json_extract(${itemsTable.props}, ${"$." + field})`;
 }
 
 function getColumn(field: string): SQL {
@@ -31,8 +30,9 @@ function getColumn(field: string): SQL {
   return jsonExtract(field);
 }
 
-function compileValue(value: string | number | boolean | null): SQL {
+function compileValue(field: string, value: string | number | boolean | null): SQL {
   if (value === null) return sql`NULL`;
+  if (field === "$id") return sql`${decodeId(String(value))}`;
   if (typeof value === "boolean") return value ? sql`1` : sql`0`;
   return sql`${value}`;
 }
@@ -40,13 +40,8 @@ function compileValue(value: string | number | boolean | null): SQL {
 export function compileFilter(ast: FilterAST): SQL {
   switch (ast.kind) {
     case "comparison": {
-      if (ast.field === "id" && typeof ast.value === "string") {
-        const col = sql`${itemsTable.id}`;
-        const buf = decodeId(ast.value);
-        return compileComparison(col, ast.op, sql`${buf}`);
-      }
       const col = getColumn(ast.field);
-      return compileComparison(col, ast.op, ast.value);
+      return compileComparison(ast.field, col, ast.op, ast.value);
     }
 
     case "function": {
@@ -58,8 +53,9 @@ export function compileFilter(ast: FilterAST): SQL {
         return sql`EXISTS (SELECT 1 FROM links WHERE links."from" = ${itemsTable.id} AND ${propCondition} AND links."to" = ${buf})`;
       }
       if (ast.name === "linkedFrom") {
-        if (typeof ast.value !== "string")
+        if (typeof ast.value !== "string") {
           throw new Error("linkedFrom requires a string source ID");
+        }
         const prop = ast.args[0];
         const buf = decodeId(ast.value);
         const propCondition = prop ? sql`links.prop = ${prop}` : sql`links.prop IS NULL`;
@@ -68,7 +64,7 @@ export function compileFilter(ast: FilterAST): SQL {
       const fn = FUNCTION_MAP[ast.name];
       if (!fn) throw new Error(`Unknown function: ${ast.name}`);
       const expr = fn(ast.args);
-      return compileComparison(expr, ast.op, ast.value);
+      return compileComparison(ast.name, expr, ast.op, ast.value);
     }
 
     case "and":
@@ -87,11 +83,12 @@ function isSql(v: unknown): v is SQL {
 }
 
 function compileComparison(
+  field: string,
   col: SQL,
   op: string,
   value: string | number | boolean | null | SQL,
 ): SQL {
-  const val = isSql(value) ? value : compileValue(value);
+  const val = isSql(value) ? value : compileValue(field, value);
 
   switch (op) {
     case "=":

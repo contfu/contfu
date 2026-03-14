@@ -4,60 +4,60 @@ import { parse } from "./parser";
 
 describe("parse", () => {
   test("parses simple comparison", () => {
-    const ast = parse(tokenize('collection = "articles"'));
+    const ast = parse(tokenize('$collection = "articles"'));
     expect(ast).toEqual({
       kind: "comparison",
-      field: "collection",
+      field: "$collection",
       op: "=",
       value: "articles",
     });
   });
 
   test("parses number value", () => {
-    const ast = parse(tokenize("changedAt >= 100"));
+    const ast = parse(tokenize("$changedAt >= 100"));
     expect(ast).toEqual({
       kind: "comparison",
-      field: "changedAt",
+      field: "$changedAt",
       op: ">=",
       value: 100,
     });
   });
 
   test("parses boolean value", () => {
-    const ast = parse(tokenize("props.featured = true"));
+    const ast = parse(tokenize("featured = true"));
     expect(ast).toEqual({
       kind: "comparison",
-      field: "props.featured",
+      field: "featured",
       op: "=",
       value: true,
     });
   });
 
   test("parses null value", () => {
-    const ast = parse(tokenize("ref = null"));
+    const ast = parse(tokenize("$ref = null"));
     expect(ast).toEqual({
       kind: "comparison",
-      field: "ref",
+      field: "$ref",
       op: "=",
       value: null,
     });
   });
 
   test("parses AND expression", () => {
-    const ast = parse(tokenize('collection = "articles" && changedAt > 100'));
+    const ast = parse(tokenize('$collection = "articles" && $changedAt > 100'));
     expect(ast).toEqual({
       kind: "and",
-      left: { kind: "comparison", field: "collection", op: "=", value: "articles" },
-      right: { kind: "comparison", field: "changedAt", op: ">", value: 100 },
+      left: { kind: "comparison", field: "$collection", op: "=", value: "articles" },
+      right: { kind: "comparison", field: "$changedAt", op: ">", value: 100 },
     });
   });
 
   test("parses OR expression", () => {
-    const ast = parse(tokenize('collection = "articles" || collection = "guides"'));
+    const ast = parse(tokenize('$collection = "articles" || $collection = "guides"'));
     expect(ast).toEqual({
       kind: "or",
-      left: { kind: "comparison", field: "collection", op: "=", value: "articles" },
-      right: { kind: "comparison", field: "collection", op: "=", value: "guides" },
+      left: { kind: "comparison", field: "$collection", op: "=", value: "articles" },
+      right: { kind: "comparison", field: "$collection", op: "=", value: "guides" },
     });
   });
 
@@ -91,31 +91,31 @@ describe("parse", () => {
   });
 
   test("parses function call", () => {
-    const ast = parse(tokenize("depth(ref) = 2"));
+    const ast = parse(tokenize("depth($ref) = 2"));
     expect(ast).toEqual({
       kind: "function",
       name: "depth",
-      args: ["ref"],
+      args: ["$ref"],
       op: "=",
       value: 2,
     });
   });
 
   test("parses like operator", () => {
-    const ast = parse(tokenize('props.title ~ "hello"'));
+    const ast = parse(tokenize('title ~ "hello"'));
     expect(ast).toEqual({
       kind: "comparison",
-      field: "props.title",
+      field: "title",
       op: "~",
       value: "hello",
     });
   });
 
   test("parses array contains operator", () => {
-    const ast = parse(tokenize('props.tags ?= "news"'));
+    const ast = parse(tokenize('tags ?= "news"'));
     expect(ast).toEqual({
       kind: "comparison",
-      field: "props.tags",
+      field: "tags",
       op: "?=",
       value: "news",
     });

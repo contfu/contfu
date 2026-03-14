@@ -67,56 +67,56 @@ describe("compileFilter", () => {
   });
 
   test("filters by direct column (collection)", async () => {
-    const ids = await queryWithFilter('collection = "articles"');
+    const ids = await queryWithFilter('$collection = "articles"');
     expect(ids).toHaveLength(2);
     expect(ids).toContain(makeId(1));
     expect(ids).toContain(makeId(2));
   });
 
   test("filters by changedAt range", async () => {
-    const ids = await queryWithFilter("changedAt >= 100 && changedAt <= 150");
+    const ids = await queryWithFilter("$changedAt >= 100 && $changedAt <= 150");
     expect(ids).toHaveLength(2);
     expect(ids).toContain(makeId(1));
     expect(ids).toContain(makeId(3));
   });
 
   test("filters by props (json_extract)", async () => {
-    const ids = await queryWithFilter('props.category = "news"');
+    const ids = await queryWithFilter('category = "news"');
     expect(ids).toEqual([makeId(1)]);
   });
 
   test("filters with like operator", async () => {
-    const ids = await queryWithFilter('props.title ~ "Post"');
+    const ids = await queryWithFilter('title ~ "Post"');
     expect(ids).toHaveLength(2);
     expect(ids).toContain(makeId(1));
     expect(ids).toContain(makeId(2));
   });
 
   test("filters with not-like operator", async () => {
-    const ids = await queryWithFilter('props.title !~ "Post"');
+    const ids = await queryWithFilter('title !~ "Post"');
     expect(ids).toEqual([makeId(3)]);
   });
 
   test("filters with boolean props", async () => {
-    const ids = await queryWithFilter("props.featured = true");
+    const ids = await queryWithFilter("featured = true");
     expect(ids).toHaveLength(2);
     expect(ids).toContain(makeId(1));
     expect(ids).toContain(makeId(3));
   });
 
   test("filters with numeric comparison on props", async () => {
-    const ids = await queryWithFilter("props.views > 7");
+    const ids = await queryWithFilter("views > 7");
     expect(ids).toEqual([makeId(1)]);
   });
 
   test("filters with OR", async () => {
-    const ids = await queryWithFilter('collection = "articles" || collection = "guides"');
+    const ids = await queryWithFilter('$collection = "articles" || $collection = "guides"');
     expect(ids).toHaveLength(3);
   });
 
   test("filters with AND + OR grouping", async () => {
     const ids = await queryWithFilter(
-      '(props.category = "news" || props.category = "docs") && props.featured = true',
+      '(category = "news" || category = "docs") && featured = true',
     );
     expect(ids).toHaveLength(2);
     expect(ids).toContain(makeId(1));
@@ -124,44 +124,44 @@ describe("compileFilter", () => {
   });
 
   test("filters with != null", async () => {
-    const ids = await queryWithFilter("ref != null");
+    const ids = await queryWithFilter("$ref != null");
     expect(ids).toHaveLength(3);
   });
 
   test("filters with = null", async () => {
-    const ids = await queryWithFilter("ref = null");
+    const ids = await queryWithFilter("$ref = null");
     expect(ids).toHaveLength(0);
   });
 
   test("filters by ref", async () => {
-    const ids = await queryWithFilter('ref = "blog/tech/alpha"');
+    const ids = await queryWithFilter('$ref = "blog/tech/alpha"');
     expect(ids).toEqual([makeId(1)]);
   });
 
   test("filters with array contains (?=)", async () => {
-    const ids = await queryWithFilter('props.tags ?= "tech"');
+    const ids = await queryWithFilter('tags ?= "tech"');
     expect(ids).toEqual([makeId(1)]);
   });
 
   test("filters with depth() function", async () => {
     // "blog/tech/alpha" has depth 3, "blog/lifestyle/bravo" has depth 3, "guides/charlie" has depth 2
-    const ids = await queryWithFilter("depth(ref) = 3");
+    const ids = await queryWithFilter("depth($ref) = 3");
     expect(ids).toHaveLength(2);
     expect(ids).toContain(makeId(1));
     expect(ids).toContain(makeId(2));
   });
 
   test("filters by id (blob comparison)", async () => {
-    const ids = await queryWithFilter(`id = "${makeId(1)}"`);
+    const ids = await queryWithFilter(`$id = "${makeId(1)}"`);
     expect(ids).toEqual([makeId(1)]);
   });
 
   test("filters by id excludes non-matching", async () => {
-    const ids = await queryWithFilter(`id = "${makeId(99)}"`);
+    const ids = await queryWithFilter(`$id = "${makeId(99)}"`);
     expect(ids).toEqual([]);
   });
 
   test("throws on unknown function", () => {
-    expect(() => filter("unknown(ref) = 1")).toThrow("Unknown function");
+    expect(() => filter("unknown($ref) = 1")).toThrow("Unknown function");
   });
 });

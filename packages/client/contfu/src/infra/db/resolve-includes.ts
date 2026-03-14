@@ -13,7 +13,7 @@ export function resolveIncludes(
 ): void {
   if (items.length === 0 || include.length === 0) return;
 
-  const ids = items.map((i) => decodeId(i.id));
+  const ids = items.map((i) => decodeId(i.$id));
 
   if (include.includes("assets")) {
     const rows = ctx
@@ -25,13 +25,13 @@ export function resolveIncludes(
 
     const assetsByItem = new Map<string, AssetData[]>();
     for (const row of rows) {
-      const itemId = encodeId(row.itemId);
+      const itemId = encodeId(Buffer.from(row.itemId));
       if (!assetsByItem.has(itemId)) assetsByItem.set(itemId, []);
       assetsByItem.get(itemId)!.push(assetFromDb(row.asset));
     }
 
     for (const item of items) {
-      item.assets = assetsByItem.get(item.id) ?? [];
+      item.assets = assetsByItem.get(item.$id) ?? [];
     }
   }
 
@@ -61,13 +61,15 @@ export function resolveIncludes(
         .where(inArray(itemsTable.id, targetBufs))
         .all();
       for (const row of targetRows) {
-        const id = encodeId(row.id);
+        const id = encodeId(Buffer.from(row.id));
         targetItemMap.set(id, {
-          id,
-          collection: row.collection,
-          ref: row.ref,
-          props: row.props,
-          changedAt: row.changedAt,
+          $id: id,
+          $collection: row.collection,
+          $ref: row.ref,
+          $changedAt: row.changedAt,
+          ...(row.props && typeof row.props === "object" && !Array.isArray(row.props)
+            ? (row.props as Record<string, unknown>)
+            : {}),
         });
       }
     }
@@ -75,16 +77,16 @@ export function resolveIncludes(
     // Group resolved links by source item
     const linksByItem = new Map<string, ResolvedLink[]>();
     for (const row of rows) {
-      const fromId = encodeId(row.from);
+      const fromId = encodeId(Buffer.from(row.from));
       if (!linksByItem.has(fromId)) linksByItem.set(fromId, []);
       const resolved: ResolvedLink = row.internal
-        ? ((targetItemMap.get(encodeId(row.to)) as ResolvedLink) ?? null)
+        ? ((targetItemMap.get(encodeId(Buffer.from(row.to))) as ResolvedLink) ?? null)
         : row.to.toString("utf8");
       linksByItem.get(fromId)!.push(resolved);
     }
 
     for (const item of items) {
-      item.links = linksByItem.get(item.id) ?? [];
+      item.links = linksByItem.get(item.$id) ?? [];
     }
   }
 }

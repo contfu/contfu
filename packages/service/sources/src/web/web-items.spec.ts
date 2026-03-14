@@ -44,7 +44,7 @@ describe("web-items", () => {
       });
 
       expect(items).toHaveLength(1);
-      expect(items[0].props.title).toBe("Page");
+      expect(props(items[0]).title).toBe("Page");
     });
   });
 

@@ -1,4 +1,4 @@
-import type { TypedContfuClient, TypedFlatContfuClient } from "./domain/query-types";
+import type { TypedContfuClient } from "./domain/query-types";
 import {
   all,
   and,
@@ -22,20 +22,20 @@ import { findItems } from "./features/items/findItems";
 import { db } from "./infra/db/db";
 import { createHttpTypedClient } from "./infra/http/query-client";
 
-export type ContfuConfig = { url?: string; apiKey?: string; flat?: boolean };
+export type ContfuConfig = { url?: string; apiKey?: string };
 
 function normalizeArgs(
   first?: string | Record<string, any>,
   second?: any,
-  third?: any,
-): { options: Record<string, any>; config?: { flat?: boolean } } {
+): { options: Record<string, any> } {
   if (typeof first === "string") {
     if (second == null) return { options: { collection: first } };
-    if (typeof second === "string" || typeof second === "function")
-      return { options: { collection: first, filter: second }, config: third };
-    return { options: { collection: first, ...second }, config: third };
+    if (typeof second === "string" || typeof second === "function") {
+      return { options: { collection: first, filter: second } };
+    }
+    return { options: { collection: first, ...second } };
   }
-  return { options: first ?? {}, config: second };
+  return { options: first ?? {} };
 }
 
 function resolveFilter(filter: unknown): string | undefined {
@@ -43,27 +43,27 @@ function resolveFilter(filter: unknown): string | undefined {
   return filter as string | undefined;
 }
 
-function createLocalTypedClient<_CMap>(flatDefault: boolean, ctx = db): any {
+function createLocalTypedClient<_CMap>(ctx = db): any {
   // eslint-disable-next-line typescript/require-await -- mirrors async remote API for seamless local/remote switching
-  const callable = async (first?: any, second?: any, third?: any) => {
-    const { options, config } = normalizeArgs(first, second, third);
+  const callable = async (first?: any, second?: any) => {
+    const { options } = normalizeArgs(first, second);
     const { collection, ...rest } = options;
-    const flat = config?.flat ?? flatDefault;
     const filter = resolveFilter(rest.filter);
     const resolvedWith =
       rest.with && typeof rest.with === "function" ? resolveWithFunctions(rest.with, 1) : rest.with;
+
     if (collection) {
       const opts = {
         ...rest,
-        flat,
         with: resolvedWith,
         filter: filter
-          ? `collection = "${collection}" && (${filter})`
-          : `collection = "${collection}"`,
+          ? `$collection = "${collection}" && (${filter})`
+          : `$collection = "${collection}"`,
       };
       return findItems(opts, ctx);
     }
-    return findItems({ ...rest, flat, filter, with: resolvedWith }, ctx);
+
+    return findItems({ ...rest, filter, with: resolvedWith }, ctx);
   };
 
   return Object.assign(callable, {
@@ -85,14 +85,9 @@ function createLocalTypedClient<_CMap>(flatDefault: boolean, ctx = db): any {
   });
 }
 
-export function contfu<CMap>(config: ContfuConfig & { flat: true }): TypedFlatContfuClient<CMap>;
-export function contfu<CMap>(config?: ContfuConfig): TypedContfuClient<CMap>;
-export function contfu<CMap>(
-  config?: ContfuConfig,
-): TypedContfuClient<CMap> | TypedFlatContfuClient<CMap> {
-  const flat = config?.flat ?? false;
+export function contfu<CMap>(config?: ContfuConfig): TypedContfuClient<CMap> {
   if (config?.url) {
-    return createHttpTypedClient<CMap>(config.url, config.apiKey, flat);
+    return createHttpTypedClient<CMap>(config.url, config.apiKey);
   }
-  return createLocalTypedClient<CMap>(flat);
+  return createLocalTypedClient();
 }
