@@ -40,7 +40,8 @@ async function createDb() {
   if (isTestMode) {
     const { PGlite } = await import("@electric-sql/pglite");
     const { drizzle } = await import("drizzle-orm/pglite");
-    const client = new PGlite(process.env.PGLITE_DATA_DIR);
+    const dataDir = process.env.PGLITE_DATA_DIR;
+    const client = new PGlite(dataDir === ":memory:" ? undefined : dataDir || undefined);
     pgliteClient = client;
     const database = drizzle({ client, schema });
 

@@ -8,9 +8,11 @@ import {
 import { createLogger } from "../../infra/logger/index";
 import { getItemRefForSource, notionSource, strapiSource, webSource } from "@contfu/svc-sources";
 import type { UserSyncItem } from "../../infra/sync-worker/messages";
-import { isItemQuotaExceeded } from "../../infra/nats/quota-kv";
+import { checkQuota, addItems } from "../../infra/nats/quota-kv";
 import { getRateLimitForConnectionType } from "../../infra/webhook-queue/types";
 import type { SyncConfig } from "./getSyncConfig";
+
+const PAGE_SIZE = 100;
 
 const log = createLogger("sync-fetch");
 
@@ -66,17 +68,38 @@ export async function* fetchAndStreamItems(
   collector?: ValidationErrorCollector,
 ): AsyncGenerator<UserSyncItem> {
   const throttle = new FullSyncThrottle();
+  let quotaExhausted = false;
 
   for (const group of config.connectionGroups) {
+    if (quotaExhausted) break;
+
     for (const sc of group.sourceCollections) {
+      if (quotaExhausted) break;
+
+      let consumed = 0;
+      let reserved = 0;
+
       try {
         const items = fetchSourceCollection(group, sc.collectionRef);
 
         for await (const item of items) {
-          if (await isItemQuotaExceeded(config.userId)) {
-            log.info({ userId: config.userId }, "Item quota exceeded, aborting full sync");
-            return;
+          // Reserve more quota slots when the current reservation is exhausted
+          if (consumed >= reserved) {
+            const quota = await checkQuota(config.userId, "items");
+            const isUnlimited = quota.max <= 0;
+            if (!isUnlimited && !quota.allowed) {
+              log.info({ userId: config.userId }, "Item quota exceeded, stopping sync");
+              quotaExhausted = true;
+              break;
+            }
+            const toReserve = isUnlimited
+              ? PAGE_SIZE
+              : Math.min(PAGE_SIZE, quota.max - quota.current);
+            await addItems(config.userId, toReserve);
+            reserved += toReserve;
           }
+          consumed++;
+
           await throttle.wait(group.connectionType);
           const sourceRef = getItemRefForSource({
             sourceType: group.connectionType,
@@ -96,6 +119,7 @@ export async function* fetchAndStreamItems(
             }
 
             // Validate before applying mappings — drop items with cast failures
+            // Validation failures still count against quota (source was fetched)
             if (collector && target.mappings) {
               const errors = validateSourceItem(item.props, target.mappings);
               if (errors.length > 0) {
@@ -121,6 +145,11 @@ export async function* fetchAndStreamItems(
       } catch {
         log.error({ collectionId: sc.collectionId }, "Sync fetch error");
         // Skip failed source collection, continue with others
+      } finally {
+        // Refund unused pre-reserved quota slots
+        if (reserved > consumed) {
+          await addItems(config.userId, -(reserved - consumed));
+        }
       }
     }
   }
