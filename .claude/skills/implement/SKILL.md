@@ -13,12 +13,14 @@ Implement a GitHub issue from start to PR.
 
 ## Workflow
 
-1. **Read the issue** — review the issue details above. If more context is needed, fetch linked issues.
-2. **Worktree** — use `EnterWorktree` to create an isolated worktree, then create a branch from `origin/main`:
+> **CRITICAL: Call `EnterWorktree` before touching any files. No exceptions.**
+
+1. **Worktree** — call `EnterWorktree` immediately, then create a branch from `origin/main`:
    ```bash
    git fetch origin main
    git checkout -b <branch-name> origin/main
    ```
+2. **Read the issue** — review the issue details above. If more context is needed, fetch linked issues.
 3. **Explore** — read the relevant files listed in the issue and understand current state.
 4. **Plan** — enter plan mode and present the implementation approach for user approval.
 5. **Implement** — execute the approved plan with minimal, focused changes.

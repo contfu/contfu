@@ -14,8 +14,8 @@ Create structured GitHub issues from short descriptions.
 2. **Clarify** if the description is ambiguous — use `AskUserQuestion` to resolve unknowns before exploring
 3. **Explore** the codebase for relevant files and patterns (skip if the user provides sufficient context)
 4. **Draft** each issue in the structured format below
-5. **Approve** — use `AskUserQuestion` to present the draft and ask for approval (options: "Create", "Edit"). On "Edit", ask what to change, revise, and re-approve.
-6. **Create** on GitHub via `gh issue create`
+5. **Approve** — call `EnterPlanMode` and present the full draft(s) as the plan so the user can read them. Wait for the user to approve or request edits via `ExitPlanMode`. On edits, revise and re-enter plan mode.
+6. **Create** on GitHub via `gh issue create` only after the user approves and exits plan mode
 
 ## Issue Body Template
 
@@ -62,9 +62,9 @@ Numbered list of descriptions -> explore shared context once -> draft all -> rev
 - **Auto-label** each issue: `enhancement`, `bug`, or `documentation`
 - **Skip exploration** when the user provides file paths and sufficient context
 - **Never implement** — this skill creates issues only, never writes code
-- **Always get approval** — use `AskUserQuestion` to present the draft and get explicit approval before creating
+- **Always get approval** — use `EnterPlanMode` to present drafts so the user can read them; only create after they approve via `ExitPlanMode`
 - **Title format** — concise, imperative mood (e.g. "Add webhook retry logic")
-- **Use `AskUserQuestion`** for all user interactions — clarifying ambiguities, presenting drafts for approval, and asking for edits
+- **Use `AskUserQuestion`** for clarifying ambiguities only — NOT for presenting drafts (use plan mode for that)
 - When exploring, use the Agent tool with `subagent_type=Explore` to find relevant files efficiently
 
 ## Creating Issues
