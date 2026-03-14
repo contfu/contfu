@@ -9,7 +9,7 @@ const MAX_DEPTH = 3;
 type FindItemsFn = (
   options: { filter?: string; limit?: number; include?: IncludeOption[]; with?: WithClause },
   ctx?: any,
-) => { data: ItemWithRelations[] };
+) => ItemWithRelations[];
 
 export function resolveRelations(
   items: ItemWithRelations[],
@@ -43,7 +43,7 @@ export function resolveRelations(
         ctx,
       );
 
-      item[relationName] = relationDef.single ? (result.data[0] ?? null) : result.data;
+      item[relationName] = relationDef.single ? (result[0] ?? null) : result;
     }
   }
 }

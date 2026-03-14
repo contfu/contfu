@@ -49,115 +49,115 @@ describe("findItems", () => {
 
   test("returns all items with default pagination", () => {
     const result = findItems();
-    expect(result.data).toHaveLength(3);
-    expect(result.meta.total).toBe(3);
-    expect(result.meta.limit).toBe(20);
-    expect(result.meta.offset).toBe(0);
+    expect(result).toHaveLength(3);
+    expect(result.total).toBe(3);
+    expect(result.limit).toBe(20);
+    expect(result.offset).toBe(0);
   });
 
   test("filters by collection", () => {
     const result = findItems({ filter: '$collection = "articles"' });
-    expect(result.data).toHaveLength(2);
-    expect(result.data.every((i) => i.$collection === "articles")).toBe(true);
+    expect(result).toHaveLength(2);
+    expect(result.every((i) => i.$collection === "articles")).toBe(true);
   });
 
   test("filters by props", () => {
     const result = findItems({ filter: 'category = "news"' });
-    expect(result.data).toHaveLength(1);
-    expect(result.data[0].$id).toBe(makeId(1));
+    expect(result).toHaveLength(1);
+    expect(result[0].$id).toBe(makeId(1));
   });
 
   test("filters with AND", () => {
     const result = findItems({
       filter: '$collection = "articles" && featured = true',
     });
-    expect(result.data).toHaveLength(1);
-    expect(result.data[0].$id).toBe(makeId(1));
+    expect(result).toHaveLength(1);
+    expect(result[0].$id).toBe(makeId(1));
   });
 
   test("filters with OR", () => {
     const result = findItems({
       filter: 'category = "news" || category = "docs"',
     });
-    expect(result.data).toHaveLength(2);
+    expect(result).toHaveLength(2);
   });
 
   test("supports like filter", () => {
     const result = findItems({ filter: 'title ~ "Post"' });
-    expect(result.data).toHaveLength(2);
+    expect(result).toHaveLength(2);
   });
 
   test("supports changedAt range", () => {
     const result = findItems({
       filter: "$changedAt >= 100 && $changedAt <= 150",
     });
-    expect(result.data).toHaveLength(2);
+    expect(result).toHaveLength(2);
   });
 
   test("sorts ascending by field", () => {
     const result = findItems({ sort: "$changedAt" });
-    expect(result.data[0].$id).toBe(makeId(1));
-    expect(result.data[2].$id).toBe(makeId(2));
+    expect(result[0].$id).toBe(makeId(1));
+    expect(result[2].$id).toBe(makeId(2));
   });
 
   test("sorts descending with - prefix", () => {
     const result = findItems({ sort: "-$changedAt" });
-    expect(result.data[0].$id).toBe(makeId(2));
-    expect(result.data[2].$id).toBe(makeId(1));
+    expect(result[0].$id).toBe(makeId(2));
+    expect(result[2].$id).toBe(makeId(1));
   });
 
   test("sorts with object notation", () => {
     const result = findItems({
       sort: { field: "$changedAt", direction: "asc" },
     });
-    expect(result.data[0].$id).toBe(makeId(1));
+    expect(result[0].$id).toBe(makeId(1));
   });
 
   test("respects limit", () => {
     const result = findItems({ limit: 2 });
-    expect(result.data).toHaveLength(2);
-    expect(result.meta.total).toBe(3);
+    expect(result).toHaveLength(2);
+    expect(result.total).toBe(3);
   });
 
   test("respects offset", () => {
     const result = findItems({ sort: "$changedAt", limit: 2, offset: 1 });
-    expect(result.data).toHaveLength(2);
-    expect(result.data[0].$id).toBe(makeId(3));
+    expect(result).toHaveLength(2);
+    expect(result[0].$id).toBe(makeId(3));
   });
 
   test("allows large limit", () => {
     const result = findItems({ limit: 500 });
-    expect(result.meta.limit).toBe(500);
+    expect(result.limit).toBe(500);
   });
 
   test("excludes content by default", () => {
     const result = findItems();
     // content should not be present
-    expect(result.data[0]).not.toHaveProperty("content");
+    expect(result[0]).not.toHaveProperty("content");
   });
 
   test("includes content when requested", () => {
     const result = findItems({ include: ["content"] });
     // Items don't have content set, but the field should be queried
-    expect(result.data).toHaveLength(3);
+    expect(result).toHaveLength(3);
   });
 
   test("supports search", () => {
     const result = findItems({ search: "Alpha" });
-    expect(result.data).toHaveLength(1);
-    expect(result.data[0].$id).toBe(makeId(1));
+    expect(result).toHaveLength(1);
+    expect(result[0].$id).toBe(makeId(1));
   });
 
   test("returns all selectable fields by default", () => {
     const result = findItems({ filter: '$collection = "articles"', limit: 1 });
-    expect(result.data[0].title).toBe("Alpha Post");
-    expect(result.data[0].$ref).toBe("blog/tech/alpha");
+    expect(result[0].title).toBe("Alpha Post");
+    expect(result[0].$ref).toBe("blog/tech/alpha");
   });
 
   test("returns no selectable fields for empty fields array", () => {
     const result = findItems({ filter: '$collection = "articles"', fields: [], limit: 1 });
-    expect(result.data[0].$id).toBeUndefined();
-    expect(result.data[0].title).toBeUndefined();
+    expect(result[0].$id).toBeUndefined();
+    expect(result[0].title).toBeUndefined();
   });
 
   test("projects specific fields", () => {
@@ -167,15 +167,15 @@ describe("findItems", () => {
       sort: "title",
       limit: 1,
     });
-    expect(result.data[0].title).toBe("Alpha Post");
-    expect(result.data[0].$ref).toBe("blog/tech/alpha");
-    expect(result.data[0].$collection).toBeUndefined();
+    expect(result[0].title).toBe("Alpha Post");
+    expect(result[0].$ref).toBe("blog/tech/alpha");
+    expect(result[0].$collection).toBeUndefined();
   });
 
   test("search matches ref", () => {
     const result = findItems({ search: "lifestyle" });
-    expect(result.data).toHaveLength(1);
-    expect(result.data[0].$id).toBe(makeId(2));
+    expect(result).toHaveLength(1);
+    expect(result[0].$id).toBe(makeId(2));
   });
 
   test("includes assets when requested", async () => {
@@ -194,8 +194,8 @@ describe("findItems", () => {
       include: ["assets"],
     });
 
-    const item1 = result.data.find((i) => i.$id === makeId(1))!;
-    const item2 = result.data.find((i) => i.$id === makeId(2))!;
+    const item1 = result.find((i) => i.$id === makeId(1))!;
+    const item2 = result.find((i) => i.$id === makeId(2))!;
     expect(item1.assets).toHaveLength(1);
     expect(item1.assets![0].id).toBe(makeId(10));
     expect(item2.assets).toEqual([]);
@@ -209,7 +209,7 @@ describe("findItems", () => {
       include: ["links"],
     });
 
-    const item1 = result.data.find((i) => i.$id === makeId(1))!;
+    const item1 = result.find((i) => i.$id === makeId(1))!;
     expect(item1.links).toHaveLength(1);
     expect((item1.links[0] as any).$id).toBe(makeId(2));
   });
@@ -224,9 +224,9 @@ describe("findItems", () => {
       },
     });
 
-    expect(result.data).toHaveLength(1);
-    expect(result.data[0].sameColl as any[]).toHaveLength(1);
-    expect((result.data[0].sameColl as any[])[0].$id).toBe(makeId(2));
+    expect(result).toHaveLength(1);
+    expect(result[0].sameColl as any[]).toHaveLength(1);
+    expect((result[0].sameColl as any[])[0].$id).toBe(makeId(2));
   });
 
   test("relation values override projected raw fields", async () => {
@@ -267,7 +267,7 @@ describe("findItems", () => {
       },
     });
 
-    expect((result.data[0].author as any).name).toBe("Alice");
+    expect((result[0].author as any).name).toBe("Alice");
   });
 
   test("findItems with forward REF relation", async () => {
@@ -309,9 +309,9 @@ describe("findItems", () => {
       },
     });
 
-    expect(result.data).toHaveLength(1);
-    expect(result.data[0].author).not.toBeNull();
-    expect((result.data[0].author as any).$id).toBe(makeId(10));
+    expect(result).toHaveLength(1);
+    expect(result[0].author).not.toBeNull();
+    expect((result[0].author as any).$id).toBe(makeId(10));
   });
 
   test("findItems with backlink relation", async () => {
@@ -372,9 +372,9 @@ describe("findItems", () => {
       },
     });
 
-    expect(result.data).toHaveLength(1);
-    expect(result.data[0].posts as any[]).toHaveLength(2);
-    const postIds = (result.data[0].posts as any[]).map((p: any) => p.$id);
+    expect(result).toHaveLength(1);
+    expect(result[0].posts as any[]).toHaveLength(2);
+    const postIds = (result[0].posts as any[]).map((p: any) => p.$id);
     expect(postIds).toContain(makeId(1));
     expect(postIds).toContain(makeId(2));
   });

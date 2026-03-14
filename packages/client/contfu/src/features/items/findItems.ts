@@ -7,6 +7,7 @@ import { resolveRelations } from "../../infra/db/resolve-relations";
 import { compileFilter } from "../../infra/filter/compiler";
 import { tokenize } from "../../infra/filter/lexer";
 import { parse } from "../../infra/filter/parser";
+import { QueryResultArray } from "../../domain/query-types";
 import type {
   ItemWithRelations,
   QueryOptions,
@@ -185,10 +186,10 @@ export function findItems(options: QueryOptions = {}, ctx = defaultDb): QueryRes
     resolveRelations(data, options.with, findItems, ctx);
   }
 
-  return {
-    data: data.map((item, index) =>
+  return new QueryResultArray(
+    data.map((item, index) =>
       pickRequestedFields(rawItems[index] as SelectableFieldMap, item, options.fields),
     ),
-    meta: { total, limit, offset },
-  };
+    { total, limit, offset },
+  );
 }

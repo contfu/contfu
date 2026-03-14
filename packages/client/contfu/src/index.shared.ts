@@ -75,6 +75,7 @@ export {
 export { contfu } from "./contfu";
 export type { ContfuConfig } from "./contfu";
 export {
+  QueryResultArray,
   type IncludeOption,
   type InferRels,
   type ItemWithRelations,

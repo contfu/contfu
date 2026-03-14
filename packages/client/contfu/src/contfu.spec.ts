@@ -73,38 +73,38 @@ describe("contfu typed query client", () => {
 
   test("q(collection) filters by collection", async () => {
     const result = await q("articles");
-    expect(result.data).toHaveLength(2);
-    expect(result.data.every((i) => i.$collection === "articles")).toBe(true);
+    expect(result).toHaveLength(2);
+    expect(result.every((i) => i.$collection === "articles")).toBe(true);
   });
 
   test("q(collection, filter) combines collection and filter", async () => {
     const result = await q("articles", 'category = "news"');
-    expect(result.data).toHaveLength(1);
-    expect(result.data[0].title).toBe("Alpha");
+    expect(result).toHaveLength(1);
+    expect(result[0].title).toBe("Alpha");
   });
 
   test("q({ filter }) without collection returns all matching", async () => {
     const result = await q({ filter: 'category = "news"' });
-    expect(result.data).toHaveLength(1);
-    expect(result.data[0].$collection).toBe("articles");
+    expect(result).toHaveLength(1);
+    expect(result[0].$collection).toBe("articles");
   });
 
   test("q() without options returns all items", async () => {
     const result = await q();
-    expect(result.data).toHaveLength(5);
-    expect(result.meta.total).toBe(5);
+    expect(result).toHaveLength(5);
+    expect(result.total).toBe(5);
   });
 
   test("q(collection, { limit }) respects limit", async () => {
     const result = await q("authors", { limit: 1 });
-    expect(result.data).toHaveLength(1);
-    expect(result.meta.total).toBe(2);
+    expect(result).toHaveLength(1);
+    expect(result.total).toBe(2);
   });
 
   test("q(collection, { sort }) respects sort order", async () => {
     const result = await q("articles", { sort: "title" });
-    expect(result.data[0].title).toBe("Alpha");
-    expect(result.data[1].title).toBe("Beta");
+    expect(result[0].title).toBe("Alpha");
+    expect(result[1].title).toBe("Beta");
   });
 
   test("q(collection, { with }) resolves relations", async () => {
@@ -113,8 +113,8 @@ describe("contfu typed query client", () => {
         writers: all("authors"),
       },
     });
-    expect(result.data).toHaveLength(2);
-    for (const item of result.data) {
+    expect(result).toHaveLength(2);
+    for (const item of result) {
       expect(item.writers as any[]).toHaveLength(2);
     }
   });
@@ -125,13 +125,13 @@ describe("contfu typed query client", () => {
         author: oneOf("authors", (author) => eq(author.$ref, article.author)),
       }),
     });
-    expect(result.data).toHaveLength(2);
+    expect(result).toHaveLength(2);
 
-    const alpha = result.data.find((i) => i.title === "Alpha")!;
+    const alpha = result.find((i) => i.title === "Alpha")!;
     expect(alpha.author).not.toBeNull();
     expect((alpha.author as any).$ref).toBe("authors/alice");
 
-    const beta = result.data.find((i) => i.title === "Beta")!;
+    const beta = result.find((i) => i.title === "Beta")!;
     expect((beta.author as any).$ref).toBe("authors/bob");
   });
 
@@ -141,9 +141,9 @@ describe("contfu typed query client", () => {
         author: all("authors", "$ref = $1.author"),
       },
     });
-    expect(result.data).toHaveLength(2);
+    expect(result).toHaveLength(2);
 
-    const alpha = result.data.find((i) => i.title === "Alpha")!;
+    const alpha = result.find((i) => i.title === "Alpha")!;
     expect(alpha.author).toHaveLength(1);
     expect((alpha.author as any[])[0].$ref).toBe("authors/alice");
   });
@@ -202,7 +202,7 @@ describe("contfu typed ref targets", () => {
 
   test("REF property is typed as the target collection", async () => {
     const result = await q("blogPosts");
-    const post = result.data[0];
+    const post = result[0];
 
     // At the type level: post.author is RefTargetCollections["authors"]
     // which has { name: string }, so .name should be accessible.
@@ -212,7 +212,7 @@ describe("contfu typed ref targets", () => {
 
   test("REFS property is typed as array of target collection", async () => {
     const result = await q("blogPosts");
-    const post = result.data[0];
+    const post = result[0];
 
     // At the type level: post.tags is RefTargetCollections["tags"][]
     // which is { label: string }[], so [0].label should be accessible.
@@ -312,45 +312,45 @@ describe("contfu link resolution", () => {
         author: oneOf("persons", (person) => eq(person.$id, post.author)),
       }),
     });
-    expect(result.data).toHaveLength(1);
-    expect(result.data[0].author).not.toBeNull();
-    expect((result.data[0].author as any).$ref).toBe("persons/alice");
+    expect(result).toHaveLength(1);
+    expect(result[0].author).not.toBeNull();
+    expect((result[0].author as any).$ref).toBe("persons/alice");
   });
 
   test("backlink REF: person → posts via linksTo('author')", async () => {
     const aliceId = makeId(10);
     const result = await q("posts", linksTo("author", aliceId));
-    expect(result.data).toHaveLength(1);
-    expect(result.data[0].title).toBe("Post One");
+    expect(result).toHaveLength(1);
+    expect(result[0].title).toBe("Post One");
   });
 
   test("forward REFS: post → tags via linkedFrom('tags')", async () => {
     const post1Id = makeId(1);
     const result = await q("tags", linkedFrom("tags", post1Id));
-    expect(result.data).toHaveLength(2);
-    const refs = result.data.map((t) => t.$ref).sort();
+    expect(result).toHaveLength(2);
+    const refs = result.map((t) => t.$ref).sort();
     expect(refs).toEqual(["tags/design", "tags/tech"]);
   });
 
   test("backlink REFS: tag → posts via linksTo('tags')", async () => {
     const techId = makeId(30);
     const result = await q("posts", linksTo("tags", techId));
-    expect(result.data).toHaveLength(2);
-    const titles = result.data.map((p) => p.title).sort();
+    expect(result).toHaveLength(2);
+    const titles = result.map((p) => p.title).sort();
     expect(titles).toEqual(["Post One", "Post Two"]);
   });
 
   test("forward content links: post → linked items via linkedFrom(null)", async () => {
     const post1Id = makeId(1);
     const result = await q("persons", linkedFrom(null, post1Id));
-    expect(result.data).toHaveLength(1);
-    expect(result.data[0].$ref).toBe("persons/alice");
+    expect(result).toHaveLength(1);
+    expect(result[0].$ref).toBe("persons/alice");
   });
 
   test("backlink content links: person → posts via linksTo(null)", async () => {
     const aliceId = makeId(10);
     const result = await q("posts", linksTo(null, aliceId));
-    expect(result.data).toHaveLength(1);
-    expect(result.data[0].title).toBe("Post One");
+    expect(result).toHaveLength(1);
+    expect(result[0].title).toBe("Post One");
   });
 });

@@ -49,6 +49,27 @@ export type QueryMeta = {
   offset: number;
 };
 
+export class QueryResultArray<T> extends Array<T> {
+  total: number;
+  limit: number;
+  offset: number;
+  static get [Symbol.species]() {
+    return Array;
+  }
+  constructor(items: T[], meta: QueryMeta) {
+    super(...items);
+    this.total = meta.total;
+    this.limit = meta.limit;
+    this.offset = meta.offset;
+  }
+  toJSON() {
+    return {
+      data: Array.from(this),
+      meta: { total: this.total, limit: this.limit, offset: this.offset },
+    };
+  }
+}
+
 export type QuerySystemFields = {
   $id: string;
   $connectionType?: ItemData["connectionType"];
@@ -69,10 +90,7 @@ export type ItemWithRelations<Props = {}, Rels = {}> = QuerySystemFields &
   Rels &
   Record<string, unknown>;
 
-export type QueryResult = {
-  data: ItemWithRelations<Record<string, unknown>>[];
-  meta: QueryMeta;
-};
+export type QueryResult = QueryResultArray<ItemWithRelations<Record<string, unknown>>>;
 
 export type SelectableField<Props> = SystemFieldName | (keyof Props & string);
 
@@ -84,10 +102,7 @@ export type PickFields<Props, F> = F extends readonly SelectableField<Props>[]
 
 export type TypedItem<Props> = ItemWithRelations<Props>;
 
-export type TypedQueryResult<Props> = {
-  data: TypedItem<Props>[];
-  meta: QueryMeta;
-};
+export type TypedQueryResult<Props> = QueryResultArray<TypedItem<Props>>;
 
 export type TypedWithEntry<CMap, ChildC extends keyof CMap & string = keyof CMap & string> = {
   collection?: ChildC;
@@ -136,10 +151,9 @@ export type InferRels<CMap, W> = {
   [K in keyof ResolveWithShape<W>]: InferRelValue<CMap, ResolveWithShape<W>[K]>;
 };
 
-export type TypedQueryResultWithRels<Props, Rels = Record<string, unknown>> = {
-  data: ItemWithRelations<Props, Rels>[];
-  meta: QueryMeta;
-};
+export type TypedQueryResultWithRels<Props, Rels = Record<string, unknown>> = QueryResultArray<
+  ItemWithRelations<Props, Rels>
+>;
 
 export type EntryOpts<CMap, C extends keyof CMap & string> = {
   filter?: string | ((self: ItemRef<CMap[C]>) => string);

@@ -1,5 +1,7 @@
+import { QueryResultArray } from "../../domain/query-types";
 import type {
   IncludeOption,
+  QueryMeta,
   QueryOptions,
   QueryResult,
   WithClause,
@@ -70,11 +72,13 @@ export function createHttpTypedClient<_CMap>(baseUrl: string, apiKey?: string): 
     if (collection) {
       const basePath = `${baseUrl}/api/collections/${encodeURIComponent(collection)}/items`;
       const url = `${basePath}?${params}`;
-      return fetchJson<QueryResult>(url);
+      const json = await fetchJson<{ data: any[]; meta: QueryMeta }>(url);
+      return new QueryResultArray(json.data, json.meta);
     }
 
     const url = `${baseUrl}/api/items?${params}`;
-    return fetchJson<QueryResult>(url);
+    const json = await fetchJson<{ data: any[]; meta: QueryMeta }>(url);
+    return new QueryResultArray(json.data, json.meta);
   };
 
   return Object.assign(callable, {
