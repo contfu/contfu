@@ -1,12 +1,16 @@
 import { authenticateApiKey } from "$lib/server/auth";
 import { runWithUser } from "$lib/server/run";
 import { getCollection } from "@contfu/svc-backend/features/collections/getCollection";
+import { listInflowSchemas } from "@contfu/svc-backend/features/collections/listInflowSchemas";
 import { generateTypeScript } from "@contfu/svc-core";
 
 export async function GET({ request, params }: { request: Request; params: { id: string } }) {
   const { userId } = await authenticateApiKey(request, "read");
-  const collection = await runWithUser(userId, getCollection(Number(params.id)));
+  const collectionId = Number(params.id);
+  const collection = await runWithUser(userId, getCollection(collectionId));
   if (!collection) return new Response("Not found", { status: 404 });
+
+  const inflowSchemas = await runWithUser(userId, listInflowSchemas(userId, collectionId));
 
   const ts = generateTypeScript([
     {
@@ -14,6 +18,7 @@ export async function GET({ request, params }: { request: Request; params: { id:
       displayName: collection.displayName,
       schema: collection.schema,
       refTargets: collection.refTargets,
+      inflowSchemas,
     },
   ]);
 

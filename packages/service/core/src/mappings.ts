@@ -179,9 +179,29 @@ function castSchemaValue(sourceValue: SchemaValue, rule: MappingRule): SchemaVal
 }
 
 /**
+ * Derive a schema value from a mapping rule's default.
+ * Used when the source property doesn't exist in the schema (constant injection).
+ *
+ * A constant injection always produces the same literal value for every item in
+ * that inflow, so string/enum defaults are represented as a single-value enum
+ * (`[ENUM, ["topic"]]` → `"topic"`) rather than the broad `string` type.
+ * This enables discriminated union types when multiple inflows inject different
+ * constant values for the same property.
+ */
+function defaultSchemaValue(rule: MappingRule): SchemaValue | undefined {
+  if (!("default" in rule) || rule.default == null) return undefined;
+  if (rule.cast === "number" || typeof rule.default === "number") return PropertyType.NUMBER;
+  if (rule.cast === "boolean" || typeof rule.default === "boolean") return PropertyType.BOOLEAN;
+  // String/enum defaults: represent as a single-value enum literal for precise typing
+  return [PropertyType.ENUM, [String(rule.default)]];
+}
+
+/**
  * Remap a collection schema according to mapping rules.
  * Keys are renamed from source→target; unmapped keys are dropped.
  * If a rule has cast="enum", the schema value is converted from STRING to ENUM.
+ * If the source key is absent but the rule has a default, a synthetic schema entry
+ * is injected (mirrors the runtime applyMappings default-fallback behaviour).
  */
 export function applyMappingsToSchema(
   schema: CollectionSchema,
@@ -195,6 +215,11 @@ export function applyMappingsToSchema(
     if (rule.source in schema) {
       const incoming = castSchemaValue(schema[rule.source], rule);
       result[target] = target in result ? mergeSchemaValues(result[target], incoming) : incoming;
+    } else if ("default" in rule) {
+      const incoming = defaultSchemaValue(rule);
+      if (incoming !== undefined) {
+        result[target] = target in result ? mergeSchemaValues(result[target], incoming) : incoming;
+      }
     }
   }
   return result;

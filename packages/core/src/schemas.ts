@@ -113,6 +113,39 @@ export interface TypeGenerationInput {
   displayName: string;
   schema: CollectionSchema;
   refTargets?: RefTargets;
+  inflowSchemas?: CollectionSchema[];
+}
+
+/**
+ * Render one union member as a block of lines with the given base indent.
+ * baseIndent is the indent for the leading `|` character.
+ * Properties are indented 4 spaces further; closing `}` 2 spaces further.
+ */
+function renderUnionMember(
+  schema: CollectionSchema,
+  refTargets: RefTargets | undefined,
+  refFormat: RefFormat,
+  baseIndent: string,
+  isLast: boolean,
+): string[] {
+  const lines: string[] = [`${baseIndent}| {`];
+  for (const [key, value] of Object.entries(schema)) {
+    lines.push(
+      `${baseIndent}    ${key}: ${propertyTypeToTs(schemaType(value), refTargets?.[key], refFormat, schemaEnumValues(value))};`,
+    );
+  }
+  lines.push(`${baseIndent}  }${isLast ? ";" : ""}`);
+  return lines;
+}
+
+function deduplicateSchemas(schemas: CollectionSchema[]): CollectionSchema[] {
+  const seen = new Set<string>();
+  return schemas.filter((schema) => {
+    const key = JSON.stringify(Object.entries(schema).sort(([a], [b]) => a.localeCompare(b)));
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 export function generateTypeScript(collections: TypeGenerationInput[]): string {
@@ -121,15 +154,23 @@ export function generateTypeScript(collections: TypeGenerationInput[]): string {
   for (const col of collections) {
     const interfaceName = toInterfaceName(col.name);
     lines.push(`/** ${col.displayName} */`);
-    lines.push(`export interface ${interfaceName} {`);
 
-    for (const [key, value] of Object.entries(col.schema)) {
-      lines.push(
-        `  ${key}: ${propertyTypeToTs(schemaType(value), col.refTargets?.[key], "interface", schemaEnumValues(value))};`,
-      );
+    const unique = col.inflowSchemas ? deduplicateSchemas(col.inflowSchemas) : [];
+    if (unique.length >= 2) {
+      lines.push(`export type ${interfaceName} =`);
+      for (let i = 0; i < unique.length; i++) {
+        lines.push(...renderUnionMember(unique[i], col.refTargets, "interface", "  ", i === unique.length - 1));
+      }
+    } else {
+      lines.push(`export interface ${interfaceName} {`);
+      for (const [key, value] of Object.entries(col.schema)) {
+        lines.push(
+          `  ${key}: ${propertyTypeToTs(schemaType(value), col.refTargets?.[key], "interface", schemaEnumValues(value))};`,
+        );
+      }
+      lines.push("}");
     }
 
-    lines.push("}");
     lines.push("");
   }
 
@@ -143,15 +184,22 @@ export function generateConsumerTypes(collections: TypeGenerationInput[]): strin
 
   for (const col of collections) {
     lines.push(`  /** ${col.displayName} */`);
-    lines.push(`  ${col.name}: {`);
 
-    for (const [key, value] of Object.entries(col.schema)) {
-      lines.push(
-        `    ${key}: ${propertyTypeToTs(schemaType(value), col.refTargets?.[key], "lookup", schemaEnumValues(value))};`,
-      );
+    const unique = col.inflowSchemas ? deduplicateSchemas(col.inflowSchemas) : [];
+    if (unique.length >= 2) {
+      lines.push(`  ${col.name}:`);
+      for (let i = 0; i < unique.length; i++) {
+        lines.push(...renderUnionMember(unique[i], col.refTargets, "lookup", "    ", i === unique.length - 1));
+      }
+    } else {
+      lines.push(`  ${col.name}: {`);
+      for (const [key, value] of Object.entries(col.schema)) {
+        lines.push(
+          `    ${key}: ${propertyTypeToTs(schemaType(value), col.refTargets?.[key], "lookup", schemaEnumValues(value))};`,
+        );
+      }
+      lines.push(`  };`);
     }
-
-    lines.push(`  };`);
   }
 
   lines.push("};");

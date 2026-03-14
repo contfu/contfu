@@ -395,6 +395,99 @@ describe("generated types compile-time checks", () => {
   });
 });
 
+describe("generateTypeScript with inflowSchemas", () => {
+  it("single inflow still emits interface", () => {
+    const ts = generateTypeScript([
+      {
+        name: "posts",
+        displayName: "Posts",
+        schema: { title: PropertyType.STRING },
+        inflowSchemas: [{ title: PropertyType.STRING }],
+      },
+    ]);
+    expect(ts).toContain("export interface Posts {");
+    expect(ts).toContain("title: string;");
+  });
+
+  it("two distinct inflows emit union type", () => {
+    const ts = generateTypeScript([
+      {
+        name: "posts",
+        displayName: "Posts",
+        schema: { title: PropertyType.STRING },
+        inflowSchemas: [
+          { title: PropertyType.STRING },
+          { title: PropertyType.STRING, category: PropertyType.STRING },
+        ],
+      },
+    ]);
+    expect(ts).toContain("export type Posts =");
+    expect(ts).toContain("  | {");
+    expect(ts).toContain("    title: string;");
+    expect(ts).toContain("  };");
+    expect(ts).not.toContain("export interface Posts");
+  });
+
+  it("duplicate inflows deduplicate to single member, still emits interface", () => {
+    const ts = generateTypeScript([
+      {
+        name: "posts",
+        displayName: "Posts",
+        schema: { title: PropertyType.STRING },
+        inflowSchemas: [{ title: PropertyType.STRING }, { title: PropertyType.STRING }],
+      },
+    ]);
+    expect(ts).toContain("export interface Posts {");
+    expect(ts).not.toContain("export type Posts =");
+  });
+});
+
+describe("generateConsumerTypes with inflowSchemas", () => {
+  it("single inflow still emits block object", () => {
+    const ts = generateConsumerTypes([
+      {
+        name: "posts",
+        displayName: "Posts",
+        schema: { title: PropertyType.STRING },
+        inflowSchemas: [{ title: PropertyType.STRING }],
+      },
+    ]);
+    expect(ts).toContain("posts: {");
+    expect(ts).toContain("title: string;");
+  });
+
+  it("two distinct inflows emit multi-line union", () => {
+    const ts = generateConsumerTypes([
+      {
+        name: "posts",
+        displayName: "Posts",
+        schema: { title: PropertyType.STRING },
+        inflowSchemas: [
+          { title: PropertyType.STRING },
+          { title: PropertyType.STRING, category: PropertyType.STRING },
+        ],
+      },
+    ]);
+    expect(ts).toContain("posts:");
+    expect(ts).toContain("    | {");
+    expect(ts).toContain("        title: string;");
+    expect(ts).toContain("      };");
+  });
+
+  it("duplicate inflows deduplicate to single member, still emits block object", () => {
+    const ts = generateConsumerTypes([
+      {
+        name: "posts",
+        displayName: "Posts",
+        schema: { title: PropertyType.STRING },
+        inflowSchemas: [{ title: PropertyType.STRING }, { title: PropertyType.STRING }],
+      },
+    ]);
+    expect(ts).toContain("posts: {");
+    expect(ts).not.toContain("posts: { title: string } | {");
+  });
+});
+
 describe("generateTypeScript with merged enum schemas", () => {
   it("emits union of all values when two ENUM schemas are merged before generation", () => {
     const schemaA: CollectionSchema = {

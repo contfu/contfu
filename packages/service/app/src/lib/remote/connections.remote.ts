@@ -14,6 +14,7 @@ import { listFlowsByCollection } from "@contfu/svc-backend/features/flows/listFl
 import { listCollectionsByConnection } from "@contfu/svc-backend/features/collections/listCollectionsByConnection";
 import { getCollection } from "@contfu/svc-backend/features/collections/getCollection";
 import { computeCollectionSchema } from "@contfu/svc-backend/features/collections/computeCollectionSchema";
+import { listInflowSchemas } from "@contfu/svc-backend/features/collections/listInflowSchemas";
 import { encodeId, idSchema } from "@contfu/svc-backend/infra/ids";
 import { generateConsumerTypes, type TypeGenerationInput } from "@contfu/svc-core";
 import { getStreamServer } from "$lib/server/startup";
@@ -310,11 +311,13 @@ export const getConnectionTypes = query(
 
     for (const col of collections) {
       seen.add(col.id);
+      const colInflowSchemas = await runWithUser(userId, listInflowSchemas(userId, col.id));
       allCollections.push({
         name: col.name,
         displayName: col.displayName,
         schema: col.schema,
         refTargets: col.refTargets,
+        inflowSchemas: colInflowSchemas,
       });
 
       // Get flows where this collection is a source to find target collections
@@ -329,11 +332,16 @@ export const getConnectionTypes = query(
               userId,
               computeCollectionSchema(userId, flow.targetId),
             );
+            const inflowSchemas = await runWithUser(
+              userId,
+              listInflowSchemas(userId, flow.targetId),
+            );
             allCollections.push({
               name: target.name,
               displayName: target.displayName,
               schema: Object.keys(schema).length > 0 ? schema : target.schema,
               refTargets: target.refTargets,
+              inflowSchemas,
             });
           }
         }

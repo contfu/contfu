@@ -4,6 +4,7 @@ import { runWithUser } from "$lib/server/run";
 import { listCollectionsByConnection } from "@contfu/svc-backend/features/collections/listCollectionsByConnection";
 import { getCollection } from "@contfu/svc-backend/features/collections/getCollection";
 import { computeCollectionSchema } from "@contfu/svc-backend/features/collections/computeCollectionSchema";
+import { listInflowSchemas } from "@contfu/svc-backend/features/collections/listInflowSchemas";
 import { listFlowsByCollection } from "@contfu/svc-backend/features/flows/listFlowsByCollection";
 import type { TypeGenerationInput } from "@contfu/svc-core";
 
@@ -17,11 +18,13 @@ export async function GET({ request, params }: { request: Request; params: { id:
 
   for (const col of collections) {
     seen.add(col.id);
+    const colInflowSchemas = await runWithUser(userId, listInflowSchemas(userId, col.id));
     result.push({
       name: col.name,
       displayName: col.displayName,
       schema: col.schema,
       refTargets: col.refTargets,
+      inflowSchemas: colInflowSchemas,
     });
 
     const flows = await runWithUser(userId, listFlowsByCollection(col.id));
@@ -31,11 +34,13 @@ export async function GET({ request, params }: { request: Request; params: { id:
         const target = await runWithUser(userId, getCollection(flow.targetId));
         if (target) {
           const schema = await runWithUser(userId, computeCollectionSchema(userId, flow.targetId));
+          const inflowSchemas = await runWithUser(userId, listInflowSchemas(userId, flow.targetId));
           result.push({
             name: target.name,
             displayName: target.displayName,
             schema: Object.keys(schema).length > 0 ? schema : target.schema,
             refTargets: target.refTargets,
+            inflowSchemas,
           });
         }
       }

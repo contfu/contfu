@@ -357,13 +357,48 @@ describe("applyMappingsToSchema", () => {
     expect(applyMappingsToSchema(schema, mappings)).toEqual({ title: T.STRING });
   });
 
-  test("skips rule when source key not in schema", () => {
+  test("skips rule when source key not in schema and no default", () => {
     const schema = { title: T.STRING };
     const mappings: MappingRule[] = [
       { source: "title", target: "title" },
       { source: "missing", target: "gone" },
     ];
     expect(applyMappingsToSchema(schema, mappings)).toEqual({ title: T.STRING });
+  });
+
+  test("injects constant enum entry when source absent but default is set", () => {
+    const schema = { name: T.STRING };
+    const mappings: MappingRule[] = [
+      { source: "name", target: "name" },
+      { source: "", target: "type", cast: "enum", default: "topic" },
+    ];
+    const result = applyMappingsToSchema(schema, mappings);
+    expect(result.name).toBe(T.STRING);
+    expect(Array.isArray(result.type)).toBe(true);
+    expect((result.type as [number, string[]])[0]).toBe(T.ENUM);
+    expect((result.type as [number, string[]])[1]).toEqual(["topic"]);
+  });
+
+  test("injects constant string entry as enum literal when source absent but default is set", () => {
+    const schema = { name: T.STRING };
+    const mappings: MappingRule[] = [
+      { source: "name", target: "name" },
+      { source: "", target: "source", default: "web" },
+    ];
+    const result = applyMappingsToSchema(schema, mappings);
+    expect(Array.isArray(result.source)).toBe(true);
+    expect((result.source as [number, string[]])[0]).toBe(T.ENUM);
+    expect((result.source as [number, string[]])[1]).toEqual(["web"]);
+  });
+
+  test("injects constant number entry when source absent but number default is set", () => {
+    const schema = { name: T.STRING };
+    const mappings: MappingRule[] = [
+      { source: "name", target: "name" },
+      { source: "", target: "priority", default: 1 },
+    ];
+    const result = applyMappingsToSchema(schema, mappings);
+    expect(result.priority).toBe(T.NUMBER);
   });
 
   test("preserves enum tuple when remapping schema keys", () => {
