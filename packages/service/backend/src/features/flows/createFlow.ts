@@ -2,9 +2,9 @@ import { Effect } from "effect";
 import { inArray } from "drizzle-orm";
 import type { BackendFlow, CreateFlowInput } from "../../domain/types";
 import { Database } from "../../effect/services/Database";
-import { DatabaseError, NotFoundError, ValidationError } from "../../effect/errors";
+import { DatabaseError, NotFoundError, QuotaError, ValidationError } from "../../effect/errors";
 import { collectionTable, flowTable, currentUserIdSql } from "../../infra/db/schema";
-import { incrementCount } from "../../infra/nats/quota-kv";
+import { checkQuota, incrementCount } from "../../infra/nats/quota-kv";
 import { unpack } from "msgpackr";
 import type { Flow } from "../../infra/db/schema";
 
@@ -30,6 +30,17 @@ function mapToBackendFlow(flow: Flow): BackendFlow {
 export const createFlow = (userId: number, input: CreateFlowInput) =>
   Effect.gen(function* () {
     const { db } = yield* Database;
+
+    const quota = yield* Effect.promise(() => checkQuota(userId, "flows"));
+    if (!quota.allowed) {
+      yield* Effect.fail(
+        new QuotaError({
+          resource: "flows",
+          current: quota.current,
+          max: quota.max,
+        }),
+      );
+    }
 
     if (input.sourceId === input.targetId) {
       return yield* Effect.fail(

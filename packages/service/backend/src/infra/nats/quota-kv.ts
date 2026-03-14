@@ -3,10 +3,11 @@ import { pack, unpack } from "msgpackr";
 import { eq, count } from "drizzle-orm";
 import type { QuotaState } from "@contfu/svc-core";
 import type { ProductQuota } from "../polar/products";
+import { FREE_QUOTA } from "../polar/products";
 import { getKvManager } from "./kvm";
 import { hasNats } from "./connection";
 import { db } from "../db/db";
-import { connectionTable, collectionTable, flowTable } from "../db/schema";
+import { connectionTable, collectionTable, flowTable, quotaTable } from "../db/schema";
 import { createLogger } from "../logger/index";
 
 const log = createLogger("quota-kv");
@@ -52,12 +53,39 @@ function periodEndToTimestamp(periodEnd: Date | null): number {
   return periodEnd ? Math.floor(periodEnd.getTime() / 1000) : 0;
 }
 
-export async function getQuota(userId: number): Promise<QuotaState | null> {
+async function getQuotaFromKv(userId: number): Promise<QuotaState | null> {
   if (!hasNats()) return null;
   const store = await getQuotaKv();
   const entry = (await store.get(buildKey(userId))) as KvEntry | null;
   if (!entry) return null;
   return decodeState(entry.value);
+}
+
+async function getQuotaFromDb(userId: number): Promise<QuotaState> {
+  const [counts, [quota]] = await Promise.all([
+    countFromDb(userId),
+    db.select().from(quotaTable).where(eq(quotaTable.id, userId)).limit(1),
+  ]);
+
+  const periodEnd = periodEndToTimestamp(quota?.currentPeriodEnd ?? null);
+  const now = Math.floor(Date.now() / 1000);
+  const items = periodEnd !== 0 && now >= periodEnd ? 0 : (quota?.items ?? 0);
+
+  return {
+    connections: counts.connections,
+    maxConnections: quota?.maxConnections ?? FREE_QUOTA.maxConnections,
+    collections: counts.collections,
+    maxCollections: quota?.maxCollections ?? FREE_QUOTA.maxCollections,
+    flows: counts.flows,
+    maxFlows: quota?.maxFlows ?? FREE_QUOTA.maxFlows,
+    items,
+    maxItems: quota?.maxItems ?? FREE_QUOTA.maxItems,
+    periodEnd,
+  };
+}
+
+export async function getQuota(userId: number): Promise<QuotaState> {
+  return (await getQuotaFromKv(userId)) ?? (await getQuotaFromDb(userId));
 }
 
 async function countFromDb(
@@ -261,7 +289,6 @@ export async function checkQuota(
   }
 
   const state = await getQuota(userId);
-  if (!state) return { allowed: true, current: 0, max: -1 };
 
   const maxField = `max${field.charAt(0).toUpperCase()}${field.slice(1)}` as keyof QuotaState;
   const current = state[field] as number;
@@ -281,7 +308,7 @@ export async function isItemQuotaExceeded(userId: number): Promise<boolean> {
 /** Returns periodEnd timestamp (unix seconds) or 0 if not set. */
 export async function getQuotaPeriodEnd(userId: number): Promise<number> {
   const state = await getQuota(userId);
-  return state?.periodEnd ?? 0;
+  return state.periodEnd;
 }
 
 export type { QuotaState };

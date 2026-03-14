@@ -52,24 +52,12 @@ jobs:
   #       run: docker build -t forgejo.rogge.vip/contfu/nats-jetstream:latest .
   #     - name: Push NATS with JetStream
   #       run: docker push forgejo.rogge.vip/contfu/nats-jetstream:latest
-  # build-strapi-test-image:
-  #   name: Build Strapi Test Image
-  #   runs-on: [self-hosted, linux, X64]
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - name: Build Strapi test
-  #       working-directory: docker/strapi-test
-  #       run: docker build -t forgejo.rogge.vip/contfu/strapi-test:latest .
-  #     - name: Push Strapi with JetStream
-  #       run: docker push forgejo.rogge.vip/contfu/strapi-test:latest
-
   e2e:
     name: Build & E2E Tests
     runs-on: [self-hosted, linux, X64]
     # needs:
     #   - build-ci-runner-image
     #   - build-nats-jetstream-image
-    #   - build-strapi-test-image
     timeout-minutes: 10
 
     # Run job in a container to enable automatic service networking
@@ -100,20 +88,6 @@ jobs:
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
-
-      - name: Rebuild better-sqlite3 for Node (Playwright runs under Node)
-        run: |
-          BS3_DIR=$(ls -d node_modules/.bun/better-sqlite3@*/node_modules/better-sqlite3 2>/dev/null | head -1)
-          if [ -z "$BS3_DIR" ]; then
-            BS3_DIR=$(ls -d node_modules/better-sqlite3 2>/dev/null | head -1)
-          fi
-          if [ -z "$BS3_DIR" ]; then
-            echo "better-sqlite3 directory not found"
-            exit 1
-          fi
-          echo "better-sqlite3 dir: $BS3_DIR"
-          cd "$BS3_DIR"
-          npx --yes prebuild-install || npx --yes node-gyp rebuild --release
 
       - name: Build all packages
         run: bun run build

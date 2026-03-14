@@ -113,7 +113,7 @@
       await importCollections({ connectionId: id, items });
       scanned = [];
       selectedRefs = new Set();
-      await collectionsQuery?.refresh();
+      await Promise.all([collectionsQuery?.refresh(), getQuotaUsage().refresh()]);
     } catch (e) {
       scanError = e instanceof Error ? e.message : "Import failed";
     } finally {

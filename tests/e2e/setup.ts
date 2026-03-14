@@ -16,10 +16,8 @@
  *
  * Prepares the environment for E2E tests.
  *
- * Strapi runs via Docker using our custom image (contfu-strapi-test:latest)
+ * Strapi runs via Docker using the published test image.
  * with a pre-configured article content type.
- *
- * Build the test image: cd docker/strapi-test && docker build -t contfu-strapi-test:latest .
  *
  * Run automatically before tests or manually: bun tests/e2e/setup.ts
  */

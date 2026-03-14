@@ -8,6 +8,7 @@
   import { Button, buttonVariants } from "$lib/components/ui/button";
   import { Input } from "$lib/components/ui/input";
   import { Label } from "$lib/components/ui/label";
+  import { getQuotaUsage } from "$lib/remote/billing.remote";
   import * as Popover from "$lib/components/ui/popover";
   import * as Tooltip from "$lib/components/ui/tooltip";
   import * as Select from "$lib/components/ui/select";
@@ -49,6 +50,8 @@
 
   const collection = $derived(await (id !== "new" ? getCollection({ id }) : null));
   const allCollections = $derived(await getCollections());
+  const quota = $derived(await getQuotaUsage());
+  const atFlowLimit = $derived(quota !== null && quota.maxFlows !== -1 && quota.flows >= quota.maxFlows);
 
   // Sync form fields when collection changes (always set, even for non-editable
   // collections, so the form framework's internal state stays valid)
@@ -247,7 +250,10 @@
       if (result.success) {
         toast.success("Inflow added");
         selectedSourceId = "";
-        await getFlowsByCollection({ collectionId: id }).refresh();
+        await Promise.all([
+          getFlowsByCollection({ collectionId: id }).refresh(),
+          getQuotaUsage().refresh(),
+        ]);
       } else {
         toast.error(result.error);
       }
@@ -266,7 +272,10 @@
       if (result.success) {
         toast.success("Outflow added");
         selectedTargetId = "";
-        await getFlowsByCollection({ collectionId: id }).refresh();
+        await Promise.all([
+          getFlowsByCollection({ collectionId: id }).refresh(),
+          getQuotaUsage().refresh(),
+        ]);
       } else {
         toast.error(result.error);
       }
@@ -279,7 +288,10 @@
     try {
       await removeFlow({ id: flowId });
       toast.success("Flow removed");
-      await getFlowsByCollection({ collectionId: id }).refresh();
+      await Promise.all([
+        getFlowsByCollection({ collectionId: id }).refresh(),
+        getQuotaUsage().refresh(),
+      ]);
     } catch {
       toast.error("Failed to remove flow");
     }
@@ -492,6 +504,13 @@
         Collections that feed content into this collection.
       </p>
 
+      {#if atFlowLimit}
+        <p class="mb-3 text-sm text-muted-foreground">
+          Flow limit reached ({quota?.flows}/{quota?.maxFlows}).
+          <a href="/billing" class="underline hover:text-foreground">Upgrade your plan</a> to add more flows.
+        </p>
+      {/if}
+
       <!-- Source flow list -->
       <div class="mb-4 space-y-2">
         {#each groupedSourceFlows as group}
@@ -552,7 +571,7 @@
       {#if availableSourceCollections.length > 0}
         {@const selectedSource = availableSourceCollections.find((c) => c.id === selectedSourceId)}
         <div class="flex items-center gap-2">
-          <Select.Root bind:value={selectedSourceId} type="single">
+          <Select.Root bind:value={selectedSourceId} type="single" disabled={atFlowLimit}>
             <Select.Trigger class="flex-1">
               {#if selectedSource}
                 {#if selectedSource.icon?.type === "emoji"}
@@ -613,7 +632,7 @@
           </Select.Root>
           <Button
             variant="outline"
-            disabled={!selectedSourceId}
+            disabled={!selectedSourceId || atFlowLimit}
             onclick={handleAddSourceFlow}
           >
             <LinkIcon class="size-4" />
@@ -692,6 +711,13 @@
       <p class="mb-3 text-xs text-muted-foreground">
         Collections that receive content from this collection.
       </p>
+
+      {#if atFlowLimit}
+        <p class="mb-3 text-sm text-muted-foreground">
+          Flow limit reached ({quota?.flows}/{quota?.maxFlows}).
+          <a href="/billing" class="underline hover:text-foreground">Upgrade your plan</a> to add more flows.
+        </p>
+      {/if}
 
       <div class="mb-4 space-y-2">
         {#each groupedTargetFlows as group}
@@ -813,7 +839,7 @@
           </Select.Root>
           <Button
             variant="outline"
-            disabled={!selectedTargetId}
+            disabled={!selectedTargetId || atFlowLimit}
             onclick={handleAddTargetFlow}
           >
             <LinkIcon class="size-4" />

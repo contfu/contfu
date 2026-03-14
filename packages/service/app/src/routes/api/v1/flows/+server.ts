@@ -9,6 +9,22 @@ import { getSyncWorkerManager } from "$lib/server/startup";
 import { Effect } from "effect";
 import { pack } from "msgpackr";
 
+type CreateResourceError = {
+  _error: {
+    status: number;
+    body: {
+      message: string;
+      resource?: string;
+      current?: number;
+      max?: number;
+    };
+  };
+};
+
+function isCreateResourceError(result: unknown): result is CreateResourceError {
+  return result != null && typeof result === "object" && "_error" in result;
+}
+
 export async function GET({ request }: { request: Request }) {
   const { userId } = await authenticateApiKey(request, "read");
   const result = await runWithUser(userId, listFlows());
@@ -20,20 +36,38 @@ export async function POST({ request }: { request: Request }) {
   const body = parseBody(CreateFlowSchema, await request.json());
   const result = await runWithUser(
     userId,
-    Effect.catchTag(
-      createFlow(userId, {
-        sourceId: body.sourceId,
-        targetId: body.targetId,
-        filters: body.filters ? Buffer.from(pack(body.filters)) : undefined,
-        schema: body.schema ? Buffer.from(pack(body.schema)) : undefined,
-        includeRef: body.includeRef,
-      }),
-      "ValidationError",
-      (e) => Effect.fail({ _validationError: e.message }),
+    createFlow(userId, {
+      sourceId: body.sourceId,
+      targetId: body.targetId,
+      filters: body.filters ? Buffer.from(pack(body.filters)) : undefined,
+      schema: body.schema ? Buffer.from(pack(body.schema)) : undefined,
+      includeRef: body.includeRef,
+    }).pipe(
+      Effect.catchTag("QuotaError", (e) =>
+        Effect.succeed<CreateResourceError>({
+          _error: {
+            status: 403,
+            body: {
+              message: `${e.resource} quota exceeded`,
+              resource: e.resource,
+              current: e.current,
+              max: e.max,
+            },
+          },
+        }),
+      ),
+      Effect.catchTag("ValidationError", (e) =>
+        Effect.succeed<CreateResourceError>({
+          _error: {
+            status: 400,
+            body: { message: e.message },
+          },
+        }),
+      ),
     ),
   );
-  if (result != null && typeof result === "object" && "_validationError" in result) {
-    return json({ message: result._validationError }, { status: 400 });
+  if (isCreateResourceError(result)) {
+    return json(result._error.body, { status: result._error.status });
   }
 
   // Broadcast updated schema to connected clients and trigger a snapshot so existing

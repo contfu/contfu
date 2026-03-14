@@ -18,6 +18,22 @@ function getBaseUrl(): string {
   return process.env.CONTFU_URL ?? "https://contfu.com";
 }
 
+function getErrorMessageFromText(text: string): string | null {
+  const trimmed = text.trim();
+  if (!trimmed) return null;
+
+  try {
+    const parsed = JSON.parse(trimmed) as { message?: unknown };
+    if (typeof parsed.message === "string" && parsed.message.trim()) {
+      return parsed.message.trim();
+    }
+  } catch {
+    // Fall back to plain text below.
+  }
+
+  return trimmed;
+}
+
 export async function apiFetch(path: string, options?: RequestInit): Promise<Response> {
   const apiKey = getApiKey();
   if (!apiKey) {
@@ -28,27 +44,33 @@ export async function apiFetch(path: string, options?: RequestInit): Promise<Res
   }
 
   const url = `${getBaseUrl()}${path}`;
+  const headers = new Headers(options?.headers);
+  headers.set("Authorization", `Bearer ${apiKey}`);
+
   const res = await fetch(url, {
     ...options,
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      ...options?.headers,
-    },
+    headers,
   });
 
   if (!res.ok) {
+    const text = await res.text();
+    const errorMessage = getErrorMessageFromText(text);
+
     if (res.status === 403) {
-      console.error(
-        "Insufficient permissions. Your API key does not have the required scope for this action.",
-      );
+      if (errorMessage && errorMessage !== "Insufficient permissions") {
+        console.error(errorMessage);
+      } else {
+        console.error(
+          "Insufficient permissions. Your API key does not have the required scope for this action.",
+        );
+      }
       process.exit(1);
     }
     if (res.status === 429) {
       console.error("Rate limit exceeded. Please slow down and try again.");
       process.exit(1);
     }
-    const text = await res.text();
-    console.error(`Error ${res.status}: ${text}`);
+    console.error(`Error ${res.status}: ${errorMessage ?? text}`);
     process.exit(1);
   }
 

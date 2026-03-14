@@ -183,6 +183,7 @@ playwright-report
 .svelte-kit
 test-results/
 packages/service/app/data
+packages/service/backend/:memory:/
 
 # Auto Claude data directory
 .auto-claude/

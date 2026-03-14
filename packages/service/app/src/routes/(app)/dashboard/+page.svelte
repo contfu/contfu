@@ -54,6 +54,8 @@
   const collCount = quotaUsage?.collections ?? stats?.collectionCount ?? collections.length;
   const flowCount = quotaUsage?.flows ?? stats?.flowCount ?? 0;
   const itemCount = quotaUsage?.items ?? stats?.totalItemCount ?? 0;
+  const atConnectionLimit = limits.maxConnections !== -1 && connCount >= limits.maxConnections;
+  const atCollectionLimit = limits.maxCollections !== -1 && collCount >= limits.maxCollections;
 
   const incidentCountQuery = getIncidentCount();
   const incidentCount = $derived(incidentCountQuery?.current ?? 0);
@@ -162,7 +164,7 @@
       <h2 class="text-xs text-muted-foreground">
         <span class="text-primary">$</span> contfu connections list
       </h2>
-      <Button size="sm" href="/connections">
+      <Button size="sm" href="/connections" disabled={atConnectionLimit}>
         <PlusIcon class="size-3" />
         <span class="hidden sm:inline">add</span>
       </Button>
@@ -171,7 +173,9 @@
     {#if connections.length === 0}
       <div class="border border-dashed border-border p-8 text-center">
         <p class="text-xs text-muted-foreground">no connections configured</p>
-        <Button variant="link" href="/connections" class="mt-2 text-xs">add connection</Button>
+        <Button variant="link" href="/connections" class="mt-2 text-xs" disabled={atConnectionLimit}>
+          add connection
+        </Button>
       </div>
     {:else}
       <div class="border border-border">
@@ -230,7 +234,7 @@
       <h2 class="text-xs text-muted-foreground">
         <span class="text-primary">$</span> contfu collections list
       </h2>
-      <Button size="sm" href="/collections/new">
+      <Button size="sm" href="/collections/new" disabled={atCollectionLimit}>
         <PlusIcon class="size-3" />
         <span class="hidden sm:inline">new</span>
       </Button>
@@ -239,7 +243,14 @@
     {#if collections.length === 0}
       <div class="border border-dashed border-border p-8 text-center">
         <p class="text-xs text-muted-foreground">no collections yet</p>
-        <Button variant="link" href="/collections/new" class="mt-2 text-xs">create collection</Button>
+        <Button
+          variant="link"
+          href="/collections/new"
+          class="mt-2 text-xs"
+          disabled={atCollectionLimit}
+        >
+          create collection
+        </Button>
       </div>
     {:else}
       <div class="border border-border">
