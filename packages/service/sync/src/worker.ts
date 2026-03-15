@@ -5,8 +5,12 @@ import { ConnectionType } from "@contfu/core";
 import { createLogger, LoggerLive } from "@contfu/svc-backend/infra/logger/index";
 import { claimJobs } from "@contfu/svc-backend/features/sync-jobs/claimJobs";
 import { completeJob } from "@contfu/svc-backend/features/sync-jobs/completeJob";
-import { failJob } from "@contfu/svc-backend/features/sync-jobs/failJob";
+import {
+  failJob,
+  failJobPermanently,
+} from "@contfu/svc-backend/features/sync-jobs/failJob";
 import { getJobConfig } from "@contfu/svc-backend/features/sync-jobs/getJobConfig";
+import { CryptoError } from "@contfu/svc-backend/effect/errors/index";
 import { Database } from "@contfu/svc-backend/effect/services/Database";
 import { SyncMessageType, type UserSyncItem } from "@contfu/svc-backend/infra/sync-worker/messages";
 import {
@@ -27,6 +31,23 @@ const MIN_FETCH_INTERVAL = Number(process.env.MIN_FETCH_INTERVAL ?? 10_000);
 
 // Worker identity
 const workerId = crypto.randomUUID();
+
+function isCryptoFailure(error: unknown): error is CryptoError {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "_tag" in error &&
+    error._tag === "CryptoError"
+  );
+}
+
+function getJobFailureMessage(error: unknown): string {
+  if (isCryptoFailure(error)) {
+    return "Credentials could not be decrypted. Verify BETTER_AUTH_SECRET or reconnect the source.";
+  }
+
+  return String(error);
+}
 
 // Database layer for the sync worker — uses workerDb directly, no RLS
 const WorkerDbLayer = Layer.succeed(Database)({
@@ -192,7 +213,12 @@ const processJob = (job: { id: number; collectionId: number }) =>
         yield* Effect.logError("Job failed").pipe(
           Effect.annotateLogs({ module: "sync-worker", err: e, jobId: job.id }),
         );
-        yield* failJob(job.id, String(e));
+        if (isCryptoFailure(e)) {
+          yield* failJobPermanently(job.id, getJobFailureMessage(e));
+          return;
+        }
+
+        yield* failJob(job.id, getJobFailureMessage(e));
       }),
     ),
     Effect.withSpan("syncWorker.processJob", {

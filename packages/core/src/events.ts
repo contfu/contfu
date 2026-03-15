@@ -18,6 +18,12 @@ export const EventType = {
 
 export type EventType = (typeof EventType)[keyof typeof EventType];
 
+export const ClientEventType = {
+  ACK: 0,
+} as const;
+
+export type ClientEventType = (typeof ClientEventType)[keyof typeof ClientEventType];
+
 type EventBase<T extends EventType> = {
   type: T;
 };

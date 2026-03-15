@@ -7,6 +7,10 @@ export default defineConfig({
   server: {
     port: 5173,
   },
+  preview: {
+    port: 5173,
+    host: true,
+  },
   ssr: {
     noExternal: process.env.NODE_ENV === "production" ? true : undefined,
     external: ["sharp", "@contfu/media-optimizer"],

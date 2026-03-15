@@ -11,7 +11,7 @@
   "scripts": {
     "dev": "bun kill; bun -b vite dev",
     "build": "bun -b vite build",
-    "preview": "bun -b vite preview",
+    "preview": "bun kill; bun build/index.js",
     "kill": "lsof -ti :5173 | xargs kill -9",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "serve": "bun build/index.js",

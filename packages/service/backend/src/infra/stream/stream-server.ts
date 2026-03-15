@@ -26,9 +26,34 @@ const log = createLogger("stream");
  */
 type StreamConnection = {
   id: string;
-  controller: ReadableStreamDefaultController<Uint8Array>;
+  transport:
+    | {
+        kind: "http";
+        controller: ReadableStreamDefaultController<Uint8Array>;
+      }
+    | {
+        kind: "websocket";
+        socket: Bun.ServerWebSocket<{
+          streamConnectionId?: string;
+        }>;
+        lastPongAt: number;
+      };
   stalledSince: number | null;
 };
+
+function isHttpController(
+  target: ReadableStreamDefaultController<Uint8Array> | StreamConnection,
+): target is ReadableStreamDefaultController<Uint8Array> {
+  return typeof (target as ReadableStreamDefaultController<Uint8Array>).enqueue === "function";
+}
+
+function isHttpTransport(
+  target:
+    | ReadableStreamDefaultController<Uint8Array>
+    | Bun.ServerWebSocket<{ streamConnectionId?: string }>,
+): target is ReadableStreamDefaultController<Uint8Array> {
+  return typeof (target as ReadableStreamDefaultController<Uint8Array>).enqueue === "function";
+}
 
 class ConnectionError extends Error {
   constructor(
@@ -140,7 +165,9 @@ export class StreamServer {
    */
   async finalizeConnection(
     key: Buffer,
-    controller: ReadableStreamDefaultController<Uint8Array>,
+    transport:
+      | ReadableStreamDefaultController<Uint8Array>
+      | Bun.ServerWebSocket<{ streamConnectionId?: string }>,
   ): Promise<string | ConnectionError> {
     this.pruneDeadConnections();
     const consumerKey = key.toString("hex");
@@ -164,7 +191,16 @@ export class StreamServer {
     const connectionId = crypto.randomUUID();
     const connection: StreamConnection = {
       id: connectionId,
-      controller,
+      transport: isHttpTransport(transport)
+        ? {
+            kind: "http",
+            controller: transport,
+          }
+        : {
+            kind: "websocket",
+            socket: transport,
+            lastPongAt: Date.now(),
+          },
       stalledSince: null,
     };
 
@@ -172,6 +208,9 @@ export class StreamServer {
       consumerToConnection.set(consumerKey, connection);
       connectionToConsumer.set(connectionId, consumerKey);
       consumerInfo.set(consumerKey, { userId: client.userId, connectionId: client.id });
+      if (connection.transport.kind === "websocket") {
+        connection.transport.socket.data.streamConnectionId = connectionId;
+      }
 
       // Enqueue sync jobs for source collections feeding this consumer's collections
       const collectionIds = await getConnectionCollectionIds(client.userId, client.id);
@@ -256,6 +295,17 @@ export class StreamServer {
     this.sendBinary(controller, [EventType.COLLECTION_SCHEMA, collectionName, displayName, schema]);
   }
 
+  sendSchemaToConnection(
+    streamConnectionId: string,
+    collectionName: string,
+    displayName: string,
+    schema: CollectionSchema,
+  ) {
+    const connection = this.findConnectionById(streamConnectionId);
+    if (!connection) return;
+    this.sendBinary(connection, [EventType.COLLECTION_SCHEMA, collectionName, displayName, schema]);
+  }
+
   /**
    * Broadcast an arbitrary wire event to all active consumers connected to a
    * specific collection of a given user.
@@ -269,7 +319,7 @@ export class StreamServer {
       const connection = consumerToConnection.get(consumerKey);
       if (!connection) continue;
       try {
-        this.sendBinary(connection.controller, wireEvent);
+        this.sendBinary(connection, wireEvent);
       } catch {
         this.removeConnection(connection.id);
       }
@@ -284,7 +334,7 @@ export class StreamServer {
     const connection = this.findConnectionStream(userId, connectionId);
     if (!connection) return;
     try {
-      this.sendBinary(connection.controller, wireEvent);
+      this.sendBinary(connection, wireEvent);
     } catch {
       this.removeConnection(connection.id);
     }
@@ -314,7 +364,11 @@ export class StreamServer {
     }
 
     try {
-      this.sendBinary(connection.controller, [EventType.PING]);
+      if (connection.transport.kind === "http") {
+        this.sendBinary(connection, [EventType.PING]);
+      } else {
+        connection.transport.socket.ping();
+      }
     } catch {
       this.removeConnection(connectionId);
       return false;
@@ -333,6 +387,12 @@ export class StreamServer {
    */
   sendBinaryEvent(controller: ReadableStreamDefaultController<Uint8Array>, wireEvent: WireEvent) {
     this.sendBinary(controller, wireEvent);
+  }
+
+  sendBinaryEventToConnection(streamConnectionId: string, wireEvent: WireEvent) {
+    const connection = this.findConnectionById(streamConnectionId);
+    if (!connection) return;
+    this.sendBinary(connection, wireEvent);
   }
 
   /**
@@ -404,7 +464,7 @@ export class StreamServer {
         const wireItem = toWireItem(item, collectionName, conn.includeRef);
         const seq = itemSequences.get(item);
         if (seq == null) continue;
-        this.sendBinary(connection.controller, [EventType.ITEM_CHANGED, wireItem, seq]);
+        this.sendBinary(connection, [EventType.ITEM_CHANGED, wireItem, seq]);
       }
     }
   }
@@ -438,7 +498,7 @@ export class StreamServer {
       if (!connection) continue;
       const seq = seqByCollection.get(conn.collectionId);
       if (seq == null) continue;
-      this.sendBinary(connection.controller, [EventType.ITEM_DELETED, new Uint8Array(itemId), seq]);
+      this.sendBinary(connection, [EventType.ITEM_DELETED, new Uint8Array(itemId), seq]);
     }
   }
 
@@ -462,16 +522,58 @@ export class StreamServer {
     this.sendBinary(controller, [type, payload, seq] as WireItemEvent);
   }
 
+  sendIndexedItemToConnection(
+    streamConnectionId: string,
+    seq: number,
+    wireEvent: StoredWireItemEvent,
+    includeRef = true,
+  ) {
+    const connection = this.findConnectionById(streamConnectionId);
+    if (!connection) return;
+    const [type, payload] = wireEvent;
+    if (type === EventType.ITEM_CHANGED && !includeRef) {
+      const [, , id, collection, changedAt, props, content] = payload as WireItem;
+      const changedNoRef: WireItem = [null, null, id, collection, changedAt, props, content];
+      this.sendBinary(connection, [type, changedNoRef, seq]);
+      return;
+    }
+    this.sendBinary(connection, [type, payload, seq] as WireItemEvent);
+  }
+
+  markConnectionPong(streamConnectionId: string): void {
+    const connection = this.findConnectionById(streamConnectionId);
+    if (!connection || connection.transport.kind !== "websocket") return;
+    connection.transport.lastPongAt = Date.now();
+  }
+
   /**
    * Sends a binary message with length prefix.
    * Format: [4-byte big-endian length][msgpack data]
    */
   private sendBinary(
-    controller: ReadableStreamDefaultController<Uint8Array>,
+    target: ReadableStreamDefaultController<Uint8Array> | StreamConnection,
     wireEvent: WireEvent,
   ) {
-    if (controller.desiredSize === null) return;
+    const connection = isHttpController(target) ? null : target;
     const encoded = msgpack(wireEvent);
+
+    if (connection?.transport.kind === "websocket") {
+      const status = connection.transport.socket.sendBinary(encoded);
+      if (status <= 0) {
+        throw new Error("WebSocket send failed");
+      }
+      return;
+    }
+
+    const controller = isHttpController(target)
+      ? target
+      : target.transport.kind === "http"
+        ? target.transport.controller
+        : null;
+    if (controller === null) {
+      throw new Error("Expected HTTP transport");
+    }
+    if (controller.desiredSize === null) return;
 
     // Create length prefix (4 bytes, big-endian)
     const lengthPrefix = new Uint8Array(4);
@@ -492,7 +594,14 @@ export class StreamServer {
   }
 
   private updateConnectionHealth(connection: StreamConnection): boolean {
-    const desiredSize = connection.controller.desiredSize;
+    if (connection.transport.kind === "websocket") {
+      return (
+        connection.transport.socket.readyState === WebSocket.OPEN &&
+        Date.now() - connection.transport.lastPongAt <= CONNECTION_STALL_TIMEOUT_MS
+      );
+    }
+
+    const desiredSize = connection.transport.controller.desiredSize;
     if (desiredSize === null) return false;
 
     if (desiredSize <= 0) {
@@ -514,6 +623,12 @@ export class StreamServer {
       }
     }
     return null;
+  }
+
+  private findConnectionById(streamConnectionId: string): StreamConnection | null {
+    const consumerKey = connectionToConsumer.get(streamConnectionId);
+    if (!consumerKey) return null;
+    return consumerToConnection.get(consumerKey) ?? null;
   }
 
   /**

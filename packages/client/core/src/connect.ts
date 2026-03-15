@@ -1,5 +1,10 @@
 import { EventType } from "@contfu/core";
-import { connectToStream, type StreamEvent, type SyncEvent } from "./stream-client";
+import {
+  connectToStream,
+  type StreamEvent,
+  type StreamTransport,
+  type SyncEvent,
+} from "./stream-client";
 
 type BaseOpts = {
   /** Consumer key. If not provided, CONTFU_API_KEY env var (base64url) is used. */
@@ -8,6 +13,8 @@ type BaseOpts = {
   baseUrl?: string;
   /** Event index to replay from. Events since this index will be replayed before live events. */
   from?: number;
+  /** Explicit transport override. Defaults to runtime selection. */
+  transport?: StreamTransport;
   /** Enable automatic reconnection on disconnect (default: true) */
   reconnect?: boolean;
   /** Maximum delay between reconnection attempts in ms (default: 30000) */
@@ -20,12 +27,13 @@ type OptsWithConnectionEvents = BaseOpts & { connectionEvents: true };
 type OptsWithoutConnectionEvents = BaseOpts & { connectionEvents?: false };
 
 /**
- * Connect to the sync server using binary streaming.
+ * Connect to the sync server using the active sync transport.
  *
  * Returns an async generator that yields events. Connection and
  * reconnection happen automatically in the background.
  *
  * The consumer key can be provided via opts or the `CONTFU_API_KEY` environment variable (base64url-encoded).
+ * Transport defaults to WebSocket in preview/production and HTTP streaming in local dev.
  *
  * @example
  * ```ts

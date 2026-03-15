@@ -1,4 +1,4 @@
-import { EventType } from "./events";
+import { ClientEventType, EventType } from "./events";
 import type { ConnectionType } from "./items";
 import type { CollectionSchema } from "./schemas";
 
@@ -51,6 +51,9 @@ export type WireEvent =
   | WireCollectionRemovedEvent
   | [typeof EventType.SNAPSHOT_START]
   | [typeof EventType.SNAPSHOT_END];
+
+/** Client-to-server WebSocket control messages. */
+export type ClientWireEvent = [typeof ClientEventType.ACK, number];
 
 /**
  * Wire item format as tuple:

@@ -1,7 +1,7 @@
 import { Effect } from "effect";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { Database } from "../../effect/services/Database";
-import { DatabaseError } from "../../effect/errors";
+import { CryptoError, DatabaseError } from "../../effect/errors";
 import { collectionTable, connectionTable } from "../../infra/db/schema";
 import { decryptCredentials } from "../../infra/crypto/credentials";
 
@@ -25,11 +25,12 @@ export interface JobConfig {
 export const getJobConfig = (job: { collectionId: number }) =>
   Effect.gen(function* () {
     const { db } = yield* Database;
-    return yield* Effect.tryPromise({
+    const [row] = yield* Effect.tryPromise({
       try: async () => {
-        const [row] = await db
+        return await db
           .select({
             userId: collectionTable.userId,
+            connectionUserId: connectionTable.userId,
             connectionType: connectionTable.type,
             connectionUrl: connectionTable.url,
             credentials: connectionTable.credentials,
@@ -37,21 +38,39 @@ export const getJobConfig = (job: { collectionId: number }) =>
             collectionId: collectionTable.id,
           })
           .from(collectionTable)
-          .innerJoin(connectionTable, eq(collectionTable.connectionId, connectionTable.id))
+          .innerJoin(
+            connectionTable,
+            and(
+              eq(collectionTable.connectionId, connectionTable.id),
+              eq(collectionTable.userId, connectionTable.userId),
+            ),
+          )
           .where(eq(collectionTable.id, job.collectionId))
           .limit(1);
-
-        if (!row) return null;
-
-        return {
-          userId: row.userId,
-          sourceType: row.connectionType,
-          sourceUrl: row.connectionUrl,
-          credentials: await decryptCredentials(row.userId, row.credentials),
-          collectionRef: row.collectionRef,
-          collectionId: row.collectionId,
-        } satisfies JobConfig;
       },
       catch: (e) => new DatabaseError({ cause: e }),
     });
+
+    if (!row) return null;
+
+    const credentials = yield* Effect.tryPromise({
+      try: async () => await decryptCredentials(row.connectionUserId, row.credentials),
+      catch: (cause) =>
+        new CryptoError({
+          cause: new Error(
+            `Failed to decrypt credentials for collection ${row.collectionId}. Verify BETTER_AUTH_SECRET or reconnect the source.`,
+            { cause },
+          ),
+          operation: "decrypt",
+        }),
+    });
+
+    return {
+      userId: row.userId,
+      sourceType: row.connectionType,
+      sourceUrl: row.connectionUrl,
+      credentials,
+      collectionRef: row.collectionRef,
+      collectionId: row.collectionId,
+    } satisfies JobConfig;
   }).pipe(Effect.withSpan("syncJobs.getJobConfig"));

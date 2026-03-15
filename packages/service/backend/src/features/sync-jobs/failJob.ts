@@ -11,7 +11,11 @@ import { syncJobTable } from "../../infra/db/schema";
  * @param jobId - The job ID that failed
  * @param errorMessage - Description of the failure
  */
-export const failJob = (jobId: number, errorMessage: string) =>
+export const failJob = (
+  jobId: number,
+  errorMessage: string,
+  options: { retryable?: boolean } = {},
+) =>
   Effect.gen(function* () {
     const { db } = yield* Database;
     return yield* Effect.tryPromise({
@@ -24,7 +28,8 @@ export const failJob = (jobId: number, errorMessage: string) =>
 
         if (!job) return;
 
-        const exhausted = job.attempts >= job.maxAttempts;
+        const retryable = options.retryable ?? true;
+        const exhausted = !retryable || job.attempts >= job.maxAttempts;
         await db
           .update(syncJobTable)
           .set({
@@ -39,3 +44,6 @@ export const failJob = (jobId: number, errorMessage: string) =>
       catch: (e) => new DatabaseError({ cause: e }),
     });
   }).pipe(Effect.withSpan("syncJobs.fail"));
+
+export const failJobPermanently = (jobId: number, errorMessage: string) =>
+  failJob(jobId, errorMessage, { retryable: false });

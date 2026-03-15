@@ -5,6 +5,9 @@ import {
   type WorkerToAppMessage,
 } from "./messages";
 import { createLogger } from "../logger/index";
+import { existsSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { and, eq, inArray, isNotNull } from "drizzle-orm";
 
 const log = createLogger("sync-worker-manager");
@@ -72,9 +75,7 @@ export class SyncWorkerManager {
       this.readyResolve = resolve;
     });
 
-    const workerUrl =
-      process.env.SYNC_WORKER_PATH ??
-      new URL("../../../../sync/src/worker.ts", import.meta.url).href;
+    const workerUrl = resolveSyncWorkerUrl();
     this.worker = new Worker(workerUrl, { type: "module" });
 
     this.worker.onmessage = (e) => this.handleMessage(e.data);
@@ -346,6 +347,27 @@ export class SyncWorkerManager {
       this.schemaCallback?.(userId, collectionId, col.name, col.displayName, merged, renames);
     }
   }
+}
+
+function resolveSyncWorkerUrl(): string {
+  if (process.env.SYNC_WORKER_PATH) {
+    return process.env.SYNC_WORKER_PATH;
+  }
+
+  const moduleDir = dirname(fileURLToPath(import.meta.url));
+  const candidates = [
+    resolve(process.cwd(), "../sync/src/worker.ts"),
+    resolve(process.cwd(), "../../service/sync/src/worker.ts"),
+    resolve(moduleDir, "../../../../sync/src/worker.ts"),
+  ];
+
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) {
+      return pathToFileURL(candidate).href;
+    }
+  }
+
+  throw new Error(`Unable to resolve sync worker entrypoint. Tried: ${candidates.join(", ")}`);
 }
 
 async function getTargetCollectionIdsForSource(

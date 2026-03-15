@@ -56,6 +56,10 @@ export default defineConfig({
       allow: ["../..", "../../.."],
     },
   },
+  preview: {
+    port: 8011,
+    host: true,
+  },
   ssr: {
     noExternal: process.env.NODE_ENV === "production" ? true : undefined,
     // Keep svc-backend external so import.meta.url paths (e.g. db/migrations) resolve correctly.
