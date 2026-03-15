@@ -20,6 +20,11 @@ export let dbClient: import("bun").SQL | undefined;
 /** PGlite client reference (test mode only) — used by closeDb() */
 let pgliteClient: { close(): Promise<void> } | undefined;
 
+/** Starts a transaction on the raw DB client and yields a scoped Drizzle instance to the callback. */
+let withTransaction: <T>(
+  fn: (db: PgAsyncDatabase<any, typeof schema, any>) => Promise<T>,
+) => Promise<T>;
+
 /** Close the underlying database connection. Needed in E2E globalSetup to release the file lock. */
 export async function closeDb() {
   if (pgliteClient) {
@@ -46,6 +51,11 @@ async function createDb() {
     pgliteClient = client;
     const database = drizzle({ client, schema });
 
+    withTransaction = (fn) =>
+      (client as any).transaction((txClient: unknown) =>
+        fn(drizzle({ client: txClient as any, schema })),
+      );
+
     // Apply schema via migrations (pushSchema has drizzle-kit import conflict)
     const { migrate } = await import("drizzle-orm/pglite/migrator");
     await migrate(database, { migrationsFolder });
@@ -60,14 +70,17 @@ async function createDb() {
 
   const client = new SQL({
     url: process.env.DATABASE_URL,
-    // Bun SQL only allows transactional use through a single reserved connection
-    // unless callers manually opt into sql.begin/sql.reserved.
-    // Our RLS wrapper uses Drizzle transactions for every user-scoped request.
-    max: 1,
+    // max: 1 removed — pool is now unrestricted; each user-scoped request
+    // reserves a dedicated connection via client.begin() below.
     idleTimeout: 30,
     connectionTimeout: 10,
   });
   dbClient = client;
+
+  withTransaction = (fn) =>
+    client.begin((txClient) =>
+      fn(drizzle({ client: txClient as import("bun").SQL, schema })),
+    ) as Promise<ReturnType<typeof fn> extends Promise<infer U> ? U : never>;
 
   const database = drizzle({ client, schema });
   await migrate(database, { migrationsFolder });
@@ -105,10 +118,13 @@ function getActiveDb(): PgAsyncDatabase<any, typeof schema, any> {
 }
 
 export async function withUserDbContext<T>(userId: number, fn: () => Promise<T>): Promise<T> {
-  return rootDb.transaction(async (tx) => {
-    await tx.execute(sql`SET LOCAL ROLE app_user`);
-    await tx.execute(sql`SET LOCAL app.current_user_id = '${sql.raw(String(userId))}'`);
-    return dbContext.run(tx as PgAsyncDatabase<any, typeof schema, any>, fn);
+  // Reserve a dedicated connection from the pool (production: client.begin,
+  // test: pglite.transaction) and create a scoped Drizzle instance so that
+  // SET LOCAL statements are confined to this transaction.
+  return withTransaction(async (scopedDb) => {
+    await scopedDb.execute(sql`SET LOCAL ROLE app_user`);
+    await scopedDb.execute(sql`SET LOCAL app.current_user_id = '${sql.raw(String(userId))}'`);
+    return dbContext.run(scopedDb, fn);
   });
 }
 

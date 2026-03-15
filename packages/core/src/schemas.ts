@@ -159,7 +159,15 @@ export function generateTypeScript(collections: TypeGenerationInput[]): string {
     if (unique.length >= 2) {
       lines.push(`export type ${interfaceName} =`);
       for (let i = 0; i < unique.length; i++) {
-        lines.push(...renderUnionMember(unique[i], col.refTargets, "interface", "  ", i === unique.length - 1));
+        lines.push(
+          ...renderUnionMember(
+            unique[i],
+            col.refTargets,
+            "interface",
+            "  ",
+            i === unique.length - 1,
+          ),
+        );
       }
     } else {
       lines.push(`export interface ${interfaceName} {`);
@@ -189,7 +197,15 @@ export function generateConsumerTypes(collections: TypeGenerationInput[]): strin
     if (unique.length >= 2) {
       lines.push(`  ${col.name}:`);
       for (let i = 0; i < unique.length; i++) {
-        lines.push(...renderUnionMember(unique[i], col.refTargets, "lookup", "    ", i === unique.length - 1));
+        lines.push(
+          ...renderUnionMember(
+            unique[i],
+            col.refTargets,
+            "lookup",
+            "    ",
+            i === unique.length - 1,
+          ),
+        );
       }
     } else {
       lines.push(`  ${col.name}: {`);

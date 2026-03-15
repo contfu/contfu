@@ -5,10 +5,7 @@ import { ConnectionType } from "@contfu/core";
 import { createLogger, LoggerLive } from "@contfu/svc-backend/infra/logger/index";
 import { claimJobs } from "@contfu/svc-backend/features/sync-jobs/claimJobs";
 import { completeJob } from "@contfu/svc-backend/features/sync-jobs/completeJob";
-import {
-  failJob,
-  failJobPermanently,
-} from "@contfu/svc-backend/features/sync-jobs/failJob";
+import { failJob, failJobPermanently } from "@contfu/svc-backend/features/sync-jobs/failJob";
 import { getJobConfig } from "@contfu/svc-backend/features/sync-jobs/getJobConfig";
 import { CryptoError } from "@contfu/svc-backend/effect/errors/index";
 import { Database } from "@contfu/svc-backend/effect/services/Database";
@@ -34,10 +31,7 @@ const workerId = crypto.randomUUID();
 
 function isCryptoFailure(error: unknown): error is CryptoError {
   return (
-    typeof error === "object" &&
-    error !== null &&
-    "_tag" in error &&
-    error._tag === "CryptoError"
+    typeof error === "object" && error !== null && "_tag" in error && error._tag === "CryptoError"
   );
 }
 

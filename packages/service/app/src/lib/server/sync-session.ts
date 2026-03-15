@@ -232,11 +232,20 @@ export async function runSyncSession({
       if (abortSignal?.aborted) break;
       const wireEvent: [typeof EventType.ITEM_CHANGED, ReturnType<typeof toWireItem>] = [
         EventType.ITEM_CHANGED,
-        toWireItem(item, collectionNames.get(item.collection) ?? String(item.collection), item.includeRef),
+        toWireItem(
+          item,
+          collectionNames.get(item.collection) ?? String(item.collection),
+          item.includeRef,
+        ),
       ];
       const seq = await publishSnapshot(userId, clientConnectionId, wireEvent);
       snapshotItemCount++;
-      server.sendIndexedItemToConnection(streamConnectionId, seq, wireEvent, Boolean(item.includeRef));
+      server.sendIndexedItemToConnection(
+        streamConnectionId,
+        seq,
+        wireEvent,
+        Boolean(item.includeRef),
+      );
     }
 
     server.sendBinaryEventToConnection(streamConnectionId, [EventType.SNAPSHOT_END]);
@@ -298,7 +307,10 @@ export async function runSyncSession({
   const refPolicyByCollection = await getConnectionRefPolicy(info.userId, info.connectionId);
 
   if (replayCollectionIds.length > 0 && replayStartSeq > 0) {
-    log.debug({ userId: info.userId, clientConnectionId: info.connectionId, fromSeq: replayStartSeq }, "Starting replay");
+    log.debug(
+      { userId: info.userId, clientConnectionId: info.connectionId, fromSeq: replayStartSeq },
+      "Starting replay",
+    );
     for await (const { seq, collectionId, event } of replayEvents({
       fromSeq: replayStartSeq,
       userId: info.userId,

@@ -23,9 +23,7 @@ describe("credentials", () => {
     process.env.BETTER_AUTH_SECRET = "test-secret-at-least-32-chars-long";
     const plain = Buffer.from("legacy-token", "utf8");
 
-    await expect(decryptCredentials(1, plain)).rejects.toThrow(
-      "Invalid encrypted data: too short",
-    );
+    await expect(decryptCredentials(1, plain)).rejects.toThrow("Invalid encrypted data: too short");
   });
 
   it("rejects credentials encrypted with a different app secret", async () => {
