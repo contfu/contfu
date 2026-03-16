@@ -7,7 +7,7 @@ export const dbUrl: string = process.env.DATABASE_URL ?? ":memory:";
 
 export function resolveMigrationsFolder(): string | null {
   const byModulePath = join(dirname(fileURLToPath(import.meta.url)), "../../../db/migrations");
-  const byRepoRoot = join(process.cwd(), "packages/client/contfu/db/migrations");
+  const byRepoRoot = join(process.cwd(), "packages/client/client/db/migrations");
   const byPackageRoot = join(process.cwd(), "db/migrations");
 
   const candidates = [byModulePath, byRepoRoot, byPackageRoot];

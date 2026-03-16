@@ -10,7 +10,7 @@
  *   CONTFU_KEY  - Consumer key in base64url format
  */
 
-import { connectToStream } from "@contfu/client";
+import { connectToStream } from "@contfu/connect";
 import { EventType } from "@contfu/core";
 
 // Configuration from environment

@@ -1,4 +1,4 @@
-import { countAssets, countCollections, countItems } from "contfu";
+import { countAssets, countCollections, countItems } from "@contfu/client";
 
 export type DashboardStats = {
   itemCount: number;

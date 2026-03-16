@@ -2,7 +2,7 @@ import type { ItemChangedEvent, ItemDeletedEvent, ItemEvent } from "@contfu/core
 import { EventType } from "@contfu/core";
 
 /**
- * Event handler function type compatible with @contfu/client's handle callback
+ * Event handler function type compatible with @contfu/connect's handle callback
  */
 export type EventHandler = (event: ItemEvent) => Promise<void>;
 
@@ -19,12 +19,12 @@ export interface HookOptions {
 
 /**
  * Creates an event handler function from hook options.
- * The returned handler can be passed to connectTo() from @contfu/client.
+ * The returned handler can be passed to connectTo() from @contfu/connect.
  *
  * @example
  * ```typescript
- * import { connectToSSE } from "@contfu/client";
- * import { createEventHandler } from "contfu";
+ * import { connectToSSE } from "@contfu/connect";
+ * import { createEventHandler } from "@contfu/client";
  *
  * const handler = createEventHandler({
  *   onChanged: async (event) => {

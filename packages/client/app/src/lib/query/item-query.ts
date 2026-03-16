@@ -1,4 +1,4 @@
-import type { ItemPropFilterOperator, QueryItemsInput } from "contfu";
+import type { ItemPropFilterOperator, QueryItemsInput } from "@contfu/client";
 
 function parseMaybeNumber(value: string | null): number | undefined {
   if (!value) return undefined;

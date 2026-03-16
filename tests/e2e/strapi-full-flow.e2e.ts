@@ -14,7 +14,7 @@
  */
 import { expect, test, type Page } from "@playwright/test";
 import { setTimeout as sleep } from "node:timers/promises";
-import { connect, contfu, listCollections, type QueryResult } from "contfu";
+import { connect, contfu, listCollections, type QueryResult } from "@contfu/client";
 import { spawn, type ChildProcess } from "node:child_process";
 
 // Port configuration

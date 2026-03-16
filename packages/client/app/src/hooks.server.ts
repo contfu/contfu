@@ -1,4 +1,4 @@
-import { connect } from "contfu";
+import { connect } from "@contfu/client";
 import { EventType } from "@contfu/core";
 import { mediaStore } from "$lib/server/media";
 import { bufferDataChanged, publishSyncStatus } from "$lib/server/live-updates";

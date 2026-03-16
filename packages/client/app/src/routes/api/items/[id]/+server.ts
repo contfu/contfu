@@ -1,6 +1,6 @@
 import { error, json } from "@sveltejs/kit";
-import { getItemById } from "contfu/src/features/items/getItemById";
-import type { IncludeOption, WithClause } from "contfu/src/domain/query-types";
+import { getItemById } from "@contfu/client/src/features/items/getItemById";
+import type { IncludeOption, WithClause } from "@contfu/client/src/domain/query-types";
 import type { RequestHandler } from "./$types";
 
 export const GET: RequestHandler = async ({ params, url }) => {

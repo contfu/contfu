@@ -149,7 +149,7 @@ describe("findItems", () => {
   });
 
   test("returns all selectable fields by default", () => {
-    const result = findItems({ filter: '$collection = "articles"', limit: 1 });
+    const result = findItems({ filter: '$collection = "articles"', sort: "$changedAt", limit: 1 });
     expect(result[0].title).toBe("Alpha Post");
     expect(result[0].$ref).toBe("blog/tech/alpha");
   });

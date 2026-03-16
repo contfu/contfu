@@ -2,8 +2,8 @@
   "files": [],
   "references": [
     { "path": "packages/core/tsconfig.check.json" },
-    { "path": "packages/client/core/tsconfig.check.json" },
-    { "path": "packages/client/contfu/tsconfig.check.json" },
+    { "path": "packages/client/connect/tsconfig.check.json" },
+    { "path": "packages/client/client/tsconfig.check.json" },
     { "path": "packages/client/bun-file-store/tsconfig.check.json" },
     { "path": "packages/client/media-optimizer/tsconfig.check.json" },
     { "path": "packages/service/core/tsconfig.check.json" },

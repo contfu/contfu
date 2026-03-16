@@ -56,4 +56,4 @@ export {
   type NewItem,
   type NewItemLink,
   type OnAssetProgress,
-} from "contfu";
+} from "@contfu/client";

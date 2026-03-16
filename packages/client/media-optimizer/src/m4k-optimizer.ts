@@ -7,7 +7,7 @@ import type {
   OptimizeImageOpts,
   OptimizeVideoOpts,
   VariantResult,
-} from "contfu";
+} from "@contfu/client";
 import {
   ProcessedFile,
   processAudio,

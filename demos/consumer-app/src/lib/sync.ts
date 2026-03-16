@@ -3,7 +3,7 @@
  * Uses binary HTTP streaming for content synchronization.
  */
 
-import { connectToStream } from "@contfu/client";
+import { connectToStream } from "@contfu/connect";
 import { EventType } from "@contfu/core";
 import { handleItemChangedEvent, handleItemDeletedEvent } from "./state.svelte.js";
 import { env } from "$env/dynamic/private";

@@ -37,7 +37,7 @@ type OptsWithoutConnectionEvents = BaseOpts & { connectionEvents?: false };
  *
  * @example
  * ```ts
- * import { connect } from "@contfu/client";
+ * import { connect } from "@contfu/connect";
  * import { EventType } from "@contfu/core";
  *
  * // Key from CONTFU_API_KEY env var

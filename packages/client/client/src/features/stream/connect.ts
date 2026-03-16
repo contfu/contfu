@@ -1,4 +1,4 @@
-import { connectToStream, type ItemEvent, type StreamEvent } from "@contfu/client";
+import { connectToStream, type ItemEvent, type StreamEvent } from "@contfu/connect";
 import { EventType } from "@contfu/core";
 import { createOrUpdateItem } from "../items/createOrUpdateItem";
 import { deleteItem } from "../items/deleteItem";

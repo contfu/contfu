@@ -9,7 +9,7 @@
   import { parseSourceRef } from "$lib/source-ref";
   import type { Inline } from "@contfu/core";
   import { ExternalLink, Link2Off } from "@lucide/svelte";
-  import type { AssetData, ItemData } from "contfu";
+  import type { AssetData, ItemData } from "@contfu/client";
   import { onMount } from "svelte";
   import type { PageData } from "./$types";
 

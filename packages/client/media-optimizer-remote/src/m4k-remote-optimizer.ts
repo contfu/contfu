@@ -7,7 +7,7 @@ import type {
   OptimizeImageOpts,
   OptimizeVideoOpts,
   VariantResult,
-} from "contfu";
+} from "@contfu/client";
 import { ProcessedFile, processAudio, processImage, processVideo } from "@m4k/client";
 import type { ImageOptions, VideoOptions, AudioOptions } from "@m4k/common";
 import { basename, extname } from "node:path";

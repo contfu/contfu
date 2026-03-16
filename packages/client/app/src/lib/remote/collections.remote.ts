@@ -5,7 +5,7 @@ import {
   listCollections,
   queryItems,
   type QueryItemsInput,
-} from "contfu";
+} from "@contfu/client";
 import {
   generateConsumerTypes,
   type CollectionSchema,

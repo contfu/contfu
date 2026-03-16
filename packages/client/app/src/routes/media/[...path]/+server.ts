@@ -1,6 +1,6 @@
 import { error } from "@sveltejs/kit";
 import { mediaStore } from "$lib/server/media";
-import { convertMedia, getAsset, type MediaConvertOpts, type MediaTransform } from "contfu";
+import { convertMedia, getAsset, type MediaConvertOpts, type MediaTransform } from "@contfu/client";
 import { mimeTypes } from "m4k/lib/util/mime.js";
 import type { RequestHandler } from "./$types";
 

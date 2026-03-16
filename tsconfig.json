@@ -15,8 +15,8 @@
   "references": [
     { "path": "packages/core" },
     { "path": "packages/ui" },
-    { "path": "packages/client/core" },
-    { "path": "packages/client/contfu" },
+    { "path": "packages/client/connect" },
+    { "path": "packages/client/client" },
     { "path": "packages/client/bun-file-store" },
     { "path": "packages/client/media-optimizer" },
     { "path": "packages/service/core" },

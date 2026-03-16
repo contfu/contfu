@@ -20,7 +20,7 @@
     ItemData,
     QueryItemsInput,
     QueryItemsResult,
-  } from "contfu";
+  } from "@contfu/client";
 
   type EditablePropFilter = {
     key: string;

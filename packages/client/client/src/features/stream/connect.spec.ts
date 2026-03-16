@@ -19,7 +19,7 @@ describe("contfu connect", () => {
   });
 
   test("persists sync index from events", async () => {
-    await mock.module("@contfu/client", () => ({
+    await mock.module("@contfu/connect", () => ({
       // eslint-disable-next-line typescript/require-await -- async generator required by AsyncGenerator return type
       connectToStream: async function* () {
         yield {
@@ -56,7 +56,7 @@ describe("contfu connect", () => {
 
     let receivedFrom: number | undefined;
 
-    await mock.module("@contfu/client", () => ({
+    await mock.module("@contfu/connect", () => ({
       // eslint-disable-next-line typescript/require-await -- async generator required by AsyncGenerator return type
       connectToStream: async function* (opts?: { from?: number }) {
         receivedFrom = opts?.from;
@@ -94,7 +94,7 @@ describe("contfu connect", () => {
       Promise.resolve(new Response(Buffer.from("img"), { status: 200 })),
     ) as unknown as typeof fetch;
 
-    await mock.module("@contfu/client", () => ({
+    await mock.module("@contfu/connect", () => ({
       // eslint-disable-next-line typescript/require-await -- async generator required by AsyncGenerator return type
       connectToStream: async function* () {
         yield {
@@ -130,7 +130,7 @@ describe("contfu connect", () => {
   });
 
   test("stores assets as-is without optimizer (default mediaStore)", async () => {
-    await mock.module("@contfu/client", () => ({
+    await mock.module("@contfu/connect", () => ({
       // eslint-disable-next-line typescript/require-await -- async generator required by AsyncGenerator return type
       connectToStream: async function* () {
         yield {
@@ -168,7 +168,7 @@ describe("contfu connect", () => {
       exists: mock(() => Promise.resolve(false)),
     };
 
-    await mock.module("@contfu/client", () => ({
+    await mock.module("@contfu/connect", () => ({
       // eslint-disable-next-line typescript/require-await -- async generator required by AsyncGenerator return type
       connectToStream: async function* () {
         yield {

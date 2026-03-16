@@ -1,5 +1,5 @@
 import { query } from "$app/server";
-import { getAssetsByItem, getItemsByIds, queryItems, type QueryItemsInput } from "contfu";
+import { getAssetsByItem, getItemsByIds, queryItems, type QueryItemsInput } from "@contfu/client";
 import * as v from "valibot";
 
 const propFilterSchema = v.object({

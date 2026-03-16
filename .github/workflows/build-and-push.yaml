@@ -12,6 +12,22 @@ jobs:
     outputs:
       app-changed: ${{ steps.check.outputs.app-changed }}
       app-version: ${{ steps.check.outputs.app-version }}
+      client-app-changed: ${{ steps.check.outputs.client-app-changed }}
+      client-app-version: ${{ steps.check.outputs.client-app-version }}
+      core-changed: ${{ steps.check.outputs.core-changed }}
+      core-version: ${{ steps.check.outputs.core-version }}
+      connect-changed: ${{ steps.check.outputs.connect-changed }}
+      connect-version: ${{ steps.check.outputs.connect-version }}
+      client-changed: ${{ steps.check.outputs.client-changed }}
+      client-version: ${{ steps.check.outputs.client-version }}
+      bun-file-store-changed: ${{ steps.check.outputs.bun-file-store-changed }}
+      bun-file-store-version: ${{ steps.check.outputs.bun-file-store-version }}
+      media-optimizer-changed: ${{ steps.check.outputs.media-optimizer-changed }}
+      media-optimizer-version: ${{ steps.check.outputs.media-optimizer-version }}
+      media-optimizer-remote-changed: ${{ steps.check.outputs.media-optimizer-remote-changed }}
+      media-optimizer-remote-version: ${{ steps.check.outputs.media-optimizer-remote-version }}
+      cli-changed: ${{ steps.check.outputs.cli-changed }}
+      cli-version: ${{ steps.check.outputs.cli-version }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -30,15 +46,46 @@ jobs:
           }
 
           CURRENT_APP_VERSION=$(get_version "packages/service/app/package.json")
-          git checkout HEAD^
-          PREVIOUS_APP_VERSION=$(get_version "packages/service/app/package.json")
+          CURRENT_CLIENT_APP_VERSION=$(get_version "packages/client/app/package.json")
+          CURRENT_CORE_VERSION=$(get_version "packages/core/package.json")
+          CURRENT_CONNECT_VERSION=$(get_version "packages/client/connect/package.json")
+          CURRENT_CLIENT_VERSION=$(get_version "packages/client/client/package.json")
+          CURRENT_BUN_FILE_STORE_VERSION=$(get_version "packages/client/bun-file-store/package.json")
+          CURRENT_MEDIA_OPTIMIZER_VERSION=$(get_version "packages/client/media-optimizer/package.json")
+          CURRENT_MEDIA_OPTIMIZER_REMOTE_VERSION=$(get_version "packages/client/media-optimizer-remote/package.json")
+          CURRENT_CLI_VERSION=$(get_version "packages/cli/package.json")
 
-          app_changed=$([ "$CURRENT_APP_VERSION" != "$PREVIOUS_APP_VERSION" ] && echo "true" || echo "false")
-          echo "app-changed=$app_changed" >> "$GITHUB_OUTPUT"
-          echo "app-version=$CURRENT_APP_VERSION" >> "$GITHUB_OUTPUT"
+          git checkout HEAD^
+
+          PREVIOUS_APP_VERSION=$(get_version "packages/service/app/package.json")
+          PREVIOUS_CLIENT_APP_VERSION=$(get_version "packages/client/app/package.json")
+          PREVIOUS_CORE_VERSION=$(get_version "packages/core/package.json")
+          PREVIOUS_CONNECT_VERSION=$(get_version "packages/client/connect/package.json")
+          PREVIOUS_CLIENT_VERSION=$(get_version "packages/client/client/package.json")
+          PREVIOUS_BUN_FILE_STORE_VERSION=$(get_version "packages/client/bun-file-store/package.json")
+          PREVIOUS_MEDIA_OPTIMIZER_VERSION=$(get_version "packages/client/media-optimizer/package.json")
+          PREVIOUS_MEDIA_OPTIMIZER_REMOTE_VERSION=$(get_version "packages/client/media-optimizer-remote/package.json")
+          PREVIOUS_CLI_VERSION=$(get_version "packages/cli/package.json")
+
+          function check_changed() {
+            local name=$1 current=$2 previous=$3
+            local changed=$([ "$current" != "$previous" ] && echo "true" || echo "false")
+            echo "${name}-changed=$changed" >> "$GITHUB_OUTPUT"
+            echo "${name}-version=$current" >> "$GITHUB_OUTPUT"
+          }
+
+          check_changed "app" "$CURRENT_APP_VERSION" "$PREVIOUS_APP_VERSION"
+          check_changed "client-app" "$CURRENT_CLIENT_APP_VERSION" "$PREVIOUS_CLIENT_APP_VERSION"
+          check_changed "core" "$CURRENT_CORE_VERSION" "$PREVIOUS_CORE_VERSION"
+          check_changed "connect" "$CURRENT_CONNECT_VERSION" "$PREVIOUS_CONNECT_VERSION"
+          check_changed "client" "$CURRENT_CLIENT_VERSION" "$PREVIOUS_CLIENT_VERSION"
+          check_changed "bun-file-store" "$CURRENT_BUN_FILE_STORE_VERSION" "$PREVIOUS_BUN_FILE_STORE_VERSION"
+          check_changed "media-optimizer" "$CURRENT_MEDIA_OPTIMIZER_VERSION" "$PREVIOUS_MEDIA_OPTIMIZER_VERSION"
+          check_changed "media-optimizer-remote" "$CURRENT_MEDIA_OPTIMIZER_REMOTE_VERSION" "$PREVIOUS_MEDIA_OPTIMIZER_REMOTE_VERSION"
+          check_changed "cli" "$CURRENT_CLI_VERSION" "$PREVIOUS_CLI_VERSION"
   push:
     needs: check-version
-    if: needs.check-version.outputs.app-changed == 'true'
+    if: needs.check-version.outputs.app-changed == 'true' && needs.check-version.outputs.app-version != '0.0.0'
     runs-on: ubuntu-latest
     permissions:
       packages: write
@@ -57,3 +104,91 @@ jobs:
           IMAGE_ID=ghcr.io/${{ github.repository_owner }}/$IMAGE_NAME
           VERSION=${{ needs.check-version.outputs.app-version }}
           docker buildx build --push --platform linux/arm64,linux/amd64 . --tag $IMAGE_ID:$VERSION --label "runnumber=${GITHUB_RUN_ID}"
+  push-client:
+    needs: check-version
+    if: needs.check-version.outputs.client-app-changed == 'true' && needs.check-version.outputs.client-app-version != '0.0.0'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+      - name: Set up Docker Buildx
+        id: builder
+        uses: docker/setup-buildx-action@v1
+      - name: Log in to Docker Hub
+        run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
+      - name: Build and push image
+        run: |
+          VERSION=${{ needs.check-version.outputs.client-app-version }}
+          docker buildx build --push --platform linux/arm64,linux/amd64 -f Dockerfile.client . --tag contfu/client:$VERSION
+      - name: Update Docker Hub description
+        uses: peter-evans/dockerhub-description@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: contfu/client
+          readme-filepath: docker/DOCKERHUB_README.md
+  publish-npm:
+    needs: check-version
+    if: >-
+      needs.check-version.outputs.core-changed == 'true' ||
+      needs.check-version.outputs.connect-changed == 'true' ||
+      needs.check-version.outputs.client-changed == 'true' ||
+      needs.check-version.outputs.bun-file-store-changed == 'true' ||
+      needs.check-version.outputs.media-optimizer-changed == 'true' ||
+      needs.check-version.outputs.media-optimizer-remote-changed == 'true' ||
+      needs.check-version.outputs.cli-changed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-node@v4
+        with:
+          registry-url: https://registry.npmjs.org
+      - run: bun install
+      - name: Publish @contfu/core
+        if: needs.check-version.outputs.core-changed == 'true' && needs.check-version.outputs.core-version != '0.0.0'
+        working-directory: packages/core
+        run: |
+          bun pm pack
+          bunx npm publish ./*.tgz --access public --provenance
+      - name: Publish @contfu/connect
+        if: needs.check-version.outputs.connect-changed == 'true' && needs.check-version.outputs.connect-version != '0.0.0'
+        working-directory: packages/client/connect
+        run: |
+          bun pm pack
+          bunx npm publish ./*.tgz --access public --provenance
+      - name: Publish @contfu/client
+        if: needs.check-version.outputs.client-changed == 'true' && needs.check-version.outputs.client-version != '0.0.0'
+        working-directory: packages/client/client
+        run: |
+          bun pm pack
+          bunx npm publish ./*.tgz --access public --provenance
+      - name: Publish @contfu/bun-file-store
+        if: needs.check-version.outputs.bun-file-store-changed == 'true' && needs.check-version.outputs.bun-file-store-version != '0.0.0'
+        working-directory: packages/client/bun-file-store
+        run: |
+          bun pm pack
+          bunx npm publish ./*.tgz --access public --provenance
+      - name: Publish @contfu/media-optimizer
+        if: needs.check-version.outputs.media-optimizer-changed == 'true' && needs.check-version.outputs.media-optimizer-version != '0.0.0'
+        working-directory: packages/client/media-optimizer
+        run: |
+          bun pm pack
+          bunx npm publish ./*.tgz --access public --provenance
+      - name: Publish @contfu/media-optimizer-remote
+        if: needs.check-version.outputs.media-optimizer-remote-changed == 'true' && needs.check-version.outputs.media-optimizer-remote-version != '0.0.0'
+        working-directory: packages/client/media-optimizer-remote
+        run: |
+          bun pm pack
+          bunx npm publish ./*.tgz --access public --provenance
+      - name: Publish @contfu/cli
+        if: needs.check-version.outputs.cli-changed == 'true' && needs.check-version.outputs.cli-version != '0.0.0'
+        working-directory: packages/cli
+        run: |
+          bun run build
+          bun pm pack
+          bunx npm publish ./*.tgz --access public --provenance

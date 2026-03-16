@@ -1,6 +1,6 @@
 {
-  "name": "contfu",
-  "version": "0.0.1",
+  "name": "@contfu/client",
+  "version": "0.0.0",
   "files": [
     "src",
     "dist",
@@ -26,7 +26,7 @@
     "build": "bun run build:lib && bun run build:db:node && bun run build:db:bun"
   },
   "dependencies": {
-    "@contfu/client": "workspace:*",
+    "@contfu/connect": "workspace:*",
     "@contfu/core": "workspace:*",
     "drizzle-orm": "1.0.0-beta.17-67b1795",
     "m4k": "^0.2.4"

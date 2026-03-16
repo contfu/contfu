@@ -22,7 +22,7 @@ export type {
   CollectionRenamedEvent,
   ItemEvent,
   SchemaEvent,
-} from "@contfu/client";
+} from "@contfu/connect";
 export { connect } from "./features/stream/connect";
 export { getSyncIndex } from "./features/sync/getSyncIndex";
 export { setSyncIndex } from "./features/sync/setSyncIndex";

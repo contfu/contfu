@@ -81,23 +81,22 @@ services:
       start_period: 120s
       retries: 5
 
-  demo-app:
+  client:
     build:
       context: .
-      dockerfile: demos/consumer-app/Dockerfile
+      dockerfile: Dockerfile.client
     profiles:
       - demo
     ports:
-      - "4001:4000"
+      - "4001:3000"
     environment:
-      PORT: 4000
       CONTFU_URL: ws://app:3000/contfu
       CONTFU_KEY: ${CONTFU_KEY:-}
     depends_on:
       app:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:4000/health"]
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/"]
       interval: 30s
       timeout: 10s
       start_period: 10s

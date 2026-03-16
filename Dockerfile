@@ -25,9 +25,9 @@ COPY packages/service/backend/package.json /app/packages/service/backend/package
 COPY packages/service/sources/package.json /app/packages/service/sources/package.json
 COPY packages/service/sync/package.json /app/packages/service/sync/package.json
 COPY packages/service/app/package.json /app/packages/service/app/package.json
-COPY packages/client/core/package.json /app/packages/client/core/package.json
+COPY packages/client/connect/package.json /app/packages/client/connect/package.json
 COPY packages/client/app/package.json /app/packages/client/app/package.json
-COPY packages/client/contfu/package.json /app/packages/client/contfu/package.json
+COPY packages/client/client/package.json /app/packages/client/client/package.json
 COPY packages/client/bun-file-store/package.json /app/packages/client/bun-file-store/package.json
 COPY packages/client/media-optimizer/package.json /app/packages/client/media-optimizer/package.json
 COPY packages/client/media-optimizer-remote/package.json /app/packages/client/media-optimizer-remote/package.json
