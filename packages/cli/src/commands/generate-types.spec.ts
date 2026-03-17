@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, afterEach, mock, spyOn } from "bun:test";
-import { connectionTypes } from "./generate-types";
+import { connectionTypes, collectionTypes } from "./generate-types";
 
 const mockFetch = mock<typeof fetch>();
 globalThis.fetch = mockFetch as any;
@@ -18,6 +18,7 @@ function jsonResponse(data: unknown): Response {
 
 let writeSpy: ReturnType<typeof spyOn>;
 let errorSpy: ReturnType<typeof spyOn>;
+let exitSpy: ReturnType<typeof spyOn>;
 
 beforeEach(() => {
   mockFetch.mockReset();
@@ -25,11 +26,15 @@ beforeEach(() => {
   process.env.CONTFU_URL = "http://test.local";
   writeSpy = spyOn(process.stdout, "write").mockImplementation(() => true);
   errorSpy = spyOn(console, "error").mockImplementation(() => {});
+  exitSpy = spyOn(process, "exit").mockImplementation(() => {
+    throw new Error("exit");
+  });
 });
 
 afterEach(() => {
   writeSpy.mockRestore();
   errorSpy.mockRestore();
+  exitSpy.mockRestore();
 });
 
 describe("connectionTypes", () => {
@@ -48,5 +53,37 @@ describe("connectionTypes", () => {
     expect(writeSpy).toHaveBeenCalledTimes(1);
     const output = (writeSpy.mock.calls[0] as unknown[])[0] as string;
     expect(output).toContain("ContfuCollections");
+  });
+
+  test("exits when no collections connected", async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse([]));
+
+    await expect(connectionTypes("7")).rejects.toThrow("exit");
+
+    expect(errorSpy).toHaveBeenCalledWith("No collections connected to this connection");
+  });
+});
+
+describe("collectionTypes", () => {
+  test("fetches types for collection and prints map type", async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse([{ name: "pages", displayName: "Pages", schema: {} }]),
+    );
+
+    await collectionTypes("3");
+
+    const url = (mockFetch.mock.calls[0] as unknown[])[0] as string;
+    expect(url).toBe("http://test.local/api/v1/collections/3/types");
+    expect(writeSpy).toHaveBeenCalledTimes(1);
+    const output = (writeSpy.mock.calls[0] as unknown[])[0] as string;
+    expect(output).toContain("ContfuCollections");
+  });
+
+  test("exits when no types found for collection", async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse([]));
+
+    await expect(collectionTypes("3")).rejects.toThrow("exit");
+
+    expect(errorSpy).toHaveBeenCalledWith("No types found for this collection");
   });
 });

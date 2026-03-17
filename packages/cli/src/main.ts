@@ -10,7 +10,7 @@ import {
   listConnectionTypes,
   type CliValues,
 } from "./commands/resources";
-import { connectionTypes } from "./commands/generate-types";
+import { connectionTypes, collectionTypes } from "./commands/generate-types";
 import { queryItems, countItems } from "./commands/items";
 import { login, logout } from "./commands/login";
 import { status } from "./commands/status";
@@ -29,6 +29,7 @@ Commands:
   <resource> delete <id>            Delete item
   connections types                  List valid connection types
   connections types <id>             Print TypeScript types for a connection's collections
+  collections types <id>             Print TypeScript types for a collection
   items query [options]             Query items from client app
   items count [options]             Count items from client app
 
@@ -149,6 +150,14 @@ async function main() {
         } else {
           await connectionTypes(id);
         }
+        return;
+      }
+      if (cmd === "collections") {
+        if (!id) {
+          console.error("Missing id");
+          process.exit(1);
+        }
+        await collectionTypes(id);
         return;
       }
       console.error(`'types' is not available for ${cmd}`);

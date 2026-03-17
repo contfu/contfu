@@ -12,3 +12,15 @@ export async function connectionTypes(id: string) {
 
   process.stdout.write(generateConsumerTypes(collections));
 }
+
+export async function collectionTypes(id: string) {
+  const res = await apiFetch(`/api/v1/collections/${id}/types`);
+  const collections: TypeGenerationInput[] = await res.json();
+
+  if (collections.length === 0) {
+    console.error("No types found for this collection");
+    process.exit(1);
+  }
+
+  process.stdout.write(generateConsumerTypes(collections));
+}

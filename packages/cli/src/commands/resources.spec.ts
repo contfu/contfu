@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, afterEach, mock, spyOn } from "bun:test";
-import { list, get, create, update, del, isResource } from "./resources";
+import { list, get, create, update, del, isResource, listConnectionTypes } from "./resources";
 
 const mockFetch = mock<typeof fetch>();
 globalThis.fetch = mockFetch as any;
@@ -54,6 +54,31 @@ describe("list", () => {
     expect(url).toBe("http://test.local/api/v1/connections");
     expect(logSpy).toHaveBeenCalledWith(JSON.stringify(data, null, 2));
   });
+
+  test("lists collections in table format with headers and row data", async () => {
+    const data = [{ id: 5, name: "posts", displayName: "Posts", connectionId: 1 }];
+    mockFetch.mockResolvedValueOnce(jsonResponse(data));
+
+    await list("collections", "table");
+
+    const url = (mockFetch.mock.calls[0] as unknown[])[0] as string;
+    expect(url).toBe("http://test.local/api/v1/collections");
+    const calls = logSpy.mock.calls.map((c) => (c as unknown[])[0] as string);
+    expect(calls.some((c) => c.includes("Display Name"))).toBe(true);
+    expect(calls.some((c) => c.includes("Posts"))).toBe(true);
+  });
+
+  test("lists flows in table format showing yes for includeRef", async () => {
+    const data = [{ id: 3, sourceId: 1, targetId: 2, includeRef: true }];
+    mockFetch.mockResolvedValueOnce(jsonResponse(data));
+
+    await list("flows", "table");
+
+    const url = (mockFetch.mock.calls[0] as unknown[])[0] as string;
+    expect(url).toBe("http://test.local/api/v1/flows");
+    const calls = logSpy.mock.calls.map((c) => (c as unknown[])[0] as string);
+    expect(calls.some((c) => c.includes("yes"))).toBe(true);
+  });
 });
 
 describe("get", () => {
@@ -66,6 +91,26 @@ describe("get", () => {
     const url = (mockFetch.mock.calls[0] as unknown[])[0] as string;
     expect(url).toBe("http://test.local/api/v1/connections/1");
     expect(logSpy).toHaveBeenCalledWith(JSON.stringify(data, null, 2));
+  });
+
+  test("fetches collection by id", async () => {
+    const data = { id: 5, displayName: "Posts" };
+    mockFetch.mockResolvedValueOnce(jsonResponse(data));
+
+    await get("collections", "5");
+
+    const url = (mockFetch.mock.calls[0] as unknown[])[0] as string;
+    expect(url).toBe("http://test.local/api/v1/collections/5");
+  });
+
+  test("fetches flow by id", async () => {
+    const data = { id: 7, sourceId: 1, targetId: 2 };
+    mockFetch.mockResolvedValueOnce(jsonResponse(data));
+
+    await get("flows", "7");
+
+    const url = (mockFetch.mock.calls[0] as unknown[])[0] as string;
+    expect(url).toBe("http://test.local/api/v1/flows/7");
   });
 });
 
@@ -102,9 +147,78 @@ describe("create", () => {
     expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("--display-name"));
     exitSpy.mockRestore();
   });
+
+  test("creates collection with displayName from --display-name", async () => {
+    const data = { id: 5, displayName: "My Col" };
+    mockFetch.mockResolvedValueOnce(jsonResponse(data));
+
+    await create("collections", undefined, { "display-name": "My Col" });
+
+    const [url, opts] = mockFetch.mock.calls[0] as unknown[] as [string, RequestInit];
+    expect(url).toBe("http://test.local/api/v1/collections");
+    expect(JSON.parse(opts.body as string)).toMatchObject({ displayName: "My Col" });
+  });
+
+  test("creates flow with sourceId/targetId as numbers", async () => {
+    const data = { id: 1, sourceId: 3, targetId: 4 };
+    mockFetch.mockResolvedValueOnce(jsonResponse(data));
+
+    await create("flows", undefined, { "source-id": "3", "target-id": "4" });
+
+    const [, opts] = mockFetch.mock.calls[0] as unknown[] as [string, RequestInit];
+    const body = JSON.parse(opts.body as string);
+    expect(body.sourceId).toBe(3);
+    expect(body.targetId).toBe(4);
+    expect(typeof body.sourceId).toBe("number");
+    expect(typeof body.targetId).toBe("number");
+  });
+
+  test("creates flow with includeRef: true when --include-ref", async () => {
+    const data = { id: 1, sourceId: 3, targetId: 4, includeRef: true };
+    mockFetch.mockResolvedValueOnce(jsonResponse(data));
+
+    await create("flows", undefined, { "source-id": "3", "target-id": "4", "include-ref": true });
+
+    const [, opts] = mockFetch.mock.calls[0] as unknown[] as [string, RequestInit];
+    expect(JSON.parse(opts.body as string)).toMatchObject({ includeRef: true });
+  });
+
+  test("creates collection with includeRef: false when --no-include-ref", async () => {
+    const data = { id: 5, displayName: "Col" };
+    mockFetch.mockResolvedValueOnce(jsonResponse(data));
+
+    await create("collections", undefined, {
+      "display-name": "Col",
+      "no-include-ref": true,
+    });
+
+    const [, opts] = mockFetch.mock.calls[0] as unknown[] as [string, RequestInit];
+    expect(JSON.parse(opts.body as string)).toMatchObject({ includeRef: false });
+  });
 });
 
 describe("update", () => {
+  test("updates collection with displayName", async () => {
+    const data = { id: 5, displayName: "Renamed" };
+    mockFetch.mockResolvedValueOnce(jsonResponse(data));
+
+    await update("collections", "5", undefined, { "display-name": "Renamed" });
+
+    const [url, opts] = mockFetch.mock.calls[0] as unknown[] as [string, RequestInit];
+    expect(url).toBe("http://test.local/api/v1/collections/5");
+    expect(JSON.parse(opts.body as string)).toMatchObject({ displayName: "Renamed" });
+  });
+
+  test("updates flow with includeRef: true", async () => {
+    const data = { id: 7, includeRef: true };
+    mockFetch.mockResolvedValueOnce(jsonResponse(data));
+
+    await update("flows", "7", undefined, { "include-ref": true });
+
+    const [, opts] = mockFetch.mock.calls[0] as unknown[] as [string, RequestInit];
+    expect(JSON.parse(opts.body as string)).toMatchObject({ includeRef: true });
+  });
+
   test("patches with raw json data", async () => {
     const data = { id: 1, name: "updated" };
     mockFetch.mockResolvedValueOnce(jsonResponse(data));
@@ -140,5 +254,38 @@ describe("del", () => {
     expect(url).toBe("http://test.local/api/v1/connections/42");
     expect(opts.method).toBe("DELETE");
     expect(logSpy).toHaveBeenCalledWith("Deleted connection 42");
+  });
+
+  test("deletes collection and prints confirmation", async () => {
+    mockFetch.mockResolvedValueOnce(new Response(null, { status: 200 }));
+
+    await del("collections", "5");
+
+    expect(logSpy).toHaveBeenCalledWith("Deleted collection 5");
+  });
+
+  test("deletes flow and prints confirmation", async () => {
+    mockFetch.mockResolvedValueOnce(new Response(null, { status: 200 }));
+
+    await del("flows", "12");
+
+    expect(logSpy).toHaveBeenCalledWith("Deleted flow 12");
+  });
+});
+
+describe("listConnectionTypes", () => {
+  test("writes connection type groups separated by blank line", () => {
+    const writeSpy = spyOn(process.stdout, "write").mockImplementation(() => true);
+
+    listConnectionTypes();
+
+    const written = (writeSpy.mock.calls as unknown[][]).map((c) => c[0] as string).join("");
+    writeSpy.mockRestore();
+    // custom types (client, web) come before services (contentful, notion, strapi)
+    expect(written).toContain("client");
+    expect(written).toContain("notion");
+    expect(written).toContain("strapi");
+    // blank line separator between groups
+    expect(written).toContain("\n\n");
   });
 });
