@@ -8,7 +8,7 @@ env:
 jobs:
   check-version:
     name: Check if version changed
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, X64]
     outputs:
       app-changed: ${{ steps.check.outputs.app-changed }}
       app-version: ${{ steps.check.outputs.app-version }}
@@ -86,7 +86,7 @@ jobs:
   push:
     needs: check-version
     if: needs.check-version.outputs.app-changed == 'true' && needs.check-version.outputs.app-version != '0.0.0'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, X64]
     permissions:
       packages: write
       contents: read
@@ -99,7 +99,18 @@ jobs:
         uses: docker/setup-buildx-action@v1
       - name: Log in to registry
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      - name: Check if image exists
+        id: check
+        run: |
+          IMAGE_ID=ghcr.io/${{ github.repository_owner }}/$IMAGE_NAME
+          VERSION=${{ needs.check-version.outputs.app-version }}
+          if docker manifest inspect $IMAGE_ID:$VERSION > /dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
       - name: Build and push image
+        if: steps.check.outputs.exists != 'true'
         run: |
           IMAGE_ID=ghcr.io/${{ github.repository_owner }}/$IMAGE_NAME
           VERSION=${{ needs.check-version.outputs.app-version }}
@@ -107,7 +118,7 @@ jobs:
   push-client:
     needs: check-version
     if: needs.check-version.outputs.client-app-changed == 'true' && needs.check-version.outputs.client-app-version != '0.0.0'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, X64]
     steps:
       - uses: actions/checkout@v4
       - name: Set up QEMU
@@ -117,18 +128,29 @@ jobs:
         uses: docker/setup-buildx-action@v1
       - name: Log in to Docker Hub
         run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
+      - name: Check if image exists
+        id: check
+        run: |
+          VERSION=${{ needs.check-version.outputs.client-app-version }}
+          if docker manifest inspect contfu/client:$VERSION > /dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
       - name: Build and push image
+        if: steps.check.outputs.exists != 'true'
         run: |
           VERSION=${{ needs.check-version.outputs.client-app-version }}
           docker buildx build --push --platform linux/arm64,linux/amd64 -f Dockerfile.client . --tag contfu/client:$VERSION
       - name: Update Docker Hub description
+        if: steps.check.outputs.exists != 'true'
         uses: peter-evans/dockerhub-description@v4
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
           repository: contfu/client
           readme-filepath: docker/DOCKERHUB_README.md
-  publish-npm:
+  build-npm:
     needs: check-version
     if: >-
       needs.check-version.outputs.core-changed == 'true' ||
@@ -138,57 +160,59 @@ jobs:
       needs.check-version.outputs.media-optimizer-changed == 'true' ||
       needs.check-version.outputs.media-optimizer-remote-changed == 'true' ||
       needs.check-version.outputs.cli-changed == 'true'
+    runs-on: [self-hosted, macOS, ARM64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: |
+          bun install
+          bun run build
+      - name: Pack packages
+        run: |
+          bun run --filter '*' pack
+          mkdir -p packed
+          find packages -name "*.tgz" -not -path "*/node_modules/*" -exec mv {} packed/ \;
+      - uses: actions/upload-artifact@v4
+        with:
+          name: npm-packages
+          path: packed/*.tgz
+  publish-npm:
+    needs: [check-version, build-npm]
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-      - uses: actions/setup-node@v4
+      - uses: actions/download-artifact@v4
         with:
-          registry-url: https://registry.npmjs.org
-      - run: bun install
+          name: npm-packages
+          path: packed
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+      - name: Update npm to latest
+        run: npm install -g npm@latest
+      - run: npm config delete //registry.npmjs.org/:_authToken
       - name: Publish @contfu/core
         if: needs.check-version.outputs.core-changed == 'true' && needs.check-version.outputs.core-version != '0.0.0'
-        working-directory: packages/core
-        run: |
-          bun pm pack
-          bunx npm publish ./*.tgz --access public --provenance
+        run: npm publish ./packed/contfu-core-*.tgz --access public
       - name: Publish @contfu/connect
         if: needs.check-version.outputs.connect-changed == 'true' && needs.check-version.outputs.connect-version != '0.0.0'
-        working-directory: packages/client/connect
-        run: |
-          bun pm pack
-          bunx npm publish ./*.tgz --access public --provenance
+        run: npm publish ./packed/contfu-connect-*.tgz --access public
       - name: Publish @contfu/client
         if: needs.check-version.outputs.client-changed == 'true' && needs.check-version.outputs.client-version != '0.0.0'
-        working-directory: packages/client/client
-        run: |
-          bun pm pack
-          bunx npm publish ./*.tgz --access public --provenance
+        run: npm publish ./packed/contfu-client-*.tgz --access public
       - name: Publish @contfu/bun-file-store
         if: needs.check-version.outputs.bun-file-store-changed == 'true' && needs.check-version.outputs.bun-file-store-version != '0.0.0'
-        working-directory: packages/client/bun-file-store
-        run: |
-          bun pm pack
-          bunx npm publish ./*.tgz --access public --provenance
+        run: npm publish ./packed/contfu-bun-file-store-*.tgz --access public
       - name: Publish @contfu/media-optimizer
         if: needs.check-version.outputs.media-optimizer-changed == 'true' && needs.check-version.outputs.media-optimizer-version != '0.0.0'
-        working-directory: packages/client/media-optimizer
-        run: |
-          bun pm pack
-          bunx npm publish ./*.tgz --access public --provenance
+        run: npm publish ./packed/contfu-media-optimizer-[0-9]*.tgz --access public
       - name: Publish @contfu/media-optimizer-remote
         if: needs.check-version.outputs.media-optimizer-remote-changed == 'true' && needs.check-version.outputs.media-optimizer-remote-version != '0.0.0'
-        working-directory: packages/client/media-optimizer-remote
-        run: |
-          bun pm pack
-          bunx npm publish ./*.tgz --access public --provenance
+        run: npm publish ./packed/contfu-media-optimizer-remote-*.tgz --access public
       - name: Publish @contfu/cli
         if: needs.check-version.outputs.cli-changed == 'true' && needs.check-version.outputs.cli-version != '0.0.0'
-        working-directory: packages/cli
-        run: |
-          bun run build
-          bun pm pack
-          bunx npm publish ./*.tgz --access public --provenance
+        run: npm publish ./packed/contfu-cli-*.tgz --access public

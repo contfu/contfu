@@ -1,6 +1,10 @@
 {
   "name": "@contfu/cli",
-  "version": "0.0.0",
+  "version": "0.0.1",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/contfu/contfu.git"
+  },
   "bin": {
     "contfu": "dist/main.js"
   },
@@ -9,6 +13,7 @@
   ],
   "type": "module",
   "scripts": {
+    "pack": "bun pm pack",
     "build": "bun build src/main.ts --outdir dist --target node --minify",
     "contfu": "bun src/main.ts",
     "test": "bun test src/",

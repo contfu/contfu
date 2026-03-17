@@ -1,6 +1,10 @@
 {
   "name": "@contfu/bun-file-store",
-  "version": "0.0.0",
+  "version": "0.0.1",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/contfu/contfu.git"
+  },
   "files": [
     "src"
   ],
@@ -8,6 +12,7 @@
   "main": "src/index.ts",
   "scripts": {
     "test": "bun test",
+    "pack": "bun pm pack",
     "clean": "rm -rf dist .tmp"
   },
   "dependencies": {
