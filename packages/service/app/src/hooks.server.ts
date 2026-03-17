@@ -49,7 +49,34 @@ if (!building) {
   });
 }
 
+const BASIC_AUTH = process.env.BASIC_AUTH;
+
+function checkBasicAuth(request: Request): Response | null {
+  if (!BASIC_AUTH) return null;
+
+  const authorization = request.headers.get("authorization");
+  if (authorization?.startsWith("Basic ")) {
+    const encoded = authorization.slice(6);
+    const decoded = Buffer.from(encoded, "base64").toString("utf-8");
+    if (decoded === BASIC_AUTH) return null;
+  }
+
+  return new Response("Unauthorized", {
+    status: 401,
+    headers: { "WWW-Authenticate": 'Basic realm="Contfu"' },
+  });
+}
+
+const BASIC_AUTH_EXCLUDED = ["/api/", "/webhooks/", "/health"];
+
 export const handle: Handle = async ({ event, resolve }) => {
+  const { pathname } = event.url;
+  const isExcluded = BASIC_AUTH_EXCLUDED.some((prefix) => pathname.startsWith(prefix));
+  if (!isExcluded) {
+    const authError = checkBasicAuth(event.request);
+    if (authError) return authError;
+  }
+
   const bunPlatform = event.platform as Partial<BunPlatform>;
   if (
     event.url.pathname === "/api/sync" &&
