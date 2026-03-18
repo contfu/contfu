@@ -1,5 +1,5 @@
-CREATE ROLE "app_user";--> statement-breakpoint
-CREATE ROLE "service_role";--> statement-breakpoint
+CREATE ROLE IF NOT EXISTS "app_user";--> statement-breakpoint
+CREATE ROLE IF NOT EXISTS "service_role";--> statement-breakpoint
 GRANT USAGE ON SCHEMA public TO "app_user", "service_role";--> statement-breakpoint
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO "app_user", "service_role";--> statement-breakpoint
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO "app_user", "service_role";--> statement-breakpoint
