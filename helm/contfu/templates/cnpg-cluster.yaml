@@ -13,6 +13,8 @@ spec:
     initdb:
       database: {{ .Values.postgresql.database }}
       owner: {{ .Values.postgresql.owner }}
+      postInitSQL:
+        - CREATE ROLE "app_user"
 
   storage:
     size: {{ .Values.postgresql.storage.size }}

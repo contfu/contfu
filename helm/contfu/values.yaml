@@ -31,6 +31,8 @@ secrets:
   # Polar billing
   polarAccessToken: ""
   polarWebhookSecret: ""
+  # Basic auth (optional, format: "user:password")
+  basicAuth: ""
 
 ## Service account
 serviceAccount:
