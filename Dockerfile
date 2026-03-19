@@ -11,9 +11,25 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 FROM build-base AS build
+COPY package.json bun.lock ./
+COPY packages/core/package.json packages/core/
+COPY packages/service/core/package.json packages/service/core/
+COPY packages/service/backend/package.json packages/service/backend/
+COPY packages/service/sources/package.json packages/service/sources/
+COPY packages/service/sync/package.json packages/service/sync/
+COPY packages/service/app/package.json packages/service/app/
+COPY packages/client/connect/package.json packages/client/connect/
+COPY packages/client/app/package.json packages/client/app/
+COPY packages/client/client/package.json packages/client/client/
+COPY packages/client/bun-file-store/package.json packages/client/bun-file-store/
+COPY packages/client/media-optimizer/package.json packages/client/media-optimizer/
+COPY packages/client/media-optimizer-remote/package.json packages/client/media-optimizer-remote/
+COPY packages/cli/package.json packages/cli/
+COPY packages/ui/package.json packages/ui/
+COPY demos/consumer-app/package.json demos/consumer-app/
+RUN bun install --ignore-scripts
 COPY . .
-RUN bun install --ignore-scripts && \
-    bun run -F '@contfu/svc-backend' build && \
+RUN bun run -F '@contfu/svc-backend' build && \
     bun run -F '@contfu/svc-app' build
 
 FROM base AS deps

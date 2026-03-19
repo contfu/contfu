@@ -1,11 +1,7 @@
-import type { PageServerLoad } from "./$types";
 import { redirect } from "@sveltejs/kit";
+import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = ({ locals }) => {
-  if (!process.env.POLAR_ACCESS_TOKEN) {
-    throw redirect(302, "/under-construction");
-  }
-
   if (locals.user) {
     throw redirect(302, "/dashboard");
   }
