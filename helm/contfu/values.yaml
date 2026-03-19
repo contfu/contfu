@@ -17,6 +17,9 @@ app:
   betterAuthUrl: ""
   migrationsPath: /app/packages/service/backend/db/migrations
   syncWorkerPath: /app/packages/service/sync/src/worker.ts
+  # SMTP server (non-sensitive)
+  smtpHost: ""
+  smtpPort: "465"
 
 ## Secrets configuration
 ## Set existingSecret to use a pre-created Secret instead of the chart-managed one
@@ -33,6 +36,9 @@ secrets:
   polarWebhookSecret: ""
   # Basic auth (optional, format: "user:password")
   basicAuth: ""
+  # SMTP credentials
+  smtpUser: ""
+  smtpPass: ""
 
 ## Service account
 serviceAccount:

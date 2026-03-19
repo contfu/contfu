@@ -62,6 +62,8 @@ All values are documented in [`values.yaml`](./values.yaml). Key sections:
 | `app.betterAuthUrl`  | BetterAuth callback URL (defaults to `origin`) | `""`                                          |
 | `app.migrationsPath` | Path to DB migrations inside the container     | `/app/packages/service/backend/db/migrations` |
 | `app.syncWorkerPath` | Path to sync worker inside the container       | `/app/packages/service/sync/src/worker.ts`    |
+| `app.smtpHost`       | SMTP server hostname (`SMTP_HOST`)             | `""`                                          |
+| `app.smtpPort`       | SMTP server port (`SMTP_PORT`)                 | `"465"`                                       |
 
 ### Secrets
 
@@ -75,6 +77,9 @@ All values are documented in [`values.yaml`](./values.yaml). Key sections:
 | `secrets.githubClientSecret` | GitHub OAuth client secret                            | `""`    |
 | `secrets.polarAccessToken`   | Polar billing API token                               | `""`    |
 | `secrets.polarWebhookSecret` | Polar webhook secret                                  | `""`    |
+| `secrets.basicAuth`          | HTTP basic auth credentials (`user:password`)         | `""`    |
+| `secrets.smtpUser`           | SMTP username (`SMTP_USER`)                           | `""`    |
+| `secrets.smtpPass`           | SMTP password (`SMTP_PASS`)                           | `""`    |
 
 ### Ingress
 

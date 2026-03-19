@@ -10,3 +10,7 @@ data:
   MIGRATIONS_PATH: {{ .Values.app.migrationsPath | quote }}
   SYNC_WORKER_PATH: {{ .Values.app.syncWorkerPath | quote }}
   NATS_SERVER: {{ printf "nats://%s:4222" (include "contfu.nats.fullname" .) | quote }}
+  {{- if .Values.app.smtpHost }}
+  SMTP_HOST: {{ .Values.app.smtpHost | quote }}
+  SMTP_PORT: {{ .Values.app.smtpPort | quote }}
+  {{- end }}
