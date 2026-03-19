@@ -1,8 +1,8 @@
 import { building } from "$app/environment";
 import { auth } from "$lib/server/auth";
 import { getRuntime } from "$lib/server/effect-runtime";
-import { authenticateSyncRequest, runSyncSession } from "$lib/server/sync-session";
 import { getStreamServer, initialize, shutdown } from "$lib/server/startup";
+import { authenticateSyncRequest, runSyncSession } from "$lib/server/sync-session";
 import { ClientEventType, type ClientWireEvent } from "@contfu/core";
 import { closeDb } from "@contfu/svc-backend/infra/db/db";
 import { createLogger } from "@contfu/svc-backend/infra/logger/index";
@@ -67,7 +67,7 @@ function checkBasicAuth(request: Request): Response | null {
   });
 }
 
-const BASIC_AUTH_EXCLUDED = ["/api/", "/webhooks/", "/health"];
+const BASIC_AUTH_EXCLUDED = ["/api/", "/polar/", "/webhooks/", "/health"];
 
 export const handle: Handle = async ({ event, resolve }) => {
   const { pathname } = event.url;

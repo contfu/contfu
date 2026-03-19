@@ -15,7 +15,7 @@
         "@contfu/connect": "workspace:*",
         "@contfu/core": "workspace:*",
         "@playwright/test": "1.58.2",
-        "@types/bun": "^1.3.9",
+        "@types/bun": "^1.3.11",
         "@typescript/native-preview": "^7.0.0-dev.20260211.1",
         "oxfmt": "^0.31.0",
         "oxlint": "^1.46.0",
@@ -28,7 +28,7 @@
     },
     "demos/consumer-app": {
       "name": "demo-consumer-app",
-      "version": "0.0.0",
+      "version": "0.0.1",
       "dependencies": {
         "@contfu/connect": "workspace:*",
         "@contfu/core": "workspace:*",
@@ -37,7 +37,7 @@
       "devDependencies": {
         "@sveltejs/kit": "^2.50.2",
         "@sveltejs/vite-plugin-svelte": "^6.2.4",
-        "@types/bun": "^1.3.9",
+        "@types/bun": "^1.3.11",
         "svelte": "^5.50.2",
         "svelte-adapter-bun": "^1.0.1",
         "svelte-check": "^4.3.6",
@@ -47,7 +47,7 @@
     },
     "packages/cli": {
       "name": "@contfu/cli",
-      "version": "0.0.0",
+      "version": "0.0.1",
       "bin": {
         "contfu": "dist/main.js",
       },
@@ -57,7 +57,7 @@
     },
     "packages/client/app": {
       "name": "@contfu/app",
-      "version": "0.0.0",
+      "version": "0.0.2",
       "dependencies": {
         "@ffmpeg-installer/ffmpeg": "1.1.0",
         "sharp": "0.34.5",
@@ -75,7 +75,7 @@
         "@tailwindcss/postcss": "^4.1.18",
         "@tailwindcss/vite": "^4.1.18",
         "@tanstack/table-core": "^8.21.3",
-        "@types/bun": "^1.3.9",
+        "@types/bun": "^1.3.11",
         "autoprefixer": "^10.4.24",
         "bits-ui": "^2.15.5",
         "clsx": "^2.1.1",
@@ -101,13 +101,13 @@
     },
     "packages/client/bun-file-store": {
       "name": "@contfu/bun-file-store",
-      "version": "0.0.0",
+      "version": "0.0.1",
       "dependencies": {
         "sharp": "^0.34.5",
       },
       "devDependencies": {
         "@contfu/client": "workspace:*",
-        "@types/bun": "^1.3.9",
+        "@types/bun": "^1.3.11",
       },
       "peerDependencies": {
         "typescript": "^5.9.3",
@@ -115,7 +115,7 @@
     },
     "packages/client/client": {
       "name": "@contfu/client",
-      "version": "0.0.0",
+      "version": "0.0.1",
       "dependencies": {
         "@contfu/connect": "workspace:*",
         "@contfu/core": "workspace:*",
@@ -123,7 +123,7 @@
         "m4k": "^0.2.4",
       },
       "devDependencies": {
-        "@types/bun": "^1.3.9",
+        "@types/bun": "^1.3.11",
         "drizzle-kit": "1.0.0-beta.17-67b1795",
         "ts-essentials": "^10.1.1",
       },
@@ -133,13 +133,13 @@
     },
     "packages/client/connect": {
       "name": "@contfu/connect",
-      "version": "0.0.0",
+      "version": "0.0.1",
       "dependencies": {
         "@contfu/core": "workspace:*",
         "msgpackr": "^1.11.8",
       },
       "devDependencies": {
-        "@types/bun": "^1.3.9",
+        "@types/bun": "^1.3.11",
         "ts-essentials": "^10.1.1",
       },
       "optionalDependencies": {
@@ -151,7 +151,7 @@
     },
     "packages/client/media-optimizer": {
       "name": "@contfu/media-optimizer",
-      "version": "0.0.0",
+      "version": "0.0.1",
       "dependencies": {
         "@ffmpeg-installer/ffmpeg": "^1.1.0",
         "m4k": "^0.2.4",
@@ -161,7 +161,7 @@
       "devDependencies": {
         "@contfu/bun-file-store": "workspace:*",
         "@contfu/client": "workspace:*",
-        "@types/bun": "^1.3.9",
+        "@types/bun": "^1.3.11",
       },
       "peerDependencies": {
         "typescript": "^5.9.3",
@@ -169,13 +169,13 @@
     },
     "packages/client/media-optimizer-remote": {
       "name": "@contfu/media-optimizer-remote",
-      "version": "0.0.0",
+      "version": "0.0.1",
       "dependencies": {
         "@m4k/client": "^0.2.4",
       },
       "devDependencies": {
         "@contfu/client": "workspace:*",
-        "@types/bun": "^1.3.9",
+        "@types/bun": "^1.3.11",
       },
       "peerDependencies": {
         "typescript": "^5.9.3",
@@ -183,14 +183,14 @@
     },
     "packages/core": {
       "name": "@contfu/core",
-      "version": "0.0.0",
+      "version": "0.0.1",
       "devDependencies": {
         "typescript": "^5.9.3",
       },
     },
     "packages/service/app": {
       "name": "@contfu/svc-app",
-      "version": "0.0.0",
+      "version": "0.0.5",
       "dependencies": {
         "@contfu/core": "workspace:*",
         "@contfu/svc-backend": "workspace:*",
@@ -221,7 +221,7 @@
         "@tailwindcss/vite": "^4.1.18",
         "@testing-library/jest-dom": "^6.9.1",
         "@testing-library/svelte": "^5.3.1",
-        "@types/bun": "^1.3.9",
+        "@types/bun": "^1.3.11",
         "autoprefixer": "^10.4.24",
         "better-auth": "^1.4.18",
         "drizzle-orm": "1.0.0-beta.15-859cf75",
@@ -242,7 +242,7 @@
     },
     "packages/service/backend": {
       "name": "@contfu/svc-backend",
-      "version": "0.0.0",
+      "version": "0.0.1",
       "dependencies": {
         "@contfu/core": "workspace:*",
         "@contfu/svc-core": "workspace:*",
@@ -273,7 +273,7 @@
     },
     "packages/service/core": {
       "name": "@contfu/svc-core",
-      "version": "0.0.0",
+      "version": "0.0.1",
       "dependencies": {
         "@contfu/core": "workspace:*",
         "valibot": "^1.2.0",
@@ -284,7 +284,7 @@
     },
     "packages/service/sources": {
       "name": "@contfu/svc-sources",
-      "version": "0.0.0",
+      "version": "0.0.1",
       "dependencies": {
         "@contfu/core": "workspace:*",
         "@contfu/svc-core": "workspace:*",
@@ -294,7 +294,7 @@
         "sitemapper": "^4.0.2",
       },
       "devDependencies": {
-        "@types/bun": "^1.3.9",
+        "@types/bun": "^1.3.11",
         "testcontainers": "^11.11.0",
         "ts-essentials": "^10.1.1",
       },
@@ -304,7 +304,7 @@
     },
     "packages/service/sync": {
       "name": "@contfu/svc-sync",
-      "version": "0.0.0",
+      "version": "0.0.1",
       "dependencies": {
         "@contfu/core": "workspace:*",
         "@contfu/svc-backend": "workspace:*",
@@ -316,7 +316,7 @@
       "devDependencies": {
         "@electric-sql/pglite": "^0.3.15",
         "@sinonjs/fake-timers": "^15.1.0",
-        "@types/bun": "^1.3.9",
+        "@types/bun": "^1.3.11",
         "@types/sinonjs__fake-timers": "^15.0.1",
         "testcontainers": "^11.11.0",
         "ts-essentials": "^10.1.1",
@@ -327,7 +327,7 @@
     },
     "packages/ui": {
       "name": "@contfu/ui",
-      "version": "0.0.0",
+      "version": "0.0.1",
       "dependencies": {
         "clsx": "^2.1.1",
         "tailwind-merge": "^3.0.0",
@@ -1034,7 +1034,7 @@
 
     "@types/aria-query": ["@types/aria-query@5.0.4", "", {}, "sha512-rfT93uj5s0PRL7EzccGMs3brplhcrghnDoV26NqKhCAS1hVo+WdNsPvE/yb6ilfr5hi2MEk6d5EWJTKdxg8jVw=="],
 
-    "@types/bun": ["@types/bun@1.3.9", "", { "dependencies": { "bun-types": "1.3.9" } }, "sha512-KQ571yULOdWJiMH+RIWIOZ7B2RXQGpL1YQrBtLIV3FqDcCu6FsbFUBwhdKUlCKUpS3PJDsHlJ1QKlpxoVR+xtw=="],
+    "@types/bun": ["@types/bun@1.3.11", "", { "dependencies": { "bun-types": "1.3.11" } }, "sha512-5vPne5QvtpjGpsGYXiFyycfpDF2ECyPcTSsFBMa0fraoxiQyMJ3SmuQIGhzPg2WJuWxVBoxWJ2kClYTcw/4fAg=="],
 
     "@types/cacheable-request": ["@types/cacheable-request@6.0.3", "", { "dependencies": { "@types/http-cache-semantics": "*", "@types/keyv": "^3.1.4", "@types/node": "*", "@types/responselike": "^1.0.0" } }, "sha512-IQ3EbTzGxIigb1I3qPZc1rWJnH0BmSKv5QYTalEwweFvyBDLSAe24zP0le/hyi7ecGfZVlIVAg4BZqb8WBwKqw=="],
 
@@ -1184,7 +1184,7 @@
 
     "buildcheck": ["buildcheck@0.0.7", "", {}, "sha512-lHblz4ahamxpTmnsk+MNTRWsjYKv965MwOrSJyeD588rR3Jcu7swE+0wN5F+PbL5cjgu/9ObkhfzEPuofEMwLA=="],
 
-    "bun-types": ["bun-types@1.3.9", "", { "dependencies": { "@types/node": "*" } }, "sha512-+UBWWOakIP4Tswh0Bt0QD0alpTY8cb5hvgiYeWCMet9YukHbzuruIEeXC2D7nMJPB12kbh8C7XJykSexEqGKJg=="],
+    "bun-types": ["bun-types@1.3.11", "", { "dependencies": { "@types/node": "*" } }, "sha512-1KGPpoxQWl9f6wcZh57LvrPIInQMn2TQ7jsgxqpRzg+l0QPOFvJVH7HmvHo/AiPgwXy+/Thf6Ov3EdVn1vOabg=="],
 
     "bundle-name": ["bundle-name@4.1.0", "", { "dependencies": { "run-applescript": "^7.0.0" } }, "sha512-tjwM5exMg6BGRI+kNmTntNsvdZS1X8BFYS6tnJ2hdH0kVxM6/eVZ2xy+FqStSWvYmtfFMDLIxurorHwDKfDz5Q=="],
 

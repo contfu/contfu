@@ -32,9 +32,8 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Bun
-RUN curl -fsSL https://bun.sh/install | bash -s -- "bun-v1.3.10"
-ENV PATH="/root/.bun/bin:$PATH"
+# Install Bun to a system-wide location so any user can run it
+RUN curl -fsSL https://bun.sh/install | BUN_INSTALL=/usr/local bash -s -- "bun-v1.3.11"
 
 # Install Playwright dependencies and browsers
 # Using npx since bunx sometimes has issues with playwright install
@@ -57,8 +56,9 @@ RUN apt-get update && apt-get install -y \
     libatspi2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Playwright browsers (Chromium only for speed)
-RUN bunx playwright install chromium
+# Install Playwright browsers to a system-wide path readable by any user
+ENV PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright
+RUN bunx playwright install chromium && chmod -R a+rx /opt/ms-playwright
 
 # Pre-install project dependencies to warm Bun cache
 # Copy package files from build context (built from repo root)
@@ -67,5 +67,17 @@ RUN cd /tmp/contfu && bun install && rm -rf /tmp/contfu
 
 # Verify installations
 RUN node --version && bun --version && docker --version
+
+# Run as the host runner user (UID 1000) so files written to the mounted
+# workspace are owned by the runner user, not root.
+# Ubuntu 24.04 ships an 'ubuntu' user at UID 1000; rename it rather than
+# creating a new user (which would fail with "UID is not unique").
+RUN existing=$(getent passwd 1000 | cut -d: -f1); \
+    if [ -n "$existing" ] && [ "$existing" != "runner" ]; then \
+        usermod -l runner -d /home/runner -m "$existing"; \
+    elif [ -z "$existing" ]; then \
+        useradd -u 1000 -m -s /bin/bash runner; \
+    fi
+USER runner
 
 WORKDIR /workspace

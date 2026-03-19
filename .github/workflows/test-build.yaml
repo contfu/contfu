@@ -30,35 +30,13 @@ jobs:
       - name: Run unit tests
         run: bun run test
 
-  # Build custom service images needed for E2E testing
-  # build-ci-runner-image:
-  #   name: Build CI Runner Image
-  #   runs-on: [self-hosted, linux, X64]
-  #   steps:
-  #     - uses: actions/checkout@v4
-
-  #     - name: Build CI Runner
-  #       run: docker build -t forgejo.rogge.vip/contfu/ci-runner:latest -f docker/ci-runner/Dockerfile .
-  #     - name: Push CI Runner
-  #       run: docker push forgejo.rogge.vip/contfu/ci-runner:latest
-  # build-nats-jetstream-image:
-  #   name: Build NATS with JetStream Image
-  #   runs-on: [self-hosted, linux, X64]
-  #   steps:
-  #     - uses: actions/checkout@v4
-
-  #     - name: Build NATS with JetStream
-  #       working-directory: docker/nats-jetstream
-  #       run: docker build -t forgejo.rogge.vip/contfu/nats-jetstream:latest .
-  #     - name: Push NATS with JetStream
-  #       run: docker push forgejo.rogge.vip/contfu/nats-jetstream:latest
   e2e:
     name: Build & E2E Tests
     runs-on: [self-hosted, linux, X64]
     # needs:
     #   - build-ci-runner-image
     #   - build-nats-jetstream-image
-    timeout-minutes: 10
+    timeout-minutes: 20
 
     # Run job in a container to enable automatic service networking
     container:
@@ -76,12 +54,10 @@ jobs:
           --health-retries 5
 
     env:
-      # GitHub Actions overrides HOME to /github/home inside containers,
-      # but the CI runner image installed tools (Playwright, Bun) under /root.
-      HOME: /root
       E2E_FULL_FLOW: true
       NATS_SERVER: nats://nats:4222
       CI: true
+      PLAYWRIGHT_BROWSERS_PATH: /opt/ms-playwright
 
     steps:
       - uses: actions/checkout@v4
@@ -104,7 +80,7 @@ jobs:
   build:
     name: Build Docker image
     timeout-minutes: 8
-    runs-on: [self-hosted, macOS, ARM64]
+    runs-on: [self-hosted, linux, X64]
     steps:
       - uses: actions/checkout@v4
       - run: docker build .
