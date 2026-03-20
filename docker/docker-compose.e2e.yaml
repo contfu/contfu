@@ -5,7 +5,7 @@
 
 services:
   strapi:
-    image: forgejo.rogge.vip/contfu/strapi-test:v2
+    image: registry.sven-rogge.com/contfu/strapi-test:v2
     ports:
       - "1337:1337"
     environment:

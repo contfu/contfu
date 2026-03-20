@@ -40,13 +40,13 @@ jobs:
 
     # Run job in a container to enable automatic service networking
     container:
-      image: forgejo.rogge.vip/contfu/ci-runner:latest
+      image: registry.sven-rogge.com/contfu/ci-runner:latest
 
     # Service containers run alongside the job container
     # They are automatically networked and accessible via their service name
     services:
       nats:
-        image: forgejo.rogge.vip/contfu/nats-jetstream:latest
+        image: registry.sven-rogge.com/contfu/nats-jetstream:latest
         options: >-
           --health-cmd "wget --spider -q http://localhost:8222/healthz"
           --health-interval 10s

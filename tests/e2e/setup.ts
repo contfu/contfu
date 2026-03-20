@@ -122,7 +122,8 @@ export async function startStrapiDocker(): Promise<void> {
   cleanupStrapiContainer();
 
   // Use custom image from Forgejo registry (or local build via STRAPI_IMAGE env)
-  const strapiImage = process.env.STRAPI_IMAGE || "forgejo.rogge.vip/contfu/strapi-test:latest";
+  const strapiImage =
+    process.env.STRAPI_IMAGE || "registry.sven-rogge.com/contfu/strapi-test:latest";
   console.log(`[Setup] Starting Strapi via Docker (${strapiImage})...`);
 
   // Pre-configured with article content type for E2E testing

@@ -6,65 +6,85 @@ on:
       - main
 
 jobs:
-  test:
-    name: Tests
+  lint-and-test:
+    name: Lint & Unit Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 25
-    container:
-      image: forgejo.rogge.vip/contfu/ci-runner:latest
-    services:
-      strapi:
-        image: forgejo.rogge.vip/contfu/strapi-test:v2
-        env:
-          NODE_ENV: development
-          HOST: 0.0.0.0
-          PORT: 1337
-          APP_KEYS: testkey1,testkey2
-          API_TOKEN_SALT: testsalt1
-          ADMIN_JWT_SECRET: testsecret1
-          TRANSFER_TOKEN_SALT: testsalt2
-          JWT_SECRET: testsecret2
+    timeout-minutes: 5
     env:
-      E2E_FULL_FLOW: true
-      STRAPI_HOST: strapi
       CI: true
     steps:
       - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
       - name: Install dependencies
         run: bun install --frozen-lockfile --ignore-scripts
-      - name: Lint
-        run: bun run lint
-      - name: Type check
-        run: bun run typecheck
+
+      - name: Generate SvelteKit types
+        run: |
+          for dir in packages/service/app packages/client/app demos/consumer-app; do
+            (cd $dir && bun svelte-kit sync)
+          done
+
+      - name: Lint (type-aware)
+        run: bun run lint:types
+
+      - name: Run unit tests
+        run: bun run test
+
+  e2e:
+    name: Build & E2E Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      packages: read
+
+    # Run job in a container to enable automatic service networking
+    container:
+      image: registry.sven-rogge.com/contfu/ci-runner:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.REGISTRY_TOKEN }}
+
+    env:
+      E2E_FULL_FLOW: true
+      NATS_SERVER: nats://localhost:4222
+      CI: true
+      PLAYWRIGHT_BROWSERS_PATH: /opt/ms-playwright
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start NATS with JetStream
+        run: |
+          curl -fsSL https://github.com/nats-io/nats-server/releases/download/v2.12.0/nats-server-v2.12.0-linux-amd64.tar.gz | tar xz
+          ./nats-server-v2.12.0-linux-amd64/nats-server --jetstream --store_dir /tmp/nats-data -m 8222 &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8222/healthz > /dev/null 2>&1 && break
+            sleep 1
+          done
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
       - name: Build all packages
         run: bun run build
+
       - name: Build consumer demo app
         run: bun run build
         working-directory: demos/consumer-app
-      - name: Run unit tests
-        run: bun run test
-      - name: Wait for Strapi
-        run: |
-          echo "Waiting for Strapi..."
-          for i in $(seq 1 60); do
-            if curl -sf http://strapi:1337/_health > /dev/null 2>&1; then
-              echo "Strapi is ready!"
-              exit 0
-            fi
-            echo "Waiting... ($i/60)"
-            sleep 2
-          done
-          echo "Strapi failed to start"
-          exit 1
+
       - name: Run E2E tests
-        run: DEBUG=pw:api bun run test:e2e --reporter=list
+        run: bun run test:e2e:no-build --reporter=list
         env:
-          PWDEBUG: 0
+          PLAYWRIGHT_HTML_OPEN: never
 
   build:
-    name: Build image
-    runs-on: native
+    name: Build Docker image
+    timeout-minutes: 8
+    runs-on: ubuntu-latest
     steps:
-      - run: apk add --no-cache nodejs docker-cli
       - uses: actions/checkout@v4
+      - name: Install Docker CLI
+        run: apt-get update -qq && apt-get install -y -qq docker.io
       - run: docker build .

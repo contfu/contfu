@@ -1,0 +1,68 @@
+#!/usr/bin/env python3
+# Usage: ci-wait [run_id] [--timeout <seconds>]
+# Polls CI status until a run reaches a settled state. Exits 0 on success, 1 otherwise.
+import json, subprocess, sys, time, os
+
+REPO = os.environ.get("FORGEJO_REPO", "contfu/contfu")
+ICONS = {"success": "✅", "failure": "❌", "running": "🔄", "waiting": "⏳", "cancelled": "⊘", "skipped": "⊘"}
+INTERVAL = 1
+TIMEOUT = 600
+run_id = None
+
+args = sys.argv[1:]
+while args:
+    if args[0] == "--timeout":
+        TIMEOUT = int(args[1]); args = args[2:]
+    else:
+        run_id = int(args[0]); args = args[1:]
+
+
+def tea(path):
+    out = subprocess.check_output(["tea", "api", "--login", "forgejo", path], stderr=subprocess.DEVNULL)
+    return json.loads(out)
+
+
+def latest_run():
+    runs = tea(f"/api/v1/repos/{REPO}/actions/runs").get("workflow_runs", [])
+    if not runs:
+        print("ERROR: No runs found", file=sys.stderr); sys.exit(1)
+    return max(r["index_in_repo"] for r in runs)
+
+
+def get_status(run_num):
+    jobs = [j for j in tea(f"/api/v1/repos/{REPO}/actions/tasks").get("workflow_runs", []) if j.get("run_number") == run_num]
+    if not jobs:
+        return "unknown", []
+    jobs.sort(key=lambda j: j["id"])
+    statuses = [j["status"] for j in jobs]
+    if any(s == "failure" for s in statuses):
+        return "failure", jobs
+    if any(s in ("running", "waiting") for s in statuses):
+        return "running", jobs
+    if any(s == "cancelled" for s in statuses):
+        return "cancelled", jobs
+    if all(s in ("success", "skipped") for s in statuses):
+        return "success", jobs
+    return "unknown", jobs
+
+
+if run_id is None:
+    run_id = latest_run()
+
+print(f"Waiting for run #{run_id} (timeout: {TIMEOUT}s)...")
+
+elapsed = 0
+while True:
+    status, jobs = get_status(run_id)
+    if status in ("success", "failure", "cancelled", "skipped"):
+        for j in jobs:
+            print(f"{ICONS.get(j['status'], '?')} {j['name']} ({j['status']})", file=sys.stderr)
+        print(f"Run #{run_id} completed: {status}")
+        sys.exit(0 if status == "success" else 1)
+
+    if elapsed >= TIMEOUT:
+        print(f"ERROR: Timed out after {TIMEOUT}s (last status: {status})", file=sys.stderr)
+        sys.exit(1)
+
+    time.sleep(INTERVAL)
+    elapsed += INTERVAL

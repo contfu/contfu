@@ -6,18 +6,25 @@ jobs:
   # Build custom service images needed for E2E testing
   build-ci-runner-image:
     name: Build CI Runner Image
-    runs-on: [self-hosted, linux, X64]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install Docker CLI
+        run: apt-get update -qq && apt-get install -y -qq docker.io
+
+      - name: Log in to Forgejo registry
+        run: echo "${{ secrets.REGISTRY_TOKEN }}" | docker login registry.sven-rogge.com -u ${{ github.actor }} --password-stdin
+
       - name: Build CI Runner
         run: docker build -t registry.sven-rogge.com/contfu/ci-runner:latest -f docker/ci-runner/Dockerfile .
+
       - name: Push CI Runner
         run: docker push registry.sven-rogge.com/contfu/ci-runner:latest
 
   # build-nats-jetstream-image:
   #   name: Build NATS with JetStream Image
-  #   runs-on: [self-hosted, linux, X64]
+  #   runs-on: ubuntu-latest
   #   steps:
   #     - uses: actions/checkout@v4
 

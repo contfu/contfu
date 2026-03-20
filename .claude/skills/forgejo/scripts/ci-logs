@@ -1,0 +1,75 @@
+#!/usr/bin/env python3
+# Usage: ci-logs <run_id> [job_index] [-v]
+# Fetches logs for a job in a run. job_index is 1-based (default: 1).
+# Prints only error/failure lines unless -v (verbose) is passed.
+import json, subprocess, sys, os
+from pathlib import Path
+from urllib.request import Request, urlopen, build_opener, HTTPCookieProcessor, HTTPRedirectHandler
+from http.cookiejar import CookieJar
+
+ROOT = Path(subprocess.check_output(["git", "rev-parse", "--show-toplevel"], text=True).strip())
+REPO = os.environ.get("FORGEJO_REPO", "contfu/contfu")
+BASE = os.environ.get("FORGEJO_URL", "https://code.sven-rogge.com")
+ICONS = {"success": "✅", "failure": "❌", "skipped": "⊘", "cancelled": "⊘", "running": "🔄"}
+ERROR_KEYWORDS = ["error", "fail", "denied", "unauthorized", "not found", "exit", "panic", "command not found"]
+
+args = [a for a in sys.argv[1:] if a != "-v"]
+verbose = len(args) < len(sys.argv) - 1
+
+if not args:
+    print("Usage: ci-logs <run_id> [job_index] [-v]", file=sys.stderr); sys.exit(1)
+
+run_id = args[0]
+job_index = args[1] if len(args) > 1 else "1"
+
+
+def load_session():
+    for f in [ROOT / ".forgejo-session", ROOT / ".env"]:
+        if f.exists():
+            for line in f.read_text().splitlines():
+                if line.strip().startswith("FORGEJO_SESSION="):
+                    return line.strip().split("=", 1)[1]
+    return ""
+
+
+def fetch_logs(n_steps):
+    cursors = json.dumps({"logCursors": [{"step": i, "cursor": None, "expanded": True} for i in range(n_steps)]})
+    req = Request(
+        f"{BASE}/{REPO}/actions/runs/{run_id}/jobs/{job_index}/attempt/1",
+        data=cursors.encode(),
+        method="POST",
+    )
+    req.add_header("Accept", "*/*")
+    req.add_header("Content-Type", "application/json")
+    req.add_header("Cookie", load_session())
+    req.add_header("User-Agent", "Mozilla/5.0")
+    opener = build_opener(HTTPCookieProcessor(CookieJar()))
+    with opener.open(req) as r:
+        return json.loads(r.read())
+
+
+# Probe with 1 cursor to get step count (Forgejo 500s if count exceeds actual steps)
+try:
+    probe = fetch_logs(1)
+except Exception as e:
+    print(f"Request failed: {e}", file=sys.stderr); sys.exit(1)
+
+if "state" not in probe:
+    subprocess.run([str(ROOT / ".claude/skills/forgejo/scripts/forgejo-login")], check=True)
+    probe = fetch_logs(1)
+
+n_steps = len(probe["state"]["currentJob"]["steps"])
+data = fetch_logs(n_steps)
+
+job = data["state"]["currentJob"]
+print(f"Job: {job['title']}")
+for step in job["steps"]:
+    icon = ICONS.get(step["status"], "?")
+    print(f"  {icon} {step['summary']} ({step['status']}) {step['duration']}")
+
+print()
+for step in data["logs"]["stepsLog"]:
+    for line in step.get("lines", []):
+        msg = line["message"]
+        if verbose or any(k in msg.lower() for k in ERROR_KEYWORDS):
+            print(msg)

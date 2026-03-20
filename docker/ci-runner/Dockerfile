@@ -1,8 +1,8 @@
 # CI Runner image for contfu E2E tests
 # Pre-installed: Bun, Playwright (Chromium), Docker CLI
 #
-# Build: docker build -t forgejo.rogge.vip/contfu/ci-runner:latest .
-# Push:  docker push forgejo.rogge.vip/contfu/ci-runner:latest
+# Build: docker build -t registry.sven-rogge.com/contfu/ci-runner:latest .
+# Push:  docker push registry.sven-rogge.com/contfu/ci-runner:latest
 
 FROM ubuntu:24.04
 
@@ -60,8 +60,9 @@ RUN apt-get update && apt-get install -y \
 ENV PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright
 RUN bunx playwright install chromium && chmod -R a+rx /opt/ms-playwright
 
-# Pre-install project dependencies to warm Bun cache
-# Copy package files from build context (built from repo root)
+# Pre-install project dependencies to warm Bun cache.
+# Dockerfile.dockerignore includes only bun.lock and **/package.json (with
+# intermediate dirs), so new workspace packages are picked up automatically.
 COPY . /tmp/contfu/
 RUN cd /tmp/contfu && bun install && rm -rf /tmp/contfu
 

@@ -1,3 +1,11 @@
-*
+**
 !bun.lock
-!**/package.json
+!package.json
+!packages/
+!packages/*/
+!packages/*/package.json
+!packages/*/*/
+!packages/*/*/package.json
+!demos/
+!demos/*/
+!demos/*/package.json

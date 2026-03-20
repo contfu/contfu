@@ -1,0 +1,73 @@
+#!/usr/bin/env python3
+"""
+Login to Forgejo and save session cookie to .forgejo file.
+Reads FORGEJO_USERNAME, FORGEJO_PASSWORD, FORGEJO_URL from .env
+"""
+import subprocess, re, sys, ssl
+from pathlib import Path
+from urllib.parse import urlencode
+from urllib.request import Request, HTTPCookieProcessor, build_opener, HTTPSHandler
+from http.cookiejar import CookieJar
+
+ROOT = Path(subprocess.check_output(["git", "rev-parse", "--show-toplevel"], text=True).strip())
+
+def load_env(path):
+    env = {}
+    for line in path.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, val = line.partition("=")
+        env[key.strip()] = val.strip()
+    return env
+
+env = load_env(ROOT / ".env")
+BASE = env.get("FORGEJO_URL", "https://code.sven-rogge.com")
+USERNAME = env.get("FORGEJO_USERNAME", "")
+PASSWORD = env.get("FORGEJO_PASSWORD", "")
+
+if not USERNAME or not PASSWORD:
+    print("ERROR: FORGEJO_USERNAME and FORGEJO_PASSWORD must be set in .env", file=sys.stderr)
+    sys.exit(1)
+
+ctx = ssl.create_default_context()
+
+jar = CookieJar()
+opener = build_opener(HTTPCookieProcessor(jar), HTTPSHandler(context=ctx))
+opener.addheaders = [('User-Agent', 'Mozilla/5.0')]
+
+# Step 1: GET login page to establish session cookies (no CSRF token in modern Forgejo)
+opener.open(f"{BASE}/user/login")
+
+# Step 2: POST credentials
+payload = urlencode({
+    "user_name": USERNAME,
+    "password": PASSWORD,
+    "remember": "on",
+}).encode()
+
+req = Request(f"{BASE}/user/login", data=payload, method="POST")
+req.add_header("Content-Type", "application/x-www-form-urlencoded")
+req.add_header("Referer", f"{BASE}/user/login")
+
+try:
+    opener.open(req)
+except Exception:
+    pass  # Forgejo redirects after login, which may raise
+
+# Step 3: Extract cookies
+cookie_parts = []
+for cookie in jar:
+    if cookie.name in ("lang", "i_like_gitea", "gitea_incredible"):
+        cookie_parts.append(f"{cookie.name}={cookie.value}")
+
+if not any(c.startswith("i_like_gitea") for c in cookie_parts):
+    print("ERROR: Login failed — check credentials", file=sys.stderr)
+    sys.exit(1)
+
+session = "; ".join(cookie_parts)
+
+# Step 4: Write to .forgejo
+forgejo_file = ROOT / ".forgejo-session"
+forgejo_file.write_text(f"FORGEJO_SESSION={session}\n")
+print(f"✅ Logged in as {USERNAME}, session saved to .forgejo-session")
