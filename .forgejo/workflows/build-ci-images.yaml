@@ -22,14 +22,21 @@ jobs:
       - name: Push CI Runner
         run: docker push registry.sven-rogge.com/contfu/ci-runner:latest
 
-  # build-nats-jetstream-image:
-  #   name: Build NATS with JetStream Image
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v4
+  build-nats-jetstream-image:
+    name: Build NATS with JetStream Image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
-  #     - name: Build NATS with JetStream
-  #       working-directory: docker/nats-jetstream
-  #       run: docker build -t registry.sven-rogge.com/contfu/nats-jetstream:latest .
-  #     - name: Push NATS with JetStream
-  #       run: docker push registry.sven-rogge.com/contfu/nats-jetstream:latest
+      - name: Install Docker CLI
+        run: apt-get update -qq && apt-get install -y -qq docker.io
+
+      - name: Log in to Forgejo registry
+        run: echo "${{ secrets.REGISTRY_TOKEN }}" | docker login registry.sven-rogge.com -u ${{ github.actor }} --password-stdin
+
+      - name: Build NATS with JetStream
+        working-directory: docker/nats-jetstream
+        run: docker build -t registry.sven-rogge.com/contfu/nats-jetstream:latest .
+
+      - name: Push NATS with JetStream
+        run: docker push registry.sven-rogge.com/contfu/nats-jetstream:latest
