@@ -30,42 +30,30 @@ COPY demos/consumer-app/package.json demos/consumer-app/
 RUN bun install --ignore-scripts
 COPY . .
 RUN bun run -F '@contfu/svc-backend' build && \
-    bun run -F '@contfu/svc-app' build
+    bun run -F '@contfu/svc-app' build && \
+    bun build packages/service/sync/src/worker.ts \
+      --outfile packages/service/sync/dist/worker.js \
+      --target bun \
+      --external @css-inline/css-inline
 
 FROM base AS deps
 WORKDIR /app
-COPY package.json bun.lock /app/
-COPY packages/core/package.json /app/packages/core/package.json
-COPY packages/service/core/package.json /app/packages/service/core/package.json
-COPY packages/service/backend/package.json /app/packages/service/backend/package.json
-COPY packages/service/sources/package.json /app/packages/service/sources/package.json
-COPY packages/service/sync/package.json /app/packages/service/sync/package.json
-COPY packages/service/app/package.json /app/packages/service/app/package.json
-COPY packages/client/connect/package.json /app/packages/client/connect/package.json
-COPY packages/client/app/package.json /app/packages/client/app/package.json
-COPY packages/client/client/package.json /app/packages/client/client/package.json
-COPY packages/client/bun-file-store/package.json /app/packages/client/bun-file-store/package.json
-COPY packages/client/media-optimizer/package.json /app/packages/client/media-optimizer/package.json
-COPY packages/client/media-optimizer-remote/package.json /app/packages/client/media-optimizer-remote/package.json
-COPY packages/cli/package.json /app/packages/cli/package.json
-COPY packages/ui/package.json /app/packages/ui/package.json
-COPY demos/consumer-app/package.json /app/demos/consumer-app/package.json
-RUN bun install --frozen-lockfile --production --ignore-scripts
+RUN apt-get update && apt-get install -y jq && rm -rf /var/lib/apt/lists/*
+COPY packages/service/app/package.json /tmp/package.json
+RUN jq '{dependencies, trustedDependencies}' /tmp/package.json > /app/package.json && \
+    bun install
 
 FROM base AS app
 ENV MIGRATIONS_PATH=/app/packages/service/backend/db/migrations
 ENV DATABASE_URL=postgres://contfu:contfu@postgres:5432/contfu
-ENV SYNC_WORKER_PATH=/app/packages/service/sync/src/worker.ts
+ENV SYNC_WORKER_PATH=/app/packages/service/sync/dist/worker.js
 WORKDIR /app
-# Copy production deps (preserves workspace symlink structure)
-COPY --from=deps /app/ /app/
-# Copy built artifacts
+# Copy native runtime deps (unbundleable packages with .node bindings)
+COPY --from=deps /app/node_modules/ /app/node_modules/
+# Copy built SvelteKit app
 COPY --from=build /app/packages/service/app/build/ /app/packages/service/app/build/
-COPY --from=build /app/packages/service/backend/dist/ /app/packages/service/backend/dist/
-COPY --from=build /app/packages/core/src/ /app/packages/core/src/
-COPY --from=build /app/packages/service/core/src/ /app/packages/service/core/src/
-COPY --from=build /app/packages/service/sync/src/ /app/packages/service/sync/src/
-COPY --from=build /app/packages/service/sync/node_modules/ /app/packages/service/sync/node_modules/
+# Copy bundled sync worker
+COPY --from=build /app/packages/service/sync/dist/ /app/packages/service/sync/dist/
 # Copy database migrations
 COPY packages/service/backend/db/migrations/ /app/packages/service/backend/db/migrations/
 EXPOSE 3000

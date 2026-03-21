@@ -7,11 +7,7 @@ const config = {
   vitePlugin: { inspector: true },
   kit: {
     adapter: adapter({
-      external: [
-        "@css-inline/css-inline",
-        "@css-inline/css-inline-darwin-arm64",
-        "@contfu/svc-backend",
-      ],
+      external: ["@css-inline/css-inline"],
     }),
     alias: {
       "$lib/*": "./src/lib/*",
