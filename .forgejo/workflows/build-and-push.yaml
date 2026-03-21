@@ -39,7 +39,7 @@ jobs:
           function get_version() {
             local package_path=$1
             if [ -f "$package_path" ]; then
-              jq -r .version "$package_path" || echo "0.0.0"
+              grep '"version"' "$package_path" | head -1 | sed 's/.*: *"\([^"]*\)".*/\1/' || echo "0.0.0"
             else
               echo "0.0.0"
             fi
@@ -89,13 +89,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Install Docker CLI
         run: apt-get update -qq && apt-get install -y -qq docker.io
-      - name: Set up Docker Buildx
-        id: builder
-        uses: docker/setup-buildx-action@v3
+
       - name: Log in to Forgejo registry
         run: echo "${{ secrets.REGISTRY_TOKEN }}" | docker login registry.sven-rogge.com -u ${{ github.actor }} --password-stdin
+
       - name: Check if image exists
         id: check
         run: |
@@ -105,29 +105,26 @@ jobs:
           else
             echo "exists=false" >> $GITHUB_OUTPUT
           fi
+
       - name: Build and push image
         if: steps.check.outputs.exists != 'true'
-        uses: docker/build-push-action@v5
-        with:
-          push: true
-          platforms: linux/amd64
-          tags: registry.sven-rogge.com/contfu/${{ env.IMAGE_NAME }}:${{ needs.check-version.outputs.app-version }}
-          labels: runnumber=${{ github.run_id }}
-          cache-from: type=registry,ref=registry.sven-rogge.com/contfu/${{ env.IMAGE_NAME }}:buildcache
-          cache-to: type=registry,ref=registry.sven-rogge.com/contfu/${{ env.IMAGE_NAME }}:buildcache,mode=max
+        run: |
+          VERSION=${{ needs.check-version.outputs.app-version }}
+          docker build -t registry.sven-rogge.com/contfu/$IMAGE_NAME:$VERSION .
+          docker push registry.sven-rogge.com/contfu/$IMAGE_NAME:$VERSION
   push-client:
     needs: check-version
     if: needs.check-version.outputs.client-app-changed == 'true' && needs.check-version.outputs.client-app-version != '0.0.0'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Install Docker CLI
         run: apt-get update -qq && apt-get install -y -qq docker.io
-      - name: Set up Docker Buildx
-        id: builder
-        uses: docker/setup-buildx-action@v3
+
       - name: Log in to Docker Hub
         run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
+
       - name: Check if image exists
         id: check
         run: |
@@ -137,24 +134,13 @@ jobs:
           else
             echo "exists=false" >> $GITHUB_OUTPUT
           fi
+
       - name: Build and push image
         if: steps.check.outputs.exists != 'true'
-        uses: docker/build-push-action@v5
-        with:
-          file: Dockerfile.client
-          push: true
-          platforms: linux/amd64
-          tags: contfu/client:${{ needs.check-version.outputs.client-app-version }}
-          cache-from: type=registry,ref=contfu/client:buildcache
-          cache-to: type=registry,ref=contfu/client:buildcache,mode=max
-      - name: Update Docker Hub description
-        if: steps.check.outputs.exists != 'true'
-        uses: peter-evans/dockerhub-description@v4
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_PASSWORD }}
-          repository: contfu/client
-          readme-filepath: docker/DOCKERHUB_README.md
+        run: |
+          VERSION=${{ needs.check-version.outputs.client-app-version }}
+          docker build -f Dockerfile.client -t contfu/client:$VERSION .
+          docker push contfu/client:$VERSION
   build-npm:
     needs: check-version
     if: >-
