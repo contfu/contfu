@@ -1,0 +1,101 @@
+#!/usr/bin/env bash
+# Manage labels on Forgejo issues.
+#
+# Usage:
+#   forgejo-label add <issue_number> <label_name>
+#   forgejo-label remove <issue_number> <label_name>
+#   forgejo-label set-status <issue_number> <status>
+#
+# set-status removes all status labels (ready, in-progress, done) and adds the given one.
+#
+# Label IDs (contfu/contfu):
+#   1=bug  2=enhancement  3=documentation  4=ready  5=in-progress  6=done
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+BASE_URL="${FORGEJO_URL:-https://code.sven-rogge.com}"
+REPO="${FORGEJO_REPO:-contfu/contfu}"
+TOKEN=$("$SCRIPT_DIR/forgejo-token")
+
+API="$BASE_URL/api/v1/repos/$REPO/issues"
+
+label_id() {
+  case "$1" in
+    bug)           echo 1 ;;
+    enhancement)   echo 2 ;;
+    documentation) echo 3 ;;
+    ready)         echo 4 ;;
+    in-progress)   echo 5 ;;
+    done)          echo 6 ;;
+    *) echo "" ;;
+  esac
+}
+
+add_label() {
+  local issue=$1 label=$2
+  local id
+  id=$(label_id "$label")
+  if [[ -z "$id" ]]; then
+    echo "Unknown label: $label" >&2
+    exit 1
+  fi
+  curl -sf -X POST \
+    -H "Authorization: token $TOKEN" \
+    -H "Content-Type: application/json" \
+    "$API/$issue/labels" \
+    -d "{\"labels\":[$id]}" > /dev/null
+  echo "Added '$label' to #$issue"
+}
+
+remove_label() {
+  local issue=$1 label=$2
+  local id
+  id=$(label_id "$label")
+  if [[ -z "$id" ]]; then
+    echo "Unknown label: $label" >&2
+    exit 1
+  fi
+  curl -sf -X DELETE \
+    -H "Authorization: token $TOKEN" \
+    "$API/$issue/labels/$id" > /dev/null 2>&1 || true
+  echo "Removed '$label' from #$issue"
+}
+
+set_status() {
+  local issue=$1 new_status=$2
+  # Validate status
+  case "$new_status" in
+    ready|in-progress|done) ;;
+    *) echo "Invalid status: $new_status (must be: ready, in-progress, done)" >&2; exit 1 ;;
+  esac
+  # Remove all status labels
+  local s
+  for s in ready in-progress done; do
+    local id
+    id=$(label_id "$s")
+    curl -sf -X DELETE \
+      -H "Authorization: token $TOKEN" \
+      "$API/$issue/labels/$id" > /dev/null 2>&1 || true
+  done
+  # Add the new status
+  add_label "$issue" "$new_status"
+}
+
+case "${1:-}" in
+  add)
+    [[ $# -eq 3 ]] || { echo "Usage: forgejo-label add <issue> <label>" >&2; exit 1; }
+    add_label "$2" "$3"
+    ;;
+  remove)
+    [[ $# -eq 3 ]] || { echo "Usage: forgejo-label remove <issue> <label>" >&2; exit 1; }
+    remove_label "$2" "$3"
+    ;;
+  set-status)
+    [[ $# -eq 3 ]] || { echo "Usage: forgejo-label set-status <issue> <status>" >&2; exit 1; }
+    set_status "$2" "$3"
+    ;;
+  *)
+    echo "Usage: forgejo-label {add|remove|set-status} <issue> <label/status>" >&2
+    exit 1
+    ;;
+esac

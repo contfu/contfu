@@ -33,6 +33,26 @@ This reads `FORGEJO_USERNAME` and `FORGEJO_PASSWORD` from `.env`, logs in to For
 
 Run from the repo root.
 
+### forgejo-token
+
+Prints the Forgejo PAT from the tea CLI config. Used by other scripts internally.
+
+```bash
+TOKEN=$(.claude/skills/forgejo/scripts/forgejo-token)
+```
+
+### forgejo-label {add|remove|set-status} \<issue\> \<label\>
+
+Manage labels on issues. `set-status` removes all status labels (ready, in-progress, done) and adds the given one.
+
+```bash
+.claude/skills/forgejo/scripts/forgejo-label add 3 enhancement
+.claude/skills/forgejo/scripts/forgejo-label remove 3 bug
+.claude/skills/forgejo/scripts/forgejo-label set-status 3 in-progress
+```
+
+Known labels: `bug` (1), `enhancement` (2), `documentation` (3), `ready` (4), `in-progress` (5), `done` (6).
+
 ### ci-status [run_id]
 
 Shows job status for the latest run (or a specific run):
