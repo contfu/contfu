@@ -2,7 +2,7 @@
 
 ## Container image
 image:
-  repository: ghcr.io/contfu/contfu-app
+  repository: registry.sven-rogge.com/contfu/contfu-app
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion
   tag: ""
