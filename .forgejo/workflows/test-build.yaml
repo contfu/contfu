@@ -46,18 +46,33 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.REGISTRY_TOKEN }}
 
-    services:
-      nats:
-        image: registry.sven-rogge.com/contfu/nats-jetstream:latest
-
     env:
       E2E_FULL_FLOW: true
-      NATS_SERVER: nats://nats:4222
+      NATS_SERVER: nats://localhost:4222
       CI: true
       PLAYWRIGHT_BROWSERS_PATH: /opt/ms-playwright
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Start NATS JetStream
+        run: |
+          if ! command -v nats-server &>/dev/null; then
+            echo "nats-server not found in CI runner image, downloading..."
+            curl -fsSL https://github.com/nats-io/nats-server/releases/download/v2.12.5/nats-server-v2.12.5-linux-amd64.tar.gz -o /tmp/nats.tar.gz
+            tar xzf /tmp/nats.tar.gz -C /tmp
+            export PATH="/tmp/nats-server-v2.12.5-linux-amd64:$PATH"
+          fi
+          nats-server --jetstream --store_dir /tmp/nats -p 4222 -m 8222 &
+          for i in 1 2 3 4 5; do
+            sleep 1
+            if curl -sf http://localhost:8222/healthz &>/dev/null; then
+              echo "NATS JetStream is ready"
+              exit 0
+            fi
+          done
+          echo "ERROR: NATS failed to start"
+          exit 1
 
       - name: Install dependencies
         run: bun install --frozen-lockfile

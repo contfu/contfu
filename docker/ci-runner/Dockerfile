@@ -60,6 +60,9 @@ RUN apt-get update && apt-get install -y \
 ENV PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright
 RUN bunx playwright install chromium && chmod -R a+rx /opt/ms-playwright
 
+# Install NATS server for E2E tests (JetStream)
+COPY --from=nats:2.12-alpine /usr/local/bin/nats-server /usr/local/bin/nats-server
+
 # Pre-install project dependencies to warm Bun cache.
 # Dockerfile.dockerignore includes only bun.lock and **/package.json (with
 # intermediate dirs), so new workspace packages are picked up automatically.

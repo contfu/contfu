@@ -5,9 +5,7 @@ import {
   type WorkerToAppMessage,
 } from "./messages";
 import { createLogger } from "../logger/index";
-import { existsSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { resolve } from "node:path";
 import { and, eq, inArray, isNotNull } from "drizzle-orm";
 
 const log = createLogger("sync-worker-manager");
@@ -350,24 +348,11 @@ export class SyncWorkerManager {
 }
 
 function resolveSyncWorkerUrl(): string {
-  if (process.env.SYNC_WORKER_PATH) {
-    return process.env.SYNC_WORKER_PATH;
+  if (process.env.NODE_ENV === "production") {
+    return resolve(process.cwd(), "packages/service/sync/dist/worker.js");
   }
-
-  const moduleDir = dirname(fileURLToPath(import.meta.url));
-  const candidates = [
-    resolve(process.cwd(), "../sync/src/worker.ts"),
-    resolve(process.cwd(), "../../service/sync/src/worker.ts"),
-    resolve(moduleDir, "../../../../sync/src/worker.ts"),
-  ];
-
-  for (const candidate of candidates) {
-    if (existsSync(candidate)) {
-      return pathToFileURL(candidate).href;
-    }
-  }
-
-  throw new Error(`Unable to resolve sync worker entrypoint. Tried: ${candidates.join(", ")}`);
+  // Backend is ssr.external, so import.meta.dirname points to the source file.
+  return resolve(import.meta.dirname, "../../../../sync/src/worker.ts");
 }
 
 async function getTargetCollectionIdsForSource(

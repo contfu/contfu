@@ -1,7 +1,5 @@
 import { AsyncLocalStorage } from "node:async_hooks";
-import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import { sql } from "drizzle-orm";
 import type { PgAsyncDatabase } from "drizzle-orm/pg-core/async/db";
 import * as schema from "./schema";
@@ -44,8 +42,10 @@ async function createDb() {
   }
 
   if (isTestMode) {
-    const { PGlite } = await import("@electric-sql/pglite");
-    const { drizzle } = await import("drizzle-orm/pglite");
+    const pglitePkg = "@electric-sql/pglite";
+    const drizzlePglitePkg = "drizzle-orm/pglite";
+    const { PGlite } = await import(/* @vite-ignore */ pglitePkg);
+    const { drizzle } = await import(/* @vite-ignore */ drizzlePglitePkg);
     const dataDir = process.env.PGLITE_DATA_DIR;
     const client = new PGlite(dataDir === ":memory:" ? undefined : dataDir || undefined);
     pgliteClient = client;
@@ -57,7 +57,8 @@ async function createDb() {
       );
 
     // Apply schema via migrations (pushSchema has drizzle-kit import conflict)
-    const { migrate } = await import("drizzle-orm/pglite/migrator");
+    const drizzleMigratorPkg = "drizzle-orm/pglite/migrator";
+    const { migrate } = await import(/* @vite-ignore */ drizzleMigratorPkg);
     await migrate(database, { migrationsFolder });
 
     return database;
@@ -89,26 +90,10 @@ async function createDb() {
 }
 
 function resolveMigrationsFolder(): string {
-  if (process.env.MIGRATIONS_PATH) {
-    return process.env.MIGRATIONS_PATH;
+  if (process.env.NODE_ENV === "production") {
+    return resolve(process.cwd(), "packages/service/backend/db/migrations");
   }
-
-  const moduleDir = dirname(fileURLToPath(import.meta.url));
-  const candidates = [
-    resolve(process.cwd(), "db/migrations"),
-    resolve(process.cwd(), "../backend/db/migrations"),
-    resolve(moduleDir, "../../../db/migrations"),
-    resolve(moduleDir, "../../../../app/db/migrations"),
-    resolve(moduleDir, "../../../../backend/db/migrations"),
-  ];
-
-  for (const candidate of candidates) {
-    if (existsSync(candidate)) {
-      return candidate;
-    }
-  }
-
-  throw new Error(`Unable to resolve DB migrations folder. Tried: ${candidates.join(", ")}`);
+  return resolve(import.meta.dirname, "../../../db/migrations");
 }
 
 const rootDb: PgAsyncDatabase<any, typeof schema, any> = await createDb();

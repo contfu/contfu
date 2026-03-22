@@ -62,8 +62,6 @@ export default defineConfig({
   },
   ssr: {
     noExternal: process.env.NODE_ENV === "production" ? true : undefined,
-    // Keep svc-backend external so import.meta.url paths (e.g. db/migrations) resolve correctly.
-    // Must be a string — Vite's ssr.external uses Array.includes() so RegExps are silently ignored.
     external: ["@contfu/svc-backend", "@electric-sql/pglite", "@css-inline/css-inline"],
   },
 });

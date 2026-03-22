@@ -7,6 +7,10 @@
   ],
   "type": "module",
   "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./worker": "./src/worker.ts"
+  },
   "scripts": {
     "test": "bun test",
     "clean": "rm -rf dist"

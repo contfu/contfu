@@ -14,7 +14,6 @@ export class AppConfig extends ServiceMap.Service<AppConfig>()("@contfu/AppConfi
       smtpFromName: yield* Config.option(Config.string("SMTP_FROM_NAME")),
       origin: yield* Config.withDefault(Config.string("ORIGIN"), "https://localhost:5173"),
       otelEndpoint: yield* Config.option(Config.string("OTEL_EXPORTER_OTLP_ENDPOINT")),
-      syncWorkerPath: yield* Config.option(Config.string("SYNC_WORKER_PATH")),
       maxCollectionPullSize: yield* Config.withDefault(
         Config.number("MAX_COLLECTION_PULL_SIZE").pipe(Config.map(Math.trunc)),
         10_000,

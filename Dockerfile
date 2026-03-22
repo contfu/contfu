@@ -44,9 +44,8 @@ RUN jq '{dependencies, trustedDependencies}' /tmp/package.json > /app/package.js
     bun install
 
 FROM base AS app
-ENV MIGRATIONS_PATH=/app/packages/service/backend/db/migrations
+ENV NODE_ENV=production
 ENV DATABASE_URL=postgres://contfu:contfu@postgres:5432/contfu
-ENV SYNC_WORKER_PATH=/app/packages/service/sync/dist/worker.js
 WORKDIR /app
 # Copy native runtime deps (unbundleable packages with .node bindings)
 COPY --from=deps /app/node_modules/ /app/node_modules/
