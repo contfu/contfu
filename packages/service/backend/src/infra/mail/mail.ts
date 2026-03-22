@@ -12,8 +12,8 @@ const { sendSmtp } =
         ? { sendSmtp: () => {} }
         : await import("./smtp");
 
-const fromEmail = Bun.env.SMTP_FROM_EMAIL ?? Bun.env.SMTP_USER ?? "mail@pumpit.cloud";
-const fromName = Bun.env.SMTP_FROM_NAME ?? "Pumpit";
+const fromEmail = Bun.env.SMTP_FROM_EMAIL ?? Bun.env.SMTP_USER ?? "mail@contfu.com";
+const fromName = Bun.env.SMTP_FROM_NAME ?? "Contfu";
 export const origin = Bun.env.ORIGIN ?? "https://localhost:5173";
 
 const from = `"${fromName}" <${fromEmail}>`;

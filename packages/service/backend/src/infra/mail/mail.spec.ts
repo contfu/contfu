@@ -27,7 +27,7 @@ describe("mail", () => {
       `
         <h1>Test</h1>
         <p>Test</p>
-        <a href="https://localhost:5173">Pumpit</a>
+        <a href="https://localhost:5173">Contfu</a>
         ${button("Test", "https://localhost:5173")}
       `,
       "Test",

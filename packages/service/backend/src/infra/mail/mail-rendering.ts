@@ -53,11 +53,11 @@ export function renderMailHtml(content: string) {
 						<a href="${origin}">
 							<img
 								src="${absolute("/logo.png")}"
-								alt="Pumpit"
+								alt="Contfu"
 								style="max-width: 100%; height: auto"
 							/>
 						</a>
-						<span style="font-size: 3rem; font-weight: bold">Pumpit</span>
+						<span style="font-size: 3rem; font-weight: bold">Contfu</span>
 					</div>
 					<div class="main" style="margin-top: 20px; padding: 20px; background: #f5f8ff">
 						${content}
@@ -66,7 +66,7 @@ export function renderMailHtml(content: string) {
 						class="footer"
 						style="margin-top: 20px; padding: 20px; background: #eee; color: #777; text-align: center"
 					>
-						<p><a href="${origin}">Pumpit</a>: Automate your business</p>
+						<p><a href="${origin}">Contfu</a>: Sync your content</p>
 					</div>
 				</div>
 			</body>
