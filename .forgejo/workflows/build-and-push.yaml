@@ -93,6 +93,9 @@ jobs:
       - name: Install Docker CLI
         run: apt-get update -qq && apt-get install -y -qq docker.io
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Log in to Forgejo registry
         run: echo "${{ secrets.REGISTRY_TOKEN }}" | docker login registry.sven-rogge.com -u ${{ github.actor }} --password-stdin
 
@@ -110,8 +113,12 @@ jobs:
         if: steps.check.outputs.exists != 'true'
         run: |
           VERSION=${{ needs.check-version.outputs.app-version }}
-          docker build -t registry.sven-rogge.com/contfu/$IMAGE_NAME:$VERSION .
-          docker push registry.sven-rogge.com/contfu/$IMAGE_NAME:$VERSION
+          docker buildx build \
+            --cache-from type=registry,ref=registry.sven-rogge.com/contfu/$IMAGE_NAME:buildcache \
+            --cache-to type=registry,ref=registry.sven-rogge.com/contfu/$IMAGE_NAME:buildcache,mode=max \
+            -t registry.sven-rogge.com/contfu/$IMAGE_NAME:$VERSION \
+            --push \
+            .
   push-client:
     needs: check-version
     if: needs.check-version.outputs.client-app-changed == 'true' && needs.check-version.outputs.client-app-version != '0.0.0'
@@ -121,6 +128,9 @@ jobs:
 
       - name: Install Docker CLI
         run: apt-get update -qq && apt-get install -y -qq docker.io
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Log in to Docker Hub
         run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
@@ -139,8 +149,13 @@ jobs:
         if: steps.check.outputs.exists != 'true'
         run: |
           VERSION=${{ needs.check-version.outputs.client-app-version }}
-          docker build -f Dockerfile.client -t contfu/client:$VERSION .
-          docker push contfu/client:$VERSION
+          docker buildx build \
+            -f Dockerfile.client \
+            --cache-from type=registry,ref=docker.io/contfu/client:buildcache \
+            --cache-to type=registry,ref=docker.io/contfu/client:buildcache,mode=max \
+            -t contfu/client:$VERSION \
+            --push \
+            .
   build-npm:
     needs: check-version
     if: >-

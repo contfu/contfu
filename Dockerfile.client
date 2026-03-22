@@ -13,14 +13,15 @@ COPY packages/client/media-optimizer-remote/package.json packages/client/media-o
 COPY packages/core/package.json packages/core/
 COPY packages/ui/package.json packages/ui/
 COPY packages/cli/package.json packages/cli/
-RUN bun install --ignore-scripts
+RUN --mount=type=cache,target=/root/.bun/install/cache bun install --ignore-scripts
 COPY . .
 RUN bun run -F '@contfu/app' build
 
 FROM base AS deps
 WORKDIR /app
 COPY packages/client/app/package.json /app/package.json
-RUN bun -p 'import {dependencies} from "./package.json"; JSON.stringify({dependencies})' > /tmp/pkg.json \
+RUN --mount=type=cache,target=/root/.bun/install/cache \
+  bun -p 'import {dependencies} from "./package.json"; JSON.stringify({dependencies})' > /tmp/pkg.json \
   && mv /tmp/pkg.json /app/package.json \
   && bun install --ignore-scripts --linker=hoisted
 

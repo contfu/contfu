@@ -27,7 +27,7 @@ COPY packages/client/media-optimizer-remote/package.json packages/client/media-o
 COPY packages/cli/package.json packages/cli/
 COPY packages/ui/package.json packages/ui/
 COPY demos/consumer-app/package.json demos/consumer-app/
-RUN bun install --ignore-scripts
+RUN --mount=type=cache,target=/root/.bun/install/cache bun install --ignore-scripts
 COPY . .
 RUN bun run -F '@contfu/svc-backend' build && \
     bun run -F '@contfu/svc-app' build && \
@@ -40,7 +40,8 @@ FROM base AS deps
 WORKDIR /app
 RUN apt-get update && apt-get install -y jq && rm -rf /var/lib/apt/lists/*
 COPY packages/service/app/package.json /tmp/package.json
-RUN jq '{dependencies, trustedDependencies}' /tmp/package.json > /app/package.json && \
+RUN --mount=type=cache,target=/root/.bun/install/cache \
+    jq '{dependencies, trustedDependencies}' /tmp/package.json > /app/package.json && \
     bun install
 
 FROM base AS app
