@@ -17,6 +17,8 @@ app:
   betterAuthUrl: ""
   migrationsPath: /app/packages/service/backend/db/migrations
   syncWorkerPath: /app/packages/service/sync/src/worker.ts
+  # Log level: Trace, Debug, Info, Warning, Error, Fatal (empty = use app default)
+  logLevel: ""
   # SMTP server (non-sensitive)
   smtpHost: ""
   smtpPort: "465"
