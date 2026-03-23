@@ -54,8 +54,11 @@ COPY --from=deps /app/node_modules/ /app/node_modules/
 COPY --from=build /app/packages/service/app/build/ /app/packages/service/app/build/
 # Copy bundled sync worker
 COPY --from=build /app/packages/service/sync/dist/ /app/packages/service/sync/dist/
-# Copy database migrations
+# Copy database migrations to both paths:
+# - backend path: used at runtime when NODE_ENV=production resolves via process.cwd()
+# - app path: used by the bundled SvelteKit output (import.meta.dirname resolution)
 COPY packages/service/backend/db/migrations/ /app/packages/service/backend/db/migrations/
+COPY packages/service/backend/db/migrations/ /app/packages/service/app/db/migrations/
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
   CMD wget --spider -q http://localhost:3000/ || exit 1
