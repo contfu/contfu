@@ -29,13 +29,13 @@
 
   const FREE_LIMITS = { maxConnections: 2, maxCollections: 5, maxFlows: 5, maxItems: 100 };
 
-  const results = await Promise.allSettled([
+  const results = $derived(await Promise.allSettled([
     listConnections(),
     getCollections(),
     getDashboardStats(),
     getQuotaUsage(),
     getQuota(),
-  ]);
+  ]));
 
   const [connectionsResult, collectionsResult, statsResult, quotaUsageResult, quotaDbResult] = results;
   const connections =

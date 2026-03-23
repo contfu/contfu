@@ -5,7 +5,7 @@
   import { getQuota } from "$lib/remote/billing.remote";
   import { CreditCardIcon } from "@lucide/svelte";
 
-  const quota = await getQuota();
+  const quota = $derived(await getQuota());
 
   async function handleCheckout(productId: string) {
     const result = await authClient.checkout({ productId });

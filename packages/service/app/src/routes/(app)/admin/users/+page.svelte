@@ -5,7 +5,7 @@
   import DataTable from "./data-table.svelte";
   import { columns } from "./columns.js";
 
-  const users = await getUsers();
+  const users = $derived(await getUsers());
 
   const pendingCount = $derived(users.filter((u) => !u.approved).length);
 </script>

@@ -3,7 +3,7 @@
   import { getSystemSettings } from "$lib/remote/admin.remote";
   import { SettingsIcon } from "@lucide/svelte";
 
-  const settings = await getSystemSettings();
+  const settings = $derived(await getSystemSettings());
 </script>
 
 <svelte:head>
