@@ -16,6 +16,9 @@ spec:
       postInitSQL:
         - ALTER ROLE {{ .Values.postgresql.owner }} CREATEROLE
         - CREATE ROLE "app_user"
+        - CREATE ROLE "service_role"
+        - GRANT "app_user" TO {{ .Values.postgresql.owner }}
+        - GRANT "service_role" TO {{ .Values.postgresql.owner }}
 
   storage:
     size: {{ .Values.postgresql.storage.size }}
