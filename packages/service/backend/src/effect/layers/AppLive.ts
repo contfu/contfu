@@ -7,8 +7,6 @@ import { EventStreamLive } from "../services/EventStream";
 import { CryptoLive } from "../services/Crypto";
 import { MailLive } from "../services/Mail";
 import { QueueLive } from "../services/Queue";
-import { StreamServerLive } from "../services/StreamServer";
-import { SyncWorkerManagerLive } from "../services/SyncWorkerManager";
 
 /**
  * Infrastructure layer — all infra services without lifecycle (StreamServer, SyncWorkerManager).
@@ -27,15 +25,16 @@ const EventStreamWithDeps = EventStreamLive.pipe(Layer.provide(NatsClientLive));
 const QueueWithDeps = QueueLive;
 
 /**
- * Full production layer for the SvelteKit app runtime.
- * Includes all services, lifecycle management, and telemetry.
+ * Production layer for the SvelteKit app runtime.
+ * Provides infrastructure services needed by Effect-based features.
+ * StreamServer and SyncWorkerManager are excluded — they have their own
+ * lifecycle managed by startup.ts (initialize/shutdown) and must not be
+ * duplicated inside the Effect runtime.
  */
 export const AppLive = Layer.mergeAll(
   InfraLive,
   EventStreamWithDeps,
   QueueWithDeps,
-  StreamServerLive,
-  SyncWorkerManagerLive,
   TelemetryLive,
   LoggerLive,
 );

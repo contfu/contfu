@@ -5,6 +5,7 @@ import {
   type WorkerToAppMessage,
 } from "./messages";
 import { createLogger } from "../logger/index";
+import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { and, eq, inArray, isNotNull } from "drizzle-orm";
 
@@ -57,6 +58,7 @@ export class SyncWorkerManager {
   private worker: Worker | null = null;
   private readyPromise: Promise<void> | null = null;
   private readyResolve: (() => void) | null = null;
+  private readyReject: ((reason: unknown) => void) | null = null;
   private isReady = false;
   private itemsCallback: ItemsCallback | null = null;
   private schemaCallback: SchemaCallback | null = null;
@@ -69,8 +71,9 @@ export class SyncWorkerManager {
   >();
 
   async start() {
-    this.readyPromise = new Promise((resolve) => {
+    this.readyPromise = new Promise((resolve, reject) => {
       this.readyResolve = resolve;
+      this.readyReject = reject;
     });
 
     const workerUrl = resolveSyncWorkerUrl();
@@ -97,8 +100,10 @@ export class SyncWorkerManager {
     log.error({ err: error }, "Worker error");
 
     // If worker crashes before ready, reject the ready promise
-    if (!this.isReady && this.readyResolve) {
+    if (!this.isReady && this.readyReject) {
+      this.readyReject(new Error(`Sync worker failed to start: ${error.message}`));
       this.readyResolve = null;
+      this.readyReject = null;
     }
   }
 
@@ -348,10 +353,11 @@ export class SyncWorkerManager {
 }
 
 function resolveSyncWorkerUrl(): string {
-  if (process.env.NODE_ENV === "production") {
-    return resolve(process.cwd(), "packages/service/sync/dist/worker.js");
-  }
-  // Backend is ssr.external, so import.meta.dirname points to the source file.
+  // The bundler (rolldown) replaces all forms of process.env.NODE_ENV at build
+  // time, so we cannot use a NODE_ENV switch here. Instead, check for the
+  // pre-built dist worker which only exists in Docker.
+  const distPath = resolve(process.cwd(), "packages/service/sync/dist/worker.js");
+  if (existsSync(distPath)) return distPath;
   return resolve(import.meta.dirname, "../../../../sync/src/worker.ts");
 }
 
