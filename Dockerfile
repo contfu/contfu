@@ -29,6 +29,8 @@ COPY packages/ui/package.json packages/ui/
 COPY demos/consumer-app/package.json demos/consumer-app/
 RUN --mount=type=cache,target=/root/.bun/install/cache bun install --ignore-scripts
 COPY . .
+ENV NODE_ENV=production
+ENV BETTER_AUTH_SECRET=build-placeholder
 RUN bun run -F '@contfu/svc-backend' build && \
     bun run -F '@contfu/svc-app' build && \
     bun build packages/service/sync/src/worker.ts \

@@ -45,8 +45,15 @@ function externalNativeModules(): Plugin {
   };
 }
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   plugins: [tailwindcss(), sveltekit(), watchBackend(), externalNativeModules()],
+  // Replace process.env.NODE_ENV in SSR bundles so the adapter's rolldown
+  // (which defaults to platform:"browser" and overrides NODE_ENV) sees an
+  // already-resolved value. Only during build — dev evaluates at runtime.
+  define:
+    command === "build"
+      ? { "process.env.NODE_ENV": JSON.stringify(process.env.NODE_ENV ?? "production") }
+      : undefined,
   server: {
     port: 8011,
     host: true,
@@ -62,6 +69,6 @@ export default defineConfig({
   },
   ssr: {
     noExternal: process.env.NODE_ENV === "production" ? true : undefined,
-    external: ["@contfu/svc-backend", "@electric-sql/pglite", "@css-inline/css-inline"],
+    external: ["@electric-sql/pglite", "@css-inline/css-inline"],
   },
-});
+}));

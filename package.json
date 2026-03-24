@@ -14,7 +14,7 @@
   "scripts": {
     "test": "bun --filter '@contfu/*' test",
     "test:integration": "bun test tests/integration/",
-    "test:e2e": "E2E_FULL_FLOW=true bun run build && bun run --filter 'demo-consumer-app' build && playwright test -c tests/playwright.config.ts",
+    "test:e2e": "E2E_FULL_FLOW=true NODE_ENV=test bun run build && bun run --filter 'demo-consumer-app' build && playwright test -c tests/playwright.config.ts",
     "test:e2e:no-build": "E2E_FULL_FLOW=true playwright test -c tests/playwright.config.ts",
     "test:e2e:ui": "E2E_FULL_FLOW=true playwright test -c tests/playwright.config.ts --ui",
     "test:e2e:headed": "E2E_FULL_FLOW=true playwright test -c tests/playwright.config.ts --headed",

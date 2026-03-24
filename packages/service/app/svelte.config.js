@@ -12,6 +12,9 @@ const config = {
     alias: {
       "$lib/*": "./src/lib/*",
     },
+    prerender: {
+      entries: [],
+    },
     experimental: {
       remoteFunctions: true,
     },
