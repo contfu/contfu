@@ -68,13 +68,14 @@ Auto-assigned on creation: `enhancement`, `bug`, or `documentation`.
 
 Track issue lifecycle — mutually exclusive, managed via shared scripts:
 
-| Label         | Meaning                        |
-| ------------- | ------------------------------ |
-| `ready`       | Ready to be picked up          |
-| `in-progress` | Currently being worked on      |
-| `done`        | Completed                      |
+| Label         | Meaning                   |
+| ------------- | ------------------------- |
+| `ready`       | Ready to be picked up     |
+| `in-progress` | Currently being worked on |
+| `done`        | Completed                 |
 
 Check existing labels:
+
 ```bash
 tea labels list --login forgejo --repo contfu/contfu
 ```

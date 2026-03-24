@@ -10,6 +10,7 @@ Instance: `https://code.sven-rogge.com` | Repo: `contfu/contfu`
 ## Configuration
 
 Credentials come from `.env`:
+
 ```
 FORGEJO_USERNAME=<username>
 FORGEJO_PASSWORD=<password>
@@ -63,6 +64,7 @@ Shows job status for the latest run (or a specific run):
 ```
 
 Output:
+
 ```
 Run #5
 ✅ Lint & Unit Tests (success)
@@ -81,6 +83,7 @@ Polls until a run reaches a settled state (success/failure/cancelled). Defaults 
 ```
 
 Output:
+
 ```
 Waiting for run #5 (timeout: 600s)...
 --- Run #5 @ 0s ---
@@ -103,22 +106,26 @@ Fetches logs for a job. `job_index` is 1-based within the run (default: 1). Add 
 ```
 
 **Job index mapping** (jobs within a run are ordered by creation, index 1 = first job that ran):
+
 - Use `ci-status` to see job names, then match by order.
 - Index 2 sometimes triggers a Forgejo 500 bug — try 1 and 3 first.
 
 ## tea CLI
 
 ### List runs
+
 ```bash
 tea actions runs --login forgejo --repo contfu/contfu
 ```
 
 ### List tasks (with job names + status)
+
 ```bash
 tea api --login forgejo "/api/v1/repos/contfu/contfu/actions/tasks?run_id=<id>"
 ```
 
 ### Create PR
+
 ```bash
 tea pr create --login forgejo --repo contfu/contfu \
   --base main --head <branch> \
