@@ -1,7 +1,7 @@
 import { EventType, type WireEvent } from "@contfu/core";
 import { createLogger } from "@contfu/svc-backend/infra/logger/index";
 import { ensureEventStream } from "@contfu/svc-backend/infra/nats/event-stream";
-import { hasNats } from "@contfu/svc-backend/infra/nats/connection";
+import { getNatsConnection } from "@contfu/svc-backend/infra/nats/connection";
 import { StreamServer } from "@contfu/svc-backend/infra/stream/stream-server";
 import { SyncWorkerManager } from "@contfu/svc-backend/infra/sync-worker/worker-manager";
 import {
@@ -55,10 +55,10 @@ export async function initialize(): Promise<void> {
   const stream = getStreamServer();
   const worker = getSyncWorkerManager();
 
-  log.info(
-    { nats: hasNats(), natsServer: process.env.NATS_SERVER ?? null },
-    "Infrastructure status",
-  );
+  // Fail fast if NATS_SERVER is not configured
+  await getNatsConnection();
+
+  log.info({ natsServer: process.env.NATS_SERVER ?? null }, "Infrastructure status");
 
   // Run blob data migrations
   // These handle schema migrations for bytea/JSONB columns that store encoded data
@@ -69,14 +69,12 @@ export async function initialize(): Promise<void> {
   // Add new migrations here with incrementing version numbers
   await runMsgpackrMigrations([]);
 
-  // Initialize JetStream event stream if NATS is available
-  if (hasNats()) {
-    await ensureEventStream();
-    await ensureWebhookFetchQueue();
-    startWebhookFetchWorker({ streamServer: stream });
-    const { startPushWorker } = await import("@contfu/svc-backend/push-worker/push-worker");
-    await startPushWorker();
-  }
+  // Initialize JetStream event stream and dependent services
+  await ensureEventStream();
+  await ensureWebhookFetchQueue();
+  startWebhookFetchWorker({ streamServer: stream });
+  const { startPushWorker } = await import("@contfu/svc-backend/push-worker/push-worker");
+  await startPushWorker();
 
   // Start the sync worker (skip in test mode — E2E tests use webhook fixtures
   // and the worker's PGLite instance conflicts with the main app's in CI).
@@ -126,9 +124,7 @@ export async function shutdown(): Promise<void> {
     await workerManager.stop();
   }
 
-  if (hasNats()) {
-    await stopWebhookFetchWorker();
-  }
+  await stopWebhookFetchWorker();
 
   const { stopWebSyncScheduler } =
     await import("@contfu/svc-backend/infra/sync-scheduler/web-sync-scheduler");

@@ -10,7 +10,6 @@ import {
 import { createIncident } from "@contfu/svc-backend/features/incidents/createIncident";
 import { getSyncConfig } from "@contfu/svc-backend/features/sync/getSyncConfig";
 import { collectionTable, connectionTable, flowTable, db } from "@contfu/svc-backend/infra/db/db";
-import { hasNats } from "@contfu/svc-backend/infra/nats/connection";
 import {
   getLastSequence,
   isSequenceAvailable,
@@ -135,24 +134,22 @@ export async function runSyncSession({
   let fromSeq = requestedFromSeq;
   let resumeFromSnapshot = false;
 
-  if (hasNats()) {
-    const snapshotProgress = await getSnapshotProgress(userId, clientConnectionId);
-    if (snapshotProgress?.inProgress && fromSeq !== null) {
-      const available = await isSnapshotSeqAvailable(userId, clientConnectionId, fromSeq);
-      if (available) {
-        resumeFromSnapshot = true;
-      } else {
-        await clearSnapshotProgress(userId, clientConnectionId);
-        fromSeq = null;
-      }
-    } else if (snapshotProgress?.inProgress && fromSeq === null) {
+  const snapshotProgress = await getSnapshotProgress(userId, clientConnectionId);
+  if (snapshotProgress?.inProgress && fromSeq !== null) {
+    const available = await isSnapshotSeqAvailable(userId, clientConnectionId, fromSeq);
+    if (available) {
       resumeFromSnapshot = true;
-      fromSeq = 1;
-    } else if (fromSeq !== null) {
-      const available = await isSequenceAvailable(fromSeq);
-      if (!available) {
-        fromSeq = null;
-      }
+    } else {
+      await clearSnapshotProgress(userId, clientConnectionId);
+      fromSeq = null;
+    }
+  } else if (snapshotProgress?.inProgress && fromSeq === null) {
+    resumeFromSnapshot = true;
+    fromSeq = 1;
+  } else if (fromSeq !== null) {
+    const available = await isSequenceAvailable(fromSeq);
+    if (!available) {
+      fromSeq = null;
     }
   }
 
@@ -299,7 +296,7 @@ export async function runSyncSession({
   }
 
   const replayStartSeq = fromSeq ?? snapshotStartSeq + 1;
-  if (!hasNats() || abortSignal?.aborted) {
+  if (abortSignal?.aborted) {
     return;
   }
 

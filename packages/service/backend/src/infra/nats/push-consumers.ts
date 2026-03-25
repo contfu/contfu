@@ -1,6 +1,5 @@
 import { AckPolicy, DeliverPolicy } from "@nats-io/jetstream";
 import { Effect } from "effect";
-import { hasNats } from "./connection";
 import { getJetStreamManager } from "./jsm";
 
 const STREAM_NAME = "events";
@@ -14,15 +13,12 @@ export function pushConsumerName(connectionId: number, collectionId: number): st
 
 /**
  * Create or bind to an existing durable NATS consumer for a service connection + collection pair.
- * No-op if NATS is unavailable.
  */
 export function setupPushConsumer(
   userId: number,
   connectionId: number,
   collectionId: number,
 ): Effect.Effect<void, void> {
-  if (!hasNats()) return Effect.void;
-
   const name = pushConsumerName(connectionId, collectionId);
   const filterSubject = `evt.${userId}.${collectionId}`;
 
@@ -45,14 +41,12 @@ export function setupPushConsumer(
 
 /**
  * Delete the durable NATS consumer for a service connection + collection pair.
- * No-op if NATS is unavailable or consumer doesn't exist.
+ * No-op if consumer doesn't exist.
  */
 export function teardownPushConsumer(
   connectionId: number,
   collectionId: number,
 ): Effect.Effect<void, void> {
-  if (!hasNats()) return Effect.void;
-
   const name = pushConsumerName(connectionId, collectionId);
 
   return Effect.tryPromise({

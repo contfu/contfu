@@ -1,7 +1,6 @@
 import { Effect, Layer, ServiceMap } from "effect";
 import type { StoredWireItemEvent } from "../../infra/nats/event-stream";
 import { NatsError } from "../errors";
-import { NatsClient } from "./NatsClient";
 
 export class EventStream extends ServiceMap.Service<
   EventStream,
@@ -27,19 +26,16 @@ export class EventStream extends ServiceMap.Service<
  */
 export const EventStreamLive = Layer.effect(EventStream)(
   Effect.gen(function* () {
-    const nats = yield* NatsClient;
     const mod = yield* Effect.tryPromise({
       try: () => import("../../infra/nats/event-stream"),
       catch: (e) => new NatsError({ cause: e }),
     });
 
     return {
-      ensureStream: nats.hasNats
-        ? Effect.tryPromise({
-            try: () => mod.ensureEventStream(),
-            catch: (e) => new NatsError({ cause: e }),
-          })
-        : Effect.void,
+      ensureStream: Effect.tryPromise({
+        try: () => mod.ensureEventStream(),
+        catch: (e) => new NatsError({ cause: e }),
+      }),
 
       publishEvent: (userId: number, collectionId: number, event: StoredWireItemEvent) =>
         Effect.tryPromise({

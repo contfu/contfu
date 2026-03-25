@@ -19,7 +19,6 @@ import {
   flowTable,
   webhookLogTable,
 } from "@contfu/svc-backend/infra/db/schema";
-import { hasNats } from "@contfu/svc-backend/infra/nats/connection";
 import { notionRefUrlFromRawUuid } from "@contfu/svc-sources";
 import type { UserSyncItem } from "@contfu/svc-backend/infra/sync-worker/messages";
 import { cancelPending, markPending } from "@contfu/svc-backend/infra/webhook-queue/pending-kv";
@@ -420,9 +419,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
       const itemId = genUid(uuidToBuffer(pageId));
 
       if (conn) {
-        if (hasNats()) {
-          await cancelPending(conn.userId, conn.id, pageId);
-        }
+        await cancelPending(conn.userId, conn.id, pageId);
 
         const parentDbId = payload.data?.parent?.database_id;
         if (!parentDbId) {
@@ -504,10 +501,8 @@ export const POST: RequestHandler = async ({ request, params }) => {
             });
           }
 
-          if (hasNats()) {
-            for (const g of grouped.values()) {
-              await cancelPending(g.userId, g.connectionId, pageId);
-            }
+          for (const g of grouped.values()) {
+            await cancelPending(g.userId, g.connectionId, pageId);
           }
 
           for (const gc of globalCollections) {
@@ -531,7 +526,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
     }
 
     // ---- CHANGED (page.created, page.content_updated, etc.) ----
-    if (isPageChangeEvent(eventType) && hasNats()) {
+    if (isPageChangeEvent(eventType)) {
       const parentDbId = payload.data?.parent?.database_id;
 
       if (conn) {
@@ -598,218 +593,6 @@ export const POST: RequestHandler = async ({ request, params }) => {
       }
 
       return new Response("OK", { status: 200 });
-    }
-
-    // ---- CHANGED (fallback inline mode without NATS) ----
-    if (conn) {
-      const credentials = conn.credentials
-        ? await decryptCredentials(conn.userId, conn.credentials)
-        : null;
-      const token = credentials?.toString("utf8");
-      if (!token) {
-        await logWebhookEvent(conn.userId, conn.id, eventType, pageId, "error", "No credentials");
-        return new Response("OK", { status: 200 });
-      }
-
-      let parentDbId = payload.data?.parent?.database_id;
-      let result: Awaited<ReturnType<typeof fetchNotionPage>> = null;
-
-      try {
-        result = await fetchNotionPage(token, pageId, 0);
-        if (result && !parentDbId) {
-          parentDbId = result.parentDatabaseId ?? undefined;
-        }
-      } catch (err) {
-        log.error({ err, pageId }, "Failed to fetch page");
-        await logWebhookEvent(conn.userId, conn.id, eventType, pageId, "error", String(err));
-        return new Response("OK", { status: 200 });
-      }
-
-      if (!result || !parentDbId) {
-        await logWebhookEvent(
-          conn.userId,
-          conn.id,
-          eventType,
-          pageId,
-          "success",
-          "Page not found or no parent database",
-          0,
-        );
-        return new Response("OK", { status: 200 });
-      }
-
-      const ref = uuidToBuffer(parentDbId);
-      const sourceCollections = await getCollectionsByRef(conn.userId, conn.id, ref);
-      if (sourceCollections.length === 0) {
-        await logWebhookEvent(
-          conn.userId,
-          conn.id,
-          eventType,
-          pageId,
-          "success",
-          "No matching collections",
-          0,
-        );
-        return new Response("OK", { status: 200 });
-      }
-
-      const sourceCollectionIds = sourceCollections.map((c) => c.id);
-      const { flows, clients } = await getFlowsAndClients(
-        conn.userId,
-        sourceCollectionIds,
-        conn.includeRef,
-      );
-
-      if (flows.length === 0) {
-        await logWebhookEvent(conn.userId, conn.id, eventType, pageId, "success", "No flows", 0);
-        return new Response("OK", { status: 200 });
-      }
-
-      // Apply filters and broadcast
-      let itemsBroadcast = 0;
-      const targetCollectionIds: number[] = [];
-      const collectionRefPolicy = new Map<number, boolean>();
-      for (const flow of flows) {
-        if (flow.filters) {
-          const filters = unpack(flow.filters) as Filter[];
-          if (filters.length > 0 && !matchesFilters(result.item.props, filters)) {
-            continue;
-          }
-        }
-        targetCollectionIds.push(flow.targetId);
-        const previous = collectionRefPolicy.get(flow.targetId) ?? true;
-        collectionRefPolicy.set(
-          flow.targetId,
-          previous && Boolean(conn.includeRef) && Boolean(flow.includeRef),
-        );
-      }
-
-      if (targetCollectionIds.length > 0 && clients.length > 0) {
-        for (const collectionId of new Set(targetCollectionIds)) {
-          const item: UserSyncItem = {
-            ...result.item,
-            ref: notionRefUrlFromRawUuid(result.item.ref),
-            sourceType: ConnectionType.NOTION,
-            user: conn.userId,
-            collection: collectionId,
-          };
-          const collectionClients = clients
-            .filter((c) => c.collectionId === collectionId)
-            .map((c) => ({
-              userId: conn!.userId,
-              connectionId: c.connectionId,
-              collectionId: c.collectionId,
-              includeRef:
-                Boolean(c.connectionIncludeRef) &&
-                Boolean(c.collectionIncludeRef) &&
-                (collectionRefPolicy.get(c.collectionId) ?? true),
-            }));
-          if (collectionClients.length > 0) {
-            await streamServer.broadcast([item], collectionClients);
-            itemsBroadcast += collectionClients.length;
-          }
-        }
-      }
-
-      await logWebhookEvent(
-        conn.userId,
-        conn.id,
-        eventType,
-        pageId,
-        "success",
-        undefined,
-        itemsBroadcast,
-      );
-    } else {
-      // OAuth mode inline
-      let parentDbId = payload.data?.parent?.database_id;
-      if (!parentDbId) return new Response("OK", { status: 200 });
-
-      const ref = uuidToBuffer(parentDbId);
-      const globalCollections = await getCollectionsByRefGlobal(ref);
-
-      const groups = new Map<string, typeof globalCollections>();
-      for (const gc of globalCollections) {
-        const key = `${gc.userId}:${gc.connectionId}`;
-        const group = groups.get(key) ?? [];
-        if (group.length === 0) groups.set(key, group);
-        group.push(gc);
-      }
-
-      for (const [, group] of groups) {
-        const { userId, connectionId } = group[0];
-
-        const [connRow] = await db
-          .select({
-            credentials: connectionTable.credentials,
-            includeRef: connectionTable.includeRef,
-          })
-          .from(connectionTable)
-          .where(and(eq(connectionTable.userId, userId), eq(connectionTable.id, connectionId)))
-          .limit(1);
-
-        if (!connRow?.credentials) continue;
-        const credentials = await decryptCredentials(userId, connRow.credentials);
-        const token = credentials?.toString("utf8");
-        if (!token) continue;
-
-        let result: Awaited<ReturnType<typeof fetchNotionPage>> = null;
-        try {
-          result = await fetchNotionPage(token, pageId, 0);
-        } catch (err) {
-          log.error({ err, userId, pageId }, "OAuth: Failed to fetch page");
-          continue;
-        }
-        if (!result) continue;
-
-        const sourceCollectionIds = group.map((c) => c.id);
-        const { flows, clients } = await getFlowsAndClients(
-          userId,
-          sourceCollectionIds,
-          connRow.includeRef,
-        );
-
-        const targetCollectionIds: number[] = [];
-        const collectionRefPolicy = new Map<number, boolean>();
-        for (const flow of flows) {
-          if (flow.filters) {
-            const filters = unpack(flow.filters) as Filter[];
-            if (filters.length > 0 && !matchesFilters(result.item.props, filters)) continue;
-          }
-          targetCollectionIds.push(flow.targetId);
-          const previous = collectionRefPolicy.get(flow.targetId) ?? true;
-          collectionRefPolicy.set(
-            flow.targetId,
-            previous && Boolean(connRow.includeRef) && Boolean(flow.includeRef),
-          );
-        }
-
-        if (targetCollectionIds.length === 0) continue;
-
-        for (const collectionId of new Set(targetCollectionIds)) {
-          const item: UserSyncItem = {
-            ...result.item,
-            ref: notionRefUrlFromRawUuid(result.item.ref),
-            sourceType: ConnectionType.NOTION,
-            user: userId,
-            collection: collectionId,
-          };
-          const collectionClients = clients
-            .filter((c) => c.collectionId === collectionId)
-            .map((c) => ({
-              userId,
-              connectionId: c.connectionId,
-              collectionId: c.collectionId,
-              includeRef:
-                Boolean(c.connectionIncludeRef) &&
-                Boolean(c.collectionIncludeRef) &&
-                (collectionRefPolicy.get(c.collectionId) ?? true),
-            }));
-          if (collectionClients.length > 0) {
-            await streamServer.broadcast([item], collectionClients);
-          }
-        }
-      }
     }
 
     return new Response("OK", { status: 200 });

@@ -1,7 +1,6 @@
 import { ConnectionType } from "@contfu/core";
 import { Effect, Layer } from "effect";
 import { createLogger } from "../logger/index";
-import { hasNats } from "../nats/connection";
 import { raceForLeader } from "../nats/leader-election";
 import { db } from "../db/db";
 import { collectionTable, connectionTable, flowTable } from "../db/schema";
@@ -55,20 +54,14 @@ export async function startWebSyncScheduler(): Promise<void> {
   const { signal } = stopController;
   const intervalMs = getIntervalMs();
 
-  if (hasNats()) {
-    // Use leader election so only one instance runs the scheduler
-    const leader = raceForLeader("web-sync-scheduler");
-    for await (const isLeader of leader) {
-      if (signal.aborted) break;
-      if (isLeader) {
-        log.info({ intervalMs }, "Web sync scheduler started (leader)");
-        runSchedulerLoop(intervalMs, signal);
-      }
+  // Use leader election so only one instance runs the scheduler
+  const leader = raceForLeader("web-sync-scheduler");
+  for await (const isLeader of leader) {
+    if (signal.aborted) break;
+    if (isLeader) {
+      log.info({ intervalMs }, "Web sync scheduler started (leader)");
+      runSchedulerLoop(intervalMs, signal);
     }
-  } else {
-    // Local mode — always run
-    log.info({ intervalMs }, "Web sync scheduler started (local mode)");
-    runSchedulerLoop(intervalMs, signal);
   }
 }
 

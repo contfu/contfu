@@ -8,7 +8,6 @@ import { db } from "@contfu/svc-backend/infra/db/db";
 import * as schema from "@contfu/svc-backend/infra/db/schema";
 import { sendEmail } from "@contfu/svc-backend/infra/mail/mail";
 import { absolute, button, link } from "@contfu/svc-backend/infra/mail/mail-rendering";
-import { hasNats } from "@contfu/svc-backend/infra/nats/connection";
 import { saveOAuthConnection } from "@contfu/svc-backend/features/connections/saveOAuthConnection";
 import { runWithUser } from "$lib/server/run";
 import { checkout, polar, portal, usage, webhooks } from "@polar-sh/better-auth";
@@ -129,7 +128,7 @@ export const auth = betterAuth({
       dont_remember: { name: "n" },
     },
   },
-  secondaryStorage: hasNats() ? await createNatsKvSessionStorage() : undefined,
+  secondaryStorage: await createNatsKvSessionStorage(),
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: true,

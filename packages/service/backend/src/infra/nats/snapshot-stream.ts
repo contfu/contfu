@@ -1,7 +1,6 @@
 import { DeliverPolicy, RetentionPolicy } from "@nats-io/jetstream";
 import { pack, unpack } from "msgpackr";
 import { createLogger } from "../logger/index";
-import { hasNats } from "./connection";
 import { getJetStreamManager } from "./jsm";
 import { getKvManager } from "./kvm";
 import type { StoredWireItemEvent } from "./event-stream";
@@ -33,7 +32,7 @@ let initialized = false;
  * Creates or updates the stream on startup.
  */
 export async function ensureSnapshotStream(): Promise<void> {
-  if (initialized || !hasNats()) return;
+  if (initialized) return;
 
   const jsm = await getJetStreamManager();
 
@@ -60,15 +59,13 @@ export async function ensureSnapshotStream(): Promise<void> {
 
 /**
  * Publish a snapshot item to the JetStream snapshot stream.
- * Returns the JetStream sequence number, or 0 if NATS is unavailable.
+ * Returns the JetStream sequence number.
  */
 export async function publishSnapshot(
   userId: number,
   connectionId: number,
   event: StoredWireItemEvent,
 ): Promise<number> {
-  if (!hasNats()) return 0;
-
   const jsm = await getJetStreamManager();
   const subject = `${SUBJECT_PREFIX}.${userId}.${connectionId}`;
   const ack = await jsm.jetstream().publish(subject, pack(event));
@@ -84,8 +81,6 @@ export async function isSnapshotSeqAvailable(
   connectionId: number,
   seq: number,
 ): Promise<boolean> {
-  if (!hasNats()) return false;
-
   const jsm = await getJetStreamManager();
   try {
     const info = await jsm.streams.info(STREAM_NAME);
@@ -105,8 +100,6 @@ export async function* replaySnapshotFrom(
   connectionId: number,
   fromSeq: number,
 ): AsyncGenerator<{ seq: number; event: StoredWireItemEvent }> {
-  if (!hasNats()) return;
-
   const jsm = await getJetStreamManager();
   const stream = await jsm.streams.get(STREAM_NAME);
 
@@ -133,8 +126,6 @@ export async function* replaySnapshotFrom(
  * Purge all snapshot messages for a specific consumer.
  */
 export async function purgeConnectionSnapshot(userId: number, connectionId: number): Promise<void> {
-  if (!hasNats()) return;
-
   const jsm = await getJetStreamManager();
   const filterSubject = `${SUBJECT_PREFIX}.${userId}.${connectionId}`;
   await jsm.streams.purge(STREAM_NAME, { filter: filterSubject });

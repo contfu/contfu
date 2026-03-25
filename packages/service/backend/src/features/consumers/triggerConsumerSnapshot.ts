@@ -3,7 +3,6 @@ import { and, eq, isNotNull } from "drizzle-orm";
 import { db, flowTable, collectionTable, connectionTable } from "../../infra/db/db";
 import { enqueueSyncJobs } from "../sync-jobs/enqueueSyncJobs";
 import { Database } from "../../effect/services/Database";
-import { hasNats } from "../../infra/nats/connection";
 import { clearSnapshotProgress, purgeConnectionSnapshot } from "../../infra/nats/snapshot-stream";
 import { ConnectionType } from "@contfu/core";
 
@@ -19,10 +18,8 @@ export async function triggerConsumerSnapshot(
   consumerId: number,
   collectionId: number,
 ): Promise<void> {
-  if (hasNats()) {
-    await purgeConnectionSnapshot(userId, consumerId);
-    await clearSnapshotProgress(userId, consumerId);
-  }
+  await purgeConnectionSnapshot(userId, consumerId);
+  await clearSnapshotProgress(userId, consumerId);
 
   // Find source collections that feed into this target collection
   const sourceRows = await db

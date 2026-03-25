@@ -1,4 +1,4 @@
-export { getNatsConnection, hasNats } from "./connection";
+export { getNatsConnection } from "./connection";
 export {
   ensureEventStream,
   getLastSequence,

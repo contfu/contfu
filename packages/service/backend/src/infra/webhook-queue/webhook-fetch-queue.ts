@@ -1,5 +1,4 @@
 import { AckPolicy, RetentionPolicy } from "@nats-io/jetstream";
-import { hasNats } from "../nats/connection";
 import { getJetStreamManager } from "../nats/jsm";
 import type { WebhookFetchJob } from "./types";
 
@@ -13,7 +12,7 @@ const MAX_AGE_NS = 24 * 60 * 60 * 1_000_000_000;
 let initialized = false;
 
 export async function ensureWebhookFetchQueue(): Promise<void> {
-  if (initialized || !hasNats()) return;
+  if (initialized) return;
 
   const jsm = await getJetStreamManager();
 
@@ -52,8 +51,6 @@ export async function ensureWebhookFetchQueue(): Promise<void> {
 }
 
 export async function enqueueWebhookFetch(job: WebhookFetchJob): Promise<void> {
-  if (!hasNats()) return;
-
   await ensureWebhookFetchQueue();
   const jsm = await getJetStreamManager();
   const subject = `${SUBJECT_PREFIX}.${job.userId}.${job.connectionId}`;
@@ -63,8 +60,6 @@ export async function enqueueWebhookFetch(job: WebhookFetchJob): Promise<void> {
 }
 
 export async function* consumeWebhookFetches() {
-  if (!hasNats()) return;
-
   await ensureWebhookFetchQueue();
   const jsm = await getJetStreamManager();
   const stream = await jsm.streams.get(STREAM_NAME);

@@ -1,0 +1,52 @@
+#!/usr/bin/env python3
+"""Reply to a PR comment on Forgejo.
+
+Usage: pr-reply <pr_number> <body>
+
+Posts a comment on the PR.
+"""
+import json
+import os
+import subprocess
+import sys
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_URL = os.environ.get("FORGEJO_URL", "https://code.sven-rogge.com")
+REPO = os.environ.get("FORGEJO_REPO", "contfu/contfu")
+API = f"{BASE_URL}/api/v1/repos/{REPO}"
+
+if len(sys.argv) < 3:
+    print("Usage: pr-reply <pr_number> <body>", file=sys.stderr)
+    sys.exit(1)
+
+PR = sys.argv[1]
+BODY = sys.argv[2]
+TOKEN = subprocess.check_output(
+    [os.path.join(SCRIPT_DIR, "forgejo-token")], text=True
+).strip()
+
+data = json.dumps({"body": BODY})
+result = subprocess.run(
+    [
+        "curl",
+        "-sf",
+        "-X",
+        "POST",
+        "-H",
+        f"Authorization: token {TOKEN}",
+        "-H",
+        "Content-Type: application/json",
+        "-d",
+        data,
+        f"{API}/issues/{PR}/comments",
+    ],
+    capture_output=True,
+    text=True,
+)
+
+if result.returncode != 0:
+    print(f"Failed to post comment on PR #{PR}", file=sys.stderr)
+    sys.exit(1)
+
+comment = json.loads(result.stdout)
+print(f"Comment posted on PR #{PR} (comment #{comment['id']})")

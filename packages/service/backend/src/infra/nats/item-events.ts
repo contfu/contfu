@@ -1,7 +1,7 @@
 import type { WireItemEvent } from "@contfu/core";
 import { pack, unpack } from "msgpackr";
 import { createLogger } from "../logger/index";
-import { getNatsConnection, hasNats } from "./connection";
+import { getNatsConnection } from "./connection";
 
 const log = createLogger("nats-item-events");
 
@@ -23,8 +23,6 @@ const ITEM_EVENTS_SUBJECT = "i";
  * Publish an item event to all subscribers
  */
 export async function publishItemEvent(event: NatsItemEvent): Promise<void> {
-  if (!hasNats()) return;
-
   const nc = await getNatsConnection();
   nc.publish(ITEM_EVENTS_SUBJECT, pack(event));
 }
@@ -34,8 +32,6 @@ export async function publishItemEvent(event: NatsItemEvent): Promise<void> {
  * Use a map from userId to connections for efficient routing.
  */
 export async function* subscribeToItemEvents(): AsyncGenerator<NatsItemEvent, void, void> {
-  if (!hasNats()) return;
-
   const nc = await getNatsConnection();
   const sub = nc.subscribe(ITEM_EVENTS_SUBJECT);
 

@@ -1,5 +1,4 @@
 import { EventType, type WireItem } from "@contfu/core";
-import { hasNats } from "../../infra/nats/connection";
 import {
   getSnapshotProgress,
   publishSnapshot,
@@ -23,7 +22,6 @@ export async function applySchemaTransform(
   renames: Record<string, string>, // oldName → newName
   removals: string[],
 ): Promise<void> {
-  if (!hasNats()) return;
   if (Object.keys(renames).length === 0 && removals.length === 0) return;
 
   const existing = await getSnapshotProgress(userId, consumerId);

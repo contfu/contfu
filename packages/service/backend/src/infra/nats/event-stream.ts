@@ -2,7 +2,6 @@ import { EventType, type WireItem } from "@contfu/core";
 import { DeliverPolicy, RetentionPolicy } from "@nats-io/jetstream";
 import { pack, unpack } from "msgpackr";
 import { createLogger } from "../logger/index";
-import { hasNats } from "./connection";
 import { getJetStreamManager } from "./jsm";
 import { ensureSnapshotStream } from "./snapshot-stream";
 
@@ -25,7 +24,7 @@ let initialized = false;
  * Creates or updates the stream on startup.
  */
 export async function ensureEventStream(): Promise<void> {
-  if (initialized || !hasNats()) return;
+  if (initialized) return;
 
   const jsm = await getJetStreamManager();
 
@@ -54,15 +53,13 @@ export async function ensureEventStream(): Promise<void> {
 
 /**
  * Publish an item event to the JetStream event stream.
- * Returns the JetStream sequence number, or 0 if NATS is unavailable.
+ * Returns the JetStream sequence number.
  */
 export async function publishEvent(
   userId: number,
   collectionId: number,
   event: StoredWireItemEvent,
 ): Promise<number> {
-  if (!hasNats()) return 0;
-
   const jsm = await getJetStreamManager();
   const subject = `${SUBJECT_PREFIX}.${userId}.${collectionId}`;
   const ack = await jsm.jetstream().publish(subject, pack(event));
@@ -71,11 +68,9 @@ export async function publishEvent(
 
 /**
  * Get the last sequence number from the event stream.
- * Returns 0 if NATS is unavailable or stream is empty.
+ * Returns 0 if stream is empty.
  */
 export async function getLastSequence(): Promise<number> {
-  if (!hasNats()) return 0;
-
   const jsm = await getJetStreamManager();
   try {
     const info = await jsm.streams.info(STREAM_NAME);
@@ -87,11 +82,8 @@ export async function getLastSequence(): Promise<number> {
 
 /**
  * Check if a given sequence number is still available in the stream.
- * Returns false if NATS is unavailable.
  */
 export async function isSequenceAvailable(seq: number): Promise<boolean> {
-  if (!hasNats()) return false;
-
   const jsm = await getJetStreamManager();
   try {
     const info = await jsm.streams.info(STREAM_NAME);
@@ -105,11 +97,8 @@ export async function isSequenceAvailable(seq: number): Promise<boolean> {
 
 /**
  * Purge events from the stream up to (but not including) the given sequence number.
- * No-op if NATS is unavailable.
  */
 export async function purgeEventsUpTo(seq: number): Promise<void> {
-  if (!hasNats()) return;
-
   const jsm = await getJetStreamManager();
   await jsm.streams.purge(STREAM_NAME, { seq });
 }
@@ -124,7 +113,7 @@ export async function* replayEvents(opts: {
   userId: number;
   collectionIds: number[];
 }): AsyncGenerator<{ seq: number; collectionId: number; event: StoredWireItemEvent }> {
-  if (!hasNats() || opts.collectionIds.length === 0) return;
+  if (opts.collectionIds.length === 0) return;
 
   const jsm = await getJetStreamManager();
   const stream = await jsm.streams.get(STREAM_NAME);

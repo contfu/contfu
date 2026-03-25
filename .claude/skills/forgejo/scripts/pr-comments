@@ -1,0 +1,83 @@
+#!/usr/bin/env python3
+"""Fetch unresolved PR review comments from Forgejo.
+
+Usage: pr-comments <pr_number>
+
+Output: JSON array of unresolved review comments with context.
+"""
+import json
+import os
+import subprocess
+import sys
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_URL = os.environ.get("FORGEJO_URL", "https://code.sven-rogge.com")
+REPO = os.environ.get("FORGEJO_REPO", "contfu/contfu")
+API = f"{BASE_URL}/api/v1/repos/{REPO}"
+
+if len(sys.argv) < 2:
+    print("Usage: pr-comments <pr_number>", file=sys.stderr)
+    sys.exit(1)
+
+PR = sys.argv[1]
+TOKEN = subprocess.check_output(
+    [os.path.join(SCRIPT_DIR, "forgejo-token")], text=True
+).strip()
+
+
+def api_get(path: str):
+    result = subprocess.run(
+        ["curl", "-sf", "-H", f"Authorization: token {TOKEN}", f"{API}{path}"],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        print(f"API request failed: {path}", file=sys.stderr)
+        sys.exit(1)
+    return json.loads(result.stdout)
+
+
+reviews = api_get(f"/pulls/{PR}/reviews")
+comments = []
+
+for review in reviews:
+    review_id = review["id"]
+    review_comments = api_get(f"/pulls/{PR}/reviews/{review_id}/comments")
+
+    for c in review_comments:
+        if c.get("resolver") is not None:
+            continue  # already resolved
+        comments.append(
+            {
+                "id": c["id"],
+                "review_id": review_id,
+                "body": c["body"],
+                "path": c.get("path", ""),
+                "diff_hunk": c.get("diff_hunk", ""),
+                "line": c.get("position", 0),
+                "user": c["user"]["login"],
+                "created_at": c["created_at"],
+            }
+        )
+
+# Also fetch general issue comments (non-review)
+issue_comments = api_get(f"/issues/{PR}/comments")
+
+for c in issue_comments:
+    if c.get("pull_request_review_id"):
+        continue
+    comments.append(
+        {
+            "id": c["id"],
+            "review_id": None,
+            "body": c["body"],
+            "path": "",
+            "diff_hunk": "",
+            "line": 0,
+            "user": c["user"]["login"],
+            "created_at": c["created_at"],
+        }
+    )
+
+json.dump(comments, sys.stdout, indent=2)
+print()

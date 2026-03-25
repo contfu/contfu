@@ -1,20 +1,11 @@
-import { Effect, Layer, Option } from "effect";
+import { Effect, Layer } from "effect";
 import { LoggerLive } from "../../infra/logger";
 import { DatabaseLive } from "../services/Database";
-import { NatsClient } from "../services/NatsClient";
 import { EventStream } from "../services/EventStream";
 import { CryptoLive } from "../services/Crypto";
 import { Mail } from "../services/Mail";
 import { Queue } from "../services/Queue";
 import { StreamServerLive } from "../services/StreamServer";
-
-/**
- * No-op NATS client for tests.
- */
-const NatsClientTest = Layer.succeed(NatsClient)({
-  connection: Option.none(),
-  hasNats: false,
-});
 
 /**
  * No-op EventStream for tests.
@@ -51,7 +42,6 @@ const QueueTest = Layer.succeed(Queue)({
  */
 export const AppTest = Layer.mergeAll(
   DatabaseLive,
-  NatsClientTest,
   EventStreamTest,
   CryptoLive,
   MailTest,

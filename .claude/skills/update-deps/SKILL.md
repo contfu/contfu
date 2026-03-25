@@ -80,6 +80,7 @@ be skipped.
 ### Agent A — Breaking changes
 
 For each significantly updated package, fetch its changelog/GitHub releases and extract:
+
 - Removed or renamed APIs
 - Behavior changes
 - Deprecated imports or config options
@@ -88,6 +89,7 @@ For each significantly updated package, fetch its changelog/GitHub releases and 
 ### Agent B — Wins
 
 For each significantly updated package, extract:
+
 - Notable new features relevant to this codebase
 - Performance improvements
 - DX improvements
@@ -112,10 +114,10 @@ For each breaking change identified in Step 4:
 
 Show a verification table:
 
-| Breaking change | Used? | Action taken |
-|---|---|---|
-| `foo` import moved | No | — |
-| `bar` option removed | Yes | Fixed in `path/to/file.ts:42` |
+| Breaking change      | Used? | Action taken                  |
+| -------------------- | ----- | ----------------------------- |
+| `foo` import moved   | No    | —                             |
+| `bar` option removed | Yes   | Fixed in `path/to/file.ts:42` |
 
 ---
 
@@ -143,6 +145,7 @@ Use the `pr` skill:
 The PR title should follow: `chore: update dependencies to latest compatible versions`.
 
 The PR description should include:
+
 - A bullet list of the most significant package updates (version A → B)
 - The major-version packages that were intentionally **skipped** and why
 - A note that all tests pass

@@ -7,7 +7,6 @@ import { createLogger } from "../infra/logger/index";
 import { db } from "../infra/db/db";
 import { connectionTable, collectionTable, flowTable } from "../infra/db/schema";
 import { decryptCredentials } from "../infra/crypto/credentials";
-import { hasNats } from "../infra/nats/connection";
 import { getJetStreamManager } from "../infra/nats/jsm";
 import { pushConsumerName, setupPushConsumer } from "../infra/nats/push-consumers";
 import type { StoredWireItemEvent } from "../infra/nats/event-stream";
@@ -163,8 +162,6 @@ async function subscribeToCollection(
   connection: ServiceConnectionInfo,
   collection: CollectionInfo,
 ): Promise<void> {
-  if (!hasNats()) return;
-
   try {
     const jsm = await getJetStreamManager();
     const name = pushConsumerName(connection.id, collection.collectionId);
@@ -206,11 +203,6 @@ async function subscribeToCollection(
  * Polls periodically for new service connections.
  */
 export async function startPushWorker(): Promise<void> {
-  if (!hasNats()) {
-    log.info("NATS unavailable, push worker disabled");
-    return;
-  }
-
   log.info("Starting push worker");
 
   const subscribed = new Set<string>();

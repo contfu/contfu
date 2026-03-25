@@ -1,5 +1,4 @@
 import { getKvManager } from "../nats/kvm";
-import { hasNats } from "../nats/connection";
 import { db } from "./db";
 import { msgpackrMigrationTable } from "./schema";
 import { tables, columnEncodings, type TableName, type ColumnName, type ColumnType } from "./bytea";
@@ -30,8 +29,6 @@ function applyMigration(migration: Migration, oldData: unknown): unknown {
 }
 
 async function acquireLease(): Promise<boolean> {
-  if (!hasNats()) return true;
-
   const kvm = await getKvManager();
   const bucket = await kvm.create(LEASE_BUCKET, { ttl: LEASE_TTL_SECONDS * 1_000_000_000 });
 
@@ -48,8 +45,6 @@ async function acquireLease(): Promise<boolean> {
 }
 
 async function releaseLease(): Promise<void> {
-  if (!hasNats()) return;
-
   try {
     const kvm = await getKvManager();
     const bucket = await kvm.create(LEASE_BUCKET, { ttl: LEASE_TTL_SECONDS * 1_000_000_000 });

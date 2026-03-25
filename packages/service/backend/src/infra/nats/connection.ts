@@ -18,7 +18,3 @@ export async function getNatsConnection(): Promise<NatsConnection> {
     waitOnFirstConnect: true,
   }));
 }
-
-export function hasNats(): boolean {
-  return !!process.env.NATS_SERVER;
-}

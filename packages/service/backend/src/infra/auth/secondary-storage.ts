@@ -3,7 +3,6 @@ import type { SecondaryStorage, Session, User } from "better-auth";
 import { pack, unpack } from "msgpackr";
 import { lru, type LRU } from "tiny-lru";
 import { createLogger } from "../logger/index";
-import { hasNats } from "../nats/connection";
 import { getKvManager } from "../nats/kvm";
 
 const log = createLogger("auth-sessions");
@@ -45,9 +44,10 @@ async function getApiKeyBucket(): Promise<KV> {
   ));
 }
 
-export function createNatsKvSessionStorage(): SecondaryStorage | undefined {
-  if (!hasNats()) return undefined;
-  void handleRemoteInvalidations();
+export function createNatsKvSessionStorage(): SecondaryStorage {
+  void handleRemoteInvalidations().catch((err) =>
+    log.error({ err }, "Failed to start session invalidation watchers"),
+  );
   return {
     get: async (key) => {
       if (key.startsWith(API_KEY_PREFIX)) {
