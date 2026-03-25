@@ -4,11 +4,8 @@ import { db } from "../../infra/db/db";
 import { itemFromDb } from "../../infra/db/mappers";
 import { itemsTable } from "../../infra/db/schema";
 
-export async function getLastChangedItem(
-  collection: string,
-  ctx = db,
-): Promise<Omit<ItemData, "links"> | null> {
-  const dbo = await ctx
+export function getLastChangedItem(collection: string, ctx = db): Omit<ItemData, "links"> | null {
+  const dbo = ctx
     .select()
     .from(itemsTable)
     .where(eq(itemsTable.collection, collection))

@@ -36,6 +36,7 @@ describe("MessageBus", () => {
       const id = bus.generateId();
       const firstRequest = bus.request(id);
 
+      // oxlint-disable-next-line typescript/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
       await expect(bus.request(id)).rejects.toThrow("Request ID 1 already in use");
 
       // Clean up the first request
@@ -48,6 +49,7 @@ describe("MessageBus", () => {
       const id = bus.generateId();
       const promise = bus.request(id);
 
+      // oxlint-disable-next-line typescript/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
       await expect(promise).rejects.toThrow("Request 1 timed out after 50ms");
       expect(bus.pendingCount).toBe(0);
     });
@@ -98,6 +100,7 @@ describe("MessageBus", () => {
       const rejected = bus.reject(id, new Error("Custom error"));
 
       expect(rejected).toBe(true);
+      // oxlint-disable-next-line typescript/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
       await expect(promise).rejects.toThrow("Custom error");
       expect(bus.pendingCount).toBe(0);
     });
@@ -119,7 +122,9 @@ describe("MessageBus", () => {
 
       bus.clear(new Error("Shutdown"));
 
+      // oxlint-disable-next-line typescript/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
       await expect(promise1).rejects.toThrow("Shutdown");
+      // oxlint-disable-next-line typescript/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
       await expect(promise2).rejects.toThrow("Shutdown");
       expect(bus.pendingCount).toBe(0);
     });
@@ -131,6 +136,7 @@ describe("MessageBus", () => {
 
       bus.clear();
 
+      // oxlint-disable-next-line typescript/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
       await expect(promise).rejects.toThrow("Message bus cleared");
     });
   });
@@ -155,7 +161,9 @@ describe("MessageBus", () => {
       expect(bus.pendingCount).toBe(0);
 
       // Wait for promises to settle
+      // oxlint-disable-next-line typescript/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
       await expect(p1).resolves.toBe("response");
+      // oxlint-disable-next-line typescript/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
       await expect(p2).rejects.toThrow("Message bus cleared");
     });
   });

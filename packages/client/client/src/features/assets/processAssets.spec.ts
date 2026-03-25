@@ -1,3 +1,4 @@
+/* oxlint-disable typescript/unbound-method -- mock method references in expect() assertions are intentionally unbound */
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { PropertyType, type Block, type ImageBlock } from "@contfu/core";
 import { db } from "../../infra/db/db";
@@ -28,15 +29,17 @@ function makeImageBlock(url: string, alt = "alt"): ImageBlock {
 }
 
 describe("processAssets", () => {
-  beforeEach(async () => {
-    await truncateAllTables();
+  beforeEach(() => {
+    truncateAllTables();
     // Create collection, then insert parent item so FK constraint is satisfied
-    await setCollection("test", "Test", {});
-    await db.insert(itemsTable).values({
-      id: Buffer.from([1, 2, 3]),
-      collection: "test",
-      changedAt: 1700000000,
-    });
+    setCollection("test", "Test", {});
+    db.insert(itemsTable)
+      .values({
+        id: Buffer.from([1, 2, 3]),
+        collection: "test",
+        changedAt: 1700000000,
+      })
+      .run();
 
     // Mock global fetch to return image data
     globalThis.fetch = mock((_url: string | URL | Request) =>
@@ -74,14 +77,14 @@ describe("processAssets", () => {
     expect(imgBlock[1]).toMatch(/^[a-f0-9]{16}$/);
 
     // Asset record should exist in DB
-    const assets = await db.select().from(assetTable).all();
+    const assets = db.select().from(assetTable).all();
     expect(assets).toHaveLength(1);
     expect(assets[0].originalUrl).toBe("https://example.com/photo.png");
     expect(assets[0].ext).toBe("avif");
     expect(assets[0].mediaType).toBe("image");
 
     // Junction row should exist
-    const junctions = await db.select().from(itemAssetTable).all();
+    const junctions = db.select().from(itemAssetTable).all();
     expect(junctions).toHaveLength(1);
   });
 
@@ -103,7 +106,7 @@ describe("processAssets", () => {
     expect(mediaOptimizer.optimize).not.toHaveBeenCalled();
 
     // Still only one asset record
-    const assets = await db.select().from(assetTable).all();
+    const assets = db.select().from(assetTable).all();
     expect(assets).toHaveLength(1);
   });
 
@@ -114,11 +117,13 @@ describe("processAssets", () => {
     // Insert second item
     const itemId2Buf = Buffer.from([4, 5, 6]);
     const itemId2 = itemId2Buf.toString("base64url");
-    await db.insert(itemsTable).values({
-      id: itemId2Buf,
-      collection: "test",
-      changedAt: 1700000000,
-    });
+    db.insert(itemsTable)
+      .values({
+        id: itemId2Buf,
+        collection: "test",
+        changedAt: 1700000000,
+      })
+      .run();
 
     // Process same image for item 1
     await processAssets({
@@ -138,10 +143,10 @@ describe("processAssets", () => {
     });
 
     // Only one asset, but two junction rows
-    const assets = await db.select().from(assetTable).all();
+    const assets = db.select().from(assetTable).all();
     expect(assets).toHaveLength(1);
 
-    const junctions = await db.select().from(itemAssetTable).all();
+    const junctions = db.select().from(itemAssetTable).all();
     expect(junctions).toHaveLength(2);
 
     // Second call should not re-download
@@ -175,7 +180,7 @@ describe("processAssets", () => {
 
     expect(result).toHaveLength(1);
     expect(mediaOptimizer.optimize).not.toHaveBeenCalled();
-    const assets = await db.select().from(assetTable).all();
+    const assets = db.select().from(assetTable).all();
     expect(assets).toHaveLength(0);
   });
 
@@ -195,7 +200,7 @@ describe("processAssets", () => {
     const imgBlock = result[1] as ImageBlock;
     expect(imgBlock[1]).toMatch(/^[a-f0-9]{16}$/);
 
-    const assets = await db.select().from(assetTable).all();
+    const assets = db.select().from(assetTable).all();
     expect(assets).toHaveLength(1);
     expect(assets[0].ext).toBe("png");
   });
@@ -255,7 +260,7 @@ describe("processAssets", () => {
     const starts = callOrder.slice(0, firstEnd).filter((e) => e.startsWith("start:"));
     expect(starts).toHaveLength(2);
 
-    const assets = await db.select().from(assetTable).all();
+    const assets = db.select().from(assetTable).all();
     expect(assets).toHaveLength(2);
   });
 
@@ -273,7 +278,7 @@ describe("processAssets", () => {
     expect(globalThis.fetch).toHaveBeenCalledTimes(1);
     expect(mediaOptimizer.optimize).toHaveBeenCalledTimes(1);
 
-    const assets = await db.select().from(assetTable).all();
+    const assets = db.select().from(assetTable).all();
     expect(assets).toHaveLength(1);
   });
 
@@ -288,7 +293,7 @@ describe("processAssets", () => {
     // PNG not in whitelist → optimizer should NOT be called
     expect(mediaOptimizer.optimize).not.toHaveBeenCalled();
 
-    const assets = await db.select().from(assetTable).all();
+    const assets = db.select().from(assetTable).all();
     expect(assets).toHaveLength(1);
     // Stored as-is with original extension
     expect(assets[0].ext).toBe("png");
@@ -319,7 +324,7 @@ describe("processAssets", () => {
     // PNG is blacklisted → optimizer should NOT be called
     expect(mediaOptimizer.optimize).not.toHaveBeenCalled();
 
-    const assets = await db.select().from(assetTable).all();
+    const assets = db.select().from(assetTable).all();
     expect(assets).toHaveLength(1);
     expect(assets[0].ext).toBe("png");
   });
@@ -381,14 +386,16 @@ describe("processAssets", () => {
 });
 
 describe("processPropertyAssets", () => {
-  beforeEach(async () => {
-    await truncateAllTables();
-    await setCollection("test", "Test", {});
-    await db.insert(itemsTable).values({
-      id: Buffer.from([1, 2, 3]),
-      collection: "test",
-      changedAt: 1700000000,
-    });
+  beforeEach(() => {
+    truncateAllTables();
+    setCollection("test", "Test", {});
+    db.insert(itemsTable)
+      .values({
+        id: Buffer.from([1, 2, 3]),
+        collection: "test",
+        changedAt: 1700000000,
+      })
+      .run();
 
     globalThis.fetch = mock((_url: string | URL | Request) =>
       Promise.resolve(

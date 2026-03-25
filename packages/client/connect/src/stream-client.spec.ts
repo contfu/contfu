@@ -396,5 +396,5 @@ async function waitFor(predicate: () => boolean): Promise<void> {
 }
 
 async function collectEvents<T>(run: () => Promise<T>): Promise<T> {
-  return await run();
+  return run();
 }

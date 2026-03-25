@@ -34,5 +34,5 @@ export const findConnectionByKey = (key: Buffer) =>
       catch: (e) => new DatabaseError({ cause: e }),
     });
 
-    return result as typeof result | undefined;
+    return result;
   }).pipe(Effect.withSpan("connections.findByKey"));

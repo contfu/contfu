@@ -29,9 +29,7 @@ export function getItemById(
   if (!row) return null;
 
   const props =
-    row.props && typeof row.props === "object" && !Array.isArray(row.props)
-      ? (row.props as Record<string, unknown>)
-      : {};
+    row.props && typeof row.props === "object" && !Array.isArray(row.props) ? row.props : {};
 
   const item: ItemWithRelations = {
     $id: encodeId(Buffer.from(row.id)),

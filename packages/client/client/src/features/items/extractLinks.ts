@@ -106,7 +106,7 @@ function walkBlocks(blocks: Block[], records: LinkRecord[], from: Buffer): Block
         return [type, ...newItems] as Block;
       }
       case "t": {
-        const hasHeader = block[1] as boolean;
+        const hasHeader = block[1];
         const cells = (block[2] as (Block | Inline)[][][]).map((row) =>
           row.map((cell) =>
             cell.map((child) => {
@@ -267,7 +267,7 @@ function replaceContentPlaceholders(blocks: Block[], linkIds: number[]): Block[]
         return [type, ...newItems] as Block;
       }
       case "t": {
-        const hasHeader = block[1] as boolean;
+        const hasHeader = block[1];
         const cells = (block[2] as (Block | Inline)[][][]).map((row) =>
           row.map((cell) =>
             cell.map((child) => {

@@ -12,11 +12,11 @@ function makeId(seed: number): string {
   return Buffer.from([0, 0, 0, seed]).toString("base64url");
 }
 
-async function seedItems() {
-  await setCollection("articles", "Articles", { title: 1 });
-  await setCollection("guides", "Guides", { title: 1 });
+function seedItems() {
+  setCollection("articles", "Articles", { title: 1 });
+  setCollection("guides", "Guides", { title: 1 });
 
-  await createItem({
+  createItem({
     id: makeId(1),
     ref: "blog/tech/alpha",
     collection: "articles",
@@ -24,7 +24,7 @@ async function seedItems() {
     changedAt: 100,
   });
 
-  await createItem({
+  createItem({
     id: makeId(2),
     ref: "blog/lifestyle/bravo",
     collection: "articles",
@@ -32,7 +32,7 @@ async function seedItems() {
     changedAt: 200,
   });
 
-  await createItem({
+  createItem({
     id: makeId(3),
     ref: "guides/charlie",
     collection: "guides",
@@ -42,9 +42,9 @@ async function seedItems() {
 }
 
 describe("findItems", () => {
-  beforeEach(async () => {
-    await truncateAllTables();
-    await seedItems();
+  beforeEach(() => {
+    truncateAllTables();
+    seedItems();
   });
 
   test("returns all items with default pagination", () => {
@@ -178,8 +178,8 @@ describe("findItems", () => {
     expect(result[0].$id).toBe(makeId(2));
   });
 
-  test("includes assets when requested", async () => {
-    await createAsset({
+  test("includes assets when requested", () => {
+    createAsset({
       id: makeId(10),
       originalUrl: "https://example.com/img.png",
       mediaType: "image/png",
@@ -187,7 +187,7 @@ describe("findItems", () => {
       size: 1000,
       createdAt: 100,
     });
-    await linkAssetToItem(makeId(1), makeId(10));
+    linkAssetToItem(makeId(1), makeId(10));
 
     const result = findItems({
       filter: '$collection = "articles"',
@@ -201,8 +201,8 @@ describe("findItems", () => {
     expect(item2.assets).toEqual([]);
   });
 
-  test("includes content links when requested", async () => {
-    await createItemLink({ prop: null, from: makeId(1), to: makeId(2), internal: true });
+  test("includes content links when requested", () => {
+    createItemLink({ prop: null, from: makeId(1), to: makeId(2), internal: true });
 
     const result = findItems({
       filter: '$collection = "articles"',
@@ -230,8 +230,8 @@ describe("findItems", () => {
   });
 
   test("relation values override projected raw fields", async () => {
-    await setCollection("persons", "Persons", { name: 1 });
-    await createItem({
+    setCollection("persons", "Persons", { name: 1 });
+    createItem({
       id: makeId(10),
       ref: "person/alice",
       collection: "persons",
@@ -247,7 +247,7 @@ describe("findItems", () => {
     });
 
     const { createOrUpdateItem } = await import("./createOrUpdateItem");
-    await createOrUpdateItem({
+    createOrUpdateItem({
       id: makeId(1),
       ref: "blog/tech/alpha",
       collection: "articles",
@@ -271,9 +271,9 @@ describe("findItems", () => {
   });
 
   test("findItems with forward REF relation", async () => {
-    await setCollection("persons", "Persons", { name: 1 });
+    setCollection("persons", "Persons", { name: 1 });
 
-    await createItem({
+    createItem({
       id: makeId(10),
       ref: "person/alice",
       collection: "persons",
@@ -290,7 +290,7 @@ describe("findItems", () => {
 
     // Update item 1 to include the author link
     const { createOrUpdateItem } = await import("./createOrUpdateItem");
-    await createOrUpdateItem({
+    createOrUpdateItem({
       id: makeId(1),
       ref: "blog/tech/alpha",
       collection: "articles",
@@ -315,9 +315,9 @@ describe("findItems", () => {
   });
 
   test("findItems with backlink relation", async () => {
-    await setCollection("persons", "Persons", { name: 1 });
+    setCollection("persons", "Persons", { name: 1 });
 
-    await createItem({
+    createItem({
       id: makeId(10),
       ref: "person/alice",
       collection: "persons",
@@ -341,14 +341,14 @@ describe("findItems", () => {
 
     // Update articles to include author links
     const { createOrUpdateItem } = await import("./createOrUpdateItem");
-    await createOrUpdateItem({
+    createOrUpdateItem({
       id: makeId(1),
       ref: "blog/tech/alpha",
       collection: "articles",
       props: { title: "Alpha Post", category: "news", featured: true, views: 10, author: linkId1 },
       changedAt: 100,
     });
-    await createOrUpdateItem({
+    createOrUpdateItem({
       id: makeId(2),
       ref: "blog/lifestyle/bravo",
       collection: "articles",
@@ -381,9 +381,9 @@ describe("findItems", () => {
 });
 
 describe("getItemById", () => {
-  beforeEach(async () => {
-    await truncateAllTables();
-    await seedItems();
+  beforeEach(() => {
+    truncateAllTables();
+    seedItems();
   });
 
   test("returns item by id", () => {
@@ -404,8 +404,8 @@ describe("getItemById", () => {
     expect(item).not.toBeNull();
   });
 
-  test("resolves assets when requested", async () => {
-    await createAsset({
+  test("resolves assets when requested", () => {
+    createAsset({
       id: makeId(10),
       originalUrl: "https://example.com/img.png",
       mediaType: "image/png",
@@ -413,7 +413,7 @@ describe("getItemById", () => {
       size: 1000,
       createdAt: 100,
     });
-    await linkAssetToItem(makeId(1), makeId(10));
+    linkAssetToItem(makeId(1), makeId(10));
 
     const item = getItemById(makeId(1), { include: ["assets"] });
     expect(item!.assets).toHaveLength(1);

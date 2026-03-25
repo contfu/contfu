@@ -169,7 +169,7 @@ function convertHtmlNode(node: Node, baseUrl?: string): Block[] {
 
     case "code": {
       // Standalone code block (not inside pre)
-      const parent = el.parentNode as HTMLElement | null;
+      const parent = el.parentNode;
       if (parent?.tagName?.toLowerCase() === "pre") return [];
       const text = el.text ?? "";
       if (text === "") return [];

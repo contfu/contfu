@@ -39,23 +39,21 @@ export type CollectionSchemaEntry = {
   schema: CollectionSchema | null;
 };
 
-export const getCollectionSchemasQuery = query(async (): Promise<CollectionSchemaEntry[]> => {
-  const collections = await listCollections();
+export const getCollectionSchemasQuery = query((): CollectionSchemaEntry[] => {
+  const collections = listCollections();
 
-  return Promise.all(
-    collections.map(async ({ name }) => ({
-      name,
-      schema: await getCollectionSchemaByName(name),
-    })),
-  );
+  return collections.map(({ name }) => ({
+    name,
+    schema: getCollectionSchemaByName(name),
+  }));
 });
 
-export const getCombinedCollectionTypesQuery = query(async (): Promise<string> => {
-  const collections = await listCollections();
+export const getCombinedCollectionTypesQuery = query((): string => {
+  const collections = listCollections();
 
   const inputs: TypeGenerationInput[] = [];
   for (const col of collections) {
-    const schema = await getCollectionSchemaByName(col.name);
+    const schema = getCollectionSchemaByName(col.name);
     if (schema) {
       inputs.push({ name: col.name, displayName: col.displayName, schema });
     }
@@ -71,7 +69,7 @@ export const getCollectionDetailQuery = query(
     input: v.optional(queryItemsInputSchema),
   }),
   async ({ name, input }) => {
-    const collections = await listCollections();
+    const collections = listCollections();
     const collection = collections.find((entry) => entry.name === name) ?? null;
 
     const mergedInput: QueryItemsInput = {

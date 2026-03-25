@@ -88,7 +88,7 @@ describe("processSchemaChange", () => {
       .select({ schema: collectionTable.schema })
       .from(collectionTable)
       .where(eq(collectionTable.id, collectionId));
-    const stored = unpack(col.schema!) as CollectionSchema;
+    const stored = unpack(col.schema) as CollectionSchema;
     expect(stored.extra).toBe(PropertyType.STRING);
   });
 

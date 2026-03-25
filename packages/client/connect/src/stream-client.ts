@@ -454,9 +454,9 @@ function fromWireEvent(wireEvent: WireEvent): SyncEvent | null {
       const [, collection, displayName, schema] = wireEvent;
       return {
         type: EventType.COLLECTION_SCHEMA,
-        collection: collection as string,
-        displayName: displayName as string,
-        schema: schema as CollectionSchema,
+        collection: collection,
+        displayName: displayName,
+        schema: schema,
       };
     }
 
@@ -464,9 +464,9 @@ function fromWireEvent(wireEvent: WireEvent): SyncEvent | null {
       const [, oldName, newName, newDisplayName] = wireEvent;
       return {
         type: EventType.COLLECTION_RENAMED,
-        oldName: oldName as string,
-        newName: newName as string,
-        newDisplayName: newDisplayName as string,
+        oldName: oldName,
+        newName: newName,
+        newDisplayName: newDisplayName,
       };
     }
 
@@ -474,7 +474,7 @@ function fromWireEvent(wireEvent: WireEvent): SyncEvent | null {
       const [, collection] = wireEvent;
       return {
         type: EventType.COLLECTION_REMOVED,
-        collection: collection as string,
+        collection: collection,
       };
     }
 

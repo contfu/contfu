@@ -3,6 +3,9 @@ import { db } from "../../infra/db/db";
 import { decodeId } from "../../infra/ids";
 import { linkTable } from "../../infra/db/schema";
 
-export async function deleteOutgoingItemLinks(from: string, ctx = db): Promise<void> {
-  await ctx.delete(linkTable).where(eq(linkTable.from, decodeId(from)));
+export function deleteOutgoingItemLinks(from: string, ctx = db): void {
+  ctx
+    .delete(linkTable)
+    .where(eq(linkTable.from, decodeId(from)))
+    .run();
 }

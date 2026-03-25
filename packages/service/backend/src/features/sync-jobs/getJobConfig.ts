@@ -26,8 +26,8 @@ export const getJobConfig = (job: { collectionId: number }) =>
   Effect.gen(function* () {
     const { db } = yield* Database;
     const [row] = yield* Effect.tryPromise({
-      try: async () => {
-        return await db
+      try: () =>
+        db
           .select({
             userId: collectionTable.userId,
             connectionUserId: connectionTable.userId,
@@ -46,15 +46,14 @@ export const getJobConfig = (job: { collectionId: number }) =>
             ),
           )
           .where(eq(collectionTable.id, job.collectionId))
-          .limit(1);
-      },
+          .limit(1),
       catch: (e) => new DatabaseError({ cause: e }),
     });
 
     if (!row) return null;
 
     const credentials = yield* Effect.tryPromise({
-      try: async () => await decryptCredentials(row.connectionUserId, row.credentials),
+      try: async () => decryptCredentials(row.connectionUserId, row.credentials),
       catch: (cause) =>
         new CryptoError({
           cause: new Error(

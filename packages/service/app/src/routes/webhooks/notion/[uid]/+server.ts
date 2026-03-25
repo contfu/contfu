@@ -464,16 +464,16 @@ export const POST: RequestHandler = async ({ request, params }) => {
         }
 
         if (clients.length > 0) {
-          await streamServer.broadcastDeleted(
+          streamServer.broadcastDeleted(
             itemId,
             clients.map((c) => ({
-              userId: conn!.userId,
+              userId: conn.userId,
               connectionId: c.connectionId,
               collectionId: c.collectionId,
               includeRef:
                 Boolean(c.connectionIncludeRef) &&
                 Boolean(c.collectionIncludeRef) &&
-                Boolean(conn!.includeRef),
+                Boolean(conn.includeRef),
             })),
           );
         }
@@ -508,7 +508,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
           for (const gc of globalCollections) {
             const { clients } = await getFlowsAndClients(gc.userId, [gc.id], true);
             if (clients.length > 0) {
-              await streamServer.broadcastDeleted(
+              streamServer.broadcastDeleted(
                 itemId,
                 clients.map((c) => ({
                   userId: gc.userId,

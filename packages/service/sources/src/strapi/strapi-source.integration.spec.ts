@@ -416,6 +416,7 @@ describe("StrapiSource Integration", () => {
       credentials: Buffer.from(apiToken, "utf8"),
     };
 
+    // oxlint-disable-next-line typescript/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
     await expect(Array.fromAsync(source.fetch(opts))).rejects.toThrow();
   });
 });

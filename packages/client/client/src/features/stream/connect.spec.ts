@@ -9,9 +9,9 @@ import type { MediaOptimizer, MediaStore } from "../media/media";
 const key = Buffer.alloc(32, 1);
 
 describe("contfu connect", () => {
-  beforeEach(async () => {
-    await truncateAllTables();
-    await setCollection("article", "Article", {});
+  beforeEach(() => {
+    truncateAllTables();
+    setCollection("article", "Article", {});
   });
 
   afterEach(() => {
@@ -46,13 +46,13 @@ describe("contfu connect", () => {
 
     expect(events).toHaveLength(1);
 
-    const rows = await db.select().from(syncTable).all();
+    const rows = db.select().from(syncTable).all();
     expect(rows).toHaveLength(1);
     expect(rows[0].index).toBe(77);
   });
 
   test("uses persisted sync index + 1 as from when reconnecting", async () => {
-    await db.insert(syncTable).values({ index: 99 }).run();
+    db.insert(syncTable).values({ index: 99 }).run();
 
     let receivedFrom: number | undefined;
 
@@ -76,7 +76,7 @@ describe("contfu connect", () => {
 
     expect(receivedFrom).toBe(100);
 
-    const rows = await db.select().from(syncTable).all();
+    const rows = db.select().from(syncTable).all();
     expect(rows[0].index).toBe(100);
   });
 
@@ -119,13 +119,14 @@ describe("contfu connect", () => {
       // consume
     }
 
+    // oxlint-disable-next-line typescript/unbound-method -- mock method reference in expect() assertion
     expect(mediaOptimizer.optimize).toHaveBeenCalledTimes(1);
-    const assets = await db.select().from(assetTable).all();
+    const assets = db.select().from(assetTable).all();
     expect(assets).toHaveLength(1);
     expect(assets[0].originalUrl).toBe("https://example.com/photo.png");
 
     // Junction row should exist
-    const junctions = await db.select().from(itemAssetTable).all();
+    const junctions = db.select().from(itemAssetTable).all();
     expect(junctions).toHaveLength(1);
   });
 
@@ -156,7 +157,7 @@ describe("contfu connect", () => {
     }
 
     // Default mediaStore is used; assets stored as-is (no optimizer)
-    const assets = await db.select().from(assetTable).all();
+    const assets = db.select().from(assetTable).all();
     expect(assets).toHaveLength(1);
     expect(assets[0].ext).toBe("png");
   });
@@ -186,7 +187,7 @@ describe("contfu connect", () => {
     }
 
     // Verify the event was processed (sync index persisted)
-    const rows = await db.select().from(syncTable).all();
+    const rows = db.select().from(syncTable).all();
     expect(rows[0].index).toBe(400);
   });
 });

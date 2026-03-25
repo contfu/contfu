@@ -34,7 +34,7 @@ export async function applySchemaTransform(
     if (event[0] === EventType.ITEM_CHANGED) {
       const wireItem = [...event[1]] as WireItem;
       if (wireItem[3] === collectionName) {
-        const props = { ...(wireItem[5] as Record<string, unknown>) };
+        const props = { ...wireItem[5] };
         for (const [oldKey, newKey] of Object.entries(renames)) {
           if (oldKey in props) {
             props[newKey] = props[oldKey];
@@ -43,9 +43,9 @@ export async function applySchemaTransform(
         }
         for (const key of removals) delete props[key];
         wireItem[5] = props;
-        updatedItems.push([EventType.ITEM_CHANGED, wireItem as WireItem]);
+        updatedItems.push([EventType.ITEM_CHANGED, wireItem]);
       }
-      transformed.push([EventType.ITEM_CHANGED, wireItem as WireItem]);
+      transformed.push([EventType.ITEM_CHANGED, wireItem]);
     } else {
       transformed.push(event);
     }

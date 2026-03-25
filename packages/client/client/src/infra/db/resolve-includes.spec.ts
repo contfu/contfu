@@ -24,17 +24,17 @@ function makeItem(seed: number, collection = "articles"): ItemWithRelations {
 }
 
 describe("resolveIncludes", () => {
-  beforeEach(async () => {
-    await truncateAllTables();
-    await setCollection("c", "C", {});
-    await setCollection("articles", "Articles", {});
+  beforeEach(() => {
+    truncateAllTables();
+    setCollection("c", "C", {});
+    setCollection("articles", "Articles", {});
   });
 
-  test("resolves assets for items", async () => {
-    await createItem({ id: makeId(1), ref: "a", collection: "c", props: {}, changedAt: 100 });
-    await createItem({ id: makeId(2), ref: "b", collection: "c", props: {}, changedAt: 200 });
+  test("resolves assets for items", () => {
+    createItem({ id: makeId(1), ref: "a", collection: "c", props: {}, changedAt: 100 });
+    createItem({ id: makeId(2), ref: "b", collection: "c", props: {}, changedAt: 200 });
 
-    await createAsset({
+    createAsset({
       id: makeId(10),
       originalUrl: "https://example.com/img.png",
       mediaType: "image/png",
@@ -43,7 +43,7 @@ describe("resolveIncludes", () => {
       createdAt: 100,
     });
 
-    await createAsset({
+    createAsset({
       id: makeId(11),
       originalUrl: "https://example.com/img2.png",
       mediaType: "image/png",
@@ -52,31 +52,31 @@ describe("resolveIncludes", () => {
       createdAt: 200,
     });
 
-    await linkAssetToItem(makeId(1), makeId(10));
-    await linkAssetToItem(makeId(1), makeId(11));
-    await linkAssetToItem(makeId(2), makeId(11));
+    linkAssetToItem(makeId(1), makeId(10));
+    linkAssetToItem(makeId(1), makeId(11));
+    linkAssetToItem(makeId(2), makeId(11));
 
     const items = [makeItem(1), makeItem(2)];
-    await resolveIncludes(items, ["assets"]);
+    resolveIncludes(items, ["assets"]);
 
     expect(items[0].assets).toHaveLength(2);
     expect(items[1].assets).toHaveLength(1);
     expect(items[1].assets![0].id).toBe(makeId(11));
   });
 
-  test("resolves content links for items", async () => {
-    await createItem({ id: makeId(1), ref: "a", collection: "c", props: {}, changedAt: 100 });
-    await createItem({ id: makeId(2), ref: "b", collection: "c", props: {}, changedAt: 200 });
-    await createItem({ id: makeId(3), ref: "c", collection: "c", props: {}, changedAt: 300 });
+  test("resolves content links for items", () => {
+    createItem({ id: makeId(1), ref: "a", collection: "c", props: {}, changedAt: 100 });
+    createItem({ id: makeId(2), ref: "b", collection: "c", props: {}, changedAt: 200 });
+    createItem({ id: makeId(3), ref: "c", collection: "c", props: {}, changedAt: 300 });
 
     // Content links (prop = null)
-    await createItemLink({ prop: null, from: makeId(1), to: makeId(2), internal: true });
-    await createItemLink({ prop: null, from: makeId(1), to: makeId(3), internal: true });
+    createItemLink({ prop: null, from: makeId(1), to: makeId(2), internal: true });
+    createItemLink({ prop: null, from: makeId(1), to: makeId(3), internal: true });
     // Prop link (should NOT appear on item.links)
-    await createItemLink({ prop: "author", from: makeId(1), to: makeId(3), internal: true });
+    createItemLink({ prop: "author", from: makeId(1), to: makeId(3), internal: true });
 
     const items = [makeItem(1), makeItem(2)];
-    await resolveIncludes(items, ["links"]);
+    resolveIncludes(items, ["links"]);
 
     // Only content links (prop IS NULL) should be resolved
     expect(items[0].links).toHaveLength(2);
@@ -85,12 +85,12 @@ describe("resolveIncludes", () => {
     expect(items[1].links).toEqual([]);
   });
 
-  test("resolves external content links as URL strings", async () => {
-    await createItem({ id: makeId(1), ref: "a", collection: "c", props: {}, changedAt: 100 });
+  test("resolves external content links as URL strings", () => {
+    createItem({ id: makeId(1), ref: "a", collection: "c", props: {}, changedAt: 100 });
 
     // External content link
     const url = "https://example.com/page";
-    await createItemLink({
+    createItemLink({
       prop: null,
       from: makeId(1),
       to: Buffer.from(url, "utf8").toString("base64url"),
@@ -98,40 +98,40 @@ describe("resolveIncludes", () => {
     });
 
     const items = [makeItem(1)];
-    await resolveIncludes(items, ["links"]);
+    resolveIncludes(items, ["links"]);
 
     expect(items[0].links).toHaveLength(1);
     expect(items[0].links[0]).toBe(url);
   });
 
-  test("skips when no items", async () => {
-    await resolveIncludes([], ["assets", "links"]);
+  test("skips when no items", () => {
+    resolveIncludes([], ["assets", "links"]);
     // Should not throw
   });
 
-  test("skips when no includes", async () => {
+  test("skips when no includes", () => {
     const items = [makeItem(1)];
-    await resolveIncludes(items, []);
+    resolveIncludes(items, []);
     expect(items[0].assets).toBeUndefined();
   });
 
-  test("items without assets get empty array", async () => {
-    await createItem({ id: makeId(1), ref: "a", collection: "c", props: {}, changedAt: 100 });
+  test("items without assets get empty array", () => {
+    createItem({ id: makeId(1), ref: "a", collection: "c", props: {}, changedAt: 100 });
 
     const items = [makeItem(1)];
-    await resolveIncludes(items, ["assets"]);
+    resolveIncludes(items, ["assets"]);
 
     expect(items[0].assets).toEqual([]);
   });
 
-  test("content link to missing item returns null", async () => {
-    await createItem({ id: makeId(1), ref: "a", collection: "c", props: {}, changedAt: 100 });
+  test("content link to missing item returns null", () => {
+    createItem({ id: makeId(1), ref: "a", collection: "c", props: {}, changedAt: 100 });
 
     // Internal content link to non-existent target
-    await createItemLink({ prop: null, from: makeId(1), to: makeId(99), internal: true });
+    createItemLink({ prop: null, from: makeId(1), to: makeId(99), internal: true });
 
     const items = [makeItem(1)];
-    await resolveIncludes(items, ["links"]);
+    resolveIncludes(items, ["links"]);
 
     expect(items[0].links).toHaveLength(1);
     expect(items[0].links[0]).toBeNull();

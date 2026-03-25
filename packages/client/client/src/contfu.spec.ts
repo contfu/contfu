@@ -10,12 +10,12 @@ function makeId(seed: number): string {
   return Buffer.from([0, 0, 0, seed]).toString("base64url");
 }
 
-async function seedData() {
-  await setCollection("articles", "Articles", {});
-  await setCollection("authors", "Authors", {});
-  await setCollection("tags", "Tags", {});
+function seedData() {
+  setCollection("articles", "Articles", {});
+  setCollection("authors", "Authors", {});
+  setCollection("tags", "Tags", {});
 
-  await createItem({
+  createItem({
     id: makeId(1),
     ref: "articles/alpha",
     collection: "articles",
@@ -23,7 +23,7 @@ async function seedData() {
     changedAt: 100,
   });
 
-  await createItem({
+  createItem({
     id: makeId(2),
     ref: "articles/beta",
     collection: "articles",
@@ -31,7 +31,7 @@ async function seedData() {
     changedAt: 200,
   });
 
-  await createItem({
+  createItem({
     id: makeId(3),
     ref: "authors/alice",
     collection: "authors",
@@ -39,7 +39,7 @@ async function seedData() {
     changedAt: 300,
   });
 
-  await createItem({
+  createItem({
     id: makeId(4),
     ref: "authors/bob",
     collection: "authors",
@@ -47,7 +47,7 @@ async function seedData() {
     changedAt: 400,
   });
 
-  await createItem({
+  createItem({
     id: makeId(5),
     ref: "tags/tech",
     collection: "tags",
@@ -66,9 +66,9 @@ describe("contfu typed query client", () => {
   const q = contfu<Collections>();
   const { all, oneOf, eq } = q;
 
-  beforeEach(async () => {
-    await truncateAllTables();
-    await seedData();
+  beforeEach(() => {
+    truncateAllTables();
+    seedData();
   });
 
   test("q(collection) filters by collection", async () => {
@@ -167,27 +167,27 @@ type RefTargetCollections = {
 describe("contfu typed ref targets", () => {
   const q = contfu<RefTargetCollections>();
 
-  beforeEach(async () => {
-    await truncateAllTables();
-    await setCollection("authors", "Authors", {});
-    await setCollection("tags", "Tags", {});
-    await setCollection("blogPosts", "Blog Posts", {});
+  beforeEach(() => {
+    truncateAllTables();
+    setCollection("authors", "Authors", {});
+    setCollection("tags", "Tags", {});
+    setCollection("blogPosts", "Blog Posts", {});
 
-    await createItem({
+    createItem({
       id: makeId(10),
       ref: "authors/alice",
       collection: "authors",
       props: { name: "Alice" },
       changedAt: 100,
     });
-    await createItem({
+    createItem({
       id: makeId(30),
       ref: "tags/tech",
       collection: "tags",
       props: { label: "Tech" },
       changedAt: 200,
     });
-    await createItem({
+    createItem({
       id: makeId(1),
       ref: "blogPosts/hello",
       collection: "blogPosts",
@@ -229,20 +229,20 @@ type LinkCollections = {
   tags: {};
 };
 
-async function seedLinkData() {
-  await setCollection("persons", "Persons", {});
-  await setCollection("tags", "Tags", {});
-  await setCollection("posts", "Posts", {});
+function seedLinkData() {
+  setCollection("persons", "Persons", {});
+  setCollection("tags", "Tags", {});
+  setCollection("posts", "Posts", {});
 
   // Create persons
-  await createItem({
+  createItem({
     id: makeId(10),
     ref: "persons/alice",
     collection: "persons",
     props: {},
     changedAt: 100,
   });
-  await createItem({
+  createItem({
     id: makeId(11),
     ref: "persons/bob",
     collection: "persons",
@@ -251,14 +251,14 @@ async function seedLinkData() {
   });
 
   // Create tags
-  await createItem({
+  createItem({
     id: makeId(30),
     ref: "tags/tech",
     collection: "tags",
     props: {},
     changedAt: 200,
   });
-  await createItem({
+  createItem({
     id: makeId(31),
     ref: "tags/design",
     collection: "tags",
@@ -267,14 +267,14 @@ async function seedLinkData() {
   });
 
   // Create posts (items must exist before links due to FK)
-  await createItem({
+  createItem({
     id: makeId(1),
     ref: "posts/post1",
     collection: "posts",
     props: { title: "Post One", author: makeId(10), tags: [makeId(30), makeId(31)] },
     changedAt: 300,
   });
-  await createItem({
+  createItem({
     id: makeId(2),
     ref: "posts/post2",
     collection: "posts",
@@ -300,9 +300,9 @@ describe("contfu link resolution", () => {
   const q = contfu<LinkCollections>();
   const { oneOf, eq, linksTo, linkedFrom } = q;
 
-  beforeEach(async () => {
-    await truncateAllTables();
-    await seedLinkData();
+  beforeEach(() => {
+    truncateAllTables();
+    seedLinkData();
   });
 
   test("forward REF: post → author via props", async () => {

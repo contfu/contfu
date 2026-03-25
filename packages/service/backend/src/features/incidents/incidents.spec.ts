@@ -232,6 +232,7 @@ describe("Incident Features", () => {
         })
         .returning();
 
+      // oxlint-disable-next-line typescript/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
       await expect(
         runTest(
           testUserId,

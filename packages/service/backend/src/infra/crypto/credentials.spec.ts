@@ -23,6 +23,7 @@ describe("credentials", () => {
     process.env.BETTER_AUTH_SECRET = "test-secret-at-least-32-chars-long";
     const plain = Buffer.from("legacy-token", "utf8");
 
+    // oxlint-disable-next-line typescript/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
     await expect(decryptCredentials(1, plain)).rejects.toThrow("Invalid encrypted data: too short");
   });
 
@@ -33,6 +34,7 @@ describe("credentials", () => {
     process.env.BETTER_AUTH_SECRET = "different-secret-at-least-32-chars";
     clearKeyCache(1);
 
+    // oxlint-disable-next-line typescript/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
     await expect(decryptCredentials(1, encrypted)).rejects.toThrow(
       "Unsupported state or unable to authenticate data",
     );

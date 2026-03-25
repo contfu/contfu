@@ -1,7 +1,7 @@
 import { detectRuntime } from "../../util/runtime";
 export type { DbCtx } from "./db-bun";
 
-const hiddenImport = (path: string) => new Function("p", "return import(p)")(path) as Promise<any>;
+const hiddenImport = (path: string) => (0, eval)(`import("${path}")`) as Promise<any>;
 const nodeCompiledModule = ["./db", "node.js"].join("-");
 const nodeSourceModule = ["./db", "node"].join("-");
 
@@ -21,9 +21,9 @@ async function importDbModule(base: "db-bun" | "db-node") {
       throw err;
     }
     if (base === "db-bun") {
-      return await import("./db-bun");
+      return import("./db-bun");
     }
-    return await hiddenImport(nodeSourceModule);
+    return hiddenImport(nodeSourceModule);
   }
 }
 

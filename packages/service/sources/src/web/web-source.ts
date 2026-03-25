@@ -50,7 +50,7 @@ export class WebSource implements Source<WebFetchOpts> {
 
     // Determine dominant type (all-same → use it, otherwise mixed → null)
     const unique = new Set(resolved.filter(Boolean));
-    const dominant = unique.size === 1 ? ([...unique][0] as ContentProcessor) : null;
+    const dominant = unique.size === 1 ? [...unique][0] : null;
 
     return buildSchema(dominant);
   }

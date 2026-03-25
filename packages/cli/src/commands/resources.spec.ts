@@ -143,6 +143,7 @@ describe("create", () => {
     const exitSpy = spyOn(process, "exit").mockImplementation(() => {
       throw new Error("exit");
     });
+    // oxlint-disable-next-line typescript/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
     await expect(create("collections", undefined, {})).rejects.toThrow("exit");
     expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("--display-name"));
     exitSpy.mockRestore();

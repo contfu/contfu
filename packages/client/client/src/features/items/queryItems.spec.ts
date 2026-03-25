@@ -8,11 +8,11 @@ function makeId(seed: number): string {
   return Buffer.from([0, 0, 0, seed]).toString("base64url");
 }
 
-async function seedItems() {
-  await setCollection("articles", "Articles", { title: 1 });
-  await setCollection("guides", "Guides", { title: 1 });
+function seedItems() {
+  setCollection("articles", "Articles", { title: 1 });
+  setCollection("guides", "Guides", { title: 1 });
 
-  await createItem({
+  createItem({
     id: makeId(1),
     ref: "article/alpha",
     collection: "articles",
@@ -20,7 +20,7 @@ async function seedItems() {
     changedAt: 100,
   });
 
-  await createItem({
+  createItem({
     id: makeId(2),
     ref: "article/bravo",
     collection: "articles",
@@ -28,7 +28,7 @@ async function seedItems() {
     changedAt: 200,
   });
 
-  await createItem({
+  createItem({
     id: makeId(3),
     ref: "guide/charlie",
     collection: "guides",
@@ -38,24 +38,24 @@ async function seedItems() {
 }
 
 describe("queryItems", () => {
-  beforeEach(async () => {
-    await truncateAllTables();
-    await seedItems();
+  beforeEach(() => {
+    truncateAllTables();
+    seedItems();
   });
 
-  test("filters by collection", async () => {
-    const result = await queryItems({ collection: "articles" });
+  test("filters by collection", () => {
+    const result = queryItems({ collection: "articles" });
     expect(result.items).toHaveLength(2);
     expect(new Set(result.items.map((i) => i.collection))).toEqual(new Set(["articles"]));
   });
 
-  test("filters by inclusive changedAt range", async () => {
-    const result = await queryItems({ changedAtFrom: 100, changedAtTo: 150, sortDirection: "asc" });
+  test("filters by inclusive changedAt range", () => {
+    const result = queryItems({ changedAtFrom: 100, changedAtTo: 150, sortDirection: "asc" });
     expect(result.items.map((i) => i.id)).toEqual([makeId(1), makeId(3)]);
   });
 
-  test("supports prop eq filter", async () => {
-    const result = await queryItems({
+  test("supports prop eq filter", () => {
+    const result = queryItems({
       propFilters: [{ key: "featured", op: "eq", value: true }],
       sortField: "collection",
       sortDirection: "asc",
@@ -64,8 +64,8 @@ describe("queryItems", () => {
     expect(result.items.map((i) => i.id)).toEqual([makeId(1), makeId(3)]);
   });
 
-  test("supports prop contains filter on string values only", async () => {
-    const result = await queryItems({
+  test("supports prop contains filter on string values only", () => {
+    const result = queryItems({
       propFilters: [{ key: "category", op: "contains", value: "up" }],
     });
 
@@ -73,8 +73,8 @@ describe("queryItems", () => {
     expect(result.items[0]?.id).toBe(makeId(2));
   });
 
-  test("combines prop filters with AND", async () => {
-    const result = await queryItems({
+  test("combines prop filters with AND", () => {
+    const result = queryItems({
       propFilters: [
         { key: "featured", op: "eq", value: true },
         { key: "category", op: "contains", value: "doc" },
@@ -85,8 +85,8 @@ describe("queryItems", () => {
     expect(result.items[0]?.id).toBe(makeId(3));
   });
 
-  test("sorts with stable ref tiebreaker", async () => {
-    await createItem({
+  test("sorts with stable ref tiebreaker", () => {
+    createItem({
       id: makeId(4),
       ref: "article/able",
       collection: "articles",
@@ -94,13 +94,13 @@ describe("queryItems", () => {
       changedAt: 200,
     });
 
-    const result = await queryItems({ sortField: "changedAt", sortDirection: "desc" });
+    const result = queryItems({ sortField: "changedAt", sortDirection: "desc" });
     expect(result.items.slice(0, 2).map((i) => i.id)).toEqual([makeId(2), makeId(4)]);
   });
 
-  test("supports pagination and meta", async () => {
+  test("supports pagination and meta", () => {
     for (let idx = 4; idx <= 12; idx++) {
-      await createItem({
+      createItem({
         id: makeId(idx),
         ref: `extra/${idx}`,
         collection: "guides",
@@ -109,7 +109,7 @@ describe("queryItems", () => {
       });
     }
 
-    const result = await queryItems({
+    const result = queryItems({
       page: 2,
       pageSize: 10,
       sortField: "changedAt",
@@ -121,8 +121,8 @@ describe("queryItems", () => {
     expect(result.items[0]?.id).toBe(makeId(11));
   });
 
-  test("returns empty items when page is out of range", async () => {
-    const result = await queryItems({ page: 9, pageSize: 10 });
+  test("returns empty items when page is out of range", () => {
+    const result = queryItems({ page: 9, pageSize: 10 });
     expect(result.total).toBe(3);
     expect(result.items).toHaveLength(0);
   });

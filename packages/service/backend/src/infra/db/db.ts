@@ -52,9 +52,7 @@ async function createDb() {
     const database = drizzle({ client, schema });
 
     withTransaction = (fn) =>
-      (client as any).transaction((txClient: unknown) =>
-        fn(drizzle({ client: txClient as any, schema })),
-      );
+      client.transaction((txClient: unknown) => fn(drizzle({ client: txClient as any, schema })));
 
     // Apply schema via migrations (pushSchema has drizzle-kit import conflict)
     const drizzleMigratorPkg = "drizzle-orm/pglite/migrator";

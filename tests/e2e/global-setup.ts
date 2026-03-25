@@ -49,10 +49,10 @@ async function spawnProcess(
     };
 
     proc.stdout?.on("data", (data: Buffer) => {
-      if (process.env.CI) process.stdout.write(`[service] ${data}`);
+      if (process.env.CI) process.stdout.write(`[service] ${String(data)}`);
     });
     proc.stderr?.on("data", (data: Buffer) => {
-      if (process.env.CI) process.stderr.write(`[service] ${data}`);
+      if (process.env.CI) process.stderr.write(`[service] ${String(data)}`);
     });
 
     proc.on("error", (err) => {

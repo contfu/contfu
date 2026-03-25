@@ -134,7 +134,7 @@ function buildAudioOptimizerOpts(constraints?: AudioConstraints): OptimizeAudioO
 /**
  * Store variant results from the optimizer into the mediaVariantTable.
  */
-async function storeVariantRecords(assetId: string, results: VariantResult[]): Promise<void> {
+function storeVariantRecords(assetId: string, results: VariantResult[]): void {
   if (results.length === 0) return;
 
   for (const variant of results) {
@@ -144,16 +144,18 @@ async function storeVariantRecords(assetId: string, results: VariantResult[]): P
     if (variant.quality != null) opts.quality = variant.quality;
     const optsHash = hashOpts(opts);
 
-    await db.insert(mediaVariantTable).values({
-      id: randomBytes(16),
-      assetId: decodeId(assetId),
-      ext: variant.ext,
-      optsHash,
-      opts,
-      size: variant.size,
-      data: variant.data,
-      createdAt: Math.floor(Date.now() / 1000),
-    });
+    db.insert(mediaVariantTable)
+      .values({
+        id: randomBytes(16),
+        assetId: decodeId(assetId),
+        ext: variant.ext,
+        optsHash,
+        opts,
+        size: variant.size,
+        data: variant.data,
+        createdAt: Math.floor(Date.now() / 1000),
+      })
+      .run();
   }
 }
 
@@ -173,9 +175,9 @@ async function downloadAndStoreAsset(
   const assetId = idFromUrl(originalUrl);
   const ext = extFromUrl(originalUrl) ?? "bin";
 
-  const existing = await getAsset(assetId);
+  const existing = getAsset(assetId);
   if (existing) {
-    await linkAssetToItem(itemId, existing.id);
+    linkAssetToItem(itemId, existing.id);
     return assetId;
   }
 
@@ -234,7 +236,7 @@ async function downloadAndStoreAsset(
   }
 
   // Persist: single INSERT with master data included
-  await createAsset({
+  createAsset({
     id: assetId,
     originalUrl,
     mediaType,
@@ -244,10 +246,10 @@ async function downloadAndStoreAsset(
     createdAt: Math.floor(Date.now() / 1000),
   });
 
-  await linkAssetToItem(itemId, assetId);
+  linkAssetToItem(itemId, assetId);
 
   if (variantResults.length > 0) {
-    await storeVariantRecords(assetId, variantResults);
+    storeVariantRecords(assetId, variantResults);
   }
 
   // Write to mediaStore for non-DB store implementations

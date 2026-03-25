@@ -68,7 +68,7 @@ export function resolveIncludes(
           $ref: row.ref,
           $changedAt: row.changedAt,
           ...(row.props && typeof row.props === "object" && !Array.isArray(row.props)
-            ? (row.props as Record<string, unknown>)
+            ? row.props
             : {}),
         });
       }

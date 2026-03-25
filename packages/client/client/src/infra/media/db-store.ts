@@ -8,27 +8,29 @@ export class DBStore implements MediaStore {
   async write(path: string, data: Buffer | ReadableStream): Promise<void> {
     const id = this.idFromPath(path);
     const buf = Buffer.isBuffer(data) ? data : Buffer.from(await new Response(data).arrayBuffer());
-    await db
-      .update(assetTable)
+    db.update(assetTable)
       .set({ data: buf })
-      .where(eq(assetTable.id, decodeId(id)));
+      .where(eq(assetTable.id, decodeId(id)))
+      .run();
   }
 
-  async read(path: string): Promise<Buffer | null> {
+  read(path: string): Buffer | null {
     const id = this.idFromPath(path);
-    const rows = await db
+    const rows = db
       .select({ data: assetTable.data })
       .from(assetTable)
-      .where(eq(assetTable.id, decodeId(id)));
+      .where(eq(assetTable.id, decodeId(id)))
+      .all();
     return rows.length > 0 ? (rows[0].data ?? null) : null;
   }
 
-  async exists(path: string): Promise<boolean> {
+  exists(path: string): boolean {
     const id = this.idFromPath(path);
-    const rows = await db
+    const rows = db
       .select({ id: assetTable.id })
       .from(assetTable)
-      .where(eq(assetTable.id, decodeId(id)));
+      .where(eq(assetTable.id, decodeId(id)))
+      .all();
     return rows.length > 0;
   }
 

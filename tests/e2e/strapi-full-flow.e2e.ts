@@ -436,7 +436,7 @@ test.describe.skip("E2E: Strapi -> Service -> Consumer Full Flow (Fixtures)", ()
     const startSchema = Date.now();
     let schemaReady = false;
     while (Date.now() - startSchema < 15000) {
-      const collections = await listCollections();
+      const collections = listCollections();
       if (collections.some((c) => c.name === "renameTest")) {
         schemaReady = true;
         break;
@@ -463,7 +463,7 @@ test.describe.skip("E2E: Strapi -> Service -> Consumer Full Flow (Fixtures)", ()
     const start = Date.now();
     let renamed = false;
     while (Date.now() - start < 10000) {
-      const collections = await listCollections();
+      const collections = listCollections();
       if (collections.some((c) => c.name === "renamedCollection")) {
         renamed = true;
         break;
@@ -473,7 +473,7 @@ test.describe.skip("E2E: Strapi -> Service -> Consumer Full Flow (Fixtures)", ()
     expect(renamed).toBe(true);
 
     // Old name should no longer exist
-    const collectionsAfter = await listCollections();
+    const collectionsAfter = listCollections();
     expect(collectionsAfter.some((c) => c.name === "renameTest")).toBe(false);
     expect(collectionsAfter.some((c) => c.name === "renamedCollection")).toBe(true);
 
@@ -579,7 +579,7 @@ test.describe.skip("E2E: Strapi -> Service -> Consumer Full Flow (Fixtures)", ()
             return r.data.some((item) => item.props.title === "HTTP Test Article") ? r : null;
           } catch (err) {
             pollCount++;
-            console.log(`[E2E] HTTP poll #${pollCount} error: ${err}`);
+            console.log(`[E2E] HTTP poll #${pollCount} error: ${String(err)}`);
             return null;
           }
         },

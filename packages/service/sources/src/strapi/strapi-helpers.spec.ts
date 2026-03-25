@@ -176,6 +176,7 @@ describe("strapi-helpers", () => {
         }),
       );
 
+      // oxlint-disable-next-line typescript/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
       await expect(fetchEntries(testOpts)).rejects.toThrow("Strapi API error: 401 Unauthorized");
     });
   });

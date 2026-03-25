@@ -2,9 +2,9 @@
  * MediaStore interface for storing and retrieving media files.
  */
 export interface MediaStore {
-  write(path: string, data: Buffer | ReadableStream): Promise<void>;
-  read(path: string): Promise<Buffer | null>;
-  exists(path: string): Promise<boolean>;
+  write(path: string, data: Buffer | ReadableStream): void | Promise<void>;
+  read(path: string): Buffer | null | Promise<Buffer | null>;
+  exists(path: string): boolean | Promise<boolean>;
 }
 
 /**

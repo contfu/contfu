@@ -16,7 +16,7 @@ export const SyncWorkerManagerLive = Layer.effect(SyncWorkerManagerService)(
       const manager = new SyncWorkerManagerClass();
       yield* Effect.tryPromise({
         try: () => manager.start(),
-        catch: (e) => new Error(`Failed to start sync worker: ${e}`),
+        catch: (e) => new Error(`Failed to start sync worker: ${String(e)}`),
       });
       return manager;
     }),

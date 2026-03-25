@@ -116,7 +116,7 @@ export const GET: RequestHandler = async ({ params, url }) => {
 
   if (!parsed) {
     // Extensionless: treat as asset ID, look up ext from DB
-    const asset = await getAsset(filePath);
+    const asset = getAsset(filePath);
     if (!asset) error(404, "Not found");
     const data = await mediaStore.read(`${asset.id}.${asset.ext}`);
     if (!data) error(404, "Not found");

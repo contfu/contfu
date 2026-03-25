@@ -13,28 +13,28 @@ function makeId(seed: number): string {
 }
 
 describe("resolveRelations", () => {
-  beforeEach(async () => {
-    await truncateAllTables();
-    await setCollection("articles", "Articles", {});
-    await setCollection("guides", "Guides", {});
+  beforeEach(() => {
+    truncateAllTables();
+    setCollection("articles", "Articles", {});
+    setCollection("guides", "Guides", {});
   });
 
-  test("resolves simple relation with $1.$collection placeholder", async () => {
-    await createItem({
+  test("resolves simple relation with $1.$collection placeholder", () => {
+    createItem({
       id: makeId(1),
       ref: "a",
       collection: "articles",
       props: { title: "A" },
       changedAt: 100,
     });
-    await createItem({
+    createItem({
       id: makeId(2),
       ref: "b",
       collection: "articles",
       props: { title: "B" },
       changedAt: 200,
     });
-    await createItem({
+    createItem({
       id: makeId(3),
       ref: "c",
       collection: "guides",
@@ -64,22 +64,22 @@ describe("resolveRelations", () => {
     expect((items[0].siblings as any[])[0].$id).toBe(makeId(2));
   });
 
-  test("resolves relation with $1.property placeholder", async () => {
-    await createItem({
+  test("resolves relation with $1.property placeholder", () => {
+    createItem({
       id: makeId(1),
       ref: "a",
       collection: "articles",
       props: { title: "A", category: "news" },
       changedAt: 100,
     });
-    await createItem({
+    createItem({
       id: makeId(2),
       ref: "b",
       collection: "articles",
       props: { title: "B", category: "news" },
       changedAt: 200,
     });
-    await createItem({
+    createItem({
       id: makeId(3),
       ref: "c",
       collection: "articles",
@@ -110,22 +110,22 @@ describe("resolveRelations", () => {
     expect((items[0].sameCategory as any[])[0].$id).toBe(makeId(2));
   });
 
-  test("respects limit on relations", async () => {
-    await createItem({
+  test("respects limit on relations", () => {
+    createItem({
       id: makeId(1),
       ref: "a",
       collection: "articles",
       props: {},
       changedAt: 100,
     });
-    await createItem({
+    createItem({
       id: makeId(2),
       ref: "b",
       collection: "articles",
       props: {},
       changedAt: 200,
     });
-    await createItem({
+    createItem({
       id: makeId(3),
       ref: "c",
       collection: "articles",
@@ -159,11 +159,11 @@ describe("resolveRelations", () => {
     resolveRelations([], { test: { filter: '$collection = "x"' } }, findItems);
   });
 
-  test("forward REF — post → author via link", async () => {
-    await setCollection("posts", "Posts", { title: 1 });
-    await setCollection("persons", "Persons", { name: 1 });
+  test("forward REF — post → author via link", () => {
+    setCollection("posts", "Posts", { title: 1 });
+    setCollection("persons", "Persons", { name: 1 });
 
-    await createItem({
+    createItem({
       id: makeId(10),
       ref: "person/alice",
       collection: "persons",
@@ -171,7 +171,7 @@ describe("resolveRelations", () => {
       changedAt: 100,
     });
 
-    await createItem({
+    createItem({
       id: makeId(1),
       ref: "post/first",
       collection: "posts",
@@ -186,7 +186,7 @@ describe("resolveRelations", () => {
       internal: true,
     });
 
-    await updateItem({
+    updateItem({
       id: makeId(1),
       ref: "post/first",
       collection: "posts",
@@ -220,11 +220,11 @@ describe("resolveRelations", () => {
     expect((items[0].author as any).$id).toBe(makeId(10));
   });
 
-  test("forward REF — null for external link", async () => {
-    await setCollection("posts", "Posts", { title: 1 });
-    await setCollection("persons", "Persons", { name: 1 });
+  test("forward REF — null for external link", () => {
+    setCollection("posts", "Posts", { title: 1 });
+    setCollection("persons", "Persons", { name: 1 });
 
-    await createItem({
+    createItem({
       id: makeId(1),
       ref: "post/first",
       collection: "posts",
@@ -239,7 +239,7 @@ describe("resolveRelations", () => {
       internal: false,
     });
 
-    await updateItem({
+    updateItem({
       id: makeId(1),
       ref: "post/first",
       collection: "posts",
@@ -272,11 +272,11 @@ describe("resolveRelations", () => {
     expect(items[0].author).toBeNull();
   });
 
-  test("forward REF — null for missing link", async () => {
-    await setCollection("posts", "Posts", { title: 1 });
-    await setCollection("persons", "Persons", { name: 1 });
+  test("forward REF — null for missing link", () => {
+    setCollection("posts", "Posts", { title: 1 });
+    setCollection("persons", "Persons", { name: 1 });
 
-    await createItem({
+    createItem({
       id: makeId(1),
       ref: "post/first",
       collection: "posts",
@@ -309,11 +309,11 @@ describe("resolveRelations", () => {
     expect(items[0].author).toBeNull();
   });
 
-  test("backlink REF — person → posts via linksTo", async () => {
-    await setCollection("posts", "Posts", { title: 1 });
-    await setCollection("persons", "Persons", { name: 1 });
+  test("backlink REF — person → posts via linksTo", () => {
+    setCollection("posts", "Posts", { title: 1 });
+    setCollection("persons", "Persons", { name: 1 });
 
-    await createItem({
+    createItem({
       id: makeId(10),
       ref: "person/alice",
       collection: "persons",
@@ -321,7 +321,7 @@ describe("resolveRelations", () => {
       changedAt: 100,
     });
 
-    await createItem({
+    createItem({
       id: makeId(1),
       ref: "post/first",
       collection: "posts",
@@ -329,7 +329,7 @@ describe("resolveRelations", () => {
       changedAt: 200,
     });
 
-    await createItem({
+    createItem({
       id: makeId(2),
       ref: "post/second",
       collection: "posts",
@@ -351,7 +351,7 @@ describe("resolveRelations", () => {
       internal: true,
     });
 
-    await updateItem({
+    updateItem({
       id: makeId(1),
       ref: "post/first",
       collection: "posts",
@@ -359,7 +359,7 @@ describe("resolveRelations", () => {
       changedAt: 200,
     });
 
-    await updateItem({
+    updateItem({
       id: makeId(2),
       ref: "post/second",
       collection: "posts",
@@ -393,11 +393,11 @@ describe("resolveRelations", () => {
     expect(postIds).toContain(makeId(2));
   });
 
-  test("backlink REFS — tag → posts via linksTo", async () => {
-    await setCollection("posts", "Posts", { title: 1 });
-    await setCollection("tags", "Tags", { label: 1 });
+  test("backlink REFS — tag → posts via linksTo", () => {
+    setCollection("posts", "Posts", { title: 1 });
+    setCollection("tags", "Tags", { label: 1 });
 
-    await createItem({
+    createItem({
       id: makeId(30),
       ref: "tag/tech",
       collection: "tags",
@@ -405,7 +405,7 @@ describe("resolveRelations", () => {
       changedAt: 100,
     });
 
-    await createItem({
+    createItem({
       id: makeId(1),
       ref: "post/first",
       collection: "posts",
@@ -420,7 +420,7 @@ describe("resolveRelations", () => {
       internal: true,
     });
 
-    await updateItem({
+    updateItem({
       id: makeId(1),
       ref: "post/first",
       collection: "posts",

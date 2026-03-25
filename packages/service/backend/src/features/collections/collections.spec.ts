@@ -77,6 +77,7 @@ describe("Collection Features Happy Path", () => {
   it("rejects schema properties that start with $", async () => {
     const created = await runTest(userId, createCollection(userId, { displayName: "Articles" }));
 
+    // oxlint-disable-next-line typescript/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
     await expect(
       runTest(userId, updateCollection(created.id, { schema: { $title: 1 } as any })),
     ).rejects.toMatchObject({

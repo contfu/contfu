@@ -309,6 +309,7 @@ describe("web-helpers", () => {
         }),
       );
 
+      // oxlint-disable-next-line typescript/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
       await expect(webFetch("/missing", baseOptions)).rejects.toThrow(
         "Web fetch error: 404 Not Found",
       );
@@ -347,6 +348,7 @@ describe("web-helpers", () => {
         }),
       );
 
+      // oxlint-disable-next-line typescript/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
       await expect(webFetch("/protected", baseOptions)).rejects.toThrow(
         "Web fetch error: 401 Unauthorized",
       );

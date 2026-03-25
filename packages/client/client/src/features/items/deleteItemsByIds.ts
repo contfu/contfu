@@ -4,11 +4,14 @@ import { decodeId } from "../../infra/ids";
 import { itemsTable } from "../../infra/db/schema";
 import { deleteItemLinksByRef } from "./deleteItemLinksByRef";
 
-export async function deleteItemsByIds(ids: string[], ctx = db): Promise<void> {
+export function deleteItemsByIds(ids: string[], ctx = db): void {
   if (ids.length === 0) return;
 
   for (const id of ids) {
-    await deleteItemLinksByRef(id, ctx);
-    await ctx.delete(itemsTable).where(eq(itemsTable.id, decodeId(id)));
+    deleteItemLinksByRef(id, ctx);
+    ctx
+      .delete(itemsTable)
+      .where(eq(itemsTable.id, decodeId(id)))
+      .run();
   }
 }

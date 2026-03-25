@@ -6,11 +6,8 @@ import { itemsTable } from "../../infra/db/schema";
 import { createItem } from "./createItem";
 import { updateItem } from "./updateItem";
 
-export async function createOrUpdateItem<T extends Omit<ItemData, "links">>(
-  item: T,
-  ctx = db,
-): Promise<T> {
-  const existing = await ctx
+export function createOrUpdateItem<T extends Omit<ItemData, "links">>(item: T, ctx = db): T {
+  const existing = ctx
     .select()
     .from(itemsTable)
     .where(eq(itemsTable.id, decodeId(item.id)))
@@ -18,7 +15,7 @@ export async function createOrUpdateItem<T extends Omit<ItemData, "links">>(
     .all();
 
   if (existing.length > 0) {
-    await updateItem(item, ctx);
+    updateItem(item, ctx);
     return item;
   }
 

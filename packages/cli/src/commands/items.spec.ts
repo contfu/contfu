@@ -84,6 +84,7 @@ describe("queryItems", () => {
   });
 
   test("exits with error when --client-url is missing", async () => {
+    // oxlint-disable-next-line typescript/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
     await expect(queryItems([])).rejects.toThrow("exit");
     expect(errorSpy).toHaveBeenCalledWith("Missing required --client-url flag");
   });
@@ -120,6 +121,7 @@ describe("countItems", () => {
   });
 
   test("exits with error when --client-url is missing", async () => {
+    // oxlint-disable-next-line typescript/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
     await expect(countItems([])).rejects.toThrow("exit");
     expect(errorSpy).toHaveBeenCalledWith("Missing required --client-url flag");
   });

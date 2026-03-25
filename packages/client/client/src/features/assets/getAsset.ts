@@ -5,8 +5,8 @@ import { db } from "../../infra/db/db";
 import { decodeId } from "../../infra/ids";
 import { assetTable } from "../../infra/db/schema";
 
-export async function getAsset(id: string, ctx = db): Promise<AssetData | null> {
-  const dbos = await ctx
+export function getAsset(id: string, ctx = db): AssetData | null {
+  const dbos = ctx
     .select()
     .from(assetTable)
     .where(eq(assetTable.id, decodeId(id)))

@@ -4,7 +4,7 @@ let _nc: Promise<NatsConnection> | null = null;
 
 const servers = process.env.NATS_SERVER?.split(",");
 
-export async function getNatsConnection(): Promise<NatsConnection> {
+export function getNatsConnection(): Promise<NatsConnection> {
   if (!servers) {
     throw new Error("NATS_SERVER environment variable not set");
   }

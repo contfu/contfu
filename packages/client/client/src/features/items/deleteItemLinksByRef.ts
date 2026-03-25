@@ -3,7 +3,10 @@ import { db } from "../../infra/db/db";
 import { decodeId } from "../../infra/ids";
 import { linkTable } from "../../infra/db/schema";
 
-export async function deleteItemLinksByRef(id: string, ctx = db): Promise<void> {
+export function deleteItemLinksByRef(id: string, ctx = db): void {
   const idBlob = decodeId(id);
-  await ctx.delete(linkTable).where(or(eq(linkTable.from, idBlob), eq(linkTable.to, idBlob)));
+  ctx
+    .delete(linkTable)
+    .where(or(eq(linkTable.from, idBlob), eq(linkTable.to, idBlob)))
+    .run();
 }

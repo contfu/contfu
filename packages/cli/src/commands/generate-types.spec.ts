@@ -58,6 +58,7 @@ describe("connectionTypes", () => {
   test("exits when no collections connected", async () => {
     mockFetch.mockResolvedValueOnce(jsonResponse([]));
 
+    // oxlint-disable-next-line typescript/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
     await expect(connectionTypes("7")).rejects.toThrow("exit");
 
     expect(errorSpy).toHaveBeenCalledWith("No collections connected to this connection");
@@ -82,6 +83,7 @@ describe("collectionTypes", () => {
   test("exits when no types found for collection", async () => {
     mockFetch.mockResolvedValueOnce(jsonResponse([]));
 
+    // oxlint-disable-next-line typescript/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
     await expect(collectionTypes("3")).rejects.toThrow("exit");
 
     expect(errorSpy).toHaveBeenCalledWith("No types found for this collection");

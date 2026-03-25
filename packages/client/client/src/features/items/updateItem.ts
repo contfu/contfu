@@ -5,11 +5,12 @@ import { decodeId } from "../../infra/ids";
 import { itemToDb } from "../../infra/db/mappers";
 import { itemsTable } from "../../infra/db/schema";
 
-export async function updateItem<T extends Omit<ItemData, "links">>(item: T, ctx = db): Promise<T> {
-  await ctx
+export function updateItem<T extends Omit<ItemData, "links">>(item: T, ctx = db): T {
+  ctx
     .update(itemsTable)
-    .set(await itemToDb(item, ctx))
-    .where(eq(itemsTable.id, decodeId(item.id)));
+    .set(itemToDb(item, ctx))
+    .where(eq(itemsTable.id, decodeId(item.id)))
+    .run();
 
   return item;
 }

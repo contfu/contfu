@@ -59,7 +59,7 @@ const contentTypeSchema = {
 let server: ReturnType<typeof Bun.serve>;
 let serverUrl: string;
 
-async function startMockServer(): Promise<string> {
+function startMockServer(): string {
   const port = 8765 + Math.floor(Math.random() * 1000);
   serverUrl = `http://localhost:${port}`;
 
@@ -93,7 +93,7 @@ async function startMockServer(): Promise<string> {
     },
   });
 
-  return Promise.resolve(serverUrl);
+  return serverUrl;
 }
 
 function stopMockServer() {
@@ -101,9 +101,9 @@ function stopMockServer() {
 }
 
 describe.skip("ContentfulSource Integration", () => {
-  beforeAll(async () => {
+  beforeAll(() => {
     try {
-      await startMockServer();
+      startMockServer();
     } catch {
       throw new Error("Failed to start mock server - make sure port is available");
     }

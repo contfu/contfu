@@ -120,7 +120,7 @@ function compareItems(
   return sortDirection === "asc" ? primary : -primary;
 }
 
-export async function queryItems(input: QueryItemsInput = {}, ctx = db): Promise<QueryItemsResult> {
+export function queryItems(input: QueryItemsInput = {}, ctx = db): QueryItemsResult {
   const page = normalizePage(input.page);
   const pageSize = normalizePageSize(input.pageSize);
   const sortField = normalizeSortField(input.sortField);
@@ -166,11 +166,11 @@ export async function queryItems(input: QueryItemsInput = {}, ctx = db): Promise
 
   const rawRows =
     whereConditions.length > 0
-      ? await baseQuery
+      ? baseQuery
           .where(and(...whereConditions))
           .orderBy(...orderBy)
           .all()
-      : await baseQuery.orderBy(...orderBy).all();
+      : baseQuery.orderBy(...orderBy).all();
 
   const filtered = rawRows
     .map((row): ItemData => {

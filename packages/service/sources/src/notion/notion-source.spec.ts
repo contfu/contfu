@@ -323,6 +323,7 @@ describe("NotionSource", () => {
       it("should propagate API errors", async () => {
         mockClient.dataSources.query.mockRejectedValueOnce(new Error("API Error: Rate limited"));
 
+        // oxlint-disable-next-line typescript/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
         await expect(Array.fromAsync(source.fetch(pullOpts))).rejects.toThrow("API Error");
       });
     });

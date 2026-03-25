@@ -13,12 +13,12 @@ import {
  * Truncates all tables in the correct order (respecting foreign key constraints).
  * Call this in beforeEach() to ensure test isolation.
  */
-export async function truncateAllTables(): Promise<void> {
-  await db.delete(mediaVariantTable);
-  await db.delete(itemAssetTable);
-  await db.delete(assetTable);
-  await db.delete(linkTable);
-  await db.delete(itemsTable);
-  await db.delete(syncTable);
-  await db.delete(collectionsTable);
+export function truncateAllTables(): void {
+  db.delete(mediaVariantTable).run();
+  db.delete(itemAssetTable).run();
+  db.delete(assetTable).run();
+  db.delete(linkTable).run();
+  db.delete(itemsTable).run();
+  db.delete(syncTable).run();
+  db.delete(collectionsTable).run();
 }

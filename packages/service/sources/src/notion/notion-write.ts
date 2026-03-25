@@ -9,7 +9,7 @@ import { Client } from "@notionhq/client";
 function notionPageIdFromRefUrl(refUrl: string): string | null {
   const match = refUrl.match(/notion\.so\/([0-9a-f]{32})$/i);
   if (!match) return null;
-  const hex = match[1]!;
+  const hex = match[1];
   // Format as UUID: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }

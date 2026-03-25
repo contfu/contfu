@@ -285,7 +285,7 @@ export function createTransform(): MediaTransform {
       throw new Error("No audio output produced");
     }
 
-    throw new Error(`Unsupported media type: ${mediaType}`);
+    throw new Error(`Unsupported media type: ${String(mediaType)}`);
   };
 }
 

@@ -283,8 +283,8 @@ export async function checkQuota(
   const state = await getQuota(userId);
 
   const maxField = `max${field.charAt(0).toUpperCase()}${field.slice(1)}` as keyof QuotaState;
-  const current = state[field] as number;
-  const max = state[maxField] as number;
+  const current = state[field];
+  const max = state[maxField];
 
   // -1 means unlimited, 0 means no hard cap (on-demand billing)
   if (max === -1 || max === 0) return { allowed: true, current, max };

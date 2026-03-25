@@ -9,16 +9,16 @@ function makeId(seed: number): string {
 }
 
 describe("listCollections", () => {
-  beforeEach(async () => {
-    await truncateAllTables();
+  beforeEach(() => {
+    truncateAllTables();
   });
 
-  test("returns collection summaries with item counts", async () => {
+  test("returns collection summaries with item counts", () => {
     // Create collections first (schema events arrive before items)
-    await setCollection("articles", "Articles", { title: 1 });
-    await setCollection("guides", "Guides", { title: 1 });
+    setCollection("articles", "Articles", { title: 1 });
+    setCollection("guides", "Guides", { title: 1 });
 
-    await createItem({
+    createItem({
       id: makeId(1),
       ref: "article/alpha",
       collection: "articles",
@@ -26,7 +26,7 @@ describe("listCollections", () => {
       changedAt: 100,
     });
 
-    await createItem({
+    createItem({
       id: makeId(2),
       ref: "article/bravo",
       collection: "articles",
@@ -34,7 +34,7 @@ describe("listCollections", () => {
       changedAt: 110,
     });
 
-    await createItem({
+    createItem({
       id: makeId(3),
       ref: "guide/charlie",
       collection: "guides",
@@ -42,7 +42,7 @@ describe("listCollections", () => {
       changedAt: 120,
     });
 
-    const collections = await listCollections();
+    const collections = listCollections();
 
     expect(collections.map((c) => c.name)).toEqual(["articles", "guides"]);
     expect(collections.find((c) => c.name === "articles")?.itemCount).toBe(2);

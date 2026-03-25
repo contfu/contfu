@@ -19,7 +19,7 @@ export async function convertMedia(
 ): Promise<Buffer | null> {
   // Find source asset by id
   const idBuf = decodeId(assetId);
-  const assets = await db
+  const assets = db
     .select({ id: assetTable.id, data: assetTable.data })
     .from(assetTable)
     .where(eq(assetTable.id, idBuf))
@@ -27,11 +27,11 @@ export async function convertMedia(
 
   if (assets.length === 0 || !assets[0].data) return null;
 
-  const asset = assets[0];
+  const asset = { id: assets[0].id, data: assets[0].data };
   const optsHash = hashOpts(opts as Record<string, unknown>);
 
   // Check cache by (assetId, ext, optsHash)
-  const cached = await db
+  const cached = db
     .select({ data: mediaVariantTable.data })
     .from(mediaVariantTable)
     .where(
@@ -46,19 +46,21 @@ export async function convertMedia(
   if (cached.length > 0) return cached[0].data;
 
   // Convert
-  const result = await transform(asset.data!, opts);
+  const result = await transform(asset.data, opts);
 
   // Cache
-  await db.insert(mediaVariantTable).values({
-    id: randomBytes(16),
-    assetId: asset.id,
-    ext,
-    optsHash,
-    opts: opts as Record<string, unknown>,
-    size: result.byteLength,
-    data: result,
-    createdAt: Math.floor(Date.now() / 1000),
-  });
+  db.insert(mediaVariantTable)
+    .values({
+      id: randomBytes(16),
+      assetId: asset.id,
+      ext,
+      optsHash,
+      opts: opts as Record<string, unknown>,
+      size: result.byteLength,
+      data: result,
+      createdAt: Math.floor(Date.now() / 1000),
+    })
+    .run();
 
   return result;
 }

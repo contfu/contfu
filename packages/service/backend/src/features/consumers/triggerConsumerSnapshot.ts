@@ -27,7 +27,7 @@ export async function triggerConsumerSnapshot(
     .from(flowTable)
     .where(and(eq(flowTable.userId, userId), eq(flowTable.targetId, collectionId)));
 
-  const sourceIds = [...new Set(sourceRows.map((r) => r.sourceId as number))];
+  const sourceIds = [...new Set(sourceRows.map((r) => r.sourceId))];
   if (sourceIds.length === 0) return;
 
   await Effect.runPromise(

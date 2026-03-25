@@ -38,7 +38,7 @@ export function itemToDb<T extends ItemData | Omit<ItemData, "links">>(
     props: item.props,
     content: item.content ? item.content : null,
     changedAt: item.changedAt,
-  } satisfies ItemUpdate as ItemUpdate | NewItem;
+  } satisfies ItemUpdate;
 }
 
 export function itemFromDb(dbo: DbItem, _ctx: any, links?: ContentLinks): ItemData {

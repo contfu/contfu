@@ -38,7 +38,7 @@ export async function* connect(opts?: {
   transformMedia?: TransformMediaRule[];
   collectionVariants?: CollectionVariants;
 }): AsyncGenerator<ItemEvent | StreamEvent> {
-  const persistedFrom = await getSyncIndex();
+  const persistedFrom = getSyncIndex();
   const from = opts?.from ?? (persistedFrom != null ? persistedFrom + 1 : undefined);
   const {
     connectionEvents: _connectionEvents,
@@ -123,14 +123,14 @@ async function persistSyncEvent(
       .run();
 
     // Delete existing outgoing links (will be re-created from current data)
-    await deleteOutgoingItemLinks(itemId);
+    deleteOutgoingItemLinks(itemId);
 
     // Extract links from props (REF/REFS) and content (anchors)
     const schema = getCollectionSchemaByName(collection);
     const extracted = extractLinks(itemIdBuf, props, content, schema);
 
     // Create/update item before inserting links (linkTable.from has FK → items.id)
-    await createOrUpdateItem({
+    createOrUpdateItem({
       id: itemId,
       connectionType: event.item.connectionType,
       ref: event.item.ref,
@@ -155,7 +155,7 @@ async function persistSyncEvent(
 
     // Update item with resolved props/content (link IDs substituted in)
     if (extracted.records.length > 0) {
-      await createOrUpdateItem({
+      createOrUpdateItem({
         id: itemId,
         connectionType: event.item.connectionType,
         ref: event.item.ref,
@@ -198,7 +198,7 @@ async function persistSyncEvent(
       }
 
       if (needsUpdate) {
-        await createOrUpdateItem({
+        createOrUpdateItem({
           id: itemId,
           connectionType: event.item.connectionType,
           ref: event.item.ref,
@@ -212,10 +212,10 @@ async function persistSyncEvent(
   } else if (event.type === EventType.ITEM_DELETED) {
     const itemId = event.item.toString("base64url");
     if (mediaStore) {
-      await deleteAssetsByItem(itemId);
+      deleteAssetsByItem(itemId);
     }
-    await deleteItem(itemId);
+    deleteItem(itemId);
   }
 
-  await setSyncIndex(event.index);
+  setSyncIndex(event.index);
 }

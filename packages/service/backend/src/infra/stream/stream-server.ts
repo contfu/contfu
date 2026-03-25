@@ -513,7 +513,7 @@ export class StreamServer {
   ) {
     const [type, payload] = wireEvent;
     if (type === EventType.ITEM_CHANGED && !includeRef) {
-      const [, , id, collection, changedAt, props, content] = payload as WireItem;
+      const [, , id, collection, changedAt, props, content] = payload;
       const changedNoRef: WireItem = [null, null, id, collection, changedAt, props, content];
       this.sendBinary(controller, [type, changedNoRef, seq]);
       return;
@@ -532,7 +532,7 @@ export class StreamServer {
     if (!connection) return;
     const [type, payload] = wireEvent;
     if (type === EventType.ITEM_CHANGED && !includeRef) {
-      const [, , id, collection, changedAt, props, content] = payload as WireItem;
+      const [, , id, collection, changedAt, props, content] = payload;
       const changedNoRef: WireItem = [null, null, id, collection, changedAt, props, content];
       this.sendBinary(connection, [type, changedNoRef, seq]);
       return;

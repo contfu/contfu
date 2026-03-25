@@ -45,13 +45,14 @@ For each unresolved comment (where `review_id` is not null):
 
 ## Scripts
 
-| Script | Purpose |
-|--------|---------|
-| `pr-comments <pr>` | Fetch unresolved review + issue comments as JSON |
-| `pr-reply <pr> <body>` | Post a comment on the PR |
+| Script                    | Purpose                                                      |
+| ------------------------- | ------------------------------------------------------------ |
+| `pr-comments <pr>`        | Fetch unresolved review + issue comments as JSON             |
+| `pr-reply <pr> <body>`    | Post a comment on the PR                                     |
 | `pr-resolve <comment_id>` | Resolve a review comment conversation (requires web session) |
 
 All scripts live in `.claude/skills/forgejo/scripts/`.
+
 ## Rules
 
 - **Read before editing** — always read the file before making changes

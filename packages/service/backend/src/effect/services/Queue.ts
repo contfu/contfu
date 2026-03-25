@@ -17,12 +17,12 @@ export const QueueLive = Layer.effect(Queue)(
   Effect.gen(function* () {
     const mod = yield* Effect.tryPromise({
       try: () => import("../../infra/queue/index"),
-      catch: (e) => new Error(`Failed to load queue module: ${e}`),
+      catch: (e) => new Error(`Failed to load queue module: ${String(e)}`),
     });
 
     const queue: QueueInterface = yield* Effect.tryPromise({
       try: () => mod.getQueue(),
-      catch: (e) => new Error(`Failed to get queue: ${e}`),
+      catch: (e) => new Error(`Failed to get queue: ${String(e)}`),
     });
 
     return {

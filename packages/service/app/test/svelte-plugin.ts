@@ -10,7 +10,7 @@ await plugin({
     const toPath = (u: string) => (u.startsWith("file://") ? new URL(u).pathname : u);
 
     // Locate Svelte package and build a regex that matches any ".../src/**/index-server.js"
-    const pkgUrl = await import.meta.resolve("svelte/package.json");
+    const pkgUrl = import.meta.resolve("svelte/package.json");
     const pkgPath = toPath(pkgUrl);
     const pkgDir = pkgPath.slice(0, pkgPath.lastIndexOf("/"));
     const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -25,7 +25,7 @@ await plugin({
 
     // Compile Svelte SFCs
     build.onLoad({ filter: /\.svelte$/ }, async ({ path }) => {
-      const filePath = path.split("?")[0]!;
+      const filePath = path.split("?")[0];
       const source = await Bun.file(filePath).text();
 
       const { js } = compile(source, {
@@ -39,7 +39,7 @@ await plugin({
 
     // Compile JS/TS modules that contain Svelte runes (e.g. modern.svelte.js)
     build.onLoad({ filter: /\.svelte\.(js|ts)$/ }, async ({ path }) => {
-      const filePath = path.split("?")[0]!;
+      const filePath = path.split("?")[0];
       const source = await Bun.file(filePath).text();
       const isTs = filePath.endsWith(".ts");
       const normalizedSource = isTs

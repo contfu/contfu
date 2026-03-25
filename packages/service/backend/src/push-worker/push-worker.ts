@@ -95,7 +95,7 @@ async function processPushMessage(
       return;
     }
 
-    const [sourceType, refUrl, , , , props] = wireItem as WireItem;
+    const [sourceType, refUrl, , , , props] = wireItem;
 
     // Only process Notion-sourced items for now
     if (sourceType !== null && sourceType !== ConnectionType.NOTION) {
@@ -140,13 +140,7 @@ async function processPushMessage(
 
     const token = decrypted.toString("utf-8");
 
-    await writeItemToNotion(
-      token,
-      databaseId,
-      collectionSchema,
-      props as Record<string, unknown>,
-      refUrl,
-    );
+    await writeItemToNotion(token, databaseId, collectionSchema, props, refUrl);
 
     msg.ack();
   } catch (err) {

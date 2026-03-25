@@ -39,6 +39,7 @@ describe("Flow Features", () => {
   it("should reject self-referencing flow", async () => {
     const a = await insertCollection("collA");
 
+    // oxlint-disable-next-line typescript/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
     await expect(
       runTest(userId, createFlow(userId, { sourceId: a.id, targetId: a.id })),
     ).rejects.toThrow("Source and target collections must be different");
@@ -47,6 +48,7 @@ describe("Flow Features", () => {
   it("should reject flow to non-existent collection", async () => {
     const a = await insertCollection("collA");
 
+    // oxlint-disable-next-line typescript/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
     await expect(
       runTest(userId, createFlow(userId, { sourceId: a.id, targetId: 99999 })),
     ).rejects.toThrow("not found");
@@ -58,6 +60,7 @@ describe("Flow Features", () => {
 
     await runTest(userId, createFlow(userId, { sourceId: a.id, targetId: b.id }));
 
+    // oxlint-disable-next-line typescript/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
     await expect(
       runTest(userId, createFlow(userId, { sourceId: b.id, targetId: a.id })),
     ).rejects.toThrow("cycle");
@@ -71,6 +74,7 @@ describe("Flow Features", () => {
     await runTest(userId, createFlow(userId, { sourceId: a.id, targetId: b.id }));
     await runTest(userId, createFlow(userId, { sourceId: b.id, targetId: c.id }));
 
+    // oxlint-disable-next-line typescript/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
     await expect(
       runTest(userId, createFlow(userId, { sourceId: c.id, targetId: a.id })),
     ).rejects.toThrow("cycle");
