@@ -16,7 +16,7 @@ import { Polar } from "@polar-sh/sdk";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { createAuthMiddleware } from "better-auth/api";
-import { apiKey } from "better-auth/plugins";
+import { apiKey } from "@better-auth/api-key";
 import { sveltekitCookies } from "better-auth/svelte-kit";
 import { count, eq } from "drizzle-orm";
 

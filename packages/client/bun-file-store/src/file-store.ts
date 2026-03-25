@@ -26,6 +26,6 @@ export class FileStore implements MediaStore {
     return (await file.exists()) ? Buffer.from(await file.arrayBuffer()) : null;
   }
   async exists(canonical: string): Promise<boolean> {
-    return Bun.file(joinPath(this._root, canonical)).exists();
+    return await Bun.file(joinPath(this._root, canonical)).exists();
   }
 }
