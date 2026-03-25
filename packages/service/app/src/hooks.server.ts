@@ -67,7 +67,7 @@ function checkBasicAuth(request: Request): Response | null {
   });
 }
 
-const BASIC_AUTH_EXCLUDED = ["/api/", "/polar/", "/webhooks/", "/health"];
+const BASIC_AUTH_EXCLUDED = ["/api/", "/polar/", "/webhooks/", "/health", "/email-logo.png"];
 
 export const handle: Handle = async ({ event, resolve }) => {
   const { pathname } = event.url;

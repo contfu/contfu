@@ -52,9 +52,8 @@ export function renderMailHtml(content: string) {
 					<div class="header" style="display: flex; align-items: center; gap: 16px">
 						<a href="${origin}">
 							<img
-								src="${absolute("/logo.png")}"
+								src="${absolute("/email-logo.png")}"
 								alt="Contfu"
-								style="max-width: 100%; height: auto"
 							/>
 						</a>
 						<span style="font-size: 3rem; font-weight: bold">Contfu</span>
