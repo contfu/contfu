@@ -46,7 +46,7 @@
     "better-auth": "^1.4.18",
     "bits-ui": "^2.15.5",
     "clsx": "^2.1.1",
-    "drizzle-orm": "1.0.0-beta.15-859cf75",
+    "drizzle-orm": "1.0.0-beta.19",
     "effect": "^4.0.0-beta.30",
     "mode-watcher": "^1.1.0",
     "msgpackr": "^1.11.8",

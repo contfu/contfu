@@ -20,7 +20,7 @@
     "@contfu/svc-backend": "workspace:*",
     "@contfu/svc-core": "workspace:*",
     "@contfu/svc-sources": "workspace:*",
-    "drizzle-orm": "1.0.0-beta.15-859cf75",
+    "drizzle-orm": "1.0.0-beta.19",
     "effect": "^4.0.0-beta.30"
   },
   "devDependencies": {
