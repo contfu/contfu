@@ -132,7 +132,7 @@ export const auth = betterAuth({
     requireEmailVerification: true,
     autoSignIn: true,
     sendResetPassword: async ({ user, token }) => {
-      await sendEmail(
+      sendEmail(
         user.email,
         "Reset your password",
         `
@@ -142,14 +142,14 @@ export const auth = betterAuth({
         ${button("reset password", `/reset-password/${token}`)}
         `,
         `Go to ${absolute(`/reset-password/${token}`)} to reset your password`,
-      );
+      ).catch((err) => log.error(err, "failed to send reset-password email"));
     },
   },
   emailVerification: {
     autoSignInAfterVerification: true,
     expiresIn: 60 * 60 * 24, // 1 day
     sendVerificationEmail: async ({ user, url }) => {
-      await sendEmail(
+      sendEmail(
         user.email,
         "Verify your email",
         `
@@ -160,7 +160,7 @@ export const auth = betterAuth({
         <p>The link will expire in 24 hours. If you did not sign up for Pumpit, you can ignore this email.</p>
         <p>If the link expires, you can sign up again ${link("here", "/login")}.</p>`,
         `Go to ${url} to complete your registration`,
-      );
+      ).catch((err) => log.error(err, "failed to send verification email"));
     },
   },
   session: {
