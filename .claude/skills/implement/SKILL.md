@@ -1,15 +1,17 @@
 ---
 name: implement
-description: Pick up a GitHub issue and implement it end-to-end. Use when you're ready to execute on a planned issue — reads the issue, creates a branch, plans the approach, implements with minimal changes, runs quality checks, and opens a PR.
+description: Pick up a Forgejo issue and implement it end-to-end. Use when you're ready to execute on a planned issue — reads the issue, creates a branch, plans the approach, implements with minimal changes, runs quality checks, and opens a PR on Forgejo.
 ---
 
-# Implement
+# Forgejo Implement
 
-Implement a GitHub issue from start to PR.
+Implement a Forgejo issue from start to PR.
+
+Instance: `https://code.sven-rogge.com` | Repo: `contfu/contfu`
 
 ## Issue Details
 
-!`gh issue view $0 --json number,title,body,labels`
+!`tea issue view $0 --login forgejo --repo contfu/contfu --output json`
 
 ## Workflow
 
@@ -21,12 +23,16 @@ Implement a GitHub issue from start to PR.
    git checkout -b <branch-name> origin/main
    ```
 2. **Read the issue** — review the issue details above. If more context is needed, fetch linked issues.
-3. **Explore** — read the relevant files listed in the issue and understand current state.
-4. **Plan** — enter plan mode and present the implementation approach for user approval.
-5. **Implement** — execute the approved plan with minimal, focused changes.
-6. **Verify** — run `bun test && bun run fmt && bun run lint`.
-7. **Commit** — squash into a single descriptive commit referencing the issue (`closes #N`).
-8. **Create PR** — `gh pr create` linking the issue, with summary and test plan.
+3. **Update status** — move the issue to in-progress:
+   ```bash
+   .claude/skills/forgejo/scripts/forgejo-label set-status <number> in-progress
+   ```
+4. **Explore** — read the relevant files listed in the issue and understand current state.
+5. **Plan** — enter plan mode and present the implementation approach for user approval.
+6. **Implement** — execute the approved plan with minimal, focused changes.
+7. **Verify** — run `bun test && bun run fmt && bun run lint`.
+8. **Commit** — squash into a single descriptive commit referencing the issue (`closes #N`).
+9. **Create PR** — via `tea pr create` linking the issue, with summary and test plan.
 
 ## Branch Naming
 
@@ -49,6 +55,7 @@ Format: `<prefix><slug>` — kebab-case, max 30 chars, derived from issue topic 
 - **Always use `EnterWorktree`** — work in an isolated worktree to avoid interfering with the main checkout
 - **Branch from `origin/main`** — always start fresh from the remote main branch
 - **Ask, don't guess** — if the issue lacks detail, ask clarifying questions rather than assuming
+- **Update labels** — move from `ready` to `in-progress` when starting work
 
 ## Commit Message Format
 
@@ -63,7 +70,10 @@ Where type matches the branch prefix: `feat`, `fix`, or `docs`.
 ## PR Creation
 
 ```bash
-gh pr create --title "<title>" --body "$(cat <<'EOF'
+tea pr create --login forgejo --repo contfu/contfu \
+  --base main --head <branch> \
+  --title "<title>" \
+  --description "$(cat <<'EOF'
 ## Summary
 - <what changed and why>
 
@@ -73,4 +83,18 @@ gh pr create --title "<title>" --body "$(cat <<'EOF'
 closes #<number>
 EOF
 )"
+```
+
+## Label Management
+
+Use the shared scripts to manage issue status:
+
+```bash
+# Set status (removes other status labels automatically)
+.claude/skills/forgejo/scripts/forgejo-label set-status <number> in-progress
+.claude/skills/forgejo/scripts/forgejo-label set-status <number> done
+
+# Add/remove individual labels
+.claude/skills/forgejo/scripts/forgejo-label add <number> <label>
+.claude/skills/forgejo/scripts/forgejo-label remove <number> <label>
 ```
