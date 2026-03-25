@@ -380,8 +380,10 @@ async function runWorker(streamServer: StreamServer, signal: AbortSignal): Promi
   }
 }
 
-export function startWebhookFetchWorker(opts: { streamServer: StreamServer }): void {
-  if (workerTask) return;
+export async function startWebhookFetchWorker(opts: { streamServer: StreamServer }): Promise<void> {
+  if (workerTask) {
+    await stopWebhookFetchWorker();
+  }
 
   stopSignal = new AbortController();
   workerTask = runWorker(opts.streamServer, stopSignal.signal).catch((error) => {
@@ -389,10 +391,11 @@ export function startWebhookFetchWorker(opts: { streamServer: StreamServer }): v
   });
 }
 
-export function stopWebhookFetchWorker(): void {
+export async function stopWebhookFetchWorker(): Promise<void> {
   if (!workerTask) return;
 
   stopSignal?.abort();
+  await workerTask;
   stopSignal = null;
   workerTask = null;
 }
