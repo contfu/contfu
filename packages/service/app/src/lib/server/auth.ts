@@ -18,7 +18,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { createAuthMiddleware } from "better-auth/api";
 import { apiKey } from "better-auth/plugins";
 import { sveltekitCookies } from "better-auth/svelte-kit";
-import { count } from "drizzle-orm";
+import { count, eq } from "drizzle-orm";
 
 const log = createLogger("auth");
 
@@ -71,19 +71,22 @@ export const auth = betterAuth({
   databaseHooks: {
     user: {
       create: {
-        async before(user) {
-          // Check if this is the first user (will be admin)
+        async after(user) {
+          // Auto-approve and promote the first registered user to admin.
+          // Uses a direct DB update to bypass better-auth's adapter pipeline,
+          // which may strip `input: false` fields set by `before` hooks.
           const [{ userCount }] = await db.select({ userCount: count() }).from(schema.userTable);
 
-          const isFirstUser = userCount === 0;
+          if (userCount === 1) {
+            await db
+              .update(schema.userTable)
+              .set({ role: UserRole.ADMIN, approved: true })
+              .where(eq(schema.userTable.id, Number(user.id)));
 
-          return {
-            data: {
-              ...user,
-              role: isFirstUser ? UserRole.ADMIN : UserRole.USER,
-              approved: isFirstUser, // First user is auto-approved
-            },
-          };
+            // Patch in-place so downstream better-auth code sees correct values
+            user.role = UserRole.ADMIN;
+            user.approved = true;
+          }
         },
       },
     },
