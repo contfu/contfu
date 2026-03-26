@@ -114,7 +114,7 @@ export const POST: RequestHandler = async ({ request }) => {
           maxItems: quota.maxItems,
           periodEnd: 0,
         });
-        log.info({ customerId, basePlan }, "Quota reset to base plan")
+        log.info({ customerId, basePlan }, "Quota reset to base plan");
         break;
       }
     }

@@ -1,5 +1,6 @@
 import { ConnectionType } from "@contfu/core";
 import { createLogger } from "../logger/index";
+import { withLogContext } from "../logger/log-context";
 import { matchesFilters } from "@contfu/svc-core";
 
 const log = createLogger("webhook-fetch");
@@ -313,104 +314,106 @@ async function runWorker(streamServer: StreamServer, signal: AbortSignal): Promi
       continue;
     }
 
-    log.info(
-      {
-        userId: job.userId,
-        connectionId: job.connectionId,
-        pageId: job.pageId,
-        eventType: job.eventType,
-      },
-      "Processing webhook fetch job",
-    );
-
-    try {
-      const connectionMeta = await getConnectionMeta(job.userId, job.connectionId);
-      const rateLimitConfig =
-        connectionMeta !== null ? getRateLimitForConnectionType(connectionMeta.type) : null;
-
-      let shouldSkip = false;
-      while (rateLimitConfig) {
-        const delay = await acquireRateSlot(
-          job.userId,
-          job.connectionId,
-          rateLimitConfig,
-          null,
-          job.connectionId,
-        );
-        if (delay <= 0) {
-          break;
-        }
-
-        log.debug(
-          { userId: job.userId, connectionId: job.connectionId, delayMs: delay },
-          "Rate limit hit, waiting",
-        );
-        message.working();
-        await wait(delay);
-
-        const stillPending = await isPending(job.userId, job.connectionId, job.pageId);
-        if (!stillPending) {
-          message.ack();
-          shouldSkip = true;
-          break;
-        }
-      }
-
-      if (shouldSkip) {
-        continue;
-      }
-
-      // Long-term overage: if quota exceeded and period won't renew within 3 days, drop the event
-      if (!(await checkQuota(job.userId, "items")).allowed) {
-        const { periodEnd } = await getQuota(job.userId);
-        const now = Math.floor(Date.now() / 1000);
-        if (periodEnd === 0 || periodEnd - now > THREE_DAYS_S) {
-          log.info(
-            { userId: job.userId, connectionId: job.connectionId, pageId: job.pageId },
-            "Dropping webhook event due to long-term quota overage",
-          );
-          await clearPending(job.userId, job.connectionId, job.pageId);
-          message.ack();
-          continue;
-        }
-      }
-
-      const itemsBroadcast = await processJob(job, streamServer);
-      await clearPending(job.userId, job.connectionId, job.pageId);
+    await withLogContext({ jobId: crypto.randomUUID() }, async () => {
       log.info(
         {
           userId: job.userId,
           connectionId: job.connectionId,
           pageId: job.pageId,
-          itemsBroadcast,
+          eventType: job.eventType,
         },
-        "Webhook fetch job completed",
-      );
-      message.ack();
-    } catch (error) {
-      const deliveryCount = message.info?.deliveryCount ?? (message.redelivered ? 2 : 1);
-      const maxDeliverReached = deliveryCount >= MAX_DELIVER;
-
-      log.error(
-        { err: error, userId: job.userId, connectionId: job.connectionId, pageId: job.pageId },
-        "Failed processing webhook fetch job",
+        "Processing webhook fetch job",
       );
 
-      if (maxDeliverReached) {
+      try {
+        const connectionMeta = await getConnectionMeta(job.userId, job.connectionId);
+        const rateLimitConfig =
+          connectionMeta !== null ? getRateLimitForConnectionType(connectionMeta.type) : null;
+
+        let shouldSkip = false;
+        while (rateLimitConfig) {
+          const delay = await acquireRateSlot(
+            job.userId,
+            job.connectionId,
+            rateLimitConfig,
+            null,
+            job.connectionId,
+          );
+          if (delay <= 0) {
+            break;
+          }
+
+          log.debug(
+            { userId: job.userId, connectionId: job.connectionId, delayMs: delay },
+            "Rate limit hit, waiting",
+          );
+          message.working();
+          await wait(delay);
+
+          const stillPending = await isPending(job.userId, job.connectionId, job.pageId);
+          if (!stillPending) {
+            message.ack();
+            shouldSkip = true;
+            break;
+          }
+        }
+
+        if (shouldSkip) {
+          return;
+        }
+
+        // Long-term overage: if quota exceeded and period won't renew within 3 days, drop the event
+        if (!(await checkQuota(job.userId, "items")).allowed) {
+          const { periodEnd } = await getQuota(job.userId);
+          const now = Math.floor(Date.now() / 1000);
+          if (periodEnd === 0 || periodEnd - now > THREE_DAYS_S) {
+            log.info(
+              { userId: job.userId, connectionId: job.connectionId, pageId: job.pageId },
+              "Dropping webhook event due to long-term quota overage",
+            );
+            await clearPending(job.userId, job.connectionId, job.pageId);
+            message.ack();
+            return;
+          }
+        }
+
+        const itemsBroadcast = await processJob(job, streamServer);
         await clearPending(job.userId, job.connectionId, job.pageId);
-        await logWebhookEvent(
-          job.userId,
-          job.connectionId,
-          job.eventType,
-          job.pageId,
-          "error",
-          error instanceof Error ? error.message : String(error),
+        log.info(
+          {
+            userId: job.userId,
+            connectionId: job.connectionId,
+            pageId: job.pageId,
+            itemsBroadcast,
+          },
+          "Webhook fetch job completed",
         );
         message.ack();
-      } else {
-        message.nak(1000);
+      } catch (error) {
+        const deliveryCount = message.info?.deliveryCount ?? (message.redelivered ? 2 : 1);
+        const maxDeliverReached = deliveryCount >= MAX_DELIVER;
+
+        log.error(
+          { err: error, userId: job.userId, connectionId: job.connectionId, pageId: job.pageId },
+          "Failed processing webhook fetch job",
+        );
+
+        if (maxDeliverReached) {
+          await clearPending(job.userId, job.connectionId, job.pageId);
+          await logWebhookEvent(
+            job.userId,
+            job.connectionId,
+            job.eventType,
+            job.pageId,
+            "error",
+            error instanceof Error ? error.message : String(error),
+          );
+          message.ack();
+        } else {
+          message.nak(1000);
+        }
       }
-    }
+    });
   }
 }
 

@@ -5,6 +5,7 @@ import { getStreamServer, initialize, shutdown } from "$lib/server/startup";
 import { authenticateSyncRequest, runSyncSession } from "$lib/server/sync-session";
 import { ClientEventType, type ClientWireEvent } from "@contfu/core";
 import { closeDb } from "@contfu/svc-backend/infra/db/db";
+import { withLogContext } from "@contfu/svc-backend/infra/logger/log-context";
 import { createLogger } from "@contfu/svc-backend/infra/logger/index";
 import type { Handle } from "@sveltejs/kit";
 import { svelteKitHandler } from "better-auth/svelte-kit";
@@ -69,46 +70,47 @@ function checkBasicAuth(request: Request): Response | null {
 
 const BASIC_AUTH_EXCLUDED = ["/api/", "/polar/", "/webhooks/", "/health", "/email-logo.png"];
 
-export const handle: Handle = async ({ event, resolve }) => {
-  const { pathname } = event.url;
-  const isExcluded = BASIC_AUTH_EXCLUDED.some((prefix) => pathname.startsWith(prefix));
-  if (!isExcluded) {
-    const authError = checkBasicAuth(event.request);
-    if (authError) return authError;
-  }
-
-  const bunPlatform = event.platform as Partial<BunPlatform>;
-  if (
-    event.url.pathname === "/api/sync" &&
-    event.request.headers.get("connection")?.toLowerCase().includes("upgrade") &&
-    event.request.headers.get("upgrade")?.toLowerCase() === "websocket" &&
-    bunPlatform.server &&
-    bunPlatform.request
-  ) {
-    const authResult = await authenticateSyncRequest(event.request, event.url);
-    if (authResult instanceof Response) {
-      return authResult;
+export const handle: Handle = ({ event, resolve }) =>
+  withLogContext({ requestId: crypto.randomUUID() }, async () => {
+    const { pathname } = event.url;
+    const isExcluded = BASIC_AUTH_EXCLUDED.some((prefix) => pathname.startsWith(prefix));
+    if (!isExcluded) {
+      const authError = checkBasicAuth(event.request);
+      if (authError) return authError;
     }
 
-    const upgraded = await bunPlatform.server.upgrade(bunPlatform.request, {
-      data: {
-        key: authResult.key,
-        userId: authResult.userId,
-        clientConnectionId: authResult.clientConnectionId,
-        requestedFromSeq: authResult.requestedFromSeq,
-      },
-    });
+    const bunPlatform = event.platform as Partial<BunPlatform>;
+    if (
+      event.url.pathname === "/api/sync" &&
+      event.request.headers.get("connection")?.toLowerCase().includes("upgrade") &&
+      event.request.headers.get("upgrade")?.toLowerCase() === "websocket" &&
+      bunPlatform.server &&
+      bunPlatform.request
+    ) {
+      const authResult = await authenticateSyncRequest(event.request, event.url);
+      if (authResult instanceof Response) {
+        return authResult;
+      }
 
-    return upgraded
-      ? new Response(null, { status: 101 })
-      : new Response("WebSocket upgrade failed", { status: 400 });
-  }
+      const upgraded = await bunPlatform.server.upgrade(bunPlatform.request, {
+        data: {
+          key: authResult.key,
+          userId: authResult.userId,
+          clientConnectionId: authResult.clientConnectionId,
+          requestedFromSeq: authResult.requestedFromSeq,
+        },
+      });
 
-  const session = await auth.api.getSession({ headers: event.request.headers });
-  event.locals.session = session?.session ?? null;
-  event.locals.user = session?.user ?? null;
-  return svelteKitHandler({ event, resolve, auth, building });
-};
+      return upgraded
+        ? new Response(null, { status: 101 })
+        : new Response("WebSocket upgrade failed", { status: 400 });
+    }
+
+    const session = await auth.api.getSession({ headers: event.request.headers });
+    event.locals.session = session?.session ?? null;
+    event.locals.user = session?.user ?? null;
+    return svelteKitHandler({ event, resolve, auth, building });
+  });
 
 export const websocket: Bun.WebSocketHandler<{
   key: Buffer;
