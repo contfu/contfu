@@ -1,6 +1,6 @@
 ---
 name: implement
-description: Pick up a Forgejo issue and implement it end-to-end. Use when you're ready to execute on a planned issue — reads the issue, creates a branch, plans the approach, implements with minimal changes, runs quality checks, and opens a PR on Forgejo.
+description: Pick up a Forgejo issue and implement it end-to-end. Use when you're ready to execute on a planned issue — reads the issue, creates a branch, plans the approach, implements with minimal changes, runs quality checks, and opens a PR on Forgejo. Only stops for plan approval — then implements through to a passing PR without further interaction.
 ---
 
 # Forgejo Implement
@@ -28,11 +28,8 @@ Instance: `https://code.sven-rogge.com` | Repo: `contfu/contfu`
    .claude/skills/forgejo/scripts/forgejo-label set-status <number> in-progress
    ```
 4. **Explore** — read the relevant files listed in the issue and understand current state.
-5. **Plan** — enter plan mode and present the implementation approach for user approval.
-6. **Implement** — execute the approved plan with minimal, focused changes.
-7. **Verify** — run `bun test && bun run fmt && bun run lint`.
-8. **Commit** — squash into a single descriptive commit referencing the issue (`closes #N`).
-9. **Create PR** — via `tea pr create` linking the issue, with summary and test plan.
+5. **Plan** — enter plan mode and present the implementation approach. This is the user's **single checkpoint** — they approve the plan before implementation begins.
+6. **Implement and PR** — after the user approves the plan, implement, verify, commit, push, and open a PR without further user interaction. Use the `pr` skill to create the PR.
 
 ## Branch Naming
 
@@ -46,15 +43,15 @@ Format: `<prefix><slug>` — kebab-case, max 30 chars, derived from issue topic 
 
 ## Rules
 
+- **Don't ask for confirmation** unless there's genuine ambiguity — plan approval is the only checkpoint
 - **Always read the issue first** — the "Relevant files" and "Suggested approach" sections are your starting point
-- **Enter plan mode before implementing** — present approach for user approval
 - **Follow existing patterns** found in the codebase
 - **Minimal changes only** — don't refactor beyond what the issue requires
 - **Run quality checks** before committing: `bun test && bun run fmt && bun run lint`
 - **Single commit** — squash all work into one descriptive commit with `closes #N`
 - **Always use `EnterWorktree`** — work in an isolated worktree to avoid interfering with the main checkout
 - **Branch from `origin/main`** — always start fresh from the remote main branch
-- **Ask, don't guess** — if the issue lacks detail, ask clarifying questions rather than assuming
+- **Implement end-to-end** — after plan approval, implement, verify, and open a PR without further user interaction
 - **Update labels** — move from `ready` to `in-progress` when starting work
 
 ## Commit Message Format
@@ -66,24 +63,6 @@ closes #<number>
 ```
 
 Where type matches the branch prefix: `feat`, `fix`, or `docs`.
-
-## PR Creation
-
-```bash
-tea pr create --login forgejo --repo contfu/contfu \
-  --base main --head <branch> \
-  --title "<title>" \
-  --description "$(cat <<'EOF'
-## Summary
-- <what changed and why>
-
-## Test plan
-- [ ] <how to verify the changes>
-
-closes #<number>
-EOF
-)"
-```
 
 ## Label Management
 

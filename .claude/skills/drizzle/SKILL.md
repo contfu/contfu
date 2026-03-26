@@ -1,6 +1,6 @@
 ---
 name: drizzle
-description: Drizzle ORM patterns for SQLite schemas in Contfu and related projects. Use when defining new tables, adding columns, setting up foreign keys, or working with timestamps, blobs, and composite keys.
+description: Drizzle ORM patterns for schemas and queries in Contfu and related projects. Use when defining tables, writing queries with subqueries/filters, setting up foreign keys, or working with timestamps, blobs, and composite keys. Always prefer type-safe Drizzle operators over raw SQL.
 ---
 
 # Drizzle Patterns
@@ -353,7 +353,62 @@ export const auditLogTable = sqliteTable(
 );
 ```
 
+## Query Patterns
+
+### Subqueries with notInArray / inArray
+
+Use Drizzle's type-safe operators instead of raw `sql` template strings:
+
+```typescript
+import { and, desc, eq, inArray, notInArray } from "drizzle-orm";
+
+// Keep only the newest N rows — delete the rest
+const keepIds = db
+  .select({ id: logTable.id })
+  .from(logTable)
+  .where(eq(logTable.connectionId, connectionId))
+  .orderBy(desc(logTable.timestamp))
+  .limit(MAX_LOGS);
+
+await db
+  .delete(logTable)
+  .where(and(eq(logTable.connectionId, connectionId), notInArray(logTable.id, keepIds)));
+```
+
+Drizzle query builders are `SQLWrapper` instances — they can be passed directly to `inArray()` / `notInArray()` as subqueries. This generates a single `DELETE ... WHERE id NOT IN (SELECT ...)` statement.
+
+### Filtering with exists / notExists
+
+```typescript
+import { exists, notExists } from "drizzle-orm";
+
+// Select users who have at least one connection
+const usersWithConnections = await db
+  .select()
+  .from(userTable)
+  .where(
+    exists(
+      db.select().from(connectionTable).where(eq(connectionTable.userId, userTable.id)),
+    ),
+  );
+```
+
 ## Anti-Patterns to Avoid
+
+❌ **Don't use raw SQL when Drizzle has a type-safe equivalent:**
+
+```typescript
+// Bad — raw sql template loses type safety
+await db.delete(logTable).where(
+  sql`${logTable.id} not in (select ${logTable.id} from ${logTable} ...)`
+);
+
+// Good — Drizzle subquery, fully typed
+const keepIds = db.select({ id: logTable.id }).from(logTable).orderBy(desc(logTable.timestamp)).limit(50);
+await db.delete(logTable).where(notInArray(logTable.id, keepIds));
+```
+
+Reserve `sql` for schema defaults (`sql\`(unixepoch())\``) and expressions that Drizzle genuinely cannot represent. For filtering, ordering, joins, and subqueries — use the query builder.
 
 ❌ **Don't use text for timestamps:**
 

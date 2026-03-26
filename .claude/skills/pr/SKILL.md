@@ -11,9 +11,9 @@ Create a pull request following the project's commit & PR workflow.
 
 1. **Run quality checks** — ensure all checks pass
 2. **Squash if needed** — ensure exactly one commit (branch status is preprocessed above)
-4. **Push branch** — create remote branch if needed
-5. **Create PR** — open pull request with proper format
-6. **Wait for CI** — watch checks, fix failures if any
+3. **Push branch** — create remote branch if needed
+4. **Create PR** — open pull request with proper format
+5. **Wait for CI** — watch checks, fix failures if any
 
 ## Pre-flight Checklist
 
