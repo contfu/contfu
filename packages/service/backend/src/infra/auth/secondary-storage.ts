@@ -84,12 +84,29 @@ export function createNatsKvSessionStorage(): SecondaryStorage {
       if (key.startsWith(ACTIVE_SESSIONS_PREFIX)) {
         const actualKey = key.slice(ACTIVE_SESSIONS_PREFIX.length);
         const bucket = await getUserSessionsBucket();
-        await bucket.put(actualKey, serializeActiveSessions(JSON.parse(value)));
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(value);
+        } catch (err) {
+          log.error({ err, key }, "Failed to parse active sessions JSON in set");
+          throw err;
+        }
+        await bucket.put(actualKey, serializeActiveSessions(parsed as SessionToken[]));
         activeSessionsCache.set(actualKey, value);
         return;
       }
       const bucket = await getSessionsBucket();
-      await bucket.put(key, serializeSessionAndUser(JSON.parse(value)));
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(value);
+      } catch (err) {
+        log.error({ err, key }, "Failed to parse session JSON in set");
+        throw err;
+      }
+      await bucket.put(
+        key,
+        serializeSessionAndUser(parsed as { user: User; session: Omit<Session, "id"> }),
+      );
       sessionsCache.set(key, value);
     },
     delete: async (key) => {
@@ -171,7 +188,8 @@ async function getFromCacheOrBucket(
   let deserialized: unknown;
   try {
     deserialized = deserialize(key, value.value);
-  } catch {
+  } catch (err) {
+    log.error({ err, key }, "Failed to deserialize cached value");
     return null;
   }
   const res = JSON.stringify(deserialized);
