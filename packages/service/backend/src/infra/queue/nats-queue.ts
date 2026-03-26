@@ -26,9 +26,12 @@ async function ensureStream() {
       max_msgs: 100_000,
       max_age: 1_000 * 60 * 60 * 24, // 24h max age
     });
-  } catch {
-    // Stream may already exist
-    await jsm.streams.get(STREAM_NAME);
+  } catch (e) {
+    if (e instanceof Error && e.message.includes("already exists")) {
+      await jsm.streams.get(STREAM_NAME);
+    } else {
+      throw e;
+    }
   }
 
   // Create durable consumer
@@ -39,8 +42,10 @@ async function ensureStream() {
       filter_subject: "job.*",
       max_deliver: 3, // Max redelivery attempts
     });
-  } catch {
-    // Consumer may already exist
+  } catch (e) {
+    if (!(e instanceof Error && e.message.includes("already exists"))) {
+      throw e;
+    }
   }
 
   initialized = true;
