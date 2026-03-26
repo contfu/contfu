@@ -396,6 +396,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
 
   const eventType = payload.type;
   if (!eventType || !payload.entity) {
+    log.debug({ type: payload.type }, "Ignoring payload with no event type or entity");
     return new Response("OK", { status: 200 });
   }
 
@@ -408,6 +409,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
     const pageId = payload.entity.id;
 
     if (eventType === "page.locked" || eventType === "page.unlocked") {
+      log.debug({ eventType, pageId: payload.entity.id }, "Ignoring page lock/unlock event");
       return new Response("OK", { status: 200 });
     }
 
@@ -490,6 +492,10 @@ export const POST: RequestHandler = async ({ request, params }) => {
         if (parentDbId) {
           const ref = uuidToBuffer(parentDbId);
           const globalCollections = await getCollectionsByRefGlobal(ref);
+          log.debug(
+            { pageId, parentDbId, collectionCount: globalCollections.length },
+            "OAuth mode: delete across global collections",
+          );
           const grouped = new Map<string, { userId: number; connectionId: number }>();
           for (const gc of globalCollections) {
             grouped.set(`${gc.userId}:${gc.connectionId}`, {
@@ -502,6 +508,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
             await cancelPending(g.userId, g.connectionId, pageId);
           }
 
+          let totalBroadcast = 0;
           for (const gc of globalCollections) {
             const { clients } = await getFlowsAndClients(gc.userId, [gc.id], true);
             if (clients.length > 0) {
@@ -514,8 +521,12 @@ export const POST: RequestHandler = async ({ request, params }) => {
                   includeRef: Boolean(c.connectionIncludeRef) && Boolean(c.collectionIncludeRef),
                 })),
               );
+              totalBroadcast += clients.length;
             }
           }
+          log.info({ pageId, totalBroadcast }, "OAuth mode: delete broadcast complete");
+        } else {
+          log.debug({ pageId }, "OAuth mode: no parent database ID, skipping delete");
         }
       }
 
@@ -562,11 +573,16 @@ export const POST: RequestHandler = async ({ request, params }) => {
       }
 
       if (!parentDbId) {
+        log.debug({ pageId, eventType }, "OAuth mode: no parent database ID, skipping");
         return new Response("OK", { status: 200 });
       }
 
       const ref = uuidToBuffer(parentDbId);
       const globalCollections = await getCollectionsByRefGlobal(ref);
+      log.debug(
+        { pageId, parentDbId, collectionCount: globalCollections.length },
+        "OAuth mode: enqueuing fetch across global collections",
+      );
       const grouped = new Map<string, { userId: number; connectionId: number }>();
       for (const gc of globalCollections) {
         grouped.set(`${gc.userId}:${gc.connectionId}`, {
@@ -575,6 +591,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
         });
       }
 
+      let enqueuedCount = 0;
       for (const g of grouped.values()) {
         const marked = await markPending(g.userId, g.connectionId, pageId);
         if (marked) {
@@ -586,8 +603,10 @@ export const POST: RequestHandler = async ({ request, params }) => {
             parentDatabaseId: parentDbId,
             enqueuedAt: Date.now(),
           });
+          enqueuedCount++;
         }
       }
+      log.info({ pageId, eventType, enqueuedCount }, "OAuth mode: fetch jobs enqueued");
 
       return new Response("OK", { status: 200 });
     }

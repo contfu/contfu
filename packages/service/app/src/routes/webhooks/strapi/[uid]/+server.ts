@@ -449,7 +449,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
       itemsBroadcast,
     );
 
-    log.info({ userId: conn.userId, connectionId: conn.id }, "Webhook processed");
+    log.info({ userId: conn.userId, connectionId: conn.id, itemsBroadcast }, "Webhook processed");
   }
 
   return new Response("OK", { status: 200 });

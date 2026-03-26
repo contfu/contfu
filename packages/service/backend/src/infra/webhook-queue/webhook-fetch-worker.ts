@@ -305,9 +305,23 @@ async function runWorker(streamServer: StreamServer, signal: AbortSignal): Promi
 
     const pending = await isPending(job.userId, job.connectionId, job.pageId);
     if (!pending) {
+      log.debug(
+        { userId: job.userId, connectionId: job.connectionId, pageId: job.pageId },
+        "Job no longer pending, skipping",
+      );
       message.ack();
       continue;
     }
+
+    log.info(
+      {
+        userId: job.userId,
+        connectionId: job.connectionId,
+        pageId: job.pageId,
+        eventType: job.eventType,
+      },
+      "Processing webhook fetch job",
+    );
 
     try {
       const connectionMeta = await getConnectionMeta(job.userId, job.connectionId);
@@ -327,6 +341,10 @@ async function runWorker(streamServer: StreamServer, signal: AbortSignal): Promi
           break;
         }
 
+        log.debug(
+          { userId: job.userId, connectionId: job.connectionId, delayMs: delay },
+          "Rate limit hit, waiting",
+        );
         message.working();
         await wait(delay);
 
@@ -357,8 +375,17 @@ async function runWorker(streamServer: StreamServer, signal: AbortSignal): Promi
         }
       }
 
-      await processJob(job, streamServer);
+      const itemsBroadcast = await processJob(job, streamServer);
       await clearPending(job.userId, job.connectionId, job.pageId);
+      log.info(
+        {
+          userId: job.userId,
+          connectionId: job.connectionId,
+          pageId: job.pageId,
+          itemsBroadcast,
+        },
+        "Webhook fetch job completed",
+      );
       message.ack();
     } catch (error) {
       const deliveryCount = message.info?.deliveryCount ?? (message.redelivered ? 2 : 1);

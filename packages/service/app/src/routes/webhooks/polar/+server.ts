@@ -19,6 +19,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
   try {
     const event = validateEvent(body, Object.fromEntries(request.headers), webhookSecret);
+    log.info({ eventType: event.type }, "Received Polar webhook");
 
     switch (event.type) {
       case "subscription.created":
@@ -31,6 +32,8 @@ export const POST: RequestHandler = async ({ request }) => {
           ? new Date(payload.currentPeriodEnd)
           : null;
 
+        log.info({ customerId, productId, status }, "Processing subscription event");
+
         // Find user by Polar customer ID
         const existing = await db
           .select()
@@ -38,28 +41,35 @@ export const POST: RequestHandler = async ({ request }) => {
           .where(eq(quotaTable.polarCustomerId, customerId))
           .limit(1);
 
-        if (existing.length > 0) {
-          const quota = getQuotaForProduct(productId);
-          await db
-            .update(quotaTable)
-            .set({
-              subscriptionId: payload.id,
-              subscriptionStatus: status,
-              currentPeriodEnd,
-              maxConnections: quota.maxConnections,
-              maxCollections: quota.maxCollections,
-              maxFlows: quota.maxFlows,
-              maxItems: quota.maxItems,
-            })
-            .where(eq(quotaTable.polarCustomerId, customerId));
-          publishLimitChange(existing[0].id, {
+        if (existing.length === 0) {
+          log.warn({ customerId }, "Customer not found in quota table");
+          break;
+        }
+
+        const quota = getQuotaForProduct(productId);
+        await db
+          .update(quotaTable)
+          .set({
+            subscriptionId: payload.id,
+            subscriptionStatus: status,
+            currentPeriodEnd,
             maxConnections: quota.maxConnections,
             maxCollections: quota.maxCollections,
             maxFlows: quota.maxFlows,
             maxItems: quota.maxItems,
-            periodEnd: currentPeriodEnd ? Math.floor(currentPeriodEnd.getTime() / 1000) : 0,
-          });
-        }
+          })
+          .where(eq(quotaTable.polarCustomerId, customerId));
+        publishLimitChange(existing[0].id, {
+          maxConnections: quota.maxConnections,
+          maxCollections: quota.maxCollections,
+          maxFlows: quota.maxFlows,
+          maxItems: quota.maxItems,
+          periodEnd: currentPeriodEnd ? Math.floor(currentPeriodEnd.getTime() / 1000) : 0,
+        });
+        log.info(
+          { customerId, maxConnections: quota.maxConnections, maxItems: quota.maxItems },
+          "Quota updated",
+        );
         break;
       }
 
@@ -68,6 +78,8 @@ export const POST: RequestHandler = async ({ request }) => {
         const payload = event.data;
         const customerId = payload.customerId;
 
+        log.info({ customerId, eventType: event.type }, "Processing subscription cancellation");
+
         // Reset to user's base plan quota
         const existingRow = await db
           .select({ id: quotaTable.id, basePlan: userTable.basePlan })
@@ -75,6 +87,12 @@ export const POST: RequestHandler = async ({ request }) => {
           .innerJoin(userTable, eq(quotaTable.id, userTable.id))
           .where(eq(quotaTable.polarCustomerId, customerId))
           .limit(1);
+
+        if (existingRow.length === 0) {
+          log.warn({ customerId }, "Customer not found in quota table");
+          break;
+        }
+
         const basePlan = existingRow[0]?.basePlan ?? PlanTier.FREE;
         const quota = getQuotaForTier(basePlan);
         await db
@@ -89,15 +107,14 @@ export const POST: RequestHandler = async ({ request }) => {
             maxItems: quota.maxItems,
           })
           .where(eq(quotaTable.polarCustomerId, customerId));
-        if (existingRow.length > 0) {
-          publishLimitChange(existingRow[0].id, {
-            maxConnections: quota.maxConnections,
-            maxCollections: quota.maxCollections,
-            maxFlows: quota.maxFlows,
-            maxItems: quota.maxItems,
-            periodEnd: 0,
-          });
-        }
+        publishLimitChange(existingRow[0].id, {
+          maxConnections: quota.maxConnections,
+          maxCollections: quota.maxCollections,
+          maxFlows: quota.maxFlows,
+          maxItems: quota.maxItems,
+          periodEnd: 0,
+        });
+        log.info({ customerId, basePlan }, "Quota reset to base plan")
         break;
       }
     }

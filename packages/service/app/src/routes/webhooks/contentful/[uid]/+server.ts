@@ -409,7 +409,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
     const logMessage = filteredOutCount > 0 ? `${filteredOutCount} items filtered out` : undefined;
     await logWebhookEvent(conn.userId, conn.id, event, ctId, "success", logMessage, itemsBroadcast);
 
-    log.info({ userId: conn.userId, connectionId: conn.id }, "Webhook processed");
+    log.info({ userId: conn.userId, connectionId: conn.id, itemsBroadcast }, "Webhook processed");
   }
 
   return new Response("OK", { status: 200 });
