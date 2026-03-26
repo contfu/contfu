@@ -61,4 +61,5 @@ void mock.module("../src/infra/nats/jsm", () => ({
 
 void mock.module("../src/infra/nats/connection", () => ({
   getNatsConnection: () => Promise.resolve(noopNc),
+  onNatsReconnect: () => {},
 }));

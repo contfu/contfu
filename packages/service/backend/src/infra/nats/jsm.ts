@@ -1,6 +1,6 @@
 import { jetstreamManager, type JetStreamManager } from "@nats-io/jetstream";
 import { createLogger } from "../logger/index";
-import { getNatsConnection } from "./connection";
+import { getNatsConnection, onNatsReconnect } from "./connection";
 
 const log = createLogger("nats-jsm");
 
@@ -8,6 +8,11 @@ let _jsm: Promise<JetStreamManager> | null = null;
 
 const MAX_WAIT_MS = 30000;
 const RETRY_DELAY_MS = 500;
+
+onNatsReconnect(() => {
+  log.info("Invalidating cached JetStream manager after reconnect");
+  _jsm = null;
+});
 
 export async function getJetStreamManager(): Promise<JetStreamManager> {
   return (_jsm ??= getNatsConnection().then(async (nc) => {
