@@ -61,6 +61,7 @@ CREATE TABLE "collection" (
 	"refTargets" bytea,
 	"includeRef" boolean DEFAULT true NOT NULL,
 	"icon" bytea,
+	"notionPropertyIds" bytea,
 	"createdAt" timestamp with time zone DEFAULT now() NOT NULL,
 	"updatedAt" timestamp with time zone
 );
@@ -178,6 +179,7 @@ CREATE TABLE "user" (
 	"emailVerified" boolean DEFAULT false NOT NULL,
 	"image" text,
 	"role" integer DEFAULT 0 NOT NULL,
+	"basePlan" integer DEFAULT 0 NOT NULL,
 	"approved" boolean DEFAULT false NOT NULL,
 	"createdAt" timestamp with time zone DEFAULT now() NOT NULL,
 	"updatedAt" timestamp with time zone DEFAULT now() NOT NULL

@@ -25,11 +25,17 @@ type CountsPatch = Record<string, number>;
 type LimitsPatch = Record<string, number>;
 type Payload = [userId: number, patch: Record<string, number>];
 
-export function publishCountDelta(userId: number, patch: Partial<Record<keyof QuotaState, number>>): void {
+export function publishCountDelta(
+  userId: number,
+  patch: Partial<Record<keyof QuotaState, number>>,
+): void {
   void getNatsConnection().then((nc) => nc.publish(COUNTS_SUBJECT, pack([userId, patch])));
 }
 
-export function publishLimitChange(userId: number, patch: Partial<Record<keyof QuotaState, number>>): void {
+export function publishLimitChange(
+  userId: number,
+  patch: Partial<Record<keyof QuotaState, number>>,
+): void {
   void getNatsConnection().then((nc) => nc.publish(LIMITS_SUBJECT, pack([userId, patch])));
 }
 

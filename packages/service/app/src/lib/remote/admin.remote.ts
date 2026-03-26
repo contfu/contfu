@@ -5,7 +5,9 @@ import type { BackendUserSummary } from "@contfu/svc-backend/domain/types";
 import { UserRole } from "@contfu/svc-backend/domain/types";
 import { getSetting } from "@contfu/svc-backend/features/admin/getSetting";
 import { listUsers } from "@contfu/svc-backend/features/admin/listUsers";
+import { setBasePlan as setBasePlanEffect } from "@contfu/svc-backend/features/admin/setBasePlan";
 import { updateUser } from "@contfu/svc-backend/features/admin/updateUser";
+import { PlanTier } from "@contfu/svc-backend/infra/polar/products";
 import { decryptCredentials } from "@contfu/svc-backend/infra/crypto/credentials";
 import { error, invalid } from "@sveltejs/kit";
 import * as v from "valibot";
@@ -114,6 +116,34 @@ export const demoteFromAdmin = form(
     requireAdmin();
 
     const result = await run(updateUser({ id: data.id, role: UserRole.USER }));
+    if (!result) {
+      invalid(issue.id("User not found"));
+    }
+
+    return { success: true };
+  },
+);
+
+/**
+ * Set a user's base plan (admin only).
+ */
+export const setBasePlan = form(
+  v.object({
+    id: v.pipe(
+      v.union([v.string(), v.number()]),
+      v.transform((val) => (typeof val === "string" ? Number.parseInt(val, 10) : val)),
+      v.pipe(v.number(), v.integer(), v.minValue(1)),
+    ),
+    basePlan: v.pipe(
+      v.union([v.string(), v.number()]),
+      v.transform((val) => (typeof val === "string" ? Number.parseInt(val, 10) : val)),
+      v.picklist([PlanTier.FREE, PlanTier.STARTER, PlanTier.PRO, PlanTier.BUSINESS]),
+    ),
+  }),
+  async (data, issue) => {
+    requireAdmin();
+
+    const result = await run(setBasePlanEffect({ userId: data.id, basePlan: data.basePlan }));
     if (!result) {
       invalid(issue.id("User not found"));
     }

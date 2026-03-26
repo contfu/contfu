@@ -5,6 +5,15 @@ export interface ProductQuota {
   maxItems: number;
 }
 
+export const PlanTier = {
+  FREE: 0,
+  STARTER: 1,
+  PRO: 2,
+  BUSINESS: 3,
+} as const;
+
+export type PlanTier = (typeof PlanTier)[keyof typeof PlanTier];
+
 export const FREE_QUOTA: ProductQuota = {
   maxConnections: 2,
   maxCollections: 5,
@@ -12,21 +21,21 @@ export const FREE_QUOTA: ProductQuota = {
   maxItems: 100,
 };
 
-const STARTER_QUOTA: ProductQuota = {
+export const STARTER_QUOTA: ProductQuota = {
   maxConnections: 5,
   maxCollections: 15,
   maxFlows: 30,
   maxItems: 1_000,
 };
 
-const PRO_QUOTA: ProductQuota = {
+export const PRO_QUOTA: ProductQuota = {
   maxConnections: 15,
   maxCollections: 50,
   maxFlows: 100,
   maxItems: 10_000,
 };
 
-const BUSINESS_QUOTA: ProductQuota = {
+export const BUSINESS_QUOTA: ProductQuota = {
   maxConnections: 100,
   maxCollections: 500,
   maxFlows: 1000,
@@ -51,4 +60,15 @@ export const PRODUCT_QUOTAS: Record<string, ProductQuota> = {
 export function getQuotaForProduct(productId: string | null): ProductQuota {
   if (!productId) return FREE_QUOTA;
   return PRODUCT_QUOTAS[productId] ?? FREE_QUOTA;
+}
+
+const TIER_QUOTAS: Record<PlanTier, ProductQuota> = {
+  [PlanTier.FREE]: FREE_QUOTA,
+  [PlanTier.STARTER]: STARTER_QUOTA,
+  [PlanTier.PRO]: PRO_QUOTA,
+  [PlanTier.BUSINESS]: BUSINESS_QUOTA,
+};
+
+export function getQuotaForTier(tier: PlanTier): ProductQuota {
+  return TIER_QUOTAS[tier] ?? FREE_QUOTA;
 }

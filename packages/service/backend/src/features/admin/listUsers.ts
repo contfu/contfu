@@ -21,6 +21,7 @@ export const listUsers = () =>
             email: userTable.email,
             emailVerified: userTable.emailVerified,
             role: userTable.role,
+            basePlan: userTable.basePlan,
             approved: userTable.approved,
             createdAt: userTable.createdAt,
           })

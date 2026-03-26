@@ -1,9 +1,9 @@
 {
   "version": "8",
   "dialect": "postgres",
-  "id": "28f64c9e-0fb1-4539-9d57-8c82e77f50a7",
+  "id": "dae05193-12bc-4dea-b657-2db60ca5bd05",
   "prevIds": [
-    "d31d5b4d-edfd-45ed-b0d4-3debbd287964"
+    "00000000-0000-0000-0000-000000000000"
   ],
   "ddl": [
     {
@@ -1798,6 +1798,19 @@
       "generated": null,
       "identity": null,
       "name": "role",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "user"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "0",
+      "generated": null,
+      "identity": null,
+      "name": "basePlan",
       "entityType": "columns",
       "schema": "public",
       "table": "user"

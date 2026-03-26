@@ -15,6 +15,7 @@ import type {
   ServiceFlowWithDetails,
   ServiceIncidentWithDetails,
 } from "@contfu/svc-core";
+import type { PlanTier } from "../infra/polar/products";
 import type { Simplify } from "type-fest";
 
 type DecodedIds<T, Ids extends keyof T & string> = Simplify<
@@ -159,6 +160,7 @@ export interface BackendUserSummary {
   emailVerified: boolean;
   role: UserRole;
   approved: boolean;
+  basePlan: PlanTier;
   createdAt: Date;
 }
 

@@ -4,6 +4,7 @@ import { UserRole } from "@contfu/svc-backend/domain/types";
 import type { ColumnDef } from "@tanstack/table-core";
 import { createRawSnippet } from "svelte";
 import DataTableActions from "./data-table-actions.svelte";
+import PlanBadge from "$lib/components/plan-badge.svelte";
 import DataTableRoleBadge from "./data-table-role-badge.svelte";
 import DataTableStatusBadge from "./data-table-status-badge.svelte";
 
@@ -60,6 +61,18 @@ export const columns: ColumnDef<BackendUserSummary>[] = [
       if (filterValue === "admin") return row.original.role === UserRole.ADMIN;
       if (filterValue === "user") return row.original.role === UserRole.USER;
       return true;
+    },
+  },
+  {
+    accessorKey: "basePlan",
+    header: "Base Plan",
+    enableSorting: true,
+    cell: ({ row }) => {
+      return renderComponent(PlanBadge, { plan: row.original.basePlan });
+    },
+    filterFn: (row, _columnId, filterValue: string | undefined) => {
+      if (!filterValue || filterValue === "all") return true;
+      return row.original.basePlan === filterValue;
     },
   },
   {

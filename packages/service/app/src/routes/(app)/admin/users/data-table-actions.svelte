@@ -6,10 +6,19 @@
     demoteFromAdmin,
     promoteToAdmin,
     revokeUser,
+    setBasePlan,
   } from "$lib/remote/admin.remote";
   import type { BackendUserSummary } from "@contfu/svc-backend/domain/types";
   import { UserRole } from "@contfu/svc-backend/domain/types";
+  import { PlanTier } from "@contfu/svc-backend/infra/polar/products";
   import EllipsisIcon from "@lucide/svelte/icons/ellipsis";
+
+  const planTiers = [
+    { value: PlanTier.FREE, label: "Free" },
+    { value: PlanTier.STARTER, label: "Starter" },
+    { value: PlanTier.PRO, label: "Pro" },
+    { value: PlanTier.BUSINESS, label: "Business" },
+  ];
 
   let { user }: { user: BackendUserSummary } = $props();
 </script>
@@ -87,6 +96,31 @@
           </DropdownMenu.Item>
         </form>
       {/if}
+    </DropdownMenu.Group>
+    <DropdownMenu.Separator />
+    <DropdownMenu.Group>
+      <DropdownMenu.Label>Base Plan</DropdownMenu.Label>
+      {#each planTiers as tier}
+        {#if tier.value !== user.basePlan}
+          <form {...setBasePlan}>
+            <input
+              {...setBasePlan.fields.id.as("number")}
+              type="hidden"
+              value={user.id}
+            />
+            <input
+              {...setBasePlan.fields.basePlan.as("number")}
+              type="hidden"
+              value={tier.value}
+            />
+            <DropdownMenu.Item>
+              <button type="submit" class="w-full text-left">
+                {tier.label}
+              </button>
+            </DropdownMenu.Item>
+          </form>
+        {/if}
+      {/each}
     </DropdownMenu.Group>
   </DropdownMenu.Content>
 </DropdownMenu.Root>

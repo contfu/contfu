@@ -2,8 +2,12 @@ import type { RequestHandler } from "./$types";
 import { createLogger } from "@contfu/svc-backend/infra/logger/index";
 import { validateEvent, WebhookVerificationError } from "@polar-sh/sdk/webhooks";
 import { db } from "@contfu/svc-backend/infra/db/db";
-import { quotaTable } from "@contfu/svc-backend/infra/db/schema";
-import { getQuotaForProduct } from "@contfu/svc-backend/infra/polar/products";
+import { quotaTable, userTable } from "@contfu/svc-backend/infra/db/schema";
+import {
+  getQuotaForProduct,
+  getQuotaForTier,
+  PlanTier,
+} from "@contfu/svc-backend/infra/polar/products";
 import { publishLimitChange } from "@contfu/svc-backend/infra/cache/quota-cache";
 import { eq } from "drizzle-orm";
 
@@ -64,13 +68,15 @@ export const POST: RequestHandler = async ({ request }) => {
         const payload = event.data;
         const customerId = payload.customerId;
 
-        // Reset to free quota
-        const quota = getQuotaForProduct(null);
+        // Reset to user's base plan quota
         const existingRow = await db
-          .select()
+          .select({ id: quotaTable.id, basePlan: userTable.basePlan })
           .from(quotaTable)
+          .innerJoin(userTable, eq(quotaTable.id, userTable.id))
           .where(eq(quotaTable.polarCustomerId, customerId))
           .limit(1);
+        const basePlan = existingRow[0]?.basePlan ?? PlanTier.FREE;
+        const quota = getQuotaForTier(basePlan);
         await db
           .update(quotaTable)
           .set({
@@ -79,6 +85,7 @@ export const POST: RequestHandler = async ({ request }) => {
             currentPeriodEnd: null,
             maxConnections: quota.maxConnections,
             maxCollections: quota.maxCollections,
+            maxFlows: quota.maxFlows,
             maxItems: quota.maxItems,
           })
           .where(eq(quotaTable.polarCustomerId, customerId));
@@ -86,6 +93,7 @@ export const POST: RequestHandler = async ({ request }) => {
           publishLimitChange(existingRow[0].id, {
             maxConnections: quota.maxConnections,
             maxCollections: quota.maxCollections,
+            maxFlows: quota.maxFlows,
             maxItems: quota.maxItems,
             periodEnd: 0,
           });

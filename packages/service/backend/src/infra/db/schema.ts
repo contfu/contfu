@@ -16,6 +16,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { UserRole, type UserRole as UserRoleType } from "../../domain/types";
+import { PlanTier, type PlanTier as PlanTierType } from "../polar/products";
 
 export const appUserRole = pgRole("app_user");
 export const serviceRole = pgRole("service_role");
@@ -31,6 +32,8 @@ export const userTable = pgTable("user", {
   emailVerified: boolean().notNull().default(false),
   image: text(),
   role: integer().$type<UserRoleType>().notNull().default(UserRole.USER),
+  /** Admin-assigned base plan tier (fallback when no paid subscription is active) */
+  basePlan: integer().$type<PlanTierType>().notNull().default(PlanTier.FREE),
   approved: boolean().notNull().default(false),
   createdAt: timestamp({ withTimezone: true, mode: "date" })
     .default(sql`now()`)

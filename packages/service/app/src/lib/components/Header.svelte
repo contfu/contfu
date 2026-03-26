@@ -1,11 +1,13 @@
 <script lang="ts" module>
   import type { UserRole } from "@contfu/svc-backend/domain/types";
+  import type { PlanTier } from "@contfu/svc-backend/infra/polar/products";
 
   export type DisplayUser = {
     email: string;
     name: string;
     image?: string;
     role?: UserRole;
+    basePlan?: PlanTier;
   };
 </script>
 

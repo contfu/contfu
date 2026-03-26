@@ -6,6 +6,7 @@
   import * as Sidebar from "$lib/components/ui/sidebar/index.js";
   import { CreditCardIcon, EllipsisVerticalIcon, KeyIcon, LogOutIcon } from "@lucide/svelte";
   import type { DisplayUser } from "$lib/components/Header.svelte";
+  import PlanBadge from "$lib/components/plan-badge.svelte";
 
   const sidebar = Sidebar.useSidebar();
   let { user }: { user: DisplayUser } = $props();
@@ -39,6 +40,9 @@
                 {user.email}
               </span>
             </div>
+            {#if user.basePlan != null}
+              <PlanBadge plan={user.basePlan} />
+            {/if}
             <EllipsisVerticalIcon class="ml-auto size-4" />
           </Sidebar.MenuButton>
         {/snippet}
