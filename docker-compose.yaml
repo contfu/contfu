@@ -8,6 +8,7 @@ services:
       POSTGRES_PASSWORD: contfu
       POSTGRES_DB: contfu
     volumes:
+      - ./docker/init-roles.sql:/docker-entrypoint-initdb.d/init-roles.sql
       - pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U contfu"]

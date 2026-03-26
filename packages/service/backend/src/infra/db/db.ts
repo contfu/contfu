@@ -56,6 +56,15 @@ async function createDb() {
     withTransaction = (fn) =>
       client.transaction((txClient: unknown) => fn(drizzle({ client: txClient as any, schema })));
 
+    // Create roles before migrations — policies reference app_user/service_role.
+    await client.exec(`
+      CREATE ROLE "app_user";
+      CREATE ROLE "service_role";
+      GRANT USAGE ON SCHEMA public TO "app_user", "service_role";
+      ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO "app_user", "service_role";
+      ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO "app_user", "service_role";
+    `);
+
     // Apply schema via migrations (pushSchema has drizzle-kit import conflict)
     const drizzleMigratorPkg = "drizzle-orm/pglite/migrator";
     const { migrate } = await import(/* @vite-ignore */ drizzleMigratorPkg);
