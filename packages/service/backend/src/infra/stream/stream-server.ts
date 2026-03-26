@@ -15,7 +15,8 @@ import { collectionTable, connectionTable, flowTable, db } from "../db/db";
 import { createLogger } from "../logger/index";
 import { publishEvent, purgeEventsUpTo, type StoredWireItemEvent } from "../nats/event-stream";
 import { updateSnapshotAckedSeq } from "../nats/snapshot-stream";
-import { addItems, isItemQuotaExceeded } from "../nats/quota-kv";
+import { addItemsCount } from "../../features/quota/addItemsCount";
+import { checkQuota } from "../../features/quota/checkQuota";
 import type { UserSyncItem } from "../sync-worker/messages";
 import type { ConnectionInfo } from "../types";
 
@@ -425,11 +426,11 @@ export class StreamServer {
     // Count synced items for quota tracking
     const userId = items[0]?.user;
     if (userId != null) {
-      await addItems(userId, items.length);
+      await addItemsCount(userId, items.length);
     }
 
     // Hold-back: skip delivery when item quota exceeded (events are still in JetStream for replay)
-    if (userId != null && (await isItemQuotaExceeded(userId))) {
+    if (userId != null && !(await checkQuota(userId, "items")).allowed) {
       log.info({ userId, itemCount: items.length }, "Item quota exceeded, skipping delivery");
       return;
     }

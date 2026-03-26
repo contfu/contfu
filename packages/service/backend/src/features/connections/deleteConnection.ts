@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { Database } from "../../effect/services/Database";
 import { DatabaseError } from "../../effect/errors";
 import { connectionTable, collectionTable, flowTable } from "../../infra/db/schema";
-import { decrementCount } from "../../infra/nats/quota-kv";
+import { publishCountDelta } from "../../infra/cache/quota-cache";
 import { teardownPushConsumer } from "../../infra/nats/push-consumers";
 
 export const deleteConnection = (id: number) =>
@@ -30,7 +30,7 @@ export const deleteConnection = (id: number) =>
     // The cascade delete removes all collections (and their flows) automatically.
     const deleted = result.length > 0;
     if (deleted) {
-      yield* Effect.promise(() => decrementCount(result[0].userId, "connections"));
+      yield* Effect.sync(() => publishCountDelta(result[0].userId, { connections: -1 }));
       for (const { targetId } of targetFlows) {
         yield* teardownPushConsumer(id, targetId);
       }

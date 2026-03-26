@@ -4,7 +4,8 @@ import type { BackendFlow, CreateFlowInput } from "../../domain/types";
 import { Database } from "../../effect/services/Database";
 import { DatabaseError, NotFoundError, QuotaError, ValidationError } from "../../effect/errors";
 import { collectionTable, flowTable, currentUserIdSql } from "../../infra/db/schema";
-import { checkQuota, incrementCount } from "../../infra/nats/quota-kv";
+import { publishCountDelta } from "../../infra/cache/quota-cache";
+import { checkQuota } from "../quota/checkQuota";
 import { unpack } from "msgpackr";
 import type { Flow } from "../../infra/db/schema";
 
@@ -134,7 +135,7 @@ export const createFlow = (userId: number, input: CreateFlowInput) =>
       catch: (e) => new DatabaseError({ cause: e }),
     });
 
-    yield* Effect.promise(() => incrementCount(userId, "flows"));
+    yield* Effect.sync(() => publishCountDelta(userId, { flows: 1 }));
 
     return mapToBackendFlow(inserted);
   }).pipe(Effect.withSpan("flows.create", { attributes: { userId } }));

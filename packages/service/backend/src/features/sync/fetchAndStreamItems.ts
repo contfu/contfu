@@ -8,7 +8,8 @@ import {
 import { createLogger } from "../../infra/logger/index";
 import { getItemRefForSource, notionSource, strapiSource, webSource } from "@contfu/svc-sources";
 import type { UserSyncItem } from "../../infra/sync-worker/messages";
-import { checkQuota, addItems } from "../../infra/nats/quota-kv";
+import { checkQuota } from "../quota/checkQuota";
+import { addItemsCount } from "../quota/addItemsCount";
 import { getRateLimitForConnectionType } from "../../infra/webhook-queue/types";
 import type { SyncConfig } from "./getSyncConfig";
 
@@ -95,7 +96,7 @@ export async function* fetchAndStreamItems(
             const toReserve = isUnlimited
               ? PAGE_SIZE
               : Math.min(PAGE_SIZE, quota.max - quota.current);
-            await addItems(config.userId, toReserve);
+            await addItemsCount(config.userId, toReserve);
             reserved += toReserve;
           }
           consumed++;
@@ -148,7 +149,7 @@ export async function* fetchAndStreamItems(
       } finally {
         // Refund unused pre-reserved quota slots
         if (reserved > consumed) {
-          await addItems(config.userId, -(reserved - consumed));
+          await addItemsCount(config.userId, -(reserved - consumed));
         }
       }
     }

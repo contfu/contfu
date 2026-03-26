@@ -14,7 +14,8 @@ import { collectionTable, connectionTable, webhookLogTable } from "../db/schema"
 import { notionRefUrlFromRawUuid } from "@contfu/svc-sources";
 import type { StreamServer } from "../stream/stream-server";
 import type { UserSyncItem } from "../sync-worker/messages";
-import { isItemQuotaExceeded, getQuotaPeriodEnd } from "../nats/quota-kv";
+import { checkQuota } from "../../features/quota/checkQuota";
+import { getQuota } from "../../features/quota/getQuota";
 import { clearPending, isPending } from "./pending-kv";
 import { acquireRateSlot } from "./rate-limiter";
 import { getRateLimitForConnectionType, type WebhookFetchJob } from "./types";
@@ -340,8 +341,8 @@ async function runWorker(streamServer: StreamServer, signal: AbortSignal): Promi
       }
 
       // Long-term overage: if quota exceeded and period won't renew within 3 days, drop the event
-      if (await isItemQuotaExceeded(job.userId)) {
-        const periodEnd = await getQuotaPeriodEnd(job.userId);
+      if (!(await checkQuota(job.userId, "items")).allowed) {
+        const { periodEnd } = await getQuota(job.userId);
         const now = Math.floor(Date.now() / 1000);
         if (periodEnd === 0 || periodEnd - now > THREE_DAYS_S) {
           log.info(

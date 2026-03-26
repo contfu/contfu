@@ -4,7 +4,7 @@ import { validateEvent, WebhookVerificationError } from "@polar-sh/sdk/webhooks"
 import { db } from "@contfu/svc-backend/infra/db/db";
 import { quotaTable } from "@contfu/svc-backend/infra/db/schema";
 import { getQuotaForProduct } from "@contfu/svc-backend/infra/polar/products";
-import { setLimits } from "@contfu/svc-backend/infra/nats/quota-kv";
+import { publishLimitChange } from "@contfu/svc-backend/infra/cache/quota-cache";
 import { eq } from "drizzle-orm";
 
 const log = createLogger("webhook-polar");
@@ -48,7 +48,13 @@ export const POST: RequestHandler = async ({ request }) => {
               maxItems: quota.maxItems,
             })
             .where(eq(quotaTable.polarCustomerId, customerId));
-          await setLimits(existing[0].id, quota, currentPeriodEnd);
+          publishLimitChange(existing[0].id, {
+            maxConnections: quota.maxConnections,
+            maxCollections: quota.maxCollections,
+            maxFlows: quota.maxFlows,
+            maxItems: quota.maxItems,
+            periodEnd: currentPeriodEnd ? Math.floor(currentPeriodEnd.getTime() / 1000) : 0,
+          });
         }
         break;
       }
@@ -77,7 +83,12 @@ export const POST: RequestHandler = async ({ request }) => {
           })
           .where(eq(quotaTable.polarCustomerId, customerId));
         if (existingRow.length > 0) {
-          await setLimits(existingRow[0].id, quota, null);
+          publishLimitChange(existingRow[0].id, {
+            maxConnections: quota.maxConnections,
+            maxCollections: quota.maxCollections,
+            maxItems: quota.maxItems,
+            periodEnd: 0,
+          });
         }
         break;
       }

@@ -6,7 +6,8 @@ import { Crypto } from "../../effect/services/Crypto";
 import { Database } from "../../effect/services/Database";
 import { DatabaseError, QuotaError } from "../../effect/errors";
 import { connectionTable, currentUserIdSql } from "../../infra/db/schema";
-import { incrementCount, checkQuota } from "../../infra/nats/quota-kv";
+import { publishCountDelta } from "../../infra/cache/quota-cache";
+import { checkQuota } from "../quota/checkQuota";
 import { mapToBackendConnection } from "./mapToBackendConnection";
 
 export const createConnection = (userId: number, input: CreateConnectionInput) =>
@@ -56,7 +57,7 @@ export const createConnection = (userId: number, input: CreateConnectionInput) =
       catch: (e) => new DatabaseError({ cause: e }),
     });
 
-    yield* Effect.promise(() => incrementCount(userId, "connections"));
+    yield* Effect.sync(() => publishCountDelta(userId, { connections: 1 }));
 
     return mapToBackendConnection(inserted);
   }).pipe(Effect.withSpan("connections.create", { attributes: { userId } }));

@@ -94,6 +94,10 @@ export async function initialize(): Promise<void> {
   // Add new migrations here with incrementing version numbers
   await runMsgpackrMigrations([]);
 
+  // Start quota cache NATS subscriptions for cross-node sync
+  const { startQuotaSubscriptions } = await import("@contfu/svc-backend/infra/cache/quota-cache");
+  await startQuotaSubscriptions();
+
   // Initialize JetStream event stream and dependent services
   await ensureEventStream();
   await ensureWebhookFetchQueue();

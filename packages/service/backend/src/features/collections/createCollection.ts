@@ -3,7 +3,8 @@ import { Database } from "../../effect/services/Database";
 import { DatabaseError, QuotaError, ValidationError } from "../../effect/errors";
 import { collectionTable, currentUserIdSql } from "../../infra/db/schema";
 import { toCamelCase } from "@contfu/svc-core";
-import { incrementCount, checkQuota } from "../../infra/nats/quota-kv";
+import { publishCountDelta } from "../../infra/cache/quota-cache";
+import { checkQuota } from "../quota/checkQuota";
 import { pack } from "msgpackr";
 import { mapToBackendCollection } from "./mapToBackendCollection";
 import type { CollectionIcon } from "@contfu/core";
@@ -67,7 +68,7 @@ export const createCollection = (userId: number, input: CreateCollectionInput) =
       catch: (e) => new DatabaseError({ cause: e }),
     });
 
-    yield* Effect.promise(() => incrementCount(userId, "collections"));
+    yield* Effect.sync(() => publishCountDelta(userId, { collections: 1 }));
 
     return mapToBackendCollection(inserted, 0, 0);
   }).pipe(Effect.withSpan("collections.create", { attributes: { userId } }));

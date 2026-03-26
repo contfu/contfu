@@ -3,7 +3,7 @@ import { getUserId } from "$lib/server/user";
 import { db } from "@contfu/svc-backend/infra/db/db";
 import { quotaTable, type Quota } from "@contfu/svc-backend/infra/db/schema";
 import type { QuotaState } from "@contfu/svc-core";
-import { getQuota as getQuotaFromKv } from "@contfu/svc-backend/infra/nats/quota-kv";
+import { getQuota as getQuotaFromKv } from "@contfu/svc-backend/features/quota/getQuota";
 import { eq } from "drizzle-orm";
 
 export const getQuota = query(async (): Promise<Quota | null> => {

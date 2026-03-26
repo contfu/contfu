@@ -10,11 +10,14 @@ const mockCheckQuota =
   mock<
     (userId: number, field: string) => Promise<{ allowed: boolean; current: number; max: number }>
   >();
-const mockAddItems = mock<(userId: number, count: number) => Promise<void>>();
+const mockAddItemsCount = mock<(userId: number, count: number) => Promise<void>>();
 
-await mock.module("../../infra/nats/quota-kv", () => ({
+await mock.module("../quota/checkQuota", () => ({
   checkQuota: mockCheckQuota,
-  addItems: mockAddItems,
+}));
+
+await mock.module("../quota/addItemsCount", () => ({
+  addItemsCount: mockAddItemsCount,
 }));
 
 // Mutable state shared with the mock fetch implementation
@@ -114,8 +117,8 @@ describe("fetchAndStreamItems quota pre-deduction", () => {
   beforeEach(() => {
     mockSourceItems = [];
     mockCheckQuota.mockReset();
-    mockAddItems.mockReset();
-    mockAddItems.mockResolvedValue(undefined);
+    mockAddItemsCount.mockReset();
+    mockAddItemsCount.mockResolvedValue(undefined);
     // Default: unlimited quota (max = -1)
     mockCheckQuota.mockResolvedValue({ allowed: true, current: 0, max: -1 });
     // Restore default web fetch implementation
@@ -136,8 +139,8 @@ describe("fetchAndStreamItems quota pre-deduction", () => {
     // checkQuota called once (first batch only — no re-check within a page)
     expect(mockCheckQuota.mock.calls).toHaveLength(1);
     // addItems called once with +100 only — consumed === reserved, no refund
-    expect(mockAddItems.mock.calls).toHaveLength(1);
-    expect((mockAddItems.mock.calls[0] as unknown[])[1]).toBe(100);
+    expect(mockAddItemsCount.mock.calls).toHaveLength(1);
+    expect((mockAddItemsCount.mock.calls[0] as unknown[])[1]).toBe(100);
   });
 
   it("refunds unused slots when fewer items than PAGE_SIZE are returned", async () => {
@@ -146,9 +149,9 @@ describe("fetchAndStreamItems quota pre-deduction", () => {
     await drain(fetchAndStreamItems(makeConfig()));
 
     // addItems(+100) then addItems(-97)
-    expect(mockAddItems.mock.calls).toHaveLength(2);
-    expect((mockAddItems.mock.calls[0] as unknown[])[1]).toBe(100);
-    expect((mockAddItems.mock.calls[1] as unknown[])[1]).toBe(-97);
+    expect(mockAddItemsCount.mock.calls).toHaveLength(2);
+    expect((mockAddItemsCount.mock.calls[0] as unknown[])[1]).toBe(100);
+    expect((mockAddItemsCount.mock.calls[1] as unknown[])[1]).toBe(-97);
   });
 
   it("refunds unused slots on source fetch error; does not re-throw", async () => {
@@ -170,7 +173,7 @@ describe("fetchAndStreamItems quota pre-deduction", () => {
     expect(yielded).toBeGreaterThanOrEqual(0);
 
     // Reserved 100 slots, consumed some items before the error — refund is issued
-    const addCalls = mockAddItems.mock.calls as unknown[][];
+    const addCalls = mockAddItemsCount.mock.calls as unknown[][];
     expect(addCalls[0][1]).toBe(100); // initial reserve
     const refund = addCalls[addCalls.length - 1][1] as number;
     expect(refund).toBeLessThan(0); // a refund was issued
@@ -198,9 +201,9 @@ describe("fetchAndStreamItems quota pre-deduction", () => {
     expect(yielded).toBe(2);
     // But consumed = 3 (all 3 items from source counted)
     // So refund = 100 - 3 = 97
-    expect(mockAddItems.mock.calls).toHaveLength(2);
-    expect((mockAddItems.mock.calls[0] as unknown[])[1]).toBe(100);
-    expect((mockAddItems.mock.calls[1] as unknown[])[1]).toBe(-97);
+    expect(mockAddItemsCount.mock.calls).toHaveLength(2);
+    expect((mockAddItemsCount.mock.calls[0] as unknown[])[1]).toBe(100);
+    expect((mockAddItemsCount.mock.calls[1] as unknown[])[1]).toBe(-97);
     // Validation error was collected
     expect(collector.size).toBe(1);
   });
@@ -224,7 +227,7 @@ describe("fetchAndStreamItems quota pre-deduction", () => {
     expect(yielded).toBe(2);
     // addItems called once with +2 (toReserve = min(100, 2-0) = 2)
     // reserved(2) === consumed(2) so no refund
-    expect(mockAddItems.mock.calls).toHaveLength(1);
-    expect((mockAddItems.mock.calls[0] as unknown[])[1]).toBe(2);
+    expect(mockAddItemsCount.mock.calls).toHaveLength(1);
+    expect((mockAddItemsCount.mock.calls[0] as unknown[])[1]).toBe(2);
   });
 });

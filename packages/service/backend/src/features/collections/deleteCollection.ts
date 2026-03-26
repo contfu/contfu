@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { Database } from "../../effect/services/Database";
 import { DatabaseError } from "../../effect/errors";
 import { collectionTable } from "../../infra/db/schema";
-import { decrementCount } from "../../infra/nats/quota-kv";
+import { publishCountDelta } from "../../infra/cache/quota-cache";
 
 /**
  * Delete a Collection.
@@ -20,7 +20,7 @@ export const deleteCollection = (collectionId: number) =>
 
     const deleted = result.length > 0;
     if (deleted) {
-      yield* Effect.promise(() => decrementCount(result[0].userId, "collections"));
+      yield* Effect.sync(() => publishCountDelta(result[0].userId, { collections: -1 }));
     }
 
     return deleted;

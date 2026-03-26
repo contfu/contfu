@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { Database } from "../../effect/services/Database";
 import { DatabaseError } from "../../effect/errors";
 import { flowTable } from "../../infra/db/schema";
-import { decrementCount } from "../../infra/nats/quota-kv";
+import { publishCountDelta } from "../../infra/cache/quota-cache";
 
 /**
  * Delete a flow by ID, scoped to the current user via RLS.
@@ -18,7 +18,7 @@ export const deleteFlow = (flowId: number) =>
     });
 
     if (result.length > 0) {
-      yield* Effect.promise(() => decrementCount(result[0].userId, "flows"));
+      yield* Effect.sync(() => publishCountDelta(result[0].userId, { flows: -1 }));
       return true;
     }
     return false;
