@@ -5,25 +5,19 @@ description: Create a pull request following the contfu workflow. Use when chang
 
 # PR Workflow
 
-Create a pull request following the project's commit & PR workflow.
+Create a pull request on Forgejo following the project's commit & PR workflow.
 
 ## Workflow
 
-1. **Run quality checks** — ensure all checks pass
-2. **Squash if needed** — ensure exactly one commit (branch status is preprocessed above)
+1. **Run tests** — ensure tests pass
+2. **Squash if needed** — ensure exactly one commit
 3. **Push branch** — create remote branch if needed
 4. **Create PR** — open pull request with proper format
 5. **Wait for CI** — watch checks, fix failures if any
 
 ## Pre-flight Checklist
 
-Before creating a PR, run:
-
-```bash
-bun test && bun run fmt && bun run lint
-```
-
-All must pass.
+Formatting, linting and testing are handled by the pre-commit git hook — do not run them manually.
 
 ## Current State
 
@@ -49,7 +43,7 @@ git rebase -i HEAD~N
 
 Mark all but the first as `squash` or `fixup`.
 
-### 3. Push branch
+### 2. Push branch
 
 ```bash
 git push -u origin HEAD
@@ -61,51 +55,55 @@ Or force with lease if already exists:
 git push --force-with-lease
 ```
 
-### 4. Link GitHub issues
+### 3. Link Forgejo issues
 
-Before creating the PR, find matching issues to link. Search for issues related to the branch name or commit message keywords using the GitHub CLI:
+Before creating the PR, find matching issues to link. Search for issues related to the branch name or commit message keywords:
 
 ```bash
-gh issue list --search "<keywords from branch/commit>" --state open
+tea issues list --login forgejo --repo contfu/contfu --state open
 ```
 
-Include `Closes #<issue-number>` lines in the PR body for each matching issue. This auto-closes them when the PR merges.
+Include `Closes #<issue-number>` lines in the PR description for each matching issue. This auto-closes them when the PR merges.
 
-### 5. Create PR
+### 4. Create PR
 
 ```bash
-gh pr create --title "<title>" --body "$(cat <<'EOF'
+tea pr create --login forgejo --repo contfu/contfu \
+  --base main --head "$(git branch --show-current)" \
+  --title "<title>" --description "$(cat <<'EOF'
 ## Summary
 
 - <change 1>
 - <change 2>
-
-## Testing
-
-- [ ] Tests pass locally
-- [ ] Lint/format checks pass
 
 Closes #<issue-number>
 EOF
 )"
 ```
 
-### 6. Wait for CI checks
+### 5. Wait for CI checks
 
-After creating the PR, wait for CI checks to complete and fix any failures. GitHub Actions needs a few seconds to register check runs on a new branch, so wait before polling:
+After creating the PR, wait for CI checks to complete and fix any failures:
 
 ```bash
-sleep 5 && gh pr checks <pr-number> --watch
+.claude/skills/forgejo/scripts/ci-wait
 ```
 
-If checks fail, fix the issue, amend the commit, and force push:
+If checks fail, inspect logs and fix the issue:
+
+```bash
+.claude/skills/forgejo/scripts/ci-status
+.claude/skills/forgejo/scripts/ci-logs <run_id> <job_index>
+```
+
+Then amend the commit and force push:
 
 ```bash
 git commit --amend
 git push --force-with-lease
 ```
 
-Then watch checks again until they pass.
+Then wait for CI again until checks pass.
 
 ## Commit Message Guidelines
 
@@ -116,16 +114,14 @@ Then watch checks again until they pass.
 
 ## Rules
 
-- **Never skip quality checks** — always run `bun test && bun run fmt && bun run lint`
 - **Exactly one commit** — squash before creating PR
 - **No force push to main** — never force push to main/master
 - **Amend for new changes** — if PR is open, use `git commit --amend` + `git push --force-with-lease`
 
 ## Label Convention
 
-Use appropriate labels:
+Use appropriate labels via the forgejo-label script:
 
-- `bug` — bug fixes
-- `enhancement` — new features
-- `refactor` — code improvements
-- `docs` — documentation changes
+- `bug` (1) — bug fixes
+- `enhancement` (2) — new features
+- `documentation` (3) — documentation changes

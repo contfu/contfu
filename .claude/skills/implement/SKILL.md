@@ -3,7 +3,7 @@ name: implement
 description: Pick up a Forgejo issue and implement it end-to-end. Use when you're ready to execute on a planned issue — reads the issue, creates a branch, plans the approach, implements with minimal changes, runs quality checks, and opens a PR on Forgejo. Only stops for plan approval — then implements through to a passing PR without further interaction.
 ---
 
-# Forgejo Implement
+# Implement
 
 Implement a Forgejo issue from start to PR.
 
@@ -11,35 +11,23 @@ Instance: `https://code.sven-rogge.com` | Repo: `contfu/contfu`
 
 ## Issue Details
 
-!`tea issue view $0 --login forgejo --repo contfu/contfu --output json`
+!`tea issue view $0 --login forgejo --repo contfu/contfu`
 
 ## Workflow
 
-> **CRITICAL: Call `EnterWorktree` before touching any files. No exceptions.**
-
-1. **Worktree** — call `EnterWorktree` immediately, then create a branch from `origin/main`:
-   ```bash
-   git fetch origin main
-   git checkout -b <branch-name> origin/main
-   ```
-2. **Read the issue** — review the issue details above. If more context is needed, fetch linked issues.
+1. **Read the issue** — review the issue details above. If more context is needed, fetch linked issues.
+2. **Worktree** — use `EnterWorktree` to create an isolated worktree, then create a concise branch from `origin/main`:
+   - `fix/<slug>` for bugs, `feat/<slug>` for enhancements, `docs/<slug>` for documentation
+   - Slug: kebab-case, max 30 chars, derived from issue topic (not the full title)
 3. **Update status** — move the issue to in-progress:
    ```bash
    .claude/skills/forgejo/scripts/forgejo-label set-status <number> in-progress
    ```
-4. **Explore** — read the relevant files listed in the issue and understand current state.
-5. **Plan** — enter plan mode and present the implementation approach. This is the user's **single checkpoint** — they approve the plan before implementation begins.
-6. **Implement and PR** — after the user approves the plan, implement, verify, commit, push, and open a PR without further user interaction. Use the `pr` skill to create the PR.
-
-## Branch Naming
-
-| Issue label     | Branch prefix |
-| --------------- | ------------- |
-| `enhancement`   | `feat/`       |
-| `bug`           | `fix/`        |
-| `documentation` | `docs/`       |
-
-Format: `<prefix><slug>` — kebab-case, max 30 chars, derived from issue topic (e.g. `feat/webhook-retries`).
+4. **Enter plan mode** to analyze the chosen issue and design the implementation approach. This is the user's checkpoint — they approve the plan before implementation begins.
+5. **Implement** — after the user approves the plan, implement it, without further user interaction.
+6. **Review** your changes for bugs, security and quality. Also make sure that test coverage is appropriate.
+7. **Check locally** - run `bun check` (format, build, lint, typecheck, unit tests) and make sure that it passes.
+8. **PR** - use the `pr` skill to create the PR.
 
 ## Rules
 
