@@ -29,3 +29,7 @@ const transport = createTransport({
 transport.verify().catch((err: unknown) => {
   log.warn({ err }, "SMTP server is not ready to send emails");
 });
+
+export function verifySmtp(): Promise<true> {
+  return transport.verify();
+}

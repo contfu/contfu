@@ -1,5 +1,8 @@
 import { EventType, type WireEvent } from "@contfu/core";
+import { sql } from "drizzle-orm";
+import { db } from "@contfu/svc-backend/infra/db/db";
 import { createLogger } from "@contfu/svc-backend/infra/logger/index";
+import { verifySmtp } from "@contfu/svc-backend/infra/mail/smtp";
 import { ensureEventStream } from "@contfu/svc-backend/infra/nats/event-stream";
 import { getNatsConnection } from "@contfu/svc-backend/infra/nats/connection";
 import { StreamServer } from "@contfu/svc-backend/infra/stream/stream-server";
@@ -39,6 +42,28 @@ export function getSyncWorkerManager(): SyncWorkerManager {
   return workerManager;
 }
 
+async function probe(fn: () => Promise<unknown>): Promise<string> {
+  try {
+    await fn();
+    return "ok";
+  } catch (err) {
+    return err instanceof Error ? err.message : String(err);
+  }
+}
+
+async function logStartupDiagnostics(): Promise<void> {
+  const diagnostics: Record<string, string> = {};
+
+  diagnostics.postgresql = await probe(() => db.execute(sql`SELECT 1`));
+  diagnostics.nats = await probe(() => getNatsConnection());
+
+  if (process.env.SMTP_HOST) {
+    diagnostics.smtp = await probe(() => verifySmtp());
+  }
+
+  log.info(diagnostics, "Startup diagnostics");
+}
+
 /**
  * Initializes the stream server and SyncWorkerManager.
  * This should be called once at server startup.
@@ -58,7 +83,7 @@ export async function initialize(): Promise<void> {
   // Fail fast if NATS_SERVER is not configured
   await getNatsConnection();
 
-  log.info({ natsServer: process.env.NATS_SERVER ?? null }, "Infrastructure status");
+  await logStartupDiagnostics();
 
   // Run blob data migrations
   // These handle schema migrations for bytea/JSONB columns that store encoded data
