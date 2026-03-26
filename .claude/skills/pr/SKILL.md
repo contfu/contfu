@@ -10,8 +10,7 @@ Create a pull request following the project's commit & PR workflow.
 ## Workflow
 
 1. **Run quality checks** — ensure all checks pass
-2. **Run code review** — invoke `/review` to catch bugs and security issues before the PR
-3. **Squash if needed** — ensure exactly one commit (branch status is preprocessed above)
+2. **Squash if needed** — ensure exactly one commit (branch status is preprocessed above)
 4. **Push branch** — create remote branch if needed
 5. **Create PR** — open pull request with proper format
 6. **Wait for CI** — watch checks, fix failures if any
@@ -42,17 +41,7 @@ All must pass.
 
 ## Steps
 
-### 1. Run code review
-
-Invoke the review skill to analyze changes, fix issues, and produce `.claude/review.md`:
-
-```
-/review
-```
-
-If the review made fixes, stage them before proceeding.
-
-### 2. Squash commits (if multiple)
+### 1. Squash commits (if multiple)
 
 ```bash
 git rebase -i HEAD~N
@@ -128,7 +117,6 @@ Then watch checks again until they pass.
 ## Rules
 
 - **Never skip quality checks** — always run `bun test && bun run fmt && bun run lint`
-- **Never skip code review** — always run `/review` before creating or updating a PR
 - **Exactly one commit** — squash before creating PR
 - **No force push to main** — never force push to main/master
 - **Amend for new changes** — if PR is open, use `git commit --amend` + `git push --force-with-lease`

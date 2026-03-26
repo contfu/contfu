@@ -1,6 +1,6 @@
 ---
 name: review
-description: Review code changes for bugs, security issues, missing tests, and convention violations. Use when someone asks to review changes, review a branch, check code quality, or says "review my changes". Also runs automatically before PR creation.
+description: Review code changes for bugs, security issues, missing tests, and convention violations. Use when someone asks to review changes, review a branch, check code quality, or says "review my changes".
 model: sonnet
 ---
 
