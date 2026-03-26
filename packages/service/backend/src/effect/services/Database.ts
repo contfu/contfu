@@ -1,9 +1,11 @@
 import { Effect, Exit, Layer, ServiceMap } from "effect";
+import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { PgAsyncDatabase } from "drizzle-orm/pg-core/async/db";
+import type { EmptyRelations } from "drizzle-orm/relations";
 import type * as schema from "../../infra/db/schema";
 import { DatabaseError } from "../errors";
 
-export type DrizzleDb = PgAsyncDatabase<any, typeof schema, any>;
+export type DrizzleDb = PgAsyncDatabase<PgQueryResultHKT, typeof schema, EmptyRelations>;
 
 export class Database extends ServiceMap.Service<
   Database,

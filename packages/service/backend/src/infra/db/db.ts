@@ -1,14 +1,18 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { dirname, resolve } from "node:path";
 import { sql } from "drizzle-orm";
+import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { PgAsyncDatabase } from "drizzle-orm/pg-core/async/db";
+import type { EmptyRelations } from "drizzle-orm/relations";
 import * as schema from "./schema";
+
+type Db = PgAsyncDatabase<PgQueryResultHKT, typeof schema, EmptyRelations>;
 
 // Use PGLITE_DATA_DIR presence instead of NODE_ENV to detect test mode.
 // Vite inlines process.env.NODE_ENV as "production" during SSR builds,
 // which tree-shakes the PGLite path. PGLITE_DATA_DIR is not inlined.
 const isTestMode = !!process.env.PGLITE_DATA_DIR;
-const dbContext = new AsyncLocalStorage<PgAsyncDatabase<any, typeof schema, any>>();
+const dbContext = new AsyncLocalStorage<Db>();
 
 const migrationsFolder = resolveMigrationsFolder();
 
@@ -19,9 +23,7 @@ export let dbClient: import("bun").SQL | undefined;
 let pgliteClient: { close(): Promise<void> } | undefined;
 
 /** Starts a transaction on the raw DB client and yields a scoped Drizzle instance to the callback. */
-let withTransaction: <T>(
-  fn: (db: PgAsyncDatabase<any, typeof schema, any>) => Promise<T>,
-) => Promise<T>;
+let withTransaction: <T>(fn: (db: Db) => Promise<T>) => Promise<T>;
 
 /** Close the underlying database connection. Needed in E2E globalSetup to release the file lock. */
 export async function closeDb() {
@@ -38,7 +40,7 @@ export async function closeDb() {
 async function createDb() {
   // Skip database initialization during SvelteKit build (no database available)
   if (process.env.SKIP_DB_INIT === "true") {
-    return null as unknown as PgAsyncDatabase<any, typeof schema, any>;
+    return null as unknown as Db;
   }
 
   if (isTestMode) {
@@ -94,9 +96,9 @@ function resolveMigrationsFolder(): string {
   return resolve(import.meta.dirname, "../../../db/migrations");
 }
 
-const rootDb: PgAsyncDatabase<any, typeof schema, any> = await createDb();
+const rootDb: Db = await createDb();
 
-function getActiveDb(): PgAsyncDatabase<any, typeof schema, any> {
+function getActiveDb(): Db {
   return dbContext.getStore() ?? rootDb;
 }
 
@@ -111,19 +113,16 @@ export async function withUserDbContext<T>(userId: number, fn: () => Promise<T>)
   });
 }
 
-export const db: PgAsyncDatabase<any, typeof schema, any> = new Proxy(
-  {} as PgAsyncDatabase<any, typeof schema, any>,
-  {
-    get(_target, prop, receiver) {
-      const currentDb = getActiveDb() as unknown as Record<PropertyKey, unknown>;
-      const value = Reflect.get(currentDb, prop, receiver);
-      if (typeof value === "function") {
-        return value.bind(currentDb);
-      }
-      return value;
-    },
+export const db: Db = new Proxy({} as Db, {
+  get(_target, prop, receiver) {
+    const currentDb = getActiveDb() as unknown as Record<PropertyKey, unknown>;
+    const value = Reflect.get(currentDb, prop, receiver);
+    if (typeof value === "function") {
+      return value.bind(currentDb);
+    }
+    return value;
   },
-);
+});
 
 // Seed development test user (skipped in production and during build)
 if (process.env.SKIP_DB_INIT !== "true" && process.env.NODE_ENV !== "production") {
