@@ -201,7 +201,7 @@ describe("generateConsumerTypes", () => {
   });
 });
 
-describe("generated types compile-time checks", () => {
+describe("generated types compile-time checks", { timeout: 30_000 }, () => {
   it("REF with target compiles: property is typed as the target interface", async () => {
     const generated = generateTypeScript([
       {

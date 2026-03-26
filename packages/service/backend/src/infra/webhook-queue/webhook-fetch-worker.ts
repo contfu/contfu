@@ -5,7 +5,7 @@ import { matchesFilters } from "@contfu/svc-core";
 const log = createLogger("webhook-fetch");
 import { uuidToBuffer } from "@contfu/svc-sources";
 import { fetchNotionPage } from "@contfu/svc-sources/notion";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, notInArray } from "drizzle-orm";
 import { runEffectWithServices } from "../../effect/run";
 import { listFlowsBySourceCollections } from "../../features/flows/listFlowsBySourceCollections";
 import { decryptCredentials } from "../crypto/credentials";
@@ -47,17 +47,21 @@ async function logWebhookEvent(
       itemsBroadcast: itemsBroadcast ?? 0,
     });
 
-    const logs = await db
+    const keepIds = db
       .select({ id: webhookLogTable.id })
       .from(webhookLogTable)
       .where(eq(webhookLogTable.connectionId, connectionId))
       .orderBy(desc(webhookLogTable.timestamp))
-      .limit(1000);
+      .limit(MAX_LOGS_PER_CONNECTION);
 
-    if (logs.length > MAX_LOGS_PER_CONNECTION) {
-      const idsToDelete = logs.slice(MAX_LOGS_PER_CONNECTION).map((l) => l.id);
-      await db.delete(webhookLogTable).where(inArray(webhookLogTable.id, idsToDelete));
-    }
+    await db
+      .delete(webhookLogTable)
+      .where(
+        and(
+          eq(webhookLogTable.connectionId, connectionId),
+          notInArray(webhookLogTable.id, keepIds),
+        ),
+      );
   } catch (error) {
     log.error({ err: error }, "Failed to write webhook log");
   }
