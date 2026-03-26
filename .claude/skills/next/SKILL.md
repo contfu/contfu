@@ -1,6 +1,6 @@
 ---
 name: next
-description: Pick the next Forgejo issue to work on. Analyzes "ready" issues for dependencies and conflicts with in-progress work, recommends the best candidate, and creates a branch.
+description: Pick the next Forgejo issue, implement it end-to-end, and open a PR. Analyzes "ready" issues for dependencies and conflicts, picks the best candidate, implements, and creates a PR — only stopping to ask the user if there's genuine ambiguity.
 ---
 
 # Forgejo Next
@@ -34,7 +34,7 @@ Instance: `https://code.sven-rogge.com` | Repo: `contfu/contfu`
    - Have no dependency on in-progress issues
    - Touch different files/areas than in-progress work (minimize merge conflicts)
    - Are self-contained and can be completed independently
-5. **Confirm** — use `AskUserQuestion` to present the recommendation with reasoning and let the user pick (options: recommended issue, other "ready" issues)
+5. **Pick and go** — select the best candidate without asking the user. Only use `AskUserQuestion` if there's genuine ambiguity (e.g., two equally good candidates with real trade-offs).
 6. **Worktree** — use `EnterWorktree` to create an isolated worktree, then create a concise branch from `origin/main`:
    - `fix/<slug>` for bugs, `feat/<slug>` for enhancements, `docs/<slug>` for documentation
    - Slug: kebab-case, max 30 chars, derived from issue topic (not the full title)
@@ -42,7 +42,8 @@ Instance: `https://code.sven-rogge.com` | Repo: `contfu/contfu`
    ```bash
    .claude/skills/forgejo/scripts/forgejo-label set-status <number> in-progress
    ```
-8. **Enter plan mode** to analyze the chosen issue and design the implementation approach
+8. **Enter plan mode** to analyze the chosen issue and design the implementation approach. This is the user's checkpoint — they approve the plan before implementation begins.
+9. **Implement and PR** — after the user approves the plan, implement, run tests/lint, commit, push, and open a PR without further user interaction. Use the `pr` skill to create the PR.
 
 ## Commands
 
@@ -57,10 +58,10 @@ git checkout -b <branch-name> origin/main
 
 ## Rules
 
-- **Always use `AskUserQuestion`** to confirm the issue selection before creating a branch
+- **Don't ask for confirmation** on issue selection unless there's genuine ambiguity
 - **Never start work** on an issue that depends on an unfinished in-progress issue
 - **Minimize interference** — prefer issues in different packages/subsystems than in-progress work
 - **Always use `EnterWorktree`** — work in an isolated worktree to avoid interfering with the main checkout
 - **Branch from `origin/main`** — always start fresh from the remote main branch
-- **Never implement** in this skill — enter plan mode after branch creation
+- **Implement end-to-end** — after plan approval, implement, verify, and open a PR without further user interaction
 - **Update labels** — move the chosen issue from `ready` to `in-progress`
