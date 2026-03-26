@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import { EventType, ConnectionType, type WireItem, type CollectionSchema } from "@contfu/core";
+import { EventType, ConnectionType, type CollectionSchema } from "@contfu/core";
 import { writeItemToNotion } from "@contfu/svc-sources/notion";
 import { eq } from "drizzle-orm";
 import { unpack } from "msgpackr";

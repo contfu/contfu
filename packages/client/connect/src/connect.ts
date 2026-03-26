@@ -1,4 +1,3 @@
-import { EventType } from "@contfu/core";
 import {
   connectToStream,
   type StreamEvent,

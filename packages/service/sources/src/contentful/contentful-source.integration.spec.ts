@@ -1,6 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import type { PageProps } from "@contfu/core";
-import type { ContentfulFetchOpts } from "./contentful";
 import { ContentfulSource } from "./contentful-source";
 
 function getProps(item: { props: unknown }): PageProps {

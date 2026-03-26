@@ -118,7 +118,7 @@ export type ContentfulFieldValue =
   | ContentfulFieldValue[];
 
 /** Contentful link to another entry or asset. */
-export interface ContentfulLink<T> {
+export interface ContentfulLink<_T> {
   sys: {
     type: "Link";
     linkType: string;

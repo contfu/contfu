@@ -35,7 +35,7 @@ async function assertCompiles(code: string, description?: string): Promise<void>
       throw new Error(`Type check failed${description ? ` (${description})` : ""}:\n${stderr}`);
     }
   } finally {
-    (await Bun.file(file).exists()) && (await Bun.$`rm ${file}`.quiet());
+    if (await Bun.file(file).exists()) await Bun.$`rm ${file}`.quiet();
   }
 }
 
@@ -59,7 +59,7 @@ async function assertDoesNotCompile(code: string): Promise<void> {
       throw new Error("Expected type check to fail, but it succeeded");
     }
   } finally {
-    (await Bun.file(file).exists()) && (await Bun.$`rm ${file}`.quiet());
+    if (await Bun.file(file).exists()) await Bun.$`rm ${file}`.quiet();
   }
 }
 

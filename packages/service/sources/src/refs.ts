@@ -24,7 +24,7 @@ export function strapiRefUrl(
 export function contentfulRefUrl(
   rawEntryId: Buffer,
   sourceUrl: string,
-  contentTypeId: Buffer,
+  _contentTypeId: Buffer,
 ): string {
   const entryId = rawEntryId.toString("utf8").trim();
   const origin = sourceUrl.replace(/\/$/, "");

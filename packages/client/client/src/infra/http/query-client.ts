@@ -1,11 +1,5 @@
 import { QueryResultArray } from "../../domain/query-types";
-import type {
-  IncludeOption,
-  QueryMeta,
-  QueryOptions,
-  QueryResult,
-  WithClause,
-} from "../../domain/query-types";
+import type { IncludeOption, QueryMeta, QueryOptions, WithClause } from "../../domain/query-types";
 import {
   all,
   and,

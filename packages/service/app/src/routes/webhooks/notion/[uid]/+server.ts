@@ -19,13 +19,10 @@ import {
   flowTable,
   webhookLogTable,
 } from "@contfu/svc-backend/infra/db/schema";
-import { notionRefUrlFromRawUuid } from "@contfu/svc-sources";
-import type { UserSyncItem } from "@contfu/svc-backend/infra/sync-worker/messages";
 import { cancelPending, markPending } from "@contfu/svc-backend/infra/webhook-queue/pending-kv";
 import { enqueueWebhookFetch } from "@contfu/svc-backend/infra/webhook-queue/webhook-fetch-queue";
-import { matchesFilters, type Filter } from "@contfu/svc-core";
 import { genUid, uuidToBuffer } from "@contfu/svc-sources";
-import { fetchNotionPage, notionPropertiesToSchemaWithIds } from "@contfu/svc-sources/notion";
+import { notionPropertiesToSchemaWithIds } from "@contfu/svc-sources/notion";
 import type { SchemaChangeHints } from "@contfu/svc-backend/infra/sync-worker/worker-manager";
 import { getSyncWorkerManager } from "$lib/server/startup";
 import { and, desc, eq, inArray } from "drizzle-orm";
