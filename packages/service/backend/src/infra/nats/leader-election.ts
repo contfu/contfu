@@ -4,7 +4,10 @@ import { getKvManager } from "./kvm";
 
 const log = createLogger("leader-election");
 
+/** 5 s — short TTL ensures quick failover if a leader process crashes. */
 const LEADER_TTL = 5000;
+
+/** 3 s — shorter than TTL so a standby can claim leadership before the key expires. */
 const LEADER_RETRY_INTERVAL = 3000;
 
 // Generate a unique instance ID for this process

@@ -19,11 +19,13 @@ import { getQuota } from "../../features/quota/getQuota";
 import { clearPending, isPending } from "./pending-kv";
 import { acquireRateSlot } from "./rate-limiter";
 import { getRateLimitForConnectionType, type WebhookFetchJob } from "./types";
-import { consumeWebhookFetches } from "./webhook-fetch-queue";
+import { MAX_DELIVER, consumeWebhookFetches } from "./webhook-fetch-queue";
 import type { ConnectionInfo } from "../types";
 
+/** Grace period (3 days in seconds) before dropping webhook events for quota-exceeded users. */
 const THREE_DAYS_S = 3 * 24 * 60 * 60;
 
+/** Keep the webhook log table bounded — only the most recent N logs per connection are retained. */
 const MAX_LOGS_PER_CONNECTION = 50;
 
 let workerTask: Promise<void> | null = null;
@@ -360,7 +362,7 @@ async function runWorker(streamServer: StreamServer, signal: AbortSignal): Promi
       message.ack();
     } catch (error) {
       const deliveryCount = message.info?.deliveryCount ?? (message.redelivered ? 2 : 1);
-      const maxDeliverReached = deliveryCount >= 4;
+      const maxDeliverReached = deliveryCount >= MAX_DELIVER;
 
       log.error(
         { err: error, userId: job.userId, connectionId: job.connectionId, pageId: job.pageId },

@@ -9,8 +9,11 @@ const log = createLogger("auth-sessions");
 
 type SessionToken = { token: string; expiresAt: number };
 
-const SESSION_TTL = 1000 * 60 * 60 * 24 * 7; // 7 days
-const API_KEY_TTL = 1000 * 60 * 60 * 24 * 30; // 30 days
+/** 7 days — matches better-auth default session expiry. */
+const SESSION_TTL = 1000 * 60 * 60 * 24 * 7;
+
+/** 30 days — long-lived for convenience but still bounded for security rotation. */
+const API_KEY_TTL = 1000 * 60 * 60 * 24 * 30;
 const ACTIVE_SESSIONS_PREFIX = "active-sessions-";
 const API_KEY_PREFIX = "api-key:";
 
