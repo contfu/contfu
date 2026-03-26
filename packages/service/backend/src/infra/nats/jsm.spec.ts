@@ -14,10 +14,12 @@ void mock.module("@nats-io/jetstream", () => ({
   jetstreamManager: (...args: unknown[]) => mockJetstreamManager(...args),
 }));
 
+const mockDebug = mock<(...args: unknown[]) => void>();
+
 void mock.module("../logger/index", () => ({
   createLogger: () => ({
     info: () => {},
-    debug: () => {},
+    debug: (...args: unknown[]) => mockDebug(...args),
     warn: () => {},
     error: () => {},
   }),
@@ -28,6 +30,7 @@ const { getJetStreamManager } = await import("./jsm");
 describe("getJetStreamManager", () => {
   beforeEach(() => {
     mockJetstreamManager.mockReset();
+    mockDebug.mockReset();
     reconnectCallback?.();
   });
 
@@ -73,6 +76,24 @@ describe("getJetStreamManager", () => {
       );
     } finally {
       Date.now = realDateNow;
+    }
+  });
+
+  it("logs retry delay with exponential backoff", async () => {
+    const fakeJsm = { streams: () => {} };
+    mockJetstreamManager
+      .mockRejectedValueOnce(new Error("fail"))
+      .mockRejectedValueOnce(new Error("fail"))
+      .mockResolvedValueOnce(fakeJsm);
+
+    await getJetStreamManager();
+
+    expect(mockDebug).toHaveBeenCalledTimes(2);
+    for (const [args] of mockDebug.mock.calls) {
+      const ctx = args as { elapsed: number; delay: number };
+      expect(ctx).toHaveProperty("elapsed");
+      expect(ctx).toHaveProperty("delay");
+      expect(ctx.delay).toBeGreaterThanOrEqual(0);
     }
   });
 
