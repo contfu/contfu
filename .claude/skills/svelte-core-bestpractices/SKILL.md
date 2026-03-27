@@ -204,6 +204,40 @@ describe("MyComponent", () => {
 
 Use `await tick()` (sometimes twice) to flush Svelte effects before asserting. Use `rerender()` to simulate prop changes.
 
+## SvelteKit Remote Functions
+
+### `form.for(key)` and field name collisions
+
+When using `form.for(key)` to create form variants, SvelteKit's internal `convert()` function sets `data.id = key` if `FormData.has('id')` returns false. The `fields.id.as("number")` helper produces `name="n:id"` (prefixed), which does NOT satisfy `FormData.has('id')`. This causes the `.for()` key to silently overwrite the `id` field.
+
+```svelte
+<!-- ❌ Wrong — .for(tier.value) overwrites data.id with tier.value -->
+{@const planForm = setBasePlan.for(tier.value)}
+<form {...planForm}>
+  <input {...planForm.fields.id.as("number")} type="hidden" value={user.id} />
+
+<!-- ✅ Correct — .as("hidden") produces name="id", preventing key override -->
+{@const planForm = setBasePlan.for(tier.value)}
+<form {...planForm}>
+  <input {...planForm.fields.id.as("hidden")} value={user.id} />
+```
+
+### Adapter externals must mirror SSR externals
+
+Packages in Vite's `ssr.external` are kept external during the SSR build phase. But the adapter (e.g., `svelte-adapter-bun`) re-bundles with rolldown using `platform: "browser"`, which strips Node.js built-ins (`fs`, `path`). Packages that depend on Node.js APIs (like `@electric-sql/pglite` with its `nodefs` adapter) must also be listed in the adapter's `external` config:
+
+```js
+// svelte.config.js
+adapter: adapter({
+  external: ["@css-inline/css-inline", "@electric-sql/pglite"],
+}),
+
+// vite.config.ts — also needed here
+ssr: {
+  external: ["@electric-sql/pglite", "@css-inline/css-inline"],
+}
+```
+
 ## Avoid legacy features
 
 Always use runes mode for new code, and avoid features that have more modern replacements:

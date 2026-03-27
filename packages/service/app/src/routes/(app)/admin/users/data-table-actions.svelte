@@ -21,6 +21,7 @@
   ];
 
   let { user }: { user: BackendUserSummary } = $props();
+
 </script>
 
 <DropdownMenu.Root>
@@ -105,8 +106,7 @@
           {@const planForm = setBasePlan.for(tier.value)}
           <form {...planForm}>
             <input
-              {...planForm.fields.id.as("number")}
-              type="hidden"
+              {...planForm.fields.id.as("hidden")}
               value={user.id}
             />
             <input

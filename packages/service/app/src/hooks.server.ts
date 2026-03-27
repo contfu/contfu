@@ -4,6 +4,7 @@ import { getRuntime } from "$lib/server/effect-runtime";
 import { getStreamServer, initialize, shutdown } from "$lib/server/startup";
 import { authenticateSyncRequest, runSyncSession } from "$lib/server/sync-session";
 import { ClientEventType, type ClientWireEvent } from "@contfu/core";
+import { UserRole } from "@contfu/svc-backend/domain/types";
 import { closeDb, db } from "@contfu/svc-backend/infra/db/db";
 import { userTable } from "@contfu/svc-backend/infra/db/schema";
 import { withLogContext } from "@contfu/svc-backend/infra/logger/log-context";
@@ -112,6 +113,8 @@ export const handle: Handle = ({ event, resolve }) =>
     event.locals.session = session?.session ?? null;
     event.locals.user = session?.user ?? null;
 
+    // Re-fetch user from DB to get current approval/role/plan status
+    // (session cookie cache may be stale after admin changes)
     if (event.locals.user) {
       const [freshUser] = await db
         .select({
@@ -125,6 +128,16 @@ export const handle: Handle = ({ event, resolve }) =>
         event.locals.user.approved = freshUser.approved;
         event.locals.user.role = freshUser.role;
         event.locals.user.basePlan = freshUser.basePlan;
+      }
+    }
+
+    // Centralized admin check for /api/admin/* routes
+    if (pathname.startsWith("/api/admin/")) {
+      if (!event.locals.user || event.locals.user.role !== UserRole.ADMIN) {
+        return new Response(JSON.stringify({ message: "Admin access required" }), {
+          status: 403,
+          headers: { "Content-Type": "application/json" },
+        });
       }
     }
 

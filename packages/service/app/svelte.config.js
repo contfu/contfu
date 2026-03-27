@@ -7,7 +7,7 @@ const config = {
   vitePlugin: { inspector: true },
   kit: {
     adapter: adapter({
-      external: ["@css-inline/css-inline"],
+      external: ["@css-inline/css-inline", "@electric-sql/pglite"],
     }),
     alias: {
       "$lib/*": "./src/lib/*",

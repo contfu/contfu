@@ -4,7 +4,7 @@ import { Database } from "../../effect/services/Database";
 import { DatabaseError } from "../../effect/errors";
 import { quotaTable, userTable } from "../../infra/db/schema";
 import { type PlanTier, getQuotaForTier } from "../../infra/polar/products";
-import { publishLimitChange } from "../../infra/cache/quota-cache";
+import { evictCachedQuota, publishLimitChange } from "../../infra/cache/quota-cache";
 
 export interface SetBasePlanDto {
   userId: number;
@@ -43,26 +43,25 @@ export const setBasePlan = (dto: SetBasePlanDto) =>
     const hasActiveSubscription = !INACTIVE_STATUSES.has(existing.subscriptionStatus);
 
     if (!hasActiveSubscription) {
-      yield* Effect.tryPromise({
-        try: () =>
-          db
-            .update(quotaTable)
-            .set({
-              maxConnections: quota.maxConnections,
-              maxCollections: quota.maxCollections,
-              maxFlows: quota.maxFlows,
-              maxItems: quota.maxItems,
-            })
-            .where(eq(quotaTable.id, dto.userId)),
-        catch: (e) => new DatabaseError({ cause: e }),
-      });
-
-      publishLimitChange(existing.id, {
+      const limits = {
         maxConnections: quota.maxConnections,
         maxCollections: quota.maxCollections,
         maxFlows: quota.maxFlows,
         maxItems: quota.maxItems,
+      };
+
+      yield* Effect.tryPromise({
+        try: () =>
+          db
+            .insert(quotaTable)
+            .values({ id: dto.userId, ...limits })
+            .onConflictDoUpdate({ target: quotaTable.id, set: limits })
+            .returning({ id: quotaTable.id }),
+        catch: (e) => new DatabaseError({ cause: e }),
       });
+
+      evictCachedQuota(existing.id);
+      publishLimitChange(existing.id, limits);
     }
 
     return { success: true };

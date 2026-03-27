@@ -16,6 +16,10 @@ export function setCachedQuota(userId: number, state: QuotaState): void {
   cache.set(String(userId), state);
 }
 
+export function evictCachedQuota(userId: number): void {
+  cache.delete(String(userId));
+}
+
 // --- NATS pub/sub for cross-node cache sync ---
 
 const COUNTS_SUBJECT = "quota.counts";

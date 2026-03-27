@@ -29,6 +29,18 @@ Instance: `https://code.sven-rogge.com` | Repo: `contfu/contfu`
 7. **Check locally** - run `bun check` (format, build, lint, typecheck, unit tests) and make sure that it passes.
 8. **PR** - use the `pr` skill to create the PR.
 
+## Reflection Phase
+
+After CI checks pass on the PR, reflect on the implementation:
+
+1. **Identify blockers** — what was hard, what took multiple iterations, what assumptions were wrong?
+2. **Extract learnings** — are there gotchas that future agents should know? Save them to memory if broadly applicable.
+3. **Suggest improvements** — could a skill be extended, a test helper added, or a pattern documented to prevent similar friction next time?
+
+Present findings to the user via `AskUserQuestion`. Propose concrete changes (skill updates, new helpers, documentation). If the user approves, amend them into the PR commit before merge.
+
+This phase turns debugging pain into institutional knowledge — the same mistake should never cost multiple CI iterations again.
+
 ## Rules
 
 - **Don't ask for confirmation** unless there's genuine ambiguity — plan approval is the only checkpoint
@@ -40,6 +52,7 @@ Instance: `https://code.sven-rogge.com` | Repo: `contfu/contfu`
 - **Always use `EnterWorktree`** — work in an isolated worktree to avoid interfering with the main checkout
 - **Branch from `origin/main`** — always start fresh from the remote main branch
 - **Implement end-to-end** — after plan approval, implement, verify, and open a PR without further user interaction
+- **Reflect after CI passes** — run the reflection phase to capture learnings and suggest skill/doc improvements
 - **Update labels** — move from `ready` to `in-progress` when starting work
 
 ## Commit Message Format
