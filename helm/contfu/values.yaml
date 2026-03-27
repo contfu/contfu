@@ -36,6 +36,8 @@ secrets:
   # Polar billing
   polarAccessToken: ""
   polarWebhookSecret: ""
+  # Notion webhook (OAuth mode)
+  notionWebhookSecret: ""
   # Basic auth (optional, format: "user:password")
   basicAuth: ""
   # SMTP credentials
