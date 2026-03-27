@@ -16,17 +16,17 @@ export function renderMailHtml(content: string) {
 					}
 
 					a {
-						color: #0075ba;
+						color: #44acbc;
 						text-decoration: none;
 					}
 
 					a:hover {
-						color: #00d3ff;
+						color: #6cc5d0;
 					}
 
 					.button {
 						font-size: 1.2rem;
-						background: #0075ba;
+						background: #44acbc;
 						color: #fff !important;
 						display: inline-block;
 						border-radius: 3px;
@@ -37,7 +37,7 @@ export function renderMailHtml(content: string) {
 					}
 
 					.button:hover {
-						background: #00d3ff;
+						background: #6cc5d0;
 					}
 				</style>
 			</head>
@@ -58,7 +58,7 @@ export function renderMailHtml(content: string) {
 						</a>
 						<span style="font-size: 3rem; font-weight: bold">Contfu</span>
 					</div>
-					<div class="main" style="margin-top: 20px; padding: 20px; background: #f5f8ff">
+					<div class="main" style="margin-top: 20px; padding: 20px; background: #f5f5f5">
 						${content}
 					</div>
 					<div
