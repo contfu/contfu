@@ -112,52 +112,11 @@
       </div>
 
       {#if hasOAuth}
-        <!-- Two-option layout: forms start at top, "or" divider is centered vertically -->
-        <div class="flex flex-col sm:flex-row sm:items-stretch">
-          <!-- OAuth option -->
-          <div class="flex flex-1 flex-col gap-4 pb-6 sm:pb-0 sm:pr-12">
-            <div>
-              <p class="mb-1 text-sm font-medium">OAuth</p>
-              <p class="text-xs text-muted-foreground">Sign in with your {newProviderId} account. Contfu will request access automatically.</p>
-            </div>
-            <Button onclick={handleConnectNotion} disabled={connectingNotion || atConnectionLimit} class="w-fit">
-              {connectingNotion ? "connecting..." : `connect ${newProviderId}`}
-            </Button>
-          </div>
-
-          <!-- Divider — "or" is centered, lines fill remaining space -->
-          <div class="flex items-center sm:flex-col sm:px-8">
-            <div class="h-px flex-1 bg-border sm:h-auto sm:w-px sm:flex-1"></div>
-            <span class="shrink-0 px-4 py-2 text-xs text-muted-foreground sm:px-0 sm:py-4">or</span>
-            <div class="h-px flex-1 bg-border sm:h-auto sm:w-px sm:flex-1"></div>
-          </div>
-
-          <!-- API token option -->
-          <form
-            class="flex flex-1 flex-col gap-4 pt-6 sm:pl-12 sm:pt-0"
-            onsubmit={(e) => {
-              e.preventDefault();
-              void handleAddService();
-            }}
-          >
-            <div>
-              <p class="mb-1 text-sm font-medium">API Token</p>
-              <p class="text-xs text-muted-foreground">Use an internal integration token from your {newProviderId} workspace.</p>
-            </div>
-            <div class="space-y-3">
-              <div class="space-y-1.5">
-                <Label>Name</Label>
-                <Input bind:value={newName} placeholder="My workspace" required />
-              </div>
-              <div class="space-y-1.5">
-                <Label>Token</Label>
-                <Input bind:value={newToken} type="password" placeholder="secret_..." required />
-              </div>
-              <Button type="submit" size="sm" disabled={addPending || atConnectionLimit}>
-                {addPending ? "adding..." : "add connection"}
-              </Button>
-            </div>
-          </form>
+        <div class="max-w-sm space-y-4">
+          <p class="text-xs text-muted-foreground">Sign in with your {newProviderId} account. Contfu will request access automatically.</p>
+          <Button onclick={handleConnectNotion} disabled={connectingNotion || atConnectionLimit} class="w-fit">
+            {connectingNotion ? "connecting..." : `connect ${newProviderId}`}
+          </Button>
         </div>
       {:else}
         <!-- Non-OAuth providers -->
