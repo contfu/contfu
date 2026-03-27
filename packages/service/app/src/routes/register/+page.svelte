@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { goto, invalidateAll } from "$app/navigation";
+	import { goto } from "$app/navigation";
 	import { signUp, signIn } from "$lib/auth-client";
 	import { Button } from "$lib/components/ui/button";
 	import { Input } from "$lib/components/ui/input";
@@ -21,8 +21,7 @@
 			if (result.error) {
 				error = result.error.message ?? "Registration failed";
 			} else {
-				await invalidateAll();
-				goto("/dashboard");
+				goto("/register/success");
 			}
 		} catch {
 			error = "An unexpected error occurred";
