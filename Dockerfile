@@ -6,9 +6,6 @@ RUN apt-get update && \
 
 FROM base AS build-base
 WORKDIR /app
-RUN apt-get update && \
-    apt-get install -y nodejs npm && \
-    rm -rf /var/lib/apt/lists/*
 
 FROM build-base AS build
 COPY package.json bun.lock ./
