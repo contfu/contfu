@@ -150,6 +150,9 @@ export const auth = betterAuth({
       ).catch((err) => log.error(err, "failed to send reset-password email"));
     },
   },
+  verification: {
+    storeInDatabase: true,
+  },
   emailVerification: {
     autoSignInAfterVerification: true,
     expiresIn: 60 * 60 * 24, // 1 day
