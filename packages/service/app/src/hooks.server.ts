@@ -4,11 +4,13 @@ import { getRuntime } from "$lib/server/effect-runtime";
 import { getStreamServer, initialize, shutdown } from "$lib/server/startup";
 import { authenticateSyncRequest, runSyncSession } from "$lib/server/sync-session";
 import { ClientEventType, type ClientWireEvent } from "@contfu/core";
-import { closeDb } from "@contfu/svc-backend/infra/db/db";
+import { closeDb, db } from "@contfu/svc-backend/infra/db/db";
+import { userTable } from "@contfu/svc-backend/infra/db/schema";
 import { withLogContext } from "@contfu/svc-backend/infra/logger/log-context";
 import { createLogger } from "@contfu/svc-backend/infra/logger/index";
 import type { Handle } from "@sveltejs/kit";
 import { svelteKitHandler } from "better-auth/svelte-kit";
+import { eq } from "drizzle-orm";
 import { unpack } from "msgpackr";
 
 const log = createLogger("hooks");
@@ -109,6 +111,23 @@ export const handle: Handle = ({ event, resolve }) =>
     const session = await auth.api.getSession({ headers: event.request.headers });
     event.locals.session = session?.session ?? null;
     event.locals.user = session?.user ?? null;
+
+    if (event.locals.user) {
+      const [freshUser] = await db
+        .select({
+          approved: userTable.approved,
+          role: userTable.role,
+          basePlan: userTable.basePlan,
+        })
+        .from(userTable)
+        .where(eq(userTable.id, Number(event.locals.user.id)));
+      if (freshUser) {
+        event.locals.user.approved = freshUser.approved;
+        event.locals.user.role = freshUser.role;
+        event.locals.user.basePlan = freshUser.basePlan;
+      }
+    }
+
     return svelteKitHandler({ event, resolve, auth, building });
   });
 
