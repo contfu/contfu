@@ -128,6 +128,9 @@ export const auth = betterAuth({
       dont_remember: { name: "n" },
     },
   },
+  rateLimit: {
+    storage: "memory",
+  },
   secondaryStorage: await createNatsKvSessionStorage(),
   emailAndPassword: {
     enabled: true,
