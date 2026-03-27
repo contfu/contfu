@@ -102,14 +102,15 @@
       <DropdownMenu.Label>Base Plan</DropdownMenu.Label>
       {#each planTiers as tier}
         {#if tier.value !== user.basePlan}
-          <form {...setBasePlan}>
+          {@const planForm = setBasePlan.for(tier.value)}
+          <form {...planForm}>
             <input
-              {...setBasePlan.fields.id.as("number")}
+              {...planForm.fields.id.as("number")}
               type="hidden"
               value={user.id}
             />
             <input
-              {...setBasePlan.fields.basePlan.as("number")}
+              {...planForm.fields.basePlan.as("number")}
               type="hidden"
               value={tier.value}
             />

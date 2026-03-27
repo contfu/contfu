@@ -169,6 +169,90 @@ test.describe("Admin Users Management", () => {
     await expect(sortIcon).toBeVisible();
   });
 
+  test("should open action menu without errors", async ({ authenticatedPage }) => {
+    // Listen for console errors
+    const consoleErrors: string[] = [];
+    authenticatedPage.on("console", (msg) => {
+      if (msg.type() === "error") consoleErrors.push(msg.text());
+    });
+
+    // Click the action menu button on the first user row
+    const actionButton = authenticatedPage.locator("tbody tr:first-child td:last-child button");
+    await expect(actionButton).toBeVisible();
+    await actionButton.click();
+
+    // Verify the dropdown menu opens with expected sections
+    const menu = authenticatedPage.locator('[role="menu"]');
+    await expect(menu).toBeVisible();
+
+    // Verify action labels are present
+    await expect(menu.getByText("Actions")).toBeVisible();
+    await expect(menu.getByText("Role")).toBeVisible();
+    await expect(menu.getByText("Base Plan")).toBeVisible();
+
+    // The test user is approved+admin, so we should see "Revoke approval" and "Remove admin"
+    await expect(menu.getByText("Revoke approval")).toBeVisible();
+    await expect(menu.getByText("Remove admin")).toBeVisible();
+
+    // No console errors from the form binding
+    const formErrors = consoleErrors.filter((e) => e.includes("form object can only be attached"));
+    expect(formErrors).toHaveLength(0);
+  });
+
+  test("should toggle admin role via action menu", async ({ authenticatedPage }) => {
+    const row = authenticatedPage.locator("tbody tr:first-child");
+
+    // Verify initial state: user is admin
+    await expect(row.getByText("Admin")).toBeVisible();
+
+    // Open action menu and click "Remove admin"
+    await row.locator("td:last-child button").click();
+    const menu = authenticatedPage.locator('[role="menu"]');
+    await expect(menu).toBeVisible();
+    await menu.getByText("Remove admin").click();
+    await authenticatedPage.waitForLoadState("networkidle");
+
+    // Verify role changed to "User"
+    await expect(row.getByText("User")).toBeVisible();
+
+    // Restore: open action menu and click "Make admin"
+    await row.locator("td:last-child button").click();
+    const restoreMenu = authenticatedPage.locator('[role="menu"]');
+    await expect(restoreMenu).toBeVisible();
+    await restoreMenu.getByText("Make admin").click();
+    await authenticatedPage.waitForLoadState("networkidle");
+
+    // Verify restored to admin
+    await expect(row.getByText("Admin")).toBeVisible();
+  });
+
+  test("should change base plan via action menu", async ({ authenticatedPage }) => {
+    const row = authenticatedPage.locator("tbody tr:first-child");
+
+    // Verify initial state: Free plan
+    await expect(row.getByText("Free")).toBeVisible();
+
+    // Open action menu and click "Starter" plan
+    await row.locator("td:last-child button").click();
+    const menu = authenticatedPage.locator('[role="menu"]');
+    await expect(menu).toBeVisible();
+    await menu.getByText("Starter").click();
+    await authenticatedPage.waitForLoadState("networkidle");
+
+    // Verify plan changed to Starter
+    await expect(row.getByText("Starter")).toBeVisible();
+
+    // Restore: open action menu and click "Free" plan
+    await row.locator("td:last-child button").click();
+    const restoreMenu = authenticatedPage.locator('[role="menu"]');
+    await expect(restoreMenu).toBeVisible();
+    await restoreMenu.getByText("Free").click();
+    await authenticatedPage.waitForLoadState("networkidle");
+
+    // Verify restored to Free
+    await expect(row.getByText("Free")).toBeVisible();
+  });
+
   test("should show correct footer count", async ({ authenticatedPage }) => {
     // Check footer shows correct count
     const footer = authenticatedPage.locator("text=/Showing \\d+ of \\d+ users/");
