@@ -190,7 +190,7 @@
     },
     "packages/service/app": {
       "name": "@contfu/svc-app",
-      "version": "0.0.7",
+      "version": "0.0.9",
       "dependencies": {
         "@css-inline/css-inline": "0.20.0",
         "sharp": "0.34.5",

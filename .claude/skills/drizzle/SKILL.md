@@ -386,11 +386,7 @@ import { exists, notExists } from "drizzle-orm";
 const usersWithConnections = await db
   .select()
   .from(userTable)
-  .where(
-    exists(
-      db.select().from(connectionTable).where(eq(connectionTable.userId, userTable.id)),
-    ),
-  );
+  .where(exists(db.select().from(connectionTable).where(eq(connectionTable.userId, userTable.id))));
 ```
 
 ## Anti-Patterns to Avoid
@@ -399,12 +395,16 @@ const usersWithConnections = await db
 
 ```typescript
 // Bad — raw sql template loses type safety
-await db.delete(logTable).where(
-  sql`${logTable.id} not in (select ${logTable.id} from ${logTable} ...)`
-);
+await db
+  .delete(logTable)
+  .where(sql`${logTable.id} not in (select ${logTable.id} from ${logTable} ...)`);
 
 // Good — Drizzle subquery, fully typed
-const keepIds = db.select({ id: logTable.id }).from(logTable).orderBy(desc(logTable.timestamp)).limit(50);
+const keepIds = db
+  .select({ id: logTable.id })
+  .from(logTable)
+  .orderBy(desc(logTable.timestamp))
+  .limit(50);
 await db.delete(logTable).where(notInArray(logTable.id, keepIds));
 ```
 

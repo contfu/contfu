@@ -120,7 +120,7 @@ export const auth = betterAuth({
   },
   advanced: {
     database: {
-      useNumberId: true,
+      generateId: "serial",
     },
     cookies: {
       session_token: { name: "s" },
