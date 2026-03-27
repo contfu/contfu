@@ -32,8 +32,20 @@ This workflow pushes two separate commits directly to main (no PR).
    - Commit: `chore: bump helm chart to <chart-version> / appVersion <app-version>`
    - `git pull --rebase` if needed, then `git push`
 
-5. **Confirm deployment**
-   - Tell the user: Flux will reconcile the new version on the cluster (context `ce`, namespace `contfu`).
+5. **Force Flux reconciliation**
+   - Reconcile the git source so Flux picks up the new commit immediately:
+     ```bash
+     flux reconcile source git contfu --context ce -n contfu
+     ```
+   - Then reconcile the helm release:
+     ```bash
+     flux reconcile helmrelease contfu --context ce -n contfu
+     ```
+   - Confirm success by checking the helm release status:
+     ```bash
+     flux get helmreleases contfu --context ce -n contfu
+     ```
+   - Verify the new appVersion is live. Tell the user the deployment is complete.
 
 ## Notes
 
