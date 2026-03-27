@@ -1,5 +1,6 @@
 import { sveltekit } from "@sveltejs/kit/vite";
 import tailwindcss from "@tailwindcss/vite";
+import { readFileSync } from "node:fs";
 import { defineConfig, type Plugin } from "vite";
 
 function watchBackend(): Plugin {
@@ -45,15 +46,19 @@ function externalNativeModules(): Plugin {
   };
 }
 
+const appVersion = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf-8")).version;
+
 export default defineConfig(({ command }) => ({
   plugins: [tailwindcss(), sveltekit(), watchBackend(), externalNativeModules()],
-  // Replace process.env.NODE_ENV in SSR bundles so the adapter's rolldown
-  // (which defaults to platform:"browser" and overrides NODE_ENV) sees an
-  // already-resolved value. Only during build — dev evaluates at runtime.
-  define:
-    command === "build"
+  define: {
+    __APP_VERSION__: JSON.stringify(appVersion),
+    // Replace process.env.NODE_ENV in SSR bundles so the adapter's rolldown
+    // (which defaults to platform:"browser" and overrides NODE_ENV) sees an
+    // already-resolved value. Only during build — dev evaluates at runtime.
+    ...(command === "build"
       ? { "process.env.NODE_ENV": JSON.stringify(process.env.NODE_ENV ?? "production") }
-      : undefined,
+      : {}),
+  },
   server: {
     port: 8011,
     host: true,

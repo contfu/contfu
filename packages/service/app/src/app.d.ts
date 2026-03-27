@@ -1,5 +1,7 @@
 import type { Session, User } from "$lib/server/auth";
 
+declare const __APP_VERSION__: string;
+
 declare global {
   namespace App {
     interface Locals {
