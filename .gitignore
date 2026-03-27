@@ -178,6 +178,7 @@ dist
 
 /data
 build/
+!.claude/skills/build/
 playwright-report
 .pglite-e2e
 .svelte-kit
