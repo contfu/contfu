@@ -22,6 +22,11 @@ export const load: LayoutServerLoad = async ({ url, locals }) => {
   const role = freshUser?.role ?? locals.user.role;
   const basePlan = freshUser?.basePlan ?? PlanTier.FREE;
 
+  // Update locals so downstream server functions (e.g. requireAdmin) see fresh values
+  locals.user.approved = approved;
+  locals.user.role = role;
+  locals.user.basePlan = basePlan;
+
   // Redirect unapproved users to pending approval page
   // Exception: allow access to /admin for admins even if not approved
   const isAdmin = role === UserRole.ADMIN;
