@@ -20,8 +20,8 @@ spec:
         - GRANT "app_user" TO {{ .Values.postgresql.owner }}
         - GRANT "service_role" TO {{ .Values.postgresql.owner }}
         - GRANT USAGE ON SCHEMA public TO "app_user", "service_role"
-        - ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO "app_user", "service_role"
-        - ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO "app_user", "service_role"
+        - ALTER DEFAULT PRIVILEGES FOR ROLE {{ .Values.postgresql.owner }} IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO "app_user", "service_role"
+        - ALTER DEFAULT PRIVILEGES FOR ROLE {{ .Values.postgresql.owner }} IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO "app_user", "service_role"
 
   storage:
     size: {{ .Values.postgresql.storage.size }}
