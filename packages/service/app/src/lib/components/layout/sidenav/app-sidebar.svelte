@@ -81,6 +81,9 @@
   </Sidebar.Content>
   <Sidebar.Footer>
     <NavUser {user} />
+    <p class="text-muted-foreground/50 text-center text-xs group-data-[collapsible=icon]:hidden">
+      v{__APP_VERSION__}
+    </p>
   </Sidebar.Footer>
   <Sidebar.Rail />
 </Sidebar.Root>

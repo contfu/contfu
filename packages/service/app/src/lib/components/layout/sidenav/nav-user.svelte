@@ -40,9 +40,6 @@
                 {user.email}
               </span>
             </div>
-            {#if user.basePlan != null}
-              <PlanBadge plan={user.basePlan} />
-            {/if}
             <EllipsisVerticalIcon class="ml-auto size-4" />
           </Sidebar.MenuButton>
         {/snippet}
@@ -67,6 +64,9 @@
                 {user.email}
               </span>
             </div>
+            {#if user.basePlan != null}
+              <PlanBadge plan={user.basePlan} />
+            {/if}
           </div>
         </DropdownMenu.Label>
         <DropdownMenu.Separator />

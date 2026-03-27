@@ -46,7 +46,9 @@ function externalNativeModules(): Plugin {
   };
 }
 
-const appVersion = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf-8")).version;
+const appVersion = JSON.parse(
+  readFileSync(new URL("./package.json", import.meta.url), "utf-8"),
+).version;
 
 export default defineConfig(({ command }) => ({
   plugins: [tailwindcss(), sveltekit(), watchBackend(), externalNativeModules()],
