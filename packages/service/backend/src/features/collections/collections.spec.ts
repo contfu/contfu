@@ -11,8 +11,6 @@ import { listCollections } from "./listCollections";
 import { listCollectionsByConnection } from "./listCollectionsByConnection";
 import { updateCollection } from "./updateCollection";
 import { createFlow } from "../flows/createFlow";
-import { ValidationError } from "../../effect/errors";
-
 describe("Collection Features Happy Path", () => {
   let userId: number;
 
@@ -81,7 +79,7 @@ describe("Collection Features Happy Path", () => {
     await expect(
       runTest(userId, updateCollection(created.id, { schema: { $title: 1 } as any })),
     ).rejects.toMatchObject({
-      _tag: ValidationError._tag,
+      _tag: "ValidationError",
     });
   });
 

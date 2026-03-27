@@ -33,6 +33,9 @@ jobs:
             (cd $dir && bun svelte-kit sync)
           done
 
+      - name: Typecheck (tsc)
+        run: bun run typecheck
+
       - name: Lint (type-aware)
         run: bun run lint:types
 

@@ -355,7 +355,7 @@ function createMockWebSocketClass(sockets: MockWebSocket[]) {
     static readonly CLOSING = 2;
     static readonly CLOSED = 3;
 
-    binaryType: BinaryType = "blob";
+    binaryType: "arraybuffer" | "blob" = "blob";
     readyState = 1;
     onopen: ((event: Event) => void) | null = null;
     onmessage: ((event: MessageEvent) => void) | null = null;

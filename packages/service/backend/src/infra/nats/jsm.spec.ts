@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
 
 let reconnectCallback: (() => void) | null = null;
-const mockJetstreamManager = mock<() => Promise<unknown>>();
+const mockJetstreamManager = mock<(nc: unknown, opts?: unknown) => Promise<unknown>>();
 
 void mock.module("./connection", () => ({
   getNatsConnection: () => Promise.resolve({}),
@@ -11,7 +11,7 @@ void mock.module("./connection", () => ({
 }));
 
 void mock.module("@nats-io/jetstream", () => ({
-  jetstreamManager: (...args: unknown[]) => mockJetstreamManager(...args),
+  jetstreamManager: (nc: unknown, opts?: unknown) => mockJetstreamManager(nc, opts),
 }));
 
 const mockDebug = mock<(...args: unknown[]) => void>();
@@ -40,7 +40,7 @@ describe("getJetStreamManager", () => {
 
     const result = await getJetStreamManager();
 
-    expect(result).toBe(fakeJsm);
+    expect(result).toBe(fakeJsm as any);
     expect(mockJetstreamManager).toHaveBeenCalledTimes(1);
   });
 
@@ -50,7 +50,7 @@ describe("getJetStreamManager", () => {
 
     const result = await getJetStreamManager();
 
-    expect(result).toBe(fakeJsm);
+    expect(result).toBe(fakeJsm as any);
     expect(mockJetstreamManager).toHaveBeenCalledTimes(2);
   });
 
@@ -105,7 +105,7 @@ describe("getJetStreamManager", () => {
 
     const result = await getJetStreamManager();
 
-    expect(result).toBe(fakeJsm);
+    expect(result).toBe(fakeJsm as any);
     expect(mockJetstreamManager).toHaveBeenCalledTimes(2);
   });
 });
