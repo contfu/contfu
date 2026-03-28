@@ -5,9 +5,7 @@ import { getSetting } from "@contfu/svc-backend/features/admin/getSetting";
 import { upsertSetting } from "@contfu/svc-backend/features/admin/upsertSetting";
 import { enqueueSyncJobs } from "@contfu/svc-backend/features/sync-jobs/enqueueSyncJobs";
 import { processSchemaChange } from "@contfu/svc-backend/features/schema-sync";
-import { runEffectWithServices } from "@contfu/svc-backend/effect/run";
-import { Database } from "@contfu/svc-backend/effect/services/Database";
-import { Effect } from "effect";
+import { run, runWithUser } from "$lib/server/run";
 import {
   decryptCredentials,
   encryptCredentials,
@@ -290,7 +288,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
         Buffer.from(payload.verification_token, "utf8"),
       );
       if (encrypted) {
-        await runEffectWithServices(upsertSetting(SETTING_OAUTH_TOKEN, encrypted));
+        await run(upsertSetting(SETTING_OAUTH_TOKEN, encrypted));
       }
       log.info("OAuth verification token stored in settings");
     } else {
@@ -339,7 +337,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
 
   // ---- Signature validation ----
   if (isOAuthMode) {
-    const encryptedToken = await runEffectWithServices(getSetting(SETTING_OAUTH_TOKEN));
+    const encryptedToken = await run(getSetting(SETTING_OAUTH_TOKEN));
     if (!encryptedToken) {
       if (!payload.verification_token) {
         log.warn("OAuth token not configured");
@@ -714,13 +712,9 @@ export const POST: RequestHandler = async ({ request, params }) => {
                   log.info({ databaseId }, "No stored property IDs; falling back to heuristic");
                 }
 
-                await runEffectWithServices(
-                  Effect.flatMap(Database, ({ withUserContext }) =>
-                    withUserContext(
-                      conn.userId,
-                      processSchemaChange(conn.userId, collection.id, schema, newIdMap),
-                    ),
-                  ),
+                await runWithUser(
+                  conn.userId,
+                  processSchemaChange(conn.userId, collection.id, schema, newIdMap),
                 );
                 await getSyncWorkerManager().broadcastSchema(conn.userId, collection.id, hints);
               }
@@ -756,7 +750,6 @@ export const POST: RequestHandler = async ({ request, params }) => {
               auth: token,
               data_source_id: dataSourceId,
             });
-
             if ("properties" in dataSource && dataSource.properties) {
               const { schema, notionPropertyIds } = notionPropertiesToSchemaWithIds(
                 dataSource.properties,
@@ -782,13 +775,9 @@ export const POST: RequestHandler = async ({ request, params }) => {
                   .limit(1);
 
                 if (collection) {
-                  await runEffectWithServices(
-                    Effect.flatMap(Database, ({ withUserContext }) =>
-                      withUserContext(
-                        conn.userId,
-                        processSchemaChange(conn.userId, collection.id, schema, notionPropertyIds),
-                      ),
-                    ),
+                  await runWithUser(
+                    conn.userId,
+                    processSchemaChange(conn.userId, collection.id, schema, notionPropertyIds),
                   );
                   // Broadcast updated schema to live consumers (heuristic rename detection)
                   await getSyncWorkerManager().broadcastSchema(conn.userId, collection.id);
@@ -839,7 +828,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
                 );
 
               if (collections.length > 0) {
-                await runEffectWithServices(enqueueSyncJobs(collections.map((c) => c.id)));
+                await run(enqueueSyncJobs(collections.map((c) => c.id)));
               }
             }
           } catch (err) {

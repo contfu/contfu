@@ -14,6 +14,7 @@ import {
 import { pack } from "msgpackr";
 import { eq } from "drizzle-orm";
 import type { CollectionSchema, MappingRule } from "@contfu/svc-core";
+import { hashKeyForStorage } from "./seed-utils";
 
 /** Well-known consumer key for mapping-sync tests. */
 export const MAPPING_SYNC_CONSUMER_KEY = Buffer.from("00000000000000000000000000000002", "hex");
@@ -171,19 +172,20 @@ export async function seedMappingSyncData(db: any): Promise<void> {
       userId,
       type: ConnectionType.CLIENT,
       name: "Mapping Sync Client",
-      credentials: MAPPING_SYNC_CONSUMER_KEY,
+      credentials: hashKeyForStorage(MAPPING_SYNC_CONSUMER_KEY),
     })
     .returning({ id: connectionTable.id });
   if (!clientConnection) return;
 
-  // Consumer collection
+  // Consumer collection — name matches target for sync stream events,
+  // but displayName differs to avoid duplicate links on the collections page.
   const [consumerCollection] = await db
     .insert(collectionTable)
     .values({
       userId,
       connectionId: clientConnection.id,
-      name: MAPPING_SYNC_CONSUMER_NAME,
-      displayName: MAPPING_SYNC_CONSUMER_NAME,
+      name: COLLECTION_NAME,
+      displayName: "Mapping Sync Client",
     })
     .returning({ id: collectionTable.id });
   if (!consumerCollection) return;
@@ -225,19 +227,19 @@ export async function seedMappingSyncData(db: any): Promise<void> {
       userId,
       type: ConnectionType.CLIENT,
       name: "Validation Sync Client",
-      credentials: VALIDATION_CONSUMER_KEY,
+      credentials: hashKeyForStorage(VALIDATION_CONSUMER_KEY),
     })
     .returning({ id: connectionTable.id });
   if (!valClientConnection) return;
 
-  // Validation consumer collection
+  // Validation consumer collection — name matches target for sync stream events.
   const [valConsumerCollection] = await db
     .insert(collectionTable)
     .values({
       userId,
       connectionId: valClientConnection.id,
-      name: VALIDATION_CONSUMER_NAME,
-      displayName: VALIDATION_CONSUMER_NAME,
+      name: VALIDATION_COLLECTION_NAME,
+      displayName: "Validation Sync Client",
     })
     .returning({ id: collectionTable.id });
   if (!valConsumerCollection) return;

@@ -45,7 +45,14 @@
     <DropdownMenu.Group>
       <DropdownMenu.Label>Actions</DropdownMenu.Label>
       {#if !user.approved}
-        <form {...approveUser}>
+        <form
+          {...approveUser.enhance(async ({ submit }) => {
+            await tcToast(async () => {
+              await submit().updates(getUsers());
+              toast.success("User approved");
+            });
+          })}
+        >
           <input
             {...approveUser.fields.id.as("number")}
             type="hidden"
@@ -58,7 +65,14 @@
           </DropdownMenu.Item>
         </form>
       {:else}
-        <form {...revokeUser}>
+        <form
+          {...revokeUser.enhance(async ({ submit }) => {
+            await tcToast(async () => {
+              await submit().updates(getUsers());
+              toast.success("Approval revoked");
+            });
+          })}
+        >
           <input
             {...revokeUser.fields.id.as("number")}
             type="hidden"
@@ -76,7 +90,14 @@
     <DropdownMenu.Group>
       <DropdownMenu.Label>Role</DropdownMenu.Label>
       {#if user.role === UserRole.ADMIN}
-        <form {...demoteFromAdmin}>
+        <form
+          {...demoteFromAdmin.enhance(async ({ submit }) => {
+            await tcToast(async () => {
+              await submit().updates(getUsers());
+              toast.success("Admin role removed");
+            });
+          })}
+        >
           <input
             {...demoteFromAdmin.fields.id.as("number")}
             type="hidden"
@@ -89,14 +110,23 @@
           </DropdownMenu.Item>
         </form>
       {:else}
-        <form {...promoteToAdmin}>
+        <form
+          {...promoteToAdmin.enhance(async ({ submit }) => {
+            await tcToast(async () => {
+              await submit().updates(getUsers());
+              toast.success("Promoted to admin");
+            });
+          })}
+        >
           <input
             {...promoteToAdmin.fields.id.as("number")}
             type="hidden"
             value={user.id}
           />
           <DropdownMenu.Item>
-            <button type="submit" class="w-full text-left"> Make admin </button>
+            <button type="submit" class="w-full text-left">
+              Make admin
+            </button>
           </DropdownMenu.Item>
         </form>
       {/if}

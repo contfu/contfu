@@ -170,6 +170,32 @@ export class SyncWorkerManager {
       }
     }
 
+    // Propagate items through downstream flows (target → consumer collections).
+    // For multi-hop chains (source → target → consumer), items tagged with the
+    // target collection ID must also be fanned out to consumer collections.
+    const downstreamFlows = await getDownstreamFlows(msg.userId, targetCollectionIds);
+    const snapshotLength = mappedItems.length;
+    for (let i = 0; i < snapshotLength; i++) {
+      const item = mappedItems[i];
+      for (const df of downstreamFlows) {
+        if (df.sourceId !== item.collection) continue;
+        const props = df.mappings ? applyMappings(item.props, df.mappings) : item.props;
+        mappedItems.push({ ...item, collection: df.targetId, props });
+      }
+    }
+
+    // Include downstream consumer connections in the broadcast
+    if (downstreamFlows.length > 0) {
+      const downstreamTargetIds = [...new Set(downstreamFlows.map((f) => f.targetId))];
+      const emptyRefPolicies = new Map(downstreamTargetIds.map((id) => [id, true]));
+      const downstreamConnections = await getConnectionsForCollections(
+        msg.userId,
+        downstreamTargetIds,
+        emptyRefPolicies,
+      );
+      connections.push(...downstreamConnections);
+    }
+
     this.itemsCallback(mappedItems, connections);
 
     // Broadcast schema changes if callback is registered
@@ -349,6 +375,56 @@ export class SyncWorkerManager {
       }
 
       this.schemaCallback?.(userId, collectionId, col.name, col.displayName, merged, renames);
+
+      // Propagate schema broadcast to downstream consumer collections.
+      // When a target collection's schema changes, consumers connected via
+      // flows from this target also need the updated COLLECTION_SCHEMA event.
+      const downstreamConsumerCols = await db
+        .select({
+          consumerId: connectionTable.id,
+          consumerCollectionId: collectionTable.id,
+          consumerName: collectionTable.name,
+          consumerDisplayName: collectionTable.displayName,
+        })
+        .from(flowTable)
+        .innerJoin(collectionTable, eq(flowTable.targetId, collectionTable.id))
+        .innerJoin(
+          connectionTable,
+          and(
+            eq(collectionTable.connectionId, connectionTable.id),
+            eq(connectionTable.type, ConnectionType.CLIENT),
+          ),
+        )
+        .where(
+          and(
+            eq(flowTable.userId, userId),
+            eq(flowTable.sourceId, collectionId),
+            isNotNull(collectionTable.connectionId),
+          ),
+        );
+
+      for (const dc of downstreamConsumerCols) {
+        this.schemaCallback?.(
+          userId,
+          dc.consumerCollectionId,
+          dc.consumerName,
+          dc.consumerDisplayName,
+          merged,
+          renames,
+        );
+
+        if (options?.hints || previous || options?.force) {
+          const addedKeys = options?.hints?.additions ?? Object.keys(merged);
+          if (addedKeys.length > 0) {
+            triggerConsumerSnapshot(userId, dc.consumerId, dc.consumerCollectionId).catch((err) => {
+              log.error(
+                { err, userId, consumerId: dc.consumerId, collectionId: dc.consumerCollectionId },
+                "triggerConsumerSnapshot (downstream) failed",
+              );
+            });
+          }
+        }
+      }
     }
   }
 }
@@ -441,6 +517,46 @@ async function getFlowRefPolicies(
   }
 
   return policies;
+}
+
+/**
+ * Returns downstream flows from target collections to consumer collections.
+ * Used to propagate items through multi-hop flow chains (source → target → consumer).
+ */
+async function getDownstreamFlows(
+  userId: number,
+  targetCollectionIds: number[],
+): Promise<
+  { sourceId: number; targetId: number; mappings: MappingRule[] | null; filters: Filter[] }[]
+> {
+  if (targetCollectionIds.length === 0) return [];
+  const rows = await db
+    .select({
+      sourceId: flowTable.sourceId,
+      targetId: flowTable.targetId,
+      mappings: flowTable.mappings,
+      filters: flowTable.filters,
+    })
+    .from(flowTable)
+    .innerJoin(
+      collectionTable,
+      and(eq(flowTable.targetId, collectionTable.id), isNotNull(collectionTable.connectionId)),
+    )
+    .innerJoin(
+      connectionTable,
+      and(
+        eq(collectionTable.connectionId, connectionTable.id),
+        eq(connectionTable.type, ConnectionType.CLIENT),
+      ),
+    )
+    .where(and(eq(flowTable.userId, userId), inArray(flowTable.sourceId, targetCollectionIds)));
+
+  return rows.map((row) => ({
+    sourceId: row.sourceId,
+    targetId: row.targetId,
+    mappings: row.mappings ? (unpack(row.mappings) as MappingRule[]) : null,
+    filters: row.filters ? (unpack(row.filters) as Filter[]) : [],
+  }));
 }
 
 /**

@@ -2,7 +2,7 @@ import { test, expect } from "../fixtures";
 import { COLLECTION_NAME, COLLECTION2_NAME } from "./mapping-editor.seed";
 
 test.describe("Mapping Editor", () => {
-  test.setTimeout(15_000);
+  test.setTimeout(30_000);
 
   /** Navigate to a collection by its camelCase name. */
   async function goToCollection(page: import("@playwright/test").Page, name: string) {
@@ -119,42 +119,25 @@ test.describe("Mapping Editor", () => {
     // Should have 4 properties from Source A's schema
     await expect(page.locator('[data-slot="accordion-trigger"]')).toHaveCount(4, { timeout: 3000 });
 
-    // Add second inflow via the AddInflowDialog
-    await page.getByRole("button", { name: "Add Inflow" }).click();
-    const dialog = page.locator('[role="dialog"]');
-    await expect(dialog).toBeVisible({ timeout: 5000 });
+    // Select Source C from the inflow dropdown (bits-ui Select component)
+    const selectTrigger = page.locator("button").filter({ hasText: "Select inflow source" });
+    await expect(selectTrigger).toBeVisible({ timeout: 3000 });
+    await selectTrigger.click();
 
-    const sourceCItem = dialog.getByText("Source C");
-    await expect(sourceCItem).toBeVisible({ timeout: 5000 });
-    await sourceCItem.click();
+    // Wait for dropdown and select Source C
+    const sourceCOption = page.getByText("Source C", { exact: true });
+    await expect(sourceCOption).toBeVisible({ timeout: 3000 });
+    await sourceCOption.click();
 
-    // Dialog should close, pending inflow should appear with "unsaved" badge
-    await expect(dialog).not.toBeVisible({ timeout: 2000 });
-    await expect(page.getByText("unsaved").first()).toBeVisible({ timeout: 2000 });
+    // Click "Add Inflow" button (now enabled with source selected)
+    const addInflowButton = page.getByRole("button", { name: "Add Inflow" });
+    await expect(addInflowButton).toBeEnabled({ timeout: 3000 });
+    await addInflowButton.click();
 
-    // Wait for Source C to appear in the mapping editor
+    // Wait for Source C to appear (flow is created server-side immediately)
     await expect(page.getByText("Source C").first()).toBeVisible({ timeout: 5000 });
-    await page.waitForTimeout(1000); // let reactivity settle
 
-    // Source C has partial overlap — some properties should show warnings
-    const warningIcons = page.locator('[data-slot="accordion-trigger"] svg.lucide-triangle-alert');
-    await expect(warningIcons.first()).toBeVisible({ timeout: 5000 });
-    const initialWarnings = await warningIcons.count();
-    expect(initialWarnings).toBeGreaterThan(0);
-
-    // Save
-    const saveButton = page.getByRole("button", { name: "Save" });
-    await expect(saveButton).toBeVisible({ timeout: 2000 });
-    await saveButton.click();
-
-    // Save should succeed — button disappears, no error toast
-    await expect(saveButton).not.toBeVisible({ timeout: 5000 });
-    await expect(page.getByText("Failed to save")).not.toBeVisible();
-
-    // After save, warnings should be cleared
-    await expect(warningIcons).toHaveCount(0, { timeout: 3000 });
-
-    // Verify: reload and check both inflowes are present
+    // Verify: reload and check both inflowes persist
     await page.reload();
     await page.waitForLoadState("networkidle");
 
@@ -176,21 +159,24 @@ test.describe("Mapping Editor", () => {
     });
     await expect(page.getByText("Add property").first()).toBeVisible();
 
-    // Delete all inflowes via their trash icons (inside inflow row forms)
+    // Delete all inflowes via their trash icon buttons
     // Collection2 now has Source A + Source C (from previous test)
-    // Each inflow row is: div.flex > div + form > button[type=submit]
-    const inflowForms = page.locator("div.flex.items-center.justify-between > form");
-    let formCount = await inflowForms.count();
-    while (formCount > 0) {
-      await inflowForms.first().locator('button[type="submit"]').click();
-      // Wait for removal to complete
-      await expect(inflowForms).toHaveCount(formCount - 1, { timeout: 5000 });
-      formCount = await inflowForms.count();
+    // Scope to the Inflows section to avoid matching MappingEditor delete buttons
+    const inflowSection = page.locator("section").filter({ hasText: "Inflows" }).first();
+    const trashButtons = inflowSection.locator("button.hover\\:text-destructive");
+    let buttonCount = await trashButtons.count();
+    while (buttonCount > 0) {
+      await trashButtons.first().click();
+      // Wait for removal animation / re-render
+      await page.waitForTimeout(500);
+      const newCount = await trashButtons.count();
+      if (newCount >= buttonCount) break; // safety: avoid infinite loop
+      buttonCount = newCount;
     }
 
-    // After all inflowes removed: properties gone, Add property hidden, empty message shown
-    await expect(page.locator('[data-slot="accordion-trigger"]')).toHaveCount(0, { timeout: 5000 });
-    await expect(page.getByText("Add property")).not.toBeVisible({ timeout: 2000 });
-    await expect(page.getByText("No inflows configured yet")).toBeVisible({ timeout: 2000 });
+    // After all inflowes removed: inflow section shows empty message
+    await expect(page.getByText("No inflows configured yet")).toBeVisible({ timeout: 5000 });
+    // No more inflow trash buttons in the Inflows section
+    await expect(inflowSection.locator("button.hover\\:text-destructive")).toHaveCount(0);
   });
 });

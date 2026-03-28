@@ -18,6 +18,7 @@ import {
 import { pack } from "msgpackr";
 import { eq } from "drizzle-orm";
 import type { CollectionSchema, MappingRule } from "@contfu/svc-core";
+import { hashKeyForStorage } from "./seed-utils";
 
 /** Well-known consumer key for selective resync tests. */
 export const SELECTIVE_RESYNC_CONSUMER_KEY = Buffer.from("00000000000000000000000000000005", "hex");
@@ -155,19 +156,20 @@ export async function seedSelectiveResyncData(db: any): Promise<void> {
       userId,
       type: ConnectionType.CLIENT,
       name: "Selective Resync Client",
-      credentials: SELECTIVE_RESYNC_CONSUMER_KEY,
+      credentials: hashKeyForStorage(SELECTIVE_RESYNC_CONSUMER_KEY),
     })
     .returning({ id: connectionTable.id });
   if (!clientConnection) return;
 
-  // Consumer collection
+  // Consumer collection — name matches target for sync stream events,
+  // but displayName differs to avoid duplicate links on the collections page.
   const [consumerCollection] = await db
     .insert(collectionTable)
     .values({
       userId,
       connectionId: clientConnection.id,
-      name: SELECTIVE_RESYNC_CONSUMER_NAME,
-      displayName: SELECTIVE_RESYNC_CONSUMER_NAME,
+      name: COLLECTION_NAME,
+      displayName: "Selective Resync Client",
     })
     .returning({ id: collectionTable.id });
   if (!consumerCollection) return;

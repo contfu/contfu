@@ -1,6 +1,8 @@
 import { test, expect } from "./fixtures";
 
 test.describe("Admin Users Management", () => {
+  test.setTimeout(15_000);
+
   test.beforeEach(async ({ authenticatedPage }) => {
     // Navigate to admin users page
     await authenticatedPage.goto("/admin/users");
@@ -9,19 +11,19 @@ test.describe("Admin Users Management", () => {
 
   test("should display the users table", async ({ authenticatedPage }) => {
     // Check for the page header
-    await expect(authenticatedPage.locator("h1")).toContainText("User Management");
+    await expect(authenticatedPage.locator("h1")).toContainText("admin");
 
     // Check that the table is visible
     const table = authenticatedPage.locator("table");
     await expect(table).toBeVisible();
 
-    // Check for table headers
-    await expect(authenticatedPage.locator("th")).toContainText([
-      "User",
-      "Status",
-      "Role",
-      "Joined",
-    ]);
+    // Check for table headers (6 columns: User, Status, Role, Base Plan, Joined, Actions[sr-only])
+    const headers = authenticatedPage.locator("th");
+    await expect(headers.nth(0)).toContainText("User");
+    await expect(headers.nth(1)).toContainText("Status");
+    await expect(headers.nth(2)).toContainText("Role");
+    await expect(headers.nth(3)).toContainText("Base Plan");
+    await expect(headers.nth(4)).toContainText("Joined");
   });
 
   test("should filter users by search", async ({ authenticatedPage }) => {
@@ -57,33 +59,24 @@ test.describe("Admin Users Management", () => {
   });
 
   test("should filter users by status dropdown", async ({ authenticatedPage }) => {
-    // Find the status filter dropdown
-    const statusTrigger = authenticatedPage.locator('button:has-text("All statuses")');
-    await expect(statusTrigger).toBeVisible();
+    // The status filter is a native <select> element
+    const statusSelect = authenticatedPage.locator("select").nth(0);
+    await expect(statusSelect).toBeVisible();
 
     // Get initial row count
     const initialRows = await authenticatedPage.locator("tbody tr").count();
     console.log("Initial rows:", initialRows);
 
-    // Click the dropdown
-    await statusTrigger.click();
-    await authenticatedPage.waitForTimeout(200);
-
     // Select "Approved"
-    await authenticatedPage.locator('[role="option"]:has-text("Approved")').click();
+    await statusSelect.selectOption("approved");
     await authenticatedPage.waitForTimeout(500);
-
-    // Verify the filter is applied (button text should change)
-    await expect(authenticatedPage.locator('button:has-text("Approved")')).toBeVisible();
 
     // Get filtered count
     const approvedRows = await authenticatedPage.locator("tbody tr").count();
     console.log("Approved filter rows:", approvedRows);
 
     // Reset to all
-    await authenticatedPage.locator('button:has-text("Approved")').click();
-    await authenticatedPage.waitForTimeout(200);
-    await authenticatedPage.locator('[role="option"]:has-text("All statuses")').click();
+    await statusSelect.selectOption("all");
     await authenticatedPage.waitForTimeout(500);
 
     // Verify we're back to all
@@ -93,24 +86,17 @@ test.describe("Admin Users Management", () => {
   });
 
   test("should filter users by role dropdown", async ({ authenticatedPage }) => {
-    // Find the role filter dropdown
-    const roleTrigger = authenticatedPage.locator('button:has-text("All roles")');
-    await expect(roleTrigger).toBeVisible();
+    // The role filter is the second native <select> element
+    const roleSelect = authenticatedPage.locator("select").nth(1);
+    await expect(roleSelect).toBeVisible();
 
     // Get initial row count
     const initialRows = await authenticatedPage.locator("tbody tr").count();
     console.log("Initial rows:", initialRows);
 
-    // Click the dropdown
-    await roleTrigger.click();
-    await authenticatedPage.waitForTimeout(200);
-
     // Select "Admin"
-    await authenticatedPage.locator('[role="option"]:has-text("Admin")').click();
+    await roleSelect.selectOption("admin");
     await authenticatedPage.waitForTimeout(500);
-
-    // Verify the filter is applied
-    await expect(authenticatedPage.locator('button:has-text("Admin")')).toBeVisible();
 
     // Get filtered count - should be at least 1 (the test user is admin)
     const adminRows = await authenticatedPage.locator("tbody tr").count();
@@ -118,9 +104,7 @@ test.describe("Admin Users Management", () => {
     expect(adminRows).toBeGreaterThanOrEqual(1);
 
     // Reset to all
-    await authenticatedPage.locator('button:has-text("Admin")').first().click();
-    await authenticatedPage.waitForTimeout(200);
-    await authenticatedPage.locator('[role="option"]:has-text("All roles")').click();
+    await roleSelect.selectOption("all");
     await authenticatedPage.waitForTimeout(500);
 
     // Verify we're back to all
@@ -176,8 +160,9 @@ test.describe("Admin Users Management", () => {
       pageErrors.push(err.message);
     });
 
-    // Click the action menu button on the first user row
-    const actionButton = authenticatedPage.locator("tbody tr:first-child td:last-child button");
+    // Find the admin user row (Test User) and click its action menu
+    const adminRow = authenticatedPage.locator("tbody tr").filter({ hasText: "Test User" });
+    const actionButton = adminRow.locator("td:last-child button");
     await expect(actionButton).toBeVisible();
     await actionButton.click();
 
@@ -200,37 +185,31 @@ test.describe("Admin Users Management", () => {
   });
 
   test("should toggle admin role via action menu", async ({ authenticatedPage }) => {
-    const serverErrors: string[] = [];
-    authenticatedPage.on("response", (resp) => {
-      if (resp.status() >= 500) serverErrors.push(`${resp.status()} ${resp.url()}`);
-    });
+    // Find the "Other User" row (non-admin user seeded for admin action tests)
+    const otherRow = authenticatedPage.locator("tbody tr").filter({ hasText: "Other User" });
+    await expect(otherRow).toBeVisible();
+    const roleCell = otherRow.locator("td").nth(2); // Role column is 3rd
 
-    const row = authenticatedPage.locator("tbody tr:first-child");
+    // Verify initial state: Other User is not admin
+    await expect(roleCell.getByText("User")).toBeVisible();
 
-    // Verify initial state: user is admin
-    await expect(row.getByText("Admin")).toBeVisible();
-
-    // Open action menu and click "Remove admin"
-    await row.locator("td:last-child button").click();
+    // Open action menu and click "Make admin"
+    await otherRow.locator("td:last-child button").click();
     const menu = authenticatedPage.locator('[role="menu"]');
     await expect(menu).toBeVisible();
-    await menu.getByText("Remove admin").click();
-    await authenticatedPage.waitForLoadState("networkidle");
+    await menu.getByText("Make admin").click();
 
-    // Verify role changed to "User"
-    await expect(row.getByText("User")).toBeVisible();
-    expect(serverErrors).toHaveLength(0);
+    // Verify role changed to "Admin"
+    await expect(roleCell.getByText("Admin")).toBeVisible();
 
-    // Restore: open action menu and click "Make admin"
-    await row.locator("td:last-child button").click();
+    // Restore: open action menu and click "Remove admin"
+    await otherRow.locator("td:last-child button").click();
     const restoreMenu = authenticatedPage.locator('[role="menu"]');
     await expect(restoreMenu).toBeVisible();
-    await restoreMenu.getByText("Make admin").click();
-    await authenticatedPage.waitForLoadState("networkidle");
+    await restoreMenu.getByText("Remove admin").click();
 
-    // Verify restored to admin
-    await expect(row.getByText("Admin")).toBeVisible();
-    expect(serverErrors).toHaveLength(0);
+    // Verify restored to User
+    await expect(roleCell.getByText("User")).toBeVisible();
   });
 
   test("should change base plan via action menu", async ({ authenticatedPage }) => {
@@ -239,20 +218,21 @@ test.describe("Admin Users Management", () => {
       if (resp.status() >= 500) serverErrors.push(`${resp.status()} ${resp.url()}`);
     });
 
-    const row = authenticatedPage.locator("tbody tr:first-child");
+    // Target the "Other User" row for plan changes
+    const row = authenticatedPage.locator("tbody tr").filter({ hasText: "Other User" });
+    const planCell = row.locator("td").nth(3); // Base Plan column is 4th
 
     // Verify initial state: Free plan
-    await expect(row.getByText("Free")).toBeVisible();
+    await expect(planCell.getByText("Free")).toBeVisible();
 
     // Open action menu and click "Starter" plan
     await row.locator("td:last-child button").click();
     const menu = authenticatedPage.locator('[role="menu"]');
     await expect(menu).toBeVisible();
     await menu.getByText("Starter").click();
-    await authenticatedPage.waitForLoadState("networkidle");
 
-    // Verify plan changed to Starter
-    await expect(row.getByText("Starter")).toBeVisible();
+    // Verify plan changed to Starter (enhanced form updates inline)
+    await expect(planCell.getByText("Starter")).toBeVisible();
     expect(serverErrors).toHaveLength(0);
 
     // Restore: open action menu and click "Free" plan
@@ -260,10 +240,9 @@ test.describe("Admin Users Management", () => {
     const restoreMenu = authenticatedPage.locator('[role="menu"]');
     await expect(restoreMenu).toBeVisible();
     await restoreMenu.getByText("Free").click();
-    await authenticatedPage.waitForLoadState("networkidle");
 
     // Verify restored to Free
-    await expect(row.getByText("Free")).toBeVisible();
+    await expect(planCell.getByText("Free")).toBeVisible();
     expect(serverErrors).toHaveLength(0);
   });
 

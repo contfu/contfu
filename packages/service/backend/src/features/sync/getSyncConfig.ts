@@ -2,11 +2,39 @@ import { ConnectionType } from "@contfu/core";
 import type { Filter, MappingRule } from "@contfu/svc-core";
 import { Effect } from "effect";
 import { and, eq, inArray, isNotNull } from "drizzle-orm";
-import { unpack } from "msgpackr";
+import { pack, unpack } from "msgpackr";
 import { Crypto } from "../../effect/services/Crypto";
 import { Database } from "../../effect/services/Database";
 import { DatabaseError } from "../../effect/errors";
 import { collectionTable, connectionTable, flowTable } from "../../infra/db/schema";
+
+/**
+ * Compose two mapping chains: apply upstream mappings, then downstream mappings.
+ * If downstream is null, returns upstream as-is (pass-through).
+ */
+function composeMappingChain(
+  upstream: MappingRule[] | null,
+  downstream: MappingRule[] | null,
+): MappingRule[] | null {
+  if (!downstream) return upstream;
+  if (!upstream) return downstream;
+
+  const composed: MappingRule[] = [];
+  for (const ds of downstream) {
+    // Find upstream rule whose output matches this downstream rule's input
+    const us = upstream.find((u) => (u.target ?? u.source) === ds.source);
+    if (us) {
+      composed.push({
+        source: us.source,
+        target: ds.target ?? ds.source,
+        cast: ds.cast ?? us.cast,
+      });
+    } else {
+      composed.push(ds);
+    }
+  }
+  return composed.length > 0 ? composed : null;
+}
 
 export interface SyncConfig {
   userId: number;
@@ -139,6 +167,105 @@ export const getSyncConfig = (
           ),
       catch: (e) => new DatabaseError({ cause: e }),
     });
+
+    // 3.5 Multi-hop resolution: when a source collection has no CMS connection
+    // (e.g. an intermediate target collection), walk one level upstream to find
+    // the real CMS-connected sources and compose mappings along the chain.
+    const cmsSourceIds = new Set(sourceCollections.map((sc) => sc.collectionId));
+    const nonCmsSourceIds = sourceCollectionIds.filter((id) => !cmsSourceIds.has(id));
+
+    if (nonCmsSourceIds.length > 0) {
+      // Find upstream flows feeding the intermediate collections
+      const upstreamFlows = yield* Effect.tryPromise({
+        try: () =>
+          db
+            .select({
+              id: flowTable.id,
+              sourceId: flowTable.sourceId,
+              targetId: flowTable.targetId,
+              mappings: flowTable.mappings,
+              filters: flowTable.filters,
+              includeRef: flowTable.includeRef,
+            })
+            .from(flowTable)
+            .where(
+              and(eq(flowTable.userId, userId), inArray(flowTable.targetId, nonCmsSourceIds)),
+            ),
+        catch: (e) => new DatabaseError({ cause: e }),
+      });
+
+      if (upstreamFlows.length > 0) {
+        const upstreamSourceIds = [...new Set(upstreamFlows.map((f) => f.sourceId))];
+
+        // Find CMS-connected sources for upstream flows
+        const upstreamSources = yield* Effect.tryPromise({
+          try: () =>
+            db
+              .select({
+                collectionId: collectionTable.id,
+                connectionId: collectionTable.connectionId,
+                ref: collectionTable.ref,
+                connectionType: connectionTable.type,
+                connectionUrl: connectionTable.url,
+                credentials: connectionTable.credentials,
+                connectionIncludeRef: connectionTable.includeRef,
+              })
+              .from(collectionTable)
+              .innerJoin(
+                connectionTable,
+                and(
+                  eq(collectionTable.userId, connectionTable.userId),
+                  eq(collectionTable.connectionId, connectionTable.id),
+                ),
+              )
+              .where(
+                and(
+                  eq(collectionTable.userId, userId),
+                  inArray(collectionTable.id, upstreamSourceIds),
+                  isNotNull(collectionTable.connectionId),
+                ),
+              ),
+          catch: (e) => new DatabaseError({ cause: e }),
+        });
+
+        // Add upstream CMS sources
+        sourceCollections.push(...upstreamSources);
+
+        // Create composed flows: upstream source → consumer target
+        // For each upstream flow, find downstream flows it feeds into
+        for (const uf of upstreamFlows) {
+          const downstreamFlows = flows.filter((f) => f.sourceId === uf.targetId);
+          for (const df of downstreamFlows) {
+            const upMappings: MappingRule[] | null = uf.mappings
+              ? (unpack(uf.mappings) as MappingRule[])
+              : null;
+            const downMappings: MappingRule[] | null = df.mappings
+              ? (unpack(df.mappings) as MappingRule[])
+              : null;
+            const composed = composeMappingChain(upMappings, downMappings);
+            const upFilters: Filter[] | null = uf.filters
+              ? (unpack(uf.filters) as Filter[])
+              : null;
+            const downFilters: Filter[] | null = df.filters
+              ? (unpack(df.filters) as Filter[])
+              : null;
+            const mergedFilters =
+              upFilters || downFilters
+                ? [...(upFilters ?? []), ...(downFilters ?? [])]
+                : null;
+
+            flows.push({
+              id: uf.id,
+              sourceId: uf.sourceId,
+              targetId: df.targetId,
+              mappings: composed ? pack(composed) : null,
+              filters: mergedFilters ? pack(mergedFilters) : null,
+              includeRef: uf.includeRef && df.includeRef,
+            });
+          }
+        }
+      }
+    }
 
     // 4. Group by source connection to avoid duplicate credential fetches
     const connectionMap = new Map<

@@ -1,5 +1,5 @@
 import { Effect, Layer } from "effect";
-import { and, eq, isNotNull } from "drizzle-orm";
+import { and, eq, inArray, isNotNull } from "drizzle-orm";
 import { db, flowTable, collectionTable, connectionTable } from "../../infra/db/db";
 import { enqueueSyncJobs } from "../sync-jobs/enqueueSyncJobs";
 import { Database } from "../../effect/services/Database";
@@ -21,13 +21,41 @@ export async function triggerConsumerSnapshot(
   await purgeConnectionSnapshot(userId, consumerId);
   await clearSnapshotProgress(userId, consumerId);
 
-  // Find source collections that feed into this target collection
+  // Find source collections that feed into this target collection,
+  // walking upstream through multi-hop flow chains until reaching
+  // CMS-connected source collections.
   const sourceRows = await db
     .select({ sourceId: flowTable.sourceId })
     .from(flowTable)
     .where(and(eq(flowTable.userId, userId), eq(flowTable.targetId, collectionId)));
 
-  const sourceIds = [...new Set(sourceRows.map((r) => r.sourceId))];
+  let sourceIds = [...new Set(sourceRows.map((r) => r.sourceId))];
+
+  // Check which sources have CMS connections; walk further upstream for those that don't.
+  if (sourceIds.length > 0) {
+    const withConnection = await db
+      .select({ id: collectionTable.id })
+      .from(collectionTable)
+      .where(
+        and(
+          eq(collectionTable.userId, userId),
+          inArray(collectionTable.id, sourceIds),
+          isNotNull(collectionTable.connectionId),
+        ),
+      );
+    const cmsIds = new Set(withConnection.map((r) => r.id));
+    const nonCmsIds = sourceIds.filter((id) => !cmsIds.has(id));
+
+    if (nonCmsIds.length > 0) {
+      const upstreamRows = await db
+        .select({ sourceId: flowTable.sourceId })
+        .from(flowTable)
+        .where(and(eq(flowTable.userId, userId), inArray(flowTable.targetId, nonCmsIds)));
+      const upstreamIds = upstreamRows.map((r) => r.sourceId);
+      sourceIds = [...cmsIds, ...new Set(upstreamIds)];
+    }
+  }
+
   if (sourceIds.length === 0) return;
 
   await Effect.runPromise(

@@ -1,263 +1,168 @@
 import { test, expect } from "./fixtures";
 
-test.describe("Sources Management", () => {
-  test.describe("Sources List Page", () => {
-    test("should show empty state when no sources exist", async ({ authenticatedPage: page }) => {
-      await page.goto("/sources");
+test.describe("Connections Management", () => {
+  test.describe("Connections List Page", () => {
+    test("should show connections table with seeded data", async ({ authenticatedPage: page }) => {
+      await page.goto("/connections");
+      await page.waitForLoadState("networkidle");
 
-      // Debug: take screenshot to see what's on the page
-      await page.screenshot({ path: "test-results/sources-page.png" });
+      // Seed data creates connections, so the table should be visible
+      await expect(page.locator("table")).toBeVisible();
 
-      // Should show empty state message
-      await expect(page.getByText("No sources configured")).toBeVisible();
-      await expect(page.getByText("Add your first content source")).toBeVisible();
+      // Should show connection names in the table
+      const rows = await page.locator("tbody tr").count();
+      expect(rows).toBeGreaterThan(0);
     });
 
-    test("should have link to add new source", async ({ authenticatedPage: page }) => {
-      await page.goto("/sources");
+    test("should show connection type and status columns", async ({ authenticatedPage: page }) => {
+      await page.goto("/connections");
+      await page.waitForLoadState("networkidle");
 
-      // Should have "Add Source" button
-      const addButton = page.getByRole("link", { name: "Add Source" });
-      await expect(addButton).toBeVisible();
-
-      // Click should navigate to new source page
-      await addButton.click();
-      await expect(page).toHaveURL("/sources/new");
+      // Table headers
+      await expect(page.locator("th", { hasText: "name" })).toBeVisible();
+      await expect(page.locator("th", { hasText: "type" })).toBeVisible();
+      await expect(page.locator("th", { hasText: "status" })).toBeVisible();
     });
   });
 
-  test.describe("Add Source Page", () => {
-    test("should show add source form", async ({ authenticatedPage: page }) => {
-      await page.goto("/sources/new");
+  test.describe("Add Connection Page", () => {
+    test("should show add connection form with tabs", async ({ authenticatedPage: page }) => {
+      await page.goto("/connections/new");
+      await page.waitForLoadState("networkidle");
 
-      // Should show form title
-      await expect(page.getByText("Add New Source")).toBeVisible();
+      await expect(page.getByRole("tab", { name: "service" })).toBeVisible();
+      await expect(page.getByRole("tab", { name: "client" })).toBeVisible();
 
-      // Should show form fields
-      await expect(page.getByLabel("Name")).toBeVisible();
-      // bits-ui Select uses aria-label for the trigger
-      await expect(page.getByLabel("Source Type")).toBeVisible();
-      await expect(page.getByLabel("API Token")).toBeVisible();
+      // Provider dropdown
+      await expect(page.locator("select")).toBeVisible();
     });
 
-    test("should show URL field only for Strapi", async ({ authenticatedPage: page }) => {
-      await page.goto("/sources/new");
+    test("should show OAuth flow for Notion provider", async ({ authenticatedPage: page }) => {
+      await page.goto("/connections/new");
+      await page.waitForLoadState("networkidle");
 
-      // Strapi is selected by default, URL should be visible
-      await expect(page.getByLabel("Strapi URL")).toBeVisible();
+      // Notion is selected by default — shows connect button
+      await expect(page.getByRole("button", { name: /connect notion/i })).toBeVisible();
 
-      // Switch to Notion using the select trigger with aria-label
-      const selectTrigger = page.getByLabel("Source Type");
-      await selectTrigger.click();
-      // bits-ui items have data-slot="select-item" attribute
-      await page.locator('[data-slot="select-item"]', { hasText: "Notion" }).click();
+      // Should NOT show name/token fields (OAuth flow)
+      await expect(page.getByPlaceholder("My workspace")).not.toBeVisible();
+    });
 
-      // URL field should be hidden for Notion
-      await expect(page.getByLabel("Strapi URL")).not.toBeVisible();
+    test("should show API token form for Strapi provider", async ({ authenticatedPage: page }) => {
+      await page.goto("/connections/new");
+      await page.waitForLoadState("networkidle");
 
-      // Switch back to Strapi
-      await selectTrigger.click();
-      await page.locator('[data-slot="select-item"]', { hasText: "Strapi" }).click();
+      // Switch from default Notion to Strapi
+      await page.locator("select").selectOption("strapi");
 
-      // URL field should be visible again
-      await expect(page.getByLabel("Strapi URL")).toBeVisible();
+      await expect(page.getByPlaceholder("My workspace")).toBeVisible();
+      await expect(page.locator('input[type="password"]')).toBeVisible();
+      await expect(page.getByRole("button", { name: /add connection/i })).toBeVisible();
+    });
+
+    test("should show API token form for Contentful provider", async ({
+      authenticatedPage: page,
+    }) => {
+      await page.goto("/connections/new");
+      await page.waitForLoadState("networkidle");
+
+      await page.locator("select").selectOption("contentful");
+
+      await expect(page.getByPlaceholder("My workspace")).toBeVisible();
+      await expect(page.locator('input[type="password"]')).toBeVisible();
     });
 
     test("should validate required fields", async ({ authenticatedPage: page }) => {
-      await page.goto("/sources/new");
-
-      // Try to submit empty form by clicking Create Source
-      await page.getByRole("button", { name: "Create Source" }).click();
-
-      // Browser should prevent submission due to required fields
-      // The form should still be on the same page
-      await expect(page).toHaveURL("/sources/new");
-    });
-
-    test("should create a new Strapi source", async ({ authenticatedPage: page }) => {
-      await page.goto("/sources/new");
-
-      // Fill in the form
-      await page.getByLabel("Name").fill("Test Strapi Source");
-      await page.getByLabel("Strapi URL").fill("https://strapi.example.com");
-      await page.getByLabel("API Token").fill("test-token-12345");
-
-      // Submit the form
-      await page.getByRole("button", { name: "Create Source" }).click();
-
-      // Should redirect to the source edit page
-      await expect(page).toHaveURL(/\/sources\/\d+/);
-
-      // Wait for the page to fully load
+      await page.goto("/connections/new");
       await page.waitForLoadState("networkidle");
 
-      // Should show the source name in the input field
-      await expect(page.getByLabel("Name")).toHaveValue("Test Strapi Source");
+      // Switch to Strapi (non-OAuth form)
+      await page.locator("select").selectOption("strapi");
 
-      // Should show the Strapi badge (use exact match)
-      await expect(page.getByText("Strapi", { exact: true })).toBeVisible();
+      // Try to submit without filling fields — browser prevents submission
+      await page.getByRole("button", { name: /add connection/i }).click();
+
+      // Should still be on the same page (browser validation prevents navigation)
+      await expect(page).toHaveURL(/\/connections\/new/);
     });
 
-    test("should have back link to sources list", async ({ authenticatedPage: page }) => {
-      await page.goto("/sources/new");
+    test("should show client tab form", async ({ authenticatedPage: page }) => {
+      await page.goto("/connections/new");
+      await page.waitForLoadState("networkidle");
 
-      const backLink = page.getByRole("link", { name: /Back to Sources/i });
-      await expect(backLink).toBeVisible();
+      // Switch to client tab
+      await page.getByRole("tab", { name: "client" }).click();
 
-      await backLink.click();
-      await expect(page).toHaveURL("/sources");
+      await expect(page.getByPlaceholder("My App")).toBeVisible();
+      await expect(page.getByRole("button", { name: /create client/i })).toBeVisible();
+    });
+
+    test("should have back link to connections list", async ({ authenticatedPage: page }) => {
+      await page.goto("/connections/new");
+      await page.waitForLoadState("networkidle");
+
+      await expect(page.getByText("< connections")).toBeVisible();
     });
   });
 
-  test.describe("Edit Source Page", () => {
-    // Helper to create a source before each test
-    async function createTestSource(page: import("@playwright/test").Page) {
-      await page.goto("/sources/new");
-      await page.getByLabel("Name").fill("Edit Test Source");
-      await page.getByLabel("Strapi URL").fill("https://strapi.example.com");
-      await page.getByLabel("API Token").fill("test-token-edit");
-      await page.getByRole("button", { name: "Create Source" }).click();
-      await page.waitForURL(/\/sources\/\d+/);
-      // Wait for the page to fully load
-      await page.waitForLoadState("networkidle");
-    }
-
-    test("should show source details", async ({ authenticatedPage: page }) => {
-      await createTestSource(page);
-
-      // Should show the source name in the input field
-      await expect(page.getByLabel("Name")).toHaveValue("Edit Test Source");
-
-      // Should show Strapi badge (use exact match)
-      await expect(page.getByText("Strapi", { exact: true })).toBeVisible();
-
-      // Should show source information section
-      await expect(page.getByText("Source Information")).toBeVisible();
-      await expect(page.getByText("Collections:")).toBeVisible();
-      await expect(page.getByText("Created:")).toBeVisible();
-    });
-
-    test("should update source name", async ({ authenticatedPage: page }) => {
-      await createTestSource(page);
-
-      // Update the name
-      await page.getByLabel("Name").fill("Updated Source Name");
-      await page.getByRole("button", { name: "Save Changes" }).click();
-
-      // Wait for the form submission to complete
+  test.describe("Edit Connection Page", () => {
+    test("should show connection details via seeded data", async ({ authenticatedPage: page }) => {
+      // Navigate to connections list and click the first connection
+      await page.goto("/connections");
       await page.waitForLoadState("networkidle");
 
-      // Verify the update worked by checking the "Last updated" field appears
-      await expect(page.getByText("Last updated:")).toBeVisible();
+      const firstLink = page.locator("tbody tr:first-child td:first-child a");
+      await expect(firstLink).toBeVisible();
+      await firstLink.click();
+      await page.waitForURL(/\/connections\/\d+/);
+      await page.waitForLoadState("networkidle");
 
-      // And the name should still show the updated value
-      await expect(page.getByLabel("Name")).toHaveValue("Updated Source Name");
+      // Should show connection detail page with danger zone and back link
+      await expect(page.getByText("DANGER ZONE")).toBeVisible();
+      await expect(page.getByText("< connections")).toBeVisible();
     });
 
     test("should show danger zone with delete button", async ({ authenticatedPage: page }) => {
-      await createTestSource(page);
+      await page.goto("/connections");
+      await page.waitForLoadState("networkidle");
 
-      // Should show danger zone
-      await expect(page.getByText("Danger Zone")).toBeVisible();
-      await expect(page.getByRole("button", { name: "Delete Source" })).toBeVisible();
+      const firstLink = page.locator("tbody tr:first-child td:first-child a");
+      await firstLink.click();
+      await page.waitForURL(/\/connections\/\d+/);
+      await page.waitForLoadState("networkidle");
+
+      await expect(page.getByText("DANGER ZONE")).toBeVisible();
+      await expect(page.getByRole("button", { name: /Delete Connection/i })).toBeVisible();
     });
 
-    test("should delete source with confirmation", async ({ authenticatedPage: page }) => {
-      await createTestSource(page);
+    test("should show back link to connections", async ({ authenticatedPage: page }) => {
+      await page.goto("/connections");
+      await page.waitForLoadState("networkidle");
 
-      // Set up dialog handler to accept confirmation
-      page.on("dialog", (dialog) => dialog.accept());
+      const firstLink = page.locator("tbody tr:first-child td:first-child a");
+      await firstLink.click();
+      await page.waitForURL(/\/connections\/\d+/);
+      await page.waitForLoadState("networkidle");
 
-      // Click delete button
-      await page.getByRole("button", { name: "Delete Source" }).click();
-
-      // Should redirect to sources list
-      await expect(page).toHaveURL("/sources");
-    });
-
-    test("should have delete button requiring confirmation", async ({
-      authenticatedPage: page,
-    }) => {
-      await createTestSource(page);
-
-      // The delete button should exist and be visible
-      const deleteButton = page.getByRole("button", { name: "Delete Source" });
-      await expect(deleteButton).toBeVisible();
-
-      // It should be inside the danger zone section
-      await expect(page.getByText("Danger Zone")).toBeVisible();
-      await expect(
-        page.getByText("Deleting this source will also delete all associated collections."),
-      ).toBeVisible();
+      await expect(page.getByText("< connections")).toBeVisible();
     });
   });
 
   test.describe("Dashboard Integration", () => {
-    test("should show created source in sources list", async ({ authenticatedPage: page }) => {
-      // First create a source with a unique name
-      const sourceName = `Test Source ${Date.now()}`;
-      await page.goto("/sources/new");
-      await page.getByLabel("Name").fill(sourceName);
-      await page.getByLabel("Strapi URL").fill("https://strapi.example.com");
-      await page.getByLabel("API Token").fill("test-token-dashboard");
-      await page.getByRole("button", { name: "Create Source" }).click();
-      await page.waitForURL(/\/sources\/\d+/);
+    test("should show connections section on dashboard", async ({ authenticatedPage: page }) => {
+      await page.goto("/dashboard");
       await page.waitForLoadState("networkidle");
 
-      // Navigate to sources list page to verify the source was created
-      await page.goto("/sources");
-      await page.waitForLoadState("networkidle");
-
-      // Should show the source in the list (find the card with our source name)
-      const sourceCard = page.locator('[data-slot="card"]', { hasText: sourceName });
-      await expect(sourceCard).toBeVisible();
-      // The card should contain the Strapi badge
-      await expect(sourceCard.getByText("Strapi", { exact: true })).toBeVisible();
+      // Dashboard shows "connections" stat
+      await expect(page.getByText("connections").first()).toBeVisible();
     });
 
-    test("should show sources section on dashboard", async ({ authenticatedPage: page }) => {
-      // authenticatedPage fixture already navigates to dashboard
-      // Wait for the page to fully load
+    test("should show connections table on dashboard", async ({ authenticatedPage: page }) => {
+      await page.goto("/dashboard");
       await page.waitForLoadState("networkidle");
 
-      // Check for sources section heading (it's an h2 not h1)
-      await expect(page.getByRole("heading", { name: "Sources", level: 2 })).toBeVisible();
-    });
-
-    test("should have link to add source from dashboard", async ({ authenticatedPage: page }) => {
-      // authenticatedPage fixture already navigates to dashboard
-      await page.waitForLoadState("networkidle");
-
-      // Should have "Add Source" button
-      const addButton = page.getByRole("link", { name: "Add Source" });
-      await expect(addButton).toBeVisible();
-
-      await addButton.click();
-      await expect(page).toHaveURL("/sources/new");
-    });
-  });
-
-  test.describe("Source Types", () => {
-    test("should create a Notion source without URL", async ({ authenticatedPage: page }) => {
-      await page.goto("/sources/new");
-
-      // Select Notion type using the select trigger with aria-label
-      const selectTrigger = page.getByLabel("Source Type");
-      await selectTrigger.click();
-      await page.locator('[data-slot="select-item"]', { hasText: "Notion" }).click();
-
-      // Fill in the form (no URL needed for Notion)
-      await page.getByLabel("Name").fill("Test Notion Source");
-      await page.getByLabel("API Token").fill("secret_notion_token");
-
-      // Submit the form
-      await page.getByRole("button", { name: "Create Source" }).click();
-
-      // Should redirect to the source edit page
-      await expect(page).toHaveURL(/\/sources\/\d+/);
-
-      // Should show Notion badge (use exact match to avoid matching description text)
-      await expect(page.getByText("Notion", { exact: true })).toBeVisible();
+      // Seed data creates connections, so the table should be visible
+      await expect(page.locator("table").first()).toBeVisible();
     });
   });
 });

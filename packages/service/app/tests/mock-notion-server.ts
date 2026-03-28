@@ -107,8 +107,8 @@ const server = Bun.serve({
       return Response.json(MOCK_PAGE_RESPONSE);
     }
 
-    // GET /v1/data-sources/:dataSourceId
-    if (req.method === "GET" && path.match(/^\/v1\/data-sources\/[^/]+$/)) {
+    // GET /v1/data_sources/:dataSourceId (Notion SDK uses underscores)
+    if (req.method === "GET" && path.match(/^\/v1\/data_sources\/[^/]+$/)) {
       const dsId = path.split("/").pop()!;
       const specific = DATA_SOURCE_RESPONSES[dsId];
       return Response.json(specific ?? MOCK_DATA_SOURCE_RESPONSE);

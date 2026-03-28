@@ -238,7 +238,8 @@ export const auth = betterAuth({
       : {}),
   },
   plugins: [
-    polar({
+    ...(process.env.POLAR_ACCESS_TOKEN
+      ? [polar({
       client: polarClient,
       createCustomerOnSignUp: true,
       use: [
@@ -314,7 +315,8 @@ export const auth = betterAuth({
             ]
           : []),
       ],
-    }),
+    })]
+      : []),
     apiKey({
       schema: {
         apikey: { modelName: "apikey" },
@@ -357,5 +359,15 @@ export async function authenticateApiKey(
     error(401, "Invalid API key");
   }
 
-  return { userId: Number(result.key!.userId) };
+  // verifyApiKey doesn't return userId — look it up from the database
+  const keyId = Number(result.key!.id);
+  const [row] = await db
+    .select({ userId: schema.apikeyTable.userId })
+    .from(schema.apikeyTable)
+    .where(eq(schema.apikeyTable.id, keyId))
+    .limit(1);
+  if (!row) {
+    error(401, "API key not found");
+  }
+  return { userId: row.userId };
 }

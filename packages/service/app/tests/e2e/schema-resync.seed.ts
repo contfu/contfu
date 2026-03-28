@@ -14,6 +14,7 @@ import {
 import { pack } from "msgpackr";
 import { eq } from "drizzle-orm";
 import type { CollectionSchema, MappingRule } from "@contfu/svc-core";
+import { hashKeyForStorage } from "./seed-utils";
 
 /** Well-known consumer key for schema-resync tests. */
 export const SCHEMA_RESYNC_CONSUMER_KEY = Buffer.from("00000000000000000000000000000004", "hex");
@@ -82,8 +83,8 @@ export async function seedSchemaResyncData(db: any): Promise<void> {
     .values({
       userId,
       connectionId: sourceConnection.id,
-      name: "Schema Resync External Collection",
-      displayName: "Schema Resync External Collection",
+      name: "Schema Resync Source Collection",
+      displayName: "Schema Resync Source Collection",
       schema: pack(SOURCE_SCHEMA),
     })
     .returning({ id: collectionTable.id });
@@ -117,19 +118,20 @@ export async function seedSchemaResyncData(db: any): Promise<void> {
       userId,
       type: ConnectionType.CLIENT,
       name: "Schema Resync Client",
-      credentials: SCHEMA_RESYNC_CONSUMER_KEY,
+      credentials: hashKeyForStorage(SCHEMA_RESYNC_CONSUMER_KEY),
     })
     .returning({ id: connectionTable.id });
   if (!clientConnection) return;
 
-  // Consumer collection
+  // Consumer collection — named to match target so COLLECTION_SCHEMA events
+  // carry the expected collection name on the sync stream.
   const [consumerCollection] = await db
     .insert(collectionTable)
     .values({
       userId,
       connectionId: clientConnection.id,
-      name: SCHEMA_RESYNC_CONSUMER_NAME,
-      displayName: SCHEMA_RESYNC_CONSUMER_NAME,
+      name: SCHEMA_RESYNC_COLLECTION_NAME,
+      displayName: "Schema Resync Client",
     })
     .returning({ id: collectionTable.id });
   if (!consumerCollection) return;

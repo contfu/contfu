@@ -12,6 +12,7 @@ import {
   userTable,
 } from "@contfu/svc-backend/infra/db/schema";
 import { eq } from "drizzle-orm";
+import { hashKeyForStorage } from "./seed-utils";
 
 /** Well-known consumer key for sync stream tests. */
 export const SYNC_CONSUMER_KEY = Buffer.from("00000000000000000000000000000001", "hex");
@@ -75,7 +76,7 @@ export async function seedSyncData(db: any): Promise<void> {
       userId,
       type: ConnectionType.CLIENT,
       name: "Test Sync Client",
-      credentials: SYNC_CONSUMER_KEY,
+      credentials: hashKeyForStorage(SYNC_CONSUMER_KEY),
     })
     .returning({ id: connectionTable.id });
   if (!clientConnection) return;

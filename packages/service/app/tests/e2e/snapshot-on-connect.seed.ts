@@ -12,6 +12,7 @@
 import { createHash } from "node:crypto";
 import { ConnectionType, PropertyType } from "@contfu/svc-core";
 import { encryptCredentials } from "@contfu/svc-backend/infra/crypto/credentials";
+import { hashKeyForStorage } from "./seed-utils";
 import {
   apikeyTable,
   collectionTable,
@@ -122,19 +123,19 @@ export async function seedSnapshotOnConnectData(db: any): Promise<void> {
       userId,
       type: ConnectionType.CLIENT,
       name: "Snapshot On Connect Client",
-      credentials: SNAPSHOT_ON_CONNECT_CONSUMER_KEY,
+      credentials: hashKeyForStorage(SNAPSHOT_ON_CONNECT_CONSUMER_KEY),
     })
     .returning({ id: connectionTable.id });
   if (!clientConnection) return;
 
-  // Consumer collection (no flow to target — created via API in the test)
+  // Consumer collection — no flow to target; created via API in the test.
   await db
     .insert(collectionTable)
     .values({
       userId,
       connectionId: clientConnection.id,
       name: SNAPSHOT_ON_CONNECT_CONSUMER_NAME,
-      displayName: SNAPSHOT_ON_CONNECT_CONSUMER_NAME,
+      displayName: "Snapshot On Connect Consumer",
     })
     .returning({ id: collectionTable.id });
 

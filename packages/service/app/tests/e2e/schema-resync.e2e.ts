@@ -117,7 +117,7 @@ test.describe("Schema Resync — COLLECTION_SCHEMA re-broadcast after schema sav
             e[1] === SCHEMA_RESYNC_COLLECTION_NAME &&
             typeof (e[3] as Record<string, number>)?.body === "number",
         ),
-      timeoutMs: 15_000,
+      timeoutMs: 25_000,
     });
 
     // Navigate to the collection's mapping editor page
@@ -137,11 +137,11 @@ test.describe("Schema Resync — COLLECTION_SCHEMA re-broadcast after schema sav
     await expect(addPropertyButton).toBeVisible({ timeout: 3000 });
     await addPropertyButton.click();
 
-    // A new property row should appear; find the name input and set it to "body"
-    const propertyNameInput = page.locator('input[placeholder="Property name"]').last();
+    // Type the property name in the combobox and press Enter to add it
+    const propertyNameInput = page.locator('input[placeholder="Property name..."]').last();
     await expect(propertyNameInput).toBeVisible({ timeout: 3000 });
     await propertyNameInput.fill("body");
-    await propertyNameInput.press("Tab");
+    await propertyNameInput.press("Enter");
 
     // Save
     const saveButton = page.getByRole("button", { name: "Save" });

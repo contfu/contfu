@@ -6,8 +6,7 @@
   import { AlertTriangleIcon, CheckCircleIcon } from "@lucide/svelte";
   import { toast } from "svelte-sonner";
 
-  const incidentsQuery = getIncidents();
-  const incidents = $derived(incidentsQuery?.current ?? []);
+  const incidents = $derived(await getIncidents());
 
   function formatDate(date: Date | string) {
     return new Date(date).toLocaleString();
@@ -17,12 +16,12 @@
   const grouped = $derived.by(() => {
     const groups = new Map<string, { collectionName: string; externalCollectionName: string; items: typeof incidents }>();
     for (const incident of incidents) {
-      const key = `${incident.collectionId}:${incident.externalCollectionId}`;
+      const key = `${incident.targetCollectionId}:${incident.sourceCollectionId}`;
       let group = groups.get(key);
       if (!group) {
         group = {
-          collectionName: incident.collectionName,
-          externalCollectionName: incident.externalCollectionName,
+          collectionName: incident.targetCollectionName,
+          externalCollectionName: incident.sourceCollectionName,
           items: [],
         };
         groups.set(key, group);
@@ -36,7 +35,7 @@
 <SiteHeader icon={AlertTriangleIcon} title="incidents" />
 
 <div class="page-shell px-4 py-8 sm:px-6">
-  {#if incidents.length === 0}
+  {#if !incidents || incidents.length === 0}
     <div class="border border-dashed border-border p-12 text-center">
       <CheckCircleIcon class="mx-auto mb-3 size-8 text-success/50" />
       <p class="text-xs text-muted-foreground">no incidents</p>
@@ -55,7 +54,6 @@
           </h2>
           <div class="space-y-2">
             {#each group.items as incident (incident.id)}
-              {@const resolve = resolveIncident.for(incident.id)}
               <div class="flex items-start gap-3 border border-border p-3">
                 <AlertTriangleIcon class="mt-0.5 size-3 shrink-0 text-warning" />
                 <div class="flex-1 space-y-1">
@@ -75,14 +73,9 @@
                   {/if}
                   <p class="text-[10px] text-muted-foreground">{formatDate(incident.createdAt)}</p>
                 </div>
-                <form
-                  {...resolve.enhance(async ({ submit }) => {
-                    await submit().updates(incidentsQuery);
-                    toast.success("Incident resolved");
-                  })}
-                >
-                  <input {...resolve.fields.id.as("text")} type="hidden" value={incident.id} />
-                  <Button type="submit" variant="outline" size="sm" disabled={resolve.pending > 0}>
+                <form method="POST" action="?/resolve">
+                  <input type="hidden" name="id" value={incident.id} />
+                  <Button type="submit" variant="outline" size="sm">
                     resolve
                   </Button>
                 </form>

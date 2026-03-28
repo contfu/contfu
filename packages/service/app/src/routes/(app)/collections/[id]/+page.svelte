@@ -13,6 +13,7 @@
   import * as Tooltip from "$lib/components/ui/tooltip";
   import * as Select from "$lib/components/ui/select";
   import {
+    broadcastCollectionSchema,
     deleteCollection,
     getCollection,
     getCollections,
@@ -225,6 +226,9 @@
           filters: JSON.stringify(filters),
         });
       }
+
+      // 4. Broadcast schema after all saves so resync picks up final mappings
+      await broadcastCollectionSchema({ id: collection.id });
 
       await Promise.all([
         getFlowsByCollection({ collectionId: id }).refresh(),

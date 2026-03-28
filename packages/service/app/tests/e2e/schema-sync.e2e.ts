@@ -11,6 +11,8 @@ function computeHmacSignature(body: string, secret: string): string {
 let webhookSecret: string;
 
 test.describe.serial("Schema Sync via Notion Webhooks", () => {
+  test.setTimeout(30_000);
+
   test("verification flow stores token", async ({ request }) => {
     const body = JSON.stringify({ verification_token: "schema-sync-secret" });
     const response = await request.post(`/webhooks/notion/${SCHEMA_SYNC_UID}`, {
@@ -42,11 +44,13 @@ test.describe.serial("Schema Sync via Notion Webhooks", () => {
   });
 
   test("incidents page shows SchemaIncompatible incident", async ({ authenticatedPage: page }) => {
-    await page.goto("/incidents");
-    await page.waitForLoadState("networkidle");
-
-    // The incident message from processSchemaChange includes "Schema change broke"
-    await expect(page.getByText("Schema change broke")).toBeVisible({ timeout: 5000 });
+    // The incident is created asynchronously via NATS. Reload the page until it appears.
+    await expect(async () => {
+      await page.goto("/incidents");
+      await page.waitForLoadState("networkidle");
+      // The incident message from processSchemaChange includes "Schema change broke"
+      await expect(page.getByText("Schema change broke")).toBeVisible();
+    }).toPass({ timeout: 20_000 });
     // Verify the broken filter property is mentioned
     await expect(page.getByText("status")).toBeVisible();
   });
@@ -70,13 +74,16 @@ test.describe.serial("Schema Sync via Notion Webhooks", () => {
     expect(response.status()).toBe(200);
   });
 
-  test("incidents page shows no incidents after auto-resolve", async ({
+  test("incidents page no longer shows the SchemaIncompatible incident", async ({
     authenticatedPage: page,
   }) => {
-    await page.goto("/incidents");
-    await page.waitForLoadState("networkidle");
-
-    // Empty state text from the incidents page
-    await expect(page.getByText("no incidents")).toBeVisible({ timeout: 5000 });
+    // The schema-sync incident should be auto-resolved. Reload until it disappears.
+    // Other tests may create unrelated incidents, so check specifically for the
+    // schema-sync incident text rather than expecting a fully empty page.
+    await expect(async () => {
+      await page.goto("/incidents");
+      await page.waitForLoadState("networkidle");
+      await expect(page.getByText("Schema change broke")).not.toBeVisible();
+    }).toPass({ timeout: 20_000 });
   });
 });

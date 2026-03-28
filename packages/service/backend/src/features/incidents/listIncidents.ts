@@ -53,13 +53,12 @@ export const listIncidents = (userId: number, options?: { resolved?: boolean }) 
           eq(flowTable.userId, targetCollection.userId),
         ),
       )
-      .where(eq(incidentTable.userId, userId))
-      .orderBy(desc(incidentTable.createdAt))
-      .$dynamic();
-
-    if (options?.resolved !== undefined) {
-      query = query.where(eq(incidentTable.resolved, options.resolved));
-    }
+      .where(
+        options?.resolved !== undefined
+          ? and(eq(incidentTable.userId, userId), eq(incidentTable.resolved, options.resolved))
+          : eq(incidentTable.userId, userId),
+      )
+      .orderBy(desc(incidentTable.createdAt));
 
     const results = yield* Effect.tryPromise({
       try: () => query,

@@ -1,7 +1,10 @@
 import { getStreamServer } from "$lib/server/startup";
 import { ConnectionType } from "@contfu/core";
 import { createLogger } from "@contfu/svc-backend/infra/logger/index";
-import { decryptCredentials } from "@contfu/svc-backend/infra/crypto/credentials";
+import {
+  decryptCredentials,
+  encryptCredentials,
+} from "@contfu/svc-backend/infra/crypto/credentials";
 import { db } from "@contfu/svc-backend/infra/db/db";
 import {
   collectionTable,
@@ -165,6 +168,46 @@ export const POST: RequestHandler = async ({ request, params }) => {
 
   const body = await request.text();
 
+  let payload: ContentfulWebhookTopic & { verification_token?: string };
+  try {
+    payload = JSON.parse(body);
+  } catch {
+    log.warn("Invalid JSON payload");
+    return new Response("Invalid payload", { status: 400 });
+  }
+
+  // ---- Verification flow (before topic/signature checks) ----
+  if (payload.verification_token) {
+    log.info({ uid }, "Verification request received");
+    const [connRow] = await db
+      .select({ userId: connectionTable.userId, id: connectionTable.id })
+      .from(connectionTable)
+      .where(and(eq(connectionTable.uid, uid), eq(connectionTable.type, ConnectionType.CONTENTFUL)))
+      .limit(1);
+
+    if (!connRow) {
+      log.warn({ uid }, "Connection not found for verification");
+      return new Response("Connection not found", { status: 404 });
+    }
+
+    const encryptedSecret = await encryptCredentials(
+      connRow.userId,
+      Buffer.from(payload.verification_token, "utf8"),
+    );
+    if (encryptedSecret) {
+      await db
+        .update(connectionTable)
+        .set({ webhookSecret: encryptedSecret })
+        .where(and(eq(connectionTable.userId, connRow.userId), eq(connectionTable.id, connRow.id)));
+    }
+    await logWebhookEvent(connRow.userId, connRow.id, "verification", null, "success");
+    log.info(
+      { userId: connRow.userId, connectionId: connRow.id },
+      "Verification token stored for connection",
+    );
+    return new Response("OK", { status: 200 });
+  }
+
   const topicHeader = request.headers.get("x-contentful-topic");
   if (!topicHeader) {
     log.warn("Missing x-contentful-topic header");
@@ -173,14 +216,6 @@ export const POST: RequestHandler = async ({ request, params }) => {
 
   const { event, contentTypeId } = parseTopic(topicHeader);
   log.info({ event, contentTypeId }, "Received Contentful webhook");
-
-  let payload: ContentfulWebhookTopic;
-  try {
-    payload = JSON.parse(body);
-  } catch {
-    log.warn("Invalid JSON payload");
-    return new Response("Invalid payload", { status: 400 });
-  }
 
   const entryId = payload.sys.id;
   const ctId = contentTypeId ?? payload.sys.contentType?.sys.id ?? null;
@@ -233,8 +268,25 @@ export const POST: RequestHandler = async ({ request, params }) => {
           "error",
           "Failed to decrypt webhook secret",
         );
-        continue;
+        return new Response("Unauthorized", { status: 401 });
       }
+
+      if (
+        !request.headers.get("x-contentful-signature") ||
+        !request.headers.get("x-contentful-timestamp")
+      ) {
+        log.warn({ userId: conn.userId, connectionId: conn.id }, "Missing signature headers");
+        await logWebhookEvent(
+          conn.userId,
+          conn.id,
+          event,
+          ctId,
+          "unauthorized",
+          "Missing signature headers",
+        );
+        return new Response("Unauthorized", { status: 401 });
+      }
+
       if (webhookSecret && !validateSignature(body, request.headers, webhookSecret)) {
         log.warn({ userId: conn.userId, connectionId: conn.id }, "Invalid signature");
         await logWebhookEvent(
@@ -245,7 +297,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
           "unauthorized",
           "Invalid webhook signature",
         );
-        continue;
+        return new Response("Unauthorized", { status: 401 });
       }
     }
 

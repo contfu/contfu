@@ -228,6 +228,19 @@ export const updateCollectionSchema = command(
 );
 
 /**
+ * Broadcast schema changes for a collection. Called after all flow mappings
+ * and filters are saved so the resync picks up the final state.
+ */
+export const broadcastCollectionSchema = command(
+  v.object({ id: idSchema("collection") }),
+  async (data) => {
+    const userId = getUserId();
+    await getSyncWorkerManager().broadcastSchema(userId, data.id);
+    return { success: true };
+  },
+);
+
+/**
  * Get the schema for a collection.
  */
 export const getCollectionSchema = query(

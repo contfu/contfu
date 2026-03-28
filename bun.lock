@@ -203,6 +203,7 @@
         "@contfu/svc-core": "workspace:*",
         "@contfu/svc-sources": "workspace:*",
         "@electric-sql/pglite": "^0.3.16",
+        "@electric-sql/pglite-socket": "0.0.22",
         "@happy-dom/global-registrator": "^20.8.8",
         "@internationalized/date": "^3.12.0",
         "@lucide/svelte": "^0.561.0",
@@ -227,6 +228,7 @@
         "msgpackr": "^1.11.9",
         "playwright": "^1.58.2",
         "postcss": "^8.5.8",
+        "postgres": "^3.4.8",
         "remeda": "^2.33.6",
         "svelte": "^5.55.0",
         "svelte-adapter-bun": "^1.0.1",
@@ -269,6 +271,7 @@
         "@electric-sql/pglite": "^0.3.16",
         "@types/nodemailer": "^7.0.11",
         "drizzle-kit": "1.0.0-beta.19",
+        "postgres": "^3.4.8",
         "type-fest": "^5.5.0",
         "typescript": "^5.9.3",
       },
@@ -319,6 +322,7 @@
         "@sinonjs/fake-timers": "^15.1.1",
         "@types/bun": "^1.3.11",
         "@types/sinonjs__fake-timers": "^15.0.1",
+        "postgres": "^3.4.8",
         "testcontainers": "^11.13.0",
         "ts-essentials": "^10.1.1",
       },
@@ -456,6 +460,8 @@
     "@drizzle-team/brocli": ["@drizzle-team/brocli@0.11.0", "", {}, "sha512-hD3pekGiPg0WPCCGAZmusBBJsDqGUR66Y452YgQsZOnkdQ7ViEPKuyP4huUGEZQefp8g34RRodXYmJ2TbCH+tg=="],
 
     "@electric-sql/pglite": ["@electric-sql/pglite@0.3.16", "", {}, "sha512-mZkZfOd9OqTMHsK+1cje8OSzfAQcpD7JmILXTl5ahdempjUDdmg4euf1biDex5/LfQIDJ3gvCu6qDgdnDxfJmA=="],
+
+    "@electric-sql/pglite-socket": ["@electric-sql/pglite-socket@0.0.22", "", { "peerDependencies": { "@electric-sql/pglite": "0.3.16" }, "bin": { "pglite-server": "dist/scripts/server.js" } }, "sha512-JOW+vY6H2y9sh9VJKy2dQ/JzRlMy7jISLUxuaONk7Nt2wFsxBlgH0V2uBFd+IowGvXl5HU4zGTiePYXASGpdww=="],
 
     "@emnapi/core": ["@emnapi/core@1.8.1", "", { "dependencies": { "@emnapi/wasi-threads": "1.1.0", "tslib": "^2.4.0" } }, "sha512-AvT9QFpxK0Zd8J0jopedNm+w/2fIzvtPKPjqyw9jwvBaReTTqPBk9Hixaz7KbjimP+QNz605/XnjFcDAL2pqBg=="],
 
@@ -1588,6 +1594,8 @@
     "postcss": ["postcss@8.5.8", "", { "dependencies": { "nanoid": "^3.3.11", "picocolors": "^1.1.1", "source-map-js": "^1.2.1" } }, "sha512-OW/rX8O/jXnm82Ey1k44pObPtdblfiuWnrd8X7GJ7emImCOstunGbXUpp7HdBrFQX6rJzn3sPT397Wp5aCwCHg=="],
 
     "postcss-value-parser": ["postcss-value-parser@4.2.0", "", {}, "sha512-1NNCs6uurfkVbeXG4S8JFT9t19m45ICnif8zWLd5oPSZ50QnwMfK+H3jv408d4jw/7Bttv5axS5IiHoLaVNHeQ=="],
+
+    "postgres": ["postgres@3.4.8", "", {}, "sha512-d+JFcLM17njZaOLkv6SCev7uoLaBtfK86vMUXhW1Z4glPWh4jozno9APvW/XKFJ3CCxVoC7OL38BqRydtu5nGg=="],
 
     "prebuild-install": ["prebuild-install@7.1.3", "", { "dependencies": { "detect-libc": "^2.0.0", "expand-template": "^2.0.3", "github-from-package": "0.0.0", "minimist": "^1.2.3", "mkdirp-classic": "^0.5.3", "napi-build-utils": "^2.0.0", "node-abi": "^3.3.0", "pump": "^3.0.0", "rc": "^1.2.7", "simple-get": "^4.0.0", "tar-fs": "^2.0.0", "tunnel-agent": "^0.6.0" }, "bin": { "prebuild-install": "bin.js" } }, "sha512-8Mf2cbV7x1cXPUILADGI3wuhfqWvtiLA1iclTDbFRZkgRQS0NqsPZphna9V+HyTEadheuPmjaJMsbzKQFOzLug=="],
 

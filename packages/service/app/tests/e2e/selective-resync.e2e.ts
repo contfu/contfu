@@ -120,10 +120,10 @@ test.describe("Selective Inflow Resync — mapping save triggers resync for chan
     await expect(addPropertyButton).toBeVisible({ timeout: 3000 });
     await addPropertyButton.click();
 
-    const propertyNameInput = page.locator('input[placeholder="Property name"]').last();
+    const propertyNameInput = page.locator('input[placeholder="Property name..."]').last();
     await expect(propertyNameInput).toBeVisible({ timeout: 3000 });
     await propertyNameInput.fill("hits");
-    await propertyNameInput.press("Tab");
+    await propertyNameInput.press("Enter");
 
     // Expand the new "hits" property to configure the mapping
     const accordionItems = page.locator('[data-slot="accordion-item"]');

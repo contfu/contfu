@@ -2,7 +2,8 @@ import { EventType, type WireEvent } from "@contfu/core";
 import { sql } from "drizzle-orm";
 import { db } from "@contfu/svc-backend/infra/db/db";
 import { createLogger } from "@contfu/svc-backend/infra/logger/index";
-import { verifySmtp } from "@contfu/svc-backend/infra/mail/smtp";
+// verifySmtp is imported dynamically to avoid loading the nodemailer transport
+// (and triggering a connection attempt) when SMTP is not configured.
 import { ensureEventStream } from "@contfu/svc-backend/infra/nats/event-stream";
 import { getNatsConnection } from "@contfu/svc-backend/infra/nats/connection";
 import { StreamServer } from "@contfu/svc-backend/infra/stream/stream-server";
@@ -58,6 +59,7 @@ async function logStartupDiagnostics(): Promise<void> {
   diagnostics.nats = await probe(() => getNatsConnection());
 
   if (process.env.SMTP_HOST) {
+    const { verifySmtp } = await import("@contfu/svc-backend/infra/mail/smtp");
     diagnostics.smtp = await probe(() => verifySmtp());
   }
 
@@ -105,30 +107,26 @@ export async function initialize(): Promise<void> {
   const { startPushWorker } = await import("@contfu/svc-backend/push-worker/push-worker");
   await startPushWorker();
 
-  // Start the sync worker (skip in test mode — E2E tests use webhook fixtures
-  // and the worker's PGLite instance conflicts with the main app's in CI).
-  if (process.env.NODE_ENV !== "test") {
-    // Wire the onItems callback to broadcast items to all connected clients
-    worker.onItems((items, connections) => {
-      stream.broadcast(items, connections);
-    });
+  // Wire the onItems callback to broadcast items to all connected clients
+  worker.onItems((items, connections) => {
+    stream.broadcast(items, connections);
+  });
 
-    // Wire the onSchema callback to broadcast schema changes to consumers
-    worker.onSchema((userId, collectionId, name, displayName, schema, renames) => {
-      const event: WireEvent =
-        Object.keys(renames).length > 0
-          ? [EventType.COLLECTION_SCHEMA, name, displayName, schema, renames]
-          : [EventType.COLLECTION_SCHEMA, name, displayName, schema];
-      stream.broadcastToCollection(userId, collectionId, event).catch((err) => {
-        log.error({ err, userId, collectionId }, "Failed to broadcast schema to collection");
-      });
+  // Wire the onSchema callback to broadcast schema changes to consumers
+  worker.onSchema((userId, collectionId, name, displayName, schema, renames) => {
+    const event: WireEvent =
+      Object.keys(renames).length > 0
+        ? [EventType.COLLECTION_SCHEMA, name, displayName, schema, renames]
+        : [EventType.COLLECTION_SCHEMA, name, displayName, schema];
+    stream.broadcastToCollection(userId, collectionId, event).catch((err) => {
+      log.error({ err, userId, collectionId }, "Failed to broadcast schema to collection");
     });
+  });
 
-    await worker.start();
-  }
+  await worker.start();
 
   // Start the web sync scheduler (periodic polling for web sources).
-  // Skip in test mode for the same reasons as the sync worker above.
+  // Skip in test mode — E2E tests don't need periodic web source polling.
   if (process.env.NODE_ENV !== "test") {
     const { startWebSyncScheduler } =
       await import("@contfu/svc-backend/infra/sync-scheduler/web-sync-scheduler");
