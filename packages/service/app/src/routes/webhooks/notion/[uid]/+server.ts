@@ -253,6 +253,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
   const { uid } = params;
 
   const body = await request.text();
+  log.info({ uid }, "Notion webhook request received");
   let parsed: unknown;
   try {
     parsed = JSON.parse(body);
@@ -267,6 +268,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
     return new Response("Invalid payload", { status: 400 });
   }
   const payload = parseResult.output;
+  log.debug({ payload }, "Parsed webhook payload");
 
   const isOAuthMode = NOTION_WEBHOOK_SECRET && uid === NOTION_WEBHOOK_SECRET;
 
@@ -573,13 +575,13 @@ export const POST: RequestHandler = async ({ request, params }) => {
       }
 
       if (!parentDbId) {
-        log.debug({ pageId, eventType }, "OAuth mode: no parent database ID, skipping");
+        log.info({ pageId, eventType }, "OAuth mode: no parent database ID, skipping");
         return new Response("OK", { status: 200 });
       }
 
       const ref = uuidToBuffer(parentDbId);
       const globalCollections = await getCollectionsByRefGlobal(ref);
-      log.debug(
+      log.info(
         { pageId, parentDbId, collectionCount: globalCollections.length },
         "OAuth mode: enqueuing fetch across global collections",
       );
@@ -607,6 +609,18 @@ export const POST: RequestHandler = async ({ request, params }) => {
         }
       }
       log.info({ pageId, eventType, enqueuedCount }, "OAuth mode: fetch jobs enqueued");
+
+      for (const g of grouped.values()) {
+        await logWebhookEvent(
+          g.userId,
+          g.connectionId,
+          eventType,
+          pageId,
+          "success",
+          enqueuedCount > 0 ? "Webhook fetch enqueued" : "Skipped duplicate pending",
+          0,
+        );
+      }
 
       return new Response("OK", { status: 200 });
     }
