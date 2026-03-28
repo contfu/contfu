@@ -62,11 +62,7 @@ const processJob = (job: { id: number; collectionId: number }) =>
     const config = yield* getJobConfig({ collectionId: job.collectionId });
     if (!config) {
       yield* Effect.logWarning("Collection config not found").pipe(
-        Effect.annotateLogs({
-          module: "sync-worker",
-          jobId: job.id,
-          collectionId: job.collectionId,
-        }),
+        Effect.annotateLogs({ jobId: job.id, collectionId: job.collectionId }),
       );
       yield* failJob(job.id, "Collection config not found");
       return;
@@ -74,7 +70,6 @@ const processJob = (job: { id: number; collectionId: number }) =>
 
     yield* Effect.logDebug("Fetching collection").pipe(
       Effect.annotateLogs({
-        module: "sync-worker",
         jobId: job.id,
         collectionId: job.collectionId,
         sourceType: config.sourceType,
@@ -173,7 +168,6 @@ const processJob = (job: { id: number; collectionId: number }) =>
 
     yield* Effect.logInfo("Collection fetch complete").pipe(
       Effect.annotateLogs({
-        module: "sync-worker",
         jobId: job.id,
         collectionId: job.collectionId,
         itemCount: fetchedItems.length,
@@ -189,24 +183,16 @@ const processJob = (job: { id: number; collectionId: number }) =>
         collectionId: job.collectionId,
       });
       yield* Effect.logDebug("Items posted to main thread").pipe(
-        Effect.annotateLogs({
-          module: "sync-worker",
-          collectionId: job.collectionId,
-          itemCount: fetchedItems.length,
-        }),
+        Effect.annotateLogs({ collectionId: job.collectionId, itemCount: fetchedItems.length }),
       );
     }
 
     yield* completeJob(job.id);
-    yield* Effect.logDebug("Job completed").pipe(
-      Effect.annotateLogs({ module: "sync-worker", jobId: job.id }),
-    );
+    yield* Effect.logDebug("Job completed").pipe(Effect.annotateLogs({ jobId: job.id }));
   }).pipe(
     Effect.catch((e) =>
       Effect.gen(function* () {
-        yield* Effect.logError("Job failed").pipe(
-          Effect.annotateLogs({ module: "sync-worker", err: e, jobId: job.id }),
-        );
+        yield* Effect.logError("Job failed").pipe(Effect.annotateLogs({ err: e, jobId: job.id }));
         if (isCryptoFailure(e)) {
           yield* failJobPermanently(job.id, getJobFailureMessage(e));
           return;
@@ -226,7 +212,7 @@ const syncLoop = Effect.gen(function* () {
 
   if (jobs.length > 0) {
     yield* Effect.logDebug("Claimed sync jobs").pipe(
-      Effect.annotateLogs({ module: "sync-worker", jobCount: jobs.length, workerId }),
+      Effect.annotateLogs({ jobCount: jobs.length, workerId }),
     );
   }
 
@@ -235,14 +221,17 @@ const syncLoop = Effect.gen(function* () {
   }
 }).pipe(
   Effect.withSpan("syncWorker.syncLoop"),
-  Effect.catch((e) =>
-    Effect.logError("Sync error").pipe(Effect.annotateLogs({ module: "sync-worker", err: e })),
-  ),
+  Effect.catch((e) => Effect.logError("Sync error").pipe(Effect.annotateLogs({ err: e }))),
   Effect.repeat(Schedule.fixed(Duration.millis(MIN_FETCH_INTERVAL))),
 );
 
 // Start the sync loop
-Effect.runFork(syncLoop.pipe(Effect.provide(Layer.mergeAll(WorkerDbLayer, LoggerLive))));
+Effect.runFork(
+  syncLoop.pipe(
+    Effect.annotateLogs({ module: "sync-worker" }),
+    Effect.provide(Layer.mergeAll(WorkerDbLayer, LoggerLive)),
+  ),
+);
 
 // Signal ready
 log.info({ workerId }, "Sync worker ready");

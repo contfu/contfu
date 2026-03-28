@@ -3,6 +3,17 @@ import { createLogger } from "../logger/index";
 
 const log = createLogger("smtp");
 
+// Adapter satisfying nodemailer's bunyan-compatible Logger interface
+const smtpLogger = {
+  level: () => {},
+  trace: log.debug.bind(log),
+  debug: log.debug.bind(log),
+  info: log.info.bind(log),
+  warn: log.warn.bind(log),
+  error: log.error.bind(log),
+  fatal: log.error.bind(log),
+};
+
 export function sendSmtp(opts: {
   from: string;
   to: string;
@@ -22,7 +33,7 @@ const transport = createTransport({
     user: Bun.env.SMTP_USER,
     pass: Bun.env.SMTP_PASS,
   },
-  logger: true,
+  logger: smtpLogger,
   pool: true,
 });
 
