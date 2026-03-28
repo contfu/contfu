@@ -200,6 +200,11 @@ test.describe("Admin Users Management", () => {
   });
 
   test("should toggle admin role via action menu", async ({ authenticatedPage }) => {
+    const serverErrors: string[] = [];
+    authenticatedPage.on("response", (resp) => {
+      if (resp.status() >= 500) serverErrors.push(`${resp.status()} ${resp.url()}`);
+    });
+
     const row = authenticatedPage.locator("tbody tr:first-child");
 
     // Verify initial state: user is admin
@@ -214,6 +219,7 @@ test.describe("Admin Users Management", () => {
 
     // Verify role changed to "User"
     await expect(row.getByText("User")).toBeVisible();
+    expect(serverErrors).toHaveLength(0);
 
     // Restore: open action menu and click "Make admin"
     await row.locator("td:last-child button").click();
@@ -224,9 +230,15 @@ test.describe("Admin Users Management", () => {
 
     // Verify restored to admin
     await expect(row.getByText("Admin")).toBeVisible();
+    expect(serverErrors).toHaveLength(0);
   });
 
   test("should change base plan via action menu", async ({ authenticatedPage }) => {
+    const serverErrors: string[] = [];
+    authenticatedPage.on("response", (resp) => {
+      if (resp.status() >= 500) serverErrors.push(`${resp.status()} ${resp.url()}`);
+    });
+
     const row = authenticatedPage.locator("tbody tr:first-child");
 
     // Verify initial state: Free plan
@@ -241,6 +253,7 @@ test.describe("Admin Users Management", () => {
 
     // Verify plan changed to Starter
     await expect(row.getByText("Starter")).toBeVisible();
+    expect(serverErrors).toHaveLength(0);
 
     // Restore: open action menu and click "Free" plan
     await row.locator("td:last-child button").click();
@@ -251,6 +264,7 @@ test.describe("Admin Users Management", () => {
 
     // Verify restored to Free
     await expect(row.getByText("Free")).toBeVisible();
+    expect(serverErrors).toHaveLength(0);
   });
 
   test("should show correct footer count", async ({ authenticatedPage }) => {
