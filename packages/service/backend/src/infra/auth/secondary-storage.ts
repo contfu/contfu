@@ -14,12 +14,15 @@ const SESSION_TTL = 1000 * 60 * 60 * 24 * 7;
 
 const ACTIVE_SESSIONS_PREFIX = "active-sessions-";
 const API_KEY_PREFIX = "api-key:";
+const VERIFICATION_PREFIX = "verification:";
 
 let sessionsBucket: Promise<KV> | undefined;
 let userSessionsBucket: Promise<KV> | undefined;
+let verificationBucket: Promise<KV> | undefined;
 const sessionsCache: LRU<string> = lru(10_000);
 const activeSessionsCache: LRU<string> = lru(5_000);
 const apiKeyCache: LRU<string> = lru(5_000);
+const verificationCache: LRU<string> = lru(5_000);
 
 async function getSessionsBucket(): Promise<KV> {
   return (sessionsBucket ??= getKvManager().then((kvm) =>
@@ -33,85 +36,139 @@ async function getUserSessionsBucket(): Promise<KV> {
   ));
 }
 
+async function getVerificationBucket(): Promise<KV> {
+  return (verificationBucket ??= getKvManager().then((kvm) =>
+    kvm.create("verification", { ttl: SESSION_TTL }),
+  ));
+}
+
+/**
+ * Route a better-auth secondary-storage key to the correct bucket/cache,
+ * stripping the static prefix so only the actual identifier is stored.
+ * Throws on unrecognised key prefixes so new patterns surface immediately.
+ */
+function routeKey(
+  key: string,
+):
+  | { kind: "session"; actualKey: string }
+  | { kind: "active-sessions"; actualKey: string }
+  | { kind: "api-key"; actualKey: string }
+  | { kind: "verification"; actualKey: string } {
+  if (key.startsWith(API_KEY_PREFIX)) {
+    return { kind: "api-key", actualKey: key.slice(API_KEY_PREFIX.length) };
+  }
+  if (key.startsWith(ACTIVE_SESSIONS_PREFIX)) {
+    return { kind: "active-sessions", actualKey: key.slice(ACTIVE_SESSIONS_PREFIX.length) };
+  }
+  if (key.startsWith(VERIFICATION_PREFIX)) {
+    return { kind: "verification", actualKey: key.slice(VERIFICATION_PREFIX.length) };
+  }
+  // Session tokens are plain strings without a prefix.
+  // Reject anything that looks like an unknown prefixed key.
+  if (key.includes(":")) {
+    throw new Error(`Unrecognised secondary-storage key prefix: ${key}`);
+  }
+  return { kind: "session", actualKey: key };
+}
+
 export function createNatsKvSessionStorage(): SecondaryStorage {
   void handleRemoteInvalidations().catch((err) =>
     log.error({ err }, "Failed to start session invalidation watchers"),
   );
   return {
     get: async (key) => {
-      if (key.startsWith(API_KEY_PREFIX)) {
-        return apiKeyCache.get(key) ?? null;
+      const route = routeKey(key);
+      switch (route.kind) {
+        case "api-key":
+          return apiKeyCache.get(route.actualKey) ?? null;
+        case "active-sessions":
+          return getFromCacheOrBucket(
+            activeSessionsCache,
+            await getUserSessionsBucket(),
+            route.actualKey,
+            deserializeActiveSessions,
+          );
+        case "verification":
+          return getFromCacheOrBucket(
+            verificationCache,
+            await getVerificationBucket(),
+            route.actualKey,
+            deserializeGeneric,
+          );
+        case "session":
+          return getFromCacheOrBucket(
+            sessionsCache,
+            await getSessionsBucket(),
+            route.actualKey,
+            deserializeSessionAndUser,
+          );
       }
-      if (key.startsWith(ACTIVE_SESSIONS_PREFIX)) {
-        const actualKey = key.slice(ACTIVE_SESSIONS_PREFIX.length);
-        return getFromCacheOrBucket(
-          activeSessionsCache,
-          await getUserSessionsBucket(),
-          actualKey,
-          deserializeActiveSessions,
-        );
-      }
-      return getFromCacheOrBucket(
-        sessionsCache,
-        await getSessionsBucket(),
-        key,
-        deserializeSessionOrGeneric,
-      );
     },
     set: async (key, value) => {
-      if (key.startsWith(API_KEY_PREFIX)) {
-        apiKeyCache.set(key, value);
-        return;
-      }
-      if (key.startsWith(ACTIVE_SESSIONS_PREFIX)) {
-        const actualKey = key.slice(ACTIVE_SESSIONS_PREFIX.length);
-        const bucket = await getUserSessionsBucket();
-        let parsed: unknown;
-        try {
-          parsed = JSON.parse(value);
-        } catch (err) {
-          log.error({ err, key }, "Failed to parse active sessions JSON in set");
-          throw err;
+      const route = routeKey(key);
+      switch (route.kind) {
+        case "api-key":
+          apiKeyCache.set(route.actualKey, value);
+          return;
+        case "active-sessions": {
+          const bucket = await getUserSessionsBucket();
+          const parsed = parseJson(key, value);
+          await bucket.put(route.actualKey, serializeActiveSessions(parsed as SessionToken[]));
+          activeSessionsCache.set(route.actualKey, value);
+          return;
         }
-        await bucket.put(actualKey, serializeActiveSessions(parsed as SessionToken[]));
-        activeSessionsCache.set(actualKey, value);
-        return;
+        case "verification": {
+          const bucket = await getVerificationBucket();
+          const parsed = parseJson(key, value);
+          await bucket.put(route.actualKey, pack(parsed));
+          verificationCache.set(route.actualKey, value);
+          return;
+        }
+        case "session": {
+          const bucket = await getSessionsBucket();
+          const parsed = parseJson(key, value) as { user: User; session: Omit<Session, "id"> };
+          await bucket.put(route.actualKey, serializeSessionAndUser(parsed));
+          sessionsCache.set(route.actualKey, value);
+          return;
+        }
       }
-      const bucket = await getSessionsBucket();
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(value);
-      } catch (err) {
-        log.error({ err, key }, "Failed to parse session JSON in set");
-        throw err;
-      }
-      const isSession =
-        typeof parsed === "object" && parsed !== null && "user" in parsed && "session" in parsed;
-      await bucket.put(
-        key,
-        isSession
-          ? serializeSessionAndUser(parsed as { user: User; session: Omit<Session, "id"> })
-          : pack(parsed),
-      );
-      sessionsCache.set(key, value);
     },
     delete: async (key) => {
-      if (key.startsWith(API_KEY_PREFIX)) {
-        apiKeyCache.delete(key);
-        return;
+      const route = routeKey(key);
+      switch (route.kind) {
+        case "api-key":
+          apiKeyCache.delete(route.actualKey);
+          return;
+        case "active-sessions": {
+          const bucket = await getUserSessionsBucket();
+          await bucket.delete(route.actualKey);
+          activeSessionsCache.delete(route.actualKey);
+          return;
+        }
+        case "verification": {
+          const bucket = await getVerificationBucket();
+          await bucket.delete(route.actualKey);
+          verificationCache.delete(route.actualKey);
+          return;
+        }
+        case "session": {
+          const bucket = await getSessionsBucket();
+          await bucket.delete(route.actualKey);
+          sessionsCache.delete(route.actualKey);
+          return;
+        }
       }
-      if (key.startsWith(ACTIVE_SESSIONS_PREFIX)) {
-        const actualKey = key.slice(ACTIVE_SESSIONS_PREFIX.length);
-        const bucket = await getUserSessionsBucket();
-        await bucket.delete(actualKey);
-        activeSessionsCache.delete(actualKey);
-        return;
-      }
-      const bucket = await getSessionsBucket();
-      await bucket.delete(key);
-      sessionsCache.delete(key);
     },
   };
+}
+
+function parseJson(key: string, value: string): unknown {
+  try {
+    return JSON.parse(value);
+  } catch (err) {
+    log.error({ err, key }, "Failed to parse JSON in secondary-storage set");
+    throw err;
+  }
 }
 
 async function handleRemoteInvalidations() {
@@ -186,6 +243,10 @@ function deserializeActiveSessions(_: string, data: Uint8Array): SessionToken[] 
   }
 }
 
+function deserializeGeneric(_: string, data: Uint8Array): unknown {
+  return unpack(data);
+}
+
 /**
  * User: [id, createdAt, updatedAt, email, name, image, emailVerified]
  */
@@ -227,21 +288,11 @@ function serializeSessionAndUser({
   return pack([wireUser, wireSession] satisfies WireSessionAndUser);
 }
 
-function deserializeSessionOrGeneric(key: string, data: Uint8Array): unknown {
-  const unpacked = unpack(data);
-
-  // Session data is stored as [[...user], [...session]] — a tuple of two arrays.
-  // Non-session data (verification states, rate limits) is stored as a generic object.
-  if (
-    !Array.isArray(unpacked) ||
-    unpacked.length !== 2 ||
-    !Array.isArray(unpacked[0]) ||
-    !Array.isArray(unpacked[1])
-  ) {
-    return unpacked;
-  }
-
-  const [wireUser, wireSession] = unpacked as WireSessionAndUser;
+function deserializeSessionAndUser(
+  key: string,
+  data: Uint8Array,
+): { user: User; session: Omit<Session, "id"> } {
+  const [wireUser, wireSession] = unpack(data) as WireSessionAndUser;
 
   const user: User = {
     id: wireUser[0].toString(),
