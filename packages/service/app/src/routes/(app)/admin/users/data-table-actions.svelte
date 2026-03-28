@@ -4,14 +4,17 @@
   import {
     approveUser,
     demoteFromAdmin,
+    getUsers,
     promoteToAdmin,
     revokeUser,
     setBasePlan,
   } from "$lib/remote/admin.remote";
+  import { tcToast } from "$lib/utils/toast";
   import type { BackendUserSummary } from "@contfu/svc-backend/domain/types";
   import { UserRole } from "@contfu/svc-backend/domain/types";
   import { PlanTier } from "@contfu/svc-backend/infra/polar/products";
   import EllipsisIcon from "@lucide/svelte/icons/ellipsis";
+  import { toast } from "svelte-sonner";
 
   const planTiers = [
     { value: PlanTier.FREE, label: "Free" },
@@ -104,9 +107,16 @@
       {#each planTiers as tier}
         {#if tier.value !== user.basePlan}
           {@const planForm = setBasePlan.for(tier.value)}
-          <form {...planForm}>
+          <form
+            {...planForm.enhance(async ({ submit }) => {
+              await tcToast(async () => {
+                await submit().updates(getUsers);
+                toast.success("Plan updated");
+              });
+            })}
+          >
             <input
-              {...planForm.fields.id.as("number")}
+              {...planForm.fields.id.as("hidden")}
               type="hidden"
               value={user.id}
             />
