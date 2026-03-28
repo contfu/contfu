@@ -1,9 +1,7 @@
 import fs from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 
-const DIRNAME = path.dirname(fileURLToPath(import.meta.url));
-const PGLITE_DATA_DIR = path.join(DIRNAME, ".pglite-e2e");
+// PGLITE_DATA_DIR is set by playwright.config.ts (runs in the same process before globalSetup)
+const PGLITE_DATA_DIR = process.env.PGLITE_DATA_DIR!;
 
 /**
  * Playwright global setup: creates a file-based PGlite database,
@@ -16,9 +14,6 @@ export default async function globalSetup() {
     fs.rmSync(PGLITE_DATA_DIR, { recursive: true });
   }
 
-  // Set env vars before importing db.ts — its top-level await triggers
-  // PGlite creation, migration, and dev user seeding automatically.
-  process.env.PGLITE_DATA_DIR = PGLITE_DATA_DIR;
   // Match the BETTER_AUTH_SECRET used by the server (from .env) so that
   // credentials encrypted here can be decrypted at runtime.
   if (!process.env.BETTER_AUTH_SECRET) {

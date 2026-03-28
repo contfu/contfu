@@ -1,15 +1,17 @@
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { defineConfig, devices } from "@playwright/test";
 
-// Use a different port for E2E tests to avoid conflicts with other services
 const TEST_PORT = 4173;
 const MOCK_NOTION_PORT = 4174;
 const MOCK_STRAPI_PORT = 4175;
-const DIRNAME = path.dirname(fileURLToPath(import.meta.url));
+const NATS_PORT = 4222;
+const NATS_MONITOR_PORT = 8222;
 
-// File-based PGlite database shared between globalSetup (seeding) and the server
-const PGLITE_DATA_DIR = path.join(DIRNAME, "tests/.pglite-e2e");
+// Use /tmp for PGlite data so it stays inside the Docker container
+// and doesn't pollute the mounted source tree.
+const PGLITE_DATA_DIR = "/tmp/contfu-e2e-pglite";
+
+// Make PGLITE_DATA_DIR available to globalSetup (runs in the same process)
+process.env.PGLITE_DATA_DIR = PGLITE_DATA_DIR;
 
 export default defineConfig({
   testDir: "./tests",
@@ -33,12 +35,21 @@ export default defineConfig({
   ],
   webServer: [
     {
+      command: `nats-server --jetstream --store_dir /tmp/nats-e2e -p ${NATS_PORT} -m ${NATS_MONITOR_PORT}`,
+      url: `http://localhost:${NATS_MONITOR_PORT}/healthz`,
+      reuseExistingServer: !process.env.CI,
+      timeout: 10_000,
+      stdout: "pipe",
+      stderr: "pipe",
+    },
+    {
       command: `bun tests/mock-notion-server.ts`,
       url: `http://localhost:${MOCK_NOTION_PORT}`,
       reuseExistingServer: false,
       timeout: 10_000,
       stdout: "pipe",
       stderr: "pipe",
+      env: { PORT: String(MOCK_NOTION_PORT) },
     },
     {
       command: `bun tests/mock-strapi-server.ts`,
@@ -47,21 +58,23 @@ export default defineConfig({
       timeout: 10_000,
       stdout: "pipe",
       stderr: "pipe",
+      env: { PORT: String(MOCK_STRAPI_PORT) },
     },
     {
-      // Build and serve production build - this runs on Bun runtime with real database
-      // vite dev runs in Node.js which can't use Bun-specific modules like SQL from "bun"
-      // test env is needed at build time for CSRF config and at runtime for test user creation
+      // Production build — required for Bun WebSocket handler in hooks.server.ts.
+      // Vite dev mode uses its own HTTP server which doesn't support Bun.ServerWebSocket.
+      // NODE_ENV=test is needed at build time for CSRF config and at runtime for test user creation.
       command: `NODE_ENV=test NOTION_BASE_URL=http://localhost:${MOCK_NOTION_PORT} bun run build && NODE_ENV=test NOTION_BASE_URL=http://localhost:${MOCK_NOTION_PORT} PORT=${TEST_PORT} bun run serve`,
       url: `http://localhost:${TEST_PORT}`,
-      reuseExistingServer: false, // Always start fresh server to avoid port conflicts
-      timeout: 180_000, // Allow time for build + server startup,
+      reuseExistingServer: false,
+      timeout: 180_000,
       stdout: "pipe",
       stderr: "pipe",
       env: {
         ORIGIN: `http://localhost:${TEST_PORT}`,
         VITE_BETTER_AUTH_URL: `http://localhost:${TEST_PORT}`,
         PGLITE_DATA_DIR,
+        NATS_SERVER: `nats://localhost:${NATS_PORT}`,
       },
     },
   ],

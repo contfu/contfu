@@ -8,28 +8,27 @@ export const TEST_USER = {
 
 // Helper to perform login using actual form submission
 async function performLogin(page: Page): Promise<boolean> {
-  // Navigate to login page
+  // Navigate to login page — wait for networkidle so Svelte hydration completes
+  // (dev mode compiles on-demand, so domcontentloaded is too early)
   await page.goto("/login");
-  await page.waitForLoadState("domcontentloaded");
+  await page.waitForLoadState("networkidle");
 
   // Fill in the login form
   await page.fill('input[name="email"], input[type="email"]', TEST_USER.email);
   await page.fill('input[name="password"], input[type="password"]', TEST_USER.password);
 
-  // Submit the form and wait for navigation
+  // Submit the form and wait for redirect
   await Promise.all([
-    page.waitForNavigation({ waitUntil: "networkidle" }),
+    page.waitForURL(/\/dashboard/, { timeout: 15_000 }),
     page.click('button[type="submit"]'),
   ]);
 
   // Check if we're now on dashboard or still on login
   const currentUrl = page.url();
-  console.log("URL after login:", currentUrl);
 
   // Check for session cookie
   const cookies = await page.context().cookies();
   const hasSession = cookies.some((c) => c.name === "s");
-  console.log("Session cookie found:", hasSession);
 
   // Success if we're not on login page and have session
   return !currentUrl.includes("/login") && hasSession;

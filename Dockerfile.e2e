@@ -1,0 +1,22 @@
+FROM mcr.microsoft.com/playwright:v1.58.2-noble
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends unzip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Bun (needed for SSR runtime via bun -b vite dev)
+RUN curl -fsSL https://bun.sh/install | bash
+ENV PATH="/root/.bun/bin:$PATH"
+
+# Install nats-server (detect architecture for correct binary)
+RUN ARCH=$(dpkg --print-architecture) && \
+    case "$ARCH" in \
+      amd64) NATS_ARCH="amd64" ;; \
+      arm64) NATS_ARCH="arm64" ;; \
+      *) echo "Unsupported architecture: $ARCH" && exit 1 ;; \
+    esac && \
+    curl -fsSL "https://github.com/nats-io/nats-server/releases/download/v2.12.5/nats-server-v2.12.5-linux-${NATS_ARCH}.tar.gz" -o /tmp/nats.tar.gz && \
+    tar xzf /tmp/nats.tar.gz -C /usr/local/bin --strip-components=1 --wildcards '*/nats-server' && \
+    rm /tmp/nats.tar.gz
+
+WORKDIR /app

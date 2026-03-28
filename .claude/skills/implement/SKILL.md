@@ -27,7 +27,13 @@ Instance: `https://code.sven-rogge.com` | Repo: `contfu/contfu`
 5. **Implement** — after the user approves the plan, implement it, without further user interaction.
 6. **Review** your changes for bugs, security and quality. Also make sure that test coverage is appropriate.
 7. **Check locally** - run `bun check` (format, build, lint, typecheck, unit tests) and make sure that it passes.
-8. **PR** - use the `pr` skill to create the PR.
+8. **E2E verification** — if your changes touch the service app (backend routes, UI pages, webhooks, sync), run the relevant E2E tests via Docker:
+   ```bash
+   bun run test:e2e:local -- tests/e2e/your-test.e2e.ts  # targeted run
+   bun run test:e2e:local                                  # full suite
+   ```
+   Write new E2E tests when adding user-facing features or API endpoints. See the `e2e-testing` skill for patterns.
+9. **PR** - use the `pr` skill to create the PR.
 
 ## Reflection Phase
 

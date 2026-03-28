@@ -17,7 +17,7 @@ test.describe("Login", () => {
     await expect(page.getByRole("button", { name: "Sign in" })).toBeVisible();
   });
 
-  test.only("should successfully login with test user credentials", async ({ page }) => {
+  test("should successfully login with test user credentials", async ({ page }) => {
     await page.goto("/login");
     await page.waitForLoadState("networkidle");
 

@@ -51,7 +51,7 @@ function makeResponse(data: unknown[]) {
 }
 
 const server = Bun.serve({
-  port: 4175,
+  port: parseInt(process.env.PORT ?? "4175"),
   fetch(req) {
     const url = new URL(req.url);
     const path = url.pathname;

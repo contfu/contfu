@@ -92,7 +92,7 @@ const DATA_SOURCE_RESPONSES: Record<string, object> = {
 };
 
 const server = Bun.serve({
-  port: 4174,
+  port: parseInt(process.env.PORT ?? "4174"),
   fetch(req) {
     const url = new URL(req.url);
     const path = url.pathname;

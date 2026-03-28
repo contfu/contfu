@@ -14,7 +14,7 @@ Instance: `https://code.sven-rogge.com` | Repo: `contfu/contfu`
 
 ### Phase 1 — Issue creation (issues skill)
 
-1. **Understand** the user's description. Make sure you know *what* needs to change, *why*, and *what the end state looks like*. Use `AskUserQuestion` if anything is unclear — batch related questions into one call.
+1. **Understand** the user's description. Make sure you know _what_ needs to change, _why_, and _what the end state looks like_. Use `AskUserQuestion` if anything is unclear — batch related questions into one call.
 2. **Explore** the codebase for relevant files and patterns (skip if the user provides sufficient context).
 3. **Scope check** — if the work is too large for a single PR, break it into multiple issues. Present all of them for approval, but only the first will be implemented in this session.
 4. **Draft** each issue in the structured format (see "Issue body template" below).
@@ -32,7 +32,13 @@ After the issue is created, immediately implement the first (or only) issue:
 3. **Implement** — follow the issue's relevant files and suggested approach. No further user interaction needed — plan approval already happened in Phase 1.
 4. **Review** your changes for bugs, security, and quality. Ensure appropriate test coverage.
 5. **Check locally** — run `bun check` and make sure it passes.
-6. **PR** — use the `pr` skill to create the PR.
+6. **E2E verification** — if your changes touch the service app (backend routes, UI pages, webhooks, sync), run the relevant E2E tests via Docker:
+   ```bash
+   bun run test:e2e:local -- tests/e2e/your-test.e2e.ts  # targeted run
+   bun run test:e2e:local                                  # full suite
+   ```
+   Write new E2E tests when adding user-facing features or API endpoints. See the `e2e-testing` skill for patterns.
+7. **PR** — use the `pr` skill to create the PR.
 
 ## Issue Body Template
 
