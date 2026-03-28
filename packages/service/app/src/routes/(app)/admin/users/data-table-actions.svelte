@@ -110,7 +110,7 @@
           <form
             {...planForm.enhance(async ({ submit }) => {
               await tcToast(async () => {
-                await submit().updates(getUsers);
+                await submit().updates(getUsers());
                 toast.success("Plan updated");
               });
             })}
