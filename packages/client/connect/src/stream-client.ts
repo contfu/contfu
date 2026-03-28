@@ -131,7 +131,7 @@ export async function* connectToStream(
     connectionEvents = false,
   } = opts;
 
-  const apiUrl = opts.url ?? getEnv("CONTFU_API_URL") ?? "http://localhost:5173/api";
+  const apiUrl = opts.url ?? getEnv("CONTFU_API_URL") ?? "https://contfu.com/api";
   const envKeyStr = getEnv("CONTFU_API_KEY");
   const key = opts.key ?? (envKeyStr ? Buffer.from(envKeyStr, "base64url") : undefined);
   if (!key) {
