@@ -115,11 +115,7 @@
               });
             })}
           >
-            <input
-              {...planForm.fields.id.as("hidden")}
-              type="hidden"
-              value={user.id}
-            />
+            <input type="hidden" name="id" value={user.id} />
             <input
               {...planForm.fields.basePlan.as("number")}
               type="hidden"
