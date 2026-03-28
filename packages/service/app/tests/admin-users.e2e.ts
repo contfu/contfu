@@ -170,10 +170,10 @@ test.describe("Admin Users Management", () => {
   });
 
   test("should open action menu without errors", async ({ authenticatedPage }) => {
-    // Listen for console errors
-    const consoleErrors: string[] = [];
-    authenticatedPage.on("console", (msg) => {
-      if (msg.type() === "error") consoleErrors.push(msg.text());
+    // Listen for page errors (uncaught exceptions)
+    const pageErrors: string[] = [];
+    authenticatedPage.on("pageerror", (err) => {
+      pageErrors.push(err.message);
     });
 
     // Click the action menu button on the first user row
@@ -194,9 +194,9 @@ test.describe("Admin Users Management", () => {
     await expect(menu.getByText("Revoke approval")).toBeVisible();
     await expect(menu.getByText("Remove admin")).toBeVisible();
 
-    // No console errors from the form binding
-    const formErrors = consoleErrors.filter((e) => e.includes("form object can only be attached"));
-    expect(formErrors).toHaveLength(0);
+    // No page errors from hidden input bindings
+    const hiddenInputErrors = pageErrors.filter((e) => e.includes("hidden"));
+    expect(hiddenInputErrors).toHaveLength(0);
   });
 
   test("should toggle admin role via action menu", async ({ authenticatedPage }) => {

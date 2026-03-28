@@ -106,7 +106,8 @@
           {@const planForm = setBasePlan.for(tier.value)}
           <form {...planForm}>
             <input
-              {...planForm.fields.id.as("hidden")}
+              {...planForm.fields.id.as("number")}
+              type="hidden"
               value={user.id}
             />
             <input
