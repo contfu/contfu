@@ -5,7 +5,7 @@ const isDev = process.env.NODE_ENV !== "production";
 const level = (process.env.LOG_LEVEL ?? (isDev ? "Debug" : "Info")) as LogLevel.LogLevel;
 
 export const LoggerLive = Layer.mergeAll(
-  Logger.layer([isDev ? Logger.consolePretty() : Logger.consoleLogFmt]),
+  Logger.layer([isDev ? Logger.consolePretty() : Logger.consoleJson]),
   Layer.succeed(References.MinimumLogLevel)(level),
 );
 
