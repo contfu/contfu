@@ -86,7 +86,7 @@ All values are documented in [`values.yaml`](./values.yaml). Key sections:
 | Parameter           | Description             | Default                                                        |
 | ------------------- | ----------------------- | -------------------------------------------------------------- |
 | `ingress.enabled`   | Enable Ingress resource | `false`                                                        |
-| `ingress.className` | Ingress class           | `traefik`                                                      |
+| `ingress.className` | Ingress class           | `nginx`                                                        |
 | `ingress.hosts`     | Host rules              | `[{host: contfu.local, paths: [{path: /, pathType: Prefix}]}]` |
 | `ingress.tls`       | TLS configuration       | `[]`                                                           |
 
@@ -151,7 +151,7 @@ secrets:
 
 ingress:
   enabled: true
-  className: traefik
+  className: nginx
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
   hosts:
