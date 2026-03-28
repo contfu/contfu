@@ -55,7 +55,7 @@ export function createNatsKvSessionStorage(): SecondaryStorage {
         sessionsCache,
         await getSessionsBucket(),
         key,
-        deserializeSessionAndUser,
+        deserializeSessionOrGeneric,
       );
     },
     set: async (key, value) => {
@@ -85,9 +85,13 @@ export function createNatsKvSessionStorage(): SecondaryStorage {
         log.error({ err, key }, "Failed to parse session JSON in set");
         throw err;
       }
+      const isSession =
+        typeof parsed === "object" && parsed !== null && "user" in parsed && "session" in parsed;
       await bucket.put(
         key,
-        serializeSessionAndUser(parsed as { user: User; session: Omit<Session, "id"> }),
+        isSession
+          ? serializeSessionAndUser(parsed as { user: User; session: Omit<Session, "id"> })
+          : pack(parsed),
       );
       sessionsCache.set(key, value);
     },
@@ -223,18 +227,21 @@ function serializeSessionAndUser({
   return pack([wireUser, wireSession] satisfies WireSessionAndUser);
 }
 
-function deserializeSessionAndUser(
-  key: string,
-  data: Uint8Array,
-): { user: User; session: Omit<Session, "id"> } {
-  let wireUser: WireUser;
-  let wireSession: WireSession;
-  try {
-    [wireUser, wireSession] = unpack(data) as WireSessionAndUser;
-  } catch (err) {
-    log.warn({ err, key }, "Failed to deserialize session, returning null");
-    throw err;
+function deserializeSessionOrGeneric(key: string, data: Uint8Array): unknown {
+  const unpacked = unpack(data);
+
+  // Session data is stored as [[...user], [...session]] — a tuple of two arrays.
+  // Non-session data (verification states, rate limits) is stored as a generic object.
+  if (
+    !Array.isArray(unpacked) ||
+    unpacked.length !== 2 ||
+    !Array.isArray(unpacked[0]) ||
+    !Array.isArray(unpacked[1])
+  ) {
+    return unpacked;
   }
+
+  const [wireUser, wireSession] = unpacked as WireSessionAndUser;
 
   const user: User = {
     id: wireUser[0].toString(),
