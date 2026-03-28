@@ -11,6 +11,7 @@ import { createFlow as createFlowFeature } from "@contfu/svc-backend/features/fl
 import { deleteFlow as deleteFlowFeature } from "@contfu/svc-backend/features/flows/deleteFlow";
 import { listFlows as listFlowsFeature } from "@contfu/svc-backend/features/flows/listFlows";
 import { listFlowsByCollection as listFlowsByCollectionFeature } from "@contfu/svc-backend/features/flows/listFlowsByCollection";
+import { getFlowWithDetails } from "@contfu/svc-backend/features/flows/getFlowWithDetails";
 import { updateFlow as updateFlowFeature } from "@contfu/svc-backend/features/flows/updateFlow";
 import { encodeId, idSchema } from "@contfu/svc-backend/infra/ids";
 import { triggerSnapshotForCollection } from "@contfu/svc-backend/features/consumers/triggerConsumerSnapshot";
@@ -165,8 +166,6 @@ export const removeFlow = command(v.object({ id: idSchema("flow") }), async (dat
   const userId = getUserId();
 
   // Get flow details before deletion to broadcast removal
-  const { getFlowWithDetails } =
-    await import("@contfu/svc-backend/features/flows/getFlowWithDetails");
   const flow = await runWithUser(userId, getFlowWithDetails(data.id));
 
   const deleted = await runWithUser(userId, deleteFlowFeature(data.id));
@@ -275,8 +274,6 @@ export const updateFlowMappings = command(
 
     const mappings = JSON.parse(data.mappings) as MappingRule[];
 
-    const { getFlowWithDetails } =
-      await import("@contfu/svc-backend/features/flows/getFlowWithDetails");
     const flow = await runWithUser(userId, getFlowWithDetails(data.id));
     if (!flow) error(404, "Flow not found");
 
