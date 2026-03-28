@@ -6,8 +6,11 @@ import { listFlows } from "@contfu/svc-backend/features/flows/listFlows";
 import { createFlow } from "@contfu/svc-backend/features/flows/createFlow";
 import { triggerSnapshotForCollection } from "@contfu/svc-backend/features/consumers/triggerConsumerSnapshot";
 import { getSyncWorkerManager } from "$lib/server/startup";
+import { createLogger } from "@contfu/svc-backend/infra/logger/index";
 import { Effect } from "effect";
 import { pack } from "msgpackr";
+
+const log = createLogger("flows-api");
 
 type CreateResourceError = {
   _error: {
@@ -74,8 +77,18 @@ export async function POST({ request }: { request: Request }) {
   // items from the source collection are delivered to the new influx target.
   getSyncWorkerManager()
     .broadcastSchema(userId, result.targetId)
-    .catch(() => {});
-  triggerSnapshotForCollection(userId, result.targetId).catch(() => {});
+    .catch((err) =>
+      log.error(
+        { err, userId, targetId: result.targetId },
+        "broadcastSchema failed after flow creation",
+      ),
+    );
+  triggerSnapshotForCollection(userId, result.targetId).catch((err) =>
+    log.error(
+      { err, userId, targetId: result.targetId },
+      "triggerSnapshotForCollection failed after flow creation",
+    ),
+  );
 
   return json(result, { status: 201 });
 }

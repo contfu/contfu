@@ -271,8 +271,10 @@ export class SyncWorkerManager {
       // Skip heuristic rename detection on first broadcast (no previous to compare against),
       // but still honour explicit webhook hints so schema changes trigger snapshots even when
       // no items have been synced yet (i.e. previous is undefined).
+      // Also enter the block when force=true (e.g. new flow added): treat all keys as new so
+      // triggerConsumerSnapshot fires for any connected CLIENT consumers.
       const renames: Record<string, string> = {}; // oldName → newName (for COLLECTION_SCHEMA event)
-      if (options?.hints || previous) {
+      if (options?.hints || previous || options?.force) {
         let addedKeys: string[] = [];
         let removedKeys: string[] = [];
 
@@ -303,6 +305,10 @@ export class SyncWorkerManager {
           removedKeys = Object.keys(previousSchema).filter(
             (k) => !(k in merged) && !renamedOldNames.has(k),
           );
+        } else {
+          // Force broadcast with no prior state (first flow added to this collection):
+          // treat all merged keys as new so triggerConsumerSnapshot fires.
+          addedKeys = Object.keys(merged);
         }
 
         const consumers = await db

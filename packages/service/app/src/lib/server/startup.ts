@@ -119,7 +119,9 @@ export async function initialize(): Promise<void> {
         Object.keys(renames).length > 0
           ? [EventType.COLLECTION_SCHEMA, name, displayName, schema, renames]
           : [EventType.COLLECTION_SCHEMA, name, displayName, schema];
-      stream.broadcastToCollection(userId, collectionId, event);
+      stream.broadcastToCollection(userId, collectionId, event).catch((err) => {
+        log.error({ err, userId, collectionId }, "Failed to broadcast schema to collection");
+      });
     });
 
     await worker.start();
