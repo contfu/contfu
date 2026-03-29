@@ -1,0 +1,36 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`generateTypes generates types for a single collection 1`] = `
+"export type BlogPostsProps = {
+  title: string;
+  published: boolean;
+  views: number;
+};"
+`;
+
+exports[`generateTypes generates types for multiple collections 1`] = `
+"export type BlogPostsProps = {
+  title: string;
+  tags: string[];
+};
+
+export type AuthorsProps = {
+  name: string;
+  featured: boolean;
+};"
+`;
+
+exports[`generateTypes maps all property types correctly 1`] = `
+"export type EverythingProps = {
+  str: string;
+  strs: string[];
+  num: number;
+  nums: number[];
+  bool: boolean;
+  ref: string;
+  refs: string[];
+  file: string;
+  files: string[];
+  date: number;
+};"
+`;

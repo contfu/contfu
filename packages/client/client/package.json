@@ -1,0 +1,60 @@
+{
+  "name": "@contfu/client",
+  "version": "0.0.1",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/contfu/contfu.git"
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.d.ts.map",
+    "db/migrations"
+  ],
+  "type": "module",
+  "main": "src/index.ts",
+  "exports": {
+    ".": {
+      "bun": "./src/index.bun.ts",
+      "default": "./src/index.ts"
+    },
+    "./src/*": "./src/*"
+  },
+  "publishConfig": {
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "bun": "./dist/index.bun.js",
+        "default": "./dist/index.js"
+      },
+      "./dist/*": "./dist/*"
+    }
+  },
+  "scripts": {
+    "test": "bun test",
+    "clean": "rm -rf dist tsconfig.tsbuildinfo",
+    "db:generate": "rm -rf db/migrations && drizzle-kit generate --name init",
+    "build:lib": "tsc -b",
+    "build:db:node": "bun build ./src/infra/db/db-node.ts --target=node --outfile ./dist/db-node.js --external node:sqlite --external drizzle-orm/node-sqlite --external drizzle-orm/node-sqlite/migrator",
+    "build:db:bun": "bun build ./src/infra/db/db-bun.ts --target=bun --outfile ./dist/db-bun.js",
+    "pack": "bun pm pack",
+    "build": "bun run build:lib && bun run build:db:node && bun run build:db:bun"
+  },
+  "dependencies": {
+    "@contfu/connect": "workspace:*",
+    "@contfu/core": "workspace:*",
+    "drizzle-orm": "1.0.0-beta.19"
+  },
+  "devDependencies": {
+    "@m4k/common": "^0.2.3",
+    "@types/bun": "^1.3.11",
+    "drizzle-kit": "1.0.0-beta.19",
+    "ts-essentials": "^10.1.1"
+  },
+  "peerDependencies": {
+    "typescript": "^5.9.3"
+  },
+  "optionalDependencies": {}
+}

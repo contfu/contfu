@@ -1,0 +1,30 @@
+{
+  "name": "contfu",
+  "private": true,
+  "workspaces": [
+    "packages/client/*",
+    "packages/service/*",
+    "packages/cli",
+    "packages/core"
+  ],
+  "type": "module",
+  "scripts": {
+    "test": "bun --filter '@contfu/*' test",
+    "build": "bun --filter '@contfu/*' build",
+    "clean": "bun --filter '@contfu/*' clean",
+    "fmt": "oxfmt",
+    "lint": "oxlint",
+    "lint:types": "oxlint --type-aware",
+    "typecheck": "tsc -b tsconfig.check.json",
+    "check": "bun run fmt && bun run build && bun run lint && bun run typecheck && bun run test"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.11",
+    "oxfmt": "^0.42.0",
+    "oxlint": "^1.57.0",
+    "oxlint-tsgolint": "^0.17.3"
+  },
+  "peerDependencies": {
+    "typescript": "^5.9.3"
+  }
+}
