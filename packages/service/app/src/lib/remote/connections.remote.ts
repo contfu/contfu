@@ -2,6 +2,7 @@ import { command, query } from "$app/server";
 import { runWithUser } from "$lib/server/run";
 import { getUserId } from "$lib/server/user";
 import { ConnectionType } from "@contfu/core";
+import { iterateDataSources } from "@contfu/svc-sources/notion";
 import type { BackendConnection } from "@contfu/svc-backend/domain/types";
 import { createConnection as createConnectionFeature } from "@contfu/svc-backend/features/connections/createConnection";
 import { deleteConnection as deleteConnectionFeature } from "@contfu/svc-backend/features/connections/deleteConnection";
@@ -247,7 +248,6 @@ export const testConnection = command(
     // Attempt a basic API call based on connection type
     try {
       if (connection.type === ConnectionType.NOTION) {
-        const { iterateDataSources } = await import("@contfu/svc-sources/notion");
         // Try to iterate data sources (will throw on auth failure)
         // biome-ignore lint/correctness/noUnusedVariables: intentional test
         for await (const _ds of iterateDataSources(credentials)) {
@@ -278,7 +278,6 @@ export const testNewConnection = command(
 
     try {
       if (data.type === ConnectionType.NOTION) {
-        const { iterateDataSources } = await import("@contfu/svc-sources/notion");
         // biome-ignore lint/correctness/noUnusedVariables: intentional test
         for await (const _ds of iterateDataSources(credentials)) {
           break;

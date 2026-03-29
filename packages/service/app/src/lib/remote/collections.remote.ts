@@ -5,6 +5,14 @@ import { getStreamServer, getSyncWorkerManager } from "$lib/server/startup";
 import { getUserId } from "$lib/server/user";
 import { processIconForStorage } from "$lib/server/icon-image";
 import { ConnectionType, EventType, type CollectionIcon, type WireEvent } from "@contfu/core";
+import {
+  iterateDataSources,
+  extractNotionIcon,
+  notion,
+  notionPropertiesToSchema,
+  isFullDataSource,
+} from "@contfu/svc-sources/notion";
+import { iterateContentTypes } from "@contfu/svc-sources/strapi";
 
 function parseIconJson(raw: string | undefined): CollectionIcon | null | undefined {
   if (!raw) return undefined;
@@ -260,7 +268,6 @@ export const discoverCollections = query(
     const discovered: DiscoveredCollection[] = [];
 
     if (connection.type === ConnectionType.NOTION) {
-      const { iterateDataSources, extractNotionIcon } = await import("@contfu/svc-sources/notion");
       for await (const ds of iterateDataSources(credentials)) {
         const titleParts = (ds as { title?: Array<{ plain_text?: string }> }).title ?? [];
         const displayName = titleParts.map((t) => t.plain_text ?? "").join("") || "Untitled";
@@ -273,7 +280,6 @@ export const discoverCollections = query(
       }
     } else if (connection.type === ConnectionType.STRAPI) {
       const url = connection.url ?? "";
-      const { iterateContentTypes } = await import("@contfu/svc-sources/strapi");
       for await (const ct of iterateContentTypes(url, credentials)) {
         discovered.push({
           ref: ct.uid,
@@ -314,8 +320,6 @@ export const importCollections = command(
     } | null;
     let seedMap = new Map<string, SeedData>();
     if (connection?.type === ConnectionType.NOTION && connection.credentials) {
-      const { notion, notionPropertiesToSchema, isFullDataSource, extractNotionIcon } =
-        await import("@contfu/svc-sources/notion");
       const auth = connection.credentials.toString("utf-8");
       const fetched = await Promise.allSettled(
         data.items.map(async (item) => {
