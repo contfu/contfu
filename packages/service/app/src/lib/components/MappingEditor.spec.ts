@@ -55,8 +55,8 @@ mock.module("$lib/components/ui/command", () => ({
   Item: stubComponent(),
 }));
 
-mock.module("@contfu/ui", () => ({
-  Select: stubComponent(),
+mock.module("$lib/components/ui/native-select", () => ({
+  NativeSelect: stubComponent(),
 }));
 
 for (const icon of ["alert-circle", "circle-check", "plus", "trash-2", "triangle-alert"]) {

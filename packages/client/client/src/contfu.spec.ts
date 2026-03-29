@@ -328,7 +328,7 @@ describe("contfu link resolution", () => {
     const post1Id = makeId(1);
     const result = await q("tags", linkedFrom("tags", post1Id));
     expect(result).toHaveLength(2);
-    const refs = result.map((t) => t.$ref).sort();
+    const refs = result.map((t) => t.$ref).sort((a, b) => (a ?? "").localeCompare(b ?? ""));
     expect(refs).toEqual(["tags/design", "tags/tech"]);
   });
 
@@ -336,7 +336,7 @@ describe("contfu link resolution", () => {
     const techId = makeId(30);
     const result = await q("posts", linksTo("tags", techId));
     expect(result).toHaveLength(2);
-    const titles = result.map((p) => p.title).sort();
+    const titles = result.map((p) => p.title).sort((a, b) => (a ?? "").localeCompare(b ?? ""));
     expect(titles).toEqual(["Post One", "Post Two"]);
   });
 

@@ -3,7 +3,7 @@
   import { Button } from "$lib/components/ui/button";
   import { Input } from "$lib/components/ui/input";
   import { Label } from "$lib/components/ui/label";
-  import { Select } from "@contfu/ui";
+  import { NativeSelect as Select } from "$lib/components/ui/native-select";
   import { FilterOperator, getOperatorsForType, PropertyType, schemaType, type Filter, type CollectionSchema } from "@contfu/svc-core";
   import X from "@lucide/svelte/icons/x";
   import Plus from "@lucide/svelte/icons/plus";

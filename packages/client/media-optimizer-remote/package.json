@@ -15,7 +15,8 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@m4k/client": "^0.2.4"
+    "@m4k/client": "^0.2.4",
+    "@m4k/common": "^0.2.3"
   },
   "devDependencies": {
     "@contfu/client": "workspace:*",

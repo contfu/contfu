@@ -30,3 +30,12 @@ export const ConnectionTypeMeta: Record<
     target: false,
   },
 };
+
+/** Authentication types for web connections. */
+export const WebAuthType = {
+  NONE: 0,
+  BEARER: 1,
+  BASIC: 2,
+} as const;
+
+export type WebAuthType = (typeof WebAuthType)[keyof typeof WebAuthType];

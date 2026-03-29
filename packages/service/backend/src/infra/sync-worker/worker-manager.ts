@@ -16,14 +16,9 @@ import { ConnectionType } from "@contfu/core";
 import type { ConnectionInfo } from "../types";
 import { unpack } from "msgpackr";
 import type { CollectionSchema } from "@contfu/core";
-import {
-  applyMappings,
-  applyMappingsToSchema,
-  matchesFilters,
-  mergeSchemaValues,
-  type Filter,
-  type MappingRule,
-} from "@contfu/svc-core";
+import { applyMappings, applyMappingsToSchema } from "../../domain/mapping-ops";
+import { matchesFilters } from "../../domain/filter-matching";
+import { mergeSchemaValues, type Filter, type MappingRule } from "@contfu/svc-core";
 import { enqueueSyncJobs } from "../../features/sync-jobs/enqueueSyncJobs";
 import { Database } from "../../effect/services/Database";
 import { Effect, Layer } from "effect";

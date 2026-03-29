@@ -30,8 +30,8 @@ import {
   getConnectionRefPolicy,
   toWireItem,
 } from "@contfu/svc-backend/infra/stream/stream-server";
-import { IncidentType } from "@contfu/svc-core";
-import { applyMappingsToSchema, mergeSchemaValues, type MappingRule } from "@contfu/svc-core";
+import { IncidentType, mergeSchemaValues, type MappingRule } from "@contfu/svc-core";
+import { applyMappingsToSchema } from "@contfu/svc-backend/domain/mapping-ops";
 import { and, eq, inArray } from "drizzle-orm";
 import { pack, unpack } from "msgpackr";
 

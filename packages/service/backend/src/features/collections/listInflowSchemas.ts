@@ -4,7 +4,8 @@ import { Database } from "../../effect/services/Database";
 import { DatabaseError } from "../../effect/errors";
 import { collectionTable, flowTable } from "../../infra/db/schema";
 import { unpack } from "msgpackr";
-import { applyMappingsToSchema, type CollectionSchema, type MappingRule } from "@contfu/svc-core";
+import { applyMappingsToSchema } from "../../domain/mapping-ops";
+import type { CollectionSchema, MappingRule } from "@contfu/svc-core";
 
 /**
  * Return the effective schema for each inflow targeting a collection,

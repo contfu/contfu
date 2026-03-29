@@ -106,9 +106,9 @@ function compileComparison(
     case "<=":
       return lte(col, val);
     case "~":
-      return like(col, sql`${"%" + value + "%"}`);
+      return like(col, sql`${"%" + (value as string) + "%"}`);
     case "!~":
-      return not(like(col, sql`${"%" + value + "%"}`));
+      return not(like(col, sql`${"%" + (value as string) + "%"}`));
     case "?=":
       return sql`EXISTS (SELECT 1 FROM json_each(${col}) WHERE value = ${val})`;
     default:

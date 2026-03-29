@@ -112,6 +112,6 @@ function substitutePlaceholders(
 
     if (typeof value === "string") return `"${value}"`;
     if (typeof value === "boolean") return value ? "true" : "false";
-    return String(value);
+    return typeof value === "object" ? JSON.stringify(value) : String(value as string);
   });
 }

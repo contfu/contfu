@@ -1,5 +1,4 @@
-import type { CollectionSchema, Filter } from "@contfu/svc-core";
-import type { SchemaIncompatibleDetails } from "@contfu/svc-core";
+import type { CollectionSchema, Filter, SchemaIncompatibleDetails } from "@contfu/svc-core";
 import {
   incidentTable as incidentTableVal,
   flowTable as flowTableVal,

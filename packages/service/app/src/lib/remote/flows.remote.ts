@@ -15,7 +15,7 @@ import { getFlowWithDetails } from "@contfu/svc-backend/features/flows/getFlowWi
 import { updateFlow as updateFlowFeature } from "@contfu/svc-backend/features/flows/updateFlow";
 import { encodeId, idSchema } from "@contfu/svc-backend/infra/ids";
 import { triggerSnapshotForCollection } from "@contfu/svc-backend/features/consumers/triggerConsumerSnapshot";
-import { autoWireMappings } from "@contfu/svc-core";
+import { autoWireMappings } from "@contfu/svc-backend/domain/mapping-ops";
 import type { Filter, MappingRule } from "@contfu/svc-core";
 import { error, invalid } from "@sveltejs/kit";
 import { pack } from "msgpackr";

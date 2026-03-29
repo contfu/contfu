@@ -7,7 +7,7 @@
   } from "$lib/components/ui/data-table";
   import { Input } from "$lib/components/ui/input";
   import { Label } from "$lib/components/ui/label";
-  import { Select } from "@contfu/ui";
+  import { NativeSelect as Select } from "$lib/components/ui/native-select";
   import * as Table from "$lib/components/ui/table";
   import { buildItemQuerySearchParams } from "$lib/query/item-query";
   import {

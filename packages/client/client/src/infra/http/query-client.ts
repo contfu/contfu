@@ -65,12 +65,12 @@ export function createHttpTypedClient<_CMap>(baseUrl: string, apiKey?: string): 
 
     if (collection) {
       const basePath = `${baseUrl}/api/collections/${encodeURIComponent(collection)}/items`;
-      const url = `${basePath}?${params}`;
+      const url = `${basePath}?${params.toString()}`;
       const json = await fetchJson<{ data: any[]; meta: QueryMeta }>(url);
       return new QueryResultArray(json.data, json.meta);
     }
 
-    const url = `${baseUrl}/api/items?${params}`;
+    const url = `${baseUrl}/api/items?${params.toString()}`;
     const json = await fetchJson<{ data: any[]; meta: QueryMeta }>(url);
     return new QueryResultArray(json.data, json.meta);
   };

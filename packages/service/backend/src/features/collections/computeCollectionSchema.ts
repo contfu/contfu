@@ -4,12 +4,8 @@ import { Database } from "../../effect/services/Database";
 import { DatabaseError } from "../../effect/errors";
 import { collectionTable, flowTable } from "../../infra/db/schema";
 import { unpack } from "msgpackr";
-import {
-  applyMappingsToSchema,
-  mergeSchemaValues,
-  type CollectionSchema,
-  type MappingRule,
-} from "@contfu/svc-core";
+import { applyMappingsToSchema } from "../../domain/mapping-ops";
+import { mergeSchemaValues, type CollectionSchema, type MappingRule } from "@contfu/svc-core";
 
 /**
  * Compute the effective schema for a target collection by merging all source

@@ -1,12 +1,8 @@
 import { Effect } from "effect";
 import { eq } from "drizzle-orm";
 import { pack, unpack } from "msgpackr";
-import {
-  IncidentType,
-  findInvalidFilters,
-  type CollectionSchema,
-  type Filter,
-} from "@contfu/svc-core";
+import { IncidentType, type CollectionSchema, type Filter } from "@contfu/svc-core";
+import { findInvalidFilters } from "../../domain/filter-matching";
 import { Database } from "../../effect/services/Database";
 import { DatabaseError } from "../../effect/errors";
 import { collectionTable, flowTable } from "../../infra/db/schema";

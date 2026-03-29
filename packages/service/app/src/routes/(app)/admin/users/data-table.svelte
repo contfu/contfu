@@ -7,7 +7,7 @@
     FlexRender,
   } from "$lib/components/ui/data-table/index.js";
   import { Input } from "$lib/components/ui/input";
-  import { Select } from "@contfu/ui";
+  import { NativeSelect as Select } from "$lib/components/ui/native-select";
   import * as Table from "$lib/components/ui/table/index.js";
   import ArrowDownIcon from "@lucide/svelte/icons/arrow-down";
   import ArrowUpIcon from "@lucide/svelte/icons/arrow-up";

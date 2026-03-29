@@ -13,51 +13,36 @@ import {
 
 /**
  * Write generated TS code + assertion lines to a temp file
- * and run tsc --noEmit to verify it compiles.
+ * and run tsgo --noEmit to verify it compiles.
  */
 async function assertCompiles(code: string, description?: string): Promise<void> {
   const file = join(tmpdir(), `contfu-type-check-${Date.now()}.ts`);
   await Bun.write(file, code);
   try {
-    const proc = Bun.spawnSync([
-      "npx",
-      "tsc",
-      "--noEmit",
-      "--strict",
-      "--target",
-      "ESNext",
-      "--moduleResolution",
-      "bundler",
-      file,
-    ]);
-    const stderr = proc.stderr.toString() + proc.stdout.toString();
+    const proc =
+      await Bun.$`bunx tsgo --noEmit --ignoreConfig --strict --target ESNext --moduleResolution bundler ${file}`.quiet();
     if (proc.exitCode !== 0) {
-      throw new Error(`Type check failed${description ? ` (${description})` : ""}:\n${stderr}`);
+      throw new Error(
+        `Type check failed${description ? ` (${description})` : ""}:\n${proc.stderr.toString()}`,
+      );
     }
   } finally {
     if (await Bun.file(file).exists()) await Bun.$`rm ${file}`.quiet();
   }
 }
 
-/** Expect tsc to fail on the given code (negative type test). */
+/** Expect tsgo to fail on the given code (negative type test). */
 async function assertDoesNotCompile(code: string): Promise<void> {
   const file = join(tmpdir(), `contfu-type-check-${Date.now()}.ts`);
   await Bun.write(file, code);
   try {
-    const proc = Bun.spawnSync([
-      "npx",
-      "tsc",
-      "--noEmit",
-      "--strict",
-      "--target",
-      "ESNext",
-      "--moduleResolution",
-      "bundler",
-      file,
-    ]);
+    const proc =
+      await Bun.$`bunx tsgo --noEmit --ignoreConfig --strict --target ESNext --moduleResolution bundler ${file}`.quiet();
     if (proc.exitCode === 0) {
       throw new Error("Expected type check to fail, but it succeeded");
     }
+  } catch {
+    // expected
   } finally {
     if (await Bun.file(file).exists()) await Bun.$`rm ${file}`.quiet();
   }

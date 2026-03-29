@@ -158,7 +158,7 @@ function printTable(rows: Record<string, unknown>[], columns: Column[]) {
     return;
   }
   const cell = (col: Column, row: Record<string, unknown>) =>
-    col.format ? col.format(row[col.key]) : String(row[col.key] ?? "");
+    col.format ? col.format(row[col.key]) : String((row[col.key] as string) ?? "");
   const widths = columns.map((col) =>
     Math.max(col.header.length, ...rows.map((r) => cell(col, r).length)),
   );

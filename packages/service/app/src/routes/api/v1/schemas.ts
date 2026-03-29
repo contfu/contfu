@@ -8,7 +8,7 @@ export {
   UpdateCollectionSchema,
   CreateFlowSchema,
   UpdateFlowSchema,
-} from "@contfu/svc-core";
+} from "@contfu/svc-backend/domain/api-schemas";
 
 export function parseBody<T>(schema: v.GenericSchema<T>, data: unknown): T {
   const result = v.safeParse(schema, data);

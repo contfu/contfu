@@ -1,10 +1,10 @@
 import { ConnectionType } from "@contfu/core";
 import {
   applyMappings,
-  matchesFilters,
   validateSourceItem,
   type SourceItemValidationError,
-} from "@contfu/svc-core";
+} from "../../domain/mapping-ops";
+import { matchesFilters } from "../../domain/filter-matching";
 import { createLogger } from "../../infra/logger/index";
 import { getItemRefForSource, notionSource, strapiSource, webSource } from "@contfu/svc-sources";
 import type { UserSyncItem } from "../../infra/sync-worker/messages";

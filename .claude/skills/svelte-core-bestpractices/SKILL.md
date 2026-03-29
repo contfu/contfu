@@ -170,7 +170,7 @@ Tests run with `bun test` using happy-dom, `@testing-library/svelte`, and `@test
 
 ### Mocking UI dependencies
 
-Mock heavy UI libraries (`$lib/components/ui/*`, `@contfu/ui`, `@lucide/svelte/icons/*`) at the top of the spec file with `mock.module()` before any component imports. Use minimal no-op stubs — the goal is to test **component logic**, not pixel-perfect rendering.
+Mock heavy UI libraries (`$lib/components/ui/*`, `@lucide/svelte/icons/*`) at the top of the spec file with `mock.module()` before any component imports. Use minimal no-op stubs — the goal is to test **component logic**, not pixel-perfect rendering.
 
 ### What to test
 

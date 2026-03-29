@@ -6,7 +6,6 @@
     "packages/service/*",
     "packages/cli",
     "packages/core",
-    "packages/ui",
     "demos/*"
   ],
   "type": "module",

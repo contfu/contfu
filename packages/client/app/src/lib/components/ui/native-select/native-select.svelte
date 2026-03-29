@@ -2,7 +2,7 @@
   import ChevronDownIcon from "@lucide/svelte/icons/chevron-down";
   import type { Snippet } from "svelte";
   import type { HTMLSelectAttributes } from "svelte/elements";
-  import { cn } from "./utils.js";
+  import { cn } from "$lib/utils.js";
 
   type Option = { value: string; label: string };
 

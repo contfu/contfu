@@ -9,7 +9,6 @@
   import { Label } from "$lib/components/ui/label";
   import * as Popover from "$lib/components/ui/popover";
   import {
-    autoWireMappings,
     FilterOperator,
     getOperatorsForType,
     PropertyType,
@@ -24,7 +23,8 @@
     type MappingRule,
     type RefTargets,
   } from "@contfu/svc-core";
-  import { Select } from "@contfu/ui";
+  import { autoWireMappings } from "@contfu/svc-backend/domain/mapping-ops";
+  import { NativeSelect as Select } from "$lib/components/ui/native-select";
   import { BoxesIcon, ShapesIcon } from "@lucide/svelte";
   import AlertCircle from "@lucide/svelte/icons/alert-circle";
   import CircleCheck from "@lucide/svelte/icons/circle-check";
@@ -712,7 +712,7 @@
       ));
     }
     // Carry over verified state
-    for (const key of [...verifiedMappings]) {
+    for (const key of verifiedMappings) {
       const [iid, prop] = key.split(":");
       if (prop === oldName) {
         verifiedMappings.delete(key);

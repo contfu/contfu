@@ -1,3 +1,5 @@
+import type { RemoteImageOptions } from "@m4k/common";
+
 /**
  * MediaStore interface for storing and retrieving media files.
  */
@@ -76,7 +78,7 @@ export interface ImageConstraints {
   resize?: {
     width?: number;
     height?: number;
-    fit?: "contain" | "cover" | "fill" | "inside" | "outside";
+    fit?: (RemoteImageOptions["resize"] & {})["fit"];
   };
   keepMetadata?: boolean;
   keepExif?: boolean;
@@ -221,7 +223,7 @@ export interface MediaConvertOpts {
   mediaType?: "image" | "video" | "audio";
   width?: number;
   height?: number;
-  fit?: string;
+  fit?: (RemoteImageOptions["resize"] & {})["fit"];
   format?: string;
   quality?: number;
   rotate?: number;

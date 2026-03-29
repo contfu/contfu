@@ -1,7 +1,7 @@
 import { ConnectionType } from "@contfu/core";
 import { createLogger } from "../logger/index";
 import { withLogContext } from "../logger/log-context";
-import { matchesFilters } from "@contfu/svc-core";
+import { matchesFilters } from "../../domain/filter-matching";
 
 const log = createLogger("webhook-fetch");
 import { uuidToBuffer } from "@contfu/svc-sources";

@@ -22,7 +22,6 @@ COPY packages/client/bun-file-store/package.json packages/client/bun-file-store/
 COPY packages/client/media-optimizer/package.json packages/client/media-optimizer/
 COPY packages/client/media-optimizer-remote/package.json packages/client/media-optimizer-remote/
 COPY packages/cli/package.json packages/cli/
-COPY packages/ui/package.json packages/ui/
 COPY demos/consumer-app/package.json demos/consumer-app/
 RUN --mount=type=cache,target=/root/.bun/install/cache bun install --ignore-scripts
 COPY . .

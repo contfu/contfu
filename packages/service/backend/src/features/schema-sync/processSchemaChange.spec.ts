@@ -10,8 +10,13 @@ import {
 import { pack, unpack } from "msgpackr";
 import { eq } from "drizzle-orm";
 import { ConnectionType } from "@contfu/core";
-import { FilterOperator, PropertyType, type CollectionSchema, type Filter } from "@contfu/svc-core";
-import { IncidentType } from "@contfu/svc-core";
+import {
+  FilterOperator,
+  IncidentType,
+  PropertyType,
+  type CollectionSchema,
+  type Filter,
+} from "@contfu/svc-core";
 import { runTest } from "../../../test/effect-helpers";
 import { processSchemaChange } from "./processSchemaChange";
 

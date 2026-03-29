@@ -27,7 +27,6 @@
     "@contfu/svc-backend": "workspace:*",
     "@contfu/svc-core": "workspace:*",
     "@contfu/svc-sources": "workspace:*",
-    "@contfu/ui": "workspace:*",
     "@electric-sql/pglite": "^0.3.16",
     "@happy-dom/global-registrator": "^20.8.8",
     "@internationalized/date": "^3.12.0",

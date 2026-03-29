@@ -11,7 +11,8 @@ import {
 } from "@contfu/svc-backend/infra/db/schema";
 import type { UserSyncItem } from "@contfu/svc-backend/infra/sync-worker/messages";
 import { contentfulRefUrl } from "@contfu/svc-sources";
-import { matchesFilters, type Filter } from "@contfu/svc-core";
+import { matchesFilters } from "@contfu/svc-backend/domain/filter-matching";
+import type { Filter } from "@contfu/svc-core";
 import { genUid } from "@contfu/svc-sources";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { unpack } from "msgpackr";

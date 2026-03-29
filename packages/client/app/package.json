@@ -27,7 +27,6 @@
     "@contfu/client": "workspace:*",
     "@contfu/core": "workspace:*",
     "@contfu/media-optimizer": "workspace:*",
-    "@contfu/ui": "workspace:*",
     "@internationalized/date": "^3.12.0",
     "@lucide/svelte": "^0.563.1",
     "@sveltejs/kit": "^2.55.0",

@@ -9,8 +9,13 @@ import {
 } from "../../infra/db/schema";
 import { pack } from "msgpackr";
 import { ConnectionType } from "@contfu/core";
-import { FilterOperator, PropertyType, type CollectionSchema } from "@contfu/svc-core";
-import { IncidentType, type SchemaIncompatibleDetails } from "@contfu/svc-core";
+import {
+  FilterOperator,
+  PropertyType,
+  IncidentType,
+  type CollectionSchema,
+  type SchemaIncompatibleDetails,
+} from "@contfu/svc-core";
 import { runTest } from "../../../test/effect-helpers";
 import { createIncident } from "./createIncident";
 import { listIncidents } from "./listIncidents";

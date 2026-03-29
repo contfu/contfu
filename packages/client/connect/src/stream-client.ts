@@ -146,7 +146,7 @@ export async function* connectToStream(
   let shouldReconnect = true;
   let nextFrom = from;
   let lastAckedFrom: number | null = null;
-  let ackTimer: ReturnType<typeof setInterval> | null = null;
+  let ackTimer: Timer | null = null;
   let lastStreamActivityAt = 0;
   let currentConnection: TransportConnection | null = null;
 
