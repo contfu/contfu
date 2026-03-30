@@ -73,7 +73,7 @@ git push github sync/<date>
 
 ## What gets synced
 
-See `scripts/github-mirror.conf` for the full list. Summary:
+See `github-mirror.conf` for the full list. Summary:
 - `packages/core`, `packages/cli`, `packages/client/*`, `packages/service/core`
 - `docs/` (excluding `docs/private/`)
 - Shared root configs (tsconfig, oxlint, etc.)

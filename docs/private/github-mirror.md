@@ -56,7 +56,7 @@ Create a Forgejo PR with the cherry-picked commits as usual.
 
 ## What's included in the mirror
 
-See `scripts/github-mirror.conf` for the full list:
+See `github-mirror.conf` for the full list:
 
 - `packages/core` — core types and utilities
 - `packages/cli` — CLI tool

@@ -1,17 +1,30 @@
 {
   "name": "@contfu/media-optimizer",
   "version": "0.0.1",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/contfu/contfu.git"
   },
   "files": [
-    "src"
+    "dist",
+    "!dist/**/*.d.ts.map"
   ],
   "type": "module",
   "main": "src/index.ts",
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    },
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts"
+  },
   "scripts": {
     "test": "bun test",
+    "build": "tsc -b",
     "pack": "bun pm pack",
     "clean": "rm -rf dist .tmp"
   },

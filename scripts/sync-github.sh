@@ -14,7 +14,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-CONF="$SCRIPT_DIR/github-mirror.conf"
+CONF="$REPO_ROOT/github-mirror.conf"
 WORKTREE="$REPO_ROOT/.worktrees/github-mirror"
 REMOTE="github"
 BRANCH="main"

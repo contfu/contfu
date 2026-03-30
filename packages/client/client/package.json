@@ -1,14 +1,14 @@
 {
   "name": "@contfu/client",
   "version": "0.0.1",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/contfu/contfu.git"
   },
   "files": [
-    "src",
     "dist",
-    "db/migrations"
+    "!dist/**/*.d.ts.map"
   ],
   "type": "module",
   "main": "src/index.ts",
@@ -19,6 +19,18 @@
       "default": "./src/index.ts"
     },
     "./src/*": "./src/*"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "bun": "./dist/index.bun.js",
+        "default": "./dist/index.js"
+      },
+      "./dist/*": "./dist/*"
+    },
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts"
   },
   "scripts": {
     "test": "bun test",
