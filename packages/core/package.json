@@ -30,6 +30,7 @@
   },
   "dependencies": {},
   "devDependencies": {
+    "@typescript/native-preview": "^7.0.0-dev.20260325.1",
     "typescript": "^5.9.3"
   }
 }
