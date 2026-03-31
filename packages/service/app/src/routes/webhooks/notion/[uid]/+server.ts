@@ -136,11 +136,13 @@ async function logWebhookEvent(
 
 function validateSignature(body: string, headers: Headers, secret: string): boolean {
   const signature = headers.get("x-notion-signature");
+  log.debug({ signature, secretPrefix: secret.slice(0, 10) }, "Signature validation attempt");
   if (!signature) return false;
 
   const hmac = crypto.createHmac("sha256", secret);
   hmac.update(body);
   const expected = hmac.digest("hex");
+  log.debug({ expected, received: signature }, "Signature comparison");
 
   try {
     return crypto.timingSafeEqual(Buffer.from(expected, "hex"), Buffer.from(signature, "hex"));
