@@ -1,6 +1,6 @@
 {
   "name": "@contfu/svc-core",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "license": "MIT",
   "files": [
     "dist",
@@ -23,6 +23,7 @@
   },
   "scripts": {
     "build": "tsc -b",
+    "pack": "bun pm pack",
     "clean": "rm -rf dist"
   },
   "dependencies": {
