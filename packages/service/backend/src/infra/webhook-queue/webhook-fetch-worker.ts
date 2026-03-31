@@ -32,6 +32,9 @@ const MAX_LOGS_PER_CONNECTION = 50;
 let workerTask: Promise<void> | null = null;
 let stopSignal: AbortController | null = null;
 
+const INITIAL_BACKOFF_MS = 1_000;
+const MAX_BACKOFF_MS = 30_000;
+
 async function logWebhookEvent(
   _userId: number,
   connectionId: number,
@@ -417,15 +420,46 @@ async function runWorker(streamServer: StreamServer, signal: AbortSignal): Promi
   }
 }
 
+async function runWithRestart(streamServer: StreamServer, signal: AbortSignal): Promise<void> {
+  let backoff = INITIAL_BACKOFF_MS;
+
+  while (!signal.aborted) {
+    try {
+      await runWorker(streamServer, signal);
+      if (!signal.aborted) {
+        log.warn({ backoffMs: backoff }, "Webhook fetch worker exited unexpectedly, restarting");
+      }
+    } catch (error) {
+      if (!signal.aborted) {
+        log.error({ err: error, backoffMs: backoff }, "Webhook fetch worker crashed, restarting");
+      }
+    }
+
+    if (signal.aborted) break;
+
+    await new Promise<void>((resolve) => {
+      const t = setTimeout(resolve, backoff);
+      signal.addEventListener(
+        "abort",
+        () => {
+          clearTimeout(t);
+          resolve();
+        },
+        { once: true },
+      );
+    });
+
+    backoff = Math.min(backoff * 2, MAX_BACKOFF_MS);
+  }
+}
+
 export async function startWebhookFetchWorker(opts: { streamServer: StreamServer }): Promise<void> {
   if (workerTask) {
     await stopWebhookFetchWorker();
   }
 
   stopSignal = new AbortController();
-  workerTask = runWorker(opts.streamServer, stopSignal.signal).catch((error) => {
-    log.error({ err: error }, "Worker exited with error");
-  });
+  workerTask = runWithRestart(opts.streamServer, stopSignal.signal);
 }
 
 export async function stopWebhookFetchWorker(): Promise<void> {
