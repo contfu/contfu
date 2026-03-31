@@ -1,7 +1,7 @@
 ---
 name: issues
 description: Turn short descriptions into structured, agent-ready Forgejo issues on code.sven-rogge.com. Use when you want to plan work without implementing it — captures context, relevant files, and acceptance criteria so any agent can pick up the issue later.
-model: sonnet
+model: haiku
 ---
 
 # Forgejo Issues

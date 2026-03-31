@@ -1,6 +1,7 @@
 ---
 name: contfu-cluster
 description: Manage and monitor the Contfu production cluster on K3S (context ce, namespace contfu). Use when checking pod health, reading logs, inspecting database or NATS state, watching Flux reconciliation, or performing cluster operations like restarting pods or resetting the database.
+model: haiku
 ---
 
 # Contfu Production Cluster

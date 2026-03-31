@@ -1,6 +1,7 @@
 ---
 name: pr
 description: Create a pull request following the contfu workflow. Use when changes are complete and ready to PR.
+model: haiku
 ---
 
 # PR Workflow

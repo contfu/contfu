@@ -1,6 +1,7 @@
 ---
 name: skill-builder
 description: Use when creating new skills, optimizing existing skills, or auditing skill quality. Guides skill development following Claude Code official best practices.
+model: sonnet
 ---
 
 ## What This Skill Does

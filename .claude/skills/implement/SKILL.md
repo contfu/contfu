@@ -1,6 +1,7 @@
 ---
 name: implement
 description: Pick up a Forgejo issue and implement it end-to-end. Use when you're ready to execute on a planned issue — reads the issue, creates a branch, plans the approach, implements with minimal changes, runs quality checks, and opens a PR on Forgejo. Only stops for plan approval — then implements through to a passing PR without further interaction.
+model: sonnet
 ---
 
 # Implement

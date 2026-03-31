@@ -2,6 +2,7 @@
 name: pr-comments
 description: Address PR review comments from Forgejo. Use when the user says "handle PR comments", "address review feedback", "fix PR comments", or gives a PR number with review context. Also use when user says "/pr-comments".
 argument-hint: <pr_number>
+model: sonnet
 ---
 
 # PR Comments

@@ -1,6 +1,7 @@
 ---
 name: e2e-testing
 description: Write and debug Playwright E2E tests for the Contfu service app. Use when creating new e2e tests, debugging test failures, or working with the e2e test infrastructure (global setup, PGlite, NATS, admin API).
+model: sonnet
 ---
 
 # E2E Testing

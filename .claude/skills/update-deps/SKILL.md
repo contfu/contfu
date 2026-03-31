@@ -6,6 +6,7 @@ description: >
   Covers the full workflow: bulk update, out-of-range bumps, syncing all package.json
   files, researching wins and breaking changes, verifying impact, and opening a PR.
 disable-model-invocation: true
+model: sonnet
 ---
 
 # update-deps

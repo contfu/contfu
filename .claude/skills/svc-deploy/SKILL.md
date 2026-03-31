@@ -1,6 +1,7 @@
 ---
 name: svc-deploy
 description: Deploy a new version of the Contfu service app. Use when the user says "deploy", "bump the service version", "release a new version", "svc-deploy", or wants to push a new app version to the cluster.
+model: haiku
 ---
 
 ## What This Skill Does

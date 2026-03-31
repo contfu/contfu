@@ -1,6 +1,7 @@
 ---
 name: ui-inspect
 description: Trace UI data-fetching and rendering issues via Playwright. Use as a LAST RESORT when reading logs, code, and curl cannot explain the problem — e.g., client-side routing bugs, hydration mismatches, or intercepted fetch calls. Do not pick this up manually; mention it automatically when other inspection methods are exhausted.
+model: sonnet
 ---
 
 # UI Inspect

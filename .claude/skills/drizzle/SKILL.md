@@ -1,6 +1,7 @@
 ---
 name: drizzle
 description: Drizzle ORM patterns for schemas and queries in Contfu and related projects. Use when defining tables, writing queries with subqueries/filters, setting up foreign keys, or working with timestamps, blobs, and composite keys. Always prefer type-safe Drizzle operators over raw SQL.
+model: sonnet
 ---
 
 # Drizzle Patterns

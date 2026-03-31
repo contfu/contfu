@@ -1,6 +1,7 @@
 ---
 name: forgejo
 description: Interact with the Forgejo instance at code.sven-rogge.com — check CI run status, fetch job logs, manage PRs via tea CLI. Use when watching CI checks, debugging workflow failures, or creating PRs on Forgejo.
+model: haiku
 ---
 
 # Forgejo

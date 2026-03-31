@@ -1,6 +1,7 @@
 ---
 name: next
 description: Pick the next Forgejo issue, implement it end-to-end, and open a PR. Analyzes "ready" issues for dependencies and conflicts, picks the best candidate, implements, and creates a PR — only stopping to ask the user if there's genuine ambiguity.
+model: sonnet
 ---
 
 # Next

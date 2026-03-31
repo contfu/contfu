@@ -1,6 +1,7 @@
 ---
 name: contfu
 description: Manage Contfu service resources (sources, collections, consumers, connections, influxes), query content items, and generate TypeScript types using the Contfu CLI.
+model: haiku
 ---
 
 # Contfu Service Skill

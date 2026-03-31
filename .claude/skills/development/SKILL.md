@@ -1,6 +1,7 @@
 ---
 name: development
 description: Develop and maintain the Contfu codebase. Use when working on Contfu internals, adding features, fixing bugs, running tests, understanding the monorepo structure, modifying database schemas, or contributing to any Contfu package.
+model: sonnet
 ---
 
 # Development

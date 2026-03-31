@@ -1,6 +1,7 @@
 ---
 name: source-adapter
 description: Create new CMS source adapters for Contfu. Use when adding support for a new CMS platform (Contentful, Sanity, WordPress, Ghost, Directus, etc.), implementing the Source interface, handling pagination, transforming content blocks, or debugging sync issues with existing adapters.
+model: sonnet
 ---
 
 # Source Adapter Development
