@@ -3,19 +3,18 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y ca-certificates wget && rm -rf /var/lib/apt/lists/*
 
 FROM base AS build
-# COPY package.json bun.lock ./
-# COPY packages/client/app/package.json packages/client/app/
-# COPY packages/client/client/package.json packages/client/client/
-# COPY packages/client/bun-file-store/package.json packages/client/bun-file-store/
-# COPY packages/client/connect/package.json packages/client/connect/
-# COPY packages/client/media-optimizer/package.json packages/client/media-optimizer/
-# COPY packages/client/media-optimizer-remote/package.json packages/client/media-optimizer-remote/
-# COPY packages/core/package.json packages/core/
-# COPY packages/service/core/package.json packages/service/core/
-# COPY packages/cli/package.json packages/cli/
-COPY . .
+COPY package.json bun.lock ./
+COPY packages/client/app/package.json packages/client/app/
+COPY packages/client/client/package.json packages/client/client/
+COPY packages/client/bun-file-store/package.json packages/client/bun-file-store/
+COPY packages/client/connect/package.json packages/client/connect/
+COPY packages/client/media-optimizer/package.json packages/client/media-optimizer/
+COPY packages/client/media-optimizer-remote/package.json packages/client/media-optimizer-remote/
+COPY packages/core/package.json packages/core/
+COPY packages/cli/package.json packages/cli/
 RUN --mount=type=cache,target=/root/.bun/install/cache bun install --ignore-scripts
-RUN bun run build
+COPY . .
+RUN bun run -F '@contfu/app' build
 
 FROM base AS deps
 WORKDIR /app

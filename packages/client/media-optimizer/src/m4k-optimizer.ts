@@ -218,7 +218,7 @@ export function createTransform(): MediaTransform {
         imageOpt.resize = {
           width: opts.width,
           height: opts.height,
-          fit: opts.fit,
+          fit: opts.fit ?? "inside",
         };
       }
       if (opts.format) {

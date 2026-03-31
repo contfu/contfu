@@ -2,35 +2,23 @@ import { describe, expect, it } from "bun:test";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-  generateConsumerTypes,
   generateTypeScript,
-  mergeSchemaValues,
+  generateConsumerTypes,
   PropertyType,
-  schemaEnumValues,
   schemaType,
+  schemaEnumValues,
+  mergeSchemaValues,
   type CollectionSchema,
 } from "./schemas";
 
 /**
  * Write generated TS code + assertion lines to a temp file
- * and run tsc --noEmit to verify it compiles.
+ * and run tsgo --noEmit to verify it compiles.
  */
 async function assertCompiles(code: string, description?: string): Promise<void> {
   const file = join(tmpdir(), `contfu-type-check-${Date.now()}.ts`);
   await Bun.write(file, code);
   try {
-    // const proc = Bun.spawnSync([
-    //   "npx",
-    //   "tsc",
-    //   "--noEmit",
-    //   "--strict",
-    //   "--target",
-    //   "ESNext",
-    //   "--moduleResolution",
-    //   "bundler",
-    //   file,
-    // ]);
-    // const stderr = proc.stderr.toString() + proc.stdout.toString();
     const proc =
       await Bun.$`bunx tsgo --noEmit --ignoreConfig --strict --target ESNext --moduleResolution bundler ${file}`.quiet();
     if (proc.exitCode !== 0) {
@@ -43,7 +31,7 @@ async function assertCompiles(code: string, description?: string): Promise<void>
   }
 }
 
-/** Expect tsc to fail on the given code (negative type test). */
+/** Expect tsgo to fail on the given code (negative type test). */
 async function assertDoesNotCompile(code: string): Promise<void> {
   const file = join(tmpdir(), `contfu-type-check-${Date.now()}.ts`);
   await Bun.write(file, code);

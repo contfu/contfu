@@ -29,6 +29,7 @@ describe("safeCast", () => {
   });
 
   test("bitmask overlap wins over safe cast", () => {
+    // target accepts STRING|NUMBER, source is NUMBER → direct overlap
     expect(safeCast(T.NUMBER, T.STRING | T.NUMBER)).toBeNull();
   });
 });

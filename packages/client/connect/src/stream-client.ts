@@ -77,10 +77,8 @@ function getEnv(name: string): string | undefined {
 }
 
 type BaseOpts = {
-  /** Consumer key. If not provided, CONTFU_API_KEY env var (base64url) is used. */
+  /** Authentication key. If not provided, CONTFU_KEY env var (base64url) is used. */
   key?: Buffer;
-  /** Sync endpoint URL. Defaults to CONTFU_API_URL env var or http://localhost:5173/api/sync */
-  url?: string;
   /** Event index to replay from. Events since this index will be replayed before live events. */
   from?: number;
   /** Explicit transport override. Defaults to runtime selection. */
@@ -131,16 +129,16 @@ export async function* connectToStream(
     connectionEvents = false,
   } = opts;
 
-  const apiUrl = opts.url ?? getEnv("CONTFU_API_URL") ?? "https://contfu.com/api";
-  const envKeyStr = getEnv("CONTFU_API_KEY");
+  const rawUrl = getEnv("CONTFU_URL") ?? "https://contfu.com";
+  const envKeyStr = getEnv("CONTFU_KEY");
   const key = opts.key ?? (envKeyStr ? Buffer.from(envKeyStr, "base64url") : undefined);
   if (!key) {
-    throw new Error("No consumer key provided. Pass opts.key or set CONTFU_API_KEY.");
+    throw new Error("No authentication key provided. Pass opts.key or set CONTFU_KEY.");
   }
 
   const transport = resolveSyncTransport(opts.transport);
-  const baseUrl = apiUrl.replace(/\/$/, "");
-  const syncEndpoint = /\/sync(?:$|\?)/.test(baseUrl) ? baseUrl : `${baseUrl}/sync`;
+  const baseUrl = rawUrl.replace(/\/$/, "");
+  const syncEndpoint = /\/api\/sync(?:$|\?)/.test(baseUrl) ? baseUrl : `${baseUrl}/api/sync`;
 
   let reconnectDelay = initialReconnectDelay;
   let shouldReconnect = true;
@@ -162,6 +160,11 @@ export async function* connectToStream(
     lastStreamActivityAt = Date.now();
     ackTimer = setInterval(() => {
       if (transport === "http" && Date.now() - lastStreamActivityAt > 45_000) {
+        currentConnection?.close("Stream stalled");
+        return;
+      }
+
+      if (transport === "websocket" && Date.now() - lastStreamActivityAt > 10 * 60 * 1000) {
         currentConnection?.close("Stream stalled");
         return;
       }

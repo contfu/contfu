@@ -10,8 +10,7 @@
     "contfu": "dist/main.js"
   },
   "files": [
-    "dist",
-    "!dist/**/*.d.ts.map"
+    "dist"
   ],
   "type": "module",
   "scripts": {

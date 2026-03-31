@@ -336,7 +336,7 @@ describe("contfu link resolution", () => {
     const techId = makeId(30);
     const result = await q("posts", linksTo("tags", techId));
     expect(result).toHaveLength(2);
-    const titles = result.map((p) => p.title).sort();
+    const titles = result.map((p) => p.title).sort((a, b) => (a ?? "").localeCompare(b ?? ""));
     expect(titles).toEqual(["Post One", "Post Two"]);
   });
 

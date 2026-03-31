@@ -88,7 +88,6 @@ describe("stream-client", () => {
       const events: unknown[] = [];
       for await (const event of connectToStream({
         key: testKey,
-        url: "http://test/sync",
         reconnect: false,
       })) {
         events.push(event);
@@ -120,7 +119,6 @@ describe("stream-client", () => {
       const events: unknown[] = [];
       for await (const event of connectToStream({
         key: testKey,
-        url: "http://test/sync",
         reconnect: false,
       })) {
         events.push(event);
@@ -160,7 +158,6 @@ describe("stream-client", () => {
       const events: unknown[] = [];
       for await (const event of connectToStream({
         key: testKey,
-        url: "http://test/sync",
         reconnect: false,
       })) {
         events.push(event);
@@ -182,7 +179,6 @@ describe("stream-client", () => {
       const events: unknown[] = [];
       for await (const event of connectToStream({
         key: testKey,
-        url: "http://test/sync",
         reconnect: false,
       })) {
         events.push(event);
@@ -202,7 +198,6 @@ describe("stream-client", () => {
       const events: unknown[] = [];
       for await (const event of connectToStream({
         key: testKey,
-        url: "http://test/sync",
         reconnect: false,
         connectionEvents: true,
       })) {
@@ -225,7 +220,6 @@ describe("stream-client", () => {
         const events: unknown[] = [];
         for await (const event of connectToStream({
           key: testKey,
-          url: "http://test/sync",
           transport: "websocket",
           reconnect: false,
           connectionEvents: true,
@@ -260,7 +254,6 @@ describe("stream-client", () => {
       try {
         for await (const _ of connectToStream({
           key: testKey,
-          url: "http://test/sync",
           reconnect: false,
         })) {
           // noop
@@ -282,7 +275,7 @@ describe("stream-client", () => {
         // consume
       }
 
-      expect(getUrl()).toContain("http://localhost:5173/api/sync");
+      expect(getUrl()).toContain("https://contfu.com/api/sync");
       expect(getUrl()).toContain("key=");
     });
 
@@ -291,15 +284,14 @@ describe("stream-client", () => {
 
       for await (const _ of connectToStream({
         key: testKey,
-        url: "http://test/sync",
         reconnect: false,
       })) {
         // consume
       }
 
       const expectedKey = testKey.toString("base64url");
-      const syncUrl = getUrls().find((u) => u.includes("/sync?"));
-      expect(syncUrl).toBe(`http://test/sync?key=${expectedKey}`);
+      const syncUrl = getUrls().find((u) => u.includes("/api/sync?"));
+      expect(syncUrl).toBe(`https://contfu.com/api/sync?key=${expectedKey}`);
     });
 
     test("from option appends from parameter", async () => {
@@ -307,14 +299,13 @@ describe("stream-client", () => {
 
       for await (const _ of connectToStream({
         key: testKey,
-        url: "http://test/sync",
         reconnect: false,
         from: 42,
       })) {
         // consume
       }
 
-      const syncUrl = getUrls().find((u) => u.includes("/sync?"));
+      const syncUrl = getUrls().find((u) => u.includes("/api/sync?"));
       expect(syncUrl).toContain("&from=42");
     });
   });

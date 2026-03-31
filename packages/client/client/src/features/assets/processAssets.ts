@@ -1,5 +1,12 @@
 import { createHash, randomBytes } from "node:crypto";
-import { isImg, mimeTypes, type Block, type CollectionSchema, PropertyType, schemaType } from "@contfu/core";
+import {
+  isImg,
+  mimeTypes,
+  type Block,
+  type CollectionSchema,
+  PropertyType,
+  schemaType,
+} from "@contfu/core";
 import { createAsset } from "./createAsset";
 import { getAsset } from "./getAsset";
 import { linkAssetToItem } from "./linkAssetToItem";

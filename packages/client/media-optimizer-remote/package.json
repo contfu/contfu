@@ -13,14 +13,14 @@
   "type": "module",
   "main": "src/index.ts",
   "publishConfig": {
-    "main": "dist/index.js",
-    "types": "dist/index.d.ts",
     "exports": {
       ".": {
         "types": "./dist/index.d.ts",
         "default": "./dist/index.js"
       }
-    }
+    },
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts"
   },
   "scripts": {
     "build": "tsc -b",
@@ -29,7 +29,7 @@
   },
   "dependencies": {
     "@m4k/client": "^0.2.4",
-    "@m4k/common": "^0.2.3"
+    "@m4k/common": "^0.2.5"
   },
   "devDependencies": {
     "@contfu/client": "workspace:*",

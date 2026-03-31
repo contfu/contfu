@@ -78,7 +78,7 @@ export interface ImageConstraints {
   resize?: {
     width?: number;
     height?: number;
-    fit?: "contain" | "cover" | "fill" | "inside" | "outside";
+    fit?: (RemoteImageOptions["resize"] & {})["fit"];
   };
   keepMetadata?: boolean;
   keepExif?: boolean;

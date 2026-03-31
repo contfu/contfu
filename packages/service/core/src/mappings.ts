@@ -21,10 +21,6 @@ export interface MappingRule {
   enumValues?: string[];
 }
 
-// ---------------------------------------------------------------------------
-// Type compatibility utilities
-// ---------------------------------------------------------------------------
-
 /**
  * Safe single-type casts: (source singleton type, target singleton type) → cast string.
  * Only considers non-overlapping pairs where the conversion is lossless or well-defined.
