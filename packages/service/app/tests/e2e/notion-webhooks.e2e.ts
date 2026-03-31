@@ -10,12 +10,12 @@ const MOCK_DATA_SOURCE_ID = "ffffffff-aaaa-bbbb-cccc-111111111111";
 function computeHmacSignature(body: string, secret: string): string {
   const hmac = crypto.createHmac("sha256", secret);
   hmac.update(body);
-  return hmac.digest("hex");
+  return `sha256=${hmac.digest("hex")}`;
 }
 
 let webhookSecret: string;
 
-test.describe("Notion Webhooks", () => {
+test.describe.serial("Notion Webhooks", () => {
   test("verification flow stores token", async ({ request }) => {
     const body = JSON.stringify({ verification_token: "test-webhook-secret" });
     const response = await request.post(`/webhooks/notion/${SOURCE_UID}`, {
@@ -44,7 +44,7 @@ test.describe("Notion Webhooks", () => {
       type: "page.created",
       entity: { id: MOCK_PAGE_ID, type: "page" },
       data: {
-        parent: { type: "database_id", database_id: MOCK_DATABASE_ID },
+        parent: { type: "database", id: MOCK_DATABASE_ID },
       },
     };
     const body = JSON.stringify(payload);
@@ -69,7 +69,7 @@ test.describe("Notion Webhooks", () => {
       type: "page.deleted",
       entity: { id: MOCK_PAGE_ID, type: "page" },
       data: {
-        parent: { type: "database_id", database_id: MOCK_DATABASE_ID },
+        parent: { type: "database", id: MOCK_DATABASE_ID },
       },
     };
     const body = JSON.stringify(payload);
@@ -94,7 +94,7 @@ test.describe("Notion Webhooks", () => {
       type: "page.created",
       entity: { id: MOCK_PAGE_ID, type: "page" },
       data: {
-        parent: { type: "database_id", database_id: MOCK_DATABASE_ID },
+        parent: { type: "database", id: MOCK_DATABASE_ID },
       },
     };
     const body = JSON.stringify(payload);
@@ -144,7 +144,7 @@ test.describe("Notion Webhooks", () => {
       type: "page.content_updated",
       entity: { id: MOCK_PAGE_ID, type: "page" },
       data: {
-        parent: { type: "database_id", database_id: MOCK_DATABASE_ID },
+        parent: { type: "database", id: MOCK_DATABASE_ID },
       },
     };
     const body = JSON.stringify(payload);
@@ -169,7 +169,7 @@ test.describe("Notion Webhooks", () => {
       type: "page.properties_updated",
       entity: { id: MOCK_PAGE_ID, type: "page" },
       data: {
-        parent: { type: "database_id", database_id: MOCK_DATABASE_ID },
+        parent: { type: "database", id: MOCK_DATABASE_ID },
       },
     };
     const body = JSON.stringify(payload);
@@ -194,7 +194,7 @@ test.describe("Notion Webhooks", () => {
       type: "page.moved",
       entity: { id: MOCK_PAGE_ID, type: "page" },
       data: {
-        parent: { type: "database_id", database_id: MOCK_DATABASE_ID },
+        parent: { type: "database", id: MOCK_DATABASE_ID },
       },
     };
     const body = JSON.stringify(payload);
@@ -219,7 +219,7 @@ test.describe("Notion Webhooks", () => {
       type: "page.undeleted",
       entity: { id: MOCK_PAGE_ID, type: "page" },
       data: {
-        parent: { type: "database_id", database_id: MOCK_DATABASE_ID },
+        parent: { type: "database", id: MOCK_DATABASE_ID },
       },
     };
     const body = JSON.stringify(payload);

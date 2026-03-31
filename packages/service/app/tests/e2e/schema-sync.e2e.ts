@@ -5,7 +5,7 @@ import { SCHEMA_SYNC_UID, SCHEMA_BREAK_DS_ID, SCHEMA_FIX_DS_ID } from "./schema-
 function computeHmacSignature(body: string, secret: string): string {
   const hmac = crypto.createHmac("sha256", secret);
   hmac.update(body);
-  return hmac.digest("hex");
+  return `sha256=${hmac.digest("hex")}`;
 }
 
 let webhookSecret: string;

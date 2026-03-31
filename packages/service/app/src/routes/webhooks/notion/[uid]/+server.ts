@@ -64,6 +64,8 @@ const NotionWebhookPayloadSchema = v.looseObject({
       parent: v.optional(
         v.looseObject({
           type: v.string(),
+          id: v.optional(v.string()),
+          // Legacy format
           database_id: v.optional(v.string()),
         }),
       ),
@@ -92,6 +94,15 @@ type ConnectionInfo = {
   webhookSecret: Buffer | null;
   credentials: Buffer | null;
 };
+
+function getParentDatabaseId(
+  parent: { type?: string; id?: string; database_id?: string } | undefined,
+): string | undefined {
+  if (!parent) return undefined;
+  // New format: { type: "database", id: "..." }
+  // Legacy format: { database_id: "..." }
+  return parent.database_id ?? (parent.type === "database" ? parent.id : undefined);
+}
 
 function isPageChangeEvent(eventType: string): boolean {
   return eventType.startsWith("page.") && eventType !== "page.deleted";
@@ -415,7 +426,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
       if (conn) {
         await cancelPending(conn.userId, conn.id, pageId);
 
-        const parentDbId = payload.data?.parent?.database_id;
+        const parentDbId = getParentDatabaseId(payload.data?.parent);
         if (!parentDbId) {
           await logWebhookEvent(
             conn.userId,
@@ -483,7 +494,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
         );
       } else {
         // OAuth mode
-        const parentDbId = payload.data?.parent?.database_id;
+        const parentDbId = getParentDatabaseId(payload.data?.parent);
         if (parentDbId) {
           const ref = uuidToBuffer(parentDbId);
           const globalCollections = await getCollectionsByRefGlobal(ref);
@@ -530,7 +541,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
 
     // ---- CHANGED (page.created, page.content_updated, etc.) ----
     if (isPageChangeEvent(eventType)) {
-      const parentDbId = payload.data?.parent?.database_id;
+      const parentDbId = getParentDatabaseId(payload.data?.parent);
 
       if (conn) {
         const marked = await markPending(conn.userId, conn.id, pageId);
