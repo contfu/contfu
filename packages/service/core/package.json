@@ -23,6 +23,7 @@
   },
   "scripts": {
     "build": "tsc -b",
+    "pack": "bun pm pack",
     "clean": "rm -rf dist"
   },
   "dependencies": {
