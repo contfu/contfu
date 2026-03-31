@@ -1,7 +1,7 @@
 import { error } from "@sveltejs/kit";
 import { mediaStore } from "$lib/server/media";
 import { convertMedia, getAsset, type MediaConvertOpts, type MediaTransform } from "@contfu/client";
-import { mimeTypes } from "@contfu/core";
+import { mimeTypes } from "@m4k/common";
 import type { RequestHandler } from "./$types";
 
 let transform: MediaTransform | null = null;
