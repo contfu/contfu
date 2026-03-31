@@ -1,6 +1,6 @@
 import type { RequestHandler } from "./$types";
 import { getAllArticles, getArticleCount } from "$lib/state.svelte.js";
-import { startSyncConnection, getSyncStatus, getSyncUrl } from "$lib/sync.js";
+import { startSyncConnection, getSyncStatus } from "$lib/sync.js";
 
 /**
  * Debug endpoint to check sync state and trigger connection.
@@ -10,7 +10,6 @@ import { startSyncConnection, getSyncStatus, getSyncUrl } from "$lib/sync.js";
 
 export const GET: RequestHandler = async () => {
   const state = {
-    syncUrl: getSyncUrl(),
     syncStatus: getSyncStatus(),
     articleCount: getArticleCount(),
     articles: getAllArticles().map((a) => ({ id: a.id, title: a.title, slug: a.slug })),

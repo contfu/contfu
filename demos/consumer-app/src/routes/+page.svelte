@@ -14,8 +14,7 @@
 </header>
 
 <div class="status">
-  Server: {data.syncUrl}
-  | Stream:
+  Stream:
   {#if data.syncStatus.connected}
     Connected
   {:else if data.syncStatus.reason}

@@ -11,14 +11,14 @@ export function init() {
     return;
   }
 
-  if (typeof process !== "undefined" && process.env.CONTFU_API_KEY) {
+  if (typeof process !== "undefined" && process.env.CONTFU_KEY) {
     streamRunnerStarted = true;
     console.log("[contfu] connecting to sync service…");
     setSyncStatus({ state: "connecting", reason: null });
     void runStream();
   } else {
-    console.log("[contfu] sync disabled — CONTFU_API_KEY not set");
-    setSyncStatus({ state: "disabled", reason: "Missing CONTFU_API_KEY" });
+    console.log("[contfu] sync disabled — CONTFU_KEY not set");
+    setSyncStatus({ state: "disabled", reason: "Missing CONTFU_KEY" });
   }
 }
 

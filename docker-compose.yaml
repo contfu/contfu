@@ -91,7 +91,6 @@ services:
     ports:
       - "4001:3000"
     environment:
-      CONTFU_URL: ws://app:3000/contfu
       CONTFU_KEY: ${CONTFU_KEY:-}
     depends_on:
       app:

@@ -6,15 +6,13 @@
  *   bun stream-cli.ts
  *
  * Environment variables:
- *   CONTFU_URL  - Sync endpoint URL (default: https://contfu.com/api/sync)
- *   CONTFU_KEY  - Consumer key in base64url format
+ *   CONTFU_KEY  - Authentication key in base64url format
  */
 
 import { connectToStream } from "@contfu/connect";
 import { EventType } from "@contfu/core";
 
 // Configuration from environment
-const CONTFU_URL = process.env.CONTFU_URL || "https://contfu.com/api/sync";
 const CONTFU_KEY = process.env.CONTFU_KEY || "";
 
 if (!CONTFU_KEY) {
@@ -25,7 +23,6 @@ if (!CONTFU_KEY) {
 
 console.log("🔌 Binary Stream CLI Test Tool");
 console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-console.log(`📡 Connecting to: ${CONTFU_URL}`);
 console.log(
   `🔑 Using key: ${CONTFU_KEY.substring(0, 8)}...${CONTFU_KEY.substring(CONTFU_KEY.length - 8)}`,
 );
@@ -37,7 +34,7 @@ const key = Buffer.from(CONTFU_KEY, "base64url");
 console.log("⏳ Establishing connection...\n");
 
 try {
-  for await (const event of connectToStream({ key, url: CONTFU_URL, connectionEvents: true })) {
+  for await (const event of connectToStream({ key, connectionEvents: true })) {
     const timestamp = new Date().toISOString();
 
     if (event.type === "stream:connected") {

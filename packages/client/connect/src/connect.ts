@@ -6,10 +6,8 @@ import {
 } from "./stream-client";
 
 type BaseOpts = {
-  /** Consumer key. If not provided, CONTFU_API_KEY env var (base64url) is used. */
+  /** Authentication key. If not provided, CONTFU_KEY env var (base64url) is used. */
   key?: Buffer;
-  /** Base URL (without /api/sync path). Defaults to CONTFU_API_URL env var or http://localhost:5173 */
-  baseUrl?: string;
   /** Event index to replay from. Events since this index will be replayed before live events. */
   from?: number;
   /** Explicit transport override. Defaults to runtime selection. */
@@ -31,7 +29,7 @@ type OptsWithoutConnectionEvents = BaseOpts & { connectionEvents?: false };
  * Returns an async generator that yields events. Connection and
  * reconnection happen automatically in the background.
  *
- * The consumer key can be provided via opts or the `CONTFU_API_KEY` environment variable (base64url-encoded).
+ * The authentication key can be provided via opts or the `CONTFU_KEY` environment variable (base64url-encoded).
  * Transport defaults to WebSocket in preview/production and HTTP streaming in local dev.
  *
  * @example
@@ -39,7 +37,7 @@ type OptsWithoutConnectionEvents = BaseOpts & { connectionEvents?: false };
  * import { connect } from "@contfu/connect";
  * import { EventType } from "@contfu/core";
  *
- * // Key from CONTFU_API_KEY env var
+ * // Key from CONTFU_KEY env var
  * for await (const event of connect()) {
  *   if (event.type === EventType.ITEM_CHANGED) {
  *     console.log("Item changed:", event.item);
@@ -63,11 +61,10 @@ export function connect(opts?: OptsWithoutConnectionEvents): AsyncGenerator<Sync
 export function connect(
   opts: BaseOpts & { connectionEvents?: boolean } = {},
 ): AsyncGenerator<SyncEvent | StreamEvent> {
-  const { baseUrl = "https://contfu.com", key, from, connectionEvents, ...rest } = opts;
-  const streamUrl = baseUrl != null ? baseUrl + "/api/sync" : undefined;
+  const { key, from, connectionEvents, ...rest } = opts;
 
   if (connectionEvents) {
-    return connectToStream({ key, url: streamUrl, from, connectionEvents: true, ...rest });
+    return connectToStream({ key, from, connectionEvents: true, ...rest });
   }
-  return connectToStream({ key, url: streamUrl, from, ...rest });
+  return connectToStream({ key, from, ...rest });
 }

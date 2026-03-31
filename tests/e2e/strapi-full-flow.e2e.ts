@@ -502,8 +502,8 @@ test.describe.skip("E2E: Strapi -> Service -> Consumer Full Flow (Fixtures)", ()
           ...process.env,
           PORT: String(CLIENT_PORT),
           ORIGIN: CLIENT_URL,
-          CONTFU_API_KEY: consumerApiKey,
-          CONTFU_API_URL: `${SERVICE_URL}/api/sync`,
+          CONTFU_KEY: consumerApiKey,
+          CONTFU_URL: SERVICE_URL,
         },
         stdio: "pipe",
       });

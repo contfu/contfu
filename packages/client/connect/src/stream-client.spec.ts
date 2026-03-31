@@ -68,6 +68,7 @@ describe("stream-client", () => {
   const originalNodeEnv = process.env.NODE_ENV;
   const originalPreview = process.env.VITE_PREVIEW;
   const originalTransport = process.env.CONTFU_SYNC_TRANSPORT;
+  const originalContfuUrl = process.env.CONTFU_URL;
 
   afterEach(() => {
     globalThis.fetch = originalFetch;
@@ -75,6 +76,11 @@ describe("stream-client", () => {
     process.env.NODE_ENV = originalNodeEnv;
     process.env.VITE_PREVIEW = originalPreview;
     process.env.CONTFU_SYNC_TRANSPORT = originalTransport;
+    if (originalContfuUrl === undefined) {
+      delete process.env.CONTFU_URL;
+    } else {
+      process.env.CONTFU_URL = originalContfuUrl;
+    }
   });
 
   describe("connectToStream basic event parsing", () => {
@@ -85,10 +91,10 @@ describe("stream-client", () => {
         ]),
       );
 
+      process.env.CONTFU_URL = "http://test";
       const events: unknown[] = [];
       for await (const event of connectToStream({
         key: testKey,
-        url: "http://test/sync",
         reconnect: false,
       })) {
         events.push(event);
@@ -117,10 +123,10 @@ describe("stream-client", () => {
       const wireItem = [ConnectionType.WEB, ref, id, "article", 1700500000, props, content];
       mockFetch(createMockStream([createBinaryMessage([EventType.ITEM_CHANGED, wireItem, 42])]));
 
+      process.env.CONTFU_URL = "http://test";
       const events: unknown[] = [];
       for await (const event of connectToStream({
         key: testKey,
-        url: "http://test/sync",
         reconnect: false,
       })) {
         events.push(event);
@@ -157,10 +163,10 @@ describe("stream-client", () => {
         ]),
       );
 
+      process.env.CONTFU_URL = "http://test";
       const events: unknown[] = [];
       for await (const event of connectToStream({
         key: testKey,
-        url: "http://test/sync",
         reconnect: false,
       })) {
         events.push(event);
@@ -179,10 +185,10 @@ describe("stream-client", () => {
         ]),
       );
 
+      process.env.CONTFU_URL = "http://test";
       const events: unknown[] = [];
       for await (const event of connectToStream({
         key: testKey,
-        url: "http://test/sync",
         reconnect: false,
       })) {
         events.push(event);
@@ -199,10 +205,10 @@ describe("stream-client", () => {
         createMockStream([createBinaryMessage([EventType.ITEM_DELETED, new Uint8Array([1]), 2])]),
       );
 
+      process.env.CONTFU_URL = "http://test";
       const events: unknown[] = [];
       for await (const event of connectToStream({
         key: testKey,
-        url: "http://test/sync",
         reconnect: false,
         connectionEvents: true,
       })) {
@@ -221,11 +227,11 @@ describe("stream-client", () => {
       const sockets: MockWebSocket[] = [];
       globalThis.WebSocket = createMockWebSocketClass(sockets) as typeof WebSocket;
 
+      process.env.CONTFU_URL = "http://test";
       const eventsPromise = collectEvents(async () => {
         const events: unknown[] = [];
         for await (const event of connectToStream({
           key: testKey,
-          url: "http://test/sync",
           transport: "websocket",
           reconnect: false,
           connectionEvents: true,
@@ -257,10 +263,10 @@ describe("stream-client", () => {
       mockFetch(createMockStream([]), 401);
       let thrownError: Error | null = null;
 
+      process.env.CONTFU_URL = "http://test";
       try {
         for await (const _ of connectToStream({
           key: testKey,
-          url: "http://test/sync",
           reconnect: false,
         })) {
           // noop
@@ -282,39 +288,39 @@ describe("stream-client", () => {
         // consume
       }
 
-      expect(getUrl()).toContain("http://localhost:5173/api/sync");
+      expect(getUrl()).toContain("https://contfu.com/api/sync");
       expect(getUrl()).toContain("key=");
     });
 
     test("encodes key as base64url in query parameter", async () => {
       const { getUrls } = mockFetchCapture([]);
+      process.env.CONTFU_URL = "http://test";
 
       for await (const _ of connectToStream({
         key: testKey,
-        url: "http://test/sync",
         reconnect: false,
       })) {
         // consume
       }
 
       const expectedKey = testKey.toString("base64url");
-      const syncUrl = getUrls().find((u) => u.includes("/sync?"));
-      expect(syncUrl).toBe(`http://test/sync?key=${expectedKey}`);
+      const syncUrl = getUrls().find((u) => u.includes("/api/sync?"));
+      expect(syncUrl).toBe(`http://test/api/sync?key=${expectedKey}`);
     });
 
     test("from option appends from parameter", async () => {
       const { getUrls } = mockFetchCapture([]);
+      process.env.CONTFU_URL = "http://test";
 
       for await (const _ of connectToStream({
         key: testKey,
-        url: "http://test/sync",
         reconnect: false,
         from: 42,
       })) {
         // consume
       }
 
-      const syncUrl = getUrls().find((u) => u.includes("/sync?"));
+      const syncUrl = getUrls().find((u) => u.includes("/api/sync?"));
       expect(syncUrl).toContain("&from=42");
     });
   });

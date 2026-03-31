@@ -8,8 +8,7 @@ The Contfu client app — a self-hosted SvelteKit application that syncs content
 docker run -d \
   -p 3000:3000 \
   -v contfu-data:/data \
-  -e CONTFU_URL=ws://your-contfu-service:3000/contfu \
-  -e CONTFU_API_KEY=your-api-key \
+  -e CONTFU_KEY=your-authentication-key \
   contfu/client:latest
 ```
 
@@ -17,10 +16,9 @@ docker run -d \
 
 ### Required
 
-| Variable         | Description                                                        |
-| ---------------- | ------------------------------------------------------------------ |
-| `CONTFU_URL`     | WebSocket URL of the Contfu service (e.g. `ws://host:3000/contfu`) |
-| `CONTFU_API_KEY` | API key for authenticating with the Contfu service                 |
+| Variable     | Description                                           |
+| ------------ | ----------------------------------------------------- |
+| `CONTFU_KEY` | Authentication key for the Contfu service (base64url) |
 
 ### Database
 
@@ -57,8 +55,7 @@ Works with AWS S3, Cloudflare R2, DigitalOcean Spaces, MinIO, and any S3-compati
 docker run -d \
   -p 3000:3000 \
   -v contfu-data:/data \
-  -e CONTFU_URL=ws://your-contfu-service:3000/contfu \
-  -e CONTFU_API_KEY=your-api-key \
+  -e CONTFU_KEY=your-authentication-key \
   -e ASSETS_URL=s3://my-bucket/assets \
   -e S3_ACCESS_KEY_ID=your-access-key \
   -e S3_SECRET_ACCESS_KEY=your-secret-key \

@@ -44,7 +44,6 @@ COPY --from=build /app/demos/consumer-app/build/ ./
 
 # Set environment variables
 ENV PORT=4000
-ENV CONTFU_URL=ws://app:3000/contfu
 
 EXPOSE 4000
 

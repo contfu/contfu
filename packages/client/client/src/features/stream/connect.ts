@@ -25,13 +25,12 @@ import { mediaStore as defaultMediaStore } from "../../infra/media/media-default
 
 /**
  * Connect to the stream and persist events into the local database.
- * The consumer key is read from CONTFU_API_KEY (base64url) by default.
+ * The authentication key is read from CONTFU_KEY (base64url) by default.
  */
 export async function* connect(opts?: {
   key?: Buffer;
   from?: number;
   reconnect?: boolean;
-  url?: string;
   connectionEvents?: boolean;
   mediaStore?: MediaStore;
   mediaOptimizer?: MediaOptimizer;
