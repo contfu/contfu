@@ -1,7 +1,11 @@
 {
   "name": "@contfu/svc-core",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/contfu/contfu.git"
+  },
   "files": [
     "dist",
     "!dist/**/*.d.ts.map"
@@ -23,6 +27,7 @@
   },
   "scripts": {
     "build": "tsc -b",
+    "pack": "bun pm pack",
     "clean": "rm -rf dist"
   },
   "dependencies": {
