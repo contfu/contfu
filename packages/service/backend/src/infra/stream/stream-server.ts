@@ -79,6 +79,8 @@ const preAuthCache = new Map<
 const PRE_AUTH_TTL_MS = 30 * 1000;
 const CONNECTION_STALL_TIMEOUT_MS = 60 * 1000;
 const HEALTH_CHECK_INTERVAL_MS = 30 * 1000;
+/** How long without a pong before a WebSocket connection is considered stale. Must exceed the keepAlive ping interval. */
+const WS_PONG_TIMEOUT_MS = 10 * 60 * 1000;
 /** Maps "userId:connectionId" to last acked sequence number. */
 const connectionAckedSeq = new Map<string, number>();
 
@@ -598,7 +600,7 @@ export class StreamServer {
     if (connection.transport.kind === "websocket") {
       return (
         connection.transport.socket.readyState === WebSocket.OPEN &&
-        Date.now() - connection.transport.lastPongAt <= CONNECTION_STALL_TIMEOUT_MS
+        Date.now() - connection.transport.lastPongAt <= WS_PONG_TIMEOUT_MS
       );
     }
 

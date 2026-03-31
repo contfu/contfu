@@ -15,6 +15,9 @@ import { eq } from "drizzle-orm";
 import { unpack } from "msgpackr";
 
 const log = createLogger("hooks");
+
+const wsKeepAliveTimers = new Map<string, ReturnType<typeof setInterval>>();
+const WS_KEEPALIVE_INTERVAL_MS = 5 * 60 * 1000;
 type BunPlatform = {
   server: {
     upgrade(
@@ -170,6 +173,26 @@ export const websocket: Bun.WebSocketHandler<{
     } catch (error) {
       log.error({ err: error }, "WebSocket sync session failed");
       ws.close(1011, "Sync session failed");
+      return;
+    }
+
+    // Keepalive: send periodic pings as a fallback for ungraceful disconnect detection.
+    // Graceful disconnects are handled by the close() handler via the WebSocket close frame.
+    const server = getStreamServer();
+    const connectionId = ws.data.streamConnectionId;
+    if (connectionId) {
+      const keepAlive = setInterval(() => {
+        if (!server.sendPingForConnection(connectionId)) {
+          clearInterval(keepAlive);
+          wsKeepAliveTimers.delete(connectionId);
+          try {
+            ws.close(1001, "Connection stalled");
+          } catch {
+            // Socket may already be closed
+          }
+        }
+      }, WS_KEEPALIVE_INTERVAL_MS);
+      wsKeepAliveTimers.set(connectionId, keepAlive);
     }
   },
   async message(ws, message) {
@@ -224,6 +247,11 @@ export const websocket: Bun.WebSocketHandler<{
   close(ws) {
     const streamConnectionId = ws.data.streamConnectionId;
     if (!streamConnectionId) return;
+    const timer = wsKeepAliveTimers.get(streamConnectionId);
+    if (timer !== undefined) {
+      clearInterval(timer);
+      wsKeepAliveTimers.delete(streamConnectionId);
+    }
     getStreamServer().removeConnection(streamConnectionId);
   },
 };

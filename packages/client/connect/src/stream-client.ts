@@ -166,6 +166,11 @@ export async function* connectToStream(
         return;
       }
 
+      if (transport === "websocket" && Date.now() - lastStreamActivityAt > 10 * 60 * 1000) {
+        currentConnection?.close("Stream stalled");
+        return;
+      }
+
       if (nextFrom != null && nextFrom !== lastAckedFrom) {
         const seq = nextFrom - 1;
         lastAckedFrom = nextFrom;
