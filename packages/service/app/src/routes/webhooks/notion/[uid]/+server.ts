@@ -262,9 +262,11 @@ export const POST: RequestHandler = async ({ request, params }) => {
     return new Response("Invalid payload", { status: 400 });
   }
 
+  log.debug({ payload: parsed }, "Raw webhook payload");
+
   const parseResult = v.safeParse(NotionWebhookPayloadSchema, parsed);
   if (!parseResult.success) {
-    log.warn("Invalid payload schema");
+    log.warn({ issues: parseResult.issues }, "Invalid payload schema");
     return new Response("Invalid payload", { status: 400 });
   }
   const payload = parseResult.output;
