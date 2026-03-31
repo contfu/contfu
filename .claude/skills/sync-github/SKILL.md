@@ -54,22 +54,20 @@ git commit -m "<message>"
 
 Present the commit to the user for review. **Stop here and wait for explicit approval before pushing.**
 
-### 5. Push (only when approved)
+### 5. Create a PR (only when approved)
 
-Only if the user says to push:
-
-```bash
-cd .worktrees/github-mirror
-git push github HEAD:main
-```
-
-Or to create a PR branch:
+Only if the user says to push/sync:
 
 ```bash
 cd .worktrees/github-mirror
-git checkout -b sync/<date>
-git push github sync/<date>
+git checkout -b sync/<YYYY-MM-DD>
+git push github sync/<YYYY-MM-DD>
+gh pr create --repo contfu/contfu \
+  --title "sync: <short summary>" \
+  --body "<description of changes>"
 ```
+
+**Never push directly to main on GitHub.** Always go through a PR.
 
 ## What gets synced
 
