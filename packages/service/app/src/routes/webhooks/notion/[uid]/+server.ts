@@ -69,14 +69,18 @@ const NotionWebhookPayloadSchema = v.looseObject({
           database_id: v.optional(v.string()),
         }),
       ),
-      // Present on database.schema_updated events
+      // database.schema_updated: array of {id, name, action} objects
+      // page.properties_updated: array of property ID strings
       updated_properties: v.optional(
         v.array(
-          v.looseObject({
-            id: v.string(),
-            name: v.string(),
-            action: v.picklist(["created", "updated", "deleted"]),
-          }),
+          v.union([
+            v.looseObject({
+              id: v.string(),
+              name: v.string(),
+              action: v.picklist(["created", "updated", "deleted"]),
+            }),
+            v.string(),
+          ]),
         ),
       ),
     }),
@@ -266,7 +270,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
 
   const parseResult = v.safeParse(NotionWebhookPayloadSchema, parsed);
   if (!parseResult.success) {
-    log.warn({ issues: parseResult.issues }, "Invalid payload schema");
+    log.warn({ issues: parseResult.issues, payload: parsed }, "Invalid payload schema");
     return new Response("Invalid payload", { status: 400 });
   }
   const payload = parseResult.output;
