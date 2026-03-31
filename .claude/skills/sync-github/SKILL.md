@@ -38,12 +38,17 @@ Cross-reference with recent Forgejo commits to understand what changed:
 
 ### 3. Craft commit message
 
-Write a descriptive commit message summarizing the public-facing changes. Focus on:
-- New features or API changes in public packages
-- Bug fixes
-- Breaking changes
+Write a commit message as if the changes were made directly in this repo — not a sync message. Use Conventional Commits style.
 
-Do NOT mention internal refactoring or private package changes.
+- Lead with the most significant change (feat/fix/chore/test/…)
+- If multiple concerns, pick the dominant one for the subject; list others in the body
+- Do NOT mention "sync", "Forgejo", "mirror", or any cross-repo language
+- Do NOT mention internal refactoring or private package changes
+
+Example subjects:
+- `feat(service-core): add incident tracking types and WebAuthType constants`
+- `fix(connect): simplify stream-client tests`
+- `chore: update package dependencies`
 
 ### 4. Commit (but do NOT push)
 
@@ -60,10 +65,10 @@ Only if the user says to push/sync:
 
 ```bash
 cd .worktrees/github-mirror
-git checkout -b sync/<YYYY-MM-DD>
-git push github sync/<YYYY-MM-DD>
+git checkout -b <conventional-branch-name>
+git push github <branch-name>
 gh pr create --repo contfu/contfu \
-  --title "sync: <short summary>" \
+  --title "<same as commit subject>" \
   --body "<description of changes>"
 ```
 
