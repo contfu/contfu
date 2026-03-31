@@ -32,7 +32,8 @@
     "typecheck": "tsc -b tsconfig.check.json",
     "check": "bun run fmt && bun run build && bun run lint && bun run typecheck && bun run test",
     "prepare": "git rev-parse --git-dir >/dev/null 2>&1 && git config core.hooksPath .githooks || true",
-    "contfu": "bun run --elide-lines=0 --filter '@contfu/cli' contfu"
+    "contfu": "bun run --elide-lines=0 --filter '@contfu/cli' contfu",
+    "events": "bun scripts/event-logger.ts"
   },
   "dependencies": {
     "m4k": "^0.2.5",
