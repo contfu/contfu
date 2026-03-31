@@ -10,6 +10,7 @@ import {
   decryptCredentials,
   encryptCredentials,
 } from "@contfu/svc-backend/infra/crypto/credentials";
+import { validateWebhookSignature } from "@contfu/svc-backend/infra/crypto/webhook-signature";
 import { db } from "@contfu/svc-backend/infra/db/db";
 import {
   collectionTable,
@@ -25,7 +26,6 @@ import type { SchemaChangeHints } from "@contfu/svc-backend/infra/sync-worker/wo
 import { getSyncWorkerManager } from "$lib/server/startup";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { unpack } from "msgpackr";
-import crypto from "node:crypto";
 import { lru } from "tiny-lru";
 import * as v from "valibot";
 import type { RequestHandler } from "./$types";
@@ -133,20 +133,7 @@ async function logWebhookEvent(
 }
 
 function validateSignature(body: string, headers: Headers, secret: string): boolean {
-  const signature = headers.get("x-notion-signature");
-  log.debug({ signature, secretPrefix: secret.slice(0, 10) }, "Signature validation attempt");
-  if (!signature) return false;
-
-  const hmac = crypto.createHmac("sha256", secret);
-  hmac.update(body);
-  const expected = hmac.digest("hex");
-  log.debug({ expected, received: signature }, "Signature comparison");
-
-  try {
-    return crypto.timingSafeEqual(Buffer.from(expected, "hex"), Buffer.from(signature, "hex"));
-  } catch {
-    return false;
-  }
+  return validateWebhookSignature(body, headers.get("x-notion-signature"), secret);
 }
 
 /**
