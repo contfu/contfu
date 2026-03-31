@@ -79,7 +79,7 @@ jobs:
           check_changed "svc-core" "$CURRENT_SVC_CORE_VERSION" "$PREVIOUS_SVC_CORE_VERSION"
           check_changed "cli" "$CURRENT_CLI_VERSION" "$PREVIOUS_CLI_VERSION"
 
-  build-npm:
+  publish-npm:
     needs: check-version
     if: >-
       needs.check-version.outputs.core-changed == 'true' ||
@@ -91,6 +91,9 @@ jobs:
       needs.check-version.outputs.svc-core-changed == 'true' ||
       needs.check-version.outputs.cli-changed == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
@@ -98,55 +101,42 @@ jobs:
           bun-version: 1.3.11
       - run: bun install --frozen-lockfile
       - run: bun run build
-      - name: Pack packages
-        run: |
-          bun run --filter '*' pack
-          mkdir -p packed
-          find packages -name "*.tgz" -not -path "*/node_modules/*" -exec mv {} packed/ \;
-      - uses: actions/upload-artifact@v4
-        with:
-          name: npm-packages
-          path: packed/*.tgz
-
-  publish-npm:
-    needs: [check-version, build-npm]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: npm-packages
-          path: packed
       - uses: actions/setup-node@v6
         with:
           node-version: "24"
           registry-url: "https://registry.npmjs.org"
-      - name: Publish @contfu/core
-        if: needs.check-version.outputs.core-changed == 'true' && needs.check-version.outputs.core-version != '0.0.0'
-        run: npm publish ./packed/contfu-core-*.tgz --access public --provenance
-      - name: Publish @contfu/connect
-        if: needs.check-version.outputs.connect-changed == 'true' && needs.check-version.outputs.connect-version != '0.0.0'
-        run: npm publish ./packed/contfu-connect-*.tgz --access public --provenance
-      - name: Publish @contfu/client
-        if: needs.check-version.outputs.client-changed == 'true' && needs.check-version.outputs.client-version != '0.0.0'
-        run: npm publish ./packed/contfu-client-*.tgz --access public --provenance
-      - name: Publish @contfu/bun-file-store
-        if: needs.check-version.outputs.bun-file-store-changed == 'true' && needs.check-version.outputs.bun-file-store-version != '0.0.0'
-        run: npm publish ./packed/contfu-bun-file-store-*.tgz --access public --provenance
-      - name: Publish @contfu/media-optimizer
-        if: needs.check-version.outputs.media-optimizer-changed == 'true' && needs.check-version.outputs.media-optimizer-version != '0.0.0'
-        run: npm publish ./packed/contfu-media-optimizer-[0-9]*.tgz --access public --provenance
-      - name: Publish @contfu/media-optimizer-remote
-        if: needs.check-version.outputs.media-optimizer-remote-changed == 'true' && needs.check-version.outputs.media-optimizer-remote-version != '0.0.0'
-        run: npm publish ./packed/contfu-media-optimizer-remote-*.tgz --access public --provenance
-      - name: Publish @contfu/svc-core
-        if: needs.check-version.outputs.svc-core-changed == 'true' && needs.check-version.outputs.svc-core-version != '0.0.0'
-        run: npm publish ./packed/contfu-svc-core-*.tgz --access public --provenance
-      - name: Publish @contfu/cli
-        if: needs.check-version.outputs.cli-changed == 'true' && needs.check-version.outputs.cli-version != '0.0.0'
-        run: npm publish ./packed/contfu-cli-*.tgz --access public --provenance
+      - name: Pack and publish @contfu/core
+        if: needs.check-version.outputs.core-changed == 'true'
+        working-directory: packages/core
+        run: bun pm pack && npm publish *.tgz --access public --provenance
+      - name: Pack and publish @contfu/connect
+        if: needs.check-version.outputs.connect-changed == 'true'
+        working-directory: packages/client/connect
+        run: bun pm pack && npm publish *.tgz --access public --provenance
+      - name: Pack and publish @contfu/client
+        if: needs.check-version.outputs.client-changed == 'true'
+        working-directory: packages/client/client
+        run: bun pm pack && npm publish *.tgz --access public --provenance
+      - name: Pack and publish @contfu/bun-file-store
+        if: needs.check-version.outputs.bun-file-store-changed == 'true'
+        working-directory: packages/client/bun-file-store
+        run: bun pm pack && npm publish *.tgz --access public --provenance
+      - name: Pack and publish @contfu/media-optimizer
+        if: needs.check-version.outputs.media-optimizer-changed == 'true'
+        working-directory: packages/client/media-optimizer
+        run: bun pm pack && npm publish *.tgz --access public --provenance
+      - name: Pack and publish @contfu/media-optimizer-remote
+        if: needs.check-version.outputs.media-optimizer-remote-changed == 'true'
+        working-directory: packages/client/media-optimizer-remote
+        run: bun pm pack && npm publish *.tgz --access public --provenance
+      - name: Pack and publish @contfu/svc-core
+        if: needs.check-version.outputs.svc-core-changed == 'true'
+        working-directory: packages/service/core
+        run: bun pm pack && npm publish *.tgz --access public --provenance
+      - name: Pack and publish @contfu/cli
+        if: needs.check-version.outputs.cli-changed == 'true'
+        working-directory: packages/cli
+        run: bun pm pack && npm publish *.tgz --access public --provenance
 
   push-client:
     needs: check-version
