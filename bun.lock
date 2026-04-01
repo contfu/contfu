@@ -16,7 +16,7 @@
     },
     "packages/cli": {
       "name": "@contfu/cli",
-      "version": "0.0.2",
+      "version": "0.0.3",
       "bin": {
         "contfu": "dist/main.js",
       },
@@ -24,8 +24,141 @@
         "@contfu/core": "workspace:*",
       },
     },
-    "packages/client/app": {
-      "name": "@contfu/app",
+    "packages/client": {
+      "name": "@contfu/client",
+      "version": "0.0.2",
+      "dependencies": {
+        "@contfu/contfu": "workspace:*",
+      },
+      "devDependencies": {
+        "typescript": "^5.9.3",
+      },
+      "peerDependencies": {
+        "typescript": "^5.9.3",
+      },
+    },
+    "packages/connect": {
+      "name": "@contfu/connect",
+      "version": "0.0.2",
+      "dependencies": {
+        "@contfu/core": "workspace:*",
+        "msgpackr": "^1.11.9",
+      },
+      "devDependencies": {
+        "@types/bun": "^1.3.11",
+        "ts-essentials": "^10.1.1",
+      },
+      "optionalDependencies": {
+        "eventsource": "^4.1.0",
+      },
+      "peerDependencies": {
+        "typescript": "^5.9.3",
+      },
+    },
+    "packages/contfu": {
+      "name": "@contfu/contfu",
+      "version": "0.0.2",
+      "dependencies": {
+        "@contfu/connect": "workspace:*",
+        "@contfu/core": "workspace:*",
+        "drizzle-orm": "1.0.0-beta.19",
+      },
+      "devDependencies": {
+        "@m4k/common": "^0.2.5",
+        "@types/bun": "^1.3.11",
+        "drizzle-kit": "1.0.0-beta.19",
+        "ts-essentials": "^10.1.1",
+      },
+      "peerDependencies": {
+        "typescript": "^5.9.3",
+      },
+    },
+    "packages/core": {
+      "name": "@contfu/core",
+      "version": "0.0.2",
+      "devDependencies": {
+        "@typescript/native-preview": "^7.0.0-dev.20260325.1",
+        "typescript": "^5.9.3",
+      },
+    },
+    "packages/media/bun-file-store": {
+      "name": "@contfu/bun-file-store",
+      "version": "0.0.2",
+      "dependencies": {
+        "sharp": "^0.34.5",
+      },
+      "devDependencies": {
+        "@contfu/contfu": "workspace:*",
+        "@types/bun": "^1.3.11",
+      },
+      "peerDependencies": {
+        "typescript": "^5.9.3",
+      },
+    },
+    "packages/media/media-optimizer": {
+      "name": "@contfu/media-optimizer",
+      "version": "0.0.2",
+      "dependencies": {
+        "@ffmpeg-installer/ffmpeg": "^1.1.0",
+        "m4k": "^0.2.4",
+        "sharp": "^0.34.5",
+        "tasque": "^0.1.2",
+      },
+      "devDependencies": {
+        "@contfu/bun-file-store": "workspace:*",
+        "@contfu/contfu": "workspace:*",
+        "@types/bun": "^1.3.11",
+      },
+      "peerDependencies": {
+        "typescript": "^5.9.3",
+      },
+    },
+    "packages/media/media-optimizer-remote": {
+      "name": "@contfu/media-optimizer-remote",
+      "version": "0.0.2",
+      "dependencies": {
+        "@m4k/client": "^0.2.4",
+        "@m4k/common": "^0.2.5",
+      },
+      "devDependencies": {
+        "@contfu/contfu": "workspace:*",
+        "@types/bun": "^1.3.11",
+      },
+      "peerDependencies": {
+        "typescript": "^5.9.3",
+      },
+    },
+    "packages/server": {
+      "name": "@contfu/server",
+      "version": "0.0.1",
+      "bin": {
+        "contfu-server": "./src/bin.ts",
+      },
+      "dependencies": {
+        "@contfu/connect": "workspace:*",
+        "@contfu/contfu": "workspace:*",
+        "@contfu/core": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/bun": "^1.3.11",
+        "typescript": "^5.9.3",
+      },
+      "peerDependencies": {
+        "typescript": "^5.9.3",
+      },
+    },
+    "packages/service/core": {
+      "name": "@contfu/svc-core",
+      "version": "0.0.3",
+      "dependencies": {
+        "@contfu/core": "workspace:*",
+      },
+      "devDependencies": {
+        "typescript": "^5.9.3",
+      },
+    },
+    "packages/ui": {
+      "name": "@contfu/ui",
       "version": "0.0.3",
       "dependencies": {
         "@ffmpeg-installer/ffmpeg": "1.1.0",
@@ -33,7 +166,7 @@
       },
       "devDependencies": {
         "@contfu/bun-file-store": "workspace:*",
-        "@contfu/client": "workspace:*",
+        "@contfu/contfu": "workspace:*",
         "@contfu/core": "workspace:*",
         "@contfu/media-optimizer": "workspace:*",
         "@internationalized/date": "^3.12.0",
@@ -66,107 +199,6 @@
       },
       "peerDependencies": {
         "typescript": "^5.6.3",
-      },
-    },
-    "packages/client/bun-file-store": {
-      "name": "@contfu/bun-file-store",
-      "version": "0.0.2",
-      "dependencies": {
-        "sharp": "^0.34.5",
-      },
-      "devDependencies": {
-        "@contfu/client": "workspace:*",
-        "@types/bun": "^1.3.11",
-      },
-      "peerDependencies": {
-        "typescript": "^5.9.3",
-      },
-    },
-    "packages/client/client": {
-      "name": "@contfu/client",
-      "version": "0.0.2",
-      "dependencies": {
-        "@contfu/connect": "workspace:*",
-        "@contfu/core": "workspace:*",
-        "drizzle-orm": "1.0.0-beta.19",
-      },
-      "devDependencies": {
-        "@m4k/common": "^0.2.5",
-        "@types/bun": "^1.3.11",
-        "drizzle-kit": "1.0.0-beta.19",
-        "ts-essentials": "^10.1.1",
-      },
-      "peerDependencies": {
-        "typescript": "^5.9.3",
-      },
-    },
-    "packages/client/connect": {
-      "name": "@contfu/connect",
-      "version": "0.0.2",
-      "dependencies": {
-        "@contfu/core": "workspace:*",
-        "msgpackr": "^1.11.9",
-      },
-      "devDependencies": {
-        "@types/bun": "^1.3.11",
-        "ts-essentials": "^10.1.1",
-      },
-      "optionalDependencies": {
-        "eventsource": "^4.1.0",
-      },
-      "peerDependencies": {
-        "typescript": "^5.9.3",
-      },
-    },
-    "packages/client/media-optimizer": {
-      "name": "@contfu/media-optimizer",
-      "version": "0.0.2",
-      "dependencies": {
-        "@ffmpeg-installer/ffmpeg": "^1.1.0",
-        "m4k": "^0.2.4",
-        "sharp": "^0.34.5",
-        "tasque": "^0.1.2",
-      },
-      "devDependencies": {
-        "@contfu/bun-file-store": "workspace:*",
-        "@contfu/client": "workspace:*",
-        "@types/bun": "^1.3.11",
-      },
-      "peerDependencies": {
-        "typescript": "^5.9.3",
-      },
-    },
-    "packages/client/media-optimizer-remote": {
-      "name": "@contfu/media-optimizer-remote",
-      "version": "0.0.2",
-      "dependencies": {
-        "@m4k/client": "^0.2.4",
-        "@m4k/common": "^0.2.5",
-      },
-      "devDependencies": {
-        "@contfu/client": "workspace:*",
-        "@types/bun": "^1.3.11",
-      },
-      "peerDependencies": {
-        "typescript": "^5.9.3",
-      },
-    },
-    "packages/core": {
-      "name": "@contfu/core",
-      "version": "0.0.2",
-      "devDependencies": {
-        "@typescript/native-preview": "^7.0.0-dev.20260325.1",
-        "typescript": "^5.9.3",
-      },
-    },
-    "packages/service/core": {
-      "name": "@contfu/svc-core",
-      "version": "0.0.2",
-      "dependencies": {
-        "@contfu/core": "workspace:*",
-      },
-      "devDependencies": {
-        "typescript": "^5.9.3",
       },
     },
   },
@@ -207,23 +239,27 @@
 
     "@azure/msal-node": ["@azure/msal-node@5.1.1", "", { "dependencies": { "@azure/msal-common": "16.4.0", "jsonwebtoken": "^9.0.0", "uuid": "^8.3.0" } }, "sha512-71grXU6+5hl+3CL3joOxlj/AW6rmhthuTlG0fRqsTrhPArQBpZuUFzCIlKOGdcafLUa/i1hBdV78ZxJdlvRA+g=="],
 
-    "@contfu/app": ["@contfu/app@workspace:packages/client/app"],
-
-    "@contfu/bun-file-store": ["@contfu/bun-file-store@workspace:packages/client/bun-file-store"],
+    "@contfu/bun-file-store": ["@contfu/bun-file-store@workspace:packages/media/bun-file-store"],
 
     "@contfu/cli": ["@contfu/cli@workspace:packages/cli"],
 
-    "@contfu/client": ["@contfu/client@workspace:packages/client/client"],
+    "@contfu/client": ["@contfu/client@workspace:packages/client"],
 
-    "@contfu/connect": ["@contfu/connect@workspace:packages/client/connect"],
+    "@contfu/connect": ["@contfu/connect@workspace:packages/connect"],
+
+    "@contfu/contfu": ["@contfu/contfu@workspace:packages/contfu"],
 
     "@contfu/core": ["@contfu/core@workspace:packages/core"],
 
-    "@contfu/media-optimizer": ["@contfu/media-optimizer@workspace:packages/client/media-optimizer"],
+    "@contfu/media-optimizer": ["@contfu/media-optimizer@workspace:packages/media/media-optimizer"],
 
-    "@contfu/media-optimizer-remote": ["@contfu/media-optimizer-remote@workspace:packages/client/media-optimizer-remote"],
+    "@contfu/media-optimizer-remote": ["@contfu/media-optimizer-remote@workspace:packages/media/media-optimizer-remote"],
+
+    "@contfu/server": ["@contfu/server@workspace:packages/server"],
 
     "@contfu/svc-core": ["@contfu/svc-core@workspace:packages/service/core"],
+
+    "@contfu/ui": ["@contfu/ui@workspace:packages/ui"],
 
     "@drizzle-team/brocli": ["@drizzle-team/brocli@0.11.0", "", {}, "sha512-hD3pekGiPg0WPCCGAZmusBBJsDqGUR66Y452YgQsZOnkdQ7ViEPKuyP4huUGEZQefp8g34RRodXYmJ2TbCH+tg=="],
 

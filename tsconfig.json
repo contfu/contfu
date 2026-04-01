@@ -16,10 +16,14 @@
   "files": [],
   "references": [
     { "path": "./packages/core" },
-    { "path": "./packages/client/connect" },
-    { "path": "./packages/client/client" },
-    { "path": "./packages/client/bun-file-store" },
-    { "path": "./packages/client/media-optimizer" },
-    { "path": "./packages/service/core" },
+    { "path": "./packages/connect" },
+    { "path": "./packages/contfu" },
+    { "path": "./packages/client" },
+    { "path": "./packages/server" },
+    { "path": "./packages/ui" },
+    { "path": "./packages/media/bun-file-store" },
+    { "path": "./packages/media/media-optimizer" },
+    { "path": "./packages/media/media-optimizer-remote" },
+    { "path": "./packages/service/core" }
   ]
 }

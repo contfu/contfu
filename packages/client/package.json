@@ -1,6 +1,6 @@
 {
-  "name": "@contfu/svc-core",
-  "version": "0.0.3",
+  "name": "@contfu/client",
+  "version": "0.0.2",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -13,12 +13,17 @@
   "type": "module",
   "main": "src/index.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "types": "./src/index.ts",
+      "bun": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
   },
   "publishConfig": {
     "exports": {
       ".": {
         "types": "./dist/index.d.ts",
+        "bun": "./dist/index.js",
         "default": "./dist/index.js"
       }
     },
@@ -31,9 +36,12 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@contfu/core": "workspace:*"
+    "@contfu/contfu": "workspace:*"
   },
   "devDependencies": {
+    "typescript": "^5.9.3"
+  },
+  "peerDependencies": {
     "typescript": "^5.9.3"
   }
 }

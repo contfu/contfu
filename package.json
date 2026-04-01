@@ -2,15 +2,14 @@
   "name": "contfu",
   "private": true,
   "workspaces": [
-    "packages/client/*",
+    "packages/*",
     "packages/service/*",
-    "packages/cli",
-    "packages/core"
+    "packages/media/*"
   ],
   "type": "module",
   "scripts": {
     "test": "bun --filter '@contfu/*' test",
-    "build": "bun --filter '@contfu/*' build",
+    "build": "bun run --filter '@contfu/core' build && bun run --filter '@contfu/connect' build && bun run --filter '@contfu/contfu' build && bun --filter '@contfu/*' build",
     "clean": "bun --filter '@contfu/*' clean",
     "fmt": "oxfmt",
     "lint": "oxlint",
