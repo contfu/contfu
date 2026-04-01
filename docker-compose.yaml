@@ -33,7 +33,7 @@ services:
   app:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: docker/Dockerfile.service
       target: app
     ports:
       - "3001:3000"
@@ -82,18 +82,38 @@ services:
       start_period: 120s
       retries: 5
 
-  client:
+  server:
     build:
       context: .
-      dockerfile: Dockerfile.client
+      dockerfile: docker/Dockerfile.server
     profiles:
-      - demo
+      - client
+    ports:
+      - "3001:3001"
+    environment:
+      CONTFU_KEY: ${CONTFU_KEY:-}
+      CONTFU_DB: /data/db
+    volumes:
+      - server-data:/data
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3001/api/items"]
+      interval: 30s
+      timeout: 10s
+      start_period: 10s
+      retries: 3
+
+  ui:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.ui
+    profiles:
+      - client
     ports:
       - "4001:3000"
     environment:
-      CONTFU_KEY: ${CONTFU_KEY:-}
+      SERVER_URL: http://server:3001
     depends_on:
-      app:
+      server:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/"]
@@ -106,3 +126,4 @@ volumes:
   pgdata:
   natsdata:
   strapi-data:
+  server-data:

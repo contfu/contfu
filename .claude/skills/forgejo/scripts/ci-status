@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-# Usage: ci-status [run_number]
+# Usage: ci-status [--pr <pr_number>] [run_number]
 # Shows job status for the latest (or specified) run.
+# --pr N  resolves the latest CI run for PR #N by matching its head commit SHA
 import json, subprocess, sys, os
 
 REPO = os.environ.get("FORGEJO_REPO", "contfu/contfu")
@@ -20,7 +21,26 @@ def latest_run():
     return max(r["index_in_repo"] for r in runs)
 
 
-run_num = int(sys.argv[1]) if len(sys.argv) > 1 else latest_run()
+def run_for_pr(pr_num):
+    pr = tea(f"/api/v1/repos/{REPO}/pulls/{pr_num}")
+    head_sha = pr["head"]["sha"]
+    runs = tea(f"/api/v1/repos/{REPO}/actions/runs").get("workflow_runs", [])
+    matching = [r for r in runs if r.get("commit_sha") == head_sha]
+    if not matching:
+        print(f"No CI runs found for PR #{pr_num} (commit {head_sha[:12]})", file=sys.stderr)
+        sys.exit(1)
+    return max(r["index_in_repo"] for r in matching)
+
+
+args = sys.argv[1:]
+run_num = None
+while args:
+    if args[0] == "--pr":
+        run_num = run_for_pr(int(args[1])); args = args[2:]
+    else:
+        run_num = int(args[0]); args = args[1:]
+if run_num is None:
+    run_num = latest_run()
 jobs = [j for j in tea(f"/api/v1/repos/{REPO}/actions/tasks").get("workflow_runs", []) if j.get("run_number") == run_num]
 jobs.sort(key=lambda j: j["id"])
 

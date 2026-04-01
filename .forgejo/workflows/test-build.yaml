@@ -25,11 +25,11 @@ jobs:
             ${{ runner.os }}-bun-
 
       - name: Install dependencies
-        run: bun install --frozen-lockfile --ignore-scripts
+        run: ./scripts/retry-timeout.sh --timeout 60 --retries 3 -- bun install --frozen-lockfile --ignore-scripts
 
       - name: Generate SvelteKit types
         run: |
-          for dir in packages/service/app packages/client/app demos/consumer-app; do
+          for dir in packages/service/app packages/ui; do
             (cd $dir && bun svelte-kit sync)
           done
 
@@ -92,14 +92,10 @@ jobs:
             ${{ runner.os }}-bun-
 
       - name: Install dependencies
-        run: bun install --frozen-lockfile --ignore-scripts
+        run: ./scripts/retry-timeout.sh --timeout 60 --retries 3 -- bun install --frozen-lockfile --ignore-scripts
 
       - name: Build all packages
         run: NODE_ENV=test bun run build
-
-      - name: Build consumer demo app
-        run: bun run build
-        working-directory: demos/consumer-app
 
       - name: Run E2E tests
         run: bun run test:e2e:no-build --reporter=list
@@ -112,12 +108,17 @@ jobs:
           PLAYWRIGHT_HTML_OPEN: never
           NATS_SERVER: nats://localhost:4222
 
-  build:
-    name: Build Docker image
-    timeout-minutes: 8
+  build-docker:
+    name: Build Docker images
+    timeout-minutes: 10
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Install Docker CLI
         run: apt-get update -qq && apt-get install -y -qq docker.io
-      - run: docker build .
+      - name: Build service image
+        run: docker build -f docker/Dockerfile.service .
+      - name: Build UI image
+        run: docker build -f docker/Dockerfile.ui .
+      - name: Build server image
+        run: docker build -f docker/Dockerfile.server .

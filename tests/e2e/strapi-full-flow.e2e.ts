@@ -14,7 +14,7 @@
  */
 import { expect, test, type Page } from "@playwright/test";
 import { setTimeout as sleep } from "node:timers/promises";
-import { connect, contfu, listCollections, type QueryResult } from "@contfu/client";
+import { connect, contfu, listCollections, type QueryResult } from "@contfu/contfu";
 import { spawn, type ChildProcess } from "node:child_process";
 
 // Port configuration
@@ -491,7 +491,7 @@ test.describe.skip("E2E: Strapi -> Service -> Consumer Full Flow (Fixtures)", ()
     const CLIENT_PORT = 3001;
     const CLIENT_URL = `http://localhost:${CLIENT_PORT}`;
     const workspaceRoot = new URL("../../", import.meta.url).pathname;
-    const clientAppPath = `${workspaceRoot}packages/client/app/build/index.js`;
+    const clientAppPath = `${workspaceRoot}packages/ui/build/index.js`;
 
     let clientProcess: ChildProcess | undefined;
 

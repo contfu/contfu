@@ -1,0 +1,41 @@
+{
+  "name": "@contfu/media-optimizer-remote",
+  "version": "0.0.2",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/contfu/contfu.git"
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.d.ts.map"
+  ],
+  "type": "module",
+  "main": "src/index.ts",
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    },
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "pack": "bun pm pack",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@m4k/client": "^0.2.4",
+    "@m4k/common": "^0.2.5"
+  },
+  "devDependencies": {
+    "@contfu/contfu": "workspace:*",
+    "@types/bun": "^1.3.11"
+  },
+  "peerDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

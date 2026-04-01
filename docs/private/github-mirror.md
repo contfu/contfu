@@ -81,7 +81,8 @@ These are maintained directly in the GitHub repo and are NOT overwritten by the 
 - Root `package.json` — workspace config for public packages only
 - `bun.lock` — regenerated after each sync
 - `.github/workflows/` — npm publishing and Docker image workflows
-- `Dockerfile.client` — client app Docker build
+- `docker/Dockerfile.ui` — UI Docker build
+- `docker/Dockerfile.server` — server Docker build
 - `README.md`, `CONTRIBUTING.md`, `LICENSE`
 
 ## Rules

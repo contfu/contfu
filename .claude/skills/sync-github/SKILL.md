@@ -86,5 +86,5 @@ See `github-mirror.conf` for the full list. Summary:
 - Root `package.json` (different workspace config)
 - `bun.lock` (regenerated separately)
 - `.github/workflows/` (GitHub-specific CI)
-- `Dockerfile.client`
+- `docker/Dockerfile.ui`, `docker/Dockerfile.server`
 - `README.md`, `LICENSE`

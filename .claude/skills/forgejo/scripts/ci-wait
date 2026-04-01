@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-# Usage: ci-wait [run_id] [--timeout <seconds>]
+# Usage: ci-wait [--pr <pr_number>] [run_id] [--timeout <seconds>]
 # Polls CI status until a run reaches a settled state. Exits 0 on success, 1 otherwise.
+# --pr N  resolves the latest CI run for PR #N by matching its head commit SHA
 import json, subprocess, sys, time, os
 
 REPO = os.environ.get("FORGEJO_REPO", "contfu/contfu")
@@ -8,11 +9,14 @@ ICONS = {"success": "✅", "failure": "❌", "running": "🔄", "waiting": "⏳"
 INTERVAL = 1
 TIMEOUT = 600
 run_id = None
+pr_number = None
 
 args = sys.argv[1:]
 while args:
     if args[0] == "--timeout":
         TIMEOUT = int(args[1]); args = args[2:]
+    elif args[0] == "--pr":
+        pr_number = int(args[1]); args = args[2:]
     else:
         run_id = int(args[0]); args = args[1:]
 
@@ -27,6 +31,17 @@ def latest_run():
     if not runs:
         print("ERROR: No runs found", file=sys.stderr); sys.exit(1)
     return max(r["index_in_repo"] for r in runs)
+
+
+def run_for_pr(pr_num):
+    pr = tea(f"/api/v1/repos/{REPO}/pulls/{pr_num}")
+    head_sha = pr["head"]["sha"]
+    runs = tea(f"/api/v1/repos/{REPO}/actions/runs").get("workflow_runs", [])
+    matching = [r for r in runs if r.get("commit_sha") == head_sha]
+    if not matching:
+        print(f"ERROR: No CI runs found for PR #{pr_num} (commit {head_sha[:12]})", file=sys.stderr)
+        sys.exit(1)
+    return max(r["index_in_repo"] for r in matching)
 
 
 def get_status(run_num):
@@ -46,7 +61,9 @@ def get_status(run_num):
     return "unknown", jobs
 
 
-if run_id is None:
+if pr_number is not None:
+    run_id = run_for_pr(pr_number)
+elif run_id is None:
     run_id = latest_run()
 
 print(f"Waiting for run #{run_id} (timeout: {TIMEOUT}s)...")
