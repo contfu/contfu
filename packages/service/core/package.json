@@ -2,6 +2,10 @@
   "name": "@contfu/svc-core",
   "version": "0.0.3",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/contfu/contfu.git"
+  },
   "files": [
     "dist",
     "!dist/**/*.d.ts.map"
