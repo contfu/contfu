@@ -33,14 +33,14 @@
         "contfu": "dist/main.js",
       },
       "dependencies": {
-        "@contfu/core": "workspace:*",
+        "@contfu/svc-api": "workspace:*",
       },
     },
     "packages/client": {
       "name": "@contfu/client",
-      "version": "0.0.2",
+      "version": "0.0.3",
       "dependencies": {
-        "@contfu/contfu": "workspace:*",
+        "@contfu/core": "workspace:*",
       },
       "devDependencies": {
         "typescript": "^5.9.3",
@@ -51,7 +51,7 @@
     },
     "packages/connect": {
       "name": "@contfu/connect",
-      "version": "0.0.2",
+      "version": "0.0.3",
       "dependencies": {
         "@contfu/core": "workspace:*",
         "msgpackr": "^1.11.9",
@@ -69,7 +69,7 @@
     },
     "packages/contfu": {
       "name": "@contfu/contfu",
-      "version": "0.0.2",
+      "version": "0.0.3",
       "dependencies": {
         "@contfu/connect": "workspace:*",
         "@contfu/core": "workspace:*",
@@ -87,7 +87,7 @@
     },
     "packages/core": {
       "name": "@contfu/core",
-      "version": "0.0.2",
+      "version": "0.0.3",
       "devDependencies": {
         "@typescript/native-preview": "^7.0.0-dev.20260325.1",
         "typescript": "^5.9.3",
@@ -95,7 +95,7 @@
     },
     "packages/media/bun-file-store": {
       "name": "@contfu/bun-file-store",
-      "version": "0.0.2",
+      "version": "0.0.3",
       "dependencies": {
         "sharp": "^0.34.5",
       },
@@ -109,7 +109,7 @@
     },
     "packages/media/media-optimizer": {
       "name": "@contfu/media-optimizer",
-      "version": "0.0.2",
+      "version": "0.0.3",
       "dependencies": {
         "@ffmpeg-installer/ffmpeg": "^1.1.0",
         "m4k": "^0.2.4",
@@ -127,7 +127,7 @@
     },
     "packages/media/media-optimizer-remote": {
       "name": "@contfu/media-optimizer-remote",
-      "version": "0.0.2",
+      "version": "0.0.3",
       "dependencies": {
         "@m4k/client": "^0.2.4",
         "@m4k/common": "^0.2.5",
@@ -142,7 +142,7 @@
     },
     "packages/server": {
       "name": "@contfu/server",
-      "version": "0.0.1",
+      "version": "0.0.2",
       "bin": {
         "contfu-server": "./src/bin.ts",
       },
@@ -159,6 +159,13 @@
         "typescript": "^5.9.3",
       },
     },
+    "packages/service/api": {
+      "name": "@contfu/svc-api",
+      "version": "0.0.1",
+      "dependencies": {
+        "@contfu/svc-core": "workspace:*",
+      },
+    },
     "packages/service/app": {
       "name": "@contfu/svc-app",
       "version": "0.0.28",
@@ -169,6 +176,7 @@
       "devDependencies": {
         "@better-auth/api-key": "^1.5.6",
         "@contfu/core": "workspace:*",
+        "@contfu/svc-api": "workspace:*",
         "@contfu/svc-backend": "workspace:*",
         "@contfu/svc-core": "workspace:*",
         "@contfu/svc-sources": "workspace:*",
@@ -216,7 +224,7 @@
     },
     "packages/service/backend": {
       "name": "@contfu/svc-backend",
-      "version": "0.0.1",
+      "version": "0.0.2",
       "dependencies": {
         "@contfu/core": "workspace:*",
         "@contfu/svc-core": "workspace:*",
@@ -258,7 +266,7 @@
     },
     "packages/service/sources": {
       "name": "@contfu/svc-sources",
-      "version": "0.0.1",
+      "version": "0.0.2",
       "dependencies": {
         "@contfu/core": "workspace:*",
         "@contfu/svc-core": "workspace:*",
@@ -278,7 +286,7 @@
     },
     "packages/service/sync": {
       "name": "@contfu/svc-sync",
-      "version": "0.0.1",
+      "version": "0.0.2",
       "dependencies": {
         "@contfu/core": "workspace:*",
         "@contfu/svc-backend": "workspace:*",
@@ -436,6 +444,8 @@
     "@contfu/media-optimizer-remote": ["@contfu/media-optimizer-remote@workspace:packages/media/media-optimizer-remote"],
 
     "@contfu/server": ["@contfu/server@workspace:packages/server"],
+
+    "@contfu/svc-api": ["@contfu/svc-api@workspace:packages/service/api"],
 
     "@contfu/svc-app": ["@contfu/svc-app@workspace:packages/service/app"],
 

@@ -1,14 +1,14 @@
-import { apiFetch } from "../http";
-
-export interface StatusSummary {
-  connections: number;
-  collections: number;
-  flows: number;
-}
+import type { ApiStatus } from "@contfu/svc-api";
+import { getApiClient, handleApiError } from "../http";
 
 export async function status(format = "table") {
-  const res = await apiFetch("/api/v1/status");
-  const data = (await res.json()) as StatusSummary;
+  const client = getApiClient();
+  let data: ApiStatus;
+  try {
+    data = await client.getStatus();
+  } catch (err) {
+    handleApiError(err);
+  }
 
   if (format === "json") {
     console.log(JSON.stringify(data, null, 2));

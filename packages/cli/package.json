@@ -21,6 +21,6 @@
     "test:e2e": "bun test e2e/"
   },
   "dependencies": {
-    "@contfu/core": "workspace:*"
+    "@contfu/svc-api": "workspace:*"
   }
 }

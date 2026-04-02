@@ -25,6 +25,7 @@
   "devDependencies": {
     "@better-auth/api-key": "^1.5.6",
     "@contfu/core": "workspace:*",
+    "@contfu/svc-api": "workspace:*",
     "@contfu/svc-backend": "workspace:*",
     "@contfu/svc-core": "workspace:*",
     "@contfu/svc-sources": "workspace:*",

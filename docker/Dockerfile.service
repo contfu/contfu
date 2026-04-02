@@ -8,25 +8,9 @@ FROM base AS build-base
 WORKDIR /app
 
 FROM build-base AS build
-COPY package.json bun.lock ./
-COPY packages/core/package.json packages/core/
-COPY packages/connect/package.json packages/connect/
-COPY packages/contfu/package.json packages/contfu/
-COPY packages/client/package.json packages/client/
-COPY packages/server/package.json packages/server/
-COPY packages/ui/package.json packages/ui/
-COPY packages/media/bun-file-store/package.json packages/media/bun-file-store/
-COPY packages/media/media-optimizer/package.json packages/media/media-optimizer/
-COPY packages/media/media-optimizer-remote/package.json packages/media/media-optimizer-remote/
-COPY packages/cli/package.json packages/cli/
-COPY packages/service/core/package.json packages/service/core/
-COPY packages/service/backend/package.json packages/service/backend/
-COPY packages/service/sources/package.json packages/service/sources/
-COPY packages/service/sync/package.json packages/service/sync/
-COPY packages/service/app/package.json packages/service/app/
+COPY . .
 COPY scripts/retry-timeout.sh scripts/
 RUN --mount=type=cache,target=/root/.bun/install/cache ./scripts/retry-timeout.sh --timeout 60 --retries 3 -- bun install --ignore-scripts
-COPY . .
 ENV NODE_ENV=production
 ENV BETTER_AUTH_SECRET=build-placeholder
 RUN bun run -F '@contfu/svc-backend' build && \

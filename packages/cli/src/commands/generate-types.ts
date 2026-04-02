@@ -1,9 +1,14 @@
-import { apiFetch } from "../http";
-import { generateConsumerTypes, type TypeGenerationInput } from "@contfu/core";
+import { generateConsumerTypes, type TypeGenerationInput } from "@contfu/svc-api";
+import { getApiClient, handleApiError } from "../http";
 
 export async function connectionTypes(id: string) {
-  const res = await apiFetch(`/api/v1/connections/${id}/types`);
-  const collections: TypeGenerationInput[] = await res.json();
+  const client = getApiClient();
+  let collections: TypeGenerationInput[];
+  try {
+    collections = await client.getConnectionTypes(id);
+  } catch (err) {
+    handleApiError(err);
+  }
 
   if (collections.length === 0) {
     console.error("No collections connected to this connection");
@@ -14,8 +19,13 @@ export async function connectionTypes(id: string) {
 }
 
 export async function collectionTypes(id: string) {
-  const res = await apiFetch(`/api/v1/collections/${id}/types`);
-  const collections: TypeGenerationInput[] = await res.json();
+  const client = getApiClient();
+  let collections: TypeGenerationInput[];
+  try {
+    collections = await client.getCollectionTypes(id);
+  } catch (err) {
+    handleApiError(err);
+  }
 
   if (collections.length === 0) {
     console.error("No types found for this collection");

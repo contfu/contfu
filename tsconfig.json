@@ -24,6 +24,7 @@
     { "path": "packages/media/media-optimizer-remote" },
     { "path": "packages/service/app" },
     { "path": "packages/service/core" },
+    { "path": "packages/service/api" },
     { "path": "packages/service/backend" },
     { "path": "packages/service/sources" },
     { "path": "packages/service/sync" }

@@ -59,7 +59,7 @@ await seedSchemaSyncData(db);
 
 // Seed a second user for admin action tests (the admin modifies this user,
 // not themselves, to avoid breaking the session).
-import { userTable, accountTable } from "@contfu/svc-backend/infra/db/schema";
+import { userTable, accountTable, apikeyTable } from "@contfu/svc-backend/infra/db/schema";
 import { UserRole } from "@contfu/svc-backend/domain/types";
 import { eq, sql } from "drizzle-orm";
 import { hashPassword } from "better-auth/crypto";
@@ -94,6 +94,39 @@ if (secondUserExists.length === 0) {
     updatedAt: now,
   });
   console.log(`[seed-and-serve] Second user seeded: id=${otherUser.id}`);
+}
+
+// Seed a pre-generated API key for the test user so svc-api.e2e.ts can use
+// a well-known key without needing to call the better-auth REST endpoint.
+// The plaintext key is exposed via E2E_TEST_API_KEY env var read by the test.
+const E2E_TEST_API_KEY = "e2e-test-api-key-contfu-000000000001";
+const apiKeyHash = await (async () => {
+  const hashBuf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(E2E_TEST_API_KEY));
+  return Buffer.from(hashBuf).toString("base64url").replace(/=/g, "");
+})();
+
+const [testUserForApiKey] = await db
+  .select({ id: userTable.id })
+  .from(userTable)
+  .where(eq(userTable.email, "test@test.com"))
+  .limit(1);
+
+if (testUserForApiKey) {
+  const now = new Date();
+  await db.insert(apikeyTable).values({
+    name: "E2E Test Key",
+    start: E2E_TEST_API_KEY.substring(0, 4),
+    key: apiKeyHash,
+    userId: testUserForApiKey.id,
+    enabled: true,
+    rateLimitEnabled: false,
+    requestCount: 0,
+    permissions: JSON.stringify({ api: ["read", "write"] }),
+    createdAt: now,
+    updatedAt: now,
+  });
+  process.env.E2E_TEST_API_KEY = E2E_TEST_API_KEY;
+  console.log(`[seed-and-serve] API key seeded for user ${testUserForApiKey.id}`);
 }
 
 // Set unlimited quotas for the test user so the large number of seeded flows
