@@ -5,29 +5,34 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
   check-version:
-    name: Check if version changed
+    name: Check if version published
     runs-on: ubuntu-latest
     outputs:
-      core-changed: ${{ steps.check.outputs.core-changed }}
-      connect-changed: ${{ steps.check.outputs.connect-changed }}
-      contfu-changed: ${{ steps.check.outputs.contfu-changed }}
-      client-changed: ${{ steps.check.outputs.client-changed }}
-      server-changed: ${{ steps.check.outputs.server-changed }}
-      bun-file-store-changed: ${{ steps.check.outputs.bun-file-store-changed }}
-      media-optimizer-changed: ${{ steps.check.outputs.media-optimizer-changed }}
-      media-optimizer-remote-changed: ${{ steps.check.outputs.media-optimizer-remote-changed }}
-      svc-core-changed: ${{ steps.check.outputs.svc-core-changed }}
-      cli-changed: ${{ steps.check.outputs.cli-changed }}
-      ui-changed: ${{ steps.check.outputs.ui-changed }}
+      core-npm-changed: ${{ steps.check.outputs.core-npm-changed }}
+      connect-npm-changed: ${{ steps.check.outputs.connect-npm-changed }}
+      contfu-npm-changed: ${{ steps.check.outputs.contfu-npm-changed }}
+      client-npm-changed: ${{ steps.check.outputs.client-npm-changed }}
+      server-npm-changed: ${{ steps.check.outputs.server-npm-changed }}
+      bun-file-store-npm-changed: ${{ steps.check.outputs.bun-file-store-npm-changed }}
+      media-optimizer-npm-changed: ${{ steps.check.outputs.media-optimizer-npm-changed }}
+      media-optimizer-remote-npm-changed: ${{ steps.check.outputs.media-optimizer-remote-npm-changed }}
+      svc-core-npm-changed: ${{ steps.check.outputs.svc-core-npm-changed }}
+      cli-npm-changed: ${{ steps.check.outputs.cli-npm-changed }}
+      ui-npm-changed: ${{ steps.check.outputs.ui-npm-changed }}
+      server-docker-changed: ${{ steps.check.outputs.server-docker-changed }}
+      ui-docker-changed: ${{ steps.check.outputs.ui-docker-changed }}
+      server-version: ${{ steps.check.outputs.server-version }}
       ui-version: ${{ steps.check.outputs.ui-version }}
-      changed: ${{ steps.check.outputs.changed }}
+      npm-changed: ${{ steps.check.outputs.npm-changed }}
+      docker-changed: ${{ steps.check.outputs.docker-changed }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
-      - name: Check if package.json version changed
+      - name: Check if version published
         id: check
         shell: bash
         run: |
@@ -38,6 +43,26 @@ jobs:
             else
               echo "0.0.0"
             fi
+          }
+
+          function get_npm_version() {
+            npm view "$1" version 2>/dev/null || echo "0.0.0"
+          }
+
+          function get_dockerhub_version() {
+            local image=$1 tag=$2
+            local status
+            status=$(curl -s -o /dev/null -w "%{http_code}" "https://hub.docker.com/v2/repositories/${image}/tags/${tag}/")
+            [ "$status" = "200" ] && echo "$tag" || echo "0.0.0"
+          }
+
+          function check_changed() {
+            local name=$1 current=$2 published=$3 aggregate=$4
+            local changed=$([ "$current" != "$published" ] && echo "true" || echo "false")
+            if [ "$changed" = "true" ]; then
+              echo "${aggregate}-changed=true" >> "$GITHUB_OUTPUT"
+            fi
+            echo "${name}-changed=$changed" >> "$GITHUB_OUTPUT"
           }
 
           CURRENT_CORE_VERSION=$(get_version "packages/core/package.json")
@@ -52,44 +77,41 @@ jobs:
           CURRENT_CLI_VERSION=$(get_version "packages/cli/package.json")
           CURRENT_UI_VERSION=$(get_version "packages/ui/package.json")
 
-          git checkout HEAD^
+          PUBLISHED_CORE_NPM=$(get_npm_version "@contfu/core")
+          PUBLISHED_CONNECT_NPM=$(get_npm_version "@contfu/connect")
+          PUBLISHED_CONTFU_NPM=$(get_npm_version "@contfu/contfu")
+          PUBLISHED_CLIENT_NPM=$(get_npm_version "@contfu/client")
+          PUBLISHED_SERVER_NPM=$(get_npm_version "@contfu/server")
+          PUBLISHED_BUN_FILE_STORE_NPM=$(get_npm_version "@contfu/bun-file-store")
+          PUBLISHED_MEDIA_OPTIMIZER_NPM=$(get_npm_version "@contfu/media-optimizer")
+          PUBLISHED_MEDIA_OPTIMIZER_REMOTE_NPM=$(get_npm_version "@contfu/media-optimizer-remote")
+          PUBLISHED_SVC_CORE_NPM=$(get_npm_version "@contfu/svc-core")
+          PUBLISHED_CLI_NPM=$(get_npm_version "@contfu/cli")
+          PUBLISHED_UI_NPM=$(get_npm_version "@contfu/ui")
 
-          PREVIOUS_CORE_VERSION=$(get_version "packages/core/package.json")
-          PREVIOUS_CONNECT_VERSION=$(get_version "packages/connect/package.json")
-          PREVIOUS_CONTFU_VERSION=$(get_version "packages/contfu/package.json")
-          PREVIOUS_CLIENT_VERSION=$(get_version "packages/client/package.json")
-          PREVIOUS_SERVER_VERSION=$(get_version "packages/server/package.json")
-          PREVIOUS_BUN_FILE_STORE_VERSION=$(get_version "packages/media/bun-file-store/package.json")
-          PREVIOUS_MEDIA_OPTIMIZER_VERSION=$(get_version "packages/media/media-optimizer/package.json")
-          PREVIOUS_MEDIA_OPTIMIZER_REMOTE_VERSION=$(get_version "packages/media/media-optimizer-remote/package.json")
-          PREVIOUS_SVC_CORE_VERSION=$(get_version "packages/service/core/package.json")
-          PREVIOUS_CLI_VERSION=$(get_version "packages/cli/package.json")
-          PREVIOUS_UI_VERSION=$(get_version "packages/ui/package.json")
+          PUBLISHED_SERVER_DOCKER=$(get_dockerhub_version "contfu/server" "$CURRENT_SERVER_VERSION")
+          PUBLISHED_UI_DOCKER=$(get_dockerhub_version "contfu/client" "$CURRENT_UI_VERSION")
 
-          function check_changed() {
-            local name=$1 current=$2 previous=$3 publish_npm=$4
-            local changed=$([ "$current" != "$previous" ] && echo "true" || echo "false")
-            if [ "$changed" = "true" ] && [ "$publish_npm" = "true" ]; then
-              echo "changed=true" >> "$GITHUB_OUTPUT"
-            fi
-            echo "${name}-changed=$changed" >> "$GITHUB_OUTPUT"
-          }
+          check_changed "core-npm"                   "$CURRENT_CORE_VERSION"                   "$PUBLISHED_CORE_NPM"                   "npm"
+          check_changed "connect-npm"                "$CURRENT_CONNECT_VERSION"                "$PUBLISHED_CONNECT_NPM"                "npm"
+          check_changed "contfu-npm"                 "$CURRENT_CONTFU_VERSION"                 "$PUBLISHED_CONTFU_NPM"                 "npm"
+          check_changed "client-npm"                 "$CURRENT_CLIENT_VERSION"                 "$PUBLISHED_CLIENT_NPM"                 "npm"
+          check_changed "server-npm"                 "$CURRENT_SERVER_VERSION"                 "$PUBLISHED_SERVER_NPM"                 "npm"
+          check_changed "bun-file-store-npm"         "$CURRENT_BUN_FILE_STORE_VERSION"         "$PUBLISHED_BUN_FILE_STORE_NPM"         "npm"
+          check_changed "media-optimizer-npm"        "$CURRENT_MEDIA_OPTIMIZER_VERSION"        "$PUBLISHED_MEDIA_OPTIMIZER_NPM"        "npm"
+          check_changed "media-optimizer-remote-npm" "$CURRENT_MEDIA_OPTIMIZER_REMOTE_VERSION" "$PUBLISHED_MEDIA_OPTIMIZER_REMOTE_NPM" "npm"
+          check_changed "svc-core-npm"               "$CURRENT_SVC_CORE_VERSION"               "$PUBLISHED_SVC_CORE_NPM"               "npm"
+          check_changed "cli-npm"                    "$CURRENT_CLI_VERSION"                    "$PUBLISHED_CLI_NPM"                    "npm"
+          check_changed "ui-npm"                     "$CURRENT_UI_VERSION"                     "$PUBLISHED_UI_NPM"                     "npm"
+          check_changed "server-docker"              "$CURRENT_SERVER_VERSION"                 "$PUBLISHED_SERVER_DOCKER"              "docker"
+          check_changed "ui-docker"                  "$CURRENT_UI_VERSION"                     "$PUBLISHED_UI_DOCKER"                  "docker"
 
-          check_changed "core" "$CURRENT_CORE_VERSION" "$PREVIOUS_CORE_VERSION" "true"
-          check_changed "connect" "$CURRENT_CONNECT_VERSION" "$PREVIOUS_CONNECT_VERSION" "true"
-          check_changed "contfu" "$CURRENT_CONTFU_VERSION" "$PREVIOUS_CONTFU_VERSION" "true"
-          check_changed "client" "$CURRENT_CLIENT_VERSION" "$PREVIOUS_CLIENT_VERSION" "true"
-          check_changed "server" "$CURRENT_SERVER_VERSION" "$PREVIOUS_SERVER_VERSION" "true"
-          check_changed "bun-file-store" "$CURRENT_BUN_FILE_STORE_VERSION" "$PREVIOUS_BUN_FILE_STORE_VERSION" "true"
-          check_changed "media-optimizer" "$CURRENT_MEDIA_OPTIMIZER_VERSION" "$PREVIOUS_MEDIA_OPTIMIZER_VERSION" "true"
-          check_changed "media-optimizer-remote" "$CURRENT_MEDIA_OPTIMIZER_REMOTE_VERSION" "$PREVIOUS_MEDIA_OPTIMIZER_REMOTE_VERSION" "true"
-          check_changed "svc-core" "$CURRENT_SVC_CORE_VERSION" "$PREVIOUS_SVC_CORE_VERSION" "true"
-          check_changed "cli" "$CURRENT_CLI_VERSION" "$PREVIOUS_CLI_VERSION" "true"
-          check_changed "ui" "$CURRENT_UI_VERSION" "$PREVIOUS_UI_VERSION" "false"
+          echo "server-version=$CURRENT_SERVER_VERSION" >> "$GITHUB_OUTPUT"
           echo "ui-version=$CURRENT_UI_VERSION" >> "$GITHUB_OUTPUT"
-  build-npm:
+
+  publish-npm:
     needs: check-version
-    if: needs.check-version.outputs.changed == 'true'
+    if: needs.check-version.outputs.npm-changed == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -106,50 +128,54 @@ jobs:
           registry-url: "https://registry.npmjs.org"
       - run: bun run build
       - name: Publish @contfu/core
-        if: needs.check-version.outputs.core-changed == 'true'
+        if: needs.check-version.outputs.core-npm-changed == 'true'
         working-directory: ./packages/core
         run: bun pm pack && npm publish *.tgz --access public --provenance
       - name: Publish @contfu/connect
-        if: needs.check-version.outputs.connect-changed == 'true'
+        if: needs.check-version.outputs.connect-npm-changed == 'true'
         working-directory: ./packages/connect
         run: bun pm pack && npm publish *.tgz --access public --provenance
       - name: Publish @contfu/contfu
-        if: needs.check-version.outputs.contfu-changed == 'true'
+        if: needs.check-version.outputs.contfu-npm-changed == 'true'
         working-directory: ./packages/contfu
         run: bun pm pack && npm publish *.tgz --access public --provenance
       - name: Publish @contfu/client
-        if: needs.check-version.outputs.client-changed == 'true'
+        if: needs.check-version.outputs.client-npm-changed == 'true'
         working-directory: ./packages/client
         run: bun pm pack && npm publish *.tgz --access public --provenance
       - name: Publish @contfu/server
-        if: needs.check-version.outputs.server-changed == 'true'
+        if: needs.check-version.outputs.server-npm-changed == 'true'
         working-directory: ./packages/server
         run: bun pm pack && npm publish *.tgz --access public --provenance
       - name: Publish @contfu/bun-file-store
-        if: needs.check-version.outputs.bun-file-store-changed == 'true'
+        if: needs.check-version.outputs.bun-file-store-npm-changed == 'true'
         working-directory: ./packages/media/bun-file-store
         run: bun pm pack && npm publish *.tgz --access public --provenance
       - name: Publish @contfu/media-optimizer
-        if: needs.check-version.outputs.media-optimizer-changed == 'true'
+        if: needs.check-version.outputs.media-optimizer-npm-changed == 'true'
         working-directory: ./packages/media/media-optimizer
         run: bun pm pack && npm publish *.tgz --access public --provenance
       - name: Publish @contfu/media-optimizer-remote
-        if: needs.check-version.outputs.media-optimizer-remote-changed == 'true'
+        if: needs.check-version.outputs.media-optimizer-remote-npm-changed == 'true'
         working-directory: ./packages/media/media-optimizer-remote
         run: bun pm pack && npm publish *.tgz --access public --provenance
       - name: Publish @contfu/svc-core
-        if: needs.check-version.outputs.svc-core-changed == 'true'
+        if: needs.check-version.outputs.svc-core-npm-changed == 'true'
         working-directory: ./packages/service/core
         run: bun pm pack && npm publish *.tgz --access public --provenance
       - name: Publish @contfu/cli
-        if: needs.check-version.outputs.cli-changed == 'true'
+        if: needs.check-version.outputs.cli-npm-changed == 'true'
         working-directory: ./packages/cli
         run: bun pm pack && npm publish *.tgz --access public --provenance
+      - name: Publish @contfu/ui
+        if: needs.check-version.outputs.ui-npm-changed == 'true'
+        working-directory: ./packages/ui
+        run: bun pm pack && npm publish *.tgz --access public --provenance
 
-  push-ui:
+  publish-docker:
     needs: check-version
     runs-on: ubuntu-latest
-    if: needs.check-version.outputs.ui-changed == 'true'
+    if: needs.check-version.outputs.docker-changed == 'true'
     steps:
       - uses: actions/checkout@v4
       - name: Set up Docker Buildx
@@ -159,7 +185,18 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Build and push server image
+        if: needs.check-version.outputs.server-docker-changed == 'true'
+        uses: docker/build-push-action@v7
+        with:
+          file: docker/Dockerfile.server
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: contfu/server:latest,contfu/server:${{ needs.check-version.outputs.server-version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
       - name: Build and push UI image
+        if: needs.check-version.outputs.ui-docker-changed == 'true'
         uses: docker/build-push-action@v7
         with:
           file: docker/Dockerfile.ui
