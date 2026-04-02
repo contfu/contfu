@@ -1,4 +1,3 @@
-import type { TypedContfuClient } from "./domain/query-types";
 import {
   all,
   and,
@@ -16,13 +15,13 @@ import {
   notLike,
   oneOf,
   or,
-  resolveWithFunctions,
-} from "./domain/filter-helpers";
+} from "@contfu/core";
+import type { TypedContfuClient } from "./domain/query-types";
+import { resolveWithFunctions } from "./domain/filter-helpers";
 import { findItems } from "./features/items/findItems";
 import { db } from "./infra/db/db";
-import { createHttpTypedClient } from "./infra/http/query-client";
 
-export type ContfuConfig = { url?: string; apiKey?: string };
+export type ContfuConfig = Record<string, never>;
 
 function normalizeArgs(
   first?: string | Record<string, any>,
@@ -85,9 +84,6 @@ function createLocalTypedClient<_CMap>(ctx = db): any {
   });
 }
 
-export function contfu<CMap>(config?: ContfuConfig): TypedContfuClient<CMap> {
-  if (config?.url) {
-    return createHttpTypedClient<CMap>(config.url, config.apiKey);
-  }
+export function contfu<CMap>(_config?: ContfuConfig): TypedContfuClient<CMap> {
   return createLocalTypedClient();
 }
