@@ -7,14 +7,8 @@ import { resolveRelations } from "../../infra/db/resolve-relations";
 import { compileFilter } from "../../infra/filter/compiler";
 import { tokenize } from "../../infra/filter/lexer";
 import { parse } from "../../infra/filter/parser";
-import { QueryResultArray } from "../../domain/query-types";
-import type {
-  ItemWithRelations,
-  QueryOptions,
-  QueryResult,
-  QuerySystemFields,
-  SortOption,
-} from "../../domain/query-types";
+import { QueryResultArray, type QueryOptions, type SortOption } from "@contfu/core";
+import type { ItemWithRelations, QueryResult, QuerySystemFields } from "../../domain/query-types";
 
 const DEFAULT_LIMIT = 20;
 

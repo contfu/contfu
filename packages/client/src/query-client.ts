@@ -1,5 +1,5 @@
-import { QueryResultArray } from "../../domain/query-types";
-import type { IncludeOption, QueryMeta, QueryOptions, WithClause } from "../../domain/query-types";
+import { QueryResultArray } from "@contfu/core";
+import type { QueryMeta, QueryOptions, WithClause } from "@contfu/core";
 import {
   all,
   and,
@@ -17,8 +17,7 @@ import {
   notLike,
   oneOf,
   or,
-  resolveWithFunctions,
-} from "../../domain/filter-helpers";
+} from "@contfu/core";
 
 export function createHttpTypedClient<_CMap>(baseUrl: string, apiKey?: string): any {
   const headers: Record<string, string> = {
@@ -94,6 +93,34 @@ export function createHttpTypedClient<_CMap>(baseUrl: string, apiKey?: string): 
   });
 }
 
+function resolveWithFunctions(withVal: any, parentLevel: number): WithClause {
+  let entries: Record<string, any>;
+  if (typeof withVal === "function") {
+    entries = withVal(createItemRef(parentLevel));
+  } else {
+    entries = withVal;
+  }
+
+  const result: WithClause = {};
+  for (const [name, entry] of Object.entries(entries)) {
+    let filter: string | undefined;
+    if (typeof entry.filter === "function") {
+      filter = entry.filter(createItemRef(0));
+    } else {
+      filter = entry.filter;
+    }
+    result[name] = {
+      collection: entry.collection,
+      filter,
+      limit: entry.limit,
+      include: entry.include,
+      single: entry.single,
+      with: entry.with ? resolveWithFunctions(entry.with, parentLevel + 1) : undefined,
+    };
+  }
+  return result;
+}
+
 export function serializeQueryParams(options: QueryOptions): URLSearchParams {
   const params = new URLSearchParams();
 
@@ -118,44 +145,4 @@ export function serializeQueryParams(options: QueryOptions): URLSearchParams {
   if (options.fields !== undefined) params.set("fields", options.fields.join(","));
 
   return params;
-}
-
-export function deserializeQueryParams(params: URLSearchParams): QueryOptions {
-  const options: QueryOptions = {};
-
-  const filter = params.get("filter");
-  if (filter) options.filter = filter;
-
-  const search = params.get("search");
-  if (search) options.search = search;
-
-  const sort = params.get("sort");
-  if (sort) {
-    options.sort = sort.split(",").map((s) => s.trim());
-  }
-
-  const limit = params.get("limit");
-  if (limit) options.limit = parseInt(limit, 10);
-
-  const offset = params.get("offset");
-  if (offset) options.offset = parseInt(offset, 10);
-
-  const include = params.get("include");
-  if (include) options.include = include.split(",").map((s) => s.trim()) as IncludeOption[];
-
-  const withStr = params.get("with");
-  if (withStr) {
-    try {
-      options.with = JSON.parse(withStr) as WithClause;
-    } catch {
-      // ignore invalid JSON
-    }
-  }
-
-  const fields = params.get("fields");
-  if (fields !== null) {
-    options.fields = fields === "" ? [] : fields.split(",").map((s) => s.trim());
-  }
-
-  return options;
 }

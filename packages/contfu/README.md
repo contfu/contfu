@@ -1,14 +1,39 @@
 # @contfu/contfu
 
-Client package organized with vertical slices and feature modules.
+Core library for building Contfu-powered applications with a local database.
 
-## Structure
+Use this package when you want to store and query content locally. If you prefer to query a remote Contfu server over HTTP, use `@contfu/client` instead.
 
-- `src/features/*`: business feature slices with one use-case module per file
-- `src/infra/*`: shared infrastructure (`db`, `sync`, `hooks`)
-- `src/util/*`: pure utilities
+## Usage
 
-## Naming
+```ts
+import { connect } from "@contfu/contfu";
 
-- `items` is the canonical content terminology.
-- Page compatibility aliases have been removed.
+// Sync content into the local database
+for await (const event of connect()) {
+  console.log(event.type, event);
+}
+```
+
+## Media processing
+
+You can plug in custom media storage and optimization by passing `mediaStore` and `mediaOptimizer` options to `connect()`:
+
+```ts
+import { connect } from "@contfu/contfu";
+import { FileStore } from "@contfu/bun-file-store";
+import { M4kOptimizer } from "@contfu/media-optimizer";
+
+for await (const event of connect({
+  mediaStore: new FileStore("/var/contfu/media"),
+  mediaOptimizer: new M4kOptimizer(),
+})) {
+  // assets are stored and optimized automatically during sync
+}
+```
+
+## Platform builds
+
+- `@contfu/contfu` — Bun runtime
+- `@contfu/contfu/node` — Node.js runtime
+- `@contfu/contfu/shared` — browser-safe subset (no local database)

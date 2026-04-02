@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { truncateAllTables } from "../../../test/setup";
-import type { ItemWithRelations, WithClause } from "../../domain/query-types";
+import type { WithClause } from "@contfu/core";
+import type { ItemWithRelations } from "../../domain/query-types";
 import { setCollection } from "../../features/collections/setCollection";
 import { createItem } from "../../features/items/createItem";
 import { createItemLink } from "../../features/items/createItemLink";

@@ -4,7 +4,8 @@ import { assetTable, itemAssetTable, itemsTable, linkTable } from "./schema";
 import { assetFromDb } from "./mappers";
 import { decodeId, encodeId } from "../ids";
 import type { AssetData, ResolvedLink } from "../types/content-types";
-import type { IncludeOption, ItemWithRelations } from "../../domain/query-types";
+import type { IncludeOption } from "@contfu/core";
+import type { ItemWithRelations } from "../../domain/query-types";
 
 export function resolveIncludes(
   items: ItemWithRelations[],

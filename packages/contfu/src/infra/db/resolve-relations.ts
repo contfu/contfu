@@ -1,5 +1,6 @@
 import { eq, inArray } from "drizzle-orm";
-import type { IncludeOption, ItemWithRelations, WithClause } from "../../domain/query-types";
+import type { IncludeOption, WithClause } from "@contfu/core";
+import type { ItemWithRelations } from "../../domain/query-types";
 import { encodeId } from "../ids";
 import { db, type DbCtx } from "./db";
 import { linkTable } from "./schema";
