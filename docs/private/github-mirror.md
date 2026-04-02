@@ -21,6 +21,7 @@ git remote add github git@github.com:contfu/contfu.git
 ```
 
 The script:
+
 1. Fetches the latest `github/main`
 2. Creates a git worktree at `.worktrees/github-mirror`
 3. Copies public packages and configs via rsync

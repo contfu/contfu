@@ -46,6 +46,7 @@ Write a commit message as if the changes were made directly in this repo — not
 - Do NOT mention internal refactoring or private package changes
 
 Example subjects:
+
 - `feat(service-core): add incident tracking types and WebAuthType constants`
 - `fix(connect): simplify stream-client tests`
 - `chore: update package dependencies`
@@ -77,6 +78,7 @@ gh pr create --repo contfu/contfu \
 ## What gets synced
 
 See `github-mirror.conf` for the full list. Summary:
+
 - `packages/core`, `packages/cli`, `packages/client/*`, `packages/service/core`
 - `docs/` (excluding `docs/private/`)
 - Shared root configs (tsconfig, oxlint, etc.)

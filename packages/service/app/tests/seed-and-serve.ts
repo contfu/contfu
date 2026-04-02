@@ -150,4 +150,3 @@ console.log(`[seed-and-serve] PGLite TCP server on ${pgliteAddr}, starting serve
 
 // Now start the production server
 await import("../build/index.js");
-

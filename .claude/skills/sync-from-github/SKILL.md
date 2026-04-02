@@ -29,6 +29,7 @@ This creates a branch `sync/from-github-<date>` with a merge commit from `github
 ### 3. Handle conflicts
 
 If there are conflicts (common on first sync or when GitHub-only files diverge):
+
 - Accept Forgejo's version for files that intentionally differ (root `package.json`, Forgejo-specific configs)
 - Accept GitHub's version for shared package changes
 - Run `bun install` if any `package.json` was modified

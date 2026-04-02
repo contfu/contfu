@@ -56,9 +56,11 @@ export {
   all,
   and,
   contains,
+  createItemRef,
   eq,
   gt,
   gte,
+  isFieldRef,
   like,
   linkedFrom,
   linksTo,
@@ -68,24 +70,30 @@ export {
   notLike,
   oneOf,
   or,
+  type FieldRef,
   type ItemRef,
-} from "./domain/filter-helpers";
+} from "@contfu/core";
+
+// Query types
+export {
+  QueryResultArray,
+  type IncludeOption,
+  type QueryMeta,
+  type QueryOptions,
+  type SortOption,
+  type WithClause,
+} from "@contfu/core";
 
 // Query API exports
 export { contfu } from "./contfu";
 export type { ContfuConfig } from "./contfu";
 export {
-  QueryResultArray,
-  type IncludeOption,
   type InferRels,
   type ItemWithRelations,
   type PickFields,
-  type QueryMeta,
-  type QueryOptions,
   type QuerySystemFields,
   type QueryResult,
   type SelectableField,
-  type SortOption,
   type TypedAllFn,
   type TypedContfuClient,
   type TypedOneOfFn,
@@ -95,15 +103,9 @@ export {
   type TypedQueryResultWithRels,
   type TypedWithEntry,
   type TypedWithInput,
-  type WithClause,
 } from "./domain/query-types";
 export { findItems } from "./features/items/findItems";
 export { getItemById } from "./features/items/getItemById";
-export {
-  createHttpTypedClient,
-  deserializeQueryParams,
-  serializeQueryParams,
-} from "./infra/http/query-client";
 // Asset exports
 export { createAsset } from "./features/assets/createAsset";
 export { deleteAssets } from "./features/assets/deleteAssets";

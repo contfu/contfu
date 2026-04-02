@@ -239,83 +239,85 @@ export const auth = betterAuth({
   },
   plugins: [
     ...(process.env.POLAR_ACCESS_TOKEN
-      ? [polar({
-      client: polarClient,
-      createCustomerOnSignUp: true,
-      use: [
-        checkout({
-          products:
-            process.env.POLAR_SANDBOX === "true"
-              ? [
-                  {
-                    productId: "7194bc4d-3004-4bdd-8548-5142aa401aa0",
-                    slug: "business/monthly",
-                  },
-                  {
-                    productId: "36068147-9c98-4e83-a709-4bcd785ca744",
-                    slug: "business/yearly",
-                  },
-                  {
-                    productId: "7dfbe6ef-9618-4279-b452-158a09b6c23d",
-                    slug: "pro/monthly",
-                  },
-                  {
-                    productId: "89684d11-5a40-44b8-829f-bdb0c5bd88db",
-                    slug: "pro/yearly",
-                  },
-                  {
-                    productId: "e11b0672-b758-4496-884e-48fa15b70508",
-                    slug: "starter/monthly",
-                  },
-                  {
-                    productId: "9b0e4aeb-8b14-47f6-8c84-7b716b8e4313",
-                    slug: "starter/yearly",
-                  },
-                ]
-              : [
-                  {
-                    productId: "e3d96e4b-2c14-4b90-b56e-7efed5d16b83",
-                    slug: "business/monthly",
-                  },
-                  {
-                    productId: "4ec0456a-0981-4611-8532-31cc94ac3e87",
-                    slug: "business/yearly",
-                  },
-                  {
-                    productId: "c36e30b0-a654-4c39-9b8d-049be7dfd49a",
-                    slug: "pro/monthly",
-                  },
-                  {
-                    productId: "58148e9c-5025-4b4a-9255-fa8b47be98ce",
-                    slug: "pro/yearly",
-                  },
-                  {
-                    productId: "bebd5fad-e647-47db-9052-3167f81f14d3",
-                    slug: "starter/monthly",
-                  },
-                  {
-                    productId: "9f177026-9631-4f1d-a22c-9f3f616589e2",
-                    slug: "starter/yearly",
-                  },
-                ],
-          successUrl: "/success?checkout_id={CHECKOUT_ID}",
-          authenticatedUsersOnly: true,
-          returnUrl: "/dashboard",
-        }),
-        portal(),
-        usage(),
-        ...(process.env.POLAR_WEBHOOK_SECRET
-          ? [
-              webhooks({
-                secret: process.env.POLAR_WEBHOOK_SECRET,
-                onPayload: async (payload) => {
-                  log.debug({ payload }, "Polar webhook hook fired");
-                },
+      ? [
+          polar({
+            client: polarClient,
+            createCustomerOnSignUp: true,
+            use: [
+              checkout({
+                products:
+                  process.env.POLAR_SANDBOX === "true"
+                    ? [
+                        {
+                          productId: "7194bc4d-3004-4bdd-8548-5142aa401aa0",
+                          slug: "business/monthly",
+                        },
+                        {
+                          productId: "36068147-9c98-4e83-a709-4bcd785ca744",
+                          slug: "business/yearly",
+                        },
+                        {
+                          productId: "7dfbe6ef-9618-4279-b452-158a09b6c23d",
+                          slug: "pro/monthly",
+                        },
+                        {
+                          productId: "89684d11-5a40-44b8-829f-bdb0c5bd88db",
+                          slug: "pro/yearly",
+                        },
+                        {
+                          productId: "e11b0672-b758-4496-884e-48fa15b70508",
+                          slug: "starter/monthly",
+                        },
+                        {
+                          productId: "9b0e4aeb-8b14-47f6-8c84-7b716b8e4313",
+                          slug: "starter/yearly",
+                        },
+                      ]
+                    : [
+                        {
+                          productId: "e3d96e4b-2c14-4b90-b56e-7efed5d16b83",
+                          slug: "business/monthly",
+                        },
+                        {
+                          productId: "4ec0456a-0981-4611-8532-31cc94ac3e87",
+                          slug: "business/yearly",
+                        },
+                        {
+                          productId: "c36e30b0-a654-4c39-9b8d-049be7dfd49a",
+                          slug: "pro/monthly",
+                        },
+                        {
+                          productId: "58148e9c-5025-4b4a-9255-fa8b47be98ce",
+                          slug: "pro/yearly",
+                        },
+                        {
+                          productId: "bebd5fad-e647-47db-9052-3167f81f14d3",
+                          slug: "starter/monthly",
+                        },
+                        {
+                          productId: "9f177026-9631-4f1d-a22c-9f3f616589e2",
+                          slug: "starter/yearly",
+                        },
+                      ],
+                successUrl: "/success?checkout_id={CHECKOUT_ID}",
+                authenticatedUsersOnly: true,
+                returnUrl: "/dashboard",
               }),
-            ]
-          : []),
-      ],
-    })]
+              portal(),
+              usage(),
+              ...(process.env.POLAR_WEBHOOK_SECRET
+                ? [
+                    webhooks({
+                      secret: process.env.POLAR_WEBHOOK_SECRET,
+                      onPayload: async (payload) => {
+                        log.debug({ payload }, "Polar webhook hook fired");
+                      },
+                    }),
+                  ]
+                : []),
+            ],
+          }),
+        ]
       : []),
     apiKey({
       schema: {

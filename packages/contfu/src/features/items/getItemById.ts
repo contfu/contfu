@@ -5,7 +5,8 @@ import { resolveRelations } from "../../infra/db/resolve-relations";
 import { itemsTable } from "../../infra/db/schema";
 import { decodeId, encodeId } from "../../infra/ids";
 import { findItems } from "./findItems";
-import type { IncludeOption, ItemWithRelations, WithClause } from "../../domain/query-types";
+import type { IncludeOption, WithClause } from "@contfu/core";
+import type { ItemWithRelations } from "../../domain/query-types";
 
 export function getItemById(
   id: string,

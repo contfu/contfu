@@ -188,9 +188,7 @@ export const getSyncConfig = (
               includeRef: flowTable.includeRef,
             })
             .from(flowTable)
-            .where(
-              and(eq(flowTable.userId, userId), inArray(flowTable.targetId, nonCmsSourceIds)),
-            ),
+            .where(and(eq(flowTable.userId, userId), inArray(flowTable.targetId, nonCmsSourceIds))),
         catch: (e) => new DatabaseError({ cause: e }),
       });
 
@@ -243,16 +241,12 @@ export const getSyncConfig = (
               ? (unpack(df.mappings) as MappingRule[])
               : null;
             const composed = composeMappingChain(upMappings, downMappings);
-            const upFilters: Filter[] | null = uf.filters
-              ? (unpack(uf.filters) as Filter[])
-              : null;
+            const upFilters: Filter[] | null = uf.filters ? (unpack(uf.filters) as Filter[]) : null;
             const downFilters: Filter[] | null = df.filters
               ? (unpack(df.filters) as Filter[])
               : null;
             const mergedFilters =
-              upFilters || downFilters
-                ? [...(upFilters ?? []), ...(downFilters ?? [])]
-                : null;
+              upFilters || downFilters ? [...(upFilters ?? []), ...(downFilters ?? [])] : null;
 
             flows.push({
               id: uf.id,

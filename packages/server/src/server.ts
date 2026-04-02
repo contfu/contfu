@@ -1,5 +1,5 @@
 import { EventType } from "@contfu/core";
-import type { IncludeOption, WithClause } from "@contfu/contfu";
+import type { IncludeOption, QueryOptions, WithClause } from "@contfu/core";
 
 type RouteRequest = Request & { params: Record<string, string> };
 
@@ -122,9 +122,49 @@ function text(body: string, status = 200) {
   });
 }
 
+function deserializeQueryParams(params: URLSearchParams): QueryOptions {
+  const options: QueryOptions = {};
+
+  const filter = params.get("filter");
+  if (filter) options.filter = filter;
+
+  const search = params.get("search");
+  if (search) options.search = search;
+
+  const sort = params.get("sort");
+  if (sort) {
+    options.sort = sort.split(",").map((s) => s.trim());
+  }
+
+  const limit = params.get("limit");
+  if (limit) options.limit = parseInt(limit, 10);
+
+  const offset = params.get("offset");
+  if (offset) options.offset = parseInt(offset, 10);
+
+  const include = params.get("include");
+  if (include) options.include = include.split(",").map((s) => s.trim()) as IncludeOption[];
+
+  const withStr = params.get("with");
+  if (withStr) {
+    try {
+      options.with = JSON.parse(withStr) as WithClause;
+    } catch {
+      // ignore invalid JSON
+    }
+  }
+
+  const fields = params.get("fields");
+  if (fields !== null) {
+    options.fields = fields === "" ? [] : fields.split(",").map((s) => s.trim());
+  }
+
+  return options;
+}
+
 async function handleItems(request: Request) {
   const url = new URL(request.url);
-  const { deserializeQueryParams, findItems } = await getContfu();
+  const { findItems } = await getContfu();
   const options = deserializeQueryParams(url.searchParams);
   return json(findItems(options));
 }
@@ -132,7 +172,7 @@ async function handleItems(request: Request) {
 async function handleCollectionItems(request: RouteRequest) {
   const url = new URL(request.url);
   const name = decodeURIComponent(request.params.name);
-  const { deserializeQueryParams, findItems } = await getContfu();
+  const { findItems } = await getContfu();
   const options = deserializeQueryParams(url.searchParams);
   const collectionFilter = `$collection = ${JSON.stringify(name)}`;
   options.filter = options.filter ? `${collectionFilter} && (${options.filter})` : collectionFilter;
