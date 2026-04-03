@@ -86,6 +86,64 @@ revert_unsynced_files() {
   fi
 }
 
+# Auto-resolve predictable merge conflicts:
+#   modify/delete (HEAD deleted)  → keep deletion
+#   rename/rename                 → keep Forgejo's (HEAD) rename, discard GitHub's
+#   both-deleted (DD)             → stage as removed
+#   content conflicts in files outside github-mirror.conf → keep HEAD
+auto_resolve_conflicts() {
+  local allowed
+  allowed=$(read_allowed_paths)
+
+  # Process each conflicted file reported by git status (porcelain)
+  while IFS= read -r status_line; do
+    local xy="${status_line:0:2}"
+    local file="${status_line:3}"
+
+    # Both deleted (DD) — just stage the removal
+    if [[ "$xy" == "DD" ]]; then
+      echo "  DD (both deleted): $file — staging removal"
+      git -C "$REPO_ROOT" rm --quiet --force "$file" 2>/dev/null || true
+      continue
+    fi
+
+    # Deleted in HEAD, modified in theirs (DU) — keep our deletion
+    if [[ "$xy" == "DU" ]]; then
+      echo "  DU (we deleted): $file — keeping deletion"
+      git -C "$REPO_ROOT" rm --quiet --force "$file" 2>/dev/null || true
+      continue
+    fi
+
+    # Added in HEAD, added in theirs (AA) or rename/rename — keep HEAD
+    if [[ "$xy" == "AA" || "$xy" == "RR" ]]; then
+      echo "  ${xy} conflict: $file — keeping Forgejo version"
+      git -C "$REPO_ROOT" checkout --ours "$file" 2>/dev/null \
+        || git -C "$REPO_ROOT" checkout HEAD -- "$file" 2>/dev/null || true
+      git -C "$REPO_ROOT" add "$file"
+      continue
+    fi
+
+    # Content conflict (UU) — check if file is in github-mirror.conf
+    if [[ "$xy" == "UU" ]]; then
+      local in_conf=false
+      while IFS= read -r prefix; do
+        if [[ "$file" == "$prefix" || "$file" == "$prefix"/* ]]; then
+          in_conf=true
+          break
+        fi
+      done <<< "$allowed"
+
+      if $in_conf; then
+        echo "  UU (in conf): $file — needs manual resolution"
+      else
+        echo "  UU (not in conf): $file — keeping Forgejo version"
+        git -C "$REPO_ROOT" checkout --ours "$file"
+        git -C "$REPO_ROOT" add "$file"
+      fi
+    fi
+  done < <(git -C "$REPO_ROOT" status --porcelain | grep -E '^(DD|DU|AA|UU|RR)')
+}
+
 # --- Commands ---------------------------------------------------------------
 
 cmd_preview() {
@@ -115,13 +173,15 @@ cmd_merge() {
   ensure_remote
   ensure_clean
 
-  echo "Fetching $REMOTE..."
-  git -C "$REPO_ROOT" fetch "$REMOTE"
+  echo "Fetching origin and $REMOTE..."
   git -C "$REPO_ROOT" fetch origin
+  git -C "$REPO_ROOT" fetch "$REMOTE"
 
-  # Ensure we're on latest main
+  # Ensure local main is up to date with Forgejo
   git -C "$REPO_ROOT" checkout "$BRANCH"
   git -C "$REPO_ROOT" pull --ff-only origin "$BRANCH"
+  echo "Forgejo main: $(git -C "$REPO_ROOT" rev-parse --short HEAD)"
+  echo "GitHub  main: $(git -C "$REPO_ROOT" rev-parse --short "$REMOTE/$BRANCH")"
 
   # Create PR branch
   local pr_branch="sync/from-github-$(date +%Y%m%d)"
@@ -141,16 +201,35 @@ cmd_merge() {
     echo "Merge completed cleanly."
   else
     echo ""
-    echo "Merge has conflicts. Resolve them, then:"
-    echo "  git add -A && git commit"
-    echo ""
-    echo "Conflicting files:"
-    git -C "$REPO_ROOT" diff --name-only --diff-filter=U
-    exit 1
+    echo "Auto-resolving predictable conflicts..."
+    auto_resolve_conflicts
+    local remaining
+    remaining=$(git -C "$REPO_ROOT" diff --name-only --diff-filter=U)
+    if [ -n "$remaining" ]; then
+      echo ""
+      echo "Unresolved conflicts remain. Fix them, then: git add -A && git commit"
+      echo ""
+      echo "Conflicting files:"
+      echo "$remaining"
+      exit 1
+    fi
+    echo "All conflicts resolved. Committing..."
+    git -C "$REPO_ROOT" commit --no-edit
   fi
 
   # Revert files outside github-mirror.conf
   revert_unsynced_files
+
+  # Regenerate bun.lock if any package.json changed
+  if git -C "$REPO_ROOT" diff HEAD^1 HEAD --name-only | grep -q 'package\.json'; then
+    echo "package.json changed — running bun install..."
+    bun install --cwd "$REPO_ROOT"
+    if ! git -C "$REPO_ROOT" diff --quiet bun.lock; then
+      git -C "$REPO_ROOT" add bun.lock
+      git -C "$REPO_ROOT" commit --amend --no-edit --quiet
+      echo "bun.lock updated."
+    fi
+  fi
 
   echo ""
   echo "Branch ready: $pr_branch"
