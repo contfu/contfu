@@ -106,7 +106,7 @@ export const apikeyTable = pgTable("apikey", {
   start: text(),
   prefix: text(),
   key: text().notNull(),
-  userId: integer().notNull(),
+  userId: integer(),
   refillInterval: integer(),
   refillAmount: integer(),
   lastRefillAt: timestamp({ precision: 6, withTimezone: true }),
@@ -122,6 +122,7 @@ export const apikeyTable = pgTable("apikey", {
   updatedAt: timestamp({ precision: 6, withTimezone: true }).notNull(),
   permissions: text(),
   metadata: text(),
+  referenceId: text(),
 });
 
 export type ApiKey = typeof apikeyTable.$inferSelect;

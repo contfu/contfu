@@ -21,7 +21,7 @@ CREATE TABLE "apikey" (
 	"start" text,
 	"prefix" text,
 	"key" text NOT NULL,
-	"userId" integer NOT NULL,
+	"userId" integer,
 	"refillInterval" integer,
 	"refillAmount" integer,
 	"lastRefillAt" timestamp(6) with time zone,
@@ -36,7 +36,8 @@ CREATE TABLE "apikey" (
 	"createdAt" timestamp(6) with time zone NOT NULL,
 	"updatedAt" timestamp(6) with time zone NOT NULL,
 	"permissions" text,
-	"metadata" text
+	"metadata" text,
+	"referenceId" text
 );
 --> statement-breakpoint
 CREATE TABLE "collection" (

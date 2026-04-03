@@ -1,6 +1,9 @@
 import { auth } from "$lib/server/auth";
 import { storeCliToken } from "$lib/server/cli-token-store";
+import { db } from "@contfu/svc-backend/infra/db/db";
+import { apikeyTable } from "@contfu/svc-backend/infra/db/schema";
 import { redirect } from "@sveltejs/kit";
+import { eq } from "drizzle-orm";
 import { randomBytes } from "node:crypto";
 import { hostname } from "node:os";
 import type { RequestHandler } from "./$types";
@@ -25,11 +28,16 @@ export const GET: RequestHandler = async ({ request, url }) => {
 
   const keyName = `CLI - ${hostname()}`;
 
-  // Delete any existing CLI key for this hostname to avoid stale keys
-  const existing = await auth.api.listApiKeys({ headers: request.headers });
-  for (const key of existing) {
+  // Delete any existing CLI key for this hostname to avoid stale keys.
+  // Use a direct DB query instead of auth.api.listApiKeys() to avoid plugin-level
+  // issues with the referenceId field resolution.
+  const existingKeys = await db
+    .select()
+    .from(apikeyTable)
+    .where(eq(apikeyTable.referenceId, String(session.user.id)));
+  for (const key of existingKeys) {
     if (key.name === keyName) {
-      await auth.api.deleteApiKey({ body: { keyId: key.id }, headers: request.headers });
+      await auth.api.deleteApiKey({ body: { keyId: String(key.id) }, headers: request.headers });
     }
   }
 

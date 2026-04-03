@@ -1,0 +1,95 @@
+# Collections & Flows
+
+## Collections
+
+Collections are named content buckets that hold synced items. Each collection has a schema that describes its fields.
+
+### Create a collection
+
+```bash
+contfu collections create --display-name "Blog Posts"
+# Optional: --name blog-posts (auto-derived if omitted)
+# Optional: --include-ref (include source reference IDs in synced items)
+```
+
+### List & inspect
+
+```bash
+contfu collections list
+contfu collections list -f json
+contfu collections get <id>
+```
+
+### Update a collection
+
+```bash
+contfu collections update <id> --display-name "Articles"
+contfu collections update <id> --name new-slug
+```
+
+### Delete
+
+```bash
+contfu collections delete <id>
+```
+
+## Flows
+
+A flow connects a **source collection** (from a CMS connection) to a **target collection**. When the CMS data changes, the flow syncs updates into the target collection.
+
+### Finding source collection IDs
+
+Source collections are discovered automatically when a CMS connection is created. View them:
+
+```bash
+contfu connections get <connection-id>
+```
+
+Each source collection has an ID you'll use as `--source-id`.
+
+### Create a flow
+
+```bash
+contfu flows create --source-id <source-collection-id> --target-id <target-collection-id>
+```
+
+Options:
+- `--include-ref` / `--no-include-ref` — whether to include source reference data
+- `-d <json>` — raw JSON body for advanced configuration
+
+### List & inspect
+
+```bash
+contfu flows list
+contfu flows get <id>
+```
+
+### Delete
+
+```bash
+contfu flows delete <id>
+```
+
+## Common patterns
+
+### One CMS database → one collection
+
+The simplest setup. One Notion database flows into one Contfu collection:
+
+```bash
+contfu collections create --display-name "Blog Posts"
+contfu flows create --source-id <notion-db-id> --target-id <collection-id>
+```
+
+### Multiple sources → one collection
+
+Merge content from multiple CMS databases into a single collection by creating multiple flows with the same target:
+
+```bash
+contfu flows create --source-id <notion-db-1> --target-id <collection-id>
+contfu flows create --source-id <notion-db-2> --target-id <collection-id>
+```
+
+### One source → multiple collections
+
+Not supported directly. Use one flow per source-target pair. If you need to split content, use different source collections or filter at query time.

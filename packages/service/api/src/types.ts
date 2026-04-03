@@ -21,6 +21,7 @@ export {
   type SchemaValue,
   type RefTargets,
   type TypeGenerationInput,
+  type DiscoveredCollection,
   // Constants & utilities
   ConnectionType,
   ConnectionTypeMeta,

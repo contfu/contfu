@@ -361,15 +361,19 @@ export async function authenticateApiKey(
     error(401, "Invalid API key");
   }
 
-  // verifyApiKey doesn't return userId — look it up from the database
+  // verifyApiKey doesn't return userId — look it up via referenceId which is the user ID as string
   const keyId = Number(result.key!.id);
   const [row] = await db
-    .select({ userId: schema.apikeyTable.userId })
+    .select({ referenceId: schema.apikeyTable.referenceId, userId: schema.apikeyTable.userId })
     .from(schema.apikeyTable)
     .where(eq(schema.apikeyTable.id, keyId))
     .limit(1);
   if (!row) {
     error(401, "API key not found");
   }
-  return { userId: row.userId };
+  const userId = row.userId ?? (row.referenceId ? Number(row.referenceId) : null);
+  if (!userId) {
+    error(401, "API key has no associated user");
+  }
+  return { userId };
 }

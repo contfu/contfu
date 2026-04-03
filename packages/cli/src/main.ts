@@ -14,6 +14,8 @@ import { connectionTypes, collectionTypes } from "./commands/generate-types";
 import { queryItems, countItems } from "./commands/items";
 import { login, logout } from "./commands/login";
 import { status } from "./commands/status";
+import { setup } from "./commands/setup";
+import { discover } from "./commands/discover";
 
 function printUsage() {
   console.error(`Usage: contfu [--help] <command> [args...]
@@ -22,6 +24,8 @@ Commands:
   login [--no-browser]              Authenticate
   logout                            Clear stored credentials
   status                            Show resource summary
+  setup                             Set up Contfu in a project
+  discover <connection-id>          Discover available source collections
   <resource> list                   List all items
   <resource> get <id>               Get item by ID
   <resource> create [options]       Create item
@@ -118,6 +122,21 @@ async function main() {
 
   if (cmd === "status") {
     await status((values.format as string | undefined) ?? "table");
+    return;
+  }
+
+  if (cmd === "setup") {
+    await setup();
+    return;
+  }
+
+  if (cmd === "discover") {
+    const id = positionals[1];
+    if (!id) {
+      console.error("Usage: contfu discover <connection-id>");
+      process.exit(1);
+    }
+    await discover(id);
     return;
   }
 

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto, invalidateAll } from "$app/navigation";
+	import { page } from "$app/state";
 	import { signIn } from "$lib/auth-client";
 	import { Button } from "$lib/components/ui/button";
 	import { Input } from "$lib/components/ui/input";
@@ -10,18 +11,28 @@
 	let error = $state<string | null>(null);
 	let submitting = $state(false);
 
+	function getRedirectUrl(): string {
+		const next = page.url.searchParams.get("next");
+		// Validate relative path to prevent open redirect
+		if (next && next.startsWith("/") && !next.startsWith("//")) {
+			return next;
+		}
+		return "/dashboard";
+	}
+
 	async function handleEmailLogin(e: SubmitEvent) {
 		e.preventDefault();
 		error = null;
 		submitting = true;
 
 		try {
+			const redirectTo = getRedirectUrl();
 			const result = await signIn.email({ email, password });
 			if (result.error) {
 				error = result.error.message ?? "Login failed";
 			} else {
 				await invalidateAll();
-				goto("/dashboard");
+				goto(redirectTo);
 			}
 		} catch {
 			error = "An unexpected error occurred";
@@ -33,7 +44,7 @@
 	async function handleOAuthLogin(provider: "github" | "google") {
 		error = null;
 		try {
-			await signIn.social({ provider, callbackURL: "/dashboard" });
+			await signIn.social({ provider, callbackURL: getRedirectUrl() });
 		} catch {
 			error = "An unexpected error occurred";
 		}

@@ -118,6 +118,8 @@ if (testUserForApiKey) {
     start: E2E_TEST_API_KEY.substring(0, 4),
     key: apiKeyHash,
     userId: testUserForApiKey.id,
+    configId: "default",
+    referenceId: String(testUserForApiKey.id),
     enabled: true,
     rateLimitEnabled: false,
     requestCount: 0,

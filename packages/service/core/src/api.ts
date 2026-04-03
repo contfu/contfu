@@ -66,6 +66,14 @@ export interface UpdateFlowBody {
   includeRef?: boolean;
 }
 
+/** A collection available for import from a CMS connection. */
+export interface DiscoveredCollection {
+  ref: string;
+  displayName: string;
+  alreadyImported: boolean;
+  icon?: { type: "emoji"; value: string } | { type: "image"; url: string } | null;
+}
+
 /** Error thrown by the API client when the server returns a non-ok response. */
 export class ApiError extends Error {
   constructor(

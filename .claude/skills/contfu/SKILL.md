@@ -1,132 +1,77 @@
 ---
 name: contfu
-description: Manage Contfu service resources (sources, collections, consumers, connections, influxes), query content items, and generate TypeScript types using the Contfu CLI.
-model: haiku
+description: Set up Contfu in a project — connect to Notion or other CMS, create collections and flows, wire up the client SDK, generate types. Use when the user says "connect to Notion", "set up contfu", "add contfu to my project", "create a collection", "wire up my content", or any Contfu onboarding task.
+model: sonnet
 ---
 
-# Contfu Service Skill
+# Contfu Setup
 
-## Prerequisites
+You help users set up Contfu in their projects. Be suggestion-driven — discover existing state, present options, and guide the user through choices. Never dump a checklist.
 
-- CLI available via `bunx @contfu/cli` (or `contfu` if installed globally from the monorepo)
-- User must be authenticated: `contfu login`
-- Alternatively, set `CONTFU_API_KEY` environment variable
+## Bootstrap
 
-## Resource CRUD
+Run this automatically when the skill is invoked. Do not ask before running — just run and present results.
 
-Five resource types: **sources**, **collections**, **consumers**, **connections**, **influxes**.
-
-All resources support: `list`, `get <id>`, `create`, `update <id>`, `delete <id>`.
+### Step 1 — Get full setup status
 
 ```bash
-# List (table format by default, use -f json for JSON)
-contfu sources list
-contfu collections list -f json
-
-# Get by ID
-contfu sources get 1
-
-# Delete
-contfu connections delete 5
+contfu status -f json
 ```
 
-### Create / Update flags per resource
+This returns JSON with `authenticated`, `connections`, `collections`, and `flows`. If the CLI is not found, try `bunx @contfu/cli setup` or `npx @contfu/cli setup`. If none work, tell the user to install: `npm install -g @contfu/cli`.
 
-**sources** (required for create: `--name`, `--type`):
+If `authenticated` is `false`, guide the user to run `contfu login` first. Do not proceed until authenticated.
+
+### Step 2 — Present the situation
+
+Parse the JSON and build a short, readable summary. Connection type labels are in the `typeLabel` field (e.g., "notion", "client", "strapi"). Key distinctions:
+
+- **Source connections** (`typeLabel`: notion, strapi, contentful, web) — CMS data sources
+- **Client connections** (`typeLabel`: client) — the user's app consuming content
+
+Present what exists and what's missing. Examples:
+
+> **Your Contfu setup:**
+> - Notion connection: "My Workspace" (id: 3)
+> - 3 collections: Blog Posts, Authors, Projects
+> - Blog Posts has a flow from Notion, but Authors and Projects are unwired
+> - No client connection for this app yet
+>
+> Want me to wire up Authors and Projects, or set up a client connection first?
+
+> **Your Contfu setup:**
+> - No connections yet
+>
+> Let's connect your CMS first. Are you using Notion, or something else?
+
+### Step 3 — Suggest and guide
+
+Based on what's missing, suggest the next step. When the user picks a source connection to explore, discover what's available:
 
 ```bash
-contfu sources create --name "My CMS" --type contentful --url https://example.com
-contfu sources update 1 --name "Renamed"
+contfu discover <connection-id>
 ```
 
-Run `contfu sources types` to see valid source types.
+This returns the available source collections (Notion databases, Strapi content types) with `ref`, `displayName`, and `alreadyImported` fields. Present them as a pick list — the user selects which ones to import.
 
-**collections** (required for create: `--display-name`):
+## Routing to reference docs
 
-```bash
-contfu collections create --display-name "Blog Posts" --name blog-posts
-contfu collections update 1 --display-name "Articles"
-```
+When you reach a specific workflow, Read the relevant reference doc (same directory as this file):
 
-**consumers** (required for create: `--name`):
+| Workflow | File |
+|----------|------|
+| Connecting to Notion (OAuth) | `ref-notion-connect.md` |
+| Creating collections & flows | `ref-collections-flows.md` |
+| Client SDK, types, querying | `ref-client-sdk.md` |
+| CLI command help | `ref-cli-reference.md` |
+| Full end-to-end walkthrough | `ref-project-setup.md` |
 
-```bash
-contfu consumers create --name "website"
-contfu consumers update 1 --name "mobile-app"
-```
+## Interaction style
 
-**connections** (required for create: `--consumer-id`, `--collection-id`):
-
-```bash
-contfu connections create --consumer-id 1 --collection-id 2
-```
-
-**influxes** (required for create: `--collection-id`, `--source-collection-id`):
-
-```bash
-contfu influxes create --collection-id 1 --source-collection-id 3
-```
-
-All resources accept `--[no-]include-ref` and `-d <json>` (raw JSON body) as alternatives to flags.
-
-## Type Generation
-
-```bash
-# TypeScript types for a collection's schema
-contfu collections types <id|name>
-
-# TypeScript types for all collections connected to a consumer
-contfu consumers types <id>
-```
-
-## Item Queries
-
-Query items through a running client HTTP server:
-
-```bash
-# Query with filters, sorting, pagination
-contfu items query -u http://localhost:3000 \
-  --collection blog-posts \
-  --filter "status=published" \
-  --sort "createdAt:desc" \
-  --limit 10 --offset 0 \
-  --fields "title,slug,body" \
-  --include "author" \
-  --flat
-
-# Count items
-contfu items count -u http://localhost:3000 --collection blog-posts
-```
-
-The `-u/--client-url` flag is required and points to the client app's HTTP server.
-
-## Common Workflows
-
-### Set up a source-to-consumer pipeline
-
-```bash
-# 1. Create a source
-contfu sources create --name "Contentful" --type contentful --url https://cdn.contentful.com
-
-# 2. Create a collection
-contfu collections create --display-name "Blog Posts" --name blog-posts
-
-# 3. Link source to collection via influx (use source-collection-id from the source)
-contfu influxes create --collection-id 1 --source-collection-id 42
-
-# 4. Create a consumer
-contfu consumers create --name "website"
-
-# 5. Connect consumer to collection
-contfu connections create --consumer-id 1 --collection-id 1
-```
-
-### Inspect existing setup
-
-```bash
-contfu sources list
-contfu influxes list
-contfu collections list
-contfu connections list
-contfu consumers list
-```
+- **Suggest, don't ask open-ended questions.** Instead of "What do you want to do?", say "Authors doesn't have a flow yet. Want me to connect it to your Notion workspace?"
+- **Show choices from real data.** List connections/collections by name and ID from CLI output. When discovering source collections, show them as a numbered pick list.
+- **One step at a time.** Execute the current step, show the result, then suggest the next step.
+- **Capture IDs.** After every create command, parse the returned ID and use it in subsequent commands automatically.
+- **Confirm before mutating.** Show the exact command before running creates/updates/deletes. One-line explanation of what it does.
+- **Never read secrets into context.** Don't cat config files or echo env vars containing keys.
+- **Never hardcode secrets in code.** Guide users to `.env` files.

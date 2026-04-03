@@ -11,6 +11,7 @@ import type {
   ServiceFlow,
   ServiceFlowWithDetails,
   TypeGenerationInput,
+  DiscoveredCollection,
 } from "@contfu/svc-core";
 import { ApiError } from "@contfu/svc-core";
 
@@ -64,6 +65,7 @@ export interface ContfuApiClient {
   updateConnection(id: number | string, body: UpdateConnectionBody): Promise<ApiConnection>;
   deleteConnection(id: number | string): Promise<void>;
   getConnectionTypes(id: number | string): Promise<TypeGenerationInput[]>;
+  discoverCollections(connectionId: number | string): Promise<DiscoveredCollection[]>;
 
   listCollections(): Promise<ServiceCollection[]>;
   getCollection(id: number | string): Promise<ServiceCollection>;
@@ -97,6 +99,8 @@ export function createApiClient(
     deleteConnection: (id) => req<void>("DELETE", `/api/v1/connections/${id}`),
     getConnectionTypes: (id) =>
       req<TypeGenerationInput[]>("GET", `/api/v1/connections/${id}/types`),
+    discoverCollections: (connectionId) =>
+      req<DiscoveredCollection[]>("GET", `/api/v1/connections/${connectionId}/discover`),
 
     listCollections: () => req<ServiceCollection[]>("GET", "/api/v1/collections"),
     getCollection: (id) => req<ServiceCollection>("GET", `/api/v1/collections/${id}`),

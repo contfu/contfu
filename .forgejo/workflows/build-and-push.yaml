@@ -5,75 +5,39 @@ on:
       - main
 env:
   IMAGE_NAME: contfu-app
+  REGISTRY: registry.sven-rogge.com
 jobs:
-  check-version:
-    name: Check if version changed
-    runs-on: ubuntu-latest
-    outputs:
-      app-changed: ${{ steps.check.outputs.app-changed }}
-      app-version: ${{ steps.check.outputs.app-version }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
-      - name: Check if package.json version changed
-        id: check
-        shell: bash
-        run: |
-          function get_version() {
-            local package_path=$1
-            if [ -f "$package_path" ]; then
-              grep '"version"' "$package_path" | head -1 | sed 's/.*: *"\([^"]*\)".*/\1/' || echo "0.0.0"
-            else
-              echo "0.0.0"
-            fi
-          }
-
-          CURRENT_APP_VERSION=$(get_version "packages/service/app/package.json")
-          git checkout HEAD^
-          PREVIOUS_APP_VERSION=$(get_version "packages/service/app/package.json")
-
-          changed=$([ "$CURRENT_APP_VERSION" != "$PREVIOUS_APP_VERSION" ] && echo "true" || echo "false")
-          echo "app-changed=$changed" >> "$GITHUB_OUTPUT"
-          echo "app-version=$CURRENT_APP_VERSION" >> "$GITHUB_OUTPUT"
   push:
-    needs: check-version
-    if: needs.check-version.outputs.app-changed == 'true' && needs.check-version.outputs.app-version != '0.0.0'
     runs-on: ubuntu-latest
     permissions:
       packages: read
-    container:
-      image: registry.sven-rogge.com/contfu/ci-runner:latest
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.REGISTRY_TOKEN }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Get app version
+        id: version
+        run: |
+          VERSION=$(grep '"version"' packages/service/app/package.json | head -1 | sed 's/.*: *"\([^"]*\)".*/\1/')
+          echo "app-version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Building version: $VERSION"
+
+      - name: Install Docker CLI
+        run: apt-get update -qq && apt-get install -y -qq docker.io
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to Forgejo registry
-        run: echo "${{ secrets.REGISTRY_TOKEN }}" | docker login registry.sven-rogge.com -u ${{ github.actor }} --password-stdin
+      - name: Log in to registry
+        run: echo "${{ secrets.REGISTRY_TOKEN }}" | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
 
-      - name: Check if image exists
-        id: check
-        run: |
-          VERSION=${{ needs.check-version.outputs.app-version }}
-          if docker manifest inspect registry.sven-rogge.com/contfu/$IMAGE_NAME:$VERSION > /dev/null 2>&1; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Build and push image
-        if: steps.check.outputs.exists != 'true'
-        run: |
-          VERSION=${{ needs.check-version.outputs.app-version }}
-          docker buildx build \
-            --cache-from type=registry,ref=registry.sven-rogge.com/contfu/$IMAGE_NAME:buildcache \
-            --cache-to type=registry,ref=registry.sven-rogge.com/contfu/$IMAGE_NAME:buildcache,mode=max \
-            -t registry.sven-rogge.com/contfu/$IMAGE_NAME:$VERSION \
-            --push \
-            -f docker/Dockerfile.service \
-            .
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./docker/Dockerfile.service
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/contfu/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.app-version }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/contfu/${{ env.IMAGE_NAME }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/contfu/${{ env.IMAGE_NAME }}:buildcache,mode=max
