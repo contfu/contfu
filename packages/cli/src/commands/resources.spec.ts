@@ -136,7 +136,7 @@ describe("create", () => {
     const [url, opts] = mockFetch.mock.calls[0] as unknown[] as [string, RequestInit];
     expect(url).toBe("http://test.local/api/v1/connections");
     expect(opts.method).toBe("POST");
-    expect(JSON.parse(opts.body as string)).toEqual({ label: "flagged", providerId: "notion" });
+    expect(JSON.parse(opts.body as string)).toEqual({ name: "flagged", type: 20 });
   });
 
   test("exits with error when required flags missing", async () => {
@@ -241,7 +241,7 @@ describe("update", () => {
     const [url, opts] = mockFetch.mock.calls[0] as unknown[] as [string, RequestInit];
     expect(url).toBe("http://test.local/api/v1/connections/1");
     expect(opts.method).toBe("PATCH");
-    expect(JSON.parse(opts.body as string)).toEqual({ label: "renamed" });
+    expect(JSON.parse(opts.body as string)).toEqual({ name: "renamed" });
   });
 });
 

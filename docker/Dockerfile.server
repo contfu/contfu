@@ -15,6 +15,7 @@ COPY packages/media/media-optimizer/package.json packages/media/media-optimizer/
 COPY packages/media/media-optimizer-remote/package.json packages/media/media-optimizer-remote/
 COPY packages/cli/package.json packages/cli/
 COPY packages/service/core/package.json packages/service/core/
+COPY packages/service/api/package.json packages/service/api/
 COPY scripts/retry-timeout.sh scripts/
 RUN --mount=type=cache,target=/root/.bun/install/cache ./scripts/retry-timeout.sh --timeout 60 --retries 3 -- bun install --ignore-scripts
 COPY . .

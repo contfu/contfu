@@ -4,7 +4,7 @@ import { connectionTypes, collectionTypes } from "./generate-types";
 const mockFetch = mock<typeof fetch>();
 globalThis.fetch = mockFetch as any;
 
-void mock.module("@contfu/core", () => ({
+void mock.module("@contfu/svc-api", () => ({
   generateConsumerTypes: (cols: unknown[]) =>
     `export type ContfuCollections = { ${(cols as any[]).map((c) => c.name).join("; ")} };\n`,
 }));

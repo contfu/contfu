@@ -6,6 +6,7 @@
     { "path": "packages/contfu/tsconfig.check.json" },
     { "path": "packages/media/bun-file-store/tsconfig.check.json" },
     { "path": "packages/media/media-optimizer/tsconfig.check.json" },
-    { "path": "packages/service/core/tsconfig.check.json" }
+    { "path": "packages/service/core/tsconfig.check.json" },
+    { "path": "packages/service/api/tsconfig.check.json" }
   ]
 }

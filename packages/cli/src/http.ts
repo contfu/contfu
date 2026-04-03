@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
+import { createApiClient, ApiError, type ContfuApiClient } from "@contfu/svc-api";
 
 function getApiKey(): string | undefined {
   if (process.env.CONTFU_API_KEY) return process.env.CONTFU_API_KEY;
@@ -34,6 +35,7 @@ function getErrorMessageFromText(text: string): string | null {
   return trimmed;
 }
 
+/** Fetch wrapper used by login and items commands (no service API types needed). */
 export async function apiFetch(path: string, options?: RequestInit): Promise<Response> {
   const apiKey = getApiKey();
   if (!apiKey) {
@@ -75,4 +77,44 @@ export async function apiFetch(path: string, options?: RequestInit): Promise<Res
   }
 
   return res;
+}
+
+/**
+ * Returns a typed API client for interacting with the Contfu service API.
+ * Errors are surfaced as ApiError; callers should handle them (or let the
+ * top-level handler catch and exit).
+ */
+export function getApiClient(): ContfuApiClient {
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    console.error(
+      "No API key configured. Set CONTFU_API_KEY or create ~/.config/contfu/config.json",
+    );
+    process.exit(1);
+  }
+  return createApiClient(getBaseUrl(), apiKey);
+}
+
+/** Handles an ApiError from the typed client in a CLI-friendly way. */
+export function handleApiError(err: unknown): never {
+  if (err instanceof ApiError) {
+    if (err.status === 403) {
+      const msg = err.message;
+      if (msg && msg !== "Insufficient permissions") {
+        console.error(msg);
+      } else {
+        console.error(
+          "Insufficient permissions. Your API key does not have the required scope for this action.",
+        );
+      }
+      process.exit(1);
+    }
+    if (err.status === 429) {
+      console.error("Rate limit exceeded. Please slow down and try again.");
+      process.exit(1);
+    }
+    console.error(`Error ${err.status}: ${err.message}`);
+    process.exit(1);
+  }
+  throw err;
 }

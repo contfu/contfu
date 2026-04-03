@@ -1,6 +1,6 @@
 {
   "name": "@contfu/cli",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -21,6 +21,6 @@
     "test:e2e": "bun test e2e/"
   },
   "dependencies": {
-    "@contfu/core": "workspace:*"
+    "@contfu/svc-api": "workspace:*"
   }
 }

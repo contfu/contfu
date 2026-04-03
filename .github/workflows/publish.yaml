@@ -22,6 +22,7 @@ jobs:
       media-optimizer-npm-changed: ${{ steps.check.outputs.media-optimizer-npm-changed }}
       media-optimizer-remote-npm-changed: ${{ steps.check.outputs.media-optimizer-remote-npm-changed }}
       svc-core-npm-changed: ${{ steps.check.outputs.svc-core-npm-changed }}
+      svc-api-npm-changed: ${{ steps.check.outputs.svc-api-npm-changed }}
       cli-npm-changed: ${{ steps.check.outputs.cli-npm-changed }}
       ui-npm-changed: ${{ steps.check.outputs.ui-npm-changed }}
       server-docker-changed: ${{ steps.check.outputs.server-docker-changed }}
@@ -74,6 +75,7 @@ jobs:
           CURRENT_MEDIA_OPTIMIZER_VERSION=$(get_version "packages/media/media-optimizer/package.json")
           CURRENT_MEDIA_OPTIMIZER_REMOTE_VERSION=$(get_version "packages/media/media-optimizer-remote/package.json")
           CURRENT_SVC_CORE_VERSION=$(get_version "packages/service/core/package.json")
+          CURRENT_SVC_API_VERSION=$(get_version "packages/service/api/package.json")
           CURRENT_CLI_VERSION=$(get_version "packages/cli/package.json")
           CURRENT_UI_VERSION=$(get_version "packages/ui/package.json")
 
@@ -86,6 +88,7 @@ jobs:
           PUBLISHED_MEDIA_OPTIMIZER_NPM=$(get_npm_version "@contfu/media-optimizer")
           PUBLISHED_MEDIA_OPTIMIZER_REMOTE_NPM=$(get_npm_version "@contfu/media-optimizer-remote")
           PUBLISHED_SVC_CORE_NPM=$(get_npm_version "@contfu/svc-core")
+          PUBLISHED_SVC_API_NPM=$(get_npm_version "@contfu/svc-api")
           PUBLISHED_CLI_NPM=$(get_npm_version "@contfu/cli")
           PUBLISHED_UI_NPM=$(get_npm_version "@contfu/ui")
 
@@ -101,6 +104,7 @@ jobs:
           check_changed "media-optimizer-npm"        "$CURRENT_MEDIA_OPTIMIZER_VERSION"        "$PUBLISHED_MEDIA_OPTIMIZER_NPM"        "npm"
           check_changed "media-optimizer-remote-npm" "$CURRENT_MEDIA_OPTIMIZER_REMOTE_VERSION" "$PUBLISHED_MEDIA_OPTIMIZER_REMOTE_NPM" "npm"
           check_changed "svc-core-npm"               "$CURRENT_SVC_CORE_VERSION"               "$PUBLISHED_SVC_CORE_NPM"               "npm"
+          check_changed "svc-api-npm"                "$CURRENT_SVC_API_VERSION"                "$PUBLISHED_SVC_API_NPM"                "npm"
           check_changed "cli-npm"                    "$CURRENT_CLI_VERSION"                    "$PUBLISHED_CLI_NPM"                    "npm"
           check_changed "ui-npm"                     "$CURRENT_UI_VERSION"                     "$PUBLISHED_UI_NPM"                     "npm"
           check_changed "server-docker"              "$CURRENT_SERVER_VERSION"                 "$PUBLISHED_SERVER_DOCKER"              "docker"
@@ -162,6 +166,10 @@ jobs:
       - name: Publish @contfu/svc-core
         if: needs.check-version.outputs.svc-core-npm-changed == 'true'
         working-directory: ./packages/service/core
+        run: bun pm pack && npm publish *.tgz --access public --provenance
+      - name: Publish @contfu/svc-api
+        if: needs.check-version.outputs.svc-api-npm-changed == 'true'
+        working-directory: ./packages/service/api
         run: bun pm pack && npm publish *.tgz --access public --provenance
       - name: Publish @contfu/cli
         if: needs.check-version.outputs.cli-npm-changed == 'true'

@@ -1,6 +1,6 @@
 {
-  "name": "@contfu/svc-core",
-  "version": "0.0.4",
+  "name": "@contfu/svc-api",
+  "version": "0.0.1",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -18,22 +18,18 @@
   "publishConfig": {
     "exports": {
       ".": {
-        "types": "./dist/index.d.ts",
-        "default": "./dist/index.js"
+        "import": "./dist/index.js",
+        "types": "./dist/index.d.ts"
       }
     },
     "main": "dist/index.js",
     "types": "dist/index.d.ts"
   },
   "scripts": {
-    "build": "tsc -b",
-    "pack": "bun pm pack",
-    "clean": "rm -rf dist"
+    "build": "tsc -p tsconfig.json",
+    "pack": "bun pm pack"
   },
   "dependencies": {
-    "@contfu/core": "workspace:*"
-  },
-  "devDependencies": {
-    "typescript": "^5.9.3"
+    "@contfu/svc-core": "workspace:*"
   }
 }
