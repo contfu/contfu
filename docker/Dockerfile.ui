@@ -3,18 +3,9 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y ca-certificates wget && rm -rf /var/lib/apt/lists/*
 
 FROM base AS build
-COPY package.json bun.lock ./
-COPY packages/ui/package.json packages/ui/
-COPY packages/contfu/package.json packages/contfu/
-COPY packages/media/bun-file-store/package.json packages/media/bun-file-store/
-COPY packages/connect/package.json packages/connect/
-COPY packages/media/media-optimizer/package.json packages/media/media-optimizer/
-COPY packages/media/media-optimizer-remote/package.json packages/media/media-optimizer-remote/
-COPY packages/core/package.json packages/core/
-COPY packages/cli/package.json packages/cli/
+COPY . .
 COPY scripts/retry-timeout.sh scripts/
 RUN --mount=type=cache,target=/root/.bun/install/cache ./scripts/retry-timeout.sh --timeout 60 --retries 3 -- bun install --ignore-scripts
-COPY . .
 RUN bun run -F '@contfu/ui' build
 
 FROM base AS deps
