@@ -26,9 +26,9 @@
     },
     "packages/client": {
       "name": "@contfu/client",
-      "version": "0.0.2",
+      "version": "0.0.3",
       "dependencies": {
-        "@contfu/contfu": "workspace:*",
+        "@contfu/core": "workspace:*",
       },
       "devDependencies": {
         "typescript": "^5.9.3",
@@ -39,7 +39,7 @@
     },
     "packages/connect": {
       "name": "@contfu/connect",
-      "version": "0.0.2",
+      "version": "0.0.3",
       "dependencies": {
         "@contfu/core": "workspace:*",
         "msgpackr": "^1.11.9",
@@ -57,7 +57,7 @@
     },
     "packages/contfu": {
       "name": "@contfu/contfu",
-      "version": "0.0.2",
+      "version": "0.0.3",
       "dependencies": {
         "@contfu/connect": "workspace:*",
         "@contfu/core": "workspace:*",
@@ -75,7 +75,7 @@
     },
     "packages/core": {
       "name": "@contfu/core",
-      "version": "0.0.2",
+      "version": "0.0.3",
       "devDependencies": {
         "@typescript/native-preview": "^7.0.0-dev.20260325.1",
         "typescript": "^5.9.3",
@@ -83,7 +83,7 @@
     },
     "packages/media/bun-file-store": {
       "name": "@contfu/bun-file-store",
-      "version": "0.0.2",
+      "version": "0.0.3",
       "dependencies": {
         "sharp": "^0.34.5",
       },
@@ -97,7 +97,7 @@
     },
     "packages/media/media-optimizer": {
       "name": "@contfu/media-optimizer",
-      "version": "0.0.2",
+      "version": "0.0.3",
       "dependencies": {
         "@ffmpeg-installer/ffmpeg": "^1.1.0",
         "m4k": "^0.2.4",
@@ -115,7 +115,7 @@
     },
     "packages/media/media-optimizer-remote": {
       "name": "@contfu/media-optimizer-remote",
-      "version": "0.0.2",
+      "version": "0.0.3",
       "dependencies": {
         "@m4k/client": "^0.2.4",
         "@m4k/common": "^0.2.5",
@@ -130,7 +130,7 @@
     },
     "packages/server": {
       "name": "@contfu/server",
-      "version": "0.0.1",
+      "version": "0.0.2",
       "bin": {
         "contfu-server": "./src/bin.ts",
       },

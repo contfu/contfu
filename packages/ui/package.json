@@ -1,11 +1,8 @@
 {
   "name": "@contfu/ui",
   "version": "0.0.3",
+  "private": true,
   "description": "Contfu client application with dashboard",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/contfu/contfu.git"
-  },
   "files": [
     "src"
   ],
