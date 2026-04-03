@@ -28,7 +28,7 @@
     },
     "packages/cli": {
       "name": "@contfu/cli",
-      "version": "0.0.3",
+      "version": "0.0.4",
       "bin": {
         "contfu": "dist/main.js",
       },
@@ -256,7 +256,7 @@
     },
     "packages/service/core": {
       "name": "@contfu/svc-core",
-      "version": "0.0.3",
+      "version": "0.0.4",
       "dependencies": {
         "@contfu/core": "workspace:*",
       },
