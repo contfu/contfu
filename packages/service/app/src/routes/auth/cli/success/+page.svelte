@@ -46,7 +46,7 @@
 			<div
 				class="mt-8 rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3 text-left dark:border-zinc-700 dark:bg-zinc-900"
 			>
-				<p class="font-mono text-xs text-zinc-500 dark:text-zinc-400">$ contfu sources list</p>
+				<p class="font-mono text-xs text-zinc-500 dark:text-zinc-400">$ contfu status</p>
 			</div>
 		{/if}
 	</div>

@@ -60,7 +60,7 @@ When you reach a specific workflow, Read the relevant reference doc (same direct
 
 | Workflow | File |
 |----------|------|
-| Connecting to Notion (OAuth) | `ref-notion-connect.md` |
+| Connecting a CMS source | `ref-connect-source.md` |
 | Creating collections & flows | `ref-collections-flows.md` |
 | Client SDK, types, querying | `ref-client-sdk.md` |
 | CLI command help | `ref-cli-reference.md` |

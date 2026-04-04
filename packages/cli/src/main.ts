@@ -8,6 +8,7 @@ import {
   update,
   del,
   listConnectionTypes,
+  regenerateClientKey,
   type CliValues,
 } from "./commands/resources";
 import { connectionTypes, collectionTypes } from "./commands/generate-types";
@@ -33,6 +34,7 @@ Commands:
   <resource> delete <id>            Delete item
   connections types                  List valid connection types
   connections types <id>             Print TypeScript types for a connection's collections
+  connections regenerate-key <id>    Regenerate API key for a client connection
   collections types <id>             Print TypeScript types for a collection
   items query [options]             Query items from client app
   items count [options]             Count items from client app
@@ -49,6 +51,7 @@ connections options:
   -n, --name <name>            Label (required for create)
   -t, --type <provider>        Provider ID (default: notion)
       --token <token>           API token (for manual token-based connections)
+      --generate-key           Create a client connection and print its API key
   -d, --data <json>            Raw JSON body (alternative to above flags)
 
 flows options:
@@ -92,6 +95,7 @@ async function main() {
       "include-ref": { type: "boolean" },
       "no-include-ref": { type: "boolean" },
       token: { type: "string" },
+      "generate-key": { type: "boolean" },
       format: { type: "string", short: "f" },
     },
     allowPositionals: true,
@@ -162,6 +166,19 @@ async function main() {
     const id = positionals[2];
 
     // Special subcommands per resource
+    if (action === "regenerate-key") {
+      if (cmd !== "connections") {
+        console.error(`'regenerate-key' is only available for connections`);
+        process.exit(1);
+      }
+      if (!id) {
+        console.error("Usage: contfu connections regenerate-key <id>");
+        process.exit(1);
+      }
+      await regenerateClientKey(id);
+      return;
+    }
+
     if (action === "types") {
       if (cmd === "connections") {
         if (!id) {
@@ -194,6 +211,7 @@ async function main() {
       "include-ref": values["include-ref"] as boolean | undefined,
       "no-include-ref": values["no-include-ref"] as boolean | undefined,
       token: values.token as string | undefined,
+      "generate-key": values["generate-key"] as boolean | undefined,
     };
 
     switch (action) {

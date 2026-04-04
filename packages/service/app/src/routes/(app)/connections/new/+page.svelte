@@ -1,5 +1,6 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
+  import { page } from "$app/state";
   import { authClient } from "$lib/auth-client";
   import SiteHeader from "$lib/components/layout/site-header.svelte";
   import { Button } from "$lib/components/ui/button";
@@ -10,16 +11,33 @@
   import { getQuotaUsage } from "$lib/remote/billing.remote";
   import { ConnectionType } from "@contfu/core";
   import { toast } from "svelte-sonner";
+  import { untrack } from "svelte";
+
+  const validProviders = ["notion", "strapi", "contentful", "web"];
+  const oauthProviders = new Set(["notion"]);
+
+  const typeParam = page.url.searchParams.get("type");
+  const initialProvider = typeParam && validProviders.includes(typeParam) ? typeParam : "notion";
+  const initialTab = typeParam === "client" ? "client" : "service";
 
   const quota = $derived(await getQuotaUsage());
   const atConnectionLimit = $derived(quota !== null && quota.maxConnections !== -1 && quota.connections >= quota.maxConnections);
 
-  let activeTab = $state("service");
+  let activeTab = $state(initialTab);
   let newName = $state("");
   let newToken = $state("");
-  let newProviderId = $state("notion");
+  let newProviderId = $state(initialProvider);
   let addPending = $state(false);
   let connectingNotion = $state(false);
+
+  // Auto-start OAuth flow when deep-linked with an OAuth provider type
+  $effect(() => {
+    if (typeParam && oauthProviders.has(typeParam)) {
+      untrack(() => {
+        if (!atConnectionLimit) handleConnectNotion();
+      });
+    }
+  });
 
   async function handleConnectNotion() {
     connectingNotion = true;

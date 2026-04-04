@@ -92,6 +92,13 @@ jobs:
       - name: Install dependencies
         run: ./scripts/retry-timeout.sh --timeout 60 --retries 3 -- bun install --frozen-lockfile --ignore-scripts
 
+      - name: Ensure Playwright browsers
+        run: |
+          if [ ! -d "$PLAYWRIGHT_BROWSERS_PATH/chromium_headless_shell-1208" ]; then
+            echo "Chromium not found, installing..."
+            bunx playwright@1.58.2 install chromium
+          fi
+
       - name: Build all packages
         run: NODE_ENV=test bun run build
 

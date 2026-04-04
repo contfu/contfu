@@ -34,6 +34,7 @@ export interface CliValues {
   "include-ref"?: boolean;
   "no-include-ref"?: boolean;
   token?: string;
+  "generate-key"?: boolean;
 }
 
 const REQUIRED_CREATE: Record<Resource, (keyof CliValues)[]> = {
@@ -242,6 +243,17 @@ export async function create(resource: Resource, jsonData: string | undefined, v
   const client = getApiClient();
   try {
     if (resource === "connections") {
+      if (values["generate-key"]) {
+        const name = values.name;
+        if (!name) {
+          console.error("Missing required flag: --name");
+          process.exit(1);
+        }
+        const result = await client.createClientConnection(name);
+        printJson(result);
+        console.error(`\nCONTFU_KEY: ${result.apiKey}`);
+        return;
+      }
       const body = jsonData
         ? (untransformSchema(JSON.parse(jsonData)) as CreateConnectionBody)
         : buildConnectionCreateBody(values);
@@ -302,6 +314,16 @@ export async function del(resource: Resource, id: string) {
       await client.deleteFlow(id);
     }
     console.log(`Deleted ${resource.slice(0, -1)} ${id}`);
+  } catch (err) {
+    handleApiError(err);
+  }
+}
+
+export async function regenerateClientKey(id: string) {
+  const client = getApiClient();
+  try {
+    const result = await client.regenerateClientKey(id);
+    console.log(result.apiKey);
   } catch (err) {
     handleApiError(err);
   }

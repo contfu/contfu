@@ -56,9 +56,10 @@ RUN apt-get update && apt-get install -y \
     libatspi2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Playwright browsers to a system-wide path readable by any user
+# Install Playwright browsers to a system-wide path readable by any user.
+# The version MUST match the project's lockfile (@playwright/test in bun.lock).
 ENV PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright
-RUN bunx playwright install chromium && chmod -R a+rx /opt/ms-playwright
+RUN bunx playwright@1.58.2 install chromium && chmod -R a+rx /opt/ms-playwright
 
 # Install NATS server for E2E tests (JetStream)
 COPY --from=nats:2.12-alpine /usr/local/bin/nats-server /usr/local/bin/nats-server

@@ -575,7 +575,7 @@
   <section class="border-b border-border py-12">
     <div class="landing-shell px-4 sm:px-6">
       <div class="scroll-reveal text-xs text-muted-foreground mb-6">
-        <span class="text-primary">$</span> contfu sources list
+        <span class="text-primary">$</span> contfu status
       </div>
       <div class="grid grid-cols-2 gap-3 sm:grid-cols-5 scroll-stagger">
         {#each cmsSources as source}
