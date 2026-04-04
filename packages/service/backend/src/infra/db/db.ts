@@ -149,6 +149,17 @@ async function createDb() {
   const { migrate } = await import("drizzle-orm/bun-sql/migrator");
   await migrate(database, { migrationsFolder });
 
+  // Grant permissions on all tables to app_user and service_role.
+  // ALTER DEFAULT PRIVILEGES (set in CNPG postInitSQL) only covers tables
+  // created after that statement ran. Tables added by later migrations need
+  // an explicit grant.
+  await database.execute(
+    sql`GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO "app_user", "service_role"`,
+  );
+  await database.execute(
+    sql`GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO "app_user", "service_role"`,
+  );
+
   return database;
 }
 

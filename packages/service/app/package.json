@@ -1,6 +1,6 @@
 {
   "name": "@contfu/svc-app",
-  "version": "0.0.36",
+  "version": "0.0.37",
   "private": true,
   "description": "Contfu cloud service application",
   "type": "module",
