@@ -9,12 +9,33 @@ import { closeDb, db } from "@contfu/svc-backend/infra/db/db";
 import { userTable } from "@contfu/svc-backend/infra/db/schema";
 import { withLogContext } from "@contfu/svc-backend/infra/logger/log-context";
 import { createLogger } from "@contfu/svc-backend/infra/logger/index";
-import type { Handle } from "@sveltejs/kit";
+import type { Handle, HandleServerError } from "@sveltejs/kit";
+import { Cause } from "effect";
 import { svelteKitHandler } from "better-auth/svelte-kit";
 import { eq } from "drizzle-orm";
 import { unpack } from "msgpackr";
 
 const log = createLogger("hooks");
+
+const FIBER_FAILURE = Symbol.for("effect/Runtime/FiberFailure");
+const FIBER_FAILURE_CAUSE = Symbol.for("effect/Runtime/FiberFailure/Cause");
+
+export const handleError: HandleServerError = ({ error }) => {
+  // Effect's runPromise rejects with a FiberFailure that has no message.
+  // Extract and log the real cause so errors are diagnosable.
+  if (error && typeof error === "object" && FIBER_FAILURE in error) {
+    const cause = (error as any)[FIBER_FAILURE_CAUSE];
+    if (cause) {
+      for (const f of Cause.failures(cause)) {
+        log.error({ err: f, cause: f?.cause }, "Effect failure: %s", f?.message ?? String(f));
+      }
+    }
+    return { message: "Internal Error" };
+  }
+
+  log.error({ err: error }, "Unhandled server error");
+  return { message: "Internal Error" };
+};
 
 const wsKeepAliveTimers = new Map<string, ReturnType<typeof setInterval>>();
 const WS_KEEPALIVE_INTERVAL_MS = 5 * 60 * 1000;
