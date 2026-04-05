@@ -9,8 +9,11 @@ Collections are named content buckets that hold synced items. Each collection ha
 ```bash
 contfu collections create --display-name "Blog Posts"
 # Optional: --name blog-posts (auto-derived if omitted)
+# Optional: --connection-id <client-id> (associate with a client connection)
 # Optional: --include-ref (include source reference IDs in synced items)
 ```
+
+When operating in a project/client context, always pass `--connection-id <client-id>` so the collection is associated with the client. The client ID comes from the connection created in the setup step.
 
 ### List & inspect
 
@@ -54,6 +57,7 @@ contfu flows create --source-id <source-collection-id> --target-id <target-colle
 ```
 
 Options:
+
 - `--include-ref` / `--no-include-ref` — whether to include source reference data
 - `-d <json>` — raw JSON body for advanced configuration
 
@@ -77,7 +81,7 @@ contfu flows delete <id>
 The simplest setup. One Notion database flows into one Contfu collection:
 
 ```bash
-contfu collections create --display-name "Blog Posts"
+contfu collections create --display-name "Blog Posts" --connection-id <client-id>
 contfu flows create --source-id <notion-db-id> --target-id <collection-id>
 ```
 

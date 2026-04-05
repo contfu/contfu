@@ -8,15 +8,15 @@ This is the end-to-end flow. The SKILL.md bootstrap already discovered existing 
 CMS (Notion, Strapi, etc.)
   → CMS Connection (OAuth or token)
     → Source collections (discovered via web UI)
-      → Flows (source → target mapping)
-        → Target collections (content buckets)
-          → Client connection (app API key)
+      → Client connection (app API key)
+        → Target collections (content buckets, owned by the client)
+          → Flows (source → target mapping)
             → Client SDK (query in code)
 ```
 
 ## Step 1 — CMS connection
 
-If no CMS connection exists, ask which CMS the user wants. For Notion → load `ref-notion-connect.md`.
+If no CMS connection exists, ask which CMS the user wants. For Notion → load `ref-connect-source.md`.
 
 For token-based providers:
 
@@ -27,29 +27,52 @@ contfu connections create --name "<label>" --type <provider> --token <token>
 
 If a CMS connection already exists, say so and move to step 2.
 
-## Step 2 — Collections
+## Step 2 — Client connection
 
-If collections already exist (from web UI import), list them:
+Create the client connection **before** collections — you need its ID to associate collections with it.
 
-```bash
-contfu collections list
-```
-
-Present them and ask which ones the user wants to use, or if they need more.
-
-If no collections exist and the user needs to discover/import from their CMS:
-- Direct them to the web UI (Connections → click connection → discover databases)
-- Wait for them to confirm they've imported, then re-run `contfu collections list -f json`
-
-To create collections manually:
+If no CLIENT connection (type 0) exists, run setup:
 
 ```bash
-contfu collections create --display-name "Blog Posts"
+contfu setup
 ```
 
-## Step 3 — Flows
+Setup will install the SDK package, create the client connection, and offer to write `CONTFU_KEY` to `.env`.
 
-Check which collections already have flows (from the bootstrap data). Suggest wiring up any that don't:
+For non-interactive / agent-driven setup:
+
+```bash
+contfu setup --non-interactive --package @contfu/client --client-name my-app --env-file .env
+```
+
+If a CLIENT connection already exists, note its `id` from `contfu connections list -f json` — you'll need it in step 3.
+
+## Step 3 — Collections
+
+Collections must be associated with the client via `--connection-id <client-id>`. This lets the client subscribe to them.
+
+If collections already exist (imported from web UI), check whether they have `connectionId` set:
+
+```bash
+contfu collections list -f json
+```
+
+Collections with `"connectionId": null` are standalone — the client cannot see them. Re-create them with the client ID:
+
+```bash
+contfu collections delete <id>
+contfu collections create --display-name "<name>" --connection-id <client-id>
+```
+
+To create new collections:
+
+```bash
+contfu collections create --display-name "Blog Posts" --connection-id <client-id>
+```
+
+## Step 4 — Flows
+
+Check which collections already have flows. Suggest wiring up any that don't:
 
 > "Authors" doesn't have a flow yet. Want me to connect it to your Notion workspace?
 
@@ -58,25 +81,6 @@ To create a flow, you need the source collection ID and target collection ID. So
 ```bash
 contfu flows create --source-id <src> --target-id <tgt>
 ```
-
-## Step 4 — Client connection
-
-If no CLIENT connection (type 0) exists:
-
-```bash
-contfu connections create --name "my-app" --type client
-```
-
-**The API key is only shown once.** Immediately help the user save it:
-
-```bash
-echo "CONTFU_URL=https://app.contfu.com" >> .env
-echo "CONTFU_API_KEY=<key>" >> .env
-```
-
-Make sure `.env` is in `.gitignore`.
-
-If a CLIENT connection exists, remind the user of its name and that the API key was shown at creation time.
 
 ## Step 5 — SDK setup
 

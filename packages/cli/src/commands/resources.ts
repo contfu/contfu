@@ -30,7 +30,7 @@ export interface CliValues {
   "display-name"?: string;
   "source-id"?: string;
   "target-id"?: string;
-  "collection-id"?: string;
+  "connection-id"?: string;
   "include-ref"?: boolean;
   "no-include-ref"?: boolean;
   token?: string;
@@ -71,7 +71,7 @@ function buildCollectionCreateBody(values: CliValues): CreateCollectionBody {
   }
   const body: CreateCollectionBody = { displayName: values["display-name"]! };
   if (values.name !== undefined) body.name = values.name;
-  if (values["collection-id"] !== undefined) body.connectionId = Number(values["collection-id"]);
+  if (values["connection-id"] !== undefined) body.connectionId = Number(values["connection-id"]);
   if (values["include-ref"] === true) body.includeRef = true;
   if (values["no-include-ref"] === true) body.includeRef = false;
   return body;

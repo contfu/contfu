@@ -44,8 +44,15 @@ Resources: connections, collections, flows
 collections options:
       --display-name <name>    Display name (required for create)
   -n, --name <name>            Name
+      --connection-id <id>     Associate with a client connection
       --[no-]include-ref       Include ref transmission
   -d, --data <json>            Raw JSON body (alternative to above flags)
+
+setup options:
+      --package <name>         Package to install: @contfu/contfu or @contfu/client
+      --client-name <name>     Name for the client connection
+      --env-file <path>        Write CONTFU_KEY to this .env file
+      --non-interactive        Skip all prompts (fail if required info is missing)
 
 connections options:
   -n, --name <name>            Label (required for create)
@@ -91,12 +98,16 @@ async function main() {
       "display-name": { type: "string" },
       "source-id": { type: "string" },
       "target-id": { type: "string" },
-      "collection-id": { type: "string" },
+      "connection-id": { type: "string" },
       "include-ref": { type: "boolean" },
       "no-include-ref": { type: "boolean" },
       token: { type: "string" },
       "generate-key": { type: "boolean" },
       format: { type: "string", short: "f" },
+      package: { type: "string" },
+      "client-name": { type: "string" },
+      "env-file": { type: "string" },
+      "non-interactive": { type: "boolean" },
     },
     allowPositionals: true,
     strict: false,
@@ -130,7 +141,12 @@ async function main() {
   }
 
   if (cmd === "setup") {
-    await setup();
+    await setup({
+      package: values.package as string | undefined,
+      clientName: values["client-name"] as string | undefined,
+      envFile: values["env-file"] as string | undefined,
+      nonInteractive: (values["non-interactive"] as boolean | undefined) ?? false,
+    });
     return;
   }
 
@@ -207,7 +223,7 @@ async function main() {
       "display-name": values["display-name"] as string | undefined,
       "source-id": values["source-id"] as string | undefined,
       "target-id": values["target-id"] as string | undefined,
-      "collection-id": values["collection-id"] as string | undefined,
+      "connection-id": values["connection-id"] as string | undefined,
       "include-ref": values["include-ref"] as boolean | undefined,
       "no-include-ref": values["no-include-ref"] as boolean | undefined,
       token: values.token as string | undefined,

@@ -28,10 +28,18 @@ contfu status -f json            # JSON output
 ## Setup (agent-oriented)
 
 ```bash
-contfu setup                     # JSON: auth state + all connections, collections, flows
+contfu setup                     # interactive wizard
+contfu setup --non-interactive --package @contfu/client --client-name my-app --env-file .env
 ```
 
-Returns `{ authenticated, connections, collections, flows }`. Connections include a `typeLabel` field.
+Flags:
+
+- `--package <name>` — which package to install: `@contfu/contfu` or `@contfu/client`
+- `--client-name <name>` — name for the new client connection
+- `--env-file <path>` — write `CONTFU_KEY=...` to this file (appends)
+- `--non-interactive` — skip all prompts; fail if required info is missing
+
+Skips steps already done: if the package is already installed, setup moves straight to client connection setup.
 
 ## Discover source collections
 
@@ -67,6 +75,7 @@ contfu <resource> delete <id>
 ```
     --display-name <name>    Display name (required for create)
 -n, --name <slug>            URL-safe slug (auto-derived if omitted)
+    --connection-id <id>     Associate with a client connection (use client connection ID)
     --[no-]include-ref       Include source reference IDs
 -d, --data <json>            Raw JSON body
 ```

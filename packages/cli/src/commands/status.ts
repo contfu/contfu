@@ -1,6 +1,6 @@
 import { createApiClient, ApiError, ConnectionTypeMeta } from "@contfu/svc-api";
 import type { ApiConnection, ServiceCollection, ServiceFlow } from "@contfu/svc-api";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
 
@@ -24,11 +24,29 @@ function resolveTypeLabel(type: number): string {
   return meta?.label ?? `unknown(${type})`;
 }
 
+/** Detect CONTFU_KEY from env var or CWD .env file. */
+function getClientKey(): string | undefined {
+  if (process.env.CONTFU_KEY) return process.env.CONTFU_KEY;
+  const envPath = join(process.cwd(), ".env");
+  if (!existsSync(envPath)) return undefined;
+  try {
+    const content = readFileSync(envPath, "utf-8");
+    for (const line of content.split("\n")) {
+      const match = line.match(/^CONTFU_KEY=(.+)$/);
+      if (match) return match[1].trim();
+    }
+  } catch {
+    // ignore
+  }
+  return undefined;
+}
+
 export interface StatusResult {
   authenticated: boolean;
   connections: Array<ApiConnection & { typeLabel: string }>;
   collections: ServiceCollection[];
   flows: ServiceFlow[];
+  clientKey?: { present: boolean; source: "env" | "dotenv" };
 }
 
 function printTable(result: StatusResult) {
@@ -76,6 +94,18 @@ function printTable(result: StatusResult) {
   } else {
     console.log("  (none)");
   }
+
+  if (result.clientKey) {
+    console.log("\nClient project");
+    console.log("─".repeat(60));
+    if (result.clientKey.present) {
+      const src = result.clientKey.source === "env" ? "CONTFU_KEY env var" : ".env file";
+      console.log(`  CONTFU_KEY: found (${src})`);
+    } else {
+      console.log("  CONTFU_KEY: not set");
+      console.log("  Run `contfu setup` to configure this project as a client.");
+    }
+  }
 }
 
 export async function status(format = "table"): Promise<void> {
@@ -90,13 +120,30 @@ export async function status(format = "table"): Promise<void> {
     return;
   }
 
-  const client = createApiClient(getBaseUrl(), apiKey);
+  const apiClient = createApiClient(getBaseUrl(), apiKey);
+
+  // Detect client project context
+  let clientKeyInfo: StatusResult["clientKey"];
+  if (process.env.CONTFU_KEY) {
+    clientKeyInfo = { present: true, source: "env" };
+  } else {
+    const fromDotenv = getClientKey();
+    if (fromDotenv !== undefined) {
+      clientKeyInfo = { present: true, source: "dotenv" };
+    } else {
+      // Only show the section if there's a .env file or CONTFU_KEY is relevant
+      const envPath = join(process.cwd(), ".env");
+      if (existsSync(envPath)) {
+        clientKeyInfo = { present: false, source: "dotenv" };
+      }
+    }
+  }
 
   try {
     const [connections, collections, flows] = await Promise.all([
-      client.listConnections(),
-      client.listCollections(),
-      client.listFlows(),
+      apiClient.listConnections(),
+      apiClient.listCollections(),
+      apiClient.listFlows(),
     ]);
 
     const result: StatusResult = {
@@ -104,6 +151,7 @@ export async function status(format = "table"): Promise<void> {
       connections: connections.map((c) => ({ ...c, typeLabel: resolveTypeLabel(c.type) })),
       collections,
       flows,
+      ...(clientKeyInfo !== undefined ? { clientKey: clientKeyInfo } : {}),
     };
 
     if (format === "json") {
