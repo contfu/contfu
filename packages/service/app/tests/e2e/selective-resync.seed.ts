@@ -154,7 +154,7 @@ export async function seedSelectiveResyncData(db: any): Promise<void> {
     .insert(connectionTable)
     .values({
       userId,
-      type: ConnectionType.CLIENT,
+      type: ConnectionType.APP,
       name: "Selective Resync Client",
       credentials: hashKeyForStorage(SELECTIVE_RESYNC_CONSUMER_KEY),
     })

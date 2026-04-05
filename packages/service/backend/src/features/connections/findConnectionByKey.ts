@@ -7,7 +7,7 @@ import { connectionTable } from "../../infra/db/schema";
 
 /**
  * Find a connection by its credentials (API key).
- * Matches CLIENT-type connections only.
+ * Matches APP-type connections only.
  * INTERNAL USE ONLY - for API authentication.
  */
 export const findConnectionByKey = (key: Buffer) =>
@@ -25,10 +25,7 @@ export const findConnectionByKey = (key: Buffer) =>
           })
           .from(connectionTable)
           .where(
-            and(
-              eq(connectionTable.credentials, key),
-              eq(connectionTable.type, ConnectionType.CLIENT),
-            ),
+            and(eq(connectionTable.credentials, key), eq(connectionTable.type, ConnectionType.APP)),
           )
           .limit(1),
       catch: (e) => new DatabaseError({ cause: e }),

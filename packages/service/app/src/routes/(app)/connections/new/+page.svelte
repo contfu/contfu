@@ -7,7 +7,7 @@
   import { Input } from "$lib/components/ui/input";
   import { Label } from "$lib/components/ui/label";
   import * as Tabs from "$lib/components/ui/tabs";
-  import { createClientConnection, createConnection } from "$lib/remote/connections.remote";
+  import { createAppConnection, createConnection } from "$lib/remote/connections.remote";
   import { getQuotaUsage } from "$lib/remote/billing.remote";
   import { ConnectionType } from "@contfu/core";
   import { toast } from "svelte-sonner";
@@ -18,7 +18,7 @@
 
   const typeParam = page.url.searchParams.get("type");
   const initialProvider = typeParam && validProviders.includes(typeParam) ? typeParam : "notion";
-  const initialTab = typeParam === "client" ? "client" : "service";
+  const initialTab = typeParam === "app" ? "app" : "service";
 
   const quota = $derived(await getQuotaUsage());
   const atConnectionLimit = $derived(quota !== null && quota.maxConnections !== -1 && quota.connections >= quota.maxConnections);
@@ -73,16 +73,16 @@
     }
   }
 
-  async function handleAddClient() {
+  async function handleAddApp() {
     const name = newName.trim();
     if (!name) return;
     addPending = true;
     try {
-      const result = await createClientConnection({ name });
-      toast.success("Client connection created");
+      const result = await createAppConnection({ name });
+      toast.success("App connection created");
       goto(`/connections/${result.id}`);
     } catch {
-      toast.error("Failed to create client");
+      toast.error("Failed to create app");
       addPending = false;
     }
   }
@@ -111,7 +111,7 @@
   <Tabs.Root bind:value={activeTab}>
     <Tabs.List class="mb-6">
       <Tabs.Trigger value="service">service</Tabs.Trigger>
-      <Tabs.Trigger value="client">client</Tabs.Trigger>
+      <Tabs.Trigger value="app">app</Tabs.Trigger>
     </Tabs.List>
 
     <!-- Service tab -->
@@ -160,24 +160,24 @@
       {/if}
     </Tabs.Content>
 
-    <!-- Client tab -->
-    <Tabs.Content value="client">
+    <!-- App tab -->
+    <Tabs.Content value="app">
       <form
         class="max-w-sm space-y-4"
         onsubmit={(e) => {
           e.preventDefault();
-          void handleAddClient();
+          void handleAddApp();
         }}
       >
         <p class="text-xs text-muted-foreground">
-          An API key will be generated automatically for this client.
+          An API key will be generated automatically for this app.
         </p>
         <div class="space-y-1.5">
           <Label>Name</Label>
           <Input bind:value={newName} placeholder="My App" required />
         </div>
         <Button type="submit" size="sm" disabled={addPending}>
-          {addPending ? "creating..." : "create client"}
+          {addPending ? "creating..." : "create app"}
         </Button>
       </form>
     </Tabs.Content>

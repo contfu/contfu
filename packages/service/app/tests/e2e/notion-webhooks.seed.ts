@@ -110,7 +110,7 @@ export async function seedWebhookData(db: any): Promise<void> {
     .insert(connectionTable)
     .values({
       userId,
-      type: ConnectionType.CLIENT,
+      type: ConnectionType.APP,
       name: "Notion Webhook Client",
     })
     .returning({ id: connectionTable.id });

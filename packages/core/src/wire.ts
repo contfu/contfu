@@ -1,5 +1,5 @@
 import { ClientEventType, EventType } from "./events";
-import type { ConnectionType } from "./items";
+import type { ConnectionType } from "./connections";
 import type { CollectionSchema } from "./schemas";
 
 /**

@@ -35,7 +35,7 @@ describe("triggerConsumerSnapshot", () => {
 
     const [clientConn] = await db
       .insert(connectionTable)
-      .values({ userId, name: "Client", type: ConnectionType.CLIENT })
+      .values({ userId, name: "Client", type: ConnectionType.APP })
       .returning();
     consumerId = clientConn.id;
 
@@ -126,7 +126,7 @@ describe("triggerSnapshotForCollection", () => {
 
     const [clientConn] = await db
       .insert(connectionTable)
-      .values({ userId, name: "Client", type: ConnectionType.CLIENT })
+      .values({ userId, name: "Client", type: ConnectionType.APP })
       .returning();
 
     const [sourceCol] = await db

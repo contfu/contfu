@@ -110,7 +110,7 @@ describe("Collection Features Happy Path", () => {
       .insert(connectionTable)
       .values({
         userId,
-        type: ConnectionType.CLIENT,
+        type: ConnectionType.APP,
         name: "Client Connection",
       })
       .returning();
@@ -162,7 +162,7 @@ describe("Collection Features Happy Path", () => {
       .insert(connectionTable)
       .values({
         userId,
-        type: ConnectionType.CLIENT,
+        type: ConnectionType.APP,
         name: "Client Connection",
       })
       .returning();

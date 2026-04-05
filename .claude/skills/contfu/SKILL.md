@@ -24,10 +24,10 @@ If `authenticated` is `false`, guide the user to run `contfu login` first. Do no
 
 ### Step 2 — Present the situation
 
-Parse the JSON and build a short, readable summary. Connection type labels are in the `typeLabel` field (e.g., "notion", "client", "strapi"). Key distinctions:
+Parse the JSON and build a short, readable summary. Connection type labels are in the `typeLabel` field (e.g., "notion", "app", "strapi"). Key distinctions:
 
 - **Source connections** (`typeLabel`: notion, strapi, contentful, web) — CMS data sources
-- **Client connections** (`typeLabel`: client) — the user's app consuming content
+- **App connections** (`typeLabel`: app) — the user's app consuming content
 
 Present what exists and what's missing. Examples:
 
@@ -35,9 +35,9 @@ Present what exists and what's missing. Examples:
 > - Notion connection: "My Workspace" (id: 3)
 > - 3 collections: Blog Posts, Authors, Projects
 > - Blog Posts has a flow from Notion, but Authors and Projects are unwired
-> - No client connection for this app yet
+> - No app connection for this project yet
 >
-> Want me to wire up Authors and Projects, or set up a client connection first?
+> Want me to wire up Authors and Projects, or set up an app connection first?
 
 > **Your Contfu setup:**
 > - No connections yet

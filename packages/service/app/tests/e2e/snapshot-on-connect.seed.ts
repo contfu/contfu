@@ -121,7 +121,7 @@ export async function seedSnapshotOnConnectData(db: any): Promise<void> {
     .insert(connectionTable)
     .values({
       userId,
-      type: ConnectionType.CLIENT,
+      type: ConnectionType.APP,
       name: "Snapshot On Connect Client",
       credentials: hashKeyForStorage(SNAPSHOT_ON_CONNECT_CONSUMER_KEY),
     })

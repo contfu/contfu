@@ -58,7 +58,7 @@ jobs:
       E2E_FULL_FLOW: true
       NATS_SERVER: nats://localhost:4222
       CI: true
-      PLAYWRIGHT_BROWSERS_PATH: /opt/ms-playwright
+      PLAYWRIGHT_BROWSERS_PATH: /home/runner/.cache/ms-playwright
 
     steps:
       - uses: actions/checkout@v4
@@ -84,10 +84,12 @@ jobs:
 
       - uses: actions/cache@v4
         with:
-          path: ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lockb') }}
+          path: |
+            ~/.bun/install/cache
+            /home/runner/.cache/ms-playwright
+          key: ${{ runner.os }}-bun-playwright-${{ hashFiles('**/bun.lock', '**/bun.lockb') }}
           restore-keys: |
-            ${{ runner.os }}-bun-
+            ${{ runner.os }}-bun-playwright-
 
       - name: Install dependencies
         run: ./scripts/retry-timeout.sh --timeout 60 --retries 3 -- bun install --frozen-lockfile --ignore-scripts

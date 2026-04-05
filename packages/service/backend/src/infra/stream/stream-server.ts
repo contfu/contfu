@@ -234,7 +234,7 @@ export class StreamServer {
       log.info(
         {
           userId: client.userId,
-          clientConnectionId: client.id,
+          appConnectionId: client.id,
           connectionId,
           activeConnections: consumerToConnection.size,
         },
@@ -270,7 +270,7 @@ export class StreamServer {
       {
         connectionId: streamConnectionId,
         userId: info?.userId,
-        clientConnectionId: info?.connectionId,
+        appConnectionId: info?.connectionId,
         activeConnections: consumerToConnection.size - 1,
       },
       "Connection removed",
@@ -704,9 +704,7 @@ async function authenticateConsumer(key: Buffer) {
   const rows = await db
     .select({ id: connectionTable.id, userId: connectionTable.userId })
     .from(connectionTable)
-    .where(
-      and(eq(connectionTable.credentials, key), eq(connectionTable.type, ConnectionType.CLIENT)),
-    )
+    .where(and(eq(connectionTable.credentials, key), eq(connectionTable.type, ConnectionType.APP)))
     .limit(1);
   return rows[0] ?? null;
 }

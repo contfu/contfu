@@ -8,7 +8,7 @@ This is the end-to-end flow. The SKILL.md bootstrap already discovered existing 
 CMS (Notion, Strapi, etc.)
   → CMS Connection (OAuth or token)
     → Source collections (discovered via web UI)
-      → Client connection (app API key)
+      → App connection (app API key)
         → Target collections (content buckets, owned by the client)
           → Flows (source → target mapping)
             → Client SDK (query in code)
@@ -27,25 +27,25 @@ contfu connections create --name "<label>" --type <provider> --token <token>
 
 If a CMS connection already exists, say so and move to step 2.
 
-## Step 2 — Client connection
+## Step 2 — App connection
 
-Create the client connection **before** collections — you need its ID to associate collections with it.
+Create the app connection **before** collections — you need its ID to associate collections with it.
 
-If no CLIENT connection (type 0) exists, run setup:
+If no APP connection (type 0) exists, run setup:
 
 ```bash
 contfu setup
 ```
 
-Setup will install the SDK package, create the client connection, and offer to write `CONTFU_KEY` to `.env`.
+Setup will install the SDK package, create the app connection, and offer to write `CONTFU_KEY` to `.env`.
 
 For non-interactive / agent-driven setup:
 
 ```bash
-contfu setup --non-interactive --package @contfu/client --client-name my-app --env-file .env
+contfu setup --non-interactive --package @contfu/client --app-name my-app --env-file .env
 ```
 
-If a CLIENT connection already exists, note its `id` from `contfu connections list -f json` — you'll need it in step 3.
+If a APP connection already exists, note its `id` from `contfu connections list -f json` — you'll need it in step 3.
 
 ## Step 3 — Collections
 

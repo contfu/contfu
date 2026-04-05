@@ -24,9 +24,7 @@ export const POST: RequestHandler = async ({ request, url }) => {
   const connections = await db
     .select({ userId: connectionTable.userId, id: connectionTable.id })
     .from(connectionTable)
-    .where(
-      and(eq(connectionTable.credentials, key), eq(connectionTable.type, ConnectionType.CLIENT)),
-    )
+    .where(and(eq(connectionTable.credentials, key), eq(connectionTable.type, ConnectionType.APP)))
     .limit(1);
   const connection = connections[0];
   if (!connection) {

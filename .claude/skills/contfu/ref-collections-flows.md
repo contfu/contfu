@@ -9,7 +9,7 @@ Collections are named content buckets that hold synced items. Each collection ha
 ```bash
 contfu collections create --display-name "Blog Posts"
 # Optional: --name blog-posts (auto-derived if omitted)
-# Optional: --connection-id <client-id> (associate with a client connection)
+# Optional: --connection-id <client-id> (associate with a app connection)
 # Optional: --include-ref (include source reference IDs in synced items)
 ```
 

@@ -10,7 +10,7 @@ function resolveTypeLabel(type: number): string {
 }
 
 /** Detect CONTFU_KEY from env var or CWD .env file. */
-function getClientKey(): string | undefined {
+function getAppKey(): string | undefined {
   if (process.env.CONTFU_KEY) return process.env.CONTFU_KEY;
   const envPath = join(process.cwd(), ".env");
   if (!existsSync(envPath)) return undefined;
@@ -31,7 +31,7 @@ export interface StatusResult {
   connections: Array<ApiConnection & { typeLabel: string }>;
   collections: ServiceCollection[];
   flows: ServiceFlow[];
-  clientKey?: { present: boolean; source: "env" | "dotenv" };
+  appKey?: { present: boolean; source: "env" | "dotenv" };
 }
 
 function printTable(result: StatusResult) {
@@ -40,8 +40,8 @@ function printTable(result: StatusResult) {
 
   console.log("Authenticated: yes\n");
 
-  const sources = result.connections.filter((c) => c.typeLabel !== "client");
-  const clients = result.connections.filter((c) => c.typeLabel === "client");
+  const sources = result.connections.filter((c) => c.typeLabel !== "app");
+  const clients = result.connections.filter((c) => c.typeLabel === "app");
 
   console.log(`Connections (${result.connections.length})`);
   console.log("─".repeat(60));
@@ -52,7 +52,7 @@ function printTable(result: StatusResult) {
   }
   if (clients.length > 0) {
     for (const c of clients) {
-      console.log(`  ${c.id}  ${c.name.padEnd(30)} client`);
+      console.log(`  ${c.id}  ${c.name.padEnd(30)} app`);
     }
   }
   if (result.connections.length === 0) {
@@ -80,15 +80,15 @@ function printTable(result: StatusResult) {
     console.log("  (none)");
   }
 
-  if (result.clientKey) {
-    console.log("\nClient project");
+  if (result.appKey) {
+    console.log("\nApp project");
     console.log("─".repeat(60));
-    if (result.clientKey.present) {
-      const src = result.clientKey.source === "env" ? "CONTFU_KEY env var" : ".env file";
+    if (result.appKey.present) {
+      const src = result.appKey.source === "env" ? "CONTFU_KEY env var" : ".env file";
       console.log(`  CONTFU_KEY: found (${src})`);
     } else {
       console.log("  CONTFU_KEY: not set");
-      console.log("  Run `contfu setup` to configure this project as a client.");
+      console.log("  Run `contfu setup` to configure this project as an app.");
     }
   }
 }
@@ -107,19 +107,19 @@ export async function status(format = "table"): Promise<void> {
 
   const apiClient = createApiClient(getBaseUrl(), apiKey);
 
-  // Detect client project context
-  let clientKeyInfo: StatusResult["clientKey"];
+  // Detect app project context
+  let appKeyInfo: StatusResult["appKey"];
   if (process.env.CONTFU_KEY) {
-    clientKeyInfo = { present: true, source: "env" };
+    appKeyInfo = { present: true, source: "env" };
   } else {
-    const fromDotenv = getClientKey();
+    const fromDotenv = getAppKey();
     if (fromDotenv !== undefined) {
-      clientKeyInfo = { present: true, source: "dotenv" };
+      appKeyInfo = { present: true, source: "dotenv" };
     } else {
       // Only show the section if there's a .env file or CONTFU_KEY is relevant
       const envPath = join(process.cwd(), ".env");
       if (existsSync(envPath)) {
-        clientKeyInfo = { present: false, source: "dotenv" };
+        appKeyInfo = { present: false, source: "dotenv" };
       }
     }
   }
@@ -136,7 +136,7 @@ export async function status(format = "table"): Promise<void> {
       connections: connections.map((c) => ({ ...c, typeLabel: resolveTypeLabel(c.type) })),
       collections,
       flows,
-      ...(clientKeyInfo !== undefined ? { clientKey: clientKeyInfo } : {}),
+      ...(appKeyInfo !== undefined ? { appKey: appKeyInfo } : {}),
     };
 
     if (format === "json") {

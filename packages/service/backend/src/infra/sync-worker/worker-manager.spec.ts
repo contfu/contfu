@@ -140,7 +140,7 @@ describe("SyncWorkerManager schema rename detection", () => {
 
     const [clientConn] = await db
       .insert(connectionTable)
-      .values({ userId, name: "Client", type: ConnectionType.CLIENT })
+      .values({ userId, name: "Client", type: ConnectionType.APP })
       .returning();
 
     const [sourceCol] = await db

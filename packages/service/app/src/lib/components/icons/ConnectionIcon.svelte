@@ -33,7 +33,7 @@
   </svg>
 {:else if type === ConnectionType.WEB}
   <GlobeIcon class={className} />
-{:else if type === ConnectionType.CLIENT}
+{:else if type === ConnectionType.APP}
   <NetworkIcon class={className} />
 {:else}
   <svg class={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">

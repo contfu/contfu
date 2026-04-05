@@ -74,7 +74,7 @@ export async function seedSyncData(db: any): Promise<void> {
     .insert(connectionTable)
     .values({
       userId,
-      type: ConnectionType.CLIENT,
+      type: ConnectionType.APP,
       name: "Test Sync Client",
       credentials: hashKeyForStorage(SYNC_CONSUMER_KEY),
     })

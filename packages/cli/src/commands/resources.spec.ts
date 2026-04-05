@@ -282,8 +282,8 @@ describe("listConnectionTypes", () => {
 
     const written = (writeSpy.mock.calls as unknown[][]).map((c) => c[0] as string).join("");
     writeSpy.mockRestore();
-    // custom types (client, web) come before services (contentful, notion, strapi)
-    expect(written).toContain("client");
+    // custom types (app, web) come before services (contentful, notion, strapi)
+    expect(written).toContain("app");
     expect(written).toContain("notion");
     expect(written).toContain("strapi");
     // blank line separator between groups

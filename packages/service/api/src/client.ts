@@ -56,7 +56,7 @@ async function request<T>(
   return JSON.parse(text) as T;
 }
 
-export interface CreateClientResult extends ApiConnection {
+export interface CreateAppResult extends ApiConnection {
   apiKey: string;
 }
 
@@ -70,8 +70,8 @@ export interface ContfuApiClient {
   listConnections(): Promise<ApiConnection[]>;
   getConnection(id: number | string): Promise<ApiConnection>;
   createConnection(body: CreateConnectionBody): Promise<ApiConnection>;
-  createClientConnection(name: string): Promise<CreateClientResult>;
-  regenerateClientKey(id: number | string): Promise<RegenerateKeyResult>;
+  createAppConnection(name: string): Promise<CreateAppResult>;
+  regenerateAppKey(id: number | string): Promise<RegenerateKeyResult>;
   updateConnection(id: number | string, body: UpdateConnectionBody): Promise<ApiConnection>;
   deleteConnection(id: number | string): Promise<void>;
   getConnectionTypes(id: number | string): Promise<TypeGenerationInput[]>;
@@ -105,9 +105,9 @@ export function createApiClient(
     listConnections: () => req<ApiConnection[]>("GET", "/api/v1/connections"),
     getConnection: (id) => req<ApiConnection>("GET", `/api/v1/connections/${id}`),
     createConnection: (body) => req<ApiConnection>("POST", "/api/v1/connections", body),
-    createClientConnection: (name) =>
-      req<CreateClientResult>("POST", "/api/v1/connections/client", { name }),
-    regenerateClientKey: (id) =>
+    createAppConnection: (name) =>
+      req<CreateAppResult>("POST", "/api/v1/connections/app", { name }),
+    regenerateAppKey: (id) =>
       req<RegenerateKeyResult>("POST", `/api/v1/connections/${id}/regenerate-key`),
     updateConnection: (id, body) => req<ApiConnection>("PATCH", `/api/v1/connections/${id}`, body),
     deleteConnection: (id) => req<void>("DELETE", `/api/v1/connections/${id}`),

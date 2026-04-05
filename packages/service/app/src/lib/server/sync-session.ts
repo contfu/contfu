@@ -40,7 +40,7 @@ const log = createLogger("sync-session");
 export type AuthenticatedSyncRequest = {
   key: Buffer;
   userId: number;
-  clientConnectionId: number;
+  appConnectionId: number;
   requestedFromSeq: number | null;
 };
 
@@ -71,9 +71,7 @@ export async function authenticateSyncRequest(
   const connections = await db
     .select({ userId: connectionTable.userId, id: connectionTable.id })
     .from(connectionTable)
-    .where(
-      and(eq(connectionTable.credentials, key), eq(connectionTable.type, ConnectionType.CLIENT)),
-    )
+    .where(and(eq(connectionTable.credentials, key), eq(connectionTable.type, ConnectionType.APP)))
     .limit(1);
   const connection = connections[0];
   if (!connection) {
@@ -86,7 +84,7 @@ export async function authenticateSyncRequest(
     switch (authResult.error) {
       case "E_AUTH":
         log.warn(
-          { userId: connection.userId, clientConnectionId: connection.id },
+          { userId: connection.userId, appConnectionId: connection.id },
           "Auth rejected by preAuthenticate: E_AUTH",
         );
         return new Response("Invalid or unknown consumer key", { status: 401 });
@@ -94,7 +92,7 @@ export async function authenticateSyncRequest(
         log.warn(
           {
             userId: connection.userId,
-            clientConnectionId: connection.id,
+            appConnectionId: connection.id,
             error: authResult.error,
           },
           "Auth rejected by preAuthenticate",
@@ -104,14 +102,14 @@ export async function authenticateSyncRequest(
   }
 
   log.info(
-    { userId: connection.userId, clientConnectionId: connection.id, fromSeq: requestedFromSeq },
+    { userId: connection.userId, appConnectionId: connection.id, fromSeq: requestedFromSeq },
     "Consumer authenticated",
   );
 
   return {
     key,
     userId: connection.userId,
-    clientConnectionId: connection.id,
+    appConnectionId: connection.id,
     requestedFromSeq,
   };
 }
@@ -119,13 +117,13 @@ export async function authenticateSyncRequest(
 export async function runSyncSession({
   streamConnectionId,
   userId,
-  clientConnectionId,
+  appConnectionId,
   requestedFromSeq,
   abortSignal,
 }: {
   streamConnectionId: string;
   userId: number;
-  clientConnectionId: number;
+  appConnectionId: number;
   requestedFromSeq: number | null;
   abortSignal?: AbortSignal;
 }): Promise<void> {
@@ -134,13 +132,13 @@ export async function runSyncSession({
   let fromSeq = requestedFromSeq;
   let resumeFromSnapshot = false;
 
-  const snapshotProgress = await getSnapshotProgress(userId, clientConnectionId);
+  const snapshotProgress = await getSnapshotProgress(userId, appConnectionId);
   if (snapshotProgress?.inProgress && fromSeq !== null) {
-    const available = await isSnapshotSeqAvailable(userId, clientConnectionId, fromSeq);
+    const available = await isSnapshotSeqAvailable(userId, appConnectionId, fromSeq);
     if (available) {
       resumeFromSnapshot = true;
     } else {
-      await clearSnapshotProgress(userId, clientConnectionId);
+      await clearSnapshotProgress(userId, appConnectionId);
       fromSeq = null;
     }
   } else if (snapshotProgress?.inProgress && fromSeq === null) {
@@ -159,7 +157,7 @@ export async function runSyncSession({
   }
 
   const snapshotStartSeq = fromSeq === null ? await getLastSequence() : 0;
-  const collectionIds = await getConnectionCollectionIds(userId, clientConnectionId);
+  const collectionIds = await getConnectionCollectionIds(userId, appConnectionId);
   const collectionNames = await getCollectionNamesByIds(collectionIds, userId);
 
   const collectionDisplayNames = new Map<number, string>();
@@ -215,13 +213,13 @@ export async function runSyncSession({
   }
 
   if (fromSeq === null) {
-    log.debug({ userId, clientConnectionId }, "Starting snapshot");
+    log.debug({ userId, appConnectionId }, "Starting snapshot");
     server.sendBinaryEventToConnection(streamConnectionId, [EventType.SNAPSHOT_START]);
 
-    await setSnapshotProgress(userId, clientConnectionId, snapshotStartSeq);
-    server.setSnapshotMode(userId, clientConnectionId);
+    await setSnapshotProgress(userId, appConnectionId, snapshotStartSeq);
+    server.setSnapshotMode(userId, appConnectionId);
 
-    const config = await runEffectWithServices(getSyncConfig(userId, clientConnectionId));
+    const config = await runEffectWithServices(getSyncConfig(userId, appConnectionId));
     const validationCollector = new ValidationErrorCollector();
     let snapshotItemCount = 0;
 
@@ -235,7 +233,7 @@ export async function runSyncSession({
           item.includeRef,
         ),
       ];
-      const seq = await publishSnapshot(userId, clientConnectionId, wireEvent);
+      const seq = await publishSnapshot(userId, appConnectionId, wireEvent);
       snapshotItemCount++;
       server.sendIndexedItemToConnection(
         streamConnectionId,
@@ -246,10 +244,10 @@ export async function runSyncSession({
     }
 
     server.sendBinaryEventToConnection(streamConnectionId, [EventType.SNAPSHOT_END]);
-    await purgeConnectionSnapshot(userId, clientConnectionId);
-    await clearSnapshotProgress(userId, clientConnectionId);
-    server.clearSnapshotMode(userId, clientConnectionId);
-    log.debug({ userId, clientConnectionId, itemCount: snapshotItemCount }, "Snapshot complete");
+    await purgeConnectionSnapshot(userId, appConnectionId);
+    await clearSnapshotProgress(userId, appConnectionId);
+    server.clearSnapshotMode(userId, appConnectionId);
+    log.debug({ userId, appConnectionId, itemCount: snapshotItemCount }, "Snapshot complete");
 
     if (validationCollector.size > 0) {
       for (const group of validationCollector.getGroups()) {
@@ -276,21 +274,21 @@ export async function runSyncSession({
   }
 
   if (resumeFromSnapshot) {
-    server.setSnapshotMode(userId, clientConnectionId);
+    server.setSnapshotMode(userId, appConnectionId);
     server.sendBinaryEventToConnection(streamConnectionId, [EventType.SNAPSHOT_START]);
 
-    for await (const { seq, event } of replaySnapshotFrom(userId, clientConnectionId, fromSeq!)) {
+    for await (const { seq, event } of replaySnapshotFrom(userId, appConnectionId, fromSeq!)) {
       if (abortSignal?.aborted) break;
       server.sendIndexedItemToConnection(streamConnectionId, seq, event);
     }
 
     server.sendBinaryEventToConnection(streamConnectionId, [EventType.SNAPSHOT_END]);
 
-    const progress = await getSnapshotProgress(userId, clientConnectionId);
+    const progress = await getSnapshotProgress(userId, appConnectionId);
     const eventsStartSeq = progress?.eventsStartSeq ?? 0;
-    await purgeConnectionSnapshot(userId, clientConnectionId);
-    await clearSnapshotProgress(userId, clientConnectionId);
-    server.clearSnapshotMode(userId, clientConnectionId);
+    await purgeConnectionSnapshot(userId, appConnectionId);
+    await clearSnapshotProgress(userId, appConnectionId);
+    server.clearSnapshotMode(userId, appConnectionId);
 
     fromSeq = eventsStartSeq;
   }
@@ -305,7 +303,7 @@ export async function runSyncSession({
 
   if (replayCollectionIds.length > 0 && replayStartSeq > 0) {
     log.debug(
-      { userId: info.userId, clientConnectionId: info.connectionId, fromSeq: replayStartSeq },
+      { userId: info.userId, appConnectionId: info.connectionId, fromSeq: replayStartSeq },
       "Starting replay",
     );
     for await (const { seq, collectionId, event } of replayEvents({
@@ -321,6 +319,6 @@ export async function runSyncSession({
         refPolicyByCollection.get(collectionId) ?? true,
       );
     }
-    log.debug({ userId: info.userId, clientConnectionId: info.connectionId }, "Replay complete");
+    log.debug({ userId: info.userId, appConnectionId: info.connectionId }, "Replay complete");
   }
 }

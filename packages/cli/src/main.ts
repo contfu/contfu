@@ -8,7 +8,7 @@ import {
   update,
   del,
   listConnectionTypes,
-  regenerateClientKey,
+  regenerateAppKey,
   type CliValues,
 } from "./commands/resources";
 import { connectionTypes, collectionTypes } from "./commands/generate-types";
@@ -34,7 +34,7 @@ Commands:
   <resource> delete <id>            Delete item
   connections types                  List valid connection types
   connections types <id>             Print TypeScript types for a connection's collections
-  connections regenerate-key <id>    Regenerate API key for a client connection
+  connections regenerate-key <id>    Regenerate API key for an app connection
   collections types <id>             Print TypeScript types for a collection
   items query [options]             Query items from client app
   items count [options]             Count items from client app
@@ -44,13 +44,13 @@ Resources: connections, collections, flows
 collections options:
       --display-name <name>    Display name (required for create)
   -n, --name <name>            Name
-      --connection-id <id>     Associate with a client connection
+      --connection-id <id>     Associate with an app connection
       --[no-]include-ref       Include ref transmission
   -d, --data <json>            Raw JSON body (alternative to above flags)
 
 setup options:
       --package <name>         Package to install: @contfu/contfu or @contfu/client
-      --client-name <name>     Name for the client connection
+      --app-name <name>        Name for the app connection
       --env-file <path>        Write CONTFU_KEY to this .env file
       --non-interactive        Skip all prompts (fail if required info is missing)
 
@@ -58,7 +58,7 @@ connections options:
   -n, --name <name>            Label (required for create)
   -t, --type <provider>        Provider ID (default: notion)
       --token <token>           API token (for manual token-based connections)
-      --generate-key           Create a client connection and print its API key
+      --generate-key           Create an app connection and print its API key
   -d, --data <json>            Raw JSON body (alternative to above flags)
 
 flows options:
@@ -105,7 +105,7 @@ async function main() {
       "generate-key": { type: "boolean" },
       format: { type: "string", short: "f" },
       package: { type: "string" },
-      "client-name": { type: "string" },
+      "app-name": { type: "string" },
       "env-file": { type: "string" },
       "non-interactive": { type: "boolean" },
     },
@@ -143,7 +143,7 @@ async function main() {
   if (cmd === "setup") {
     await setup({
       package: values.package as string | undefined,
-      clientName: values["client-name"] as string | undefined,
+      appName: values["app-name"] as string | undefined,
       envFile: values["env-file"] as string | undefined,
       nonInteractive: (values["non-interactive"] as boolean | undefined) ?? false,
     });
@@ -191,7 +191,7 @@ async function main() {
         console.error("Usage: contfu connections regenerate-key <id>");
         process.exit(1);
       }
-      await regenerateClientKey(id);
+      await regenerateAppKey(id);
       return;
     }
 

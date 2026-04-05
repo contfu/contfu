@@ -237,7 +237,7 @@ async function getFlowsAndClients(
       connectionTable,
       and(
         eq(collectionTable.connectionId, connectionTable.id),
-        eq(connectionTable.type, ConnectionType.CLIENT),
+        eq(connectionTable.type, ConnectionType.APP),
       ),
     )
     .where(

@@ -93,27 +93,27 @@ test.describe("@contfu/svc-api client", () => {
   });
 
   test("createFlow creates a flow between two collections", async ({ page }) => {
-    // Create a CLIENT connection via UI then bind target collection to it
+    // Create an APP connection via UI then bind target collection to it
     await login(page);
-    // First create a CLIENT connection via the connections/new UI
+    // First create an APP connection via the connections/new UI
     await page.goto("/connections/new");
     await page.waitForLoadState("networkidle");
-    await page.getByRole("tab", { name: /client/i }).click();
-    await page.locator('input[placeholder="My App"]').fill("SVC-API E2E Target Client");
-    await page.getByRole("button", { name: /create client/i }).click();
+    await page.getByRole("tab", { name: /app/i }).click();
+    await page.locator('input[placeholder="My App"]').fill("SVC-API E2E Target App");
+    await page.getByRole("button", { name: /create app/i }).click();
     await page.waitForURL(/\/connections\/[^/]+$/, { timeout: 15000 });
     // Extract connection ID from URL
     const connectionUrl = page.url();
     const encodedId = connectionUrl.match(/\/connections\/([^/]+)$/)![1];
     const connections = await client.listConnections();
-    // Find the newly created CLIENT connection by encoded ID
+    // Find the newly created APP connection by encoded ID
     // We use the name to identify it
-    const clientConn = connections.find(
-      (c) => c.type === ConnectionType.CLIENT && c.name === "SVC-API E2E Target Client",
+    const appConn = connections.find(
+      (c) => c.type === ConnectionType.APP && c.name === "SVC-API E2E Target App",
     );
-    expect(clientConn).toBeDefined();
+    expect(appConn).toBeDefined();
     void encodedId; // used for navigation, actual ID from API
-    const targetConnectionId = clientConn!.id;
+    const targetConnectionId = appConn!.id;
 
     const targetCol = await client.createCollection({
       displayName: "E2E Target Collection",

@@ -47,7 +47,7 @@ type BunPlatform = {
         data: {
           key: Buffer;
           userId: number;
-          clientConnectionId: number;
+          appConnectionId: number;
           requestedFromSeq: number | null;
         };
       },
@@ -123,7 +123,7 @@ export const handle: Handle = ({ event, resolve }) =>
         data: {
           key: authResult.key,
           userId: authResult.userId,
-          clientConnectionId: authResult.clientConnectionId,
+          appConnectionId: authResult.appConnectionId,
           requestedFromSeq: authResult.requestedFromSeq,
         },
       });
@@ -171,7 +171,7 @@ export const handle: Handle = ({ event, resolve }) =>
 export const websocket: Bun.WebSocketHandler<{
   key: Buffer;
   userId: number;
-  clientConnectionId: number;
+  appConnectionId: number;
   requestedFromSeq: number | null;
   streamConnectionId?: string;
 }> = {
@@ -188,7 +188,7 @@ export const websocket: Bun.WebSocketHandler<{
       await runSyncSession({
         streamConnectionId: result,
         userId: ws.data.userId,
-        clientConnectionId: ws.data.clientConnectionId,
+        appConnectionId: ws.data.appConnectionId,
         requestedFromSeq: ws.data.requestedFromSeq,
       });
     } catch (error) {
@@ -252,7 +252,7 @@ export const websocket: Bun.WebSocketHandler<{
       ) {
         await getStreamServer().ackConnectionSequence(
           ws.data.userId,
-          ws.data.clientConnectionId,
+          ws.data.appConnectionId,
           decoded[1],
         );
       }
@@ -281,7 +281,7 @@ async function initializeWebSocketConnection(
   ws: Bun.ServerWebSocket<{
     key: Buffer;
     userId: number;
-    clientConnectionId: number;
+    appConnectionId: number;
     requestedFromSeq: number | null;
     streamConnectionId?: string;
   }>,
@@ -292,7 +292,7 @@ async function initializeWebSocketConnection(
     log.warn(
       {
         userId: ws.data.userId,
-        clientConnectionId: ws.data.clientConnectionId,
+        appConnectionId: ws.data.appConnectionId,
       },
       "WebSocket pre-auth expired before finalizeConnection",
     );
@@ -302,7 +302,7 @@ async function initializeWebSocketConnection(
   log.info(
     {
       userId: ws.data.userId,
-      clientConnectionId: ws.data.clientConnectionId,
+      appConnectionId: ws.data.appConnectionId,
       connectionId: result,
     },
     "WebSocket sync connection established",

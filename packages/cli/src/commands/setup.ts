@@ -1,4 +1,4 @@
-import { existsSync, appendFileSync } from "node:fs";
+import { existsSync, readFileSync, appendFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { createInterface } from "node:readline";
 import { execSync } from "node:child_process";
@@ -6,7 +6,7 @@ import { getApiKey } from "../http";
 
 export interface SetupOptions {
   package?: string;
-  clientName?: string;
+  appName?: string;
   envFile?: string;
   nonInteractive?: boolean;
 }
@@ -209,17 +209,42 @@ export async function setup(opts: SetupOptions = {}): Promise<void> {
     console.log();
   }
 
-  // 4. Set up client connection
-  await setupClientConnection(opts);
+  // 4. Set up app connection
+  await setupAppConnection(opts);
 }
 
-async function setupClientConnection(opts: SetupOptions): Promise<void> {
+function getAppKey(): string | undefined {
+  if (process.env.CONTFU_KEY) return process.env.CONTFU_KEY;
+  const envPath = join(process.cwd(), ".env");
+  if (!existsSync(envPath)) return undefined;
+  try {
+    const content = readFileSync(envPath, "utf-8");
+    for (const line of content.split("\n")) {
+      const match = line.match(/^CONTFU_KEY=(.+)$/);
+      if (match) return match[1].trim();
+    }
+  } catch {
+    // ignore
+  }
+  return undefined;
+}
+
+async function setupAppConnection(opts: SetupOptions): Promise<void> {
+  // If CONTFU_KEY is already configured, skip app connection setup
+  const existingKey = getAppKey();
+  if (existingKey) {
+    const source = process.env.CONTFU_KEY ? "CONTFU_KEY env var" : ".env file";
+    console.log(`✓ CONTFU_KEY already set (${source}). Skipping app connection setup.`);
+    console.log("\n✓ Setup complete. Run `contfu status` to verify your configuration.");
+    return;
+  }
+
   const { getApiClient, handleApiError } = await import("../http");
   const { ConnectionTypeMeta } = await import("@contfu/svc-api");
   const client = getApiClient();
   const nonInteractive = opts.nonInteractive ?? false;
 
-  // Check for existing client connections
+  // Check for existing app connections
   let connections: Awaited<ReturnType<typeof client.listConnections>>;
   try {
     connections = await client.listConnections();
@@ -227,61 +252,67 @@ async function setupClientConnection(opts: SetupOptions): Promise<void> {
     handleApiError(err);
   }
 
-  const clientTypeId = Object.entries(ConnectionTypeMeta).find(
-    ([, meta]) => meta.label === "client",
+  const appTypeId = Object.entries(ConnectionTypeMeta).find(
+    ([, meta]) => meta.label === "app",
   )?.[0];
-  const existingClients = connections.filter((c) => String(c.type) === clientTypeId);
+  const existingApps = connections.filter((c) => String(c.type) === appTypeId);
 
   let contfuKey: string;
 
-  if (existingClients.length > 0 && nonInteractive) {
-    // Non-interactive: use first existing client, generate new key
-    const chosen = existingClients[0];
-    try {
-      const result = await client.regenerateClientKey(chosen.id);
-      contfuKey = result.apiKey;
-      console.log(`✓ New key generated for existing client "${chosen.name}" (id: ${chosen.id})`);
-    } catch (err) {
-      handleApiError(err);
+  if (existingApps.length > 0 && nonInteractive) {
+    // Non-interactive with no key: create new or fail
+    if (!opts.appName) {
+      console.error("Missing required flag: --app-name (no CONTFU_KEY found)");
+      process.exit(1);
     }
-  } else if (existingClients.length > 0) {
-    // Interactive: offer create new or use existing
+    contfuKey = await createNewApp(client, opts);
+  } else if (existingApps.length > 0) {
+    // Interactive: offer create new, use existing, or skip
     console.log("How do you want to connect this app?\n");
 
     const options: SelectOption[] = [
       {
-        label: "Create a new client",
-        description: "Creates a new client connection and generates an API key",
+        label: "Create a new app",
+        description: "Creates a new app connection and generates an API key",
         value: "new",
       },
       {
-        label: "Use an existing client (generate new key)",
-        description: "Pick from your existing clients and generate a fresh API key",
+        label: "Use an existing app (generate new key)",
+        description: "Pick from your existing apps and generate a fresh API key",
         value: "existing-regenerate",
+      },
+      {
+        label: "Skip",
+        description: "Set CONTFU_KEY yourself before starting the app",
+        value: "skip",
       },
     ];
 
     const choice = await select(options);
 
-    if (choice === "new") {
-      contfuKey = await createNewClient(client, opts);
+    if (choice === "skip") {
+      console.log("\nSkipped. Set CONTFU_KEY before starting your app.");
+      console.log("\n✓ Setup complete. Run `contfu status` to verify your configuration.");
+      return;
+    } else if (choice === "new") {
+      contfuKey = await createNewApp(client, opts);
     } else {
-      console.log("\nYour client connections:\n");
-      for (const [i, c] of existingClients.entries()) {
+      console.log("\nYour app connections:\n");
+      for (const [i, c] of existingApps.entries()) {
         console.log(`  ${i + 1}. ${c.name} (id: ${c.id})`);
       }
       console.log();
 
-      const pick = await prompt(`Choose (1-${existingClients.length}): `);
+      const pick = await prompt(`Choose (1-${existingApps.length}): `);
       const idx = parseInt(pick, 10) - 1;
-      if (idx < 0 || idx >= existingClients.length) {
+      if (idx < 0 || idx >= existingApps.length) {
         console.error("Invalid choice.");
         process.exit(1);
       }
 
-      const chosen = existingClients[idx];
+      const chosen = existingApps[idx];
       try {
-        const result = await client.regenerateClientKey(chosen.id);
+        const result = await client.regenerateAppKey(chosen.id);
         contfuKey = result.apiKey;
         console.log(`\n✓ New key generated for "${chosen.name}"`);
       } catch (err) {
@@ -289,12 +320,12 @@ async function setupClientConnection(opts: SetupOptions): Promise<void> {
       }
     }
   } else {
-    // No existing clients — create new
-    if (nonInteractive && !opts.clientName) {
-      console.error("Missing required flag: --client-name");
+    // No existing apps — create new
+    if (nonInteractive && !opts.appName) {
+      console.error("Missing required flag: --app-name");
       process.exit(1);
     }
-    contfuKey = await createNewClient(client, opts);
+    contfuKey = await createNewApp(client, opts);
   }
 
   // Key placement
@@ -341,14 +372,14 @@ async function setupClientConnection(opts: SetupOptions): Promise<void> {
   console.log("\n✓ Setup complete. Run `contfu status` to verify your configuration.");
 }
 
-async function createNewClient(
+async function createNewApp(
   client: Awaited<ReturnType<typeof import("../http").getApiClient>>,
   opts: SetupOptions,
 ): Promise<string> {
   const { handleApiError } = await import("../http");
-  let name = opts.clientName;
+  let name = opts.appName;
   if (!name) {
-    name = await prompt("Client name: ");
+    name = await prompt("App name: ");
     if (!name) {
       console.error("Name is required.");
       process.exit(1);
@@ -356,8 +387,8 @@ async function createNewClient(
   }
   try {
     console.log();
-    const result = await client.createClientConnection(name);
-    console.log(`✓ Client "${name}" created (id: ${result.id})`);
+    const result = await client.createAppConnection(name);
+    console.log(`✓ App "${name}" created (id: ${result.id})`);
     return result.apiKey;
   } catch (err) {
     handleApiError(err);

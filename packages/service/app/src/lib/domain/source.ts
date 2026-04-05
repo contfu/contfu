@@ -5,5 +5,5 @@ export const SOURCE_TYPE_LABELS: Record<ConnectionType, string> = {
   [ConnectionType.STRAPI]: "Strapi",
   [ConnectionType.WEB]: "Web",
   [ConnectionType.CONTENTFUL]: "Contentful",
-  [ConnectionType.CLIENT]: "Client",
+  [ConnectionType.APP]: "Client",
 };

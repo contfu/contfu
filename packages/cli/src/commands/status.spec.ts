@@ -116,7 +116,7 @@ describe("status", () => {
     expect(parsed.authenticated).toBe(true);
     expect(parsed.connections).toHaveLength(2);
     expect(parsed.connections[0].typeLabel).toBe("notion");
-    expect(parsed.connections[1].typeLabel).toBe("client");
+    expect(parsed.connections[1].typeLabel).toBe("app");
     expect(parsed.collections).toHaveLength(1);
     expect(parsed.flows).toHaveLength(1);
   });

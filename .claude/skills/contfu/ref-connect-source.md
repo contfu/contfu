@@ -36,7 +36,7 @@ For example: `https://contfu.com/connections/new?type=notion`
 
 - **OAuth providers** (e.g. `notion`): the OAuth flow starts automatically — the user just authorizes in the consent screen.
 - **Token-based providers** (e.g. `strapi`, `contentful`, `web`): the form is pre-filled with the correct provider; the user enters a name and API token.
-- **Client connections**: use `?type=client` to jump to the client tab.
+- **App connections**: use `?type=app` to jump to the app tab.
 
 ### 4. Verify the connection via CLI
 

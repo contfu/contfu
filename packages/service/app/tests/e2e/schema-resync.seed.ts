@@ -116,7 +116,7 @@ export async function seedSchemaResyncData(db: any): Promise<void> {
     .insert(connectionTable)
     .values({
       userId,
-      type: ConnectionType.CLIENT,
+      type: ConnectionType.APP,
       name: "Schema Resync Client",
       credentials: hashKeyForStorage(SCHEMA_RESYNC_CONSUMER_KEY),
     })

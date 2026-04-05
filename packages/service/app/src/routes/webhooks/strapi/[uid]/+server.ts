@@ -370,7 +370,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
     // Find CLIENT connections that own the target collections
     const clients = await db
       .select({
-        clientConnectionId: connectionTable.id,
+        appConnectionId: connectionTable.id,
         collectionId: collectionTable.id,
         connectionIncludeRef: connectionTable.includeRef,
         collectionIncludeRef: collectionTable.includeRef,
@@ -380,7 +380,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
         connectionTable,
         and(
           eq(collectionTable.connectionId, connectionTable.id),
-          eq(connectionTable.type, ConnectionType.CLIENT),
+          eq(connectionTable.type, ConnectionType.APP),
         ),
       )
       .where(
@@ -419,7 +419,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
         .filter((c) => c.collectionId === collectionId)
         .map((c) => ({
           userId: conn.userId,
-          connectionId: c.clientConnectionId,
+          connectionId: c.appConnectionId,
           collectionId: c.collectionId,
           includeRef:
             Boolean(c.connectionIncludeRef) &&

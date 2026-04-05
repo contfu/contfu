@@ -159,7 +159,7 @@
                 {connection.collectionCount}
               </td>
               <td class="px-3 py-2">
-                {#if connection.type === ConnectionType.CLIENT}
+                {#if connection.type === ConnectionType.APP}
                   {#if connection.isConnected}
                     <span class="inline-flex items-center gap-1.5 text-xs text-success">
                       <span class="h-1.5 w-1.5 rounded-full bg-success"></span>

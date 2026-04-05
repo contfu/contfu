@@ -31,7 +31,7 @@ test.describe("Connections Management", () => {
       await page.waitForLoadState("networkidle");
 
       await expect(page.getByRole("tab", { name: "service" })).toBeVisible();
-      await expect(page.getByRole("tab", { name: "client" })).toBeVisible();
+      await expect(page.getByRole("tab", { name: "app" })).toBeVisible();
 
       // Provider dropdown
       await expect(page.locator("select")).toBeVisible();
@@ -86,15 +86,15 @@ test.describe("Connections Management", () => {
       await expect(page).toHaveURL(/\/connections\/new/);
     });
 
-    test("should show client tab form", async ({ authenticatedPage: page }) => {
+    test("should show app tab form", async ({ authenticatedPage: page }) => {
       await page.goto("/connections/new");
       await page.waitForLoadState("networkidle");
 
-      // Switch to client tab
-      await page.getByRole("tab", { name: "client" }).click();
+      // Switch to app tab
+      await page.getByRole("tab", { name: "app" }).click();
 
       await expect(page.getByPlaceholder("My App")).toBeVisible();
-      await expect(page.getByRole("button", { name: /create client/i })).toBeVisible();
+      await expect(page.getByRole("button", { name: /create app/i })).toBeVisible();
     });
 
     test("should have back link to connections list", async ({ authenticatedPage: page }) => {

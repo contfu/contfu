@@ -66,7 +66,7 @@ export interface SyncConfig {
  */
 export const getSyncConfig = (
   userId: number,
-  clientConnectionId: number,
+  appConnectionId: number,
   filterCollectionIds?: number[],
 ) =>
   Effect.gen(function* () {
@@ -93,7 +93,7 @@ export const getSyncConfig = (
           .where(
             and(
               eq(collectionTable.userId, userId),
-              eq(collectionTable.connectionId, clientConnectionId),
+              eq(collectionTable.connectionId, appConnectionId),
               filterCollectionIds ? inArray(collectionTable.id, filterCollectionIds) : undefined,
             ),
           ),
@@ -344,6 +344,6 @@ export const getSyncConfig = (
     return { userId, targetCollectionIds, connectionGroups } as SyncConfig;
   }).pipe(
     Effect.withSpan("sync.getSyncConfig", {
-      attributes: { userId, clientConnectionId },
+      attributes: { userId, appConnectionId },
     }),
   );

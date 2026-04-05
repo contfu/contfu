@@ -339,7 +339,7 @@ export class SyncWorkerManager {
             connectionTable,
             and(
               eq(collectionTable.connectionId, connectionTable.id),
-              eq(connectionTable.type, ConnectionType.CLIENT),
+              eq(connectionTable.type, ConnectionType.APP),
             ),
           )
           .where(
@@ -392,7 +392,7 @@ export class SyncWorkerManager {
           connectionTable,
           and(
             eq(collectionTable.connectionId, connectionTable.id),
-            eq(connectionTable.type, ConnectionType.CLIENT),
+            eq(connectionTable.type, ConnectionType.APP),
           ),
         )
         .where(
@@ -469,7 +469,7 @@ async function getConnectionsForCollections(
       connectionTable,
       and(
         eq(collectionTable.connectionId, connectionTable.id),
-        eq(connectionTable.type, ConnectionType.CLIENT),
+        eq(connectionTable.type, ConnectionType.APP),
       ),
     )
     .where(and(eq(collectionTable.userId, userId), inArray(collectionTable.id, collectionIds)));
@@ -546,7 +546,7 @@ async function getDownstreamFlows(
       connectionTable,
       and(
         eq(collectionTable.connectionId, connectionTable.id),
-        eq(connectionTable.type, ConnectionType.CLIENT),
+        eq(connectionTable.type, ConnectionType.APP),
       ),
     )
     .where(and(eq(flowTable.userId, userId), inArray(flowTable.sourceId, targetCollectionIds)));

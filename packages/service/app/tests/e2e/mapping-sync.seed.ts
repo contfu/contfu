@@ -170,7 +170,7 @@ export async function seedMappingSyncData(db: any): Promise<void> {
     .insert(connectionTable)
     .values({
       userId,
-      type: ConnectionType.CLIENT,
+      type: ConnectionType.APP,
       name: "Mapping Sync Client",
       credentials: hashKeyForStorage(MAPPING_SYNC_CONSUMER_KEY),
     })
@@ -225,7 +225,7 @@ export async function seedMappingSyncData(db: any): Promise<void> {
     .insert(connectionTable)
     .values({
       userId,
-      type: ConnectionType.CLIENT,
+      type: ConnectionType.APP,
       name: "Validation Sync Client",
       credentials: hashKeyForStorage(VALIDATION_CONSUMER_KEY),
     })

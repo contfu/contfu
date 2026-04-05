@@ -32,9 +32,9 @@ function encodeConnection(connection: BackendConnection) {
   };
 }
 
-function withClientStatus(connection: BackendConnection) {
+function withAppStatus(connection: BackendConnection) {
   const encoded = encodeConnection(connection);
-  if (connection.type !== ConnectionType.CLIENT) return encoded;
+  if (connection.type !== ConnectionType.APP) return encoded;
   return {
     ...encoded,
     isConnected: getStreamServer().isConnectionActive(connection.userId, connection.id),
@@ -47,7 +47,7 @@ function withClientStatus(connection: BackendConnection) {
 export const listConnections = query(async () => {
   const userId = getUserId();
   const connections = await runWithUser(userId, listConnectionsFeature());
-  return connections.map(withClientStatus);
+  return connections.map(withAppStatus);
 });
 
 /**
@@ -58,7 +58,7 @@ export const getConnection = query(v.object({ id: idSchema("connection") }), asy
   const connection = await runWithUser(userId, getConnectionWithCollectionCount(id));
   if (!connection) error(404, "Connection not found");
   return {
-    ...withClientStatus(connection),
+    ...withAppStatus(connection),
     collectionCount: connection.collectionCount,
   };
 });
@@ -89,9 +89,9 @@ export const createConnection = command(
 );
 
 /**
- * Create a CLIENT-type connection with an auto-generated API key.
+ * Create an APP-type connection with an auto-generated API key.
  */
-export const createClientConnection = command(
+export const createAppConnection = command(
   v.object({
     name: v.pipe(v.string(), v.nonEmpty("Name is required")),
   }),
@@ -101,7 +101,7 @@ export const createClientConnection = command(
     const connection = await runWithUser(
       userId,
       createConnectionFeature(userId, {
-        type: ConnectionType.CLIENT,
+        type: ConnectionType.APP,
         name: data.name,
         credentials: hashApiKey(apiKeyStr),
       }),
@@ -201,7 +201,7 @@ export const regenerateWebhookSecret = command(
 );
 
 /**
- * Regenerate the API key for a CLIENT connection.
+ * Regenerate the API key for an APP connection.
  */
 export const regenerateApiKey = command(
   v.object({

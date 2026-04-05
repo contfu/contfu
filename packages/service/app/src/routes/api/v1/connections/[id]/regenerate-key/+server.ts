@@ -13,8 +13,8 @@ export async function POST({ request, params }: { request: Request; params: { id
 
   const connection = await runWithUser(userId, getConnection(id));
   if (!connection) return new Response("Not found", { status: 404 });
-  if (connection.type !== ConnectionType.CLIENT) {
-    return json({ message: "Only client connections support key regeneration" }, { status: 400 });
+  if (connection.type !== ConnectionType.APP) {
+    return json({ message: "Only app connections support key regeneration" }, { status: 400 });
   }
 
   const apiKeyStr = randomBytes(32).toString("base64url");

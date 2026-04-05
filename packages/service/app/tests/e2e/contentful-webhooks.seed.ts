@@ -105,7 +105,7 @@ export async function seedContentfulWebhookData(db: any): Promise<void> {
     .insert(connectionTable)
     .values({
       userId,
-      type: ConnectionType.CLIENT,
+      type: ConnectionType.APP,
       name: "Contentful Webhook Client",
     })
     .returning({ id: connectionTable.id });

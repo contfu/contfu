@@ -23,7 +23,7 @@ CONTFU_URL=https://app.contfu.com
 CONTFU_API_KEY=<your-client-api-key>
 ```
 
-The API key comes from creating a CLIENT connection (see `ref-project-setup.md` step 5).
+The API key comes from creating a APP connection (see `ref-project-setup.md` step 5).
 
 ## HTTP query client
 
@@ -94,8 +94,8 @@ for await (const event of connect({
 Generate TypeScript types for type-safe queries:
 
 ```bash
-# Types for all collections connected to a client connection
-contfu connections types <client-connection-id>
+# Types for all collections connected to an app connection
+contfu connections types <app-connection-id>
 
 # Types for a single collection
 contfu collections types <collection-id>

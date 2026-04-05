@@ -29,17 +29,17 @@ contfu status -f json            # JSON output
 
 ```bash
 contfu setup                     # interactive wizard
-contfu setup --non-interactive --package @contfu/client --client-name my-app --env-file .env
+contfu setup --non-interactive --package @contfu/client --app-name my-app --env-file .env
 ```
 
 Flags:
 
 - `--package <name>` — which package to install: `@contfu/contfu` or `@contfu/client`
-- `--client-name <name>` — name for the new client connection
+- `--app-name <name>` — name for the new app connection
 - `--env-file <path>` — write `CONTFU_KEY=...` to this file (appends)
 - `--non-interactive` — skip all prompts; fail if required info is missing
 
-Skips steps already done: if the package is already installed, setup moves straight to client connection setup.
+Skips steps already done: if the package is already installed, setup moves straight to app connection setup.
 
 ## Discover source collections
 
@@ -65,7 +65,7 @@ contfu <resource> delete <id>
 
 ```
 -n, --name <name>        Label (required for create)
--t, --type <provider>    Provider: notion, contentful, strapi, client (default: notion)
+-t, --type <provider>    Provider: notion, contentful, strapi, app (default: notion)
     --token <token>      API token (for token-based connections)
 -d, --data <json>        Raw JSON body
 ```
@@ -75,7 +75,7 @@ contfu <resource> delete <id>
 ```
     --display-name <name>    Display name (required for create)
 -n, --name <slug>            URL-safe slug (auto-derived if omitted)
-    --connection-id <id>     Associate with a client connection (use client connection ID)
+    --connection-id <id>     Associate with a app connection (use app connection ID)
     --[no-]include-ref       Include source reference IDs
 -d, --data <json>            Raw JSON body
 ```

@@ -29,7 +29,7 @@ export const createConnection = (userId: number, input: CreateConnectionInput) =
     // CLIENT API keys are random lookup tokens stored as-is for direct DB comparison.
     // Other connection types store OAuth/API tokens that must be protected at rest.
     const encryptedCredentials =
-      input.type === ConnectionType.CLIENT
+      input.type === ConnectionType.APP
         ? (input.credentials ?? null)
         : yield* cryptoService.encryptCredentials(userId, input.credentials ?? null);
 

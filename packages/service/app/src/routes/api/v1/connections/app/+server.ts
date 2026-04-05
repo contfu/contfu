@@ -22,7 +22,7 @@ export async function POST({ request }: { request: Request }) {
     userId,
     Effect.catchTag(
       createConnection(userId, {
-        type: ConnectionType.CLIENT,
+        type: ConnectionType.APP,
         name: body.name,
         credentials: hashApiKey(apiKeyStr),
       }),

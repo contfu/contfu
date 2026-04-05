@@ -249,7 +249,7 @@ export async function create(resource: Resource, jsonData: string | undefined, v
           console.error("Missing required flag: --name");
           process.exit(1);
         }
-        const result = await client.createClientConnection(name);
+        const result = await client.createAppConnection(name);
         printJson(result);
         console.error(`\nCONTFU_KEY: ${result.apiKey}`);
         return;
@@ -319,10 +319,10 @@ export async function del(resource: Resource, id: string) {
   }
 }
 
-export async function regenerateClientKey(id: string) {
+export async function regenerateAppKey(id: string) {
   const client = getApiClient();
   try {
-    const result = await client.regenerateClientKey(id);
+    const result = await client.regenerateAppKey(id);
     console.log(result.apiKey);
   } catch (err) {
     handleApiError(err);

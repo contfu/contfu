@@ -65,7 +65,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
         log.info(
           {
             userId: auth.userId,
-            clientConnectionId: auth.clientConnectionId,
+            appConnectionId: auth.appConnectionId,
             connectionId,
           },
           "HTTP sync connection established",
@@ -89,7 +89,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
         await runSyncSession({
           streamConnectionId: connectionId,
           userId: auth.userId,
-          clientConnectionId: auth.clientConnectionId,
+          appConnectionId: auth.appConnectionId,
           requestedFromSeq: auth.requestedFromSeq,
           abortSignal: request.signal,
         });

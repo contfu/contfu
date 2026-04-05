@@ -1,5 +1,6 @@
 export * from "./blocks";
 export * from "./collections";
+export * from "./connections";
 export * from "./commands";
 export * from "./events";
 export * from "./filter-helpers";

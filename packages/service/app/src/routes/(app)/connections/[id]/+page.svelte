@@ -284,7 +284,7 @@
       <div class="space-y-3">
         <div class="flex items-center justify-between">
           <span class="text-sm text-muted-foreground">Status</span>
-          {#if connection.type === ConnectionType.CLIENT}
+          {#if connection.type === ConnectionType.APP}
             {#if connection.isConnected}
               <span class="inline-flex items-center gap-1.5 text-xs text-success">
                 <span class="h-1.5 w-1.5 rounded-full bg-success"></span>
@@ -314,7 +314,7 @@
           {/if}
         </div>
 
-        {#if connection.type !== ConnectionType.CLIENT}
+        {#if connection.type !== ConnectionType.APP}
           <div class="flex items-center gap-2">
             <Button variant="outline" size="sm" onclick={handleTestConnection} disabled={testing}>
               {#if testing}
@@ -360,7 +360,7 @@
             {/if}
             {scanning ? "scanning..." : "scan"}
           </Button>
-        {:else if connection.type === ConnectionType.CLIENT}
+        {:else if connection.type === ConnectionType.APP}
           <Button
             variant="outline"
             size="sm"
@@ -373,7 +373,7 @@
         {/if}
       </div>
 
-      {#if atCollectionLimit && connection.type === ConnectionType.CLIENT}
+      {#if atCollectionLimit && connection.type === ConnectionType.APP}
         <p class="mb-3 text-xs text-muted-foreground">
           Collection limit reached ({quota?.collections}/{quota?.maxCollections}).
           <a href="/billing" class="underline hover:text-foreground">Upgrade your plan</a> to add more.
@@ -454,7 +454,7 @@
     </section>
 
     <!-- API Key (CLIENT connections) -->
-    {#if connection.type === ConnectionType.CLIENT}
+    {#if connection.type === ConnectionType.APP}
       <section class="mb-8 rounded-lg border border-border p-4">
         <h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-muted-foreground">
           API Key
@@ -481,7 +481,7 @@
     {/if}
 
     <!-- Types Generation (CLIENT connections) -->
-    {#if connection.type === ConnectionType.CLIENT}
+    {#if connection.type === ConnectionType.APP}
       <section class="mb-8 rounded-lg border border-border p-4">
         <h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-muted-foreground">
           TypeScript Types
