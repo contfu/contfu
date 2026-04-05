@@ -2,22 +2,7 @@ import { createApiClient, ApiError, ConnectionTypeMeta } from "@contfu/svc-api";
 import type { ApiConnection, ServiceCollection, ServiceFlow } from "@contfu/svc-api";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { homedir } from "node:os";
-
-function getApiKey(): string | undefined {
-  if (process.env.CONTFU_API_KEY) return process.env.CONTFU_API_KEY;
-  try {
-    const configPath = join(homedir(), ".config", "contfu", "config.json");
-    const config = JSON.parse(readFileSync(configPath, "utf-8"));
-    return config.apiKey;
-  } catch {
-    return undefined;
-  }
-}
-
-function getBaseUrl(): string {
-  return process.env.CONTFU_URL ?? "https://contfu.com";
-}
+import { getApiKey, getBaseUrl } from "../http";
 
 function resolveTypeLabel(type: number): string {
   const meta = ConnectionTypeMeta[type as keyof typeof ConnectionTypeMeta];

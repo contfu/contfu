@@ -1,25 +1,14 @@
-import { existsSync, readFileSync, appendFileSync } from "node:fs";
+import { existsSync, appendFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { homedir } from "node:os";
 import { createInterface } from "node:readline";
 import { execSync } from "node:child_process";
+import { getApiKey } from "../http";
 
 export interface SetupOptions {
   package?: string;
   clientName?: string;
   envFile?: string;
   nonInteractive?: boolean;
-}
-
-function getApiKey(): string | undefined {
-  if (process.env.CONTFU_API_KEY) return process.env.CONTFU_API_KEY;
-  try {
-    const configPath = join(homedir(), ".config", "contfu", "config.json");
-    const config = JSON.parse(readFileSync(configPath, "utf-8"));
-    return config.apiKey;
-  } catch {
-    return undefined;
-  }
 }
 
 async function prompt(question: string): Promise<string> {

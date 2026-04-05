@@ -51,7 +51,7 @@ Returns `[{ ref, displayName, alreadyImported, icon? }]` — the databases/conte
 
 ## Resource CRUD
 
-Resources: `connections`, `collections`, `flows`, `consumers`
+Resources: `connections`, `collections`, `flows`
 
 ```bash
 contfu <resource> list [-f json]
@@ -89,20 +89,12 @@ contfu <resource> delete <id>
 -d, --data <json>            Raw JSON body
 ```
 
-### Consumer flags
-
-```
--n, --name <name>            Label (required for create)
--d, --data <json>            Raw JSON body
-```
-
 ## Type generation
 
 ```bash
 contfu connections types              # list valid provider types
 contfu connections types <id>         # TypeScript types for a connection's collections
 contfu collections types <id>         # TypeScript types for a collection
-contfu consumers types <id>           # TypeScript types for a consumer's collections
 ```
 
 ## Item queries

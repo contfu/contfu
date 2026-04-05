@@ -94,8 +94,8 @@ for await (const event of connect({
 Generate TypeScript types for type-safe queries:
 
 ```bash
-# Types for all collections connected to a client
-contfu consumers types <consumer-id>
+# Types for all collections connected to a client connection
+contfu connections types <client-connection-id>
 
 # Types for a single collection
 contfu collections types <collection-id>
@@ -104,7 +104,7 @@ contfu collections types <collection-id>
 Save the output to your project:
 
 ```bash
-contfu consumers types <id> > src/types/contfu.ts
+contfu connections types <id> > src/types/contfu.ts
 ```
 
 Then use with a typed client:
