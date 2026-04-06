@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { homedir } from "node:os";
 import { createApiClient, ApiError, type ContfuApiClient } from "@contfu/svc-api";
 
-function getApiKey(): string | undefined {
+export function getApiKey(): string | undefined {
   if (process.env.CONTFU_API_KEY) return process.env.CONTFU_API_KEY;
 
   try {
@@ -15,7 +15,7 @@ function getApiKey(): string | undefined {
   }
 }
 
-function getBaseUrl(): string {
+export function getBaseUrl(): string {
   return process.env.CONTFU_URL ?? "https://contfu.com";
 }
 

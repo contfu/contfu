@@ -11,6 +11,7 @@ import type {
   ServiceFlow,
   ServiceFlowWithDetails,
   TypeGenerationInput,
+  DiscoveredCollection,
 } from "@contfu/svc-core";
 import { ApiError } from "@contfu/svc-core";
 
@@ -55,15 +56,26 @@ async function request<T>(
   return JSON.parse(text) as T;
 }
 
+export interface CreateAppResult extends ApiConnection {
+  apiKey: string;
+}
+
+export interface RegenerateKeyResult {
+  apiKey: string;
+}
+
 export interface ContfuApiClient {
   getStatus(): Promise<ApiStatus>;
 
   listConnections(): Promise<ApiConnection[]>;
   getConnection(id: number | string): Promise<ApiConnection>;
   createConnection(body: CreateConnectionBody): Promise<ApiConnection>;
+  createAppConnection(name: string): Promise<CreateAppResult>;
+  regenerateAppKey(id: number | string): Promise<RegenerateKeyResult>;
   updateConnection(id: number | string, body: UpdateConnectionBody): Promise<ApiConnection>;
   deleteConnection(id: number | string): Promise<void>;
   getConnectionTypes(id: number | string): Promise<TypeGenerationInput[]>;
+  discoverCollections(connectionId: number | string): Promise<DiscoveredCollection[]>;
 
   listCollections(): Promise<ServiceCollection[]>;
   getCollection(id: number | string): Promise<ServiceCollection>;
@@ -93,10 +105,16 @@ export function createApiClient(
     listConnections: () => req<ApiConnection[]>("GET", "/api/v1/connections"),
     getConnection: (id) => req<ApiConnection>("GET", `/api/v1/connections/${id}`),
     createConnection: (body) => req<ApiConnection>("POST", "/api/v1/connections", body),
+    createAppConnection: (name) =>
+      req<CreateAppResult>("POST", "/api/v1/connections/app", { name }),
+    regenerateAppKey: (id) =>
+      req<RegenerateKeyResult>("POST", `/api/v1/connections/${id}/regenerate-key`),
     updateConnection: (id, body) => req<ApiConnection>("PATCH", `/api/v1/connections/${id}`, body),
     deleteConnection: (id) => req<void>("DELETE", `/api/v1/connections/${id}`),
     getConnectionTypes: (id) =>
       req<TypeGenerationInput[]>("GET", `/api/v1/connections/${id}/types`),
+    discoverCollections: (connectionId) =>
+      req<DiscoveredCollection[]>("GET", `/api/v1/connections/${connectionId}/discover`),
 
     listCollections: () => req<ServiceCollection[]>("GET", "/api/v1/collections"),
     getCollection: (id) => req<ServiceCollection>("GET", `/api/v1/collections/${id}`),

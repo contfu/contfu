@@ -8,12 +8,15 @@ import {
   update,
   del,
   listConnectionTypes,
+  regenerateAppKey,
   type CliValues,
 } from "./commands/resources";
 import { connectionTypes, collectionTypes } from "./commands/generate-types";
 import { queryItems, countItems } from "./commands/items";
 import { login, logout } from "./commands/login";
 import { status } from "./commands/status";
+import { setup } from "./commands/setup";
+import { discover } from "./commands/discover";
 
 function printUsage() {
   console.error(`Usage: contfu [--help] <command> [args...]
@@ -22,6 +25,8 @@ Commands:
   login [--no-browser]              Authenticate
   logout                            Clear stored credentials
   status                            Show resource summary
+  setup                             Set up Contfu in a project
+  discover <connection-id>          Discover available source collections
   <resource> list                   List all items
   <resource> get <id>               Get item by ID
   <resource> create [options]       Create item
@@ -29,6 +34,7 @@ Commands:
   <resource> delete <id>            Delete item
   connections types                  List valid connection types
   connections types <id>             Print TypeScript types for a connection's collections
+  connections regenerate-key <id>    Regenerate API key and write to .env
   collections types <id>             Print TypeScript types for a collection
   items query [options]             Query items from client app
   items count [options]             Count items from client app
@@ -38,13 +44,21 @@ Resources: connections, collections, flows
 collections options:
       --display-name <name>    Display name (required for create)
   -n, --name <name>            Name
+      --connection-id <id>     Associate with an app connection
       --[no-]include-ref       Include ref transmission
   -d, --data <json>            Raw JSON body (alternative to above flags)
+
+setup options:
+      --package <name>         Package to install: @contfu/contfu or @contfu/client
+      --app-name <name>        Name for the app connection
+      --env-file <path>        Write CONTFU_KEY to this .env file
+      --non-interactive        Skip all prompts (fail if required info is missing)
 
 connections options:
   -n, --name <name>            Label (required for create)
   -t, --type <provider>        Provider ID (default: notion)
       --token <token>           API token (for manual token-based connections)
+      --generate-key           Create an app connection and write its API key to .env
   -d, --data <json>            Raw JSON body (alternative to above flags)
 
 flows options:
@@ -84,11 +98,16 @@ async function main() {
       "display-name": { type: "string" },
       "source-id": { type: "string" },
       "target-id": { type: "string" },
-      "collection-id": { type: "string" },
+      "connection-id": { type: "string" },
       "include-ref": { type: "boolean" },
       "no-include-ref": { type: "boolean" },
       token: { type: "string" },
+      "generate-key": { type: "boolean" },
       format: { type: "string", short: "f" },
+      package: { type: "string" },
+      "app-name": { type: "string" },
+      "env-file": { type: "string" },
+      "non-interactive": { type: "boolean" },
     },
     allowPositionals: true,
     strict: false,
@@ -121,6 +140,26 @@ async function main() {
     return;
   }
 
+  if (cmd === "setup") {
+    await setup({
+      package: values.package as string | undefined,
+      appName: values["app-name"] as string | undefined,
+      envFile: values["env-file"] as string | undefined,
+      nonInteractive: (values["non-interactive"] as boolean | undefined) ?? false,
+    });
+    return;
+  }
+
+  if (cmd === "discover") {
+    const id = positionals[1];
+    if (!id) {
+      console.error("Usage: contfu discover <connection-id>");
+      process.exit(1);
+    }
+    await discover(id);
+    return;
+  }
+
   if (cmd === "items") {
     const action = positionals[1];
     const rest = process.argv.slice(process.argv.indexOf("items") + 2);
@@ -143,6 +182,19 @@ async function main() {
     const id = positionals[2];
 
     // Special subcommands per resource
+    if (action === "regenerate-key") {
+      if (cmd !== "connections") {
+        console.error(`'regenerate-key' is only available for connections`);
+        process.exit(1);
+      }
+      if (!id) {
+        console.error("Usage: contfu connections regenerate-key <id>");
+        process.exit(1);
+      }
+      await regenerateAppKey(id, values["env-file"] as string | undefined);
+      return;
+    }
+
     if (action === "types") {
       if (cmd === "connections") {
         if (!id) {
@@ -171,10 +223,11 @@ async function main() {
       "display-name": values["display-name"] as string | undefined,
       "source-id": values["source-id"] as string | undefined,
       "target-id": values["target-id"] as string | undefined,
-      "collection-id": values["collection-id"] as string | undefined,
+      "connection-id": values["connection-id"] as string | undefined,
       "include-ref": values["include-ref"] as boolean | undefined,
       "no-include-ref": values["no-include-ref"] as boolean | undefined,
       token: values.token as string | undefined,
+      "generate-key": values["generate-key"] as boolean | undefined,
     };
 
     switch (action) {
@@ -190,7 +243,12 @@ async function main() {
         await get(cmd, id);
         return;
       case "create":
-        await create(cmd, values.data as string | undefined, cliValues);
+        await create(
+          cmd,
+          values.data as string | undefined,
+          cliValues,
+          values["env-file"] as string | undefined,
+        );
         return;
       case "update":
       case "set":
