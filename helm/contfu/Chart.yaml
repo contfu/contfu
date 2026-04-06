@@ -2,8 +2,8 @@ apiVersion: v2
 name: contfu
 description: A Helm chart for Contfu proxy CMS on Kubernetes
 type: application
-version: 0.0.37
-appVersion: "0.0.38"
+version: 0.0.38
+appVersion: "0.0.39"
 
 dependencies:
   - name: nats
