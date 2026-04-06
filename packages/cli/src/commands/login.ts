@@ -4,12 +4,9 @@ import { promises as fs } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
 import { spawn } from "node:child_process";
+import { getBaseUrl } from "../http";
 
 const CONFIG_PATH = join(homedir(), ".config", "contfu", "config.json");
-
-function getBaseUrl(): string {
-  return process.env.CONTFU_URL ?? "https://contfu.com";
-}
 
 async function openBrowser(url: string): Promise<void> {
   const platform = process.platform;

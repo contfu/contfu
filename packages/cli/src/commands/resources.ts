@@ -15,6 +15,7 @@ import {
   type CollectionSchema,
 } from "@contfu/svc-api";
 import { getApiClient, handleApiError } from "../http";
+import { writeEnvKey, ensureGitignore } from "../env";
 
 const RESOURCES = ["connections", "collections", "flows"] as const;
 type Resource = (typeof RESOURCES)[number];
@@ -30,10 +31,11 @@ export interface CliValues {
   "display-name"?: string;
   "source-id"?: string;
   "target-id"?: string;
-  "collection-id"?: string;
+  "connection-id"?: string;
   "include-ref"?: boolean;
   "no-include-ref"?: boolean;
   token?: string;
+  "generate-key"?: boolean;
 }
 
 const REQUIRED_CREATE: Record<Resource, (keyof CliValues)[]> = {
@@ -70,7 +72,7 @@ function buildCollectionCreateBody(values: CliValues): CreateCollectionBody {
   }
   const body: CreateCollectionBody = { displayName: values["display-name"]! };
   if (values.name !== undefined) body.name = values.name;
-  if (values["collection-id"] !== undefined) body.connectionId = Number(values["collection-id"]);
+  if (values["connection-id"] !== undefined) body.connectionId = Number(values["connection-id"]);
   if (values["include-ref"] === true) body.includeRef = true;
   if (values["no-include-ref"] === true) body.includeRef = false;
   return body;
@@ -238,10 +240,27 @@ export async function get(resource: Resource, id: string) {
   }
 }
 
-export async function create(resource: Resource, jsonData: string | undefined, values: CliValues) {
+export async function create(
+  resource: Resource,
+  jsonData: string | undefined,
+  values: CliValues,
+  envFile?: string,
+) {
   const client = getApiClient();
   try {
     if (resource === "connections") {
+      if (values["generate-key"]) {
+        const name = values.name;
+        if (!name) {
+          console.error("Missing required flag: --name");
+          process.exit(1);
+        }
+        const result = await client.createAppConnection(name);
+        printJson(result);
+        writeEnvKey(envFile ?? ".env", result.apiKey);
+        ensureGitignore();
+        return;
+      }
       const body = jsonData
         ? (untransformSchema(JSON.parse(jsonData)) as CreateConnectionBody)
         : buildConnectionCreateBody(values);
@@ -302,6 +321,17 @@ export async function del(resource: Resource, id: string) {
       await client.deleteFlow(id);
     }
     console.log(`Deleted ${resource.slice(0, -1)} ${id}`);
+  } catch (err) {
+    handleApiError(err);
+  }
+}
+
+export async function regenerateAppKey(id: string, envFile?: string) {
+  const client = getApiClient();
+  try {
+    const result = await client.regenerateAppKey(id);
+    writeEnvKey(envFile ?? ".env", result.apiKey);
+    ensureGitignore();
   } catch (err) {
     handleApiError(err);
   }
