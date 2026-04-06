@@ -15,6 +15,7 @@ import {
   type CollectionSchema,
 } from "@contfu/svc-api";
 import { getApiClient, handleApiError } from "../http";
+import { writeEnvKey, ensureGitignore } from "../env";
 
 const RESOURCES = ["connections", "collections", "flows"] as const;
 type Resource = (typeof RESOURCES)[number];
@@ -239,7 +240,12 @@ export async function get(resource: Resource, id: string) {
   }
 }
 
-export async function create(resource: Resource, jsonData: string | undefined, values: CliValues) {
+export async function create(
+  resource: Resource,
+  jsonData: string | undefined,
+  values: CliValues,
+  envFile?: string,
+) {
   const client = getApiClient();
   try {
     if (resource === "connections") {
@@ -251,7 +257,8 @@ export async function create(resource: Resource, jsonData: string | undefined, v
         }
         const result = await client.createAppConnection(name);
         printJson(result);
-        console.error(`\nCONTFU_KEY: ${result.apiKey}`);
+        writeEnvKey(envFile ?? ".env", result.apiKey);
+        ensureGitignore();
         return;
       }
       const body = jsonData
@@ -319,11 +326,12 @@ export async function del(resource: Resource, id: string) {
   }
 }
 
-export async function regenerateAppKey(id: string) {
+export async function regenerateAppKey(id: string, envFile?: string) {
   const client = getApiClient();
   try {
     const result = await client.regenerateAppKey(id);
-    console.log(result.apiKey);
+    writeEnvKey(envFile ?? ".env", result.apiKey);
+    ensureGitignore();
   } catch (err) {
     handleApiError(err);
   }

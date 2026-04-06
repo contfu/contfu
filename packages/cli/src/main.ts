@@ -34,7 +34,7 @@ Commands:
   <resource> delete <id>            Delete item
   connections types                  List valid connection types
   connections types <id>             Print TypeScript types for a connection's collections
-  connections regenerate-key <id>    Regenerate API key for an app connection
+  connections regenerate-key <id>    Regenerate API key and write to .env
   collections types <id>             Print TypeScript types for a collection
   items query [options]             Query items from client app
   items count [options]             Count items from client app
@@ -58,7 +58,7 @@ connections options:
   -n, --name <name>            Label (required for create)
   -t, --type <provider>        Provider ID (default: notion)
       --token <token>           API token (for manual token-based connections)
-      --generate-key           Create an app connection and print its API key
+      --generate-key           Create an app connection and write its API key to .env
   -d, --data <json>            Raw JSON body (alternative to above flags)
 
 flows options:
@@ -191,7 +191,7 @@ async function main() {
         console.error("Usage: contfu connections regenerate-key <id>");
         process.exit(1);
       }
-      await regenerateAppKey(id);
+      await regenerateAppKey(id, values["env-file"] as string | undefined);
       return;
     }
 
@@ -243,7 +243,12 @@ async function main() {
         await get(cmd, id);
         return;
       case "create":
-        await create(cmd, values.data as string | undefined, cliValues);
+        await create(
+          cmd,
+          values.data as string | undefined,
+          cliValues,
+          values["env-file"] as string | undefined,
+        );
         return;
       case "update":
       case "set":

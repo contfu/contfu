@@ -1,8 +1,9 @@
-import { existsSync, readFileSync, appendFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { createInterface } from "node:readline";
 import { execSync } from "node:child_process";
 import { getApiKey } from "../http";
+import { getAppKey, writeEnvKey, ensureGitignore } from "../env";
 
 export interface SetupOptions {
   package?: string;
@@ -145,12 +146,6 @@ function installPackage(pkg: string): void {
   execSync(cmd, { stdio: "inherit", cwd: process.cwd() });
 }
 
-function writeEnvKey(envPath: string, key: string): void {
-  const line = `\nCONTFU_KEY=${key}\n`;
-  appendFileSync(resolve(envPath), line, "utf-8");
-  console.log(`✓ CONTFU_KEY written to ${envPath}`);
-}
-
 export async function setup(opts: SetupOptions = {}): Promise<void> {
   const nonInteractive = opts.nonInteractive ?? false;
 
@@ -211,22 +206,6 @@ export async function setup(opts: SetupOptions = {}): Promise<void> {
 
   // 4. Set up app connection
   await setupAppConnection(opts);
-}
-
-function getAppKey(): string | undefined {
-  if (process.env.CONTFU_KEY) return process.env.CONTFU_KEY;
-  const envPath = join(process.cwd(), ".env");
-  if (!existsSync(envPath)) return undefined;
-  try {
-    const content = readFileSync(envPath, "utf-8");
-    for (const line of content.split("\n")) {
-      const match = line.match(/^CONTFU_KEY=(.+)$/);
-      if (match) return match[1].trim();
-    }
-  } catch {
-    // ignore
-  }
-  return undefined;
 }
 
 async function setupAppConnection(opts: SetupOptions): Promise<void> {
@@ -328,46 +307,10 @@ async function setupAppConnection(opts: SetupOptions): Promise<void> {
     contfuKey = await createNewApp(client, opts);
   }
 
-  // Key placement
-  if (opts.envFile) {
-    writeEnvKey(opts.envFile, contfuKey);
-  } else if (nonInteractive) {
-    console.log(`\nCONTFU_KEY=${contfuKey}\n`);
-    console.log("Set this as the CONTFU_KEY environment variable in your app.");
-  } else {
-    console.log("\nHow do you want to store the CONTFU_KEY?\n");
-    const placement = await select([
-      {
-        label: "Write to .env file",
-        description: "Appends CONTFU_KEY=... to .env in the current directory",
-        value: "env",
-      },
-      {
-        label: "Print only",
-        description: "Show the key so you can store it yourself",
-        value: "print",
-      },
-    ]);
-
-    if (placement === "env") {
-      writeEnvKey(".env", contfuKey);
-      // Ensure .env is gitignored
-      const gitignorePath = join(process.cwd(), ".gitignore");
-      if (existsSync(gitignorePath)) {
-        const content = readFileSync(gitignorePath, "utf-8");
-        if (!content.includes(".env")) {
-          appendFileSync(gitignorePath, "\n.env\n", "utf-8");
-          console.log("✓ Added .env to .gitignore");
-        }
-      }
-    } else {
-      console.log(`\nCONTFU_KEY=${contfuKey}\n`);
-      console.log(
-        "Set this as the CONTFU_KEY environment variable in your app. You can use a .env file,",
-      );
-      console.log("a secrets manager, or any other method your deployment supports.");
-    }
-  }
+  // Always write key to .env file
+  const envPath = opts.envFile ?? ".env";
+  writeEnvKey(envPath, contfuKey);
+  ensureGitignore();
 
   console.log("\n✓ Setup complete. Run `contfu status` to verify your configuration.");
 }

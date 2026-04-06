@@ -1,29 +1,13 @@
 import { createApiClient, ApiError, ConnectionTypeMeta } from "@contfu/svc-api";
 import type { ApiConnection, ServiceCollection, ServiceFlow } from "@contfu/svc-api";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { getApiKey, getBaseUrl } from "../http";
+import { getAppKey } from "../env";
 
 function resolveTypeLabel(type: number): string {
   const meta = ConnectionTypeMeta[type as keyof typeof ConnectionTypeMeta];
   return meta?.label ?? `unknown(${type})`;
-}
-
-/** Detect CONTFU_KEY from env var or CWD .env file. */
-function getAppKey(): string | undefined {
-  if (process.env.CONTFU_KEY) return process.env.CONTFU_KEY;
-  const envPath = join(process.cwd(), ".env");
-  if (!existsSync(envPath)) return undefined;
-  try {
-    const content = readFileSync(envPath, "utf-8");
-    for (const line of content.split("\n")) {
-      const match = line.match(/^CONTFU_KEY=(.+)$/);
-      if (match) return match[1].trim();
-    }
-  } catch {
-    // ignore
-  }
-  return undefined;
 }
 
 export interface StatusResult {
