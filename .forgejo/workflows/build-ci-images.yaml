@@ -10,14 +10,6 @@ on:
       - package.json
       - bun.lock
       - .forgejo/workflows/build-ci-images.yaml
-  pull_request:
-    branches:
-      - main
-    paths:
-      - docker/ci-runner/Dockerfile
-      - package.json
-      - bun.lock
-      - .forgejo/workflows/build-ci-images.yaml
 
 jobs:
   # Build custom service images needed for E2E testing
