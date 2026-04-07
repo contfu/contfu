@@ -13,11 +13,12 @@ wt="$(git rev-parse --show-toplevel)"
 # If the primary worktree is the same as the worktree, exit
 [ "$pwt" = "$wt" ] && exit 0
 
-cd $pwt
-envs=$(find packages -name .env)
-# nms="node_modules $(find packages -type d -name node_modules -prune -print)"
-
-cd $wt
 bun install
-files=$envs
-for file in $files; do ln -sf $pwt/$file $file; done
+
+while IFS= read -r -d '' file; do
+  # Skip stale env files from the primary worktree if this checkout no longer has that package path.
+  target_dir="$(dirname "$wt/$file")"
+  [ -d "$target_dir" ] || continue
+
+  ln -sf "$pwt/$file" "$wt/$file"
+done < <(find "$pwt/packages" -name .env -print0)
