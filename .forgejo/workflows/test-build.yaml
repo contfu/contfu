@@ -58,7 +58,7 @@ jobs:
       E2E_FULL_FLOW: true
       NATS_SERVER: nats://localhost:4222
       CI: true
-      PLAYWRIGHT_BROWSERS_PATH: /home/runner/.cache/ms-playwright
+      PLAYWRIGHT_BROWSERS_PATH: /opt/ms-playwright
 
     steps:
       - uses: actions/checkout@v4
@@ -86,20 +86,12 @@ jobs:
         with:
           path: |
             ~/.bun/install/cache
-            /home/runner/.cache/ms-playwright
-          key: ${{ runner.os }}-bun-playwright-${{ hashFiles('**/bun.lock', '**/bun.lockb') }}
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock', '**/bun.lockb') }}
           restore-keys: |
-            ${{ runner.os }}-bun-playwright-
+            ${{ runner.os }}-bun-
 
       - name: Install dependencies
         run: ./scripts/retry-timeout.sh --timeout 60 --retries 3 -- bun install --frozen-lockfile --ignore-scripts
-
-      - name: Ensure Playwright browsers
-        run: |
-          if [ ! -d "$PLAYWRIGHT_BROWSERS_PATH/chromium_headless_shell-1208" ]; then
-            echo "Chromium not found, installing..."
-            bunx playwright@1.58.2 install chromium
-          fi
 
       - name: Build all packages
         run: NODE_ENV=test bun run build

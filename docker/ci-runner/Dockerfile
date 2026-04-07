@@ -58,6 +58,7 @@ RUN apt-get update && apt-get install -y \
 
 # Install Playwright browsers to a system-wide path readable by any user.
 # The version MUST match the project's lockfile (@playwright/test in bun.lock).
+# Rebuild and push registry.sven-rogge.com/contfu/ci-runner:latest when this changes.
 ENV PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright
 RUN bunx playwright@1.58.2 install chromium && chmod -R a+rx /opt/ms-playwright
 
