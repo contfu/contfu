@@ -1,0 +1,76 @@
+#!/usr/bin/env python3
+"""Resolve a PR review comment conversation on Forgejo.
+
+Usage: pr-resolve <comment_id>
+
+Requires a valid Forgejo web session (.forgejo-session).
+Run forgejo-login first if the session is expired.
+"""
+import os
+import subprocess
+import sys
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+BASE_URL = os.environ.get("FORGEJO_URL", "https://code.sven-rogge.com")
+REPO = os.environ.get("FORGEJO_REPO", "contfu/contfu")
+
+if len(sys.argv) < 2:
+    print("Usage: pr-resolve <comment_id>", file=sys.stderr)
+    sys.exit(1)
+
+COMMENT_ID = sys.argv[1]
+
+# Read session cookie
+session_file = os.path.join(ROOT, ".forgejo-session")
+if not os.path.exists(session_file):
+    # Try logging in
+    subprocess.run([os.path.join(SCRIPT_DIR, "forgejo-login")], check=True)
+
+session = open(session_file).read().strip()
+# Session format: FORGEJO_SESSION=cookie1; cookie2; ...
+if session.startswith("FORGEJO_SESSION="):
+    session = session[len("FORGEJO_SESSION="):]
+
+# Extract i_like_gitea value as CSRF token
+csrf = ""
+for part in session.split(";"):
+    part = part.strip()
+    if part.startswith("i_like_gitea="):
+        csrf = part.split("=", 1)[1]
+        break
+
+if not csrf:
+    print("Could not extract CSRF token from session", file=sys.stderr)
+    sys.exit(1)
+
+result = subprocess.run(
+    [
+        "curl",
+        "-sf",
+        "-o",
+        "/dev/null",
+        "-w",
+        "%{http_code}",
+        "-b",
+        session,
+        "-X",
+        "POST",
+        "-H",
+        "Content-Type: application/x-www-form-urlencoded",
+        "-d",
+        f"_csrf={csrf}&action=Resolve&comment_id={COMMENT_ID}&origin=timeline",
+        f"{BASE_URL}/{REPO}/issues/resolve_conversation",
+    ],
+    capture_output=True,
+    text=True,
+)
+
+status = result.stdout.strip()
+if status == "200":
+    print(f"Resolved comment #{COMMENT_ID}")
+else:
+    print(f"Failed to resolve comment #{COMMENT_ID} (HTTP {status})", file=sys.stderr)
+    if status in ("302", "303"):
+        print("Session may be expired. Run: .agents/skills/forgejo/scripts/forgejo-login", file=sys.stderr)
+    sys.exit(1)

@@ -15,6 +15,10 @@ Load this to avoid repeating past mistakes.
 
 ## Skills Maintenance
 
+- **Canonical skill source**: Author project skills in `.agents/skills/<name>/`. Treat `.claude/skills/` as a symlinked compatibility mirror only.
+- **Keep skills portable**: Canonical skills should stay agent-agnostic. Put Claude-only model choice, routing, and `skills:` preloading in `.claude/agents/*.md`, not in `SKILL.md`.
+- **Use relative support paths**: Inside canonical skills, reference bundled files with local paths such as `scripts/...` and `references/...`.
+
 When modifying core code, update the corresponding skill:
 
 | Code Change                | Update Skill              |

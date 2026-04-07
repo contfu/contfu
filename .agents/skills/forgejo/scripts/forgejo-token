@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Prints the Forgejo PAT from the tea CLI config.
+# Usage: forgejo-token
+#   eval "TOKEN=$(forgejo-token)"
+#   or: TOKEN=$(.agents/skills/forgejo/scripts/forgejo-token)
+set -euo pipefail
+
+CONFIG="$HOME/Library/Application Support/tea/config.yml"
+
+if [[ ! -f "$CONFIG" ]]; then
+  echo "tea config not found at $CONFIG" >&2
+  exit 1
+fi
+
+TOKEN=$(awk '/name: forgejo/{found=1} found && /token:/{print $2; exit}' "$CONFIG")
+
+if [[ -z "$TOKEN" ]]; then
+  echo "No token found for forgejo login in tea config" >&2
+  exit 1
+fi
+
+echo "$TOKEN"

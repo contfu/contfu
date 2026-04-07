@@ -7,3 +7,9 @@ Unit tests are called `*.spec.ts`, not `*.test.ts`.
 The user manages the dev server. If backend changes need a server restart to take effect, say so explicitly — don't restart it yourself.
 
 When moving code between packages, update each consuming file to import directly from the new source. Do not add re-export shims in the old location — find all usages and fix them.
+
+## Skills
+
+Canonical project skills live in `.agents/skills/<name>/`. Author and maintain the skills there, keeping them agent-agnostic and using relative bundled-file references such as `scripts/...` and `references/...`.
+
+`.claude/skills/<name>` is a compatibility mirror only and should be a symlink to the canonical skill directory. Claude-specific model selection, prompt tuning, and skill preloading belong in `.claude/agents/*.md`, not in the canonical skills.
