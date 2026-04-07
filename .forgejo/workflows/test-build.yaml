@@ -93,6 +93,18 @@ jobs:
       - name: Install dependencies
         run: ./scripts/retry-timeout.sh --timeout 60 --retries 3 -- bun install --frozen-lockfile --ignore-scripts
 
+      - name: Ensure Playwright Chromium is available
+        run: |
+          EXPECTED_BROWSER="$(node -e "console.log(require('playwright').chromium.executablePath())")"
+          if [ -x "$EXPECTED_BROWSER" ]; then
+            echo "Using preinstalled Playwright browser at $EXPECTED_BROWSER"
+            exit 0
+          fi
+
+          echo "Playwright browser missing at $EXPECTED_BROWSER"
+          echo "Installing Chromium into $PLAYWRIGHT_BROWSERS_PATH"
+          bunx playwright install chromium
+
       - name: Build all packages
         run: NODE_ENV=test bun run build
 
