@@ -49,7 +49,7 @@ contfu flows create --source-id <source-collection-id> --target-id <target-colle
 contfu connections types <app-connection-id> > src/types/contfu.ts
 ```
 
-5. Update the app's shared `queryContent` module consumers where the new collection should be queried.
+5. Update the app's shared `cq` module consumers where the new collection should be queried.
 
 ### Inspect why an app cannot see a collection
 
@@ -82,7 +82,7 @@ contfu flows create --source-id <source-id> --target-id <target-id>
 Do not stop at resource changes when the app is expected to use the new content.
 
 - regenerate types
-- keep the central `queryContent` module current
+- keep the central `cq` module current
 - import the shared query builder where new content is fetched
 - replace any placeholder content path that the new collection makes obsolete
 

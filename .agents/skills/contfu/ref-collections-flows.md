@@ -101,7 +101,7 @@ contfu flows create --source-id <source-collection-id> --target-id <events-colle
 contfu connections types <existing-app-id> > src/types/contfu.ts
 ```
 
-After that, update the app's shared `queryContent` module consumers to query the new collection where needed.
+After that, update the app's shared `cq` module consumers to query the new collection where needed.
 
 ### Multiple sources → one collection
 

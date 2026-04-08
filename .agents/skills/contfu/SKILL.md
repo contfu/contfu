@@ -119,7 +119,7 @@ When adding another collection to an existing integration, prefer this sequence:
 2. create or identify the target collection on the existing app connection
 3. create the flow
 4. regenerate connection-wide types
-5. update the central `queryContent` module consumers where the new content is needed
+5. update the central `cq` module consumers where the new content is needed
 
 ## Routing to reference docs
 

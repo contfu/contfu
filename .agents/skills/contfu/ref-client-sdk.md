@@ -129,7 +129,7 @@ For an HTTP-backed app:
 import { createHttpTypedClient } from "@contfu/client";
 import type { Collections } from "./types/contfu";
 
-export const queryContent = createHttpTypedClient<Collections>(
+export const cq = createHttpTypedClient<Collections>(
   process.env.CONTFU_SERVER_URL!,
   process.env.CONTFU_KEY!
 );
@@ -142,15 +142,15 @@ For local database access:
 import { contfu } from "@contfu/contfu";
 import type { Collections } from "./types/contfu";
 
-export const queryContent = contfu<Collections>();
+export const cq = contfu<Collections>();
 ```
 
 Then import that central module where content is needed:
 
 ```typescript
-import { queryContent } from "$lib/server/contfu";
+import { cq } from "$lib/server/contfu";
 
-const posts = await queryContent("blogPosts", { limit: 10 });
+const posts = await cq("blogPosts", { limit: 10 });
 ```
 
 ## Replace mock content with live queries
@@ -173,7 +173,7 @@ Good candidates include:
 Prefer a focused query that matches the screen's purpose, for example:
 
 ```typescript
-const events = await queryContent("events", {
+const events = await cq("events", {
   limit: 20,
   sort: "startDate",
 });
