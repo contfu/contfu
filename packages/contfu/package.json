@@ -43,8 +43,8 @@
     "build": "bun run build:lib && bun run build:db:node && bun run build:db:bun"
   },
   "dependencies": {
-    "@contfu/connect": "workspace:*",
-    "@contfu/core": "workspace:*",
+    "@contfu/connect": "workspace:^",
+    "@contfu/core": "workspace:^",
     "drizzle-orm": "1.0.0-beta.19"
   },
   "devDependencies": {
