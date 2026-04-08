@@ -36,7 +36,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@contfu/core": "workspace:*"
+    "@contfu/core": "workspace:^"
   },
   "devDependencies": {
     "typescript": "^5.9.3"

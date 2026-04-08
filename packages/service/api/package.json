@@ -30,6 +30,6 @@
     "pack": "bun ../../../scripts/pack-package.ts ."
   },
   "dependencies": {
-    "@contfu/svc-core": "workspace:*"
+    "@contfu/svc-core": "workspace:^"
   }
 }
