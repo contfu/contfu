@@ -21,11 +21,18 @@ npm install @contfu/connect
 Add to `.env` (or your framework's env config):
 
 ```
-CONTFU_URL=https://app.contfu.com
-CONTFU_API_KEY=<your-client-api-key>
+CONTFU_KEY=<your-client-api-key>
 ```
 
-The API key comes from creating a APP connection (see `ref-project-setup.md` step 5).
+The API key comes from creating an app connection (see `ref-project-setup.md` step 2). `contfu setup` writes this automatically when `--env-file` is passed.
+
+When using `@contfu/client` (HTTP mode), also add the URL of the user's `@contfu/server` instance:
+
+```
+CONTFU_SERVER_URL=<user-provided server URL>
+```
+
+This is not needed for `@contfu/contfu` (local sync mode).
 
 ## HTTP query client
 
@@ -35,8 +42,8 @@ For querying content from any environment (browser, server, edge):
 import { createHttpTypedClient } from "@contfu/client";
 
 const contfu = createHttpTypedClient(
-  process.env.CONTFU_URL!,
-  process.env.CONTFU_API_KEY!
+  process.env.CONTFU_SERVER_URL!,
+  process.env.CONTFU_KEY!
 );
 
 // Query items from a collection
@@ -76,7 +83,7 @@ For server-side apps that need live content updates:
 import { connect } from "@contfu/connect";
 
 for await (const event of connect({
-  key: Buffer.from(process.env.CONTFU_API_KEY!, "base64url"),
+  key: Buffer.from(process.env.CONTFU_KEY!, "base64url"),
   connectionEvents: true,
 })) {
   switch (event.type) {
@@ -123,8 +130,8 @@ import { createHttpTypedClient } from "@contfu/client";
 import type { Collections } from "./types/contfu";
 
 export const queryContent = createHttpTypedClient<Collections>(
-  process.env.CONTFU_URL!,
-  process.env.CONTFU_API_KEY!
+  process.env.CONTFU_SERVER_URL!,
+  process.env.CONTFU_KEY!
 );
 ```
 

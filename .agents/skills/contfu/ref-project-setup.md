@@ -27,25 +27,22 @@ contfu connections create --name "<label>" --type <provider> --token <token>
 
 If a CMS connection already exists, say so and move to step 2.
 
-## Step 2 — App connection
+## Step 2 — App connection + SDK install
 
 Create the app connection **before** collections — you need its ID to associate collections with it.
 
-If no APP connection (type 0) exists, run setup:
+Always run `contfu setup` for this step — it installs the SDK package AND creates the app connection in one go:
 
 ```bash
-contfu setup
+contfu setup --non-interactive --package @contfu/client --app-name <project-name> --env-file .env
 ```
 
-Setup will install the SDK package, create the app connection, and offer to write `CONTFU_KEY` to `.env`.
+- `--package @contfu/client` — for apps that query a remote Contfu server (most cases)
+- `--package @contfu/contfu` — only for apps that embed a local Contfu database
+- `--env-file .env` — writes `CONTFU_KEY=...` to the env file (appends)
+- `--app-name` — use a slug matching the project name
 
-For non-interactive / agent-driven setup:
-
-```bash
-contfu setup --non-interactive --package @contfu/client --app-name my-app --env-file .env
-```
-
-If a APP connection already exists, note its `id` from `contfu connections list -f json` — you'll need it in step 3.
+Setup skips steps already done: if the package is already installed, it moves straight to app connection setup. If an app connection already exists, skip this step and note its `id` from `contfu connections list -f json`.
 
 ## Step 3 — Collections
 
@@ -70,16 +67,32 @@ To create new collections:
 contfu collections create --display-name "Blog Posts" --connection-id <client-id>
 ```
 
-## Step 4 — Flows
+## Step 4 — Import source collections (web UI required)
+
+Source collections from `contfu discover` have UUID refs but no numeric IDs yet. Before creating flows, the user must import the needed databases via the web UI:
+
+```
+https://contfu.com/connections/<cms-connection-id>
+```
+
+Ask the user to import each database they want to sync. Once imported, numeric source collection IDs appear in:
+
+```bash
+contfu connections get <cms-connection-id>
+```
+
+Each imported source collection in the response has an `id` field — use that as `--source-id`.
+
+## Step 5 — Flows
 
 Check which collections already have flows. Suggest wiring up any that don't:
 
 > "Authors" doesn't have a flow yet. Want me to connect it to your Notion workspace?
 
-To create a flow, you need the source collection ID and target collection ID. Source collections come from the CMS connection — check with `contfu connections get <id>`.
+To create a flow, you need the **numeric** source collection ID (from the imported source collections in `contfu connections get`) and the target collection ID.
 
 ```bash
-contfu flows create --source-id <src> --target-id <tgt>
+contfu flows create --source-id <numeric-src-id> --target-id <tgt>
 ```
 
 ## Step 5 — SDK setup

@@ -28,7 +28,7 @@
     },
     "packages/cli": {
       "name": "@contfu/cli",
-      "version": "0.0.4",
+      "version": "0.0.5",
       "bin": {
         "contfu": "dist/main.js",
       },
@@ -87,7 +87,7 @@
     },
     "packages/core": {
       "name": "@contfu/core",
-      "version": "0.0.3",
+      "version": "0.0.4",
       "devDependencies": {
         "@typescript/native-preview": "^7.0.0-dev.20260325.1",
         "typescript": "^5.9.3",
@@ -161,14 +161,14 @@
     },
     "packages/service/api": {
       "name": "@contfu/svc-api",
-      "version": "0.0.1",
+      "version": "0.0.2",
       "dependencies": {
         "@contfu/svc-core": "workspace:*",
       },
     },
     "packages/service/app": {
       "name": "@contfu/svc-app",
-      "version": "0.0.28",
+      "version": "0.0.40",
       "dependencies": {
         "@css-inline/css-inline": "0.20.0",
         "sharp": "0.34.5",
@@ -256,7 +256,7 @@
     },
     "packages/service/core": {
       "name": "@contfu/svc-core",
-      "version": "0.0.4",
+      "version": "0.0.5",
       "dependencies": {
         "@contfu/core": "workspace:*",
       },

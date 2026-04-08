@@ -64,6 +64,8 @@ contfu discover <connection-id>
 
 This returns the available source collections (Notion databases, Strapi content types) with `ref`, `displayName`, and `alreadyImported` fields. Present them as a pick list — the user selects which ones to import.
 
+**IMPORTANT — source collection import required before flows:** `discover` only shows what's available; it does not import anything. Any collection with `alreadyImported: false` must be imported via the web UI before it can be used in a flow. Direct the user to `https://contfu.com/connections/<id>` and ask them to import the needed databases. Once imported, numeric source collection IDs become available via `contfu connections get <id>` — use those IDs (not the UUID refs) as `--source-id` when creating flows.
+
 Route the work into one of these modes after discovery:
 
 - **Full integration** — the app is not fully wired yet, and you should carry the work through connection, collections, flows, generated types, and code integration.

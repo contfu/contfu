@@ -43,13 +43,18 @@ A flow connects a **source collection** (from a CMS connection) to a **target co
 
 ### Finding source collection IDs
 
-Source collections are discovered automatically when a CMS connection is created. View them:
+Source collections must be **imported via the web UI** before they have numeric IDs. `contfu discover` only shows what's available (UUID refs) — it does not import.
+
+To import:
+1. Go to `https://contfu.com/connections/<cms-connection-id>` in the browser
+2. Import the needed databases/content types
+3. After import, numeric IDs are available:
 
 ```bash
-contfu connections get <connection-id>
+contfu connections get <cms-connection-id>
 ```
 
-Each source collection has an ID you'll use as `--source-id`.
+Each imported source collection in the response has an `id` field — use that as `--source-id`. **Never use UUID refs as `--source-id`** — the CLI expects numeric IDs only.
 
 ### Create a flow
 
