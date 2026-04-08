@@ -134,51 +134,51 @@ jobs:
       - name: Publish @contfu/core
         if: needs.check-version.outputs.core-npm-changed == 'true'
         working-directory: ./packages/core
-        run: bun pm pack && npm publish *.tgz --access public --provenance
+        run: bun run pack && npm publish *.tgz --access public --provenance
       - name: Publish @contfu/connect
         if: needs.check-version.outputs.connect-npm-changed == 'true'
         working-directory: ./packages/connect
-        run: bun pm pack && npm publish *.tgz --access public --provenance
+        run: bun run pack && npm publish *.tgz --access public --provenance
       - name: Publish @contfu/contfu
         if: needs.check-version.outputs.contfu-npm-changed == 'true'
         working-directory: ./packages/contfu
-        run: bun pm pack && npm publish *.tgz --access public --provenance
+        run: bun run pack && npm publish *.tgz --access public --provenance
       - name: Publish @contfu/client
         if: needs.check-version.outputs.client-npm-changed == 'true'
         working-directory: ./packages/client
-        run: bun pm pack && npm publish *.tgz --access public --provenance
+        run: bun run pack && npm publish *.tgz --access public --provenance
       - name: Publish @contfu/server
         if: needs.check-version.outputs.server-npm-changed == 'true'
         working-directory: ./packages/server
-        run: bun pm pack && npm publish *.tgz --access public --provenance
+        run: bun run pack && npm publish *.tgz --access public --provenance
       - name: Publish @contfu/bun-file-store
         if: needs.check-version.outputs.bun-file-store-npm-changed == 'true'
         working-directory: ./packages/media/bun-file-store
-        run: bun pm pack && npm publish *.tgz --access public --provenance
+        run: bun run pack && npm publish *.tgz --access public --provenance
       - name: Publish @contfu/media-optimizer
         if: needs.check-version.outputs.media-optimizer-npm-changed == 'true'
         working-directory: ./packages/media/media-optimizer
-        run: bun pm pack && npm publish *.tgz --access public --provenance
+        run: bun run pack && npm publish *.tgz --access public --provenance
       - name: Publish @contfu/media-optimizer-remote
         if: needs.check-version.outputs.media-optimizer-remote-npm-changed == 'true'
         working-directory: ./packages/media/media-optimizer-remote
-        run: bun pm pack && npm publish *.tgz --access public --provenance
+        run: bun run pack && npm publish *.tgz --access public --provenance
       - name: Publish @contfu/svc-core
         if: needs.check-version.outputs.svc-core-npm-changed == 'true'
         working-directory: ./packages/service/core
-        run: bun pm pack && npm publish *.tgz --access public --provenance
+        run: bun run pack && npm publish *.tgz --access public --provenance
       - name: Publish @contfu/svc-api
         if: needs.check-version.outputs.svc-api-npm-changed == 'true'
         working-directory: ./packages/service/api
-        run: bun pm pack && npm publish *.tgz --access public --provenance
+        run: bun run pack && npm publish *.tgz --access public --provenance
       - name: Publish @contfu/cli
         if: needs.check-version.outputs.cli-npm-changed == 'true'
         working-directory: ./packages/cli
-        run: bun pm pack && npm publish *.tgz --access public --provenance
+        run: bun run pack && npm publish *.tgz --access public --provenance
       - name: Publish @contfu/ui
         if: needs.check-version.outputs.ui-npm-changed == 'true'
         working-directory: ./packages/ui
-        run: bun pm pack && npm publish *.tgz --access public --provenance
+        run: bun run pack && npm publish *.tgz --access public --provenance
 
   publish-docker:
     needs: check-version
