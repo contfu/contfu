@@ -1,5 +1,7 @@
 # Client SDK Setup
 
+Use this reference when the project needs real query code, generated types, or replacement of mock content with live Contfu data.
+
 ## Installation
 
 ```bash
@@ -49,6 +51,8 @@ const total = await contfu.items.count({
   collection: "blog-posts",
 });
 ```
+
+If the repo uses a local Contfu database instead of HTTP, instantiate the local typed client from `@contfu/contfu` instead of `@contfu/client`.
 
 ### Query options
 
@@ -107,20 +111,69 @@ Save the output to your project:
 contfu connections types <id> > src/types/contfu.ts
 ```
 
-Then use with a typed client:
+Prefer connection-wide types for app integrations so the client can query every collection the app connection can see. Re-run generation before writing or updating query code if collections or mappings changed.
+
+Set up the query builder once in a central module, and populate its generic with the generated `Collections` type. Import that shared query builder wherever content is fetched.
+
+For an HTTP-backed app:
 
 ```typescript
+// src/lib/server/contfu.ts
 import { createHttpTypedClient } from "@contfu/client";
 import type { Collections } from "./types/contfu";
 
-const contfu = createHttpTypedClient<Collections>(
+export const queryContent = createHttpTypedClient<Collections>(
   process.env.CONTFU_URL!,
   process.env.CONTFU_API_KEY!
 );
-
-// Now queries are typed against your schema
-const posts = await contfu("blogPosts", { limit: 10 });
 ```
+
+For local database access:
+
+```typescript
+// src/lib/server/contfu.ts
+import { contfu } from "@contfu/contfu";
+import type { Collections } from "./types/contfu";
+
+export const queryContent = contfu<Collections>();
+```
+
+Then import that central module where content is needed:
+
+```typescript
+import { queryContent } from "$lib/server/contfu";
+
+const posts = await queryContent("blogPosts", { limit: 10 });
+```
+
+## Replace mock content with live queries
+
+When setup is happening inside an existing app, do not stop after package installation.
+
+1. Search the repo for mock arrays, placeholder fixtures, static demo cards, or temporary loaders that represent content now available in Contfu.
+2. Trace where those values enter the UI.
+3. Generate or refresh the Contfu `Collections` types with the CLI.
+4. Create or update the central typed Contfu query-builder module in the project's normal server/data layer.
+5. Replace the placeholder path with real queries by importing that shared module where needed.
+6. Delete the obsolete mock data and unused imports.
+
+Good candidates include:
+
+- hardcoded `events`, `posts`, `projects`, or `authors` arrays
+- fixture files imported only to render content lists
+- TODO comments saying to "replace with CMS" or "wire up real data later"
+
+Prefer a focused query that matches the screen's purpose, for example:
+
+```typescript
+const events = await queryContent("events", {
+  limit: 20,
+  sort: "startDate",
+});
+```
+
+If the query belongs in a route loader, server component, or shared repository module, keep it there. Avoid moving data fetching into the view layer unless the project already follows that pattern.
+Do not instantiate fresh Contfu clients in each consumer file when a shared typed query-builder module can be imported instead.
 
 ## Framework integration tips
 

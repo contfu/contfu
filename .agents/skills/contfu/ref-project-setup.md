@@ -84,4 +84,4 @@ contfu flows create --source-id <src> --target-id <tgt>
 
 ## Step 5 — SDK setup
 
-Load `ref-client-sdk.md` for package installation, type generation, and code examples.
+Load `ref-client-sdk.md` for package installation, type generation, typed client setup, and replacing mock content with live Contfu queries.

@@ -14,6 +14,7 @@ contfu collections create --display-name "Blog Posts"
 ```
 
 When operating in a project/client context, always pass `--connection-id <client-id>` so the collection is associated with the client. The client ID comes from the connection created in the setup step.
+When extending an existing app integration, reuse the existing app connection ID so the new collection is visible to the same app.
 
 ### List & inspect
 
@@ -84,6 +85,18 @@ The simplest setup. One Notion database flows into one Contfu collection:
 contfu collections create --display-name "Blog Posts" --connection-id <client-id>
 contfu flows create --source-id <notion-db-id> --target-id <collection-id>
 ```
+
+### Add another collection to an existing app connection
+
+When the app is already integrated and you need one more content bucket:
+
+```bash
+contfu collections create --display-name "Events" --connection-id <existing-app-id>
+contfu flows create --source-id <source-collection-id> --target-id <events-collection-id>
+contfu connections types <existing-app-id> > src/types/contfu.ts
+```
+
+After that, update the app's shared `queryContent` module consumers to query the new collection where needed.
 
 ### Multiple sources → one collection
 
