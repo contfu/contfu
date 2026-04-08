@@ -116,11 +116,9 @@ jobs:
   build-docker:
     name: Build Docker images
     timeout-minutes: 10
-    runs-on: ubuntu-latest
+    runs-on: docker
     steps:
       - uses: actions/checkout@v4
-      - name: Install Docker CLI
-        run: apt-get update -qq && apt-get install -y -qq docker.io
       - name: Build service image
         run: docker build -f docker/Dockerfile.service .
       - name: Build UI image
