@@ -1,6 +1,6 @@
 {
   "name": "@contfu/server",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -23,6 +23,9 @@
     }
   },
   "publishConfig": {
+    "bin": {
+      "contfu-server": "./dist/bin.js"
+    },
     "exports": {
       ".": {
         "types": "./dist/index.d.ts",
@@ -36,7 +39,7 @@
   "scripts": {
     "build": "tsc -b",
     "dev": "bun run src/bin.ts",
-    "pack": "bun pm pack",
+    "pack": "bun ../../scripts/pack-package.ts .",
     "clean": "rm -rf dist"
   },
   "dependencies": {

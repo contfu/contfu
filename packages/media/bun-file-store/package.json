@@ -1,6 +1,6 @@
 {
   "name": "@contfu/bun-file-store",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -25,7 +25,7 @@
   "scripts": {
     "test": "bun test",
     "build": "tsc -b",
-    "pack": "bun pm pack",
+    "pack": "bun ../../../scripts/pack-package.ts .",
     "clean": "rm -rf dist .tmp"
   },
   "dependencies": {
