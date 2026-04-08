@@ -32,7 +32,7 @@
   },
   "scripts": {
     "build": "tsc -b",
-    "pack": "bun pm pack",
+    "pack": "bun ../../scripts/pack-package.ts .",
     "clean": "rm -rf dist"
   },
   "dependencies": {

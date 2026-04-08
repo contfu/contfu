@@ -39,7 +39,7 @@
     "build:lib": "tsc -b",
     "build:db:node": "bun build ./src/infra/db/db-node.ts --target=node --outfile ./dist/db-node.js --external node:sqlite --external drizzle-orm/node-sqlite --external drizzle-orm/node-sqlite/migrator",
     "build:db:bun": "bun build ./src/infra/db/db-bun.ts --target=bun --outfile ./dist/db-bun.js",
-    "pack": "bun pm pack",
+    "pack": "bun ../../scripts/pack-package.ts .",
     "build": "bun run build:lib && bun run build:db:node && bun run build:db:bun"
   },
   "dependencies": {

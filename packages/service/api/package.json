@@ -27,7 +27,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "pack": "bun pm pack"
+    "pack": "bun ../../../scripts/pack-package.ts ."
   },
   "dependencies": {
     "@contfu/svc-core": "workspace:*"
