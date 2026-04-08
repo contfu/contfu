@@ -116,7 +116,12 @@ jobs:
   build-docker:
     name: Build Docker images
     timeout-minutes: 10
-    runs-on: docker
+    runs-on: ubuntu-latest
+    container:
+      image: registry.sven-rogge.com/contfu/ci-runner:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.REGISTRY_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - name: Build service image
