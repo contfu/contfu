@@ -6,10 +6,10 @@ on:
       - main
 
 jobs:
-  lint-and-test:
-    name: Lint & Unit Tests
+  lint-test-build:
+    name: Lint Test Build
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 30
     permissions:
       packages: read
     container:
@@ -18,9 +18,20 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.REGISTRY_TOKEN }}
     env:
+      E2E_FULL_FLOW: true
+      NATS_SERVER: nats://localhost:4222
       CI: true
+      PLAYWRIGHT_BROWSERS_PATH: /opt/ms-playwright
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock', '**/bun.lockb') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
 
       - name: Install dependencies
         run: ./scripts/retry-timeout.sh --timeout 60 --retries 3 -- bun install --frozen-lockfile --ignore-scripts
@@ -40,29 +51,6 @@ jobs:
       - name: Run unit tests
         run: bun run test
 
-  e2e:
-    name: Build & E2E Tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    permissions:
-      packages: read
-
-    # Run job in a container to enable automatic service networking
-    container:
-      image: registry.sven-rogge.com/contfu/ci-runner:latest
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.REGISTRY_TOKEN }}
-
-    env:
-      E2E_FULL_FLOW: true
-      NATS_SERVER: nats://localhost:4222
-      CI: true
-      PLAYWRIGHT_BROWSERS_PATH: /opt/ms-playwright
-
-    steps:
-      - uses: actions/checkout@v4
-
       - name: Start NATS JetStream
         run: |
           if ! command -v nats-server &>/dev/null; then
@@ -81,17 +69,6 @@ jobs:
           done
           echo "ERROR: NATS failed to start"
           exit 1
-
-      - uses: actions/cache@v4
-        with:
-          path: |
-            ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock', '**/bun.lockb') }}
-          restore-keys: |
-            ${{ runner.os }}-bun-
-
-      - name: Install dependencies
-        run: ./scripts/retry-timeout.sh --timeout 60 --retries 3 -- bun install --frozen-lockfile --ignore-scripts
 
       - name: Verify Playwright Chromium is available
         run: |
