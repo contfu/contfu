@@ -1,6 +1,6 @@
 {
   "name": "@contfu/server",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -43,9 +43,9 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@contfu/connect": "workspace:*",
-    "@contfu/contfu": "workspace:*",
-    "@contfu/core": "workspace:*"
+    "@contfu/connect": "workspace:^",
+    "@contfu/contfu": "workspace:^",
+    "@contfu/core": "workspace:^"
   },
   "devDependencies": {
     "@types/bun": "^1.3.11",

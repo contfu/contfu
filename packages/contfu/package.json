@@ -1,6 +1,6 @@
 {
   "name": "@contfu/contfu",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -43,8 +43,8 @@
     "build": "bun run build:lib && bun run build:db:node && bun run build:db:bun"
   },
   "dependencies": {
-    "@contfu/connect": "workspace:*",
-    "@contfu/core": "workspace:*",
+    "@contfu/connect": "workspace:^",
+    "@contfu/core": "workspace:^",
     "drizzle-orm": "1.0.0-beta.19"
   },
   "devDependencies": {
