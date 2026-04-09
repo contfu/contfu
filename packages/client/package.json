@@ -1,6 +1,6 @@
 {
   "name": "@contfu/client",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -36,7 +36,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@contfu/core": "workspace:*"
+    "@contfu/core": "workspace:^"
   },
   "devDependencies": {
     "typescript": "^5.9.3"
