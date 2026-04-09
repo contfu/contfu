@@ -66,12 +66,29 @@ export interface UpdateFlowBody {
   includeRef?: boolean;
 }
 
-/** A collection available for import from a CMS connection. */
-export interface DiscoveredCollection {
+/** A collection available to scan from a CMS connection. */
+export interface ScannedCollection {
   ref: string;
   displayName: string;
-  alreadyImported: boolean;
+  alreadyAdded: boolean;
   icon?: { type: "emoji"; value: string } | { type: "image"; url: string } | null;
+}
+
+export interface AddScannedCollectionsBody {
+  refs?: string[];
+  all?: boolean;
+}
+
+export interface AddedScannedCollection {
+  ref: string;
+  id: number;
+  displayName: string;
+}
+
+export interface AddScannedCollectionsResult {
+  added: AddedScannedCollection[];
+  alreadyAdded: ScannedCollection[];
+  scanned: number;
 }
 
 /** Error thrown by the API client when the server returns a non-ok response. */

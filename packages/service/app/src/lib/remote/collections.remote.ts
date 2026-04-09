@@ -4,15 +4,7 @@ import { runWithUser } from "$lib/server/run";
 import { getStreamServer, getSyncWorkerManager } from "$lib/server/startup";
 import { getUserId } from "$lib/server/user";
 import { processIconForStorage } from "$lib/server/icon-image";
-import { ConnectionType, EventType, type CollectionIcon, type WireEvent } from "@contfu/core";
-import {
-  iterateDataSources,
-  extractNotionIcon,
-  notion,
-  notionPropertiesToSchema,
-  isFullDataSource,
-} from "@contfu/svc-sources/notion";
-import { iterateContentTypes } from "@contfu/svc-sources/strapi";
+import { EventType, type CollectionIcon, type WireEvent } from "@contfu/core";
 
 function parseIconJson(raw: string | undefined): CollectionIcon | null | undefined {
   if (!raw) return undefined;
@@ -23,16 +15,22 @@ function parseIconJson(raw: string | undefined): CollectionIcon | null | undefin
     return undefined;
   }
 }
-import type { CollectionSchema, RefTargets } from "@contfu/svc-core";
+import type {
+  AddScannedCollectionsResult,
+  CollectionSchema,
+  RefTargets,
+  ScannedCollection,
+} from "@contfu/svc-core";
+import { addScannedCollections as addScannedCollectionsFeature } from "@contfu/svc-backend/features/collections/addScannedCollections";
 import { createCollection as createCollectionFeature } from "@contfu/svc-backend/features/collections/createCollection";
 import { deleteCollection as deleteCollectionFeature } from "@contfu/svc-backend/features/collections/deleteCollection";
 import { getCollection as getCollectionFeature } from "@contfu/svc-backend/features/collections/getCollection";
 import { getCollectionSchema as getCollectionSchemaFeature } from "@contfu/svc-backend/features/collections/getCollectionSchema";
 import { listCollections as listCollectionsFeature } from "@contfu/svc-backend/features/collections/listCollections";
 import { listCollectionsByConnection as listCollectionsByConnectionFeature } from "@contfu/svc-backend/features/collections/listCollectionsByConnection";
+import { scanCollections as scanCollectionsFeature } from "@contfu/svc-backend/features/collections/scanCollections";
 import { updateCollection as updateCollectionFeature } from "@contfu/svc-backend/features/collections/updateCollection";
 import { listFlowsByCollection } from "@contfu/svc-backend/features/flows/listFlowsByCollection";
-import { getConnectionWithCredentials } from "@contfu/svc-backend/features/connections/getConnectionWithCredentials";
 import { encodeId, idSchema } from "@contfu/svc-backend/infra/ids";
 import { error, redirect } from "@sveltejs/kit";
 import * as v from "valibot";
@@ -251,135 +249,48 @@ export const getCollectionSchema = query(
   },
 );
 
-export type DiscoveredCollection = {
-  ref: string;
-  displayName: string;
-  alreadyImported: boolean;
-  icon?: CollectionIcon | null;
-};
+export type { ScannedCollection };
 
 /**
- * Discover available collections from a connection (e.g. Notion databases).
+ * Scan available collections from a connection (e.g. Notion databases).
  */
-export const discoverCollections = query(
+export const scanCollections = query(
   v.object({ connectionId: idSchema("connection") }),
-  async ({ connectionId }): Promise<DiscoveredCollection[]> => {
+  async ({ connectionId }): Promise<ScannedCollection[]> => {
     const userId = getUserId();
-    const connection = await runWithUser(userId, getConnectionWithCredentials(connectionId));
-    if (!connection) error(404, "Connection not found");
-
-    const credentials = connection.credentials?.toString("utf-8") ?? "";
-    if (!credentials) return [];
-
-    if (connection.type !== ConnectionType.NOTION && connection.type !== ConnectionType.STRAPI)
-      return [];
-
-    // Get already-imported refs for this connection
-    const existing = await runWithUser(userId, listCollectionsByConnectionFeature(connectionId));
-    const importedRefs = new Set(existing.map((c) => c.refString).filter(Boolean));
-
-    const discovered: DiscoveredCollection[] = [];
-
-    if (connection.type === ConnectionType.NOTION) {
-      for await (const ds of iterateDataSources(credentials)) {
-        const titleParts = (ds as { title?: Array<{ plain_text?: string }> }).title ?? [];
-        const displayName = titleParts.map((t) => t.plain_text ?? "").join("") || "Untitled";
-        discovered.push({
-          ref: ds.id,
-          displayName,
-          alreadyImported: importedRefs.has(ds.id),
-          icon: extractNotionIcon(ds),
-        });
-      }
-    } else if (connection.type === ConnectionType.STRAPI) {
-      const url = connection.url ?? "";
-      for await (const ct of iterateContentTypes(url, credentials)) {
-        discovered.push({
-          ref: ct.uid,
-          displayName: ct.info.displayName,
-          alreadyImported: importedRefs.has(ct.uid),
-        });
-      }
+    try {
+      return await runWithUser(userId, scanCollectionsFeature(connectionId));
+    } catch (err) {
+      if ((err as { _tag?: string })._tag === "NotFoundError") error(404, "Connection not found");
+      throw err;
     }
-
-    return discovered;
   },
 );
 
 /**
- * Import multiple collections from a connection at once.
+ * Add scanned collections from a connection.
  */
-export const importCollections = command(
+export const addScannedCollections = command(
   v.object({
     connectionId: idSchema("connection"),
-    items: v.array(
-      v.object({
-        ref: v.string(),
-        displayName: v.string(),
-      }),
-    ),
+    refs: v.optional(v.array(v.string())),
+    all: v.optional(v.boolean()),
   }),
-  async (data) => {
+  async (data): Promise<AddScannedCollectionsResult> => {
     const userId = getUserId();
-
-    // Fetch connection once (needed for schema seeding)
-    const connection = await runWithUser(userId, getConnectionWithCredentials(data.connectionId));
-
-    // Pre-fetch all Notion data sources in parallel to avoid sequential round-trips.
-    // Schema seeding is best-effort so failures are silenced individually.
-    type SeedData = {
-      schema: import("@contfu/svc-core").CollectionSchema;
-      icon: CollectionIcon | null | undefined;
-    } | null;
-    let seedMap = new Map<string, SeedData>();
-    if (connection?.type === ConnectionType.NOTION && connection.credentials) {
-      const auth = connection.credentials.toString("utf-8");
-      const fetched = await Promise.allSettled(
-        data.items.map(async (item) => {
-          const dataSource = await notion.dataSources.retrieve({
-            auth,
-            data_source_id: item.ref,
-          });
-          if (!isFullDataSource(dataSource)) return { ref: item.ref, seed: null };
-          const schema = notionPropertiesToSchema(dataSource.properties);
-          const icon = await processIconForStorage(extractNotionIcon(dataSource));
-          return { ref: item.ref, seed: { schema, icon } };
-        }),
-      );
-      for (const result of fetched) {
-        if (result.status === "fulfilled" && result.value) {
-          seedMap.set(result.value.ref, result.value.seed);
-        }
-      }
-    }
-
-    // Create collections sequentially to avoid quota race conditions.
-    const results: Array<{ ref: string; id: string }> = [];
-    for (const item of data.items) {
-      const seed = seedMap.get(item.ref);
-      const collection = await runWithUser(
+    try {
+      return await runWithUser(
         userId,
-        createCollectionFeature(userId, {
-          displayName: item.displayName,
+        addScannedCollectionsFeature(userId, {
           connectionId: data.connectionId,
-          ref: item.ref,
-          icon: seed?.icon,
+          refs: data.refs,
+          all: data.all,
+          processIcon: processIconForStorage,
         }),
       );
-
-      if (seed?.schema) {
-        try {
-          await runWithUser(
-            userId,
-            updateCollectionFeature(collection.id, { schema: seed.schema }),
-          );
-        } catch {
-          // Schema seeding is best-effort; collection is still usable
-        }
-      }
-
-      results.push({ ref: item.ref, id: encodeId("collection", collection.id) });
+    } catch (err) {
+      if ((err as { _tag?: string })._tag === "NotFoundError") error(404, "Connection not found");
+      throw err;
     }
-    return { imported: results.length };
   },
 );

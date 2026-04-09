@@ -8,3 +8,5 @@ export * from "./deleteCollection";
 export * from "./listCollections";
 export * from "./listCollectionsByConnection";
 export * from "./mapToBackendCollection";
+export * from "./scanCollections";
+export * from "./addScannedCollections";

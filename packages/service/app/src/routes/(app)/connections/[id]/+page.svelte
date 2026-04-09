@@ -17,9 +17,9 @@
   } from "$lib/remote/connections.remote";
   import {
     getCollectionsByConnection,
-    discoverCollections,
-    importCollections,
-    type DiscoveredCollection,
+    scanCollections,
+    addScannedCollections,
+    type ScannedCollection,
   } from "$lib/remote/collections.remote";
   import { getQuotaUsage } from "$lib/remote/billing.remote";
   import {
@@ -49,7 +49,7 @@
 
   // Scan collections
   let scanning = $state(false);
-  let scanned = $state<DiscoveredCollection[]>([]);
+  let scanned = $state<ScannedCollection[]>([]);
   let selectedRefs = $state<Set<string>>(new Set());
   let addingToContfu = $state(false);
   let scanError = $state<string | null>(null);
@@ -72,7 +72,7 @@
     }
   });
   const addableCount = $derived(
-    scanned.filter((d) => selectedRefs.has(d.ref) && !d.alreadyImported).length,
+    scanned.filter((d) => selectedRefs.has(d.ref) && !d.alreadyAdded).length,
   );
   const remainingCollections = $derived(
     quota === null || quota.maxCollections === -1 ? Infinity : quota.maxCollections - quota.collections,
@@ -87,8 +87,8 @@
     scanError = null;
     scanned = [];
     try {
-      scanned = await discoverCollections({ connectionId: id });
-      selectedRefs = new Set(scanned.filter((d) => !d.alreadyImported).map((d) => d.ref));
+      scanned = await scanCollections({ connectionId: id });
+      selectedRefs = new Set(scanned.filter((d) => !d.alreadyAdded).map((d) => d.ref));
     } catch (e) {
       scanError = e instanceof Error ? e.message : "Scan failed";
     } finally {
@@ -108,14 +108,14 @@
     scanError = null;
     try {
       const items = scanned
-        .filter((d) => selectedRefs.has(d.ref) && !d.alreadyImported)
-        .map((d) => ({ ref: d.ref, displayName: d.displayName }));
-      await importCollections({ connectionId: id, items });
+        .filter((d) => selectedRefs.has(d.ref) && !d.alreadyAdded)
+        .map((d) => d.ref);
+      await addScannedCollections({ connectionId: id, refs: items });
       scanned = [];
       selectedRefs = new Set();
       await Promise.all([collectionsQuery?.refresh(), getQuotaUsage().refresh()]);
     } catch (e) {
-      scanError = e instanceof Error ? e.message : "Import failed";
+      scanError = e instanceof Error ? e.message : "Add failed";
     } finally {
       addingToContfu = false;
     }
@@ -407,10 +407,10 @@
       {#if scanned.length > 0}
         <div class="mt-2 divide-y divide-border border border-border">
           {#each scanned as ds}
-            <label class="flex cursor-pointer items-center gap-2 px-3 py-2 text-xs hover:bg-muted/30 {ds.alreadyImported ? 'opacity-50' : ''}">
+            <label class="flex cursor-pointer items-center gap-2 px-3 py-2 text-xs hover:bg-muted/30 {ds.alreadyAdded ? 'opacity-50' : ''}">
               <input
                 type="checkbox"
-                disabled={ds.alreadyImported}
+                disabled={ds.alreadyAdded}
                 checked={selectedRefs.has(ds.ref)}
                 onchange={() => toggleRef(ds.ref)}
               />
@@ -422,7 +422,7 @@
                 <BoxesIcon class="h-4 w-4 shrink-0 text-muted-foreground" />
               {/if}
               <span class="flex-1">{ds.displayName}</span>
-              {#if ds.alreadyImported}
+              {#if ds.alreadyAdded}
                 <span class="text-muted-foreground">already added</span>
               {/if}
             </label>

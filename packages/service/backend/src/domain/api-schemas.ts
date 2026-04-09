@@ -15,6 +15,11 @@ export const UpdateConnectionSchema = v.object({
   includeRef: v.optional(v.boolean()),
 });
 
+export const AddScannedCollectionsSchema = v.object({
+  refs: v.optional(v.array(v.string())),
+  all: v.optional(v.boolean()),
+});
+
 // --- Collections ---
 
 export const CreateCollectionSchema = v.object({

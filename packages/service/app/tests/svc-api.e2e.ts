@@ -8,7 +8,7 @@
  * to create the typed API client.
  */
 import { expect, test, type Page } from "@playwright/test";
-import { createApiClient, ConnectionType, type ContfuApiClient } from "@contfu/svc-api";
+import { ApiError, createApiClient, ConnectionType, type ContfuApiClient } from "@contfu/svc-api";
 
 const SERVICE_URL = `http://localhost:${process.env.PORT ?? 4173}`;
 const TEST_USER = { email: "test@test.com", password: "test" };
@@ -90,6 +90,18 @@ test.describe("@contfu/svc-api client", () => {
   test("getConnectionTypes returns TypeGenerationInput array for WEB connection", async () => {
     const types = await client.getConnectionTypes(createdConnectionId!);
     expect(Array.isArray(types)).toBe(true);
+  });
+
+  test("scanCollections rejects unsupported connection types", async () => {
+    await expect(client.scanCollections(createdConnectionId!)).rejects.toEqual(
+      new ApiError(400, "Connection type does not support scanning collections"),
+    );
+  });
+
+  test("addScannedCollections rejects unsupported connection types", async () => {
+    await expect(client.addScannedCollections(createdConnectionId!, { all: true })).rejects.toEqual(
+      new ApiError(400, "Connection type does not support scanning collections"),
+    );
   });
 
   test("createFlow creates a flow between two collections", async ({ page }) => {

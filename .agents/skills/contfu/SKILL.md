@@ -42,6 +42,7 @@ Parse the JSON and build a short, readable summary. Connection type labels are i
 Present what exists and what's missing. Examples:
 
 > **Your Contfu setup:**
+>
 > - Notion connection: "My Workspace" (id: 3)
 > - 3 collections: Blog Posts, Authors, Projects
 > - Blog Posts has a flow from Notion, but Authors and Projects are unwired
@@ -50,23 +51,34 @@ Present what exists and what's missing. Examples:
 > Want me to wire up Authors and Projects, or set up an app connection first?
 
 > **Your Contfu setup:**
+>
 > - No connections yet
 >
 > Let's connect your CMS first. Are you using Notion, or something else?
 
 ### Step 3 — Suggest and guide
 
-Based on what's missing, suggest the next step. When the user picks a source connection to explore, discover what's available:
+Based on what's missing, suggest the next step. When the user picks a source connection to explore, scan what's available:
 
 ```bash
-contfu discover <connection-id>
+contfu connections scan <connection-id>
 ```
 
-This returns the available source collections (Notion databases, Strapi content types) with `ref`, `displayName`, and `alreadyImported` fields. Present them as a pick list — the user selects which ones to import.
+This returns the available source collections (Notion databases, Strapi content types) with `ref`, `displayName`, and `alreadyAdded` fields. Present them as a pick list.
 
-**IMPORTANT — source collection import required before flows:** `discover` only shows what's available; it does not import anything. Any collection with `alreadyImported: false` must be imported via the web UI before it can be used in a flow. Direct the user to `https://contfu.com/connections/<id>` and ask them to import the needed databases. Once imported, numeric source collection IDs become available via `contfu connections get <id>` — use those IDs (not the UUID refs) as `--source-id` when creating flows.
+When the user confirms which source collections should be wired into Contfu, add them directly from the CLI:
 
-Route the work into one of these modes after discovery:
+```bash
+contfu connections add <connection-id> --refs <comma-separated-refs>
+# or
+contfu connections scan <connection-id> --select
+```
+
+Use `--all` only when the intent is clear and every scanned collection should be added.
+
+After collections are added, numeric Contfu source collection IDs are available via `contfu connections get <id>` and `contfu collections list`. Use those numeric IDs (not the upstream UUID refs) as `--source-id` when creating flows.
+
+Route the work into one of these modes after scanning:
 
 - **Full integration** — the app is not fully wired yet, and you should carry the work through connection, collections, flows, generated types, and code integration.
 - **Resource maintenance** — the Contfu setup exists, and the task is to inspect, add, update, or delete a connection, collection, or flow.
@@ -115,24 +127,25 @@ Typical examples:
 
 When adding another collection to an existing integration, prefer this sequence:
 
-1. discover available source collections
-2. create or identify the target collection on the existing app connection
-3. create the flow
-4. regenerate connection-wide types
-5. update the central `cq` module consumers where the new content is needed
+1. scan available source collections
+2. add the selected source collections to Contfu
+3. create or identify the target collection on the existing app connection
+4. create the flow
+5. regenerate connection-wide types
+6. update the central `cq` module consumers where the new content is needed
 
 ## Routing to reference docs
 
 When you reach a specific workflow, read only the relevant reference doc (same directory as this file). Do not bulk-load all references.
 
-| Workflow | File |
-|----------|------|
-| Connecting a CMS source | `ref-connect-source.md` |
-| Creating collections & flows | `ref-collections-flows.md` |
-| Client SDK, types, querying | `ref-client-sdk.md` |
-| Managing or extending an existing setup | `ref-maintenance.md` |
-| CLI command help | `ref-cli-reference.md` |
-| Full end-to-end walkthrough | `ref-project-setup.md` |
+| Workflow                                | File                       |
+| --------------------------------------- | -------------------------- |
+| Connecting a CMS source                 | `ref-connect-source.md`    |
+| Creating collections & flows            | `ref-collections-flows.md` |
+| Client SDK, types, querying             | `ref-client-sdk.md`        |
+| Managing or extending an existing setup | `ref-maintenance.md`       |
+| CLI command help                        | `ref-cli-reference.md`     |
+| Full end-to-end walkthrough             | `ref-project-setup.md`     |
 
 Reference loading rules:
 

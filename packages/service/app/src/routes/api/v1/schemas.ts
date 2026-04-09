@@ -4,6 +4,7 @@ import * as v from "valibot";
 export {
   CreateConnectionSchema,
   UpdateConnectionSchema,
+  AddScannedCollectionsSchema,
   CreateCollectionSchema,
   UpdateCollectionSchema,
   CreateFlowSchema,
