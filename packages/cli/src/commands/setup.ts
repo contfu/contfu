@@ -1,121 +1,15 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { createInterface } from "node:readline";
 import { execSync } from "node:child_process";
 import { getApiKey } from "../http";
 import { getAppKey, writeEnvKey, ensureGitignore } from "../env";
+import { prompt, select, type SelectOption } from "./select";
 
 export interface SetupOptions {
   package?: string;
   appName?: string;
   envFile?: string;
   nonInteractive?: boolean;
-}
-
-async function prompt(question: string): Promise<string> {
-  const rl = createInterface({ input: process.stdin, output: process.stdout });
-  return new Promise((resolve) => {
-    rl.question(question, (answer) => {
-      rl.close();
-      resolve(answer.trim());
-    });
-  });
-}
-
-interface SelectOption {
-  label: string;
-  description: string;
-  value: string;
-}
-
-async function select(options: SelectOption[]): Promise<string> {
-  const stdin = process.stdin;
-  const wasRaw = stdin.isRaw;
-
-  if (!stdin.isTTY) {
-    // Fallback for non-interactive environments
-    const answer = await prompt(`Choose (1-${options.length}): `);
-    const idx = parseInt(answer, 10) - 1;
-    if (idx >= 0 && idx < options.length) return options[idx].value;
-    throw new Error("Invalid choice.");
-  }
-
-  let selected = 0;
-
-  function render() {
-    for (const [i, opt] of options.entries()) {
-      const indicator = i === selected ? "❯" : " ";
-      const highlight = i === selected ? "\x1b[36m" : "\x1b[2m";
-      const reset = "\x1b[0m";
-      process.stdout.write(`${highlight}  ${indicator} ${opt.label}${reset}\n`);
-      process.stdout.write(`${highlight}    ${opt.description}${reset}\n`);
-      if (i < options.length - 1) process.stdout.write("\n");
-    }
-  }
-
-  function clear() {
-    const lines = options.length * 3 - 1;
-    for (let i = 0; i < lines; i++) {
-      process.stdout.write("\x1b[A\x1b[2K");
-    }
-  }
-
-  return new Promise((resolve) => {
-    stdin.setRawMode(true);
-    stdin.resume();
-    stdin.setEncoding("utf8");
-
-    render();
-
-    const onData = (key: string) => {
-      // Ctrl+C
-      if (key === "\x03") {
-        stdin.setRawMode(wasRaw ?? false);
-        stdin.pause();
-        stdin.removeListener("data", onData);
-        process.exit(130);
-      }
-
-      // Enter
-      if (key === "\r" || key === "\n") {
-        stdin.setRawMode(wasRaw ?? false);
-        stdin.pause();
-        stdin.removeListener("data", onData);
-        clear();
-        const opt = options[selected];
-        process.stdout.write(`  ✓ ${opt.label}\n`);
-        resolve(opt.value);
-        return;
-      }
-
-      // Number keys
-      const num = parseInt(key, 10);
-      if (num >= 1 && num <= options.length) {
-        selected = num - 1;
-        clear();
-        render();
-        return;
-      }
-
-      // Arrow up / k
-      if (key === "\x1b[A" || key === "k") {
-        selected = (selected - 1 + options.length) % options.length;
-        clear();
-        render();
-        return;
-      }
-
-      // Arrow down / j
-      if (key === "\x1b[B" || key === "j") {
-        selected = (selected + 1) % options.length;
-        clear();
-        render();
-        return;
-      }
-    };
-
-    stdin.on("data", onData);
-  });
 }
 
 function hasPackageJson(): boolean {

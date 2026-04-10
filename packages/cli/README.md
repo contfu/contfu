@@ -26,6 +26,8 @@ collections  list|get|create|update|delete
 flows        list|get|create|update|delete
 consumers    list|get|create|update|delete
 
+connections scan <id>             Scan source collections for a connection
+connections add <id>              Add scanned source collections to Contfu
 connections types                 List valid connection types
 collections types                 Generate TypeScript types for a collection
 items query  --collection <id>    Query items
@@ -37,3 +39,11 @@ items count  --collection <id>    Count items
 Credentials are stored locally after `contfu login`. The `CONTFU_TOKEN` environment variable can be used as an alternative to interactive login.
 
 `CONTFU_URL` is only required for `items` commands — it specifies the base URL of the Contfu server that holds the data.
+
+## Scanning and adding source collections
+
+Use `contfu connections scan <connection-id>` to inspect source collections available from a source connection. The default output is a table; pass `--format json` for automation.
+
+Use `contfu connections add <connection-id> --refs <comma-separated-refs>` to add selected scanned collections to Contfu, or `--all` to add every scanned collection that is not already added.
+
+In interactive terminals, `contfu connections scan <connection-id> --select` lets you pick multiple scanned collections and immediately add them.

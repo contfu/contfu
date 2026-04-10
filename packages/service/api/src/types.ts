@@ -21,7 +21,10 @@ export {
   type SchemaValue,
   type RefTargets,
   type TypeGenerationInput,
-  type DiscoveredCollection,
+  type ScannedCollection,
+  type AddedScannedCollection,
+  type AddScannedCollectionsBody,
+  type AddScannedCollectionsResult,
   // Constants & utilities
   ConnectionType,
   ConnectionTypeMeta,
