@@ -28,19 +28,19 @@
     },
     "packages/cli": {
       "name": "@contfu/cli",
-      "version": "0.0.5",
+      "version": "0.0.9",
       "bin": {
         "contfu": "dist/main.js",
       },
       "dependencies": {
-        "@contfu/svc-api": "workspace:*",
+        "@contfu/svc-api": "workspace:^",
       },
     },
     "packages/client": {
       "name": "@contfu/client",
-      "version": "0.0.3",
+      "version": "0.0.6",
       "dependencies": {
-        "@contfu/core": "workspace:*",
+        "@contfu/core": "workspace:^",
       },
       "devDependencies": {
         "typescript": "^5.9.3",
@@ -51,9 +51,9 @@
     },
     "packages/connect": {
       "name": "@contfu/connect",
-      "version": "0.0.3",
+      "version": "0.0.5",
       "dependencies": {
-        "@contfu/core": "workspace:*",
+        "@contfu/core": "workspace:^",
         "msgpackr": "^1.11.9",
       },
       "devDependencies": {
@@ -69,10 +69,10 @@
     },
     "packages/contfu": {
       "name": "@contfu/contfu",
-      "version": "0.0.3",
+      "version": "0.0.7",
       "dependencies": {
-        "@contfu/connect": "workspace:*",
-        "@contfu/core": "workspace:*",
+        "@contfu/connect": "workspace:^",
+        "@contfu/core": "workspace:^",
         "drizzle-orm": "1.0.0-beta.19",
       },
       "devDependencies": {
@@ -87,7 +87,7 @@
     },
     "packages/core": {
       "name": "@contfu/core",
-      "version": "0.0.4",
+      "version": "0.0.7",
       "devDependencies": {
         "@typescript/native-preview": "^7.0.0-dev.20260325.1",
         "typescript": "^5.9.3",
@@ -95,7 +95,7 @@
     },
     "packages/media/bun-file-store": {
       "name": "@contfu/bun-file-store",
-      "version": "0.0.3",
+      "version": "0.0.5",
       "dependencies": {
         "sharp": "^0.34.5",
       },
@@ -109,7 +109,7 @@
     },
     "packages/media/media-optimizer": {
       "name": "@contfu/media-optimizer",
-      "version": "0.0.3",
+      "version": "0.0.5",
       "dependencies": {
         "@ffmpeg-installer/ffmpeg": "^1.1.0",
         "m4k": "^0.2.4",
@@ -127,7 +127,7 @@
     },
     "packages/media/media-optimizer-remote": {
       "name": "@contfu/media-optimizer-remote",
-      "version": "0.0.3",
+      "version": "0.0.5",
       "dependencies": {
         "@m4k/client": "^0.2.4",
         "@m4k/common": "^0.2.5",
@@ -142,14 +142,14 @@
     },
     "packages/server": {
       "name": "@contfu/server",
-      "version": "0.0.2",
+      "version": "0.0.5",
       "bin": {
         "contfu-server": "./src/bin.ts",
       },
       "dependencies": {
-        "@contfu/connect": "workspace:*",
-        "@contfu/contfu": "workspace:*",
-        "@contfu/core": "workspace:*",
+        "@contfu/connect": "workspace:^",
+        "@contfu/contfu": "workspace:^",
+        "@contfu/core": "workspace:^",
       },
       "devDependencies": {
         "@types/bun": "^1.3.11",
@@ -161,14 +161,14 @@
     },
     "packages/service/api": {
       "name": "@contfu/svc-api",
-      "version": "0.0.2",
+      "version": "0.0.5",
       "dependencies": {
-        "@contfu/svc-core": "workspace:*",
+        "@contfu/svc-core": "workspace:^",
       },
     },
     "packages/service/app": {
       "name": "@contfu/svc-app",
-      "version": "0.0.40",
+      "version": "0.0.41",
       "dependencies": {
         "@css-inline/css-inline": "0.20.0",
         "sharp": "0.34.5",
@@ -256,9 +256,9 @@
     },
     "packages/service/core": {
       "name": "@contfu/svc-core",
-      "version": "0.0.5",
+      "version": "0.0.8",
       "dependencies": {
-        "@contfu/core": "workspace:*",
+        "@contfu/core": "workspace:^",
       },
       "devDependencies": {
         "typescript": "^5.9.3",
@@ -310,7 +310,7 @@
     },
     "packages/ui": {
       "name": "@contfu/ui",
-      "version": "0.0.3",
+      "version": "0.0.5",
       "dependencies": {
         "@ffmpeg-installer/ffmpeg": "1.1.0",
         "sharp": "0.34.5",
