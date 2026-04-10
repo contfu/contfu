@@ -30,14 +30,16 @@ scripts/forgejo-login
 
 ## Scripts
 
-Run scripts from the repo root.
+These helper scripts are bundled with this skill under `scripts/`.
+
+Other skills should tell the agent to load the `forgejo` skill when they need Forgejo-specific operations, instead of referencing these bundled files directly.
 
 ### `forgejo-token`
 
 Print the Forgejo PAT from the local tea CLI config.
 
 ```bash
-TOKEN=$(./.agents/skills/forgejo/scripts/forgejo-token)
+TOKEN=$(scripts/forgejo-token)
 ```
 
 ### `forgejo-label {add|remove|set-status} <issue> <label>`

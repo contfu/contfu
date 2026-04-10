@@ -15,7 +15,7 @@ Create structured issues on the Forgejo instance at `https://code.sven-rogge.com
 4. Draft each issue using the template below.
 5. Present the full draft or drafts to the user and wait for approval before creating anything on Forgejo. If the user requests edits, revise the draft and present it again.
 6. Create the approved issue with `tea issue create`.
-7. Mark the new issue as `ready`.
+7. Load the `forgejo` skill and use it to mark the new issue as `ready`.
 
 ## Clarification Guidelines
 
@@ -93,11 +93,7 @@ EOF
 )"
 ```
 
-Set the new issue status to `ready`:
-
-```bash
-../forgejo/scripts/forgejo-label set-status <number> ready
-```
+Set the new issue status to `ready` using the `forgejo` skill.
 
 ## Rules
 

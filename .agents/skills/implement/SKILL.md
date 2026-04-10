@@ -26,11 +26,7 @@ tea issue view $0 --login forgejo --repo contfu/contfu
    - `feat/<slug>` for enhancements
    - `docs/<slug>` for documentation
    - Keep the slug in kebab-case and under 30 characters.
-3. Move the issue to `in-progress`:
-
-   ```bash
-   ../forgejo/scripts/forgejo-label set-status <number> in-progress
-   ```
+3. Load the `forgejo` skill and use it to move the issue to `in-progress`.
 
 4. Analyze the implementation approach and present the plan to the user. Wait for approval before writing code.
 5. Implement the issue with minimal changes and by following existing patterns.
@@ -65,12 +61,12 @@ Where `<type>` matches the branch prefix: `feat`, `fix`, or `docs`.
 
 ## Label Management
 
-```bash
-../forgejo/scripts/forgejo-label set-status <number> in-progress
-../forgejo/scripts/forgejo-label set-status <number> done
-../forgejo/scripts/forgejo-label add <number> <label>
-../forgejo/scripts/forgejo-label remove <number> <label>
-```
+Load the `forgejo` skill for issue label updates such as:
+
+- setting status to `in-progress`
+- setting status to `done`
+- adding labels
+- removing labels
 
 ## Rules
 

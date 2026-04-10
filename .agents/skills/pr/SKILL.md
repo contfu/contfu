@@ -61,17 +61,11 @@ git diff HEAD~1...HEAD --stat
    )"
    ```
 
-6. Wait for CI:
+6. Load the `forgejo` skill and use it to wait for CI on the PR's run.
+
+7. If CI fails, keep the `forgejo` skill loaded to inspect run status and logs, then fix the issue, amend the existing commit, and force-push with lease:
 
    ```bash
-   ../forgejo/scripts/ci-wait
-   ```
-
-7. If CI fails, inspect logs, fix the issue, amend the existing commit, and force-push with lease:
-
-   ```bash
-   ../forgejo/scripts/ci-status
-   ../forgejo/scripts/ci-logs <run_id> <job_index>
    git commit --amend
    git push --force-with-lease
    ```

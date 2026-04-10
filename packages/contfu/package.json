@@ -1,6 +1,6 @@
 {
   "name": "@contfu/contfu",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -33,7 +33,7 @@
     "types": "dist/index.d.ts"
   },
   "scripts": {
-    "test": "bun test",
+    "test": "DATABASE_URL=:memory: bun test",
     "clean": "rm -rf dist tsconfig.tsbuildinfo",
     "db:generate": "rm -rf db/migrations && drizzle-kit generate --name init",
     "build:lib": "tsc -b",

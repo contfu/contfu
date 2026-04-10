@@ -6,6 +6,8 @@ Use this package when you want to store and query content locally. If you prefer
 
 ## Usage
 
+By default, `@contfu/contfu` stores its SQLite database at `data/contfu.sqlite`. Override this with the `DATABASE_URL` environment variable when needed.
+
 ```ts
 import { connect } from "@contfu/contfu";
 

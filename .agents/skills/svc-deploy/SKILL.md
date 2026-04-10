@@ -13,10 +13,7 @@ This workflow pushes two separate commits directly to `main`, so it is intention
 
 1. Read current versions from `packages/service/app/package.json` and `helm/contfu/Chart.yaml`.
 2. Bump the app version and commit `chore: bump @contfu/svc-app to <new-version>`.
-3. Push the version bump, then wait for CI:
-   - `../forgejo/scripts/ci-status`
-   - `../forgejo/scripts/ci-wait <run_id>`
-   - If CI fails, inspect with `../forgejo/scripts/ci-logs`.
+3. Push the version bump, then load the `forgejo` skill and use it to watch the CI run until it succeeds. If CI fails, use the same skill to inspect run status and logs before continuing.
 4. Bump `helm/contfu/Chart.yaml`:
    - increment the chart `version`
    - set `appVersion` to the new service version

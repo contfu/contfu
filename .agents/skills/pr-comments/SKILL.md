@@ -12,11 +12,7 @@ Instance: `https://code.sven-rogge.com` | Repo: `contfu/contfu`
 
 ## Commands
 
-Fetch unresolved comments:
-
-```bash
-../forgejo/scripts/pr-comments $0
-```
+Before handling comments, load the `forgejo` skill and use it to fetch unresolved review comments for `$0`.
 
 Show the current branch:
 
@@ -29,17 +25,9 @@ git branch --show-current
 1. Read each unresolved review comment and understand the requested change.
 2. Decide whether each comment needs a code change or a discussion reply.
 3. Implement actionable changes after reading the affected files.
-4. Reply on the PR summarizing what changed:
+4. Keep the `forgejo` skill loaded and use it to reply on the PR summarizing what changed.
 
-   ```bash
-   ../forgejo/scripts/pr-reply <pr_number> "<reply body>"
-   ```
-
-5. Resolve actionable conversations:
-
-   ```bash
-   ../forgejo/scripts/pr-resolve <comment_id>
-   ```
+5. Use the `forgejo` skill to resolve actionable conversations.
 
 6. Leave discussion threads open when they still need reviewer input.
 7. After all actionable comments are handled, run quality checks, amend the existing commit, and force-push with lease:
