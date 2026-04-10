@@ -16,7 +16,11 @@ import { queryItems, countItems } from "./commands/items";
 import { login, logout } from "./commands/login";
 import { status } from "./commands/status";
 import { setup } from "./commands/setup";
-import { discover } from "./commands/discover";
+import {
+  addConnectionCollections,
+  parseAddRefs,
+  scanConnectionCollections,
+} from "./commands/connection-collections";
 
 function printUsage() {
   console.error(`Usage: contfu [--help] <command> [args...]
@@ -26,12 +30,13 @@ Commands:
   logout                            Clear stored credentials
   status                            Show resource summary
   setup                             Set up Contfu in a project
-  discover <connection-id>          Discover available source collections
   <resource> list                   List all items
   <resource> get <id>               Get item by ID
   <resource> create [options]       Create item
   <resource> update <id> [options]  Update item
   <resource> delete <id>            Delete item
+  connections scan <id>              Scan source collections for a connection
+  connections add <id>               Add scanned source collections to Contfu
   connections types                  List valid connection types
   connections types <id>             Print TypeScript types for a connection's collections
   connections regenerate-key <id>    Regenerate API key and write to .env
@@ -108,6 +113,9 @@ async function main() {
       "app-name": { type: "string" },
       "env-file": { type: "string" },
       "non-interactive": { type: "boolean" },
+      refs: { type: "string" },
+      all: { type: "boolean" },
+      select: { type: "boolean", short: "s" },
     },
     allowPositionals: true,
     strict: false,
@@ -150,16 +158,6 @@ async function main() {
     return;
   }
 
-  if (cmd === "discover") {
-    const id = positionals[1];
-    if (!id) {
-      console.error("Usage: contfu discover <connection-id>");
-      process.exit(1);
-    }
-    await discover(id);
-    return;
-  }
-
   if (cmd === "items") {
     const action = positionals[1];
     const rest = process.argv.slice(process.argv.indexOf("items") + 2);
@@ -182,6 +180,33 @@ async function main() {
     const id = positionals[2];
 
     // Special subcommands per resource
+    if (cmd === "connections" && action === "scan") {
+      if (!id) {
+        console.error("Usage: contfu connections scan <connection-id>");
+        process.exit(1);
+      }
+      await scanConnectionCollections(id, {
+        format: (values.format as string | undefined) ?? "table",
+        select: values.select as boolean | undefined,
+      });
+      return;
+    }
+
+    if (cmd === "connections" && action === "add") {
+      if (!id) {
+        console.error(
+          "Usage: contfu connections add <connection-id> (--refs <comma-separated> | --all)",
+        );
+        process.exit(1);
+      }
+      await addConnectionCollections(id, {
+        format: (values.format as string | undefined) ?? "table",
+        refs: parseAddRefs(values.refs as string | undefined),
+        all: values.all as boolean | undefined,
+      });
+      return;
+    }
+
     if (action === "regenerate-key") {
       if (cmd !== "connections") {
         console.error(`'regenerate-key' is only available for connections`);
