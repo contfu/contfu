@@ -160,18 +160,18 @@ describe("create", () => {
     expect(JSON.parse(opts.body as string)).toMatchObject({ displayName: "My Col" });
   });
 
-  test("creates flow with sourceId/targetId as numbers", async () => {
-    const data = { id: 1, sourceId: 3, targetId: 4 };
+  test("creates flow with sourceId/targetId as strings", async () => {
+    const data = { id: "1", sourceId: "3", targetId: "4" };
     mockFetch.mockResolvedValueOnce(jsonResponse(data));
 
     await create("flows", undefined, { "source-id": "3", "target-id": "4" });
 
     const [, opts] = mockFetch.mock.calls[0] as unknown[] as [string, RequestInit];
     const body = JSON.parse(opts.body as string);
-    expect(body.sourceId).toBe(3);
-    expect(body.targetId).toBe(4);
-    expect(typeof body.sourceId).toBe("number");
-    expect(typeof body.targetId).toBe("number");
+    expect(body.sourceId).toBe("3");
+    expect(body.targetId).toBe("4");
+    expect(typeof body.sourceId).toBe("string");
+    expect(typeof body.targetId).toBe("string");
   });
 
   test("creates flow with includeRef: true when --include-ref", async () => {

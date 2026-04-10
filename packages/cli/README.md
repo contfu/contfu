@@ -24,7 +24,6 @@ status                            Show resource summary
 connections list|get|create|update|delete
 collections  list|get|create|update|delete
 flows        list|get|create|update|delete
-consumers    list|get|create|update|delete
 
 connections scan <id>             Scan source collections for a connection
 connections add <id>              Add scanned source collections to Contfu
@@ -36,7 +35,7 @@ items count  --collection <id>    Count items
 
 ## Authentication
 
-Credentials are stored locally after `contfu login`. The `CONTFU_TOKEN` environment variable can be used as an alternative to interactive login.
+Credentials are stored locally after `contfu login`. The `CONTFU_API_KEY` environment variable can be used as an alternative to interactive login.
 
 `CONTFU_URL` is only required for `items` commands — it specifies the base URL of the Contfu server that holds the data.
 

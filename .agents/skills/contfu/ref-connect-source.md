@@ -48,13 +48,13 @@ The new connection should appear with its ID and name.
 
 ### 5. Discover collections
 
-After the connection is created, discover available source collections:
+After the connection is created, connections scan available source collections:
 
 ```bash
-contfu discover <connection-id>
+contfu connections scan <connection-id>
 ```
 
-This shows the available source collections (Notion databases, Strapi content types, etc.) with `ref`, `displayName`, and `alreadyImported` fields.
+This shows the available source collections (Notion databases, Strapi content types, etc.) with `ref`, `displayName`, and `alreadyAdded` fields.
 
 ### 6. Next steps
 
@@ -67,5 +67,5 @@ Once connected, the user typically wants to:
 | Problem | Fix |
 |---------|-----|
 | OAuth consent screen doesn't show expected pages | The CMS integration needs access granted — e.g. in Notion, open the page > "..." menu > "Connections" > add the Contfu integration |
-| Connection shows but no source collections | The scan may still be running. Wait a moment and re-check with `contfu discover <id>` |
+| Connection shows but no source collections | The scan may still be running. Wait a moment and re-check with `contfu connections scan <id>` |
 | "Not authenticated" error | Run `contfu login` or set `CONTFU_API_KEY` |

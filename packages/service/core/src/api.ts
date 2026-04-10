@@ -11,7 +11,7 @@ export interface ApiStatus {
 
 /** Connection record returned by the service API */
 export interface ApiConnection {
-  id: number;
+  id: string;
   name: string;
   type: number;
   accountId: string | null;
@@ -39,7 +39,7 @@ export interface UpdateConnectionBody {
 export interface CreateCollectionBody {
   displayName: string;
   name?: string;
-  connectionId?: number | null;
+  connectionId?: string | null;
   includeRef?: boolean;
 }
 
@@ -52,8 +52,8 @@ export interface UpdateCollectionBody {
 }
 
 export interface CreateFlowBody {
-  sourceId: number;
-  targetId: number;
+  sourceId: string;
+  targetId: string;
   includeRef?: boolean;
   filters?: Filter[];
   schema?: Record<string, SchemaValue>;
@@ -81,7 +81,7 @@ export interface AddScannedCollectionsBody {
 
 export interface AddedScannedCollection {
   ref: string;
-  id: number;
+  id: string;
   displayName: string;
 }
 

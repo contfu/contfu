@@ -6,16 +6,19 @@ import { getFlowWithDetails } from "@contfu/svc-backend/features/flows/getFlowWi
 import { deleteFlow } from "@contfu/svc-backend/features/flows/deleteFlow";
 import { updateFlow } from "@contfu/svc-backend/features/flows/updateFlow";
 import { pack } from "msgpackr";
+import { parseIdParam, encodeApiFlow } from "../../encode";
 
 export async function GET({ request, params }: { request: Request; params: { id: string } }) {
   const { userId } = await authenticateApiKey(request, "read");
-  const result = await runWithUser(userId, getFlowWithDetails(Number(params.id)));
+  const id = parseIdParam("flow", params.id);
+  const result = await runWithUser(userId, getFlowWithDetails(id));
   if (!result) return new Response("Not found", { status: 404 });
-  return json(result);
+  return json(encodeApiFlow(result));
 }
 
 export async function PATCH({ request, params }: { request: Request; params: { id: string } }) {
   const { userId } = await authenticateApiKey(request, "write");
+  const id = parseIdParam("flow", params.id);
   const body = parseBody(UpdateFlowSchema, await request.json());
   const updates: Record<string, unknown> = {};
   if (body.filters !== undefined)
@@ -25,14 +28,15 @@ export async function PATCH({ request, params }: { request: Request; params: { i
   if (body.schema !== undefined)
     updates.schema = body.schema ? Buffer.from(pack(body.schema)) : null;
   if (body.includeRef !== undefined) updates.includeRef = body.includeRef;
-  const result = await runWithUser(userId, updateFlow(Number(params.id), updates as any));
+  const result = await runWithUser(userId, updateFlow(id, updates as any));
   if (!result) return new Response("Not found", { status: 404 });
-  return json(result);
+  return json(encodeApiFlow(result));
 }
 
 export async function DELETE({ request, params }: { request: Request; params: { id: string } }) {
   const { userId } = await authenticateApiKey(request, "write");
-  const deleted = await runWithUser(userId, deleteFlow(Number(params.id)));
+  const id = parseIdParam("flow", params.id);
+  const deleted = await runWithUser(userId, deleteFlow(id));
   if (!deleted) return new Response("Not found", { status: 404 });
   return new Response(null, { status: 204 });
 }

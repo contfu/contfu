@@ -7,6 +7,7 @@ import { hashApiKey } from "$lib/server/connection-auth";
 import { randomBytes } from "node:crypto";
 import { Effect } from "effect";
 import * as v from "valibot";
+import { encodeApiConnection } from "../../encode";
 
 const CreateClientSchema = v.object({
   name: v.pipe(v.string(), v.nonEmpty("Name is required")),
@@ -41,5 +42,5 @@ export async function POST({ request }: { request: Request }) {
     );
   }
 
-  return json({ ...result, apiKey: apiKeyStr }, { status: 201 });
+  return json({ ...encodeApiConnection(result), apiKey: apiKeyStr }, { status: 201 });
 }

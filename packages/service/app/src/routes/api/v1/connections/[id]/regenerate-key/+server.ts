@@ -6,10 +6,11 @@ import { getConnection } from "@contfu/svc-backend/features/connections/getConne
 import { updateConnection } from "@contfu/svc-backend/features/connections/updateConnection";
 import { hashApiKey } from "$lib/server/connection-auth";
 import { randomBytes } from "node:crypto";
+import { parseIdParam } from "../../../encode";
 
 export async function POST({ request, params }: { request: Request; params: { id: string } }) {
   const { userId } = await authenticateApiKey(request, "write");
-  const id = Number(params.id);
+  const id = parseIdParam("connection", params.id);
 
   const connection = await runWithUser(userId, getConnection(id));
   if (!connection) return new Response("Not found", { status: 404 });

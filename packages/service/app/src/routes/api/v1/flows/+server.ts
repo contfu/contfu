@@ -10,6 +10,8 @@ import { createLogger } from "@contfu/svc-backend/infra/logger/index";
 import { Effect } from "effect";
 import { pack } from "msgpackr";
 
+import { encodeApiFlow } from "../encode";
+
 const log = createLogger("flows-api");
 
 type CreateResourceError = {
@@ -31,7 +33,7 @@ function isCreateResourceError(result: unknown): result is CreateResourceError {
 export async function GET({ request }: { request: Request }) {
   const { userId } = await authenticateApiKey(request, "read");
   const result = await runWithUser(userId, listFlows());
-  return json(result);
+  return json(result.map(encodeApiFlow));
 }
 
 export async function POST({ request }: { request: Request }) {
@@ -90,5 +92,5 @@ export async function POST({ request }: { request: Request }) {
     ),
   );
 
-  return json(result, { status: 201 });
+  return json(encodeApiFlow(result), { status: 201 });
 }

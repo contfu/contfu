@@ -72,7 +72,7 @@ function buildCollectionCreateBody(values: CliValues): CreateCollectionBody {
   }
   const body: CreateCollectionBody = { displayName: values["display-name"]! };
   if (values.name !== undefined) body.name = values.name;
-  if (values["connection-id"] !== undefined) body.connectionId = Number(values["connection-id"]);
+  if (values["connection-id"] !== undefined) body.connectionId = values["connection-id"];
   if (values["include-ref"] === true) body.includeRef = true;
   if (values["no-include-ref"] === true) body.includeRef = false;
   return body;
@@ -94,8 +94,8 @@ function buildFlowCreateBody(values: CliValues): CreateFlowBody {
     process.exit(1);
   }
   const body: CreateFlowBody = {
-    sourceId: Number(values["source-id"]),
-    targetId: Number(values["target-id"]),
+    sourceId: values["source-id"]!,
+    targetId: values["target-id"]!,
   };
   if (values["include-ref"] === true) body.includeRef = true;
   if (values["no-include-ref"] === true) body.includeRef = false;
@@ -172,7 +172,7 @@ const COLLECTION_COLUMNS: Column<ServiceCollection>[] = [
   {
     key: "connectionId",
     header: "Connection",
-    format: (v) => (v == null ? "" : String(v as number)),
+    format: (v) => (v == null ? "" : String(v)),
   },
 ];
 

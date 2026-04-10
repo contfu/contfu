@@ -104,6 +104,19 @@ export interface UpdateCollectionInput {
   icon?: CollectionIcon | null;
 }
 
+/** Result of addScannedCollections with numeric IDs (internal) */
+export interface BackendAddedScannedCollection {
+  ref: string;
+  id: number;
+  displayName: string;
+}
+
+export interface BackendAddScannedCollectionsResult {
+  added: BackendAddedScannedCollection[];
+  alreadyAdded: { ref: string; displayName: string; alreadyAdded: boolean }[];
+  scanned: number;
+}
+
 // =============================================================================
 // Flow Types
 // =============================================================================

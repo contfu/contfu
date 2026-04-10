@@ -7,6 +7,7 @@ import { createCollection } from "@contfu/svc-backend/features/collections/creat
 import { getStreamServer } from "$lib/server/startup";
 import { EventType } from "@contfu/core";
 import { Effect } from "effect";
+import { encodeCollection } from "../encode";
 
 type CreateResourceError = {
   _error: {
@@ -27,7 +28,7 @@ function isCreateResourceError(result: unknown): result is CreateResourceError {
 export async function GET({ request }: { request: Request }) {
   const { userId } = await authenticateApiKey(request, "read");
   const result = await runWithUser(userId, listCollections());
-  return json(result);
+  return json(result.map(encodeCollection));
 }
 
 export async function POST({ request }: { request: Request }) {
@@ -76,5 +77,5 @@ export async function POST({ request }: { request: Request }) {
     ]);
   }
 
-  return json(result, { status: 201 });
+  return json(encodeCollection(result), { status: 201 });
 }

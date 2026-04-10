@@ -7,11 +7,13 @@ import { computeCollectionSchema } from "@contfu/svc-backend/features/collection
 import { listInflowSchemas } from "@contfu/svc-backend/features/collections/listInflowSchemas";
 import { listFlowsByCollection } from "@contfu/svc-backend/features/flows/listFlowsByCollection";
 import type { TypeGenerationInput } from "@contfu/svc-core";
+import { parseIdParam } from "../../../encode";
 
 export async function GET({ request, params }: { request: Request; params: { id: string } }) {
   const { userId } = await authenticateApiKey(request, "read");
+  const id = parseIdParam("connection", params.id);
 
-  const collections = await runWithUser(userId, listCollectionsByConnection(Number(params.id)));
+  const collections = await runWithUser(userId, listCollectionsByConnection(id));
 
   const result: TypeGenerationInput[] = [];
   const seen = new Set<number>();

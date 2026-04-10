@@ -28,7 +28,7 @@ Build a small working map for yourself:
 1. Discover source collections on the existing CMS connection:
 
 ```bash
-contfu discover <source-connection-id>
+contfu connections scan <source-connection-id>
 ```
 
 2. Create the new target collection on the existing app connection if needed:

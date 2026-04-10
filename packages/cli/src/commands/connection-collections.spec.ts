@@ -70,7 +70,7 @@ describe("scanConnectionCollections", () => {
 describe("addConnectionCollections", () => {
   test("posts refs to the add endpoint", async () => {
     const summary = {
-      added: [{ ref: "db-1", id: 5, displayName: "Blog Posts" }],
+      added: [{ ref: "db-1", id: "5", displayName: "Blog Posts" }],
       alreadyAdded: [],
       scanned: 2,
     };
@@ -113,7 +113,7 @@ describe("printAddSummary", () => {
   test("prints a human-readable summary", () => {
     printAddSummary({
       scanned: 3,
-      added: [{ ref: "articles", id: 1, displayName: "Articles" }],
+      added: [{ ref: "articles", id: "1", displayName: "Articles" }],
       alreadyAdded: [{ ref: "authors", displayName: "Authors", alreadyAdded: true }],
     });
 

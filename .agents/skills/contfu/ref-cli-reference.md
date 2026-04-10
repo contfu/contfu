@@ -44,10 +44,24 @@ Skips steps already done: if the package is already installed, setup moves strai
 ## Discover source collections
 
 ```bash
-contfu discover <connection-id>  # JSON: available source collections from a CMS connection
+contfu connections scan <connection-id>  # JSON: available source collections from a CMS connection
 ```
 
-Returns `[{ ref, displayName, alreadyImported, icon? }]` — the databases/content types available in that connection.
+Returns `[{ ref, displayName, alreadyAdded, icon? }]` — the databases/content types available in that connection.
+
+## Import source collections
+
+```bash
+contfu connections add <connection-id> --refs <comma-separated>   # add specific collections
+contfu connections add <connection-id> --all                      # add all available collections
+contfu connections add <connection-id> --select                   # interactive picker
+```
+
+## Regenerate app key
+
+```bash
+contfu connections regenerate-key <id>   # regenerate the API key for an app connection
+```
 
 ## Resource CRUD
 

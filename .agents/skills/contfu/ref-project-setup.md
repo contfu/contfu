@@ -1,13 +1,13 @@
 # Full Project Setup
 
-This is the end-to-end flow. The SKILL.md bootstrap already discovered existing state — use that context to skip completed steps.
+This is the end-to-end flow. The SKILL.md bootstrap already connections scaned existing state — use that context to skip completed steps.
 
 ## The data flow
 
 ```
 CMS (Notion, Strapi, etc.)
   → CMS Connection (OAuth or token)
-    → Source collections (discovered via web UI)
+    → Source collections (connections scaned via web UI)
       → App connection (app API key)
         → Target collections (content buckets, owned by the client)
           → Flows (source → target mapping)
@@ -67,21 +67,22 @@ To create new collections:
 contfu collections create --display-name "Blog Posts" --connection-id <client-id>
 ```
 
-## Step 4 — Import source collections (web UI required)
+## Step 4 — Add source collections
 
-Source collections from `contfu discover` have UUID refs but no numeric IDs yet. Before creating flows, the user must import the needed databases via the web UI:
-
-```
-https://contfu.com/connections/<cms-connection-id>
-```
-
-Ask the user to import each database they want to sync. Once imported, numeric source collection IDs appear in:
+Scan available source collections and add them via the CLI:
 
 ```bash
-contfu connections get <cms-connection-id>
+contfu connections scan <cms-connection-id>          # list available source collections
+contfu connections add <cms-connection-id> --all     # import all, or --refs <refs> for specific ones
 ```
 
-Each imported source collection in the response has an `id` field — use that as `--source-id`.
+After import, source collection IDs are available:
+
+```bash
+contfu collections list -f json
+```
+
+Each imported source collection has an `id` field — use that as `--source-id`.
 
 ## Step 5 — Flows
 
@@ -89,10 +90,10 @@ Check which collections already have flows. Suggest wiring up any that don't:
 
 > "Authors" doesn't have a flow yet. Want me to connect it to your Notion workspace?
 
-To create a flow, you need the **numeric** source collection ID (from the imported source collections in `contfu connections get`) and the target collection ID.
+To create a flow, you need the source collection ID (from `contfu collections list -f json`) and the target collection ID.
 
 ```bash
-contfu flows create --source-id <numeric-src-id> --target-id <tgt>
+contfu flows create --source-id <source-id> --target-id <target-id>
 ```
 
 ## Step 5 — SDK setup

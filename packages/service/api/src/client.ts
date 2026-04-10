@@ -70,31 +70,31 @@ export interface ContfuApiClient {
   getStatus(): Promise<ApiStatus>;
 
   listConnections(): Promise<ApiConnection[]>;
-  getConnection(id: number | string): Promise<ApiConnection>;
+  getConnection(id: string): Promise<ApiConnection>;
   createConnection(body: CreateConnectionBody): Promise<ApiConnection>;
   createAppConnection(name: string): Promise<CreateAppResult>;
-  regenerateAppKey(id: number | string): Promise<RegenerateKeyResult>;
-  updateConnection(id: number | string, body: UpdateConnectionBody): Promise<ApiConnection>;
-  deleteConnection(id: number | string): Promise<void>;
-  getConnectionTypes(id: number | string): Promise<TypeGenerationInput[]>;
-  scanCollections(connectionId: number | string): Promise<ScannedCollection[]>;
+  regenerateAppKey(id: string): Promise<RegenerateKeyResult>;
+  updateConnection(id: string, body: UpdateConnectionBody): Promise<ApiConnection>;
+  deleteConnection(id: string): Promise<void>;
+  getConnectionTypes(id: string): Promise<TypeGenerationInput[]>;
+  scanCollections(connectionId: string): Promise<ScannedCollection[]>;
   addScannedCollections(
-    connectionId: number | string,
+    connectionId: string,
     body: AddScannedCollectionsBody,
   ): Promise<AddScannedCollectionsResult>;
 
   listCollections(): Promise<ServiceCollection[]>;
-  getCollection(id: number | string): Promise<ServiceCollection>;
+  getCollection(id: string): Promise<ServiceCollection>;
   createCollection(body: CreateCollectionBody): Promise<ServiceCollection>;
-  updateCollection(id: number | string, body: UpdateCollectionBody): Promise<ServiceCollection>;
-  deleteCollection(id: number | string): Promise<void>;
-  getCollectionTypes(id: number | string): Promise<TypeGenerationInput[]>;
+  updateCollection(id: string, body: UpdateCollectionBody): Promise<ServiceCollection>;
+  deleteCollection(id: string): Promise<void>;
+  getCollectionTypes(id: string): Promise<TypeGenerationInput[]>;
 
   listFlows(): Promise<ServiceFlow[]>;
-  getFlow(id: number | string): Promise<ServiceFlowWithDetails>;
+  getFlow(id: string): Promise<ServiceFlowWithDetails>;
   createFlow(body: CreateFlowBody): Promise<ServiceFlow>;
-  updateFlow(id: number | string, body: UpdateFlowBody): Promise<ServiceFlow>;
-  deleteFlow(id: number | string): Promise<void>;
+  updateFlow(id: string, body: UpdateFlowBody): Promise<ServiceFlow>;
+  deleteFlow(id: string): Promise<void>;
 }
 
 export function createApiClient(

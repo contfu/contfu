@@ -24,7 +24,7 @@ describe("createApiClient", () => {
       "api-key",
       fetchMock as unknown as typeof fetch,
     );
-    const result = await client.scanCollections(42);
+    const result = await client.scanCollections("42");
 
     expect(result).toEqual(scanned);
     expect(fetchMock).toHaveBeenCalledWith(
@@ -35,7 +35,7 @@ describe("createApiClient", () => {
 
   test("addScannedCollections posts the request body to the add endpoint", async () => {
     const summary = {
-      added: [{ ref: "articles", id: 7, displayName: "Articles" }],
+      added: [{ ref: "articles", id: "7", displayName: "Articles" }],
       alreadyAdded: [],
       scanned: 2,
     };
@@ -46,7 +46,7 @@ describe("createApiClient", () => {
       "api-key",
       fetchMock as unknown as typeof fetch,
     );
-    const result = await client.addScannedCollections(42, { refs: ["articles"] });
+    const result = await client.addScannedCollections("42", { refs: ["articles"] });
 
     expect(result).toEqual(summary);
     expect(fetchMock).toHaveBeenCalledWith(
@@ -68,7 +68,7 @@ describe("createApiClient", () => {
     );
 
     // oxlint-disable-next-line typescript-eslint/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
-    await expect(client.addScannedCollections(42, { refs: ["missing"] })).rejects.toEqual(
+    await expect(client.addScannedCollections("42", { refs: ["missing"] })).rejects.toEqual(
       new ApiError(400, "Unknown refs: missing"),
     );
   });

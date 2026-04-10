@@ -6,11 +6,12 @@ import { listConnections } from "@contfu/svc-backend/features/connections/listCo
 import { createConnection } from "@contfu/svc-backend/features/connections/createConnection";
 import { parseBody, CreateConnectionSchema } from "../schemas";
 import { Effect } from "effect";
+import { encodeApiConnection } from "../encode";
 
 export async function GET({ request }: { request: Request }) {
   const { userId } = await authenticateApiKey(request, "read");
   const result = await runWithUser(userId, listConnections());
-  return json(result);
+  return json(result.map(encodeApiConnection));
 }
 
 export async function POST({ request }: { request: Request }) {
@@ -49,5 +50,5 @@ export async function POST({ request }: { request: Request }) {
     );
   }
 
-  return json(result, { status: 201 });
+  return json(encodeApiConnection(result), { status: 201 });
 }

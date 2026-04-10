@@ -4,22 +4,24 @@ import { runWithUser } from "$lib/server/run";
 import { processIconForStorage } from "$lib/server/icon-image";
 import { addScannedCollections } from "@contfu/svc-backend/features/collections/addScannedCollections";
 import { parseBody, AddScannedCollectionsSchema } from "../../../schemas";
+import { parseIdParam, encodeAddScannedResult } from "../../../encode";
 
 export async function POST({ request, params }: { request: Request; params: { id: string } }) {
   const { userId } = await authenticateApiKey(request, "write");
+  const id = parseIdParam("connection", params.id);
   const body = parseBody(AddScannedCollectionsSchema, await request.json());
 
   try {
     const result = await runWithUser(
       userId,
       addScannedCollections(userId, {
-        connectionId: Number(params.id),
+        connectionId: id,
         refs: body.refs,
         all: body.all,
         processIcon: processIconForStorage,
       }),
     );
-    return json(result, { status: 201 });
+    return json(encodeAddScannedResult(result), { status: 201 });
   } catch (error) {
     const tagged = error as {
       _tag?: string;

@@ -29,9 +29,9 @@ test.describe("@contfu/svc-api client", () => {
   test.describe.configure({ mode: "serial", timeout: 60000 });
 
   let client: ContfuApiClient;
-  let createdConnectionId: number | undefined;
+  let createdConnectionId: string | undefined;
   let createdCollectionId: string | undefined;
-  let createdFlowId: number | undefined;
+  let createdFlowId: string | undefined;
   let targetCollectionId: string | undefined;
 
   test("setup: initialize client with seeded API key", async ({ page }) => {
@@ -59,7 +59,7 @@ test.describe("@contfu/svc-api client", () => {
     });
     expect(conn.name).toBe("E2E Web Connection");
     expect(conn.type).toBe(ConnectionType.WEB);
-    expect(typeof conn.id).toBe("number");
+    expect(typeof conn.id).toBe("string");
     createdConnectionId = conn.id;
   });
 
@@ -79,7 +79,7 @@ test.describe("@contfu/svc-api client", () => {
   test("createCollection creates a collection", async () => {
     const col = await client.createCollection({ displayName: "E2E Collection" });
     expect(col.displayName).toBe("E2E Collection");
-    createdCollectionId = String(col.id);
+    createdCollectionId = col.id;
   });
 
   test("getCollection returns the created collection", async () => {
@@ -114,43 +114,37 @@ test.describe("@contfu/svc-api client", () => {
     await page.locator('input[placeholder="My App"]').fill("SVC-API E2E Target App");
     await page.getByRole("button", { name: /create app/i }).click();
     await page.waitForURL(/\/connections\/[^/]+$/, { timeout: 15000 });
-    // Extract connection ID from URL
-    const connectionUrl = page.url();
-    const encodedId = connectionUrl.match(/\/connections\/([^/]+)$/)![1];
     const connections = await client.listConnections();
-    // Find the newly created APP connection by encoded ID
-    // We use the name to identify it
     const appConn = connections.find(
       (c) => c.type === ConnectionType.APP && c.name === "SVC-API E2E Target App",
     );
     expect(appConn).toBeDefined();
-    void encodedId; // used for navigation, actual ID from API
     const targetConnectionId = appConn!.id;
 
     const targetCol = await client.createCollection({
       displayName: "E2E Target Collection",
       connectionId: targetConnectionId,
     });
-    targetCollectionId = String(targetCol.id);
+    targetCollectionId = targetCol.id;
 
     const flow = await client.createFlow({
-      sourceId: Number(createdCollectionId!),
-      targetId: Number(targetCollectionId),
+      sourceId: createdCollectionId!,
+      targetId: targetCollectionId,
     });
     expect(flow.id).toBeDefined();
     expect(flow.includeRef).toBe(true);
-    createdFlowId = Number(flow.id);
+    createdFlowId = flow.id;
   });
 
   test("listFlows returns array containing the created flow", async () => {
     const flows = await client.listFlows();
     expect(Array.isArray(flows)).toBe(true);
-    expect(flows.some((f) => Number(f.id) === createdFlowId)).toBe(true);
+    expect(flows.some((f) => f.id === createdFlowId)).toBe(true);
   });
 
   test("getFlow returns flow with details", async () => {
     const flow = await client.getFlow(createdFlowId!);
-    expect(Number(flow.id)).toBe(createdFlowId);
+    expect(flow.id).toBe(createdFlowId);
     expect(typeof flow.sourceCollectionName).toBe("string");
     expect(typeof flow.targetCollectionName).toBe("string");
   });

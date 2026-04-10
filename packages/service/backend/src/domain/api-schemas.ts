@@ -1,4 +1,5 @@
 import * as v from "valibot";
+import { idSchema } from "../infra/ids";
 
 // --- Connections ---
 
@@ -25,7 +26,7 @@ export const AddScannedCollectionsSchema = v.object({
 export const CreateCollectionSchema = v.object({
   displayName: v.string(),
   name: v.optional(v.string()),
-  connectionId: v.optional(v.nullable(v.number())),
+  connectionId: v.optional(v.nullable(idSchema("connection"))),
   includeRef: v.optional(v.boolean()),
 });
 
@@ -55,8 +56,8 @@ const MappingRuleSchema = v.object({
 });
 
 export const CreateFlowSchema = v.object({
-  sourceId: v.number(),
-  targetId: v.number(),
+  sourceId: idSchema("collection"),
+  targetId: idSchema("collection"),
   filters: v.optional(v.array(FilterSchema)),
   schema: v.optional(v.record(v.string(), SchemaValueSchema)),
   includeRef: v.optional(v.boolean()),

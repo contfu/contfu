@@ -13,7 +13,7 @@ function jsonResponse(data: unknown, statusCode = 200): Response {
 
 const CONNECTIONS = [
   {
-    id: 1,
+    id: "1",
     name: "My Notion",
     type: 20,
     accountId: null,
@@ -24,7 +24,7 @@ const CONNECTIONS = [
     updatedAt: null,
   },
   {
-    id: 2,
+    id: "2",
     name: "website",
     type: 0,
     accountId: null,

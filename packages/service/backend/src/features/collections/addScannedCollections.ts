@@ -1,5 +1,6 @@
 import { ConnectionType, type CollectionIcon } from "@contfu/core";
-import type { AddScannedCollectionsResult, CollectionSchema } from "@contfu/svc-core";
+import type { CollectionSchema } from "@contfu/svc-core";
+import type { BackendAddScannedCollectionsResult } from "../../domain/types";
 import { Effect } from "effect";
 import { QuotaError, ValidationError } from "../../effect/errors";
 import { checkQuota } from "../quota/checkQuota";
@@ -125,7 +126,7 @@ export const addScannedCollections = (userId: number, input: AddScannedCollectio
       }
     }
 
-    const added: AddScannedCollectionsResult["added"] = [];
+    const added: BackendAddScannedCollectionsResult["added"] = [];
     for (const collection of selected) {
       const seed = seedMap.get(collection.ref);
       const created = yield* createCollection(userId, {
@@ -154,7 +155,7 @@ export const addScannedCollections = (userId: number, input: AddScannedCollectio
       added,
       alreadyAdded,
       scanned: scanned.length,
-    } satisfies AddScannedCollectionsResult;
+    } satisfies BackendAddScannedCollectionsResult;
   }).pipe(
     Effect.withSpan("collections.addScanned", {
       attributes: { userId, connectionId: input.connectionId },
