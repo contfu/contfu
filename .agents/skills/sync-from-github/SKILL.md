@@ -1,6 +1,6 @@
 ---
 name: sync-from-github
-description: Merge changes FROM the GitHub mirror (contfu/contfu) back into the Forgejo repo. Creates a PR branch with a merge commit preserving GitHub authorship. Use when PRs were merged on GitHub that need to come back to Forgejo.
+description: Merge changes FROM the GitHub mirror (contfu/contfu) back into the Forgejo repo. If the merge is conflict-free, you may push the result directly to Forgejo main; if there are conflicts, create a PR branch with a merge commit preserving GitHub authorship. Use when PRs were merged on GitHub that need to come back to Forgejo.
 ---
 
 # Sync from GitHub Mirror
@@ -25,6 +25,8 @@ Merge changes from the GitHub mirror back into the Forgejo repo, preserving comm
 
 This creates a branch `sync/from-github-<date>` with a merge commit from `github/main`.
 
+If the merge is clean and policy allows it, you may push the result directly to Forgejo `main` so no PR is needed. If there are conflicts or the merge requires review, keep the branch and create a PR.
+
 ### 3. Handle conflicts
 
 If there are conflicts (common on first sync or when GitHub-only files diverge):
@@ -41,7 +43,7 @@ bun run test
 
 ### 5. Create PR
 
-Push the branch and create a Forgejo PR for review. **Do NOT merge without user approval.**
+If the merge needs review or has conflicts, push the branch and create a Forgejo PR for review. **Do NOT merge without user approval.**
 
 ## Notes
 
