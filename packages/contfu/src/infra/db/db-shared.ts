@@ -3,7 +3,7 @@ import { mkdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-export const dbUrl: string = process.env.DATABASE_URL ?? ":memory:";
+export const dbUrl: string = process.env.DATABASE_URL ?? "data/contfu.sqlite";
 
 export function resolveMigrationsFolder(): string | null {
   const byModulePath = join(dirname(fileURLToPath(import.meta.url)), "../../../db/migrations");
