@@ -1,10 +1,10 @@
 import { eq } from "drizzle-orm";
-import type { MediaStore } from "../../features/media/media";
+import type { AssetStore } from "../../domain/assets";
 import { db } from "../db/db";
 import { decodeId } from "../ids";
 import { assetTable } from "../db/schema";
 
-export class DBStore implements MediaStore {
+export class DBStore implements AssetStore {
   async write(path: string, data: Buffer | ReadableStream): Promise<void> {
     const id = this.idFromPath(path);
     const buf = Buffer.isBuffer(data) ? data : Buffer.from(await new Response(data).arrayBuffer());

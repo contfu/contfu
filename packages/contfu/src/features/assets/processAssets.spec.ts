@@ -5,12 +5,13 @@ import { db } from "../../infra/db/db";
 import { assetTable, itemAssetTable, itemsTable } from "../../infra/db/schema";
 import { truncateAllTables } from "../../../test/setup";
 import { setCollection } from "../collections/setCollection";
-import type { MediaOptimizer, MediaStore, TransformMediaRule } from "../media/media";
+import type { AssetStore } from "../../domain/assets";
+import type { MediaOptimizer, TransformMediaRule } from "../../domain/media";
 import { processAssets, processPropertyAssets } from "./processAssets";
 
 const itemId = Buffer.from([1, 2, 3]).toString("base64url");
 
-function makeMediaStore(): MediaStore {
+function makeAssetStore(): AssetStore {
   return {
     write: mock(() => Promise.resolve()),
     read: mock(() => Promise.resolve(null)),
@@ -57,14 +58,14 @@ describe("processAssets", () => {
   });
 
   test("downloads, optimizes, and creates asset records for ImageBlocks", async () => {
-    const mediaStore = makeMediaStore();
+    const assetStore = makeAssetStore();
     const mediaOptimizer = makeMediaOptimizer();
     const content: Block[] = [["p", ["Hello"]], makeImageBlock("https://example.com/photo.png")];
 
     const result = await processAssets({
       itemId,
       content,
-      mediaStore,
+      assetStore,
       mediaOptimizer,
     });
 
@@ -89,19 +90,19 @@ describe("processAssets", () => {
   });
 
   test("skips existing assets and creates junction link (idempotent dedup)", async () => {
-    const mediaStore = makeMediaStore();
+    const assetStore = makeAssetStore();
     const mediaOptimizer = makeMediaOptimizer();
     const content: Block[] = [makeImageBlock("https://example.com/photo.png")];
 
     // First call creates the asset
-    await processAssets({ itemId, content: [...content], mediaStore, mediaOptimizer });
+    await processAssets({ itemId, content: [...content], assetStore, mediaOptimizer });
 
     // Reset mocks
     (mediaOptimizer.optimize as ReturnType<typeof mock>).mockClear();
 
     // Second call with same URL should skip download but still link
     const content2: Block[] = [makeImageBlock("https://example.com/photo.png")];
-    await processAssets({ itemId, content: content2, mediaStore, mediaOptimizer });
+    await processAssets({ itemId, content: content2, assetStore, mediaOptimizer });
 
     expect(mediaOptimizer.optimize).not.toHaveBeenCalled();
 
@@ -111,7 +112,7 @@ describe("processAssets", () => {
   });
 
   test("many-to-many: same asset linked to multiple items", async () => {
-    const mediaStore = makeMediaStore();
+    const assetStore = makeAssetStore();
     const mediaOptimizer = makeMediaOptimizer();
 
     // Insert second item
@@ -129,7 +130,7 @@ describe("processAssets", () => {
     await processAssets({
       itemId,
       content: [makeImageBlock("https://example.com/shared.png")],
-      mediaStore,
+      assetStore,
       mediaOptimizer,
     });
 
@@ -138,7 +139,7 @@ describe("processAssets", () => {
     await processAssets({
       itemId: itemId2,
       content: [makeImageBlock("https://example.com/shared.png")],
-      mediaStore,
+      assetStore,
       mediaOptimizer,
     });
 
@@ -154,14 +155,14 @@ describe("processAssets", () => {
   });
 
   test("handles content with no images (no-op)", async () => {
-    const mediaStore = makeMediaStore();
+    const assetStore = makeAssetStore();
     const mediaOptimizer = makeMediaOptimizer();
     const content: Block[] = [
       ["p", ["Hello"]],
       ["1", ["Heading"]],
     ];
 
-    const result = await processAssets({ itemId, content, mediaStore, mediaOptimizer });
+    const result = await processAssets({ itemId, content, assetStore, mediaOptimizer });
 
     expect(result).toBe(content);
     expect(mediaOptimizer.optimize).not.toHaveBeenCalled();
@@ -172,11 +173,11 @@ describe("processAssets", () => {
       Promise.resolve(new Response(null, { status: 404 })),
     ) as unknown as typeof fetch;
 
-    const mediaStore = makeMediaStore();
+    const assetStore = makeAssetStore();
     const mediaOptimizer = makeMediaOptimizer();
     const content: Block[] = [makeImageBlock("https://example.com/missing.png")];
 
-    const result = await processAssets({ itemId, content, mediaStore, mediaOptimizer });
+    const result = await processAssets({ itemId, content, assetStore, mediaOptimizer });
 
     expect(result).toHaveLength(1);
     expect(mediaOptimizer.optimize).not.toHaveBeenCalled();
@@ -185,17 +186,17 @@ describe("processAssets", () => {
   });
 
   test("stores assets as-is without optimizer", async () => {
-    const mediaStore = makeMediaStore();
+    const assetStore = makeAssetStore();
     const content: Block[] = [["p", ["Hello"]], makeImageBlock("https://example.com/photo.png")];
 
     const result = await processAssets({
       itemId,
       content,
-      mediaStore,
+      assetStore,
     });
 
     expect(result).toHaveLength(2);
-    expect(mediaStore.write).toHaveBeenCalledTimes(1);
+    expect(assetStore.write).toHaveBeenCalledTimes(1);
 
     const imgBlock = result[1] as ImageBlock;
     expect(imgBlock[1]).toMatch(/^[a-f0-9]{16}$/);
@@ -206,20 +207,20 @@ describe("processAssets", () => {
   });
 
   test("same pathname with different query params produces same id", async () => {
-    const mediaStore = makeMediaStore();
+    const assetStore = makeAssetStore();
     const mediaOptimizer = makeMediaOptimizer();
     const url1 = "https://s3.amazonaws.com/bucket/image.png?X-Amz-Signature=abc123&expires=100";
     const url2 = "https://s3.amazonaws.com/bucket/image.png?X-Amz-Signature=def456&expires=200";
 
     const content1: Block[] = [makeImageBlock(url1)];
-    await processAssets({ itemId, content: content1, mediaStore, mediaOptimizer });
+    await processAssets({ itemId, content: content1, assetStore, mediaOptimizer });
 
     const id1 = (content1[0] as ImageBlock)[1];
 
     (mediaOptimizer.optimize as ReturnType<typeof mock>).mockClear();
 
     const content2: Block[] = [makeImageBlock(url2)];
-    await processAssets({ itemId, content: content2, mediaStore, mediaOptimizer });
+    await processAssets({ itemId, content: content2, assetStore, mediaOptimizer });
 
     const id2 = (content2[0] as ImageBlock)[1];
 
@@ -247,13 +248,13 @@ describe("processAssets", () => {
       });
     }) as unknown as typeof fetch;
 
-    const mediaStore = makeMediaStore();
+    const assetStore = makeAssetStore();
     const content: Block[] = [
       makeImageBlock("https://example.com/a.png"),
       makeImageBlock("https://example.com/b.png"),
     ];
 
-    await processAssets({ itemId, content, mediaStore });
+    await processAssets({ itemId, content, assetStore });
 
     // Both fetches should have started before either completed
     const firstEnd = callOrder.findIndex((e) => e.startsWith("end:"));
@@ -265,14 +266,14 @@ describe("processAssets", () => {
   });
 
   test("deduplicates same URL appearing multiple times in content", async () => {
-    const mediaStore = makeMediaStore();
+    const assetStore = makeAssetStore();
     const mediaOptimizer = makeMediaOptimizer();
     const content: Block[] = [
       makeImageBlock("https://example.com/same.png"),
       makeImageBlock("https://example.com/same.png"),
     ];
 
-    await processAssets({ itemId, content, mediaStore, mediaOptimizer });
+    await processAssets({ itemId, content, assetStore, mediaOptimizer });
 
     // Should only download once despite two blocks
     expect(globalThis.fetch).toHaveBeenCalledTimes(1);
@@ -283,12 +284,12 @@ describe("processAssets", () => {
   });
 
   test("whitelist: skips optimizer for non-whitelisted extension", async () => {
-    const mediaStore = makeMediaStore();
+    const assetStore = makeAssetStore();
     const mediaOptimizer = makeMediaOptimizer();
     const transformMedia: TransformMediaRule[] = [{ mediaType: "image", include: ["jpg", "jpeg"] }];
     const content: Block[] = [makeImageBlock("https://example.com/photo.png")];
 
-    await processAssets({ itemId, content, mediaStore, mediaOptimizer, transformMedia });
+    await processAssets({ itemId, content, assetStore, mediaOptimizer, transformMedia });
 
     // PNG not in whitelist → optimizer should NOT be called
     expect(mediaOptimizer.optimize).not.toHaveBeenCalled();
@@ -300,26 +301,26 @@ describe("processAssets", () => {
   });
 
   test("whitelist: optimizes whitelisted extension", async () => {
-    const mediaStore = makeMediaStore();
+    const assetStore = makeAssetStore();
     const mediaOptimizer = makeMediaOptimizer();
     const transformMedia: TransformMediaRule[] = [
       { mediaType: "image", include: ["jpg", "jpeg", "png"] },
     ];
     const content: Block[] = [makeImageBlock("https://example.com/photo.png")];
 
-    await processAssets({ itemId, content, mediaStore, mediaOptimizer, transformMedia });
+    await processAssets({ itemId, content, assetStore, mediaOptimizer, transformMedia });
 
     // PNG is in whitelist → optimizer should be called
     expect(mediaOptimizer.optimize).toHaveBeenCalledTimes(1);
   });
 
   test("blacklist: skips optimizer for blacklisted extension", async () => {
-    const mediaStore = makeMediaStore();
+    const assetStore = makeAssetStore();
     const mediaOptimizer = makeMediaOptimizer();
     const transformMedia: TransformMediaRule[] = [{ mediaType: "image", exclude: ["png"] }];
     const content: Block[] = [makeImageBlock("https://example.com/photo.png")];
 
-    await processAssets({ itemId, content, mediaStore, mediaOptimizer, transformMedia });
+    await processAssets({ itemId, content, assetStore, mediaOptimizer, transformMedia });
 
     // PNG is blacklisted → optimizer should NOT be called
     expect(mediaOptimizer.optimize).not.toHaveBeenCalled();
@@ -330,19 +331,19 @@ describe("processAssets", () => {
   });
 
   test("blacklist: optimizes non-blacklisted extension", async () => {
-    const mediaStore = makeMediaStore();
+    const assetStore = makeAssetStore();
     const mediaOptimizer = makeMediaOptimizer();
     const transformMedia: TransformMediaRule[] = [{ mediaType: "image", exclude: ["gif"] }];
     const content: Block[] = [makeImageBlock("https://example.com/photo.png")];
 
-    await processAssets({ itemId, content, mediaStore, mediaOptimizer, transformMedia });
+    await processAssets({ itemId, content, assetStore, mediaOptimizer, transformMedia });
 
     // PNG is not blacklisted → optimizer should be called
     expect(mediaOptimizer.optimize).toHaveBeenCalledTimes(1);
   });
 
   test("collection-scoped rule: ignores rule for non-matching collection", async () => {
-    const mediaStore = makeMediaStore();
+    const assetStore = makeAssetStore();
     const mediaOptimizer = makeMediaOptimizer();
     const transformMedia: TransformMediaRule[] = [
       // This rule applies only to "other" collection, not "test"
@@ -353,7 +354,7 @@ describe("processAssets", () => {
     await processAssets({
       itemId,
       content,
-      mediaStore,
+      assetStore,
       mediaOptimizer,
       transformMedia,
       collection: "test",
@@ -364,7 +365,7 @@ describe("processAssets", () => {
   });
 
   test("collection-scoped rule: applies rule for matching collection", async () => {
-    const mediaStore = makeMediaStore();
+    const assetStore = makeAssetStore();
     const mediaOptimizer = makeMediaOptimizer();
     const transformMedia: TransformMediaRule[] = [
       { mediaType: "image", exclude: ["png"], collections: ["test"] },
@@ -374,7 +375,7 @@ describe("processAssets", () => {
     await processAssets({
       itemId,
       content,
-      mediaStore,
+      assetStore,
       mediaOptimizer,
       transformMedia,
       collection: "test",
@@ -412,14 +413,14 @@ describe("processPropertyAssets", () => {
   });
 
   test("FILE prop gets downloaded and replaced with asset id", async () => {
-    const mediaStore = makeMediaStore();
+    const assetStore = makeAssetStore();
     const mediaOptimizer = makeMediaOptimizer();
 
     const result = await processPropertyAssets({
       itemId,
       props: { cover: "https://example.com/cover.png", title: "Hello" },
       schema: { cover: PropertyType.FILE, title: PropertyType.STRING },
-      mediaStore,
+      assetStore,
       mediaOptimizer,
     });
 
@@ -430,7 +431,7 @@ describe("processPropertyAssets", () => {
   });
 
   test("FILES prop (string[]) gets each URL processed", async () => {
-    const mediaStore = makeMediaStore();
+    const assetStore = makeAssetStore();
     const mediaOptimizer = makeMediaOptimizer();
 
     const result = await processPropertyAssets({
@@ -439,7 +440,7 @@ describe("processPropertyAssets", () => {
         images: ["https://example.com/a.png", "https://example.com/b.jpg"],
       },
       schema: { images: PropertyType.FILES },
-      mediaStore,
+      assetStore,
       mediaOptimizer,
     });
 
@@ -451,14 +452,14 @@ describe("processPropertyAssets", () => {
   });
 
   test("non-FILE props are untouched", async () => {
-    const mediaStore = makeMediaStore();
+    const assetStore = makeAssetStore();
     const mediaOptimizer = makeMediaOptimizer();
 
     const result = await processPropertyAssets({
       itemId,
       props: { title: "Hello", count: 42 },
       schema: { title: PropertyType.STRING, count: PropertyType.NUMBER },
-      mediaStore,
+      assetStore,
       mediaOptimizer,
     });
 
@@ -468,14 +469,14 @@ describe("processPropertyAssets", () => {
   });
 
   test("null prop values are skipped", async () => {
-    const mediaStore = makeMediaStore();
+    const assetStore = makeAssetStore();
     const mediaOptimizer = makeMediaOptimizer();
 
     const result = await processPropertyAssets({
       itemId,
       props: { cover: null },
       schema: { cover: PropertyType.FILE },
-      mediaStore,
+      assetStore,
       mediaOptimizer,
     });
 

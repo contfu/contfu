@@ -17,11 +17,11 @@ import { collectionsTable, linkTable } from "../../infra/db/schema";
 import type {
   CollectionVariants,
   MediaOptimizer,
-  MediaStore,
   TransformMediaRule,
   VariantDef,
-} from "../media/media";
-import { mediaStore as defaultMediaStore } from "../../infra/media/media-defaults";
+} from "../../domain/media";
+import type { AssetStore } from "../../domain/assets";
+import { assetStore as defaultAssetStore } from "../../infra/media/media-defaults";
 
 /**
  * Connect to the stream and persist events into the local database.
@@ -32,7 +32,7 @@ export async function* connect(opts?: {
   from?: number;
   reconnect?: boolean;
   connectionEvents?: boolean;
-  mediaStore?: MediaStore;
+  assetStore?: AssetStore;
   mediaOptimizer?: MediaOptimizer;
   transformMedia?: TransformMediaRule[];
   collectionVariants?: CollectionVariants;
@@ -41,13 +41,13 @@ export async function* connect(opts?: {
   const from = opts?.from ?? (persistedFrom != null ? persistedFrom + 1 : undefined);
   const {
     connectionEvents: _connectionEvents,
-    mediaStore: userMediaStore,
+    assetStore: userAssetStore,
     mediaOptimizer,
     transformMedia,
     collectionVariants,
     ...restOpts
   } = opts ?? {};
-  const resolvedMediaStore = userMediaStore ?? defaultMediaStore;
+  const resolvedAssetStore = userAssetStore ?? defaultAssetStore;
   const baseOpts = { ...restOpts, from };
 
   if (opts?.connectionEvents) {
@@ -63,7 +63,7 @@ export async function* connect(opts?: {
       }
       await persistSyncEvent(
         event,
-        resolvedMediaStore,
+        resolvedAssetStore,
         mediaOptimizer,
         transformMedia,
         collectionVariants,
@@ -76,7 +76,7 @@ export async function* connect(opts?: {
   for await (const event of connectToStream(baseOpts)) {
     await persistSyncEvent(
       event,
-      resolvedMediaStore,
+      resolvedAssetStore,
       mediaOptimizer,
       transformMedia,
       collectionVariants,
@@ -87,7 +87,7 @@ export async function* connect(opts?: {
 
 async function persistSyncEvent(
   event: ItemEvent,
-  mediaStore?: MediaStore,
+  assetStore?: AssetStore,
   mediaOptimizer?: MediaOptimizer,
   transformMedia?: TransformMediaRule[],
   collectionVariants?: CollectionVariants,
@@ -165,14 +165,14 @@ async function persistSyncEvent(
       });
     }
 
-    if (mediaStore) {
+    if (assetStore) {
       let needsUpdate = false;
 
       if (content && content.length > 0) {
         content = await processAssets({
           itemId,
           content,
-          mediaStore,
+          assetStore,
           mediaOptimizer,
           transformMedia,
           collection,
@@ -187,7 +187,7 @@ async function persistSyncEvent(
           itemId,
           props,
           schema,
-          mediaStore,
+          assetStore,
           mediaOptimizer,
           transformMedia,
           collection,
@@ -210,7 +210,7 @@ async function persistSyncEvent(
     }
   } else if (event.type === EventType.ITEM_DELETED) {
     const itemId = event.item.toString("base64url");
-    if (mediaStore) {
+    if (assetStore) {
       deleteAssetsByItem(itemId);
     }
     deleteItem(itemId);

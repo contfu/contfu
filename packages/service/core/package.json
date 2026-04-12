@@ -27,6 +27,7 @@
   },
   "scripts": {
     "build": "tsc -b",
+    "test": "bun test src/",
     "pack": "bun ../../../scripts/pack-package.ts .",
     "clean": "rm -rf dist"
   },

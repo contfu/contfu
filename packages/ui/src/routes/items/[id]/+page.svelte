@@ -34,7 +34,7 @@
     const v = item.props.icon ?? item.props.image;
     if (typeof v !== "string" || !v) return null;
     if (v.startsWith("http://") || v.startsWith("https://")) return v;
-    if (ASSET_ID_RE.test(v)) return `/media/${v}`;
+    if (ASSET_ID_RE.test(v)) return `/assets/${v}`;
     return null;
   }
   let propsView = $state<"pairs" | "json">("pairs");
@@ -223,7 +223,7 @@
                           <div class="mb-2">
                             {#if asset.mediaType === "image"}
                               <img
-                                src={`/media/${asset.id}.${asset.ext}`}
+                                src={`/assets/${asset.id}.${asset.ext}`}
                                 alt={key}
                                 class="max-h-60 rounded border object-contain"
                                 loading="lazy"
@@ -231,13 +231,13 @@
                             {:else if asset.mediaType === "video"}
                               <!-- svelte-ignore a11y_media_has_caption -->
                               <video
-                                src={`/media/${asset.id}.${asset.ext}`}
+                                src={`/assets/${asset.id}.${asset.ext}`}
                                 controls
                                 class="max-h-60 rounded border"
                               ></video>
                             {:else if asset.mediaType === "audio"}
                               <audio
-                                src={`/media/${asset.id}.${asset.ext}`}
+                                src={`/assets/${asset.id}.${asset.ext}`}
                                 controls
                               ></audio>
                             {:else}
@@ -300,7 +300,7 @@
                     <div>
                       {#if asset.mediaType === "image"}
                         <img
-                          src={`/media/${asset.id}.${asset.ext}`}
+                          src={`/assets/${asset.id}.${asset.ext}`}
                           alt={key}
                           class="max-h-60 rounded border object-contain"
                           loading="lazy"
@@ -308,12 +308,12 @@
                       {:else if asset.mediaType === "video"}
                         <!-- svelte-ignore a11y_media_has_caption -->
                         <video
-                          src={`/media/${asset.id}.${asset.ext}`}
+                          src={`/assets/${asset.id}.${asset.ext}`}
                           controls
                           class="max-h-60 rounded border"
                         ></video>
                       {:else if asset.mediaType === "audio"}
-                        <audio src={`/media/${asset.id}.${asset.ext}`} controls
+                        <audio src={`/assets/${asset.id}.${asset.ext}`} controls
                         ></audio>
                       {:else}
                         {formatPropValue(value)}
@@ -458,7 +458,7 @@
               {:else if block[0] === "i"}
                 <div class="space-y-1">
                   <img
-                    src={`/media/${block[1]}.${assetMap.get(block[1])?.ext ?? "avif"}`}
+                    src={`/assets/${block[1]}.${assetMap.get(block[1])?.ext ?? "avif"}`}
                     alt={block[2]}
                     class="max-h-80 rounded border object-contain"
                     loading="lazy"

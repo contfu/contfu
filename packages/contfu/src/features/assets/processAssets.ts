@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash } from "node:crypto";
 import {
   isImg,
   mimeTypes,
@@ -18,7 +18,6 @@ import type {
   AudioConstraints,
   ImageConstraints,
   MediaOptimizer,
-  MediaStore,
   OptimizeAudioOpts,
   OptimizeImageOpts,
   OptimizeVideoOpts,
@@ -26,7 +25,8 @@ import type {
   VariantDef,
   VariantResult,
   VideoConstraints,
-} from "../media/media";
+} from "../../domain/media";
+import type { AssetStore } from "../../domain/assets";
 
 /**
  * Detect media type from file extension using m4k's mimeTypes.
@@ -152,7 +152,6 @@ function storeVariantRecords(assetId: string, results: VariantResult[]): void {
 
     db.insert(mediaVariantTable)
       .values({
-        id: randomBytes(16),
         assetId: decodeId(assetId),
         ext: variant.ext,
         optsHash,
@@ -172,7 +171,7 @@ function storeVariantRecords(assetId: string, results: VariantResult[]): void {
 async function downloadAndStoreAsset(
   itemId: string,
   originalUrl: string,
-  mediaStore: MediaStore,
+  assetStore: AssetStore,
   mediaOptimizer?: MediaOptimizer,
   transformMedia?: TransformMediaRule[],
   collectionVariants?: VariantDef[],
@@ -258,12 +257,12 @@ async function downloadAndStoreAsset(
     storeVariantRecords(assetId, variantResults);
   }
 
-  // Write to mediaStore for non-DB store implementations
+  // Write to assetStore for non-DB store implementations
   for (const result of variantResults) {
-    await mediaStore.write(result.path, result.data);
+    await assetStore.write(result.path, result.data);
   }
   if (variantResults.length === 0) {
-    await mediaStore.write(storeKey, masterData);
+    await assetStore.write(storeKey, masterData);
   }
 
   return assetId;
@@ -271,13 +270,13 @@ async function downloadAndStoreAsset(
 
 /**
  * Extract ImageBlocks from content, download each image, optimize via
- * MediaOptimizer, write to MediaStore, and create asset DB records.
+ * MediaOptimizer, write to AssetStore, and create asset DB records.
  * Returns the content array with ImageBlock URLs replaced by asset ids.
  */
 export async function processAssets(opts: {
   itemId: string;
   content: Block[];
-  mediaStore: MediaStore;
+  assetStore: AssetStore;
   mediaOptimizer?: MediaOptimizer;
   transformMedia?: TransformMediaRule[];
   collection?: string;
@@ -286,7 +285,7 @@ export async function processAssets(opts: {
   const {
     itemId,
     content,
-    mediaStore,
+    assetStore,
     mediaOptimizer,
     transformMedia,
     collection,
@@ -310,7 +309,7 @@ export async function processAssets(opts: {
         downloadAndStoreAsset(
           itemId,
           originalUrl,
-          mediaStore,
+          assetStore,
           mediaOptimizer,
           transformMedia,
           collectionVariants,
@@ -340,7 +339,7 @@ export async function processPropertyAssets(opts: {
   itemId: string;
   props: Record<string, unknown>;
   schema: CollectionSchema;
-  mediaStore: MediaStore;
+  assetStore: AssetStore;
   mediaOptimizer?: MediaOptimizer;
   transformMedia?: TransformMediaRule[];
   collection?: string;
@@ -350,7 +349,7 @@ export async function processPropertyAssets(opts: {
     itemId,
     props,
     schema,
-    mediaStore,
+    assetStore,
     mediaOptimizer,
     transformMedia,
     collection,
@@ -371,14 +370,14 @@ export async function processPropertyAssets(opts: {
     if (value == null) continue;
 
     if (isFiles && Array.isArray(value)) {
-      const processed: (string | Promise<string>)[] = [];
+      const processed: Promise<string>[] = [];
       for (const url of value) {
         if (typeof url === "string" && url.startsWith("http")) {
           processed.push(
             downloadAndStoreAsset(
               itemId,
               url,
-              mediaStore,
+              assetStore,
               mediaOptimizer,
               transformMedia,
               collectionVariants,
@@ -386,7 +385,7 @@ export async function processPropertyAssets(opts: {
             ),
           );
         } else {
-          processed.push(url as string);
+          processed.push(Promise.resolve(url as string));
         }
       }
       promises.push(
@@ -399,7 +398,7 @@ export async function processPropertyAssets(opts: {
         downloadAndStoreAsset(
           itemId,
           value,
-          mediaStore,
+          assetStore,
           mediaOptimizer,
           transformMedia,
           collectionVariants,

@@ -92,7 +92,7 @@
     const val = item.props.icon ?? item.props.image;
     if (typeof val !== "string" || !val) return null;
     if (val.startsWith("http://") || val.startsWith("https://")) return val;
-    if (ASSET_ID_RE.test(val)) return `/media/${val}`;
+    if (ASSET_ID_RE.test(val)) return `/assets/${val}`;
     return null;
   }
 

@@ -13,6 +13,5 @@ export default defineConfig({
   },
   ssr: {
     noExternal: process.env.NODE_ENV === "production" ? true : undefined,
-    external: ["sharp", "@contfu/media-optimizer", "@contfu/bun-file-store"],
   },
 });

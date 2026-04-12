@@ -50,8 +50,8 @@ export {
   type ContentLinks,
   type ResolvedLink,
   type ItemUpdate,
-  // Media exports
-  type MediaStore,
+  // Asset exports
+  type AssetStore,
   type NewAsset,
   type NewItem,
   type NewItemLink,

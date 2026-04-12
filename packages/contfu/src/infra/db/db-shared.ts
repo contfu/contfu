@@ -1,23 +1,36 @@
-import { existsSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { dirname } from "node:path";
 
 export const dbUrl: string = process.env.DATABASE_URL ?? "data/contfu.sqlite";
 
-export function resolveMigrationsFolder(): string | null {
-  const byModulePath = join(dirname(fileURLToPath(import.meta.url)), "../../../db/migrations");
-  const byRepoRoot = join(process.cwd(), "packages/contfu/db/migrations");
-  const byPackageRoot = join(process.cwd(), "db/migrations");
+export type GeneratedMigration = {
+  name: string;
+  sql: string;
+  timestamp: number;
+};
 
-  const candidates = [byModulePath, byRepoRoot, byPackageRoot];
-  for (const candidate of candidates) {
-    if (existsSync(candidate)) {
-      return candidate;
-    }
-  }
+export type DrizzleMigrationExecutor = {
+  dialect: {
+    migrate(migrations: ReturnType<typeof buildDrizzleMigrations>, session: unknown): void;
+  };
+  session: unknown;
+};
 
-  return null;
+export function buildDrizzleMigrations(migrations: GeneratedMigration[]) {
+  return migrations.map((migration) => ({
+    sql: migration.sql.split("--> statement-breakpoint"),
+    folderMillis: migration.timestamp,
+    hash: "",
+    bps: true,
+    name: migration.name,
+  }));
+}
+
+export function runEmbeddedMigrations(
+  db: DrizzleMigrationExecutor,
+  migrations: GeneratedMigration[],
+): void {
+  db.dialect.migrate(buildDrizzleMigrations(migrations), db.session);
 }
 
 export async function ensureDbDir(url: string) {

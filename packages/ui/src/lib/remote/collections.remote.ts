@@ -68,7 +68,7 @@ export const getCollectionDetailQuery = query(
     name: v.pipe(v.string(), v.minLength(1)),
     input: v.optional(queryItemsInputSchema),
   }),
-  async ({ name, input }) => {
+  ({ name, input }) => {
     const collections = listCollections();
     const collection = collections.find((entry) => entry.name === name) ?? null;
 
@@ -77,10 +77,8 @@ export const getCollectionDetailQuery = query(
       collection: name,
     };
 
-    const [result, schema] = await Promise.all([
-      queryItems(mergedInput),
-      getCollectionSchemaByName(name),
-    ]);
+    const result = queryItems(mergedInput);
+    const schema = getCollectionSchemaByName(name);
 
     const typeString = schema != null ? generateTypes({ [name]: schema }) : null;
 

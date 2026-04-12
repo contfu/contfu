@@ -128,6 +128,8 @@ export {
 
 // Media exports
 export { convertMedia } from "./features/media/convertMedia";
+export { AssetLoadError, loadAsset, type LoadAssetOptions } from "./features/assets/loadAsset";
+export { type AssetStore } from "./domain/assets";
 export {
   type AudioConstraints,
   type AudioFormat,
@@ -136,7 +138,6 @@ export {
   type ImageFormat,
   type MediaConvertOpts,
   type MediaOptimizer,
-  type MediaStore,
   type MediaTransform,
   type OptimizeAudioOpts,
   type OptimizeImageOpts,
@@ -146,9 +147,9 @@ export {
   type VariantResult,
   type VideoConstraints,
   type VideoFormat,
-} from "./features/media/media";
+} from "./domain/media";
 export { DBStore } from "./infra/media/db-store";
-export { mediaStore } from "./infra/media/media-defaults";
+export { assetStore } from "./infra/media/media-defaults";
 
 // Hooks exports
 export {

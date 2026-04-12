@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import { readdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
+import { rewriteRelativeEsmImports, type RewrittenFile } from "./rewrite-relative-esm-imports";
 
 type PackageJson = Record<string, unknown> & {
   name?: string;
@@ -140,7 +141,8 @@ function normalizeDependencyMap(
   return normalizedDependencyMap;
 }
 
-let shouldRestore = false;
+let shouldRestoreManifest = false;
+let rewrittenDistFiles: RewrittenFile[] = [];
 let exitCode = 0;
 
 try {
@@ -163,7 +165,18 @@ try {
     }
 
     await writeFile(packageJsonPath, `${JSON.stringify(packedManifest, null, 2)}\n`);
-    shouldRestore = true;
+    shouldRestoreManifest = true;
+  }
+
+  const distDir = resolve(packageDir, "dist");
+  if (existsSync(distDir)) {
+    rewrittenDistFiles = await rewriteRelativeEsmImports(distDir);
+  }
+
+  if (rewrittenDistFiles.length > 0) {
+    console.log(
+      `Rewrote relative ESM imports in ${rewrittenDistFiles.length} dist files for packing.`,
+    );
   }
 
   const pack = Bun.spawn({
@@ -176,7 +189,11 @@ try {
 
   exitCode = await pack.exited;
 } finally {
-  if (shouldRestore) {
+  for (const rewrittenFile of rewrittenDistFiles) {
+    await writeFile(rewrittenFile.path, rewrittenFile.originalContents);
+  }
+
+  if (shouldRestoreManifest) {
     await writeFile(packageJsonPath, originalContents);
   }
 }

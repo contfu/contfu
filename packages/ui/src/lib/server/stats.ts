@@ -10,12 +10,10 @@ export type DashboardStats = {
  * Get aggregated dashboard statistics for the local database.
  * Returns counts for items (pages), unique collections, and assets.
  */
-export async function getDashboardStats(): Promise<DashboardStats> {
-  const [itemCount, collectionCount, assetCount] = await Promise.all([
-    countItems(),
-    countCollections(),
-    countAssets(),
-  ]);
+export function getDashboardStats(): DashboardStats {
+  const itemCount = countItems();
+  const collectionCount = countCollections();
+  const assetCount = countAssets();
 
   return { itemCount, collectionCount, assetCount };
 }

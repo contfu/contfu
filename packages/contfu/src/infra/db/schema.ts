@@ -82,7 +82,6 @@ export const itemAssetTable = sqliteTable(
 export const mediaVariantTable = sqliteTable(
   "media_variant",
   {
-    id: blob({ mode: "buffer" }).primaryKey(),
     assetId: blob({ mode: "buffer" })
       .notNull()
       .references(() => assetTable.id, { onDelete: "cascade" }),
@@ -93,5 +92,5 @@ export const mediaVariantTable = sqliteTable(
     data: blob({ mode: "buffer" }).notNull(),
     createdAt: integer().notNull(),
   },
-  (table) => [index("idx_variant_lookup").on(table.assetId, table.ext, table.optsHash)],
+  (table) => [primaryKey({ columns: [table.assetId, table.ext, table.optsHash] })],
 );

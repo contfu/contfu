@@ -1,10 +1,9 @@
-import { randomBytes } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { db } from "../../infra/db/db";
 import { hashOpts } from "../../infra/hash";
 import { decodeId } from "../../infra/ids";
 import { assetTable, mediaVariantTable } from "../../infra/db/schema";
-import type { MediaConvertOpts, MediaTransform } from "./media";
+import type { MediaConvertOpts, MediaTransform } from "../../domain/media";
 
 /**
  * On-demand media conversion with variant caching.
@@ -51,7 +50,6 @@ export async function convertMedia(
   // Cache
   db.insert(mediaVariantTable)
     .values({
-      id: randomBytes(16),
       assetId: asset.id,
       ext,
       optsHash,

@@ -4,7 +4,8 @@ import { db } from "../../infra/db/db";
 import { assetTable, itemAssetTable, syncTable } from "../../infra/db/schema";
 import { truncateAllTables } from "../../../test/setup";
 import { setCollection } from "../collections/setCollection";
-import type { MediaOptimizer, MediaStore } from "../media/media";
+import type { AssetStore } from "../../domain/assets";
+import type { MediaOptimizer } from "../../domain/media";
 
 const key = Buffer.alloc(32, 1);
 
@@ -80,8 +81,8 @@ describe("contfu connect", () => {
     expect(rows[0].index).toBe(100);
   });
 
-  test("processes ImageBlocks when mediaStore and mediaOptimizer provided", async () => {
-    const mediaStore: MediaStore = {
+  test("processes ImageBlocks when assetStore and mediaOptimizer provided", async () => {
+    const assetStore: AssetStore = {
       write: mock(() => Promise.resolve()),
       read: mock(() => Promise.resolve(null)),
       exists: mock(() => Promise.resolve(false)),
@@ -115,7 +116,7 @@ describe("contfu connect", () => {
 
     const { connect } = await import("./connect");
 
-    for await (const _ of connect({ key, reconnect: false, mediaStore, mediaOptimizer })) {
+    for await (const _ of connect({ key, reconnect: false, assetStore, mediaOptimizer })) {
       // consume
     }
 
@@ -130,7 +131,7 @@ describe("contfu connect", () => {
     expect(junctions).toHaveLength(1);
   });
 
-  test("stores assets as-is without optimizer (default mediaStore)", async () => {
+  test("stores assets as-is without optimizer (default assetStore)", async () => {
     await mock.module("@contfu/connect", () => ({
       // eslint-disable-next-line typescript/require-await -- async generator required by AsyncGenerator return type
       connectToStream: async function* () {
@@ -142,7 +143,7 @@ describe("contfu connect", () => {
             ref: "https://example.com/post2",
             collection: "article",
             changedAt: 1700000000,
-            props: { title: "No media" },
+            props: { title: "No assets" },
             content: [["i", "https://example.com/photo2.png", "alt", [800]] as ImageBlock],
           },
           index: 300,
@@ -156,14 +157,14 @@ describe("contfu connect", () => {
       // consume
     }
 
-    // Default mediaStore is used; assets stored as-is (no optimizer)
+    // Default assetStore is used; assets stored as-is (no optimizer)
     const assets = db.select().from(assetTable).all();
     expect(assets).toHaveLength(1);
     expect(assets[0].ext).toBe("png");
   });
 
-  test("DELETED event calls deleteAssetsByItem when mediaStore provided", async () => {
-    const mediaStore: MediaStore = {
+  test("DELETED event calls deleteAssetsByItem when assetStore provided", async () => {
+    const assetStore: AssetStore = {
       write: mock(() => Promise.resolve()),
       read: mock(() => Promise.resolve(null)),
       exists: mock(() => Promise.resolve(false)),
@@ -182,7 +183,7 @@ describe("contfu connect", () => {
 
     const { connect } = await import("./connect");
 
-    for await (const _ of connect({ key, reconnect: false, mediaStore })) {
+    for await (const _ of connect({ key, reconnect: false, assetStore })) {
       // consume
     }
 

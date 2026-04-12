@@ -19,7 +19,7 @@ for await (const event of connect()) {
 
 ## Media processing
 
-You can plug in custom media storage and optimization by passing `mediaStore` and `mediaOptimizer` options to `connect()`:
+You can plug in custom asset storage and media optimization by passing `assetStore` and `mediaOptimizer` options to `connect()`:
 
 ```ts
 import { connect } from "@contfu/contfu";
@@ -27,7 +27,7 @@ import { FileStore } from "@contfu/bun-file-store";
 import { M4kOptimizer } from "@contfu/media-optimizer";
 
 for await (const event of connect({
-  mediaStore: new FileStore("/var/contfu/media"),
+  assetStore: new FileStore("/var/contfu/assets"),
   mediaOptimizer: new M4kOptimizer(),
 })) {
   // assets are stored and optimized automatically during sync

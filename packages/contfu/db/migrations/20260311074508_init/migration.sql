@@ -43,7 +43,6 @@ CREATE TABLE `links` (
 );
 --> statement-breakpoint
 CREATE TABLE `media_variant` (
-	`id` blob PRIMARY KEY,
 	`assetId` blob NOT NULL,
 	`ext` text NOT NULL,
 	`optsHash` integer NOT NULL,
@@ -51,7 +50,8 @@ CREATE TABLE `media_variant` (
 	`size` integer NOT NULL,
 	`data` blob NOT NULL,
 	`createdAt` integer NOT NULL,
-	CONSTRAINT `fk_media_variant_assetId_asset_id_fk` FOREIGN KEY (`assetId`) REFERENCES `asset`(`id`) ON DELETE CASCADE
+	CONSTRAINT `fk_media_variant_assetId_asset_id_fk` FOREIGN KEY (`assetId`) REFERENCES `asset`(`id`) ON DELETE CASCADE,
+	CONSTRAINT `media_variant_pk` PRIMARY KEY(`assetId`, `ext`, `optsHash`)
 );
 --> statement-breakpoint
 CREATE TABLE `sync` (
@@ -62,5 +62,4 @@ CREATE INDEX `idx_items_ref` ON `items` (`ref`);--> statement-breakpoint
 CREATE INDEX `idx_items_collection` ON `items` (`collection`);--> statement-breakpoint
 CREATE INDEX `idx_items_changedAt` ON `items` (`changedAt`);--> statement-breakpoint
 CREATE INDEX `idx_links_from` ON `links` (`from`,`to`);--> statement-breakpoint
-CREATE INDEX `idx_links_to` ON `links` (`to`);--> statement-breakpoint
-CREATE INDEX `idx_variant_lookup` ON `media_variant` (`assetId`,`ext`,`optsHash`);
+CREATE INDEX `idx_links_to` ON `links` (`to`);

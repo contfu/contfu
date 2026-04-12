@@ -1,5 +1,6 @@
 import { EventType } from "@contfu/core";
 import type { IncludeOption, QueryOptions, WithClause } from "@contfu/core";
+import { getAssetStore, handleAssetRequest, type ServerAssetOptions } from "./assets";
 
 type RouteRequest = Request & { params: Record<string, string> };
 
@@ -22,6 +23,8 @@ type LiveEvent =
       windowMs: number;
       ts: number;
     };
+
+type QueryParseResult = { options: QueryOptions } | { error: string };
 
 const DATA_CHANGED_WINDOW_MS = 250;
 const HEARTBEAT_MS = 25_000;
@@ -122,7 +125,15 @@ function text(body: string, status = 200) {
   });
 }
 
-function deserializeQueryParams(params: URLSearchParams): QueryOptions {
+function parseIntegerParam(value: string, name: "limit" | "offset") {
+  if (!/^-?\d+$/.test(value)) {
+    return { error: `Invalid '${name}' parameter` };
+  }
+
+  return Number.parseInt(value, 10);
+}
+
+function deserializeQueryParams(params: URLSearchParams): QueryParseResult {
   const options: QueryOptions = {};
 
   const filter = params.get("filter");
@@ -137,20 +148,32 @@ function deserializeQueryParams(params: URLSearchParams): QueryOptions {
   }
 
   const limit = params.get("limit");
-  if (limit) options.limit = parseInt(limit, 10);
+  if (limit !== null) {
+    const parsed = parseIntegerParam(limit, "limit");
+    if (typeof parsed === "object") {
+      return parsed;
+    }
+    options.limit = parsed;
+  }
 
   const offset = params.get("offset");
-  if (offset) options.offset = parseInt(offset, 10);
+  if (offset !== null) {
+    const parsed = parseIntegerParam(offset, "offset");
+    if (typeof parsed === "object") {
+      return parsed;
+    }
+    options.offset = parsed;
+  }
 
   const include = params.get("include");
   if (include) options.include = include.split(",").map((s) => s.trim()) as IncludeOption[];
 
   const withStr = params.get("with");
-  if (withStr) {
+  if (withStr !== null) {
     try {
       options.with = JSON.parse(withStr) as WithClause;
     } catch {
-      // ignore invalid JSON
+      return { error: "Invalid 'with' parameter" };
     }
   }
 
@@ -159,21 +182,28 @@ function deserializeQueryParams(params: URLSearchParams): QueryOptions {
     options.fields = fields === "" ? [] : fields.split(",").map((s) => s.trim());
   }
 
-  return options;
+  return { options };
 }
 
 async function handleItems(request: Request) {
   const url = new URL(request.url);
   const { findItems } = await getContfu();
-  const options = deserializeQueryParams(url.searchParams);
-  return json(findItems(options));
+  const query = deserializeQueryParams(url.searchParams);
+  if ("error" in query) {
+    return text(query.error, 400);
+  }
+  return json(findItems(query.options));
 }
 
 async function handleCollectionItems(request: RouteRequest) {
   const url = new URL(request.url);
   const name = decodeURIComponent(request.params.name);
   const { findItems } = await getContfu();
-  const options = deserializeQueryParams(url.searchParams);
+  const query = deserializeQueryParams(url.searchParams);
+  if ("error" in query) {
+    return text(query.error, 400);
+  }
+  const options = query.options;
   const collectionFilter = `$collection = ${JSON.stringify(name)}`;
   options.filter = options.filter ? `${collectionFilter} && (${options.filter})` : collectionFilter;
   return json(findItems(options));
@@ -183,20 +213,19 @@ async function handleItemById(request: RouteRequest) {
   const url = new URL(request.url);
   const id = decodeURIComponent(request.params.id);
   const { getItemById } = await getContfu();
-  const include = url.searchParams.get("include");
-  const withStr = url.searchParams.get("with");
+  const query = deserializeQueryParams(url.searchParams);
+  if ("error" in query) {
+    return text(query.error, 400);
+  }
+  const { include, with: withClause } = query.options;
   const options: { include?: IncludeOption[]; with?: WithClause } = {};
 
   if (include) {
-    options.include = include.split(",").map((value) => value.trim()) as IncludeOption[];
+    options.include = include;
   }
 
-  if (withStr) {
-    try {
-      options.with = JSON.parse(withStr);
-    } catch {
-      return text("Invalid 'with' parameter", 400);
-    }
+  if (withClause !== undefined) {
+    options.with = withClause;
   }
 
   const item = getItemById(id, options);
@@ -305,10 +334,13 @@ async function startSync(key?: string) {
   const { connect } = await getContfu();
 
   try {
+    const assetStore = await getAssetStore();
+
     for await (const event of connect({
       connectionEvents: true,
       reconnect: true,
       key: Buffer.from(key, "base64url"),
+      assetStore,
     })) {
       if (event.type === EventType.STREAM_CONNECTED) {
         console.log("[contfu] stream connected");
@@ -352,7 +384,7 @@ async function startSync(key?: string) {
   }
 }
 
-export type ServerOptions = {
+export type ServerOptions = ServerAssetOptions & {
   db?: string;
   key?: string;
   port?: number;
@@ -381,11 +413,13 @@ export function createServeOptions(opts: ServerOptions = {}) {
       "/api/items/:id": handleItemById,
       "/api/live": handleLive,
       "/api/types": handleTypes,
+      "/assets/:path": handleAssetRequest,
     },
     fetch(request: Request) {
       if (request.method !== "GET") {
         return text("Method not allowed", 405);
       }
+
       return text("Not found", 404);
     },
   } as Parameters<typeof Bun.serve>[0];
