@@ -1,0 +1,40 @@
+{
+  "name": "@contfu/svc-core",
+  "version": "0.0.9",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/contfu/contfu.git"
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.d.ts.map"
+  ],
+  "type": "module",
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    },
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "test": "bun test src/",
+    "pack": "bun ../../../scripts/pack-package.ts .",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@contfu/core": "workspace:^"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

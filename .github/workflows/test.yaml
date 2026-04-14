@@ -1,0 +1,50 @@
+name: Test
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  lint-and-test:
+    name: Lint & Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CI: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: ./scripts/retry-timeout.sh --timeout 60 --retries 3 -- bun install --frozen-lockfile --ignore-scripts
+
+      - name: Generate SvelteKit types
+        run: cd packages/ui && bun svelte-kit sync
+
+      - name: Build
+        run: bun run build
+
+      - name: Typecheck (tsc)
+        run: bun run typecheck
+
+      - name: Lint (type-aware)
+        run: bun run lint:types
+
+      - name: Run unit tests
+        run: bun run test
+
+  build-docker:
+    name: Build Docker images
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build UI image
+        run: docker build -f docker/Dockerfile.ui .
+      - name: Build server image
+        run: docker build -f docker/Dockerfile.server .

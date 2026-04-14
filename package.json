@@ -1,0 +1,48 @@
+{
+  "name": "contfu",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "packages/service/*",
+    "packages/files/*"
+  ],
+  "type": "module",
+  "module": "index.ts",
+  "scripts": {
+    "test": "bun --filter '@contfu/*' test",
+    "build": "bun run --filter '@contfu/core' build && bun run --filter '@contfu/connect' build && bun run --filter '@contfu/contfu' build && bun --filter '@contfu/*' build",
+    "clean": "bun --filter '@contfu/*' clean",
+    "dev:client": "bun run --parallel -F '@contfu/server' -F '@contfu/ui' dev",
+    "fmt": "oxfmt",
+    "lint": "oxlint",
+    "lint:types": "oxlint --type-aware",
+    "typecheck": "tsc -b tsconfig.check.json",
+    "check": "bun run fmt && bun run build && bun run lint && bun run lint:types && bun run typecheck && bun run test",
+    "contfu": "bun run --elide-lines=0 --filter '@contfu/cli' contfu"
+  },
+  "dependencies": {
+    "m4k": "^0.3.2",
+    "svelte": "^5.55.3",
+    "svelte-kit": "^1.2.0"
+  },
+  "devDependencies": {
+    "@contfu/cli": "workspace:*",
+    "@contfu/connect": "workspace:*",
+    "@contfu/contfu": "workspace:*",
+    "@contfu/core": "workspace:*",
+    "@playwright/test": "1.59.1",
+    "@types/bun": "^1.3.12",
+    "@typescript/native-preview": "^7.0.0-dev.20260412.1",
+    "oxfmt": "^0.44.0",
+    "oxlint": "^1.59.0",
+    "oxlint-tsgolint": "^0.20.0",
+    "playwright": "1.59.1"
+  },
+  "peerDependencies": {
+    "typescript": "^5.9.3"
+  },
+  "overrides": {
+    "drizzle-kit": "1.0.0-beta.19",
+    "drizzle-orm": "1.0.0-beta.19"
+  }
+}
