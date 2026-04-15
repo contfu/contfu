@@ -1,7 +1,8 @@
 import { mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
 
-export const dbUrl: string = process.env.DATABASE_URL ?? "data/contfu.sqlite";
+export const dbUrl: string =
+  process.env.DATABASE_URL ?? (process.env.NODE_ENV === "test" ? ":memory:" : "data/contfu.sqlite");
 
 export type GeneratedMigration = {
   name: string;

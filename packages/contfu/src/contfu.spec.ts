@@ -63,7 +63,7 @@ type Collections = {
 };
 
 describe("contfu typed query client", () => {
-  const q = contfu<Collections>();
+  const { query: q } = contfu<Collections>();
   const { all, oneOf, eq } = q;
 
   beforeEach(() => {
@@ -165,7 +165,7 @@ type RefTargetCollections = {
 };
 
 describe("contfu typed ref targets", () => {
-  const q = contfu<RefTargetCollections>();
+  const { query: q } = contfu<RefTargetCollections>();
 
   beforeEach(() => {
     truncateAllTables();
@@ -297,7 +297,7 @@ function seedLinkData() {
 }
 
 describe("contfu link resolution", () => {
-  const q = contfu<LinkCollections>();
+  const { query: q } = contfu<LinkCollections>();
   const { oneOf, eq, linksTo, linkedFrom } = q;
 
   beforeEach(() => {

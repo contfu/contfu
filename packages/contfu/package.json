@@ -1,6 +1,6 @@
 {
   "name": "@contfu/contfu",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -55,5 +55,9 @@
   "peerDependencies": {
     "typescript": "^5.9.3"
   },
-  "optionalDependencies": {}
+  "optionalDependencies": {
+    "@contfu/bun-file-store": "workspace:^",
+    "@contfu/media-optimizer": "workspace:^",
+    "@contfu/media-optimizer-remote": "workspace:^"
+  }
 }

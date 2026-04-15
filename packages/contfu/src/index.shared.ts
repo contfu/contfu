@@ -22,6 +22,7 @@ export type {
   CollectionRenamedEvent,
   ItemEvent,
   SchemaEvent,
+  StreamEvent,
 } from "@contfu/connect";
 export { connect } from "./features/stream/connect";
 export { getSyncIndex } from "./features/sync/getSyncIndex";
@@ -85,8 +86,6 @@ export {
 } from "@contfu/core";
 
 // Query API exports
-export { contfu } from "./contfu";
-export type { ContfuConfig } from "./contfu";
 export {
   type InferRels,
   type ItemWithRelations,
@@ -125,6 +124,12 @@ export {
   type OnFileProgress,
   type ResolvedLink,
 } from "./infra/types/content-types";
+
+// HTTP exports
+export { getFileStore, getMediaOptimizer } from "./infra/http";
+
+// Contfu factory
+export { contfu, type ContfuInstance, type ContfuOptions, type SyncEvent } from "./contfu";
 
 // Media exports
 export { convertMedia } from "./features/media/convertMedia";
