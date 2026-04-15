@@ -1,7 +1,10 @@
-import { EventType } from "@contfu/core";
+import { findItems, generateTypes, getAllCollectionSchemas, getItemById } from "@contfu/contfu";
 import type { IncludeOption, QueryOptions, WithClause } from "@contfu/core";
-import { getFileStore, handleFileRequest, type ServerFileOptions } from "./files";
+import { EventType } from "@contfu/core";
+import { events } from "./contfu";
+import { handleFileRequest } from "./files";
 
+// oxlint-disable-next-line typescript/no-redundant-type-constituents
 type RouteRequest = Request & { params: Record<string, string> };
 
 type SyncConnectionState = "disabled" | "connecting" | "syncing" | "connected" | "error";
@@ -30,16 +33,11 @@ const DATA_CHANGED_WINDOW_MS = 250;
 const HEARTBEAT_MS = 25_000;
 const encoder = new TextEncoder();
 
-let syncStarted = false;
 let syncStatus: SyncStatus = { state: "disabled", reason: null };
 let bufferedCount = 0;
 let bufferedKinds = new Set<LiveDataChangedKind>();
 let bufferTimer: ReturnType<typeof setTimeout> | null = null;
 const subscribers = new Set<(event: LiveEvent) => void>();
-
-async function getContfu() {
-  return import("@contfu/contfu");
-}
 
 function setSyncStatus(next: SyncStatus) {
   syncStatus = next;
@@ -185,9 +183,8 @@ function deserializeQueryParams(params: URLSearchParams): QueryParseResult {
   return { options };
 }
 
-async function handleItems(request: Request) {
+function handleItems(request: Request) {
   const url = new URL(request.url);
-  const { findItems } = await getContfu();
   const query = deserializeQueryParams(url.searchParams);
   if ("error" in query) {
     return text(query.error, 400);
@@ -195,10 +192,9 @@ async function handleItems(request: Request) {
   return json(findItems(query.options));
 }
 
-async function handleCollectionItems(request: RouteRequest) {
+function handleCollectionItems(request: RouteRequest) {
   const url = new URL(request.url);
   const name = decodeURIComponent(request.params.name);
-  const { findItems } = await getContfu();
   const query = deserializeQueryParams(url.searchParams);
   if ("error" in query) {
     return text(query.error, 400);
@@ -209,10 +205,9 @@ async function handleCollectionItems(request: RouteRequest) {
   return json(findItems(options));
 }
 
-async function handleItemById(request: RouteRequest) {
+function handleItemById(request: RouteRequest) {
   const url = new URL(request.url);
   const id = decodeURIComponent(request.params.id);
-  const { getItemById } = await getContfu();
   const query = deserializeQueryParams(url.searchParams);
   if ("error" in query) {
     return text(query.error, 400);
@@ -310,38 +305,18 @@ function handleLive() {
   });
 }
 
-async function handleTypes() {
-  const { generateTypes, getAllCollectionSchemas } = await getContfu();
+function handleTypes() {
   return text(generateTypes(getAllCollectionSchemas()));
 }
 
-async function startSync(key?: string) {
-  if (syncStarted) {
-    return;
-  }
-  syncStarted = true;
-
-  if (!key) {
-    setSyncStatus({ state: "disabled", reason: "Missing CONTFU_KEY" });
-    return;
-  }
-
+async function consumeEvents() {
   console.log("[contfu] connecting to sync service...");
   const connecting = { state: "connecting", reason: null } as const;
   setSyncStatus(connecting);
   publishSyncStatus(connecting);
 
-  const { connect } = await getContfu();
-
   try {
-    const fileStore = await getFileStore();
-
-    for await (const event of connect({
-      connectionEvents: true,
-      reconnect: true,
-      key: Buffer.from(key, "base64url"),
-      fileStore,
-    })) {
+    for await (const event of events) {
       if (event.type === EventType.STREAM_CONNECTED) {
         console.log("[contfu] stream connected");
         const next = { state: "connected", reason: null } as const;
@@ -384,9 +359,8 @@ async function startSync(key?: string) {
   }
 }
 
-export type ServerOptions = ServerFileOptions & {
+export type ServerOptions = {
   db?: string;
-  key?: string;
   port?: number;
 };
 
@@ -394,7 +368,6 @@ const defaultPort = 3001;
 
 export function createServeOptions(opts: ServerOptions = {}) {
   const port = opts.port ?? defaultPort;
-  const key = opts.key ?? process.env.CONTFU_KEY;
   const db = opts.db ?? process.env.CONTFU_DB ?? process.env.DATABASE_URL;
 
   if (db) {
@@ -402,7 +375,7 @@ export function createServeOptions(opts: ServerOptions = {}) {
     process.env.DATABASE_URL = db;
   }
 
-  void startSync(key);
+  void consumeEvents();
 
   // Bun.serve routes (runtime-supported, types not yet in @types/bun@1.3.11)
   return {

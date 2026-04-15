@@ -19,7 +19,9 @@ export async function createNodeDatabaseClient(url: string): Promise<Database> {
 
   const client = new DatabaseSync(url);
   client.exec("PRAGMA foreign_keys = ON");
-  client.exec("PRAGMA journal_mode = WAL");
+  if (url !== ":memory:") {
+    client.exec("PRAGMA journal_mode = WAL");
+  }
 
   const db = drizzle({ client, schema });
   runEmbeddedMigrations(db as unknown as DrizzleMigrationExecutor, migrations);

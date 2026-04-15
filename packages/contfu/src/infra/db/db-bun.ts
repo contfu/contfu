@@ -20,7 +20,9 @@ export async function createBunDatabaseClient(url: string): Promise<Database> {
 
   const client = new Database(url);
   client.run("PRAGMA foreign_keys = ON");
-  client.run("PRAGMA journal_mode = WAL");
+  if (url !== ":memory:") {
+    client.run("PRAGMA journal_mode = WAL");
+  }
 
   const db = drizzle({ client, schema });
   runEmbeddedMigrations(db as unknown as DrizzleMigrationExecutor, migrations);
