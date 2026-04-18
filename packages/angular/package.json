@@ -1,0 +1,43 @@
+{
+  "name": "@contfu/angular",
+  "version": "0.0.1",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/contfu/contfu.git"
+  },
+  "files": [
+    "src",
+    "!src/**/*.spec.ts"
+  ],
+  "type": "module",
+  "main": "src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "test": "bun test src/",
+    "pack": "bun ../../scripts/pack-package.ts ."
+  },
+  "dependencies": {
+    "@contfu/core": "workspace:^"
+  },
+  "devDependencies": {
+    "@angular/common": "^19",
+    "@angular/compiler": "^19",
+    "@angular/core": "^19",
+    "@angular/platform-browser": "^19",
+    "@angular/platform-server": "^19",
+    "rxjs": "^7",
+    "tslib": "^2",
+    "typescript": "^5.9.3",
+    "zone.js": "^0.15"
+  },
+  "peerDependencies": {
+    "@angular/common": ">=19",
+    "@angular/core": ">=19"
+  }
+}

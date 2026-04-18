@@ -1,0 +1,48 @@
+{
+  "name": "@contfu/solid",
+  "version": "0.0.1",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/contfu/contfu.git"
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.d.ts.map"
+  ],
+  "type": "module",
+  "main": "src/index.tsx",
+  "exports": {
+    ".": {
+      "types": "./src/index.tsx",
+      "bun": "./src/index.tsx",
+      "default": "./src/index.tsx"
+    }
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    },
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts"
+  },
+  "scripts": {
+    "test": "bun test src/",
+    "build": "tsc -b",
+    "pack": "bun ../../scripts/pack-package.ts .",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@contfu/core": "workspace:^"
+  },
+  "devDependencies": {
+    "solid-js": "^1",
+    "typescript": "^5.9.3"
+  },
+  "peerDependencies": {
+    "solid-js": ">=1"
+  }
+}

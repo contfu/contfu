@@ -1,0 +1,36 @@
+{
+  "name": "@contfu/svelte",
+  "version": "0.0.1",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/contfu/contfu.git"
+  },
+  "files": [
+    "src",
+    "!src/**/*.spec.ts"
+  ],
+  "type": "module",
+  "main": "src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "svelte": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "test": "bun test src/",
+    "pack": "bun ../../scripts/pack-package.ts ."
+  },
+  "dependencies": {
+    "@contfu/core": "workspace:^"
+  },
+  "devDependencies": {
+    "svelte": "^5.55.3",
+    "typescript": "^5.9.3"
+  },
+  "peerDependencies": {
+    "svelte": ">=5"
+  }
+}
