@@ -107,7 +107,7 @@ describe("contfu connect", () => {
             collection: "article",
             changedAt: 1700000000,
             props: { title: "With image" },
-            content: [["i", "https://example.com/photo.png", "alt text", [800]] as ImageBlock],
+            content: [["i", "https://example.com/photo.png", "alt text"] as ImageBlock],
           },
           index: 200,
         };
@@ -144,7 +144,7 @@ describe("contfu connect", () => {
             collection: "article",
             changedAt: 1700000000,
             props: { title: "No files" },
-            content: [["i", "https://example.com/photo2.png", "alt", [800]] as ImageBlock],
+            content: [["i", "https://example.com/photo2.png", "alt"] as ImageBlock],
           },
           index: 300,
         };

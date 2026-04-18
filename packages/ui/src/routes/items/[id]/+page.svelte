@@ -458,7 +458,7 @@
               {:else if block[0] === "i"}
                 <div class="space-y-1">
                   <img
-                    src={`/files/${block[1]}.${fileMap.get(block[1])?.ext ?? "avif"}`}
+                    src={`/files/${block[1]}`}
                     alt={block[2]}
                     class="max-h-80 rounded border object-contain"
                     loading="lazy"

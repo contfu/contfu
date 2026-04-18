@@ -34,6 +34,8 @@ export interface CliValues {
   "connection-id"?: string;
   "include-ref"?: boolean;
   "no-include-ref"?: boolean;
+  content?: boolean;
+  "no-content"?: boolean;
   token?: string;
   "generate-key"?: boolean;
 }
@@ -75,6 +77,8 @@ function buildCollectionCreateBody(values: CliValues): CreateCollectionBody {
   if (values["connection-id"] !== undefined) body.connectionId = values["connection-id"];
   if (values["include-ref"] === true) body.includeRef = true;
   if (values["no-include-ref"] === true) body.includeRef = false;
+  if (values.content === true) body.includeContent = true;
+  if (values["no-content"] === true) body.includeContent = false;
   return body;
 }
 
@@ -84,6 +88,8 @@ function buildCollectionUpdateBody(values: CliValues): UpdateCollectionBody {
   if (values["display-name"] !== undefined) body.displayName = values["display-name"];
   if (values["include-ref"] === true) body.includeRef = true;
   if (values["no-include-ref"] === true) body.includeRef = false;
+  if (values.content === true) body.includeContent = true;
+  if (values["no-content"] === true) body.includeContent = false;
   return body;
 }
 

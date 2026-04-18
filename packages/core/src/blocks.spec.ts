@@ -48,7 +48,7 @@ describe("blocks", () => {
   const ulBlock: UnorderedListBlock = ["u", ["item 1"], ["item 2"]];
   const olBlock: OrderedListBlock = ["o", ["item 1"], ["item 2"]];
   const tableBlock: TableBlock = ["t", true, [[["cell"]]]];
-  const imageBlock: ImageBlock = ["i", "image.jpg", "alt text", [100, 200]];
+  const imageBlock: ImageBlock = ["i", "image.jpg", "alt text"];
   const customBlock: CustomBlock = ["x", "MyComponent", { prop: "value" }, []];
 
   // Test fixtures for inline types

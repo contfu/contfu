@@ -106,6 +106,8 @@ async function main() {
       "connection-id": { type: "string" },
       "include-ref": { type: "boolean" },
       "no-include-ref": { type: "boolean" },
+      content: { type: "boolean" },
+      "no-content": { type: "boolean" },
       token: { type: "string" },
       "generate-key": { type: "boolean" },
       format: { type: "string", short: "f" },
@@ -251,6 +253,8 @@ async function main() {
       "connection-id": values["connection-id"] as string | undefined,
       "include-ref": values["include-ref"] as boolean | undefined,
       "no-include-ref": values["no-include-ref"] as boolean | undefined,
+      content: values.content as boolean | undefined,
+      "no-content": values["no-content"] as boolean | undefined,
       token: values.token as string | undefined,
       "generate-key": values["generate-key"] as boolean | undefined,
     };

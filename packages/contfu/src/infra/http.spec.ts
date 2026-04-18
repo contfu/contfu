@@ -7,15 +7,9 @@ describe("buildFileOpts", () => {
 
     expect(buildFileOpts(url, "image")).toEqual({
       mediaType: "image",
-      width: 640,
-      height: undefined,
       quality: 80,
-      fit: undefined,
       rotate: undefined,
-      cropLeft: undefined,
-      cropTop: undefined,
-      cropWidth: undefined,
-      cropHeight: undefined,
+      resize: { width: 640, height: undefined, fit: undefined },
     });
   });
 

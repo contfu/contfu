@@ -15,16 +15,17 @@ import { hashOpts } from "../../infra/hash";
 import { decodeId } from "../../infra/ids";
 import { mediaVariantTable } from "../../infra/db/schema";
 import type {
-  AudioConstraints,
-  ImageConstraints,
+  ImageConvertOpts,
+  MediaConvertOpts,
   MediaOptimizer,
   OptimizeAudioOpts,
   OptimizeImageOpts,
   OptimizeVideoOpts,
+  TransformAudioRule,
+  TransformImageRule,
   TransformMediaRule,
-  VariantDef,
+  TransformVideoRule,
   VariantResult,
-  VideoConstraints,
 } from "../../domain/media";
 import type { FileStore } from "../../domain/files";
 
@@ -56,8 +57,8 @@ export function isExtensionAllowed(ext: string, rule: TransformMediaRule): boole
  * Build combined OptimizeImageOpts from constraints and predefined variants.
  */
 function buildImageOptimizerOpts(
-  constraints?: ImageConstraints,
-  variants?: VariantDef[],
+  constraints?: TransformImageRule,
+  variants?: MediaConvertOpts[],
 ): OptimizeImageOpts {
   const masterFormat = constraints?.format ?? "avif";
   const masterEntry: [number?, number?, number?] = [
@@ -70,9 +71,11 @@ function buildImageOptimizerOpts(
   variantsByFormat.set(masterFormat, [masterEntry]);
 
   for (const v of variants ?? []) {
-    const fmt = v.format ?? masterFormat;
+    if (v.mediaType && v.mediaType !== "image") continue;
+    const img = v as ImageConvertOpts;
+    const fmt = img.format ?? masterFormat;
     const entries = variantsByFormat.get(fmt) ?? [];
-    entries.push([v.width, v.height, v.quality]);
+    entries.push([img.resize?.width, img.resize?.height, img.quality]);
     variantsByFormat.set(fmt, entries);
   }
 
@@ -94,7 +97,7 @@ function buildImageOptimizerOpts(
 /**
  * Build OptimizeVideoOpts from video constraints.
  */
-function buildVideoOptimizerOpts(constraints?: VideoConstraints): OptimizeVideoOpts {
+function buildVideoOptimizerOpts(constraints?: TransformVideoRule): OptimizeVideoOpts {
   return {
     format: constraints?.format,
     ext: constraints?.ext,
@@ -122,7 +125,7 @@ function buildVideoOptimizerOpts(constraints?: VideoConstraints): OptimizeVideoO
 /**
  * Build OptimizeAudioOpts from audio constraints.
  */
-function buildAudioOptimizerOpts(constraints?: AudioConstraints): OptimizeAudioOpts {
+function buildAudioOptimizerOpts(constraints?: TransformAudioRule): OptimizeAudioOpts {
   return {
     format: constraints?.format,
     ext: constraints?.ext,
@@ -165,7 +168,7 @@ function storeVariantRecords(fileId: string, results: VariantResult[]): void {
 }
 
 /**
- * Download, optimize, and store a single file. Returns the file id.
+ * Download, optimize, and store a single file. Returns the file id and stored extension.
  * Skips download if an file with the same id already exists.
  */
 async function downloadAndStoreFile(
@@ -174,25 +177,25 @@ async function downloadAndStoreFile(
   fileStore: FileStore,
   mediaOptimizer?: MediaOptimizer,
   transformMedia?: TransformMediaRule[],
-  collectionVariants?: VariantDef[],
+  pregenerate?: MediaConvertOpts[],
   collection?: string,
-): Promise<string> {
+): Promise<{ id: string; ext: string }> {
   const fileId = idFromUrl(originalUrl);
   const ext = extFromUrl(originalUrl) ?? "bin";
 
   const existing = getFile(fileId);
   if (existing) {
     linkFileToItem(itemId, existing.id);
-    return fileId;
+    return { id: fileId, ext: existing.ext };
   }
 
   let res: Response;
   try {
     res = await fetch(originalUrl);
   } catch {
-    return fileId;
+    return { id: fileId, ext };
   }
-  if (!res.ok) return fileId;
+  if (!res.ok) return { id: fileId, ext };
 
   const buffer = Buffer.from(await res.arrayBuffer());
   const mediaType = detectMediaType(originalUrl);
@@ -211,12 +214,12 @@ async function downloadAndStoreFile(
   let variantResults: VariantResult[] = [];
 
   if (mediaOptimizer && mediaType === "image" && extAllowed) {
-    const imageConstraints = rule as ImageConstraints | undefined;
+    const imageConstraints = rule as TransformImageRule | undefined;
     const hasConstraints = imageConstraints != null;
-    const hasVariants = collectionVariants != null && collectionVariants.length > 0;
+    const hasVariants = pregenerate != null && pregenerate.length > 0;
 
     if (hasConstraints || hasVariants) {
-      const opts = buildImageOptimizerOpts(imageConstraints, collectionVariants);
+      const opts = buildImageOptimizerOpts(imageConstraints, pregenerate);
       variantResults = await mediaOptimizer.optimize(storeKey, buffer, "image", opts);
     } else {
       variantResults = await mediaOptimizer.optimize(storeKey, buffer, "image");
@@ -224,13 +227,13 @@ async function downloadAndStoreFile(
     masterExt = imageConstraints?.format ?? "avif";
     masterData = variantResults.length > 0 ? variantResults[0].data : buffer;
   } else if (mediaOptimizer && mediaType === "video" && extAllowed) {
-    const videoConstraints = rule as VideoConstraints | undefined;
+    const videoConstraints = rule as TransformVideoRule | undefined;
     const opts = buildVideoOptimizerOpts(videoConstraints);
     variantResults = await mediaOptimizer.optimize(storeKey, buffer, "video", opts);
     masterExt = videoConstraints?.format ?? ext;
     masterData = variantResults.length > 0 ? variantResults[0].data : buffer;
   } else if (mediaOptimizer && mediaType === "audio" && extAllowed) {
-    const audioConstraints = rule as AudioConstraints | undefined;
+    const audioConstraints = rule as TransformAudioRule | undefined;
     const opts = buildAudioOptimizerOpts(audioConstraints);
     variantResults = await mediaOptimizer.optimize(storeKey, buffer, "audio", opts);
     masterExt = audioConstraints?.format ?? ext;
@@ -265,7 +268,7 @@ async function downloadAndStoreFile(
     await fileStore.write(storeKey, masterData);
   }
 
-  return fileId;
+  return { id: fileId, ext: masterExt };
 }
 
 /**
@@ -280,23 +283,16 @@ export async function processFiles(opts: {
   mediaOptimizer?: MediaOptimizer;
   transformMedia?: TransformMediaRule[];
   collection?: string;
-  collectionVariants?: VariantDef[];
+  pregenerate?: MediaConvertOpts[];
 }): Promise<Block[]> {
-  const {
-    itemId,
-    content,
-    fileStore,
-    mediaOptimizer,
-    transformMedia,
-    collection,
-    collectionVariants,
-  } = opts;
+  const { itemId, content, fileStore, mediaOptimizer, transformMedia, collection, pregenerate } =
+    opts;
 
   const imageBlocks = content.filter(isImg);
   if (imageBlocks.length === 0) return content;
 
   // Dedup by file id, then download in parallel
-  const seen = new Map<string, Promise<string>>();
+  const seen = new Map<string, Promise<{ id: string; ext: string }>>();
   const blockPromises: Promise<void>[] = [];
 
   for (const block of imageBlocks) {
@@ -312,15 +308,15 @@ export async function processFiles(opts: {
           fileStore,
           mediaOptimizer,
           transformMedia,
-          collectionVariants,
+          pregenerate,
           collection,
         ),
       );
     }
 
     blockPromises.push(
-      seen.get(fileId)!.then((id) => {
-        block[1] = id;
+      seen.get(fileId)!.then(({ id, ext }) => {
+        block[1] = `${id}.${ext}`;
       }),
     );
   }
@@ -343,7 +339,7 @@ export async function processPropertyFiles(opts: {
   mediaOptimizer?: MediaOptimizer;
   transformMedia?: TransformMediaRule[];
   collection?: string;
-  collectionVariants?: VariantDef[];
+  pregenerate?: MediaConvertOpts[];
 }): Promise<Record<string, unknown>> {
   const {
     itemId,
@@ -353,7 +349,7 @@ export async function processPropertyFiles(opts: {
     mediaOptimizer,
     transformMedia,
     collection,
-    collectionVariants,
+    pregenerate,
   } = opts;
   const result = { ...props };
 
@@ -380,9 +376,9 @@ export async function processPropertyFiles(opts: {
               fileStore,
               mediaOptimizer,
               transformMedia,
-              collectionVariants,
+              pregenerate,
               collection,
-            ),
+            ).then(({ id, ext }) => `${id}.${ext}`),
           );
         } else {
           processed.push(Promise.resolve(url as string));
@@ -401,10 +397,10 @@ export async function processPropertyFiles(opts: {
           fileStore,
           mediaOptimizer,
           transformMedia,
-          collectionVariants,
+          pregenerate,
           collection,
-        ).then((id) => {
-          result[propName] = id;
+        ).then(({ id, ext }) => {
+          result[propName] = `${id}.${ext}`;
         }),
       );
     }

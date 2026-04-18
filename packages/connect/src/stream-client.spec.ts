@@ -308,6 +308,53 @@ describe("stream-client", () => {
       const syncUrl = getUrls().find((u) => u.includes("/api/sync?"));
       expect(syncUrl).toContain("&from=42");
     });
+
+    test("acks the last processed sequence while reconnect resumes from the next one", async () => {
+      const originalSetInterval = globalThis.setInterval;
+      const originalClearInterval = globalThis.clearInterval;
+      let ackTimer: (() => void) | undefined;
+      const calls: Array<{ url: string; method?: string }> = [];
+
+      globalThis.setInterval = ((fn: () => void) => {
+        ackTimer = fn;
+        return 1 as unknown as Timer;
+      }) as typeof setInterval;
+      globalThis.clearInterval = (() => undefined) as typeof clearInterval;
+      globalThis.fetch = ((url: string, init?: RequestInit) => {
+        calls.push({ url, method: init?.method });
+        const isAck = init?.method === "POST";
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          text: () => Promise.resolve(""),
+          body: isAck
+            ? null
+            : createMockStream([
+                createBinaryMessage([EventType.ITEM_DELETED, new Uint8Array([1]), 7]),
+              ]),
+        });
+      }) as typeof fetch;
+
+      try {
+        for await (const _ of connectToStream({
+          key: testKey,
+          reconnect: false,
+          from: 7,
+        })) {
+          ackTimer?.();
+        }
+      } finally {
+        globalThis.setInterval = originalSetInterval;
+        globalThis.clearInterval = originalClearInterval;
+      }
+
+      const syncCall = calls.find((call) => call.method == null);
+      const ackCall = calls.find((call) => call.method === "POST");
+
+      expect(syncCall?.url).toContain("from=7");
+      expect(ackCall?.url).toContain("/api/sync/ack?");
+      expect(ackCall?.url).toContain("seq=7");
+    });
   });
 
   describe("transport selection", () => {

@@ -142,6 +142,28 @@ describe("findItems", () => {
     expect(result).toHaveLength(3);
   });
 
+  test("auto-includes content for collections whose schema has $content", () => {
+    setCollection("articles", "Articles", { title: 1, $content: 0 });
+    createItem({
+      id: makeId(99),
+      ref: "blog/tech/with-content",
+      collection: "articles",
+      props: { title: "With Content" },
+      content: [["p", ["hello"]]],
+      changedAt: 300,
+    });
+
+    const result = findItems({ filter: '$ref = "blog/tech/with-content"' });
+    expect(result).toHaveLength(1);
+    expect(result[0].content).toBeDefined();
+
+    // A collection without $content in its schema should not auto-include content.
+    const guideResult = findItems({ filter: '$collection = "guides"' });
+    for (const item of guideResult) {
+      expect(item).not.toHaveProperty("content");
+    }
+  });
+
   test("supports search", () => {
     const result = findItems({ search: "Alpha" });
     expect(result).toHaveLength(1);

@@ -1,13 +1,20 @@
 import { mimeTypes } from "@contfu/core";
 import type { FileStore } from "../domain/files";
-import type { MediaConvertOpts, MediaOptimizer } from "../domain/media";
+import type {
+  CollectionName,
+  ImageConvertOpts,
+  MediaConvertOpts,
+  MediaOptimizer,
+  MediaVariants,
+} from "../domain/media";
 import { FileLoadError, loadFile } from "../features/files/loadFile";
 import { getFile } from "../features/files/getFile";
 import { fileStore as defaultFileStore } from "./media/media-defaults";
 
-export type FileRequestOptions = {
+export type FileRequestOptions<CMap = unknown> = {
   fileStore?: FileStore;
   mediaOptimizer?: MediaOptimizer;
+  mediaVariants?: MediaVariants<CMap>;
   cacheOptimizedFiles?: boolean;
 };
 
@@ -112,7 +119,7 @@ export function buildFileOpts(
     const width = intParam(url, "w", "width");
     const height = intParam(url, "h", "height");
     const quality = intParam(url, "q", "quality");
-    const fit = strParam(url, "f", "fit");
+    const fit = strParam(url, "f", "fit") as NonNullable<ImageConvertOpts["resize"]>["fit"];
     const rotate = intParam(url, "r", "rotate");
     const cropLeft = intParam(url, "cl", "cropLeft");
     const cropTop = intParam(url, "ct", "cropTop");
@@ -121,17 +128,18 @@ export function buildFileOpts(
 
     if (!(width || height || quality || fit || rotate || cropWidth)) return null;
 
+    const resize = width || height || fit ? { width, height, fit } : undefined;
+    const crop =
+      cropWidth && cropHeight
+        ? { left: cropLeft, top: cropTop, width: cropWidth, height: cropHeight }
+        : undefined;
+
     return {
       mediaType,
-      width,
-      height,
       quality,
-      fit: fit as MediaConvertOpts["fit"],
       rotate,
-      cropLeft,
-      cropTop,
-      cropWidth,
-      cropHeight,
+      ...(resize ? { resize } : {}),
+      ...(crop ? { crop } : {}),
     };
   }
 
@@ -172,10 +180,10 @@ export function buildFileOpts(
   return { mediaType, codec, bitrate };
 }
 
-export async function handleFileRequest(
+export async function handleFileRequest<CMap = unknown>(
   request: Request,
   filePath: string,
-  options: FileRequestOptions,
+  options: FileRequestOptions<CMap>,
 ): Promise<Response> {
   const url = new URL(request.url);
   const parsed = parseFilePath(filePath);
@@ -198,7 +206,12 @@ export async function handleFileRequest(
 
   const contentType = mimeTypes[parsed.ext] ?? "application/octet-stream";
   const mediaType = mediaTypeFromExt(parsed.ext);
-  const opts = buildFileOpts(url, mediaType);
+  const rawOpts = buildFileOpts(url, mediaType);
+  const variant = url.searchParams.get("variant") ?? undefined;
+  const collection = (url.searchParams.get("collection") ?? undefined) as
+    | CollectionName<CMap>
+    | undefined;
+  const opts = rawOpts ?? (variant ? ({} as MediaConvertOpts) : null);
 
   if (!opts || mediaType === null) {
     const data = await fileStore.read(filePath);
@@ -218,6 +231,9 @@ export async function handleFileRequest(
       fileStore,
       mediaOptimizer,
       cache: options.cacheOptimizedFiles ?? true,
+      mediaVariants: options.mediaVariants,
+      collection,
+      variant,
     });
 
     return new Response(stream, {

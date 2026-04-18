@@ -26,7 +26,7 @@ function makeMediaOptimizer(): MediaOptimizer {
 }
 
 function makeImageBlock(url: string, alt = "alt"): ImageBlock {
-  return ["i", url, alt, [800]];
+  return ["i", url, alt];
 }
 
 describe("processFiles", () => {
@@ -75,7 +75,7 @@ describe("processFiles", () => {
     // File id should be a hex hash (no extension)
     const imgBlock = result[1] as ImageBlock;
     expect(imgBlock[1]).not.toBe("https://example.com/photo.png");
-    expect(imgBlock[1]).toMatch(/^[a-f0-9]{16}$/);
+    expect(imgBlock[1]).toMatch(/^[a-f0-9]{16}\.[a-z0-9]+$/);
 
     // File record should exist in DB
     const files = db.select().from(fileTable).all();
@@ -199,7 +199,7 @@ describe("processFiles", () => {
     expect(fileStore.write).toHaveBeenCalledTimes(1);
 
     const imgBlock = result[1] as ImageBlock;
-    expect(imgBlock[1]).toMatch(/^[a-f0-9]{16}$/);
+    expect(imgBlock[1]).toMatch(/^[a-f0-9]{16}\.[a-z0-9]+$/);
 
     const files = db.select().from(fileTable).all();
     expect(files).toHaveLength(1);
@@ -424,7 +424,7 @@ describe("processPropertyFiles", () => {
       mediaOptimizer,
     });
 
-    expect(result.cover).toMatch(/^[a-f0-9]{16}$/);
+    expect(result.cover).toMatch(/^[a-f0-9]{16}\.[a-z0-9]+$/);
     expect(result.cover).not.toBe("https://example.com/cover.png");
     expect(result.title).toBe("Hello");
     expect(mediaOptimizer.optimize).toHaveBeenCalledTimes(1);
@@ -446,8 +446,8 @@ describe("processPropertyFiles", () => {
 
     const images = result.images as string[];
     expect(images).toHaveLength(2);
-    expect(images[0]).toMatch(/^[a-f0-9]{16}$/);
-    expect(images[1]).toMatch(/^[a-f0-9]{16}$/);
+    expect(images[0]).toMatch(/^[a-f0-9]{16}\.[a-z0-9]+$/);
+    expect(images[1]).toMatch(/^[a-f0-9]{16}\.[a-z0-9]+$/);
     expect(mediaOptimizer.optimize).toHaveBeenCalledTimes(2);
   });
 

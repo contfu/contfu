@@ -213,28 +213,22 @@ export function createTransform(): MediaTransform {
     const mediaType = opts.mediaType ?? "image";
 
     if (mediaType === "image") {
+      const img = opts as Extract<MediaConvertOpts, { mediaType?: "image" }>;
       const imageOpt: ImageOptions = {};
-      if (opts.width || opts.height) {
+      if (img.resize?.width || img.resize?.height) {
         imageOpt.resize = {
-          width: opts.width,
-          height: opts.height,
-          fit: opts.fit ?? "inside",
+          width: img.resize.width,
+          height: img.resize.height,
+          fit: img.resize.fit ?? "inside",
         };
       }
-      if (opts.format) {
-        imageOpt.format = opts.format as ImageOptions["format"];
-        imageOpt.ext = opts.format as ImageOptions["format"];
+      if (img.format) {
+        imageOpt.format = img.format as ImageOptions["format"];
+        imageOpt.ext = img.format as ImageOptions["format"];
       }
-      if (opts.quality) imageOpt.quality = opts.quality;
-      if (opts.rotate != null) imageOpt.rotate = opts.rotate;
-      if (opts.cropWidth) {
-        imageOpt.crop = {
-          left: opts.cropLeft,
-          top: opts.cropTop,
-          width: opts.cropWidth,
-          height: opts.cropHeight!,
-        };
-      }
+      if (img.quality) imageOpt.quality = img.quality;
+      if (img.rotate != null) imageOpt.rotate = img.rotate;
+      if (img.crop) imageOpt.crop = img.crop;
 
       const iterable = processImage(toAsyncIterable(input), imageOpt);
       if (!iterable) throw new Error("Image processing queue full");
@@ -247,16 +241,17 @@ export function createTransform(): MediaTransform {
     }
 
     if (mediaType === "video") {
+      const v = opts as Extract<MediaConvertOpts, { mediaType?: "video" }>;
       const videoOpt: VideoOptions = {};
-      if (opts.format) videoOpt.format = opts.format;
-      if (opts.ext) videoOpt.ext = opts.ext;
-      if (opts.videoCodec) videoOpt.videoCodec = opts.videoCodec;
-      if (opts.videoBitrate) videoOpt.videoBitrate = opts.videoBitrate;
-      if (opts.width || opts.height) videoOpt.size = formatSize(opts.width, opts.height);
-      if (opts.size) videoOpt.size = opts.size;
-      if (opts.fps) videoOpt.fps = opts.fps;
-      if (opts.audioCodec) videoOpt.audioCodec = opts.audioCodec;
-      if (opts.audioBitrate) videoOpt.audioBitrate = opts.audioBitrate;
+      if (v.format) videoOpt.format = v.format;
+      if (v.ext) videoOpt.ext = v.ext;
+      if (v.videoCodec) videoOpt.videoCodec = v.videoCodec;
+      if (v.videoBitrate) videoOpt.videoBitrate = v.videoBitrate;
+      if (v.width || v.height) videoOpt.size = formatSize(v.width, v.height);
+      if (v.size) videoOpt.size = v.size;
+      if (v.fps) videoOpt.fps = v.fps;
+      if (v.audioCodec) videoOpt.audioCodec = v.audioCodec;
+      if (v.audioBitrate) videoOpt.audioBitrate = v.audioBitrate;
 
       const iterable = processVideo(toAsyncIterable(input), videoOpt);
       if (!iterable) throw new Error("Video processing queue full");
@@ -269,11 +264,12 @@ export function createTransform(): MediaTransform {
     }
 
     if (mediaType === "audio") {
+      const a = opts as Extract<MediaConvertOpts, { mediaType?: "audio" }>;
       const audioOpt: AudioOptions = {};
-      if (opts.format) audioOpt.format = opts.format;
-      if (opts.ext) audioOpt.ext = opts.ext;
-      if (opts.codec) audioOpt.codec = opts.codec;
-      if (opts.bitrate) audioOpt.bitrate = opts.bitrate;
+      if (a.format) audioOpt.format = a.format;
+      if (a.ext) audioOpt.ext = a.ext;
+      if (a.codec) audioOpt.codec = a.codec;
+      if (a.bitrate) audioOpt.bitrate = a.bitrate;
 
       const iterable = processAudio(toAsyncIterable(input), audioOpt);
       if (!iterable) throw new Error("Audio processing queue full");

@@ -1,6 +1,6 @@
 import { and, asc, count, desc, sql, type SQL } from "drizzle-orm";
 import { db as defaultDb } from "../../infra/db/db";
-import { itemsTable } from "../../infra/db/schema";
+import { collectionsTable, itemsTable } from "../../infra/db/schema";
 import { encodeId } from "../../infra/ids";
 import { resolveIncludes } from "../../infra/db/resolve-includes";
 import { resolveRelations } from "../../infra/db/resolve-relations";
@@ -131,7 +131,20 @@ export function findItems(options: QueryOptions = {}, ctx = defaultDb): QueryRes
   const where = buildWhere(options);
   const orderBy = buildOrderBy(options.sort);
 
-  const includeContent = options.include?.includes("content");
+  const explicitIncludeContent = options.include?.includes("content");
+
+  const contentCollections = new Set<string>();
+  const schemaRows = ctx
+    .select({ name: collectionsTable.name, schema: collectionsTable.schema })
+    .from(collectionsTable)
+    .all();
+  for (const row of schemaRows) {
+    if (row.schema && typeof row.schema === "object" && "$content" in row.schema) {
+      contentCollections.add(row.name);
+    }
+  }
+
+  const includeContentColumn = explicitIncludeContent || contentCollections.size > 0;
 
   const selectColumns = {
     id: itemsTable.id,
@@ -140,7 +153,7 @@ export function findItems(options: QueryOptions = {}, ctx = defaultDb): QueryRes
     collectionName: itemsTable.collection,
     props: itemsTable.props,
     changedAt: itemsTable.changedAt,
-    ...(includeContent ? { content: itemsTable.content } : {}),
+    ...(includeContentColumn ? { content: itemsTable.content } : {}),
   };
 
   const query = ctx.select(selectColumns).from(itemsTable);
@@ -163,13 +176,19 @@ export function findItems(options: QueryOptions = {}, ctx = defaultDb): QueryRes
 
   const rawItems = rows.map((row) => toSelectableFields(row));
 
-  const data: ItemWithRelations[] = rows.map((row, index) => ({
-    ...rawItems[index],
-    ...("content" in row && row.content
-      ? { content: Array.isArray(row.content) ? row.content : undefined }
-      : {}),
-    links: [],
-  }));
+  const data: ItemWithRelations[] = rows.map((row, index) => {
+    const shouldEmitContent =
+      "content" in row &&
+      row.content &&
+      (explicitIncludeContent || contentCollections.has(row.collectionName));
+    return {
+      ...rawItems[index],
+      ...(shouldEmitContent
+        ? { content: Array.isArray(row.content) ? row.content : undefined }
+        : {}),
+      links: [],
+    };
+  });
 
   const includes = options.include?.filter((i) => i !== "content") ?? [];
   if (includes.length > 0) {

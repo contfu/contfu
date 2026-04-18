@@ -136,21 +136,25 @@ export { convertMedia } from "./features/media/convertMedia";
 export { FileLoadError, loadFile, type LoadFileOptions } from "./features/files/loadFile";
 export { type FileStore } from "./domain/files";
 export {
-  type AudioConstraints,
+  type AudioConvertOpts,
   type AudioFormat,
-  type CollectionVariants,
-  type ImageConstraints,
+  type CollectionName,
+  type ImageConvertOpts,
   type ImageFormat,
   type MediaConvertOpts,
   type MediaOptimizer,
   type MediaTransform,
+  type MediaVariants,
+  type MediaVariantsConfig,
   type OptimizeAudioOpts,
   type OptimizeImageOpts,
   type OptimizeVideoOpts,
+  type TransformAudioRule,
+  type TransformImageRule,
   type TransformMediaRule,
-  type VariantDef,
+  type TransformVideoRule,
   type VariantResult,
-  type VideoConstraints,
+  type VideoConvertOpts,
   type VideoFormat,
 } from "./domain/media";
 export { DBStore } from "./infra/media/db-store";

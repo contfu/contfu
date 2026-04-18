@@ -53,7 +53,11 @@ describe("loadFile", () => {
       ),
     };
 
-    const stream = await loadFile(`${fileId}.avif`, { width: 100 }, { fileStore, mediaOptimizer });
+    const stream = await loadFile(
+      `${fileId}.avif`,
+      { resize: { width: 100 } },
+      { fileStore, mediaOptimizer },
+    );
 
     expect(await streamToBuffer(stream)).toEqual(Buffer.from("out"));
     expect(fileStore.read).toHaveBeenCalledWith(`${fileId}.png`);
@@ -98,7 +102,7 @@ describe("loadFile", () => {
 
     const first = await loadFile(
       `${fileId}.avif`,
-      { width: 320 },
+      { resize: { width: 320 } },
       { fileStore, mediaOptimizer, cache: true },
     );
     expect(await streamToBuffer(first)).toEqual(Buffer.from("cached"));
@@ -106,7 +110,7 @@ describe("loadFile", () => {
 
     const second = await loadFile(
       `${fileId}.avif`,
-      { width: 320 },
+      { resize: { width: 320 } },
       { fileStore, mediaOptimizer, cache: true },
     );
     expect(await streamToBuffer(second)).toEqual(Buffer.from("cached"));

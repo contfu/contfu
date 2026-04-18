@@ -9,4 +9,5 @@ export {
   mergeSchemaValues,
   generateTypeScript,
   generateConsumerTypes,
+  isSystemSchemaKey,
 } from "@contfu/core";

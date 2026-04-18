@@ -18,7 +18,7 @@ import {
 } from "@contfu/core";
 import type { ItemEvent, StreamEvent } from "@contfu/connect";
 import type { FileStore } from "./domain/files";
-import type { MediaOptimizer } from "./domain/media";
+import type { MediaOptimizer, MediaVariants, TransformMediaRule } from "./domain/media";
 import { fileStore as defaultFileStore } from "./infra/media/media-defaults";
 import type { TypedContfuClient } from "./domain/query-types";
 import { resolveWithFunctions } from "./domain/filter-helpers";
@@ -27,9 +27,13 @@ import { connect } from "./features/stream/connect";
 import { handleFileRequest as handleFileRequestImpl } from "./infra/http";
 import { db } from "./infra/db/db";
 
-export type ContfuOptions = {
+export type ContfuOptions<CMap = unknown> = {
   fileStore?: FileStore;
   mediaOptimizer?: MediaOptimizer;
+  /** Sync-time media conversion rules (format constraints, include/exclude filters). */
+  transformMedia?: TransformMediaRule<CMap>[];
+  /** Named variant presets for on-demand serving and optional sync-time pre-generation. */
+  mediaVariants?: MediaVariants<CMap>;
   /** Authentication key. Falls back to process.env.CONTFU_KEY. */
   key?: string;
   /** Cache optimized file variants in the database. Default: true */
@@ -45,16 +49,16 @@ export type ContfuInstance<CMap> = {
   handleFileRequest(request: Request, filePath: string): Promise<Response>;
 };
 
-export function contfu<CMap>(options: ContfuOptions = {}): ContfuInstance<CMap> {
+export function contfu<CMap = unknown>(options: ContfuOptions<CMap> = {}): ContfuInstance<CMap> {
   const fileStore = options.fileStore ?? defaultFileStore;
   const key = options.key ?? process.env.CONTFU_KEY;
 
   return {
     query: createLocalTypedClient(),
     fileStore,
-    events: key ? createHotEventStream(key, fileStore) : emptyAsyncIterable(),
+    events: key ? createHotEventStream(key, fileStore, options) : emptyAsyncIterable(),
     handleFileRequest: (request, filePath) =>
-      handleFileRequestImpl(request, filePath, { ...options, fileStore }),
+      handleFileRequestImpl<CMap>(request, filePath, { ...options, fileStore }),
   };
 }
 
@@ -63,7 +67,11 @@ type Subscriber = {
   resolve: (() => void) | null;
 };
 
-function createHotEventStream(key: string, fileStore: FileStore): AsyncIterable<SyncEvent> {
+function createHotEventStream<CMap>(
+  key: string,
+  fileStore: FileStore,
+  options: ContfuOptions<CMap>,
+): AsyncIterable<SyncEvent> {
   const subscribers = new Set<Subscriber>();
 
   // Start consuming the connect() generator eagerly in the background
@@ -73,6 +81,9 @@ function createHotEventStream(key: string, fileStore: FileStore): AsyncIterable<
       reconnect: true,
       key: Buffer.from(key, "base64url"),
       fileStore,
+      mediaOptimizer: options.mediaOptimizer,
+      transformMedia: options.transformMedia,
+      mediaVariants: options.mediaVariants,
     })) {
       for (const sub of subscribers) {
         sub.queue.push(event);

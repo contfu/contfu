@@ -1,5 +1,7 @@
 export * from "./blocks";
 export * from "./collections";
+export * from "./markdown";
+export * from "./render";
 export * from "./connections";
 export * from "./commands";
 export * from "./events";

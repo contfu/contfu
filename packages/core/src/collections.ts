@@ -12,6 +12,7 @@ export interface Collection {
   id: string;
   name: string;
   includeRef: boolean;
+  includeContent: boolean;
   schema: CollectionSchema;
   refTargets?: RefTargets;
   icon?: CollectionIcon | null;

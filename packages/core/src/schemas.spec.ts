@@ -473,6 +473,62 @@ describe("generateConsumerTypes with inflowSchemas", () => {
   });
 });
 
+describe("$content system schema key", () => {
+  it("generateTypeScript maps $content to content: Block[] and prepends Block import", () => {
+    const ts = generateTypeScript([
+      {
+        name: "blogPosts",
+        displayName: "Blog Posts",
+        schema: { title: PropertyType.STRING, $content: 0 },
+      },
+    ]);
+    expect(ts).toContain(`import type { Block } from "@contfu/core";`);
+    expect(ts).toContain("content: Block[];");
+    expect(ts).not.toContain("$content");
+  });
+
+  it("generateTypeScript omits Block import when no collection uses $content", () => {
+    const ts = generateTypeScript([
+      {
+        name: "blogPosts",
+        displayName: "Blog Posts",
+        schema: { title: PropertyType.STRING },
+      },
+    ]);
+    expect(ts).not.toContain("import type { Block }");
+    expect(ts).not.toContain("Block[]");
+  });
+
+  it("generateConsumerTypes maps $content to content: Block[] and prepends Block import", () => {
+    const ts = generateConsumerTypes([
+      {
+        name: "blogPosts",
+        displayName: "Blog Posts",
+        schema: { title: PropertyType.STRING, $content: 0 },
+      },
+    ]);
+    expect(ts).toContain(`import type { Block } from "@contfu/core";`);
+    expect(ts).toContain("content: Block[];");
+  });
+
+  it("generateTypeScript emits content: Block[] in union members from inflow schemas", () => {
+    const ts = generateTypeScript([
+      {
+        name: "posts",
+        displayName: "Posts",
+        schema: { title: PropertyType.STRING, $content: 0 },
+        inflowSchemas: [
+          { title: PropertyType.STRING, $content: 0 },
+          { title: PropertyType.STRING, category: PropertyType.STRING, $content: 0 },
+        ],
+      },
+    ]);
+    expect(ts).toContain(`import type { Block } from "@contfu/core";`);
+    expect(ts).toContain("content: Block[];");
+    expect(ts).not.toContain("$content");
+  });
+});
+
 describe("generateTypeScript with merged enum schemas", () => {
   it("emits union of all values when two ENUM schemas are merged before generation", () => {
     const schemaA: CollectionSchema = {

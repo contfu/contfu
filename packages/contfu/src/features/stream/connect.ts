@@ -15,10 +15,11 @@ import { getCollectionSchemaByName } from "../collections/getCollectionSchemaByN
 import { db } from "../../infra/db/db";
 import { collectionsTable, linkTable } from "../../infra/db/schema";
 import type {
-  CollectionVariants,
+  MediaConvertOpts,
   MediaOptimizer,
+  MediaVariants,
+  MediaVariantsConfig,
   TransformMediaRule,
-  VariantDef,
 } from "../../domain/media";
 import type { FileStore } from "../../domain/files";
 import { fileStore as defaultFileStore } from "../../infra/media/media-defaults";
@@ -27,15 +28,15 @@ import { fileStore as defaultFileStore } from "../../infra/media/media-defaults"
  * Connect to the stream and persist events into the local database.
  * The authentication key is read from CONTFU_KEY (base64url) by default.
  */
-export async function* connect(opts?: {
+export async function* connect<CMap = unknown>(opts?: {
   key?: Buffer;
   from?: number;
   reconnect?: boolean;
   connectionEvents?: boolean;
   fileStore?: FileStore;
   mediaOptimizer?: MediaOptimizer;
-  transformMedia?: TransformMediaRule[];
-  collectionVariants?: CollectionVariants;
+  transformMedia?: TransformMediaRule<CMap>[];
+  mediaVariants?: MediaVariants<CMap>;
 }): AsyncGenerator<ItemEvent | StreamEvent> {
   const persistedFrom = getSyncIndex();
   const from = opts?.from ?? (persistedFrom != null ? persistedFrom + 1 : undefined);
@@ -44,7 +45,7 @@ export async function* connect(opts?: {
     fileStore: userFileStore,
     mediaOptimizer,
     transformMedia,
-    collectionVariants,
+    mediaVariants,
     ...restOpts
   } = opts ?? {};
   const resolvedFileStore = userFileStore ?? defaultFileStore;
@@ -66,7 +67,7 @@ export async function* connect(opts?: {
         resolvedFileStore,
         mediaOptimizer,
         transformMedia,
-        collectionVariants,
+        mediaVariants,
       );
       yield event;
     }
@@ -74,23 +75,33 @@ export async function* connect(opts?: {
   }
 
   for await (const event of connectToStream(baseOpts)) {
-    await persistSyncEvent(
-      event,
-      resolvedFileStore,
-      mediaOptimizer,
-      transformMedia,
-      collectionVariants,
-    );
+    await persistSyncEvent(event, resolvedFileStore, mediaOptimizer, transformMedia, mediaVariants);
     yield event;
   }
 }
 
-async function persistSyncEvent(
+function resolvePregenerate<CMap>(
+  collection: string,
+  mediaVariants?: MediaVariants<CMap>,
+): MediaConvertOpts[] | undefined {
+  if (!mediaVariants) return undefined;
+  const byCollection = mediaVariants.collections as Record<string, MediaVariantsConfig> | undefined;
+  const config = byCollection?.[collection] ?? mediaVariants.default;
+  if (!config?.pregenerate?.length) return undefined;
+  const resolved: MediaConvertOpts[] = [];
+  for (const name of config.pregenerate) {
+    const preset = config.presets[name];
+    if (preset) resolved.push(preset);
+  }
+  return resolved.length > 0 ? resolved : undefined;
+}
+
+async function persistSyncEvent<CMap>(
   event: ItemEvent,
   fileStore?: FileStore,
   mediaOptimizer?: MediaOptimizer,
-  transformMedia?: TransformMediaRule[],
-  collectionVariants?: CollectionVariants,
+  transformMedia?: TransformMediaRule<CMap>[],
+  mediaVariants?: MediaVariants<CMap>,
 ): Promise<void> {
   if (event.type === EventType.COLLECTION_SCHEMA) {
     setCollection(event.collection, event.displayName, event.schema);
@@ -113,7 +124,7 @@ async function persistSyncEvent(
     let content = event.item.content;
     let props = event.item.props;
     const collection = event.item.collection;
-    const variants: VariantDef[] | undefined = collectionVariants?.[collection];
+    const pregenerate = resolvePregenerate(collection, mediaVariants);
 
     // Ensure collection exists — ITEM_CHANGED may arrive before COLLECTION_SCHEMA during resync
     db.insert(collectionsTable)
@@ -176,7 +187,7 @@ async function persistSyncEvent(
           mediaOptimizer,
           transformMedia,
           collection,
-          collectionVariants: variants,
+          pregenerate,
         });
         needsUpdate = true;
       }
@@ -191,7 +202,7 @@ async function persistSyncEvent(
           mediaOptimizer,
           transformMedia,
           collection,
-          collectionVariants: variants,
+          pregenerate,
         });
         needsUpdate = true;
       }

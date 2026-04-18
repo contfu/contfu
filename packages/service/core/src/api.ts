@@ -41,12 +41,14 @@ export interface CreateCollectionBody {
   name?: string;
   connectionId?: string | null;
   includeRef?: boolean;
+  includeContent?: boolean;
 }
 
 export interface UpdateCollectionBody {
   displayName?: string;
   name?: string;
   includeRef?: boolean;
+  includeContent?: boolean;
   schema?: CollectionSchema;
   refTargets?: Record<string, string[]> | null;
 }
