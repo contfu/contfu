@@ -91,7 +91,7 @@
     },
     "packages/contfu": {
       "name": "@contfu/contfu",
-      "version": "0.0.10",
+      "version": "0.0.11",
       "dependencies": {
         "@contfu/connect": "workspace:^",
         "@contfu/core": "workspace:^",
@@ -136,11 +136,11 @@
     },
     "packages/files/media-optimizer": {
       "name": "@contfu/media-optimizer",
-      "version": "0.0.8",
+      "version": "0.0.9",
       "dependencies": {
         "@ffmpeg-installer/ffmpeg": "^1.1.0",
-        "@m4k/common": "^0.2.6",
-        "m4k": "^0.3.2",
+        "@m4k/common": "^0.2.7",
+        "m4k": "^0.3.3",
         "sharp": "^0.34.5",
         "tasque": "^0.1.2",
       },
@@ -155,10 +155,10 @@
     },
     "packages/files/media-optimizer-remote": {
       "name": "@contfu/media-optimizer-remote",
-      "version": "0.0.8",
+      "version": "0.0.9",
       "dependencies": {
-        "@m4k/client": "^0.2.6",
-        "@m4k/common": "^0.2.6",
+        "@m4k/client": "^0.2.8",
+        "@m4k/common": "^0.2.7",
       },
       "devDependencies": {
         "@contfu/contfu": "workspace:*",
@@ -187,7 +187,7 @@
     },
     "packages/server": {
       "name": "@contfu/server",
-      "version": "0.0.8",
+      "version": "0.0.9",
       "bin": {
         "contfu-server": "./src/bin.ts",
       },
@@ -553,9 +553,9 @@
 
     "@lucide/svelte": ["@lucide/svelte@0.563.1", "", { "peerDependencies": { "svelte": "^5" } }, "sha512-Kt+MbnE5D9RsuI/csmf7M+HWxALe57x3A0DhQ8pPnnUpneh7zuldrYjlT+veWtk+tVnp5doQtaAAxLujzIlhBw=="],
 
-    "@m4k/client": ["@m4k/client@0.2.6", "", { "dependencies": { "@m4k/common": "^0.2.6", "@sv2dev/multipart-stream": "^0.2.0" } }, "sha512-9cgGtKl8RCmP//Ql2AUqZ7aTCrQtdfw5IcEI7rvJuB+hE+Gf9KWhmF1h6DetcdnYLfD919izE8yuf5ienzj5EQ=="],
+    "@m4k/client": ["@m4k/client@0.2.8", "", { "dependencies": { "@m4k/common": "^0.2.6", "@sv2dev/multipart-stream": "^0.2.0" } }, "sha512-wv+ce3SwvfOnqR/xHoYQBcT1AjViSQTaJrkmI6fKNbEPmgStKb2C27mI7vhnwTBFwBVE2tqbvYfab1L7LdLELA=="],
 
-    "@m4k/common": ["@m4k/common@0.2.6", "", {}, "sha512-CVIHiTmtyx4ngPA4YiZEz0wCDzSjo6GmhMNU30L9cyciwapv2xNqpoaSvRX9sWa+8iu0LG522OzFoZiSeMiZ/w=="],
+    "@m4k/common": ["@m4k/common@0.2.7", "", {}, "sha512-fQ3yS13mBl7UwfmbeG9I9rQ4ahaf6Ov3vVciKLigtivF5uCSLxZSJzcsXpHWLxQXKmjAIQEz5/nJRxDW2XUMVQ=="],
 
     "@msgpackr-extract/msgpackr-extract-darwin-arm64": ["@msgpackr-extract/msgpackr-extract-darwin-arm64@3.0.3", "", { "os": "darwin", "cpu": "arm64" }, "sha512-QZHtlVgbAdy2zAqNA9Gu1UpIuI8Xvsd1v8ic6B2pZmeFnFcMWiPLfWXh7TVw4eGEZ/C9TH281KwhVoeQUKbyjw=="],
 
@@ -1135,6 +1135,10 @@
 
     "zone.js": ["zone.js@0.15.1", "", {}, "sha512-XE96n56IQpJM7NAoXswY3XRLcWFW83xe0BiAOeMD7K5k5xecOeul3Qcpx6GqEeeHNkW5DWL5zOyTbEfB4eti8w=="],
 
+    "@contfu/media-optimizer/m4k": ["m4k@0.3.3", "", { "dependencies": { "@m4k/common": "^0.2.6" }, "peerDependencies": { "sharp": "^0.34.5" } }, "sha512-aI+I7mnIlC43xetK2jVzvoo1CYevbHGs5wHg3wkcb0Cc9S7tzCptljElZ+5rBBRxA21vqKAY2oLMnz6G989IMA=="],
+
+    "@contfu/ui/@m4k/common": ["@m4k/common@0.2.6", "", {}, "sha512-CVIHiTmtyx4ngPA4YiZEz0wCDzSjo6GmhMNU30L9cyciwapv2xNqpoaSvRX9sWa+8iu0LG522OzFoZiSeMiZ/w=="],
+
     "@tailwindcss/oxide-wasm32-wasi/@emnapi/core": ["@emnapi/core@1.9.2", "", { "dependencies": { "@emnapi/wasi-threads": "1.2.1", "tslib": "^2.4.0" }, "bundled": true }, "sha512-UC+ZhH3XtczQYfOlu3lNEkdW/p4dsJ1r/bP7H8+rhao3TTTMO1ATq/4DdIi23XuGoFY+Cz0JmCbdVl0hz9jZcA=="],
 
     "@tailwindcss/oxide-wasm32-wasi/@emnapi/runtime": ["@emnapi/runtime@1.9.2", "", { "dependencies": { "tslib": "^2.4.0" }, "bundled": true }, "sha512-3U4+MIWHImeyu1wnmVygh5WlgfYDtyf0k8AbLhMFxOipihf6nrWC4syIm/SwEeec0mNSafiiNnMJwbza/Is6Lw=="],
@@ -1146,6 +1150,8 @@
     "@tailwindcss/oxide-wasm32-wasi/@tybys/wasm-util": ["@tybys/wasm-util@0.10.1", "", { "dependencies": { "tslib": "^2.4.0" }, "bundled": true }, "sha512-9tTaPJLSiejZKx+Bmog4uSubteqTvFrVrURwkmHixBo0G4seD0zUxp98E1DzUBJxLQ3NPwXrGKDiVjwx/DpPsg=="],
 
     "@tailwindcss/oxide-wasm32-wasi/tslib": ["tslib@2.8.1", "", { "bundled": true }, "sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w=="],
+
+    "m4k/@m4k/common": ["@m4k/common@0.2.6", "", {}, "sha512-CVIHiTmtyx4ngPA4YiZEz0wCDzSjo6GmhMNU30L9cyciwapv2xNqpoaSvRX9sWa+8iu0LG522OzFoZiSeMiZ/w=="],
 
     "mode-watcher/runed": ["runed@0.25.0", "", { "dependencies": { "esm-env": "^1.0.0" }, "peerDependencies": { "svelte": "^5.7.0" } }, "sha512-7+ma4AG9FT2sWQEA0Egf6mb7PBT2vHyuHail1ie8ropfSjvZGtEAx8YTmUjv/APCsdRRxEVvArNjALk9zFSOrg=="],
 

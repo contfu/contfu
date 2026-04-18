@@ -61,7 +61,7 @@ contfu({
     default: {
       presets: {
         thumbnail: { resize: { width: 320, height: 320, fit: "cover" }, quality: 70 },
-        hero:      { resize: { width: 1600 }, quality: 80 },
+        hero: { resize: { width: 1600 }, quality: 80 },
       },
       pregenerate: ["thumbnail"],
       strict: true,
@@ -107,17 +107,17 @@ Named preset:
 
 Raw params (only usable when `strict` is off):
 
-| Param         | Short | Effect                             |
-| ------------- | ----- | ---------------------------------- |
-| `width`       | `w`   | resize width                       |
-| `height`      | `h`   | resize height                      |
-| `fit`         | `f`   | `cover` / `contain` / `inside` / … |
-| `quality`     | `q`   | encoder quality                    |
-| `rotate`      | `r`   | degrees                            |
-| `cropLeft`    | `cl`  | crop origin x                      |
-| `cropTop`     | `ct`  | crop origin y                      |
-| `cropWidth`   | `cw`  | crop width (required for crop)     |
-| `cropHeight`  | `ch`  | crop height (required for crop)    |
+| Param        | Short | Effect                             |
+| ------------ | ----- | ---------------------------------- |
+| `width`      | `w`   | resize width                       |
+| `height`     | `h`   | resize height                      |
+| `fit`        | `f`   | `cover` / `contain` / `inside` / … |
+| `quality`    | `q`   | encoder quality                    |
+| `rotate`     | `r`   | degrees                            |
+| `cropLeft`   | `cl`  | crop origin x                      |
+| `cropTop`    | `ct`  | crop origin y                      |
+| `cropWidth`  | `cw`  | crop width (required for crop)     |
+| `cropHeight` | `ch`  | crop height (required for crop)    |
 
 Video and audio URLs accept codec/bitrate params directly (`videoCodec`, `audioBitrate`, `fps`, …).
 
@@ -129,7 +129,9 @@ If you generate a type map via `contfu<CMap>()`, Contfu will enforce collection 
 
 ```ts
 import type { CMap } from "./generated/contfu-types";
-const app = contfu<CMap>({ /* … */ });
+const app = contfu<CMap>({
+  /* … */
+});
 ```
 
 ## Recipes
@@ -145,7 +147,7 @@ contfu({
     default: {
       presets: {
         thumb: { resize: { width: 320, height: 320, fit: "cover" } },
-        hero:  { resize: { width: 1600 } },
+        hero: { resize: { width: 1600 } },
       },
       pregenerate: ["thumb"],
       strict: true,
@@ -162,7 +164,7 @@ contfu<CMap>({
     collections: {
       users: {
         presets: {
-          "64":  { resize: { width: 64,  height: 64,  fit: "cover" } },
+          "64": { resize: { width: 64, height: 64, fit: "cover" } },
           "256": { resize: { width: 256, height: 256, fit: "cover" } },
         },
         strict: true,
