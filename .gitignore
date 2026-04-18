@@ -203,6 +203,7 @@ logs/security/
 .planning
 .worktree
 packages/client/app/data
+packages/ui/data
 .claude/worktrees
 .claude/review.md
 .forgejo-session
