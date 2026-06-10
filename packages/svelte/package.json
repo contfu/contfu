@@ -1,6 +1,6 @@
 {
   "name": "@contfu/svelte",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -21,13 +21,15 @@
   },
   "scripts": {
     "test": "bun test src/",
+    "check": "svelte-check --tsconfig ./tsconfig.check.json",
     "pack": "bun ../../scripts/pack-package.ts ."
   },
   "dependencies": {
     "@contfu/core": "workspace:^"
   },
   "devDependencies": {
-    "svelte": "^5.55.3",
+    "svelte": "^5.55.9",
+    "svelte-check": "^4.4.8",
     "typescript": "^5.9.3"
   },
   "peerDependencies": {

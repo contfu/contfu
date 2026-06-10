@@ -1,11 +1,32 @@
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db as defaultDb } from "./db";
-import { fileTable, itemFileTable, itemsTable, linkTable } from "./schema";
-import { fileFromDb } from "./mappers";
-import { decodeId, encodeId } from "../ids";
+import {
+  externalLinkTable,
+  fileTable,
+  internalLinkTable,
+  itemFileTable,
+  itemsTable,
+} from "./schema";
+import { fileFromDb, propsWithLocale } from "./mappers";
 import type { FileData, ResolvedLink } from "../types/content-types";
 import type { IncludeOption } from "@contfu/core";
 import type { ItemWithRelations } from "../../domain/query-types";
+
+function hydrateFileRefs(item: ItemWithRelations, files: FileData[]): void {
+  if (files.length === 0) return;
+  const byRef = new Map(files.map((file) => [`${file.id}.${file.ext}`, file]));
+  for (const [key, value] of Object.entries(item)) {
+    if (typeof value === "string") {
+      const file = byRef.get(value);
+      if (file) item[key] = file;
+    } else if (Array.isArray(value)) {
+      const hydrated = value.map((entry) =>
+        typeof entry === "string" ? (byRef.get(entry) ?? entry) : entry,
+      );
+      if (hydrated.some((entry, index) => entry !== value[index])) item[key] = hydrated;
+    }
+  }
+}
 
 export function resolveIncludes(
   items: ItemWithRelations[],
@@ -14,7 +35,7 @@ export function resolveIncludes(
 ): void {
   if (items.length === 0 || include.length === 0) return;
 
-  const ids = items.map((i) => decodeId(i.$id));
+  const ids = items.map((i) => i.$id);
 
   if (include.includes("files")) {
     const rows = ctx
@@ -24,66 +45,68 @@ export function resolveIncludes(
       .where(inArray(itemFileTable.itemId, ids))
       .all();
 
-    const filesByItem = new Map<string, FileData[]>();
+    const filesByItem = new Map<number, FileData[]>();
     for (const row of rows) {
-      const itemId = encodeId(Buffer.from(row.itemId));
+      const itemId = row.itemId;
       if (!filesByItem.has(itemId)) filesByItem.set(itemId, []);
       filesByItem.get(itemId)!.push(fileFromDb(row.file));
     }
 
     for (const item of items) {
-      item.files = filesByItem.get(item.$id) ?? [];
+      const files = filesByItem.get(item.$id) ?? [];
+      item.files = files;
+      hydrateFileRefs(item, files);
     }
   }
 
   if (include.includes("links")) {
-    // Only content-derived links (prop IS NULL)
-    const rows = ctx
+    const internalRows = ctx
       .select()
-      .from(linkTable)
-      .where(and(inArray(linkTable.from, ids), isNull(linkTable.prop)))
+      .from(internalLinkTable)
+      .where(and(inArray(internalLinkTable.from, ids), isNull(internalLinkTable.prop)))
+      .all();
+    const externalRows = ctx
+      .select()
+      .from(externalLinkTable)
+      .where(inArray(externalLinkTable.from, ids))
       .all();
 
-    // Collect internal target IDs for batch fetch
-    const internalTargetIds = new Set<string>();
-    for (const row of rows) {
-      if (row.internal) {
-        internalTargetIds.add(encodeId(row.to));
-      }
-    }
+    const internalTargetIds = new Set<number>();
+    for (const row of internalRows) internalTargetIds.add(row.to);
 
-    // Batch-fetch internal target items
-    const targetItemMap = new Map<string, Record<string, unknown>>();
+    const targetItemMap = new Map<number, Record<string, unknown>>();
     if (internalTargetIds.size > 0) {
-      const targetBufs = [...internalTargetIds].map(decodeId);
       const targetRows = ctx
         .select()
         .from(itemsTable)
-        .where(inArray(itemsTable.id, targetBufs))
+        .where(inArray(itemsTable.id, [...internalTargetIds]))
         .all();
       for (const row of targetRows) {
-        const id = encodeId(Buffer.from(row.id));
+        const id = row.id;
         targetItemMap.set(id, {
           $id: id,
           $collection: row.collection,
-          $ref: row.ref,
           $changedAt: row.changedAt,
-          ...(row.props && typeof row.props === "object" && !Array.isArray(row.props)
-            ? row.props
-            : {}),
+          ...propsWithLocale(
+            row.props && typeof row.props === "object" && !Array.isArray(row.props)
+              ? row.props
+              : {},
+            row.locale,
+          ),
         });
       }
     }
 
-    // Group resolved links by source item
-    const linksByItem = new Map<string, ResolvedLink[]>();
-    for (const row of rows) {
-      const fromId = encodeId(Buffer.from(row.from));
+    const linksByItem = new Map<number, ResolvedLink[]>();
+    for (const row of internalRows) {
+      const fromId = row.from;
       if (!linksByItem.has(fromId)) linksByItem.set(fromId, []);
-      const resolved: ResolvedLink = row.internal
-        ? ((targetItemMap.get(encodeId(Buffer.from(row.to))) as ResolvedLink) ?? null)
-        : row.to.toString("utf8");
-      linksByItem.get(fromId)!.push(resolved);
+      linksByItem.get(fromId)!.push((targetItemMap.get(row.to) as ResolvedLink) ?? null);
+    }
+    for (const row of externalRows) {
+      const fromId = row.from;
+      if (!linksByItem.has(fromId)) linksByItem.set(fromId, []);
+      linksByItem.get(fromId)!.push(row.url);
     }
 
     for (const item of items) {

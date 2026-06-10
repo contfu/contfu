@@ -3,54 +3,59 @@ import type { GeneratedMigration } from "./db-shared";
 
 export const migrations: GeneratedMigration[] = [
   {
-    name: "20260311074508_init",
-    timestamp: 20260311074508,
+    name: "20260507160502_init",
+    timestamp: 20260507160502,
     sql: `
-CREATE TABLE "file" (
+CREATE TABLE "collections" (
+	"name" text PRIMARY KEY,
+	"displayName" text NOT NULL,
+	"schema" blob NOT NULL,
+	"i18n" blob
+);
+--> statement-breakpoint
+CREATE TABLE "external_links" (
+	"id" integer PRIMARY KEY,
+	"from" integer NOT NULL,
+	"url" text NOT NULL,
+	CONSTRAINT "fk_external_links_from_items_id_fk" FOREIGN KEY ("from") REFERENCES "items"("id") ON DELETE CASCADE
+);
+--> statement-breakpoint
+CREATE TABLE "files" (
 	"id" blob PRIMARY KEY,
-	"originalUrl" text NOT NULL,
+	"status" integer NOT NULL,
 	"mediaType" text NOT NULL,
-	"ext" text NOT NULL,
-	"size" integer NOT NULL,
+	"meta" blob NOT NULL,
 	"data" blob,
 	"createdAt" integer NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "collections" (
-	"name" text PRIMARY KEY,
-	"displayName" text NOT NULL,
-	"schema" blob NOT NULL
+CREATE TABLE "internal_links" (
+	"id" integer PRIMARY KEY,
+	"prop" text,
+	"from" integer NOT NULL,
+	"to" integer NOT NULL,
+	CONSTRAINT "fk_internal_links_from_items_id_fk" FOREIGN KEY ("from") REFERENCES "items"("id") ON DELETE CASCADE
 );
 --> statement-breakpoint
-CREATE TABLE "item_file" (
-	"itemId" blob NOT NULL,
+CREATE TABLE "item_files" (
+	"itemId" integer NOT NULL,
 	"fileId" blob NOT NULL,
-	CONSTRAINT "item_file_pk" PRIMARY KEY("itemId", "fileId"),
-	CONSTRAINT "fk_item_file_itemId_items_id_fk" FOREIGN KEY ("itemId") REFERENCES "items"("id") ON DELETE CASCADE,
-	CONSTRAINT "fk_item_file_fileId_file_id_fk" FOREIGN KEY ("fileId") REFERENCES "file"("id") ON DELETE CASCADE
+	CONSTRAINT "item_files_pk" PRIMARY KEY("itemId", "fileId"),
+	CONSTRAINT "fk_item_files_itemId_items_id_fk" FOREIGN KEY ("itemId") REFERENCES "items"("id") ON DELETE CASCADE,
+	CONSTRAINT "fk_item_files_fileId_files_id_fk" FOREIGN KEY ("fileId") REFERENCES "files"("id") ON DELETE CASCADE
 );
 --> statement-breakpoint
 CREATE TABLE "items" (
-	"id" blob PRIMARY KEY,
-	"connectionType" integer,
-	"ref" text,
+	"id" integer PRIMARY KEY,
 	"collection" text NOT NULL,
 	"props" blob,
+	"locale" text,
 	"content" blob,
 	"changedAt" integer NOT NULL,
 	CONSTRAINT "fk_items_collection_collections_name_fk" FOREIGN KEY ("collection") REFERENCES "collections"("name") ON UPDATE CASCADE
 );
 --> statement-breakpoint
-CREATE TABLE "links" (
-	"id" integer PRIMARY KEY,
-	"prop" text,
-	"from" blob NOT NULL,
-	"to" blob NOT NULL,
-	"internal" integer NOT NULL,
-	CONSTRAINT "fk_links_from_items_id_fk" FOREIGN KEY ("from") REFERENCES "items"("id") ON DELETE CASCADE
-);
---> statement-breakpoint
-CREATE TABLE "media_variant" (
+CREATE TABLE "media_variants" (
 	"fileId" blob NOT NULL,
 	"ext" text NOT NULL,
 	"optsHash" integer NOT NULL,
@@ -58,19 +63,19 @@ CREATE TABLE "media_variant" (
 	"size" integer NOT NULL,
 	"data" blob NOT NULL,
 	"createdAt" integer NOT NULL,
-	CONSTRAINT "fk_media_variant_fileId_file_id_fk" FOREIGN KEY ("fileId") REFERENCES "file"("id") ON DELETE CASCADE,
-	CONSTRAINT "media_variant_pk" PRIMARY KEY("fileId", "ext", "optsHash")
+	CONSTRAINT "media_variants_pk" PRIMARY KEY("fileId", "ext", "optsHash"),
+	CONSTRAINT "fk_media_variants_fileId_files_id_fk" FOREIGN KEY ("fileId") REFERENCES "files"("id") ON DELETE CASCADE
 );
 --> statement-breakpoint
 CREATE TABLE "sync" (
 	"index" integer NOT NULL
 );
 --> statement-breakpoint
-CREATE INDEX "idx_items_ref" ON "items" ("ref");--> statement-breakpoint
+CREATE INDEX "idx_external_links_from" ON "external_links" ("from");--> statement-breakpoint
+CREATE INDEX "idx_internal_links_from" ON "internal_links" ("from","to");--> statement-breakpoint
+CREATE INDEX "idx_internal_links_to" ON "internal_links" ("to");--> statement-breakpoint
 CREATE INDEX "idx_items_collection" ON "items" ("collection");--> statement-breakpoint
-CREATE INDEX "idx_items_changedAt" ON "items" ("changedAt");--> statement-breakpoint
-CREATE INDEX "idx_links_from" ON "links" ("from","to");--> statement-breakpoint
-CREATE INDEX "idx_links_to" ON "links" ("to");
-`,
+CREATE INDEX "idx_items_locale" ON "items" ("locale");--> statement-breakpoint
+CREATE INDEX "idx_items_changedAt" ON "items" ("changedAt");`,
   },
 ];

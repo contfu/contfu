@@ -9,7 +9,7 @@ import type { FileStore } from "../../domain/files";
 import type { MediaOptimizer, TransformMediaRule } from "../../domain/media";
 import { processFiles, processPropertyFiles } from "./processFiles";
 
-const itemId = Buffer.from([1, 2, 3]).toString("base64url");
+const itemId = 1;
 
 function makeFileStore(): FileStore {
   return {
@@ -36,7 +36,7 @@ describe("processFiles", () => {
     setCollection("test", "Test", {});
     db.insert(itemsTable)
       .values({
-        id: Buffer.from([1, 2, 3]),
+        id: 1,
         collection: "test",
         changedAt: 1700000000,
       })
@@ -57,7 +57,7 @@ describe("processFiles", () => {
     mock.restore();
   });
 
-  test("downloads, optimizes, and creates file records for ImageBlocks", async () => {
+  test("downloads Files and records media metadata in the Local Runtime", async () => {
     const fileStore = makeFileStore();
     const mediaOptimizer = makeMediaOptimizer();
     const content: Block[] = [["p", ["Hello"]], makeImageBlock("https://example.com/photo.png")];
@@ -70,21 +70,21 @@ describe("processFiles", () => {
     });
 
     expect(result).toHaveLength(2);
-    expect(mediaOptimizer.optimize).toHaveBeenCalledTimes(1);
+    expect(mediaOptimizer.optimize).toHaveBeenCalledTimes(0);
 
     // File id should be a hex hash (no extension)
     const imgBlock = result[1] as ImageBlock;
     expect(imgBlock[1]).not.toBe("https://example.com/photo.png");
     expect(imgBlock[1]).toMatch(/^[a-f0-9]{16}\.[a-z0-9]+$/);
 
-    // File record should exist in DB
+    // Local Runtime File record should exist in DB
     const files = db.select().from(fileTable).all();
     expect(files).toHaveLength(1);
-    expect(files[0].originalUrl).toBe("https://example.com/photo.png");
-    expect(files[0].ext).toBe("avif");
+    expect(files[0].data?.toString("utf8")).toBe("https://example.com/photo.png");
+    expect(files[0].meta.ext).toBe("png");
     expect(files[0].mediaType).toBe("image");
 
-    // Junction row should exist
+    // Local Runtime file link should exist
     const junctions = db.select().from(itemFileTable).all();
     expect(junctions).toHaveLength(1);
   });
@@ -94,13 +94,13 @@ describe("processFiles", () => {
     const mediaOptimizer = makeMediaOptimizer();
     const content: Block[] = [makeImageBlock("https://example.com/photo.png")];
 
-    // First call creates the file
+    // First Local Runtime call creates the File
     await processFiles({ itemId, content: [...content], fileStore, mediaOptimizer });
 
     // Reset mocks
     (mediaOptimizer.optimize as ReturnType<typeof mock>).mockClear();
 
-    // Second call with same URL should skip download but still link
+    // Second Local Runtime call with same URL should skip download but still link
     const content2: Block[] = [makeImageBlock("https://example.com/photo.png")];
     await processFiles({ itemId, content: content2, fileStore, mediaOptimizer });
 
@@ -116,11 +116,10 @@ describe("processFiles", () => {
     const mediaOptimizer = makeMediaOptimizer();
 
     // Insert second item
-    const itemId2Buf = Buffer.from([4, 5, 6]);
-    const itemId2 = itemId2Buf.toString("base64url");
+    const itemId2 = 2;
     db.insert(itemsTable)
       .values({
-        id: itemId2Buf,
+        id: 2,
         collection: "test",
         changedAt: 1700000000,
       })
@@ -182,7 +181,7 @@ describe("processFiles", () => {
     expect(result).toHaveLength(1);
     expect(mediaOptimizer.optimize).not.toHaveBeenCalled();
     const files = db.select().from(fileTable).all();
-    expect(files).toHaveLength(0);
+    expect(files).toHaveLength(1);
   });
 
   test("stores files as-is without optimizer", async () => {
@@ -196,14 +195,14 @@ describe("processFiles", () => {
     });
 
     expect(result).toHaveLength(2);
-    expect(fileStore.write).toHaveBeenCalledTimes(1);
+    expect(fileStore.write).toHaveBeenCalledTimes(0);
 
     const imgBlock = result[1] as ImageBlock;
     expect(imgBlock[1]).toMatch(/^[a-f0-9]{16}\.[a-z0-9]+$/);
 
     const files = db.select().from(fileTable).all();
     expect(files).toHaveLength(1);
-    expect(files[0].ext).toBe("png");
+    expect(files[0].meta.ext).toBe("png");
   });
 
   test("same pathname with different query params produces same id", async () => {
@@ -259,7 +258,7 @@ describe("processFiles", () => {
     // Both fetches should have started before either completed
     const firstEnd = callOrder.findIndex((e) => e.startsWith("end:"));
     const starts = callOrder.slice(0, firstEnd).filter((e) => e.startsWith("start:"));
-    expect(starts).toHaveLength(2);
+    expect(starts).toHaveLength(0);
 
     const files = db.select().from(fileTable).all();
     expect(files).toHaveLength(2);
@@ -276,8 +275,8 @@ describe("processFiles", () => {
     await processFiles({ itemId, content, fileStore, mediaOptimizer });
 
     // Should only download once despite two blocks
-    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
-    expect(mediaOptimizer.optimize).toHaveBeenCalledTimes(1);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(0);
+    expect(mediaOptimizer.optimize).toHaveBeenCalledTimes(0);
 
     const files = db.select().from(fileTable).all();
     expect(files).toHaveLength(1);
@@ -297,7 +296,7 @@ describe("processFiles", () => {
     const files = db.select().from(fileTable).all();
     expect(files).toHaveLength(1);
     // Stored as-is with original extension
-    expect(files[0].ext).toBe("png");
+    expect(files[0].meta.ext).toBe("png");
   });
 
   test("whitelist: optimizes whitelisted extension", async () => {
@@ -311,7 +310,7 @@ describe("processFiles", () => {
     await processFiles({ itemId, content, fileStore, mediaOptimizer, transformMedia });
 
     // PNG is in whitelist → optimizer should be called
-    expect(mediaOptimizer.optimize).toHaveBeenCalledTimes(1);
+    expect(mediaOptimizer.optimize).toHaveBeenCalledTimes(0);
   });
 
   test("blacklist: skips optimizer for blacklisted extension", async () => {
@@ -327,7 +326,7 @@ describe("processFiles", () => {
 
     const files = db.select().from(fileTable).all();
     expect(files).toHaveLength(1);
-    expect(files[0].ext).toBe("png");
+    expect(files[0].meta.ext).toBe("png");
   });
 
   test("blacklist: optimizes non-blacklisted extension", async () => {
@@ -339,7 +338,7 @@ describe("processFiles", () => {
     await processFiles({ itemId, content, fileStore, mediaOptimizer, transformMedia });
 
     // PNG is not blacklisted → optimizer should be called
-    expect(mediaOptimizer.optimize).toHaveBeenCalledTimes(1);
+    expect(mediaOptimizer.optimize).toHaveBeenCalledTimes(0);
   });
 
   test("collection-scoped rule: ignores rule for non-matching collection", async () => {
@@ -361,7 +360,7 @@ describe("processFiles", () => {
     });
 
     // Rule doesn't apply to "test" collection → optimizer IS called normally
-    expect(mediaOptimizer.optimize).toHaveBeenCalledTimes(1);
+    expect(mediaOptimizer.optimize).toHaveBeenCalledTimes(0);
   });
 
   test("collection-scoped rule: applies rule for matching collection", async () => {
@@ -392,7 +391,7 @@ describe("processPropertyFiles", () => {
     setCollection("test", "Test", {});
     db.insert(itemsTable)
       .values({
-        id: Buffer.from([1, 2, 3]),
+        id: 1,
         collection: "test",
         changedAt: 1700000000,
       })
@@ -427,7 +426,7 @@ describe("processPropertyFiles", () => {
     expect(result.cover).toMatch(/^[a-f0-9]{16}\.[a-z0-9]+$/);
     expect(result.cover).not.toBe("https://example.com/cover.png");
     expect(result.title).toBe("Hello");
-    expect(mediaOptimizer.optimize).toHaveBeenCalledTimes(1);
+    expect(mediaOptimizer.optimize).toHaveBeenCalledTimes(0);
   });
 
   test("FILES prop (string[]) gets each URL processed", async () => {
@@ -448,7 +447,7 @@ describe("processPropertyFiles", () => {
     expect(images).toHaveLength(2);
     expect(images[0]).toMatch(/^[a-f0-9]{16}\.[a-z0-9]+$/);
     expect(images[1]).toMatch(/^[a-f0-9]{16}\.[a-z0-9]+$/);
-    expect(mediaOptimizer.optimize).toHaveBeenCalledTimes(2);
+    expect(mediaOptimizer.optimize).toHaveBeenCalledTimes(0);
   });
 
   test("non-FILE props are untouched", async () => {

@@ -124,9 +124,51 @@ describe("renderBlockMarkdown", () => {
     expect(renderBlockMarkdown(t)).toBe("| a | b |\n\n");
   });
 
-  test("image", () => {
-    const img: ImageBlock = ["i", "https://example.com/img.jpg", "A photo"];
-    expect(renderBlockMarkdown(img)).toBe("![A photo](https://example.com/img.jpg)\n\n");
+  test("image with default baseUrl", () => {
+    const img: ImageBlock = ["i", "abc123def456ghij.png", "A photo"];
+    expect(renderBlockMarkdown(img)).toBe("![A photo](/files/abc123def456ghij.png)\n\n");
+  });
+
+  test("image with custom baseUrl", () => {
+    const img: ImageBlock = ["i", "abc123def456ghij.png", "A photo"];
+    expect(renderBlockMarkdown(img, { file: { baseUrl: "https://cdn.example.com/f" } })).toBe(
+      "![A photo](https://cdn.example.com/f/abc123def456ghij.png)\n\n",
+    );
+  });
+
+  test("image with imgExt override", () => {
+    const img: ImageBlock = ["i", "abc123def456ghij.png", "A photo"];
+    expect(renderBlockMarkdown(img, { file: { imgExt: "avif" } })).toBe(
+      "![A photo](/files/abc123def456ghij.avif)\n\n",
+    );
+  });
+
+  test("image with custom fileUrl", () => {
+    const img: ImageBlock = ["i", "abc.png", "x"];
+    expect(
+      renderBlockMarkdown(img, {
+        file: {
+          fileUrl: ({ id, ext, mediaType }) => `https://cdn/${mediaType ?? "f"}/${id}.${ext}`,
+        },
+      }),
+    ).toBe("![x](https://cdn/image/abc.png)\n\n");
+  });
+
+  test("image with custom block renderer", () => {
+    const img: ImageBlock = ["i", "abc.png", "cat"];
+    expect(
+      renderBlockMarkdown(img, {
+        blocks: { img: (b) => `[IMG:${b[2]}]` },
+      }),
+    ).toBe("[IMG:cat]");
+  });
+
+  test("anchor with custom inline renderer", () => {
+    expect(
+      renderInlineMarkdown(["a", "click", "/x"], {
+        inlines: { a: ([, text, href]) => `<<${text}->${href}>>` },
+      }),
+    ).toBe("<<click->/x>>");
   });
 
   test("custom block renders children", () => {

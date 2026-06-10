@@ -1,5 +1,9 @@
-export const PropertyType = {
+import { defineEnum, type EnumValue } from "./enums";
+import type { EffectiveCollectionI18nConfig } from "./i18n";
+
+export const PropertyType = defineEnum({
   NULL: 0,
+  BLOCK: 1,
   STRING: 2,
   STRINGS: 4,
   NUMBER: 8,
@@ -12,10 +16,12 @@ export const PropertyType = {
   DATE: 1024,
   ENUM: 2048,
   ENUMS: 4096,
-} as const;
-export type PropertyType = (typeof PropertyType)[keyof typeof PropertyType];
+  JSON: 8192,
+});
+export type PropertyType = EnumValue<typeof PropertyType>;
 
 export type SchemaValue = number | [number, string[]];
+export type CustomBlockSchema = { name: string; props: CollectionSchema | CollectionSchema[] };
 export type CollectionSchema = Record<string, SchemaValue>;
 
 /** Extract the numeric type from a schema value (tuple or plain number). */
@@ -52,11 +58,28 @@ export type RefTargets = Record<string, string[]>;
  * specify the source module via `importFrom` (prepended once per generated file).
  */
 const SYSTEM_SCHEMA_KEYS: Record<string, { name: string; type: string; importFrom?: string }> = {
-  $content: { name: "content", type: "Block[]", importFrom: "@contfu/core" },
+  $content: { name: "content", type: "BuiltInBlock[]", importFrom: "@contfu/core" },
+  $draft: { name: "$draft", type: "boolean" },
+  $locale: { name: "locale", type: "string" },
 };
 
 export function isSystemSchemaKey(key: string): boolean {
   return Object.hasOwn(SYSTEM_SCHEMA_KEYS, key);
+}
+
+function usesUnconstrainedBlock(collections: TypeGenerationInput[]): boolean {
+  for (const col of collections) {
+    const sources: CollectionSchema[] =
+      col.inflowSchemas && col.inflowSchemas.length > 0 ? col.inflowSchemas : [col.schema];
+    for (const source of sources) {
+      for (const value of Object.values(source)) {
+        if (schemaType(value) === PropertyType.BLOCK && !schemaEnumValues(value)?.length) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
 }
 
 function systemKeyImports(collections: TypeGenerationInput[]): Map<string, Set<string>> {
@@ -67,9 +90,10 @@ function systemKeyImports(collections: TypeGenerationInput[]): Map<string, Set<s
     for (const source of sources) {
       for (const key of Object.keys(source)) {
         const sys = SYSTEM_SCHEMA_KEYS[key];
-        if (!sys?.importFrom) continue;
-        if (!imports.has(sys.importFrom)) imports.set(sys.importFrom, new Set());
-        imports.get(sys.importFrom)!.add(sys.type.replace(/\[\]$/, ""));
+        if (sys?.importFrom) {
+          if (!imports.has(sys.importFrom)) imports.set(sys.importFrom, new Set());
+          imports.get(sys.importFrom)!.add(sys.type.replace(/\[\]$/, ""));
+        }
       }
     }
   }
@@ -89,6 +113,10 @@ function renderImportHeader(imports: Map<string, Set<string>>): string[] {
 
 function toInterfaceName(name: string): string {
   return name[0].toUpperCase() + name.slice(1);
+}
+
+function renderPropertyKey(key: string): string {
+  return /^[$A-Z_a-z][$\w]*$/.test(key) ? key : JSON.stringify(key);
 }
 
 type RefFormat = "interface" | "lookup";
@@ -129,11 +157,16 @@ function propertyTypeToTs(
       }
       return "string[]";
     case PropertyType.FILE:
-      return "{ url: string; alt?: string }";
+      return "string";
     case PropertyType.FILES:
-      return "{ url: string; alt?: string }[]";
+      return "string[]";
     case PropertyType.DATE:
       return "string";
+    case PropertyType.BLOCK:
+      if (enumValues && enumValues.length > 0) {
+        return `(${enumValues.map(toComponentTypeName).join(" | ")})[]`;
+      }
+      return "Block[]";
     case PropertyType.ENUM:
       if (enumValues && enumValues.length > 0) {
         return enumValues.map((v) => JSON.stringify(v)).join(" | ");
@@ -145,6 +178,8 @@ function propertyTypeToTs(
         return enumValues.length > 1 ? `(${union})[]` : `${union}[]`;
       }
       return "string[]";
+    case PropertyType.JSON:
+      return "any";
     default:
       return "unknown";
   }
@@ -156,6 +191,40 @@ export interface TypeGenerationInput {
   schema: CollectionSchema;
   refTargets?: RefTargets;
   inflowSchemas?: CollectionSchema[];
+  customBlocks?: CustomBlockSchema[];
+  i18n?: EffectiveCollectionI18nConfig;
+}
+
+function toComponentTypeName(componentUid: string): string {
+  const base = componentUid.replace(/[^A-Za-z0-9]+/g, " ").trim();
+  const parts = base.split(/\s+/).filter(Boolean);
+  return `${parts.map((p) => p[0].toUpperCase() + p.slice(1)).join("")}Component`;
+}
+
+function collectCustomBlocks(collections: TypeGenerationInput[]): CustomBlockSchema[] {
+  const blocks = new Map<string, CustomBlockSchema>();
+  for (const col of collections) {
+    for (const block of col.customBlocks ?? []) {
+      const existing = blocks.get(block.name);
+      if (!existing) blocks.set(block.name, block);
+      else {
+        const props = Array.isArray(existing.props) ? existing.props : [existing.props];
+        const next = Array.isArray(block.props) ? block.props : [block.props];
+        existing.props = deduplicateSchemas([...props, ...next]);
+      }
+    }
+    const sources: CollectionSchema[] =
+      col.inflowSchemas && col.inflowSchemas.length > 0 ? col.inflowSchemas : [col.schema];
+    for (const source of sources) {
+      for (const value of Object.values(source)) {
+        if (schemaType(value) !== PropertyType.BLOCK) continue;
+        for (const name of schemaEnumValues(value) ?? []) {
+          if (!blocks.has(name)) blocks.set(name, { name, props: {} });
+        }
+      }
+    }
+  }
+  return [...blocks.values()].sort((a, b) => a.name.localeCompare(b.name));
 }
 
 /**
@@ -163,24 +232,63 @@ export interface TypeGenerationInput {
  * baseIndent is the indent for the leading `|` character.
  * Properties are indented 4 spaces further; closing `}` 2 spaces further.
  */
+function shouldRenderSchemaKey(key: string, i18n?: TypeGenerationInput["i18n"]): boolean {
+  return !(key === "$locale" && i18n?.localized);
+}
+
 function renderUnionMember(
   schema: CollectionSchema,
   refTargets: RefTargets | undefined,
   refFormat: RefFormat,
   baseIndent: string,
   isLast: boolean,
+  i18n?: TypeGenerationInput["i18n"],
 ): string[] {
   const lines: string[] = [`${baseIndent}| {`];
   for (const [key, value] of Object.entries(schema)) {
+    if (!shouldRenderSchemaKey(key, i18n)) continue;
     const sys = SYSTEM_SCHEMA_KEYS[key];
     const renderedKey = sys ? sys.name : key;
     const renderedType = sys
       ? sys.type
       : propertyTypeToTs(schemaType(value), refTargets?.[key], refFormat, schemaEnumValues(value));
-    lines.push(`${baseIndent}    ${renderedKey}: ${renderedType};`);
+    lines.push(`${baseIndent}    ${renderPropertyKey(renderedKey)}: ${renderedType};`);
+  }
+  if (i18n?.localized) {
+    lines.push(`${baseIndent}    $locale: Locale;`);
   }
   lines.push(`${baseIndent}  }${isLast ? ";" : ""}`);
   return lines;
+}
+
+function collectLocales(collections: TypeGenerationInput[]): string[] {
+  const locales = new Set<string>();
+  for (const collection of collections) {
+    for (const locale of collection.i18n?.locales ?? []) {
+      locales.add(locale);
+    }
+  }
+  return [...locales].sort();
+}
+
+function renderInlineProps(schema: CollectionSchema, refFormat: RefFormat): string {
+  const entries = Object.entries(schema);
+  if (entries.length === 0) return "Record<string, any>";
+  return `{ ${entries.map(([key, value]) => `${renderPropertyKey(key)}: ${propertyTypeToTs(schemaType(value), undefined, refFormat, schemaEnumValues(value))}`).join("; ")} }`;
+}
+
+function renderBlockPropsType(
+  props: CollectionSchema | CollectionSchema[],
+  refFormat: RefFormat,
+): string {
+  const schemas = deduplicateSchemas(Array.isArray(props) ? props : [props]);
+  if (schemas.length === 0) return "Record<string, any>";
+  return schemas.map((schema) => renderInlineProps(schema, refFormat)).join(" | ");
+}
+
+function addImport(imports: Map<string, Set<string>>, from: string, name: string): void {
+  if (!imports.has(from)) imports.set(from, new Set());
+  imports.get(from)!.add(name);
 }
 
 function deduplicateSchemas(schemas: CollectionSchema[]): CollectionSchema[] {
@@ -196,8 +304,29 @@ function deduplicateSchemas(schemas: CollectionSchema[]): CollectionSchema[] {
 export function generateTypeScript(collections: TypeGenerationInput[]): string {
   const lines: string[] = ["// Auto-generated by Contfu — do not edit", ""];
 
+  const customBlocks = collectCustomBlocks(collections);
   const imports = systemKeyImports(collections);
+  if (usesUnconstrainedBlock(collections)) addImport(imports, "@contfu/core", "Block");
+  if (customBlocks.length > 0) addImport(imports, "@contfu/core", "BuiltInBlock");
   lines.push(...renderImportHeader(imports));
+
+  if (customBlocks.length > 0) {
+    for (const block of customBlocks) {
+      const typeName = toComponentTypeName(block.name);
+      lines.push(
+        `export type ${typeName} = [${JSON.stringify(block.name)}, ${renderBlockPropsType(block.props, "interface")}, BuiltInBlock[]];`,
+      );
+    }
+    lines.push("");
+  }
+
+  const locales = collectLocales(collections);
+  if (locales.length > 0) {
+    lines.push(
+      `export type Locale = ${locales.map((locale) => JSON.stringify(locale)).join(" | ")};`,
+    );
+    lines.push("");
+  }
 
   for (const col of collections) {
     const interfaceName = toInterfaceName(col.name);
@@ -214,12 +343,14 @@ export function generateTypeScript(collections: TypeGenerationInput[]): string {
             "interface",
             "  ",
             i === unique.length - 1,
+            col.i18n,
           ),
         );
       }
     } else {
       lines.push(`export interface ${interfaceName} {`);
       for (const [key, value] of Object.entries(col.schema)) {
+        if (!shouldRenderSchemaKey(key, col.i18n)) continue;
         const sys = SYSTEM_SCHEMA_KEYS[key];
         const renderedKey = sys ? sys.name : key;
         const renderedType = sys
@@ -230,7 +361,10 @@ export function generateTypeScript(collections: TypeGenerationInput[]): string {
               "interface",
               schemaEnumValues(value),
             );
-        lines.push(`  ${renderedKey}: ${renderedType};`);
+        lines.push(`  ${renderPropertyKey(renderedKey)}: ${renderedType};`);
+      }
+      if (col.i18n?.localized) {
+        lines.push(`  $locale: Locale;`);
       }
       lines.push("}");
     }
@@ -241,11 +375,32 @@ export function generateTypeScript(collections: TypeGenerationInput[]): string {
   return lines.join("\n");
 }
 
-export function generateConsumerTypes(collections: TypeGenerationInput[]): string {
+export function generateApplicationConnectionTypes(collections: TypeGenerationInput[]): string {
   const lines: string[] = ["// Auto-generated by Contfu — do not edit", ""];
 
+  const customBlocks = collectCustomBlocks(collections);
   const imports = systemKeyImports(collections);
+  if (usesUnconstrainedBlock(collections)) addImport(imports, "@contfu/core", "Block");
+  if (customBlocks.length > 0) addImport(imports, "@contfu/core", "BuiltInBlock");
   lines.push(...renderImportHeader(imports));
+
+  if (customBlocks.length > 0) {
+    for (const block of customBlocks) {
+      const typeName = toComponentTypeName(block.name);
+      lines.push(
+        `export type ${typeName} = [${JSON.stringify(block.name)}, ${renderBlockPropsType(block.props, "interface")}, BuiltInBlock[]];`,
+      );
+    }
+    lines.push("");
+  }
+
+  const locales = collectLocales(collections);
+  if (locales.length > 0) {
+    lines.push(
+      `export type Locale = ${locales.map((locale) => JSON.stringify(locale)).join(" | ")};`,
+    );
+    lines.push("");
+  }
 
   lines.push("export type ContfuCollections = {");
 
@@ -263,12 +418,14 @@ export function generateConsumerTypes(collections: TypeGenerationInput[]): strin
             "lookup",
             "    ",
             i === unique.length - 1,
+            col.i18n,
           ),
         );
       }
     } else {
       lines.push(`  ${col.name}: {`);
       for (const [key, value] of Object.entries(col.schema)) {
+        if (!shouldRenderSchemaKey(key, col.i18n)) continue;
         const sys = SYSTEM_SCHEMA_KEYS[key];
         const renderedKey = sys ? sys.name : key;
         const renderedType = sys
@@ -279,7 +436,10 @@ export function generateConsumerTypes(collections: TypeGenerationInput[]): strin
               "lookup",
               schemaEnumValues(value),
             );
-        lines.push(`    ${renderedKey}: ${renderedType};`);
+        lines.push(`    ${renderPropertyKey(renderedKey)}: ${renderedType};`);
+      }
+      if (col.i18n?.localized) {
+        lines.push(`    $locale: Locale;`);
       }
       lines.push(`  };`);
     }
@@ -290,3 +450,8 @@ export function generateConsumerTypes(collections: TypeGenerationInput[]): strin
 
   return lines.join("\n");
 }
+
+/**
+ * @deprecated Use generateApplicationConnectionTypes. Kept for public API compatibility.
+ */
+export const generateConsumerTypes = generateApplicationConnectionTypes;

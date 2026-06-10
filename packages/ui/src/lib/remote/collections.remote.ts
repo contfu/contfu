@@ -1,16 +1,6 @@
 import { query } from "$app/server";
-import {
-  generateTypes,
-  getCollectionSchemaByName,
-  listCollections,
-  queryItems,
-  type QueryItemsInput,
-} from "@contfu/contfu";
-import {
-  generateConsumerTypes,
-  type CollectionSchema,
-  type TypeGenerationInput,
-} from "@contfu/core";
+import { fetchFromServer } from "$lib/server/proxy";
+import type { CollectionSchema } from "@contfu/core";
 import * as v from "valibot";
 
 const propFilterSchema = v.object({
@@ -30,8 +20,12 @@ const queryItemsInputSchema = v.object({
   pageSize: v.optional(v.number()),
 });
 
-export const getCollectionsQuery = query(() => {
-  return listCollections();
+export const getCollectionsQuery = query(async () => {
+  const response = await fetchFromServer("/api/collections");
+  if (!response.ok) {
+    throw new Error(`Failed to load collections: ${response.status} ${response.statusText}`);
+  }
+  return response.json();
 });
 
 export type CollectionSchemaEntry = {
@@ -39,28 +33,21 @@ export type CollectionSchemaEntry = {
   schema: CollectionSchema | null;
 };
 
-export const getCollectionSchemasQuery = query((): CollectionSchemaEntry[] => {
-  const collections = listCollections();
+export const getCollectionSchemasQuery = query(async (): Promise<CollectionSchemaEntry[]> => {
+  const collections = (await getCollectionsQuery()) as Array<{ name: string }>;
 
   return collections.map(({ name }) => ({
     name,
-    schema: getCollectionSchemaByName(name),
+    schema: null,
   }));
 });
 
-export const getCombinedCollectionTypesQuery = query((): string => {
-  const collections = listCollections();
-
-  const inputs: TypeGenerationInput[] = [];
-  for (const col of collections) {
-    const schema = getCollectionSchemaByName(col.name);
-    if (schema) {
-      inputs.push({ name: col.name, displayName: col.displayName, schema });
-    }
+export const getCombinedCollectionTypesQuery = query(async (): Promise<string> => {
+  const response = await fetchFromServer("/api/types");
+  if (!response.ok) {
+    throw new Error(`Failed to load types: ${response.status} ${response.statusText}`);
   }
-
-  if (inputs.length === 0) return "";
-  return generateConsumerTypes(inputs);
+  return response.text();
 });
 
 export const getCollectionDetailQuery = query(
@@ -68,24 +55,25 @@ export const getCollectionDetailQuery = query(
     name: v.pipe(v.string(), v.minLength(1)),
     input: v.optional(queryItemsInputSchema),
   }),
-  ({ name, input }) => {
-    const collections = listCollections();
-    const collection = collections.find((entry) => entry.name === name) ?? null;
+  async ({ name, input }) => {
+    const params = new URLSearchParams();
+    if (input?.changedAtFrom != null) params.set("changedAtFrom", String(input.changedAtFrom));
+    if (input?.changedAtTo != null) params.set("changedAtTo", String(input.changedAtTo));
+    if (input?.sortField) params.set("sortField", input.sortField);
+    if (input?.sortDirection) params.set("sortDirection", input.sortDirection);
+    if (input?.page != null) params.set("page", String(input.page));
+    if (input?.pageSize != null) params.set("pageSize", String(input.pageSize));
+    if (input?.propFilters?.length) params.set("propFilters", JSON.stringify(input.propFilters));
 
-    const mergedInput: QueryItemsInput = {
-      ...input,
-      collection: name,
-    };
+    const response = await fetchFromServer(
+      `/api/collections/${encodeURIComponent(name)}${params.size ? `?${params.toString()}` : ""}`,
+    );
+    if (!response.ok) {
+      throw new Error(
+        `Failed to load collection detail: ${response.status} ${response.statusText}`,
+      );
+    }
 
-    const result = queryItems(mergedInput);
-    const schema = getCollectionSchemaByName(name);
-
-    const typeString = schema != null ? generateTypes({ [name]: schema }) : null;
-
-    return {
-      collection,
-      result,
-      typeString,
-    };
+    return response.json();
   },
 );

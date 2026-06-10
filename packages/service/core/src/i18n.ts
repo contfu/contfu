@@ -1,0 +1,16 @@
+export {
+  BCP47_LOCALES,
+  canonicalizeBcp47,
+  isBcp47,
+  mergeAppI18n,
+  normalizeLocaleList,
+  normalizeLocaleMap,
+  type Bcp47Locale,
+  type CollectionI18nConfig,
+  type CollectionI18nTuple,
+  type ConnectionI18nConfig,
+  type ConnectionI18nTuple,
+  type AppCollectionI18nConfig,
+  type AppConnectionI18nConfig,
+  type EffectiveCollectionI18nConfig,
+} from "@contfu/core";

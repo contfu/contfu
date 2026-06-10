@@ -1,20 +1,51 @@
+import { basicAuth, buildBasicAuthHeader } from "$lib/server/basic-auth";
+
 const defaultServerUrl = "http://localhost:3001";
 
-function resolveServerUrl(): string {
+export function resolveServerUrl(): string {
   return (process.env.SERVER_URL ?? defaultServerUrl).replace(/\/$/, "");
 }
 
-export async function proxyToServer(request: Request, url: URL): Promise<Response> {
-  const upstreamUrl = `${resolveServerUrl()}${url.pathname}${url.search}`;
-  const headers = new Headers(request.headers);
+export function createServerRequestHeaders(
+  headersInit?: HeadersInit,
+  opts: { stripIncomingAuthorization?: boolean } = {},
+): Headers {
+  const headers = new Headers(headersInit);
+
+  if (opts.stripIncomingAuthorization || basicAuth) {
+    headers.delete("authorization");
+  }
+
   headers.delete("host");
 
+  if (basicAuth) {
+    headers.set("authorization", buildBasicAuthHeader(basicAuth));
+  }
+
+  return headers;
+}
+
+export function createServerRequestInit(
+  init: RequestInit = {},
+  opts: { stripIncomingAuthorization?: boolean } = {},
+): RequestInit {
+  return {
+    ...init,
+    headers: createServerRequestHeaders(init.headers, opts),
+  };
+}
+
+export function fetchFromServer(path: string, init?: RequestInit): Promise<Response> {
+  return fetch(`${resolveServerUrl()}${path}`, createServerRequestInit(init));
+}
+
+export async function proxyToServer(request: Request, url: URL): Promise<Response> {
   const body =
     request.method === "GET" || request.method === "HEAD" ? undefined : await request.arrayBuffer();
 
-  const upstream = await fetch(upstreamUrl, {
+  const upstream = await fetch(`${resolveServerUrl()}${url.pathname}${url.search}`, {
     method: request.method,
-    headers,
+    headers: createServerRequestHeaders(request.headers, { stripIncomingAuthorization: true }),
     body,
   });
 

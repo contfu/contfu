@@ -1,33 +1,38 @@
 import {
   ClientEventType,
   EventType,
-  ConnectionType,
   type CollectionSchema,
+  type EffectiveCollectionI18nConfig,
   type Item as InternalItem,
   type PageProps,
   type Block,
   type WireEvent,
+  type WireStreamPayload,
   type ClientWireEvent,
+  materializeWireItemPatch,
+  type WireItem,
+  MINUTES,
+  SECONDS,
 } from "@contfu/core";
 import { pack, unpack } from "msgpackr";
 
 /** Item as received by consumers — collection is the collection name. */
 export type Item<T extends PageProps = Record<never, never>> = Omit<
   InternalItem<T>,
-  "collection" | "ref"
+  "collection" | "ref" | "id"
 > & {
-  connectionType: ConnectionType | null;
-  ref: string | null;
+  id: number;
   collection: string;
 };
 
 export type ItemChangedEvent = { type: typeof EventType.ITEM_CHANGED; item: Item; index: number };
-export type ItemDeletedEvent = { type: typeof EventType.ITEM_DELETED; item: Buffer; index: number };
+export type ItemDeletedEvent = { type: typeof EventType.ITEM_DELETED; item: number; index: number };
 export type SchemaEvent = {
   type: typeof EventType.COLLECTION_SCHEMA;
   collection: string;
   displayName: string;
   schema: CollectionSchema;
+  i18n?: EffectiveCollectionI18nConfig;
 };
 export type CollectionRenamedEvent = {
   type: typeof EventType.COLLECTION_RENAMED;
@@ -56,10 +61,10 @@ export type StreamDisconnectedEvent = {
   reason?: string;
 };
 
-/** Emitted when server begins sending snapshot data. */
+/** Emitted when the Cloud Service begins sending snapshot Sync Messages. */
 export type StreamSnapshotStartEvent = { type: typeof EventType.SNAPSHOT_START };
 
-/** Emitted when server finishes sending snapshot data. */
+/** Emitted when the Cloud Service finishes sending snapshot Sync Messages. */
 export type StreamSnapshotEndEvent = { type: typeof EventType.SNAPSHOT_END };
 
 /** Connection lifecycle events. */
@@ -79,8 +84,6 @@ function getEnv(name: string): string | undefined {
 type BaseOpts = {
   /** Authentication key. If not provided, CONTFU_KEY env var (base64url) is used. */
   key?: Buffer;
-  /** Event index to replay from. Events since this index will be replayed before live events. */
-  from?: number;
   /** Explicit transport override. Defaults to runtime selection. */
   transport?: StreamTransport;
   /** Enable automatic reconnection on disconnect (default: true) */
@@ -95,8 +98,8 @@ type OptsWithConnectionEvents = BaseOpts & { connectionEvents: true };
 type OptsWithoutConnectionEvents = BaseOpts & { connectionEvents?: false };
 
 type TransportConnection = {
-  events(): AsyncGenerator<WireEvent>;
-  sendAck(seq: number): Promise<void>;
+  events(): AsyncGenerator<WireStreamPayload>;
+  sendAck(): Promise<void>;
   close(reason: string): void;
   getDisconnectReason(): string | undefined;
 };
@@ -122,7 +125,6 @@ export async function* connectToStream(
   opts: BaseOpts & { connectionEvents?: boolean } = {},
 ): AsyncGenerator<SyncEvent | StreamEvent> {
   const {
-    from,
     reconnect = false,
     maxReconnectDelay = 30_000,
     initialReconnectDelay = 1_000,
@@ -142,98 +144,99 @@ export async function* connectToStream(
 
   let reconnectDelay = initialReconnectDelay;
   let shouldReconnect = true;
-  let nextFrom = from;
-  let lastAckedFrom: number | null = null;
-  let ackTimer: Timer | null = null;
   let lastStreamActivityAt = 0;
   let currentConnection: TransportConnection | null = null;
+  const materializedItems = new Map<string, WireItem>();
 
-  const stopAckTimer = () => {
-    if (ackTimer) {
-      clearInterval(ackTimer);
-      ackTimer = null;
+  const stopStallTimer = () => {
+    if (stallTimer) {
+      clearInterval(stallTimer);
+      stallTimer = null;
     }
-    currentConnection = null;
   };
 
-  const startAckTimer = () => {
+  let stallTimer: Timer | null = null;
+  const startStallTimer = () => {
     lastStreamActivityAt = Date.now();
-    ackTimer = setInterval(() => {
-      if (transport === "http" && Date.now() - lastStreamActivityAt > 45_000) {
-        currentConnection?.close("Stream stalled");
-        return;
-      }
-
-      if (transport === "websocket" && Date.now() - lastStreamActivityAt > 10 * 60 * 1000) {
-        currentConnection?.close("Stream stalled");
-        return;
-      }
-
-      if (nextFrom != null && nextFrom !== lastAckedFrom) {
-        const seq = nextFrom - 1;
-        lastAckedFrom = nextFrom;
-        void currentConnection?.sendAck(seq);
-      }
-    }, 30_000);
+    stallTimer = setInterval(() => {
+      const timeout = transport === "http" ? 45 * SECONDS : 10 * MINUTES;
+      if (Date.now() - lastStreamActivityAt > timeout) currentConnection?.close("Stream stalled");
+    }, 30 * SECONDS);
   };
 
-  while (shouldReconnect) {
-    try {
-      const connection = await openTransportConnection(transport, syncEndpoint, key, nextFrom);
-      currentConnection = connection;
+  try {
+    while (shouldReconnect) {
+      let connection: TransportConnection | null = null;
 
-      reconnectDelay = initialReconnectDelay;
-      startAckTimer();
-      if (connectionEvents) {
-        yield { type: EventType.STREAM_CONNECTED };
-      }
+      try {
+        connection = await openTransportConnection(transport, syncEndpoint, key);
+        currentConnection = connection;
+        materializedItems.clear();
 
-      for await (const wireEvent of connection.events()) {
-        lastStreamActivityAt = Date.now();
-
-        const streamEvent = fromWireStreamEvent(wireEvent);
-        if (streamEvent) {
-          if (connectionEvents) {
-            yield streamEvent;
-          }
-          continue;
+        reconnectDelay = initialReconnectDelay;
+        startStallTimer();
+        if (connectionEvents) {
+          yield { type: EventType.STREAM_CONNECTED };
         }
 
-        const event = fromWireEvent(wireEvent);
-        if (event) {
-          if ("index" in event && typeof event.index === "number") {
-            nextFrom = event.index + 1;
+        for await (const payload of connection.events()) {
+          lastStreamActivityAt = Date.now();
+          const wireEvents = isWireEventBatch(payload) ? payload : [payload];
+          const shouldAckBatch = isWireEventBatch(payload) || !isPingEvent(payload);
+
+          for (const wireEvent of wireEvents) {
+            const streamEvent = fromWireStreamEvent(wireEvent);
+            if (streamEvent) {
+              if (streamEvent.type === EventType.SNAPSHOT_START) materializedItems.clear();
+              if (connectionEvents) yield streamEvent;
+              continue;
+            }
+
+            const event = fromWireEvent(wireEvent, materializedItems);
+            if (event) yield event;
           }
-          yield event;
+
+          if (shouldAckBatch) await connection.sendAck();
+        }
+
+        stopStallTimer();
+        if (connectionEvents) {
+          yield {
+            type: EventType.STREAM_DISCONNECTED,
+            reason: connection.getDisconnectReason() ?? "Stream ended",
+          };
+        }
+      } catch (err) {
+        stopStallTimer();
+        connection?.close("Stream error");
+        if (connectionEvents) {
+          yield {
+            type: EventType.STREAM_DISCONNECTED,
+            reason: err instanceof Error ? err.message : "Unknown error",
+          };
+        }
+
+        if (!shouldReconnect || !reconnect) {
+          throw err;
         }
       }
 
-      stopAckTimer();
-      if (connectionEvents) {
-        yield {
-          type: EventType.STREAM_DISCONNECTED,
-          reason: connection.getDisconnectReason() ?? "Stream ended",
-        };
-      }
-    } catch (err) {
-      stopAckTimer();
-      if (connectionEvents) {
-        yield {
-          type: EventType.STREAM_DISCONNECTED,
-          reason: err instanceof Error ? err.message : "Unknown error",
-        };
+      if (currentConnection === connection) {
+        currentConnection = null;
       }
 
-      if (!shouldReconnect || !reconnect) {
-        throw err;
-      }
+      if (!reconnect) break;
+      if (!shouldReconnect) break;
+
+      await new Promise((resolve) => setTimeout(resolve, reconnectDelay));
+      reconnectDelay = Math.min(reconnectDelay * 2, maxReconnectDelay);
     }
-
-    if (!reconnect) break;
-    if (!shouldReconnect) break;
-
-    await new Promise((resolve) => setTimeout(resolve, reconnectDelay));
-    reconnectDelay = Math.min(reconnectDelay * 2, maxReconnectDelay);
+  } finally {
+    shouldReconnect = false;
+    const connection = currentConnection;
+    currentConnection = null;
+    stopStallTimer();
+    connection?.close("Stream consumer stopped");
   }
 }
 
@@ -241,20 +244,15 @@ async function openTransportConnection(
   transport: StreamTransport,
   syncEndpoint: string,
   key: Buffer,
-  from?: number,
 ): Promise<TransportConnection> {
   if (transport === "websocket") {
-    return openWebSocketConnection(syncEndpoint, key, from);
+    return openWebSocketConnection(syncEndpoint, key);
   }
-  return openHttpConnection(syncEndpoint, key, from);
+  return openHttpConnection(syncEndpoint, key);
 }
 
-async function openHttpConnection(
-  syncEndpoint: string,
-  key: Buffer,
-  from?: number,
-): Promise<TransportConnection> {
-  const syncUrl = buildSyncUrl(syncEndpoint, key, from);
+async function openHttpConnection(syncEndpoint: string, key: Buffer): Promise<TransportConnection> {
+  const syncUrl = buildSyncUrl(syncEndpoint, key);
   const ackEndpoint = buildAckUrl(syncEndpoint, key);
   const response = await fetch(syncUrl, {
     headers: { Accept: "application/octet-stream" },
@@ -279,7 +277,7 @@ async function openHttpConnection(
       while (true) {
         const { value, done } = await reader.read();
         if (done) {
-          disconnectReason = "Stream ended";
+          disconnectReason ??= "Stream ended";
           return;
         }
 
@@ -296,12 +294,12 @@ async function openHttpConnection(
 
           const messageData = buffer.slice(4, 4 + messageLength);
           buffer = buffer.slice(4 + messageLength);
-          yield unpack(messageData) as WireEvent;
+          yield unpack(messageData) as WireStreamPayload;
         }
       }
     },
-    sendAck(seq: number) {
-      return sendAck(`${ackEndpoint}&seq=${seq}`);
+    sendAck() {
+      return sendAck(ackEndpoint);
     },
     close(reason: string) {
       disconnectReason = reason;
@@ -316,15 +314,14 @@ async function openHttpConnection(
 async function openWebSocketConnection(
   syncEndpoint: string,
   key: Buffer,
-  from?: number,
 ): Promise<TransportConnection> {
-  const wsUrl = buildWebSocketUrl(syncEndpoint, key, from);
+  const wsUrl = buildWebSocketUrl(syncEndpoint, key);
   const socket = await createWebSocket(wsUrl);
   let disconnectReason: string | undefined;
 
   return {
     async *events() {
-      const queue = createAsyncQueue<WireEvent>();
+      const queue = createAsyncQueue<WireStreamPayload>();
 
       socket.binaryType = "arraybuffer";
       socket.onmessage = (message) => {
@@ -336,7 +333,7 @@ async function openWebSocketConnection(
                 ? null
                 : new Uint8Array(message.data as ArrayBufferLike);
           if (!payload) return;
-          queue.push(unpack(payload) as WireEvent);
+          queue.push(unpack(payload) as WireStreamPayload);
         } catch (error) {
           queue.fail(error instanceof Error ? error : new Error("Invalid WebSocket message"));
         }
@@ -351,11 +348,11 @@ async function openWebSocketConnection(
 
       yield* queue.iterate();
     },
-    sendAck(seq: number) {
+    sendAck() {
       if (socket.readyState !== WebSocket.OPEN) {
         return Promise.resolve();
       }
-      const message: ClientWireEvent = [ClientEventType.ACK, seq];
+      const message: ClientWireEvent = [ClientEventType.ACK];
       socket.send(pack(message));
       return Promise.resolve();
     },
@@ -384,18 +381,15 @@ async function sendAck(url: string): Promise<void> {
   }
 }
 
-function buildSyncUrl(endpoint: string, key: Buffer, from?: number): string {
+function buildSyncUrl(endpoint: string, key: Buffer): string {
   const params = new URLSearchParams();
   params.set("key", key.toString("base64url"));
-  if (from != null) {
-    params.set("from", from.toString());
-  }
   const separator = endpoint.includes("?") ? "&" : "?";
   return `${endpoint}${separator}${params.toString()}`;
 }
 
-function buildWebSocketUrl(endpoint: string, key: Buffer, from?: number): string {
-  const httpUrl = new URL(buildSyncUrl(endpoint, key, from));
+function buildWebSocketUrl(endpoint: string, key: Buffer): string {
+  const httpUrl = new URL(buildSyncUrl(endpoint, key));
   httpUrl.protocol = httpUrl.protocol === "https:" ? "wss:" : "ws:";
   return httpUrl.toString();
 }
@@ -410,13 +404,20 @@ function fromWireStreamEvent(
   return null;
 }
 
-function fromWireEvent(wireEvent: WireEvent): SyncEvent | null {
+function itemStateKey(collection: string, id: number): string {
+  return `${collection}:${id}`;
+}
+
+function fromWireEvent(
+  wireEvent: WireEvent,
+  materializedItems: Map<string, WireItem>,
+): SyncEvent | null {
   const type = wireEvent[0];
 
   switch (type) {
     case EventType.ITEM_CHANGED: {
-      const wireItem = wireEvent[1];
-      const [connectionType, ref, id, collection, changedAt, props, content] = wireItem;
+      const wirePatch = wireEvent[1];
+      const [id, collection] = wirePatch;
       const index = wireEvent[2];
 
       if (typeof index !== "number") {
@@ -424,15 +425,17 @@ function fromWireEvent(wireEvent: WireEvent): SyncEvent | null {
         return null;
       }
 
+      const key = itemStateKey(collection, id);
+      const wireItem = materializeWireItemPatch(wirePatch, materializedItems.get(key));
+      materializedItems.set(key, wireItem);
+      const [, , changedAt, props, content] = wireItem;
       const item: Item = {
-        connectionType,
-        ref: typeof ref === "string" ? ref : null,
-        id: Buffer.from(id),
+        id,
         collection,
         changedAt,
         props: deserializeProps(props),
       };
-      if (content) {
+      if (wireItem.length > 4) {
         item.content = content as Block[];
       }
 
@@ -446,20 +449,24 @@ function fromWireEvent(wireEvent: WireEvent): SyncEvent | null {
         return null;
       }
 
+      for (const key of materializedItems.keys()) {
+        if (key.endsWith(`:${wireEvent[1]}`)) materializedItems.delete(key);
+      }
       return {
         type: EventType.ITEM_DELETED,
-        item: Buffer.from(wireEvent[1] as Uint8Array),
+        item: wireEvent[1],
         index,
       };
     }
 
     case EventType.COLLECTION_SCHEMA: {
-      const [, collection, displayName, schema] = wireEvent;
+      const [, collection, displayName, schema, i18n] = wireEvent;
       return {
         type: EventType.COLLECTION_SCHEMA,
         collection: collection,
         displayName: displayName,
         schema: schema,
+        i18n: i18n,
       };
     }
 
@@ -567,4 +574,12 @@ function createAsyncQueue<T>() {
       }
     },
   };
+}
+
+function isWireEventBatch(payload: WireStreamPayload): payload is WireEvent[] {
+  return Array.isArray(payload) && Array.isArray(payload[0]);
+}
+
+function isPingEvent(payload: WireStreamPayload): boolean {
+  return payload[0] === EventType.PING;
 }

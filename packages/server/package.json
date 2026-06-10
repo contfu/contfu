@@ -1,6 +1,6 @@
 {
   "name": "@contfu/server",
-  "version": "0.0.9",
+  "version": "0.1.0",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -26,29 +26,29 @@
     "bin": {
       "contfu-server": "./dist/bin.js"
     },
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
     "exports": {
       ".": {
         "types": "./dist/index.d.ts",
         "bun": "./dist/index.js",
         "default": "./dist/index.js"
       }
-    },
-    "main": "dist/index.js",
-    "types": "dist/index.d.ts"
+    }
   },
   "scripts": {
     "build": "tsc -b",
-    "dev": "bun run src/bin.ts",
+    "dev": "bun kill && bun --watch run src/bin.ts",
+    "kill": "lsof -ti :8012 | xargs kill -9",
     "pack": "bun ../../scripts/pack-package.ts .",
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@contfu/connect": "workspace:^",
     "@contfu/contfu": "workspace:^",
     "@contfu/core": "workspace:^"
   },
   "devDependencies": {
-    "@types/bun": "^1.3.12",
+    "@types/bun": "^1.3.14",
     "typescript": "^5.9.3"
   },
   "peerDependencies": {

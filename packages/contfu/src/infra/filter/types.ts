@@ -1,4 +1,6 @@
-export const TokenType = {
+import { defineEnum, type EnumValue } from "@contfu/core";
+
+export const TokenType = defineEnum({
   String: 1,
   Number: 2,
   Boolean: 3,
@@ -19,9 +21,9 @@ export const TokenType = {
   LParen: 18,
   RParen: 19,
   Comma: 20,
-} as const;
+});
 
-export type TokenType = (typeof TokenType)[keyof typeof TokenType];
+export type TokenType = EnumValue<typeof TokenType>;
 
 export type Token = {
   type: TokenType;

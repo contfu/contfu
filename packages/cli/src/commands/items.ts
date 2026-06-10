@@ -1,7 +1,7 @@
 import { parseArgs } from "node:util";
 
-async function clientFetch(clientUrl: string, path: string): Promise<Response> {
-  const url = `${clientUrl}${path}`;
+async function serverFetch(serverUrl: string, path: string): Promise<Response> {
+  const url = `${serverUrl}${path}`;
   const res = await fetch(url);
 
   if (!res.ok) {
@@ -38,8 +38,8 @@ export async function queryItems(args: string[]) {
     allowPositionals: true,
   });
 
-  const clientUrl = values["client-url"];
-  if (!clientUrl) {
+  const serverUrl = values["client-url"];
+  if (!serverUrl) {
     console.error("Missing required --client-url flag");
     process.exit(1);
   }
@@ -56,7 +56,7 @@ export async function queryItems(args: string[]) {
     flat: values.flat ? "true" : undefined,
   });
 
-  const res = await clientFetch(clientUrl, `${basePath}${qs}`);
+  const res = await serverFetch(serverUrl, `${basePath}${qs}`);
   const data = await res.json();
   console.log(JSON.stringify(data, null, 2));
 }
@@ -72,8 +72,8 @@ export async function countItems(args: string[]) {
     allowPositionals: true,
   });
 
-  const clientUrl = values["client-url"];
-  if (!clientUrl) {
+  const serverUrl = values["client-url"];
+  if (!serverUrl) {
     console.error("Missing required --client-url flag");
     process.exit(1);
   }
@@ -85,7 +85,7 @@ export async function countItems(args: string[]) {
     limit: "0",
   });
 
-  const res = await clientFetch(clientUrl, `${basePath}${qs}`);
-  const data = await res.json();
-  console.log(data?.meta?.total ?? 0);
+  const res = await serverFetch(serverUrl, `${basePath}${qs}`);
+  const data = (await res.json()) as { meta?: { total?: number } };
+  console.log(data.meta?.total ?? 0);
 }

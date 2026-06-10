@@ -1,6 +1,6 @@
 {
   "name": "@contfu/svc-core",
-  "version": "0.0.10",
+  "version": "0.1.0",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -16,14 +16,14 @@
     ".": "./src/index.ts"
   },
   "publishConfig": {
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
     "exports": {
       ".": {
         "types": "./dist/index.d.ts",
         "default": "./dist/index.js"
       }
-    },
-    "main": "dist/index.js",
-    "types": "dist/index.d.ts"
+    }
   },
   "scripts": {
     "build": "tsc -b",

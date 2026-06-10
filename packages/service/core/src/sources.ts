@@ -1,9 +1,11 @@
+import { defineEnum, type EnumValue } from "@contfu/core";
+
 /** Authentication types for web sources. */
-export const WebAuthType = {
+export const WebAuthType = defineEnum({
   NONE: 0,
   BEARER: 1,
   BASIC: 2,
-} as const;
+});
 /** Type representing valid WebAuthType values. */
 
-export type WebAuthType = (typeof WebAuthType)[keyof typeof WebAuthType];
+export type WebAuthType = EnumValue<typeof WebAuthType>;

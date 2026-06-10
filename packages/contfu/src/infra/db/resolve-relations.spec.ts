@@ -9,10 +9,6 @@ import { findItems } from "../../features/items/findItems";
 import { updateItem } from "../../features/items/updateItem";
 import { resolveRelations } from "./resolve-relations";
 
-function makeId(seed: number): string {
-  return Buffer.from([0, 0, 0, seed]).toString("base64url");
-}
-
 describe("resolveRelations", () => {
   beforeEach(() => {
     truncateAllTables();
@@ -22,21 +18,21 @@ describe("resolveRelations", () => {
 
   test("resolves simple relation with $1.$collection placeholder", () => {
     createItem({
-      id: makeId(1),
+      id: 1,
       ref: "a",
       collection: "articles",
       props: { title: "A" },
       changedAt: 100,
     });
     createItem({
-      id: makeId(2),
+      id: 2,
       ref: "b",
       collection: "articles",
       props: { title: "B" },
       changedAt: 200,
     });
     createItem({
-      id: makeId(3),
+      id: 3,
       ref: "c",
       collection: "guides",
       props: { title: "C" },
@@ -44,8 +40,7 @@ describe("resolveRelations", () => {
     });
 
     const parent: ItemWithRelations = {
-      $id: makeId(1),
-      $ref: "a",
+      $id: 1,
       $collection: "articles",
       title: "A",
       $changedAt: 100,
@@ -55,33 +50,33 @@ describe("resolveRelations", () => {
 
     const withClause: WithClause = {
       siblings: {
-        filter: "$collection = $1.$collection && $ref != $1.$ref",
+        filter: "$collection = $1.$collection && $id != $1.$id",
       },
     };
 
     resolveRelations(items, withClause, findItems);
 
     expect(items[0].siblings as any[]).toHaveLength(1);
-    expect((items[0].siblings as any[])[0].$id).toBe(makeId(2));
+    expect((items[0].siblings as any[])[0].$id).toBe(2);
   });
 
   test("resolves relation with $1.property placeholder", () => {
     createItem({
-      id: makeId(1),
+      id: 1,
       ref: "a",
       collection: "articles",
       props: { title: "A", category: "news" },
       changedAt: 100,
     });
     createItem({
-      id: makeId(2),
+      id: 2,
       ref: "b",
       collection: "articles",
       props: { title: "B", category: "news" },
       changedAt: 200,
     });
     createItem({
-      id: makeId(3),
+      id: 3,
       ref: "c",
       collection: "articles",
       props: { title: "C", category: "tech" },
@@ -89,8 +84,7 @@ describe("resolveRelations", () => {
     });
 
     const parent: ItemWithRelations = {
-      $id: makeId(1),
-      $ref: "a",
+      $id: 1,
       $collection: "articles",
       title: "A",
       category: "news",
@@ -101,33 +95,33 @@ describe("resolveRelations", () => {
 
     const withClause: WithClause = {
       sameCategory: {
-        filter: "category = $1.category && $ref != $1.$ref",
+        filter: "category = $1.category && $id != $1.$id",
       },
     };
 
     resolveRelations(items, withClause, findItems);
 
     expect(items[0].sameCategory as any[]).toHaveLength(1);
-    expect((items[0].sameCategory as any[])[0].$id).toBe(makeId(2));
+    expect((items[0].sameCategory as any[])[0].$id).toBe(2);
   });
 
   test("respects limit on relations", () => {
     createItem({
-      id: makeId(1),
+      id: 1,
       ref: "a",
       collection: "articles",
       props: {},
       changedAt: 100,
     });
     createItem({
-      id: makeId(2),
+      id: 2,
       ref: "b",
       collection: "articles",
       props: {},
       changedAt: 200,
     });
     createItem({
-      id: makeId(3),
+      id: 3,
       ref: "c",
       collection: "articles",
       props: {},
@@ -136,8 +130,7 @@ describe("resolveRelations", () => {
 
     const items: ItemWithRelations[] = [
       {
-        $id: makeId(1),
-        $ref: "a",
+        $id: 1,
         $collection: "articles",
         $changedAt: 100,
         links: [],
@@ -146,7 +139,7 @@ describe("resolveRelations", () => {
 
     const withClause: WithClause = {
       others: {
-        filter: '$collection = "articles" && $ref != $1.$ref',
+        filter: '$collection = "articles" && $id != $1.$id',
         limit: 1,
       },
     };
@@ -165,7 +158,7 @@ describe("resolveRelations", () => {
     setCollection("persons", "Persons", { name: 1 });
 
     createItem({
-      id: makeId(10),
+      id: 10,
       ref: "person/alice",
       collection: "persons",
       props: { name: "Alice" },
@@ -173,7 +166,7 @@ describe("resolveRelations", () => {
     });
 
     createItem({
-      id: makeId(1),
+      id: 1,
       ref: "post/first",
       collection: "posts",
       props: { title: "First Post" },
@@ -182,13 +175,12 @@ describe("resolveRelations", () => {
 
     const linkId = createItemLink({
       prop: "author",
-      from: makeId(1),
-      to: makeId(10),
-      internal: true,
+      from: 1,
+      to: 10,
     });
 
     updateItem({
-      id: makeId(1),
+      id: 1,
       ref: "post/first",
       collection: "posts",
       props: { title: "First Post", author: linkId },
@@ -197,8 +189,7 @@ describe("resolveRelations", () => {
 
     const items: ItemWithRelations[] = [
       {
-        $id: makeId(1),
-        $ref: "post/first",
+        $id: 1,
         $collection: "posts",
         title: "First Post",
         author: linkId,
@@ -218,7 +209,7 @@ describe("resolveRelations", () => {
     resolveRelations(items, withClause, findItems);
 
     expect(items[0].author).not.toBeNull();
-    expect((items[0].author as any).$id).toBe(makeId(10));
+    expect((items[0].author as any).$id).toBe(10);
   });
 
   test("forward REF — null for external link", () => {
@@ -226,7 +217,7 @@ describe("resolveRelations", () => {
     setCollection("persons", "Persons", { name: 1 });
 
     createItem({
-      id: makeId(1),
+      id: 1,
       ref: "post/first",
       collection: "posts",
       props: { title: "First Post" },
@@ -235,13 +226,12 @@ describe("resolveRelations", () => {
 
     const linkId = createItemLink({
       prop: "author",
-      from: makeId(1),
-      to: makeId(10),
-      internal: false,
+      from: 1,
+      to: 10,
     });
 
     updateItem({
-      id: makeId(1),
+      id: 1,
       ref: "post/first",
       collection: "posts",
       props: { title: "First Post", author: linkId },
@@ -250,8 +240,7 @@ describe("resolveRelations", () => {
 
     const items: ItemWithRelations[] = [
       {
-        $id: makeId(1),
-        $ref: "post/first",
+        $id: 1,
         $collection: "posts",
         title: "First Post",
         author: linkId,
@@ -278,7 +267,7 @@ describe("resolveRelations", () => {
     setCollection("persons", "Persons", { name: 1 });
 
     createItem({
-      id: makeId(1),
+      id: 1,
       ref: "post/first",
       collection: "posts",
       props: { title: "First Post", author: 9999 },
@@ -287,8 +276,7 @@ describe("resolveRelations", () => {
 
     const items: ItemWithRelations[] = [
       {
-        $id: makeId(1),
-        $ref: "post/first",
+        $id: 1,
         $collection: "posts",
         title: "First Post",
         author: 9999,
@@ -315,7 +303,7 @@ describe("resolveRelations", () => {
     setCollection("persons", "Persons", { name: 1 });
 
     createItem({
-      id: makeId(10),
+      id: 10,
       ref: "person/alice",
       collection: "persons",
       props: { name: "Alice" },
@@ -323,7 +311,7 @@ describe("resolveRelations", () => {
     });
 
     createItem({
-      id: makeId(1),
+      id: 1,
       ref: "post/first",
       collection: "posts",
       props: { title: "First" },
@@ -331,7 +319,7 @@ describe("resolveRelations", () => {
     });
 
     createItem({
-      id: makeId(2),
+      id: 2,
       ref: "post/second",
       collection: "posts",
       props: { title: "Second" },
@@ -340,20 +328,18 @@ describe("resolveRelations", () => {
 
     const linkId1 = createItemLink({
       prop: "author",
-      from: makeId(1),
-      to: makeId(10),
-      internal: true,
+      from: 1,
+      to: 10,
     });
 
     const linkId2 = createItemLink({
       prop: "author",
-      from: makeId(2),
-      to: makeId(10),
-      internal: true,
+      from: 2,
+      to: 10,
     });
 
     updateItem({
-      id: makeId(1),
+      id: 1,
       ref: "post/first",
       collection: "posts",
       props: { title: "First", author: linkId1 },
@@ -361,7 +347,7 @@ describe("resolveRelations", () => {
     });
 
     updateItem({
-      id: makeId(2),
+      id: 2,
       ref: "post/second",
       collection: "posts",
       props: { title: "Second", author: linkId2 },
@@ -370,8 +356,7 @@ describe("resolveRelations", () => {
 
     const personItems: ItemWithRelations[] = [
       {
-        $id: makeId(10),
-        $ref: "person/alice",
+        $id: 10,
         $collection: "persons",
         name: "Alice",
         $changedAt: 100,
@@ -390,8 +375,8 @@ describe("resolveRelations", () => {
 
     expect(personItems[0].posts as any[]).toHaveLength(2);
     const postIds = (personItems[0].posts as any[]).map((p: any) => p.$id);
-    expect(postIds).toContain(makeId(1));
-    expect(postIds).toContain(makeId(2));
+    expect(postIds).toContain(1);
+    expect(postIds).toContain(2);
   });
 
   test("backlink REFS — tag → posts via linksTo", () => {
@@ -399,7 +384,7 @@ describe("resolveRelations", () => {
     setCollection("tags", "Tags", { label: 1 });
 
     createItem({
-      id: makeId(30),
+      id: 30,
       ref: "tag/tech",
       collection: "tags",
       props: { label: "Tech" },
@@ -407,7 +392,7 @@ describe("resolveRelations", () => {
     });
 
     createItem({
-      id: makeId(1),
+      id: 1,
       ref: "post/first",
       collection: "posts",
       props: { title: "First" },
@@ -416,13 +401,12 @@ describe("resolveRelations", () => {
 
     const linkId1 = createItemLink({
       prop: "tags",
-      from: makeId(1),
-      to: makeId(30),
-      internal: true,
+      from: 1,
+      to: 30,
     });
 
     updateItem({
-      id: makeId(1),
+      id: 1,
       ref: "post/first",
       collection: "posts",
       props: { title: "First", tags: [linkId1] },
@@ -431,8 +415,7 @@ describe("resolveRelations", () => {
 
     const tagItems: ItemWithRelations[] = [
       {
-        $id: makeId(30),
-        $ref: "tag/tech",
+        $id: 30,
         $collection: "tags",
         label: "Tech",
         $changedAt: 100,
@@ -450,6 +433,6 @@ describe("resolveRelations", () => {
     resolveRelations(tagItems, withClause, findItems);
 
     expect(tagItems[0].posts as any[]).toHaveLength(1);
-    expect((tagItems[0].posts as any[])[0].$id).toBe(makeId(1));
+    expect((tagItems[0].posts as any[])[0].$id).toBe(1);
   });
 });

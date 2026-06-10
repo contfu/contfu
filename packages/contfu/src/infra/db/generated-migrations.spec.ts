@@ -8,8 +8,8 @@ describe("generated migrations", () => {
   test("derive Drizzle migrations from embedded SQL", () => {
     const drizzleMigrations = buildDrizzleMigrations(migrations);
 
-    expect(drizzleMigrations).toHaveLength(1);
-    expect(drizzleMigrations[0]?.name).toBe("20260311074508_init");
+    expect(drizzleMigrations).toHaveLength(migrations.length);
+    expect(drizzleMigrations[0]?.name).toBe(migrations[0]?.name);
     expect(drizzleMigrations[0]?.sql.length).toBeGreaterThan(1);
   });
 

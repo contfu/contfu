@@ -1,3 +1,13 @@
+import type { Block } from "./blocks";
+import type { MarkdownOptions } from "./markdown";
+import type { RenderOptions } from "./render";
+
+export type ContentFormat = "object" | "markdown" | "html";
+
+export type ResolvedContent<F extends ContentFormat | undefined> = F extends "markdown" | "html"
+  ? string
+  : Block[];
+
 export type WithClause = {
   [relation: string]: {
     collection?: string;
@@ -19,9 +29,17 @@ export type QueryOptions = {
   limit?: number;
   offset?: number;
   include?: IncludeOption[];
+  fileMode?: "local" | "remote";
   with?: WithClause;
   fields?: string[];
   search?: string;
+  contentAs?: ContentFormat;
+  htmlOptions?: RenderOptions;
+  markdownOptions?: MarkdownOptions;
+  /** Requested locale. Resolved client-side via i18n config; sent as raw locale filter when not disabled. */
+  locale?: string;
+  /** Fallback locale override. `false` disables the configured fallback for this call. */
+  fallback?: string | false;
 };
 
 export type QueryMeta = {

@@ -1,13 +1,15 @@
-import { generateConsumerTypes, type TypeGenerationInput } from "@contfu/svc-api";
-import { getApiClient, handleApiError } from "../http";
+import { generateApplicationConnectionTypes, type TypeGenerationInput } from "@contfu/svc-api";
+import { getApiClient, handleCliError } from "../http";
+import { resolveCollectionRef, resolveConnectionRef } from "./resources";
 
 export async function connectionTypes(id: string) {
   const client = getApiClient();
   let collections: TypeGenerationInput[];
   try {
-    collections = await client.getConnectionTypes(id);
+    const resolvedId = await resolveConnectionRef(id, client);
+    collections = await client.getConnectionTypes(resolvedId);
   } catch (err) {
-    handleApiError(err);
+    handleCliError(err);
   }
 
   if (collections.length === 0) {
@@ -15,16 +17,17 @@ export async function connectionTypes(id: string) {
     process.exit(1);
   }
 
-  process.stdout.write(generateConsumerTypes(collections));
+  process.stdout.write(generateApplicationConnectionTypes(collections));
 }
 
 export async function collectionTypes(id: string) {
   const client = getApiClient();
   let collections: TypeGenerationInput[];
   try {
-    collections = await client.getCollectionTypes(id);
+    const resolvedId = await resolveCollectionRef(id, client);
+    collections = await client.getCollectionTypes(resolvedId);
   } catch (err) {
-    handleApiError(err);
+    handleCliError(err);
   }
 
   if (collections.length === 0) {
@@ -32,5 +35,5 @@ export async function collectionTypes(id: string) {
     process.exit(1);
   }
 
-  process.stdout.write(generateConsumerTypes(collections));
+  process.stdout.write(generateApplicationConnectionTypes(collections));
 }

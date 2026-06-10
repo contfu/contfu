@@ -10,7 +10,7 @@ export type TableBlock = [type: "t", hasHeader: boolean, cells: (Block | Inline)
 export type ImageBlock = [type: "i", canonical: string, alt: string];
 export type CustomBlock = [type: "x", name: string, props: Record<string, any>, children: Block[]];
 
-export type Block<T extends CustomBlock = CustomBlock> =
+export type BuiltInBlock =
   | QuoteBlock
   | ParagraphBlock
   | CodeBlock
@@ -20,8 +20,9 @@ export type Block<T extends CustomBlock = CustomBlock> =
   | UnorderedListBlock
   | OrderedListBlock
   | TableBlock
-  | ImageBlock
-  | T;
+  | ImageBlock;
+
+export type Block = BuiltInBlock | CustomBlock;
 
 export type Anchor = [type: "a", text: string, href: string];
 export type Code = [type: "c", text: string];

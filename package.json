@@ -4,7 +4,8 @@
   "workspaces": [
     "packages/*",
     "packages/service/*",
-    "packages/files/*"
+    "packages/files/*",
+    "packages/plugins/*"
   ],
   "type": "module",
   "module": "index.ts",
@@ -30,19 +31,19 @@
     "@contfu/connect": "workspace:*",
     "@contfu/contfu": "workspace:*",
     "@contfu/core": "workspace:*",
-    "@playwright/test": "1.59.1",
-    "@types/bun": "^1.3.12",
-    "@typescript/native-preview": "^7.0.0-dev.20260412.1",
-    "oxfmt": "^0.44.0",
-    "oxlint": "^1.59.0",
-    "oxlint-tsgolint": "^0.20.0",
-    "playwright": "1.59.1"
+    "@playwright/test": "1.60.0",
+    "@types/bun": "^1.3.14",
+    "@typescript/native-preview": "^7.0.0-dev.20260526.1",
+    "oxfmt": "^0.52.0",
+    "oxlint": "1.67.0",
+    "oxlint-tsgolint": "0.23.0",
+    "playwright": "1.60.0"
   },
   "peerDependencies": {
     "typescript": "^5.9.3"
   },
   "overrides": {
-    "drizzle-kit": "1.0.0-beta.19",
-    "drizzle-orm": "1.0.0-beta.19"
+    "drizzle-kit": "1.0.0-rc.3",
+    "drizzle-orm": "1.0.0-rc.3"
   }
 }

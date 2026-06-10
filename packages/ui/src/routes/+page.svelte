@@ -89,14 +89,13 @@
       <Alert.Root>
         <Alert.Title>no content synced yet</Alert.Title>
         <Alert.Description>
-          your local database is empty. connect to a contfu sync server to start
-          receiving content.
+          your Local Store is empty. configure the Local Runtime with a Connector to receive Sync Messages from the Cloud Service.
         </Alert.Description>
       </Alert.Root>
     {:else}
       <div class="border border-border bg-card p-4">
         <p class="text-sm">
-          <span class="text-muted-foreground">&gt;</span> local database contains {stats.itemCount}
+          <span class="text-muted-foreground">&gt;</span> Local Store contains {stats.itemCount}
           {stats.itemCount === 1 ? "item" : "items"} across {stats.collectionCount}
           {stats.collectionCount === 1 ? "collection" : "collections"}, with {stats.fileCount}
           {stats.fileCount === 1 ? "file" : "files"}

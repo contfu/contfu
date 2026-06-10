@@ -4,10 +4,6 @@ import { setCollection } from "./setCollection";
 import { createItem } from "../items/createItem";
 import { listCollections } from "./listCollections";
 
-function makeId(seed: number): string {
-  return Buffer.from([0, 0, 0, seed]).toString("base64url");
-}
-
 describe("listCollections", () => {
   beforeEach(() => {
     truncateAllTables();
@@ -19,7 +15,7 @@ describe("listCollections", () => {
     setCollection("guides", "Guides", { title: 1 });
 
     createItem({
-      id: makeId(1),
+      id: 1,
       ref: "article/alpha",
       collection: "articles",
       props: { title: "Alpha" },
@@ -27,7 +23,7 @@ describe("listCollections", () => {
     });
 
     createItem({
-      id: makeId(2),
+      id: 2,
       ref: "article/bravo",
       collection: "articles",
       props: { title: "Bravo" },
@@ -35,7 +31,7 @@ describe("listCollections", () => {
     });
 
     createItem({
-      id: makeId(3),
+      id: 3,
       ref: "guide/charlie",
       collection: "guides",
       props: { title: "Charlie" },

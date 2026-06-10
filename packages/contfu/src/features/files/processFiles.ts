@@ -7,26 +7,13 @@ import {
   PropertyType,
   schemaType,
 } from "@contfu/core";
-import { createFile } from "./createFile";
+import { FileStatus } from "../../domain/file-status";
 import { getFile } from "./getFile";
 import { linkFileToItem } from "./linkFileToItem";
 import { db } from "../../infra/db/db";
-import { hashOpts } from "../../infra/hash";
 import { decodeId } from "../../infra/ids";
-import { mediaVariantTable } from "../../infra/db/schema";
-import type {
-  ImageConvertOpts,
-  MediaConvertOpts,
-  MediaOptimizer,
-  OptimizeAudioOpts,
-  OptimizeImageOpts,
-  OptimizeVideoOpts,
-  TransformAudioRule,
-  TransformImageRule,
-  TransformMediaRule,
-  TransformVideoRule,
-  VariantResult,
-} from "../../domain/media";
+import { fileTable } from "../../infra/db/schema";
+import type { MediaConvertOpts, MediaOptimizer, TransformMediaRule } from "../../domain/media";
 import type { FileStore } from "../../domain/files";
 
 /**
@@ -54,132 +41,18 @@ export function isExtensionAllowed(ext: string, rule: TransformMediaRule): boole
 }
 
 /**
- * Build combined OptimizeImageOpts from constraints and predefined variants.
+ * Create a pending file row. Returns the file id and expected stored extension.
+ * Skips creation if a file with the same id already exists.
  */
-function buildImageOptimizerOpts(
-  constraints?: TransformImageRule,
-  variants?: MediaConvertOpts[],
-): OptimizeImageOpts {
-  const masterFormat = constraints?.format ?? "avif";
-  const masterEntry: [number?, number?, number?] = [
-    constraints?.resize?.width,
-    constraints?.resize?.height,
-    constraints?.quality,
-  ];
-
-  const variantsByFormat = new Map<string, [number?, number?, number?][]>();
-  variantsByFormat.set(masterFormat, [masterEntry]);
-
-  for (const v of variants ?? []) {
-    if (v.mediaType && v.mediaType !== "image") continue;
-    const img = v as ImageConvertOpts;
-    const fmt = img.format ?? masterFormat;
-    const entries = variantsByFormat.get(fmt) ?? [];
-    entries.push([img.resize?.width, img.resize?.height, img.quality]);
-    variantsByFormat.set(fmt, entries);
-  }
-
-  const result = Object.fromEntries(variantsByFormat) as OptimizeImageOpts;
-
-  // Attach base transform options
-  const base: NonNullable<OptimizeImageOpts["base"]> = {};
-  if (constraints?.rotate != null) base.rotate = constraints.rotate;
-  if (constraints?.crop) base.crop = constraints.crop;
-  if (constraints?.keepMetadata) base.keepMetadata = constraints.keepMetadata;
-  if (constraints?.keepExif) base.keepExif = constraints.keepExif;
-  if (constraints?.keepIcc) base.keepIcc = constraints.keepIcc;
-  if (constraints?.colorspace) base.colorspace = constraints.colorspace;
-  if (Object.keys(base).length > 0) result.base = base;
-
-  return result;
-}
-
-/**
- * Build OptimizeVideoOpts from video constraints.
- */
-function buildVideoOptimizerOpts(constraints?: TransformVideoRule): OptimizeVideoOpts {
-  return {
-    format: constraints?.format,
-    ext: constraints?.ext,
-    videoCodec: constraints?.videoCodec,
-    videoBitrate: constraints?.videoBitrate,
-    videoFilters: constraints?.videoFilters,
-    audioCodec: constraints?.audioCodec,
-    audioBitrate: constraints?.audioBitrate,
-    audioFilters: constraints?.audioFilters,
-    fps: constraints?.fps,
-    size: constraints?.size,
-    width: constraints?.width,
-    height: constraints?.height,
-    aspect: constraints?.aspect,
-    frames: constraints?.frames,
-    duration: constraints?.duration,
-    seek: constraints?.seek,
-    inputFormat: constraints?.inputFormat,
-    pad: constraints?.pad,
-    complexFilters: constraints?.complexFilters,
-    args: constraints?.args,
-  };
-}
-
-/**
- * Build OptimizeAudioOpts from audio constraints.
- */
-function buildAudioOptimizerOpts(constraints?: TransformAudioRule): OptimizeAudioOpts {
-  return {
-    format: constraints?.format,
-    ext: constraints?.ext,
-    codec: constraints?.codec,
-    bitrate: constraints?.bitrate,
-    filters: constraints?.filters,
-    complexFilters: constraints?.complexFilters,
-    duration: constraints?.duration,
-    seek: constraints?.seek,
-    inputFormat: constraints?.inputFormat,
-    args: constraints?.args,
-  };
-}
-
-/**
- * Store variant results from the optimizer into the mediaVariantTable.
- */
-function storeVariantRecords(fileId: string, results: VariantResult[]): void {
-  if (results.length === 0) return;
-
-  for (const variant of results) {
-    const opts: Record<string, unknown> = {};
-    if (variant.width != null) opts.width = variant.width;
-    if (variant.height != null) opts.height = variant.height;
-    if (variant.quality != null) opts.quality = variant.quality;
-    const optsHash = hashOpts(opts);
-
-    db.insert(mediaVariantTable)
-      .values({
-        fileId: decodeId(fileId),
-        ext: variant.ext,
-        optsHash,
-        opts,
-        size: variant.size,
-        data: variant.data,
-        createdAt: Math.floor(Date.now() / 1000),
-      })
-      .run();
-  }
-}
-
-/**
- * Download, optimize, and store a single file. Returns the file id and stored extension.
- * Skips download if an file with the same id already exists.
- */
-async function downloadAndStoreFile(
-  itemId: string,
+function createPendingFile(
+  itemId: number,
   originalUrl: string,
-  fileStore: FileStore,
-  mediaOptimizer?: MediaOptimizer,
-  transformMedia?: TransformMediaRule[],
-  pregenerate?: MediaConvertOpts[],
-  collection?: string,
-): Promise<{ id: string; ext: string }> {
+  _fileStore: FileStore,
+  _mediaOptimizer?: MediaOptimizer,
+  _transformMedia?: TransformMediaRule[],
+  _pregenerate?: MediaConvertOpts[],
+  _collection?: string,
+): { id: string; ext: string } {
   const fileId = idFromUrl(originalUrl);
   const ext = extFromUrl(originalUrl) ?? "bin";
 
@@ -189,95 +62,36 @@ async function downloadAndStoreFile(
     return { id: fileId, ext: existing.ext };
   }
 
-  let res: Response;
-  try {
-    res = await fetch(originalUrl);
-  } catch {
-    return { id: fileId, ext };
-  }
-  if (!res.ok) return { id: fileId, ext };
-
-  const buffer = Buffer.from(await res.arrayBuffer());
-  const mediaType = detectMediaType(originalUrl);
-
-  // Find matching rule for this media type and collection
-  const rule = transformMedia?.find(
-    (r) =>
-      r.mediaType === mediaType && (!r.collections || r.collections.includes(collection ?? "")),
-  );
-  const extAllowed = rule ? isExtensionAllowed(ext, rule) : true;
-
-  const storeKey = `${fileId}.${ext}`;
-
-  let masterExt: string;
-  let masterData: Buffer;
-  let variantResults: VariantResult[] = [];
-
-  if (mediaOptimizer && mediaType === "image" && extAllowed) {
-    const imageConstraints = rule as TransformImageRule | undefined;
-    const hasConstraints = imageConstraints != null;
-    const hasVariants = pregenerate != null && pregenerate.length > 0;
-
-    if (hasConstraints || hasVariants) {
-      const opts = buildImageOptimizerOpts(imageConstraints, pregenerate);
-      variantResults = await mediaOptimizer.optimize(storeKey, buffer, "image", opts);
-    } else {
-      variantResults = await mediaOptimizer.optimize(storeKey, buffer, "image");
-    }
-    masterExt = imageConstraints?.format ?? "avif";
-    masterData = variantResults.length > 0 ? variantResults[0].data : buffer;
-  } else if (mediaOptimizer && mediaType === "video" && extAllowed) {
-    const videoConstraints = rule as TransformVideoRule | undefined;
-    const opts = buildVideoOptimizerOpts(videoConstraints);
-    variantResults = await mediaOptimizer.optimize(storeKey, buffer, "video", opts);
-    masterExt = videoConstraints?.format ?? ext;
-    masterData = variantResults.length > 0 ? variantResults[0].data : buffer;
-  } else if (mediaOptimizer && mediaType === "audio" && extAllowed) {
-    const audioConstraints = rule as TransformAudioRule | undefined;
-    const opts = buildAudioOptimizerOpts(audioConstraints);
-    variantResults = await mediaOptimizer.optimize(storeKey, buffer, "audio", opts);
-    masterExt = audioConstraints?.format ?? ext;
-    masterData = variantResults.length > 0 ? variantResults[0].data : buffer;
-  } else {
-    masterExt = ext;
-    masterData = buffer;
-  }
-
-  // Persist: single INSERT with master data included
-  createFile({
-    id: fileId,
-    originalUrl,
-    mediaType,
-    ext: masterExt,
-    size: buffer.byteLength,
-    data: masterData,
-    createdAt: Math.floor(Date.now() / 1000),
-  });
+  db.insert(fileTable)
+    .values({
+      id: decodeId(fileId),
+      status: FileStatus.Pending,
+      mediaType: detectMediaType(originalUrl),
+      meta: {
+        ext,
+        size: 0,
+        attempts: 0,
+        transformMedia: _transformMedia,
+        pregenerate: _pregenerate,
+        collection: _collection,
+      },
+      data: Buffer.from(originalUrl, "utf8"),
+      createdAt: Math.floor(Date.now() / 1000),
+    })
+    .onConflictDoNothing()
+    .run();
 
   linkFileToItem(itemId, fileId);
-
-  if (variantResults.length > 0) {
-    storeVariantRecords(fileId, variantResults);
-  }
-
-  // Write to fileStore for non-DB store implementations
-  for (const result of variantResults) {
-    await fileStore.write(result.path, result.data);
-  }
-  if (variantResults.length === 0) {
-    await fileStore.write(storeKey, masterData);
-  }
-
-  return { id: fileId, ext: masterExt };
+  return { id: fileId, ext };
 }
 
 /**
- * Extract ImageBlocks from content, download each image, optimize via
- * MediaOptimizer, write to FileStore, and create file DB records.
+ * Extract ImageBlocks from content, create pending file rows, and enqueue async
+ * download/processing work.
  * Returns the content array with ImageBlock URLs replaced by file ids.
  */
 export async function processFiles(opts: {
-  itemId: string;
+  itemId: number;
   content: Block[];
   fileStore: FileStore;
   mediaOptimizer?: MediaOptimizer;
@@ -302,14 +116,16 @@ export async function processFiles(opts: {
     if (!seen.has(fileId)) {
       seen.set(
         fileId,
-        downloadAndStoreFile(
-          itemId,
-          originalUrl,
-          fileStore,
-          mediaOptimizer,
-          transformMedia,
-          pregenerate,
-          collection,
+        Promise.resolve(
+          createPendingFile(
+            itemId,
+            originalUrl,
+            fileStore,
+            mediaOptimizer,
+            transformMedia,
+            pregenerate,
+            collection,
+          ),
         ),
       );
     }
@@ -328,11 +144,11 @@ export async function processFiles(opts: {
 
 /**
  * Process media URLs in item properties (FILE/FILES typed props).
- * Downloads files and replaces URLs with file ids.
+ * Creates pending file rows and replaces URLs with file ids.
  * Returns a shallow clone of props with processed values.
  */
 export async function processPropertyFiles(opts: {
-  itemId: string;
+  itemId: number;
   props: Record<string, unknown>;
   schema: CollectionSchema;
   fileStore: FileStore;
@@ -370,14 +186,16 @@ export async function processPropertyFiles(opts: {
       for (const url of value) {
         if (typeof url === "string" && url.startsWith("http")) {
           processed.push(
-            downloadAndStoreFile(
-              itemId,
-              url,
-              fileStore,
-              mediaOptimizer,
-              transformMedia,
-              pregenerate,
-              collection,
+            Promise.resolve(
+              createPendingFile(
+                itemId,
+                url,
+                fileStore,
+                mediaOptimizer,
+                transformMedia,
+                pregenerate,
+                collection,
+              ),
             ).then(({ id, ext }) => `${id}.${ext}`),
           );
         } else {
@@ -391,14 +209,16 @@ export async function processPropertyFiles(opts: {
       );
     } else if (isFile && typeof value === "string" && value.startsWith("http")) {
       promises.push(
-        downloadAndStoreFile(
-          itemId,
-          value,
-          fileStore,
-          mediaOptimizer,
-          transformMedia,
-          pregenerate,
-          collection,
+        Promise.resolve(
+          createPendingFile(
+            itemId,
+            value,
+            fileStore,
+            mediaOptimizer,
+            transformMedia,
+            pregenerate,
+            collection,
+          ),
         ).then(({ id, ext }) => {
           result[propName] = `${id}.${ext}`;
         }),

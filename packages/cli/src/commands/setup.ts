@@ -113,7 +113,7 @@ async function setupAppConnection(opts: SetupOptions): Promise<void> {
   }
 
   const { getApiClient, handleApiError } = await import("../http");
-  const { ConnectionTypeMeta } = await import("@contfu/svc-api");
+  const { ConnectionType } = await import("@contfu/svc-api");
   const client = getApiClient();
   const nonInteractive = opts.nonInteractive ?? false;
 
@@ -123,11 +123,10 @@ async function setupAppConnection(opts: SetupOptions): Promise<void> {
     connections = await client.listConnections();
   } catch (err) {
     handleApiError(err);
+    return;
   }
 
-  const appTypeId = Object.entries(ConnectionTypeMeta).find(
-    ([, meta]) => meta.label === "app",
-  )?.[0];
+  const appTypeId = String(ConnectionType.APP);
   const existingApps = connections.filter((c) => String(c.type) === appTypeId);
 
   let contfuKey: string;
@@ -190,6 +189,7 @@ async function setupAppConnection(opts: SetupOptions): Promise<void> {
         console.log(`\n✓ New key generated for "${chosen.name}"`);
       } catch (err) {
         handleApiError(err);
+        return;
       }
     }
   } else {
@@ -229,5 +229,6 @@ async function createNewApp(
     return result.apiKey;
   } catch (err) {
     handleApiError(err);
+    throw err;
   }
 }

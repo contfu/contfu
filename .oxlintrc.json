@@ -72,7 +72,7 @@
     "typescript/await-thenable": "error",
     "typescript/no-array-delete": "error",
     "typescript/no-base-to-string": "warn",
-    "typescript/no-duplicate-enum-values": "warn",
+    "typescript/no-duplicate-enum-values": "error",
     "typescript/no-duplicate-type-constituents": "warn",
     "typescript/no-extra-non-null-assertion": "warn",
     "typescript/no-floating-promises": "error",
@@ -114,7 +114,13 @@
     "oxc/no-accumulating-spread": "warn",
     "unicorn/prefer-array-flat-map": "error",
     "unicorn/prefer-array-find": "error",
-    "eqeqeq": ["warn", "always", { "null": "ignore" }],
+    "eqeqeq": [
+      "warn",
+      "always",
+      {
+        "null": "ignore"
+      }
+    ],
     "no-fallthrough": "warn",
     "no-self-compare": "error",
     "no-useless-constructor": "warn",
@@ -122,7 +128,15 @@
     "unicorn/no-useless-promise-resolve-reject": "error",
     "no-var": "warn",
     "unicorn/prefer-node-protocol": "error",
-    "typescript/require-await": "error"
+    "typescript/require-await": "error",
+    "contfu/no-typescript-enum": "error",
+    "contfu/enum-helper-values": "error",
+    "oxc/no-const-enum": "error",
+    "typescript/no-mixed-enums": "error",
+    "typescript/prefer-enum-initializers": "error",
+    "typescript/prefer-literal-enum-member": "error",
+    "contfu/prefer-enum-helper": "error",
+    "contfu/no-backend-infra-db-import": "error"
   },
   "settings": {
     "jsx-a11y": {
@@ -156,5 +170,12 @@
     "builtin": true
   },
   "globals": {},
-  "ignorePatterns": ["**/.svelte-kit/**", "demos/consumer-app/**"]
+  "ignorePatterns": [
+    "**/node_modules/**",
+    "**/.svelte-kit/**",
+    "**/.e2e-builds/**",
+    "demos/consumer-app/**",
+    "demos/strapi-demo/**"
+  ],
+  "jsPlugins": ["./scripts/oxlint/contfu/index.cjs"]
 }

@@ -1,8 +1,8 @@
 # @contfu/connect
 
-Real-time stream client for Contfu.
+Connector package for Contfu Local Runtimes.
 
-Connects to the Contfu sync stream and yields typed events as an async generator. Handles reconnection automatically.
+Connects to the Contfu Cloud Service and yields typed Sync Messages as an async generator. Handles reconnection automatically.
 
 ## Usage
 
@@ -21,7 +21,6 @@ for await (const event of connect()) {
 ```ts
 connect({
   key?: Buffer,              // Auth key (falls back to CONTFU_KEY env var)
-  from?: number,             // Replay events since this index
   reconnect?: boolean,       // Auto-reconnect on disconnect (default: true)
   initialReconnectDelay?: number,  // ms, default 1000
   maxReconnectDelay?: number,      // ms, default 30000

@@ -1,6 +1,7 @@
+import { defineEnum, type EnumValue } from "./enums";
 import type { Item } from "./items";
 
-export const EventType = {
+export const EventType = defineEnum({
   // Protocol messages (0-9)
   PING: 0,
   SNAPSHOT_START: 1,
@@ -14,15 +15,15 @@ export const EventType = {
   // Item events (30-49)
   ITEM_CHANGED: 30,
   ITEM_DELETED: 31,
-} as const;
+});
 
-export type EventType = (typeof EventType)[keyof typeof EventType];
+export type EventType = EnumValue<typeof EventType>;
 
-export const ClientEventType = {
+export const ClientEventType = defineEnum({
   ACK: 0,
-} as const;
+});
 
-export type ClientEventType = (typeof ClientEventType)[keyof typeof ClientEventType];
+export type ClientEventType = EnumValue<typeof ClientEventType>;
 
 type EventBase<T extends EventType> = {
   type: T;
@@ -40,7 +41,7 @@ export type ItemChangedEvent = EventBase<typeof EventType.ITEM_CHANGED> & {
  * This is only sent, if the source supports web hooks.
  */
 export type ItemDeletedEvent = EventBase<typeof EventType.ITEM_DELETED> & {
-  item: Buffer;
+  item: number;
 };
 
 export type ItemEvent = ItemChangedEvent | ItemDeletedEvent;

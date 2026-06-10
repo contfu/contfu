@@ -1,6 +1,6 @@
 {
   "name": "@contfu/solid",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -20,14 +20,14 @@
     }
   },
   "publishConfig": {
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
     "exports": {
       ".": {
         "types": "./dist/index.d.ts",
         "default": "./dist/index.js"
       }
-    },
-    "main": "dist/index.js",
-    "types": "dist/index.d.ts"
+    }
   },
   "scripts": {
     "test": "bun test src/",
@@ -39,7 +39,7 @@
     "@contfu/core": "workspace:^"
   },
   "devDependencies": {
-    "solid-js": "^1",
+    "solid-js": "^1.9.13",
     "typescript": "^5.9.3"
   },
   "peerDependencies": {

@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from "bun:
 import { status } from "./status";
 
 const mockFetch = mock<typeof fetch>();
-globalThis.fetch = mockFetch as typeof fetch;
+globalThis.fetch = mockFetch as unknown as typeof fetch;
 
 function jsonResponse(data: unknown, statusCode = 200): Response {
   return new Response(JSON.stringify(data), {
@@ -19,7 +19,6 @@ const CONNECTIONS = [
     accountId: null,
     url: null,
     hasCredentials: true,
-    includeRef: false,
     createdAt: "2026-01-01",
     updatedAt: null,
   },
@@ -30,7 +29,6 @@ const CONNECTIONS = [
     accountId: null,
     url: null,
     hasCredentials: true,
-    includeRef: false,
     createdAt: "2026-01-01",
     updatedAt: null,
   },
@@ -48,7 +46,6 @@ const COLLECTIONS = [
     connectionId: null,
     connectionName: null,
     connectionType: null,
-    includeRef: false,
     createdAt: "2026-01-01",
     updatedAt: null,
   },
@@ -61,7 +58,6 @@ const FLOWS = [
     schema: null,
     mappings: null,
     filters: null,
-    includeRef: false,
     createdAt: "2026-01-01",
     updatedAt: null,
   },
@@ -98,7 +94,7 @@ describe("status", () => {
     await status();
 
     expect(mockFetch).toHaveBeenCalledTimes(3);
-    const output = logSpy.mock.calls.map((c) => c[0]).join("\n");
+    const output = logSpy.mock.calls.map((c: unknown[]) => c[0]).join("\n");
     expect(output).toContain("contfu status");
     expect(output).toContain("Authenticated: yes");
     expect(output).toContain("My Notion");
@@ -116,7 +112,7 @@ describe("status", () => {
     expect(parsed.authenticated).toBe(true);
     expect(parsed.connections).toHaveLength(2);
     expect(parsed.connections[0].typeLabel).toBe("notion");
-    expect(parsed.connections[1].typeLabel).toBe("app");
+    expect(parsed.connections[1].typeLabel).toBe("Application Connection");
     expect(parsed.collections).toHaveLength(1);
     expect(parsed.flows).toHaveLength(1);
   });

@@ -1,5 +1,13 @@
-import { QueryResultArray } from "@contfu/core";
-import type { QueryMeta, QueryOptions, WithClause } from "@contfu/core";
+import { QueryResultArray, renderBlocks, renderBlocksMarkdown } from "@contfu/core";
+import type {
+  Block,
+  ContentFormat,
+  MarkdownOptions,
+  QueryMeta,
+  QueryOptions,
+  RenderOptions,
+  WithClause,
+} from "@contfu/core";
 import {
   all,
   and,
@@ -27,6 +35,19 @@ export function createHttpTypedClient<_CMap>(baseUrl: string, apiKey?: string): 
     headers["Authorization"] = `Bearer ${apiKey}`;
   }
 
+  return buildClient(baseUrl, headers);
+}
+
+type LocaleScope = {
+  locale?: string;
+  fallback?: string | false;
+};
+
+function buildClient(
+  baseUrl: string,
+  headers: Record<string, string>,
+  scope: LocaleScope = {},
+): any {
   async function fetchJson<T>(url: string): Promise<T> {
     const res = await fetch(url, { headers });
     if (!res.ok) {
@@ -56,23 +77,33 @@ export function createHttpTypedClient<_CMap>(baseUrl: string, apiKey?: string): 
 
   const callable = async (first?: any, second?: any) => {
     const { options } = normalizeArgs(first, second);
-    const { collection, ...rest } = options;
+    const { collection, contentAs, htmlOptions, markdownOptions, locale, fallback, ...rest } =
+      options as QueryOptions & {
+        collection?: string;
+      };
     const filter = resolveFilter(rest.filter);
     const resolvedWith =
       rest.with && typeof rest.with === "function" ? resolveWithFunctions(rest.with, 1) : rest.with;
-    const params = serializeQueryParams({ ...rest, filter, with: resolvedWith });
+    const include = resolveInclude(rest.include, contentAs);
+    const params = serializeQueryParams({
+      ...rest,
+      locale: locale ?? scope.locale,
+      fallback: fallback !== undefined ? fallback : scope.fallback,
+      filter,
+      with: resolvedWith,
+      include,
+    });
 
-    if (collection) {
-      const basePath = `${baseUrl}/api/collections/${encodeURIComponent(collection)}/items`;
-      const url = `${basePath}?${params.toString()}`;
-      const json = await fetchJson<{ data: any[]; meta: QueryMeta }>(url);
-      return new QueryResultArray(json.data, json.meta);
-    }
-
-    const url = `${baseUrl}/api/items?${params.toString()}`;
+    const url = collection
+      ? `${baseUrl}/api/collections/${encodeURIComponent(collection)}/items?${params.toString()}`
+      : `${baseUrl}/api/items?${params.toString()}`;
     const json = await fetchJson<{ data: any[]; meta: QueryMeta }>(url);
-    return new QueryResultArray(json.data, json.meta);
+    const data = transformContent(json.data, contentAs, htmlOptions, markdownOptions);
+    return new QueryResultArray(data, json.meta);
   };
+
+  const withLocale = (locale: string, fallback?: string | false) =>
+    buildClient(baseUrl, headers, { locale, fallback });
 
   return Object.assign(callable, {
     all,
@@ -90,6 +121,7 @@ export function createHttpTypedClient<_CMap>(baseUrl: string, apiKey?: string): 
     or,
     linksTo,
     linkedFrom,
+    withLocale,
   });
 }
 
@@ -121,6 +153,35 @@ function resolveWithFunctions(withVal: any, parentLevel: number): WithClause {
   return result;
 }
 
+function resolveInclude(
+  include: QueryOptions["include"],
+  contentAs: ContentFormat | undefined,
+): QueryOptions["include"] {
+  if (!contentAs || contentAs === "object") return include;
+  if (!include) return ["content"];
+  if (include.includes("content")) return include;
+  return [...include, "content"];
+}
+
+function transformContent<T extends { content?: unknown }>(
+  items: T[],
+  contentAs: ContentFormat | undefined,
+  htmlOptions: RenderOptions | undefined,
+  markdownOptions: MarkdownOptions | undefined,
+): T[] {
+  if (!contentAs || contentAs === "object") return items;
+  for (const item of items) {
+    if (Array.isArray(item.content)) {
+      const blocks = item.content as Block[];
+      item.content =
+        contentAs === "markdown"
+          ? renderBlocksMarkdown(blocks, markdownOptions)
+          : renderBlocks(blocks, htmlOptions);
+    }
+  }
+  return items;
+}
+
 export function serializeQueryParams(options: QueryOptions): URLSearchParams {
   const params = new URLSearchParams();
 
@@ -143,6 +204,8 @@ export function serializeQueryParams(options: QueryOptions): URLSearchParams {
   if (options.include?.length) params.set("include", options.include.join(","));
   if (options.with) params.set("with", JSON.stringify(options.with));
   if (options.fields !== undefined) params.set("fields", options.fields.join(","));
+  if (options.locale) params.set("locale", options.locale);
+  if (options.fallback !== undefined) params.set("fallback", String(options.fallback));
 
   return params;
 }

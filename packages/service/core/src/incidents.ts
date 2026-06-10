@@ -1,3 +1,4 @@
+import { defineEnum, type EnumValue } from "@contfu/core";
 import type { CollectionSchema } from "./schemas";
 import type { Filter } from "./filters";
 
@@ -5,14 +6,14 @@ import type { Filter } from "./filters";
  * Types of incidents that can occur during data synchronization.
  * Values are integers stored in the database.
  */
-export const IncidentType = {
+export const IncidentType = defineEnum({
   SchemaIncompatible: 1,
   FilterInvalid: 2,
   SyncError: 3,
   ItemValidationError: 4,
-} as const;
+});
 
-export type IncidentType = (typeof IncidentType)[keyof typeof IncidentType];
+export type IncidentType = EnumValue<typeof IncidentType>;
 
 /**
  * Details for schema incompatibility incidents.

@@ -1,6 +1,14 @@
+import { defineEnum, type EnumValue } from "@contfu/core";
 import type { CollectionSchema } from "./schemas";
 import type { Filter } from "./filters";
 import type { MappingRule } from "./mappings";
+
+export const FlowState = defineEnum({
+  ACTIVE: 0,
+  FROZEN: 1,
+});
+
+export type FlowState = EnumValue<typeof FlowState>;
 
 /**
  * Flow record returned from list operations.
@@ -10,10 +18,10 @@ export interface ServiceFlow {
   id: string;
   sourceId: string;
   targetId: string;
+  state: FlowState;
   schema: CollectionSchema | null;
   mappings: MappingRule[] | null;
   filters: Filter[] | null;
-  includeRef: boolean;
   createdAt: Date;
   updatedAt: Date | null;
 }
@@ -23,6 +31,8 @@ export interface ServiceFlow {
  * All ID fields are encoded strings (public-facing).
  */
 export interface ServiceFlowWithDetails extends ServiceFlow {
+  /** Current source collection schema for mapping/filter editors. */
+  sourceSchema?: CollectionSchema | null;
   sourceCollectionName: string;
   sourceCollectionDisplayName: string;
   sourceConnectionType: number | null;

@@ -15,7 +15,7 @@ const sourceData = Buffer.from("source-image-data");
 function createTestFile(): FileData {
   return {
     id: fileId,
-    originalUrl: "https://example.com/image.png",
+    status: "ready",
     mediaType: "image",
     ext: "png",
     size: sourceData.byteLength,
@@ -34,7 +34,7 @@ describe("loadFile", () => {
     createFile(createTestFile());
   });
 
-  test("loads, converts, and streams an file", async () => {
+  test("loads, converts, and streams a Local Runtime File", async () => {
     const fileStore: FileStore = {
       write: mock(() => Promise.resolve()),
       read: mock(() => Promise.resolve(sourceData)),
@@ -60,7 +60,7 @@ describe("loadFile", () => {
     );
 
     expect(await streamToBuffer(stream)).toEqual(Buffer.from("out"));
-    expect(fileStore.read).toHaveBeenCalledWith(`${fileId}.png`);
+    expect(fileStore.read).not.toHaveBeenCalled();
     expect(mediaOptimizer.optimize).toHaveBeenCalledWith(
       `${fileId}.png`,
       sourceData,
@@ -145,6 +145,8 @@ describe("loadFile", () => {
   });
 
   test("fails when the source file is missing from the store", async () => {
+    truncateAllTables();
+    createFile({ ...createTestFile(), data: undefined });
     const fileStore: FileStore = {
       write: mock(() => Promise.resolve()),
       read: mock(() => Promise.resolve(null)),

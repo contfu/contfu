@@ -6,33 +6,29 @@ import { setCollection } from "./features/collections/setCollection";
 import { createItem } from "./features/items/createItem";
 import { createItemLink } from "./features/items/createItemLink";
 
-function makeId(seed: number): string {
-  return Buffer.from([0, 0, 0, seed]).toString("base64url");
-}
-
 function seedData() {
   setCollection("articles", "Articles", {});
   setCollection("authors", "Authors", {});
   setCollection("tags", "Tags", {});
 
   createItem({
-    id: makeId(1),
+    id: 1,
     ref: "articles/alpha",
     collection: "articles",
-    props: { title: "Alpha", category: "news", author: "authors/alice" },
+    props: { title: "Alpha", category: "news", author: "Alice" },
     changedAt: 100,
   });
 
   createItem({
-    id: makeId(2),
+    id: 2,
     ref: "articles/beta",
     collection: "articles",
-    props: { title: "Beta", category: "tech", author: "authors/bob" },
+    props: { title: "Beta", category: "tech", author: "Bob" },
     changedAt: 200,
   });
 
   createItem({
-    id: makeId(3),
+    id: 3,
     ref: "authors/alice",
     collection: "authors",
     props: { name: "Alice" },
@@ -40,7 +36,7 @@ function seedData() {
   });
 
   createItem({
-    id: makeId(4),
+    id: 4,
     ref: "authors/bob",
     collection: "authors",
     props: { name: "Bob" },
@@ -48,7 +44,7 @@ function seedData() {
   });
 
   createItem({
-    id: makeId(5),
+    id: 5,
     ref: "tags/tech",
     collection: "tags",
     props: { label: "Tech" },
@@ -122,35 +118,35 @@ describe("contfu typed query client", () => {
   test("function-based with + eq + single resolves 1:1 relation", async () => {
     const result = await q("articles", {
       with: (article) => ({
-        author: oneOf("authors", (author) => eq(author.$ref, article.author)),
+        author: oneOf("authors", (author) => eq(author.name, article.author)),
       }),
     });
     expect(result).toHaveLength(2);
 
     const alpha = result.find((i) => i.title === "Alpha")!;
     expect(alpha.author).not.toBeNull();
-    expect((alpha.author as any).$ref).toBe("authors/alice");
+    expect((alpha.author as any).name).toBe("Alice");
 
     const beta = result.find((i) => i.title === "Beta")!;
-    expect((beta.author as any).$ref).toBe("authors/bob");
+    expect((beta.author as any).name).toBe("Bob");
   });
 
   test("string-based $1 placeholder resolves relations as array", async () => {
     const result = await q("articles", {
       with: {
-        author: all("authors", "$ref = $1.author"),
+        author: all("authors", "name = $1.author"),
       },
     });
     expect(result).toHaveLength(2);
 
     const alpha = result.find((i) => i.title === "Alpha")!;
     expect(alpha.author).toHaveLength(1);
-    expect((alpha.author as any[])[0].$ref).toBe("authors/alice");
+    expect((alpha.author as any[])[0].name).toBe("Alice");
   });
 });
 
 // --- Typed ref target tests ---
-// When generateConsumerTypes is configured with refTargets, REF/REFS properties
+// When generateApplicationConnectionTypes is configured with refTargets, REF/REFS properties
 // reference sibling collection types instead of plain strings. These tests verify
 // the query client types work correctly with that pattern.
 
@@ -174,21 +170,21 @@ describe("contfu typed ref targets", () => {
     setCollection("blogPosts", "Blog Posts", {});
 
     createItem({
-      id: makeId(10),
+      id: 10,
       ref: "authors/alice",
       collection: "authors",
       props: { name: "Alice" },
       changedAt: 100,
     });
     createItem({
-      id: makeId(30),
+      id: 30,
       ref: "tags/tech",
       collection: "tags",
       props: { label: "Tech" },
       changedAt: 200,
     });
     createItem({
-      id: makeId(1),
+      id: 1,
       ref: "blogPosts/hello",
       collection: "blogPosts",
       props: {
@@ -224,9 +220,9 @@ describe("contfu typed ref targets", () => {
 // --- Link resolution tests ---
 
 type LinkCollections = {
-  posts: { title: string; author: string; tags: string[] };
-  persons: {};
-  tags: {};
+  posts: { title: string; author: number; tags: number[] };
+  persons: { name: string };
+  tags: { label: string };
 };
 
 function seedLinkData() {
@@ -236,64 +232,64 @@ function seedLinkData() {
 
   // Create persons
   createItem({
-    id: makeId(10),
+    id: 10,
     ref: "persons/alice",
     collection: "persons",
-    props: {},
+    props: { name: "Alice" },
     changedAt: 100,
   });
   createItem({
-    id: makeId(11),
+    id: 11,
     ref: "persons/bob",
     collection: "persons",
-    props: {},
+    props: { name: "Bob" },
     changedAt: 101,
   });
 
   // Create tags
   createItem({
-    id: makeId(30),
+    id: 30,
     ref: "tags/tech",
     collection: "tags",
-    props: {},
+    props: { label: "Tech" },
     changedAt: 200,
   });
   createItem({
-    id: makeId(31),
+    id: 31,
     ref: "tags/design",
     collection: "tags",
-    props: {},
+    props: { label: "Design" },
     changedAt: 201,
   });
 
   // Create posts (items must exist before links due to FK)
   createItem({
-    id: makeId(1),
+    id: 1,
     ref: "posts/post1",
     collection: "posts",
-    props: { title: "Post One", author: makeId(10), tags: [makeId(30), makeId(31)] },
+    props: { title: "Post One", author: 10, tags: [30, 31] },
     changedAt: 300,
   });
   createItem({
-    id: makeId(2),
+    id: 2,
     ref: "posts/post2",
     collection: "posts",
-    props: { title: "Post Two", author: makeId(11), tags: [makeId(30)] },
+    props: { title: "Post Two", author: 11, tags: [30] },
     changedAt: 301,
   });
 
   // REF links: post → author
-  createItemLink({ prop: "author", from: makeId(1), to: makeId(10), internal: true });
-  createItemLink({ prop: "author", from: makeId(2), to: makeId(11), internal: true });
+  createItemLink({ prop: "author", from: 1, to: 10 });
+  createItemLink({ prop: "author", from: 2, to: 11 });
 
   // REFS links: post → tags
-  createItemLink({ prop: "tags", from: makeId(1), to: makeId(30), internal: true });
-  createItemLink({ prop: "tags", from: makeId(1), to: makeId(31), internal: true });
-  createItemLink({ prop: "tags", from: makeId(2), to: makeId(30), internal: true });
+  createItemLink({ prop: "tags", from: 1, to: 30 });
+  createItemLink({ prop: "tags", from: 1, to: 31 });
+  createItemLink({ prop: "tags", from: 2, to: 30 });
 
   // Content links (prop=null): post1 → alice, post2 → bob
-  createItemLink({ prop: null, from: makeId(1), to: makeId(10), internal: true });
-  createItemLink({ prop: null, from: makeId(2), to: makeId(11), internal: true });
+  createItemLink({ prop: null, from: 1, to: 10 });
+  createItemLink({ prop: null, from: 2, to: 11 });
 }
 
 describe("contfu link resolution", () => {
@@ -314,26 +310,26 @@ describe("contfu link resolution", () => {
     });
     expect(result).toHaveLength(1);
     expect(result[0].author).not.toBeNull();
-    expect((result[0].author as any).$ref).toBe("persons/alice");
+    expect((result[0].author as any).name).toBe("Alice");
   });
 
   test("backlink REF: person → posts via linksTo('author')", async () => {
-    const aliceId = makeId(10);
+    const aliceId = 10;
     const result = await q("posts", linksTo("author", aliceId));
     expect(result).toHaveLength(1);
     expect(result[0].title).toBe("Post One");
   });
 
   test("forward REFS: post → tags via linkedFrom('tags')", async () => {
-    const post1Id = makeId(1);
+    const post1Id = 1;
     const result = await q("tags", linkedFrom("tags", post1Id));
     expect(result).toHaveLength(2);
-    const refs = result.map((t) => t.$ref).sort((a, b) => (a ?? "").localeCompare(b ?? ""));
-    expect(refs).toEqual(["tags/design", "tags/tech"]);
+    const labels = result.map((t) => t.label).sort();
+    expect(labels).toEqual(["Design", "Tech"]);
   });
 
   test("backlink REFS: tag → posts via linksTo('tags')", async () => {
-    const techId = makeId(30);
+    const techId = 30;
     const result = await q("posts", linksTo("tags", techId));
     expect(result).toHaveLength(2);
     const titles = result.map((p) => p.title).sort((a, b) => (a ?? "").localeCompare(b ?? ""));
@@ -341,14 +337,14 @@ describe("contfu link resolution", () => {
   });
 
   test("forward content links: post → linked items via linkedFrom(null)", async () => {
-    const post1Id = makeId(1);
+    const post1Id = 1;
     const result = await q("persons", linkedFrom(null, post1Id));
     expect(result).toHaveLength(1);
-    expect(result[0].$ref).toBe("persons/alice");
+    expect(result[0].name).toBe("Alice");
   });
 
   test("backlink content links: person → posts via linksTo(null)", async () => {
-    const aliceId = makeId(10);
+    const aliceId = 10;
     const result = await q("posts", linksTo(null, aliceId));
     expect(result).toHaveLength(1);
     expect(result[0].title).toBe("Post One");

@@ -5,7 +5,7 @@ const mockFetch = mock<typeof fetch>();
 globalThis.fetch = mockFetch as any;
 
 void mock.module("@contfu/svc-api", () => ({
-  generateConsumerTypes: (cols: unknown[]) =>
+  generateApplicationConnectionTypes: (cols: unknown[]) =>
     `export type ContfuCollections = { ${(cols as any[]).map((c) => c.name).join("; ")} };\n`,
 }));
 
@@ -39,6 +39,7 @@ afterEach(() => {
 
 describe("connectionTypes", () => {
   test("fetches collections for connection and prints map type", async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse([{ id: "7", name: "Brain" }]));
     mockFetch.mockResolvedValueOnce(
       jsonResponse([
         { name: "posts", displayName: "Posts", schema: {} },
@@ -48,7 +49,7 @@ describe("connectionTypes", () => {
 
     await connectionTypes("7");
 
-    const url = (mockFetch.mock.calls[0] as unknown[])[0] as string;
+    const url = (mockFetch.mock.calls[1] as unknown[])[0] as string;
     expect(url).toBe("http://test.local/api/v1/connections/7/types");
     expect(writeSpy).toHaveBeenCalledTimes(1);
     const output = (writeSpy.mock.calls[0] as unknown[])[0] as string;
@@ -56,6 +57,7 @@ describe("connectionTypes", () => {
   });
 
   test("exits when no collections connected", async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse([{ id: "7", name: "Brain" }]));
     mockFetch.mockResolvedValueOnce(jsonResponse([]));
 
     // oxlint-disable-next-line typescript/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
@@ -68,12 +70,15 @@ describe("connectionTypes", () => {
 describe("collectionTypes", () => {
   test("fetches types for collection and prints map type", async () => {
     mockFetch.mockResolvedValueOnce(
+      jsonResponse([{ id: "3", name: "pages", displayName: "Pages" }]),
+    );
+    mockFetch.mockResolvedValueOnce(
       jsonResponse([{ name: "pages", displayName: "Pages", schema: {} }]),
     );
 
     await collectionTypes("3");
 
-    const url = (mockFetch.mock.calls[0] as unknown[])[0] as string;
+    const url = (mockFetch.mock.calls[1] as unknown[])[0] as string;
     expect(url).toBe("http://test.local/api/v1/collections/3/types");
     expect(writeSpy).toHaveBeenCalledTimes(1);
     const output = (writeSpy.mock.calls[0] as unknown[])[0] as string;
@@ -81,6 +86,9 @@ describe("collectionTypes", () => {
   });
 
   test("exits when no types found for collection", async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse([{ id: "3", name: "pages", displayName: "Pages" }]),
+    );
     mockFetch.mockResolvedValueOnce(jsonResponse([]));
 
     // oxlint-disable-next-line typescript/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { open, readFile } from "node:fs/promises";
-import { M4kOptimizer } from "./m4k-optimizer";
+import { M4kOptimizer, createTransform } from "./m4k-optimizer";
 
 let optimizer: M4kOptimizer;
 
@@ -120,6 +120,58 @@ describe("optimize() — images", () => {
 
     expect(results).toHaveLength(1);
     expect(results[0].path).toBe("test.avif");
+  });
+
+  it("uses Bun.Image for supported PNG to WebP variants when available", async () => {
+    const results = await optimizer.optimize(
+      "test.png",
+      await readFile(`${__dirname}/__fixtures__/test-image.png`),
+      "image",
+      { webp: [[]] },
+    );
+
+    expect(results).toHaveLength(1);
+    expect(results[0].path).toBe("test.webp");
+    expect(results[0].data.byteLength).toBeGreaterThan(0);
+  });
+
+  it("falls back to m4k for AVIF input even when output is Bun.Image encodable", async () => {
+    const results = await optimizer.optimize(
+      "test.avif",
+      await readFile(`${__dirname}/__fixtures__/test-image.avif`),
+      "image",
+      { webp: [[]] },
+    );
+
+    expect(results).toHaveLength(1);
+    expect(results[0].path).toBe("test.webp");
+    expect(results[0].data.byteLength).toBeGreaterThan(0);
+  });
+
+  it("falls back to m4k for GIF and BMP output because Bun.Image only decodes them", async () => {
+    const results = await optimizer.optimize(
+      "test.png",
+      await readFile(`${__dirname}/__fixtures__/test-image.png`),
+      "image",
+      { gif: [[]] },
+    );
+
+    expect(results).toHaveLength(1);
+    expect(results[0].path).toBe("test.gif");
+    expect(results[0].data.byteLength).toBeGreaterThan(0);
+  });
+
+  it("uses Bun.Image for supported createTransform image conversions when available", async () => {
+    const output = await createTransform()(
+      await readFile(`${__dirname}/__fixtures__/test-image.png`),
+      {
+        mediaType: "image",
+        format: "webp",
+        resize: { width: 20 },
+      },
+    );
+
+    expect(output.byteLength).toBeGreaterThan(0);
   });
 
   it("should output files via returned buffers", async () => {

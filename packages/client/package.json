@@ -1,6 +1,7 @@
 {
   "name": "@contfu/client",
-  "version": "0.0.9",
+  "version": "0.1.0",
+  "description": "HTTP client for querying a Contfu Server",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -20,15 +21,15 @@
     }
   },
   "publishConfig": {
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
     "exports": {
       ".": {
         "types": "./dist/index.d.ts",
         "bun": "./dist/index.js",
         "default": "./dist/index.js"
       }
-    },
-    "main": "dist/index.js",
-    "types": "dist/index.d.ts"
+    }
   },
   "scripts": {
     "build": "tsc -b",

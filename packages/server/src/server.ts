@@ -1,111 +1,58 @@
-import { findItems, generateTypes, getAllCollectionSchemas, getItemById } from "@contfu/contfu";
-import type { IncludeOption, QueryOptions, WithClause } from "@contfu/core";
-import { EventType } from "@contfu/core";
+import {
+  countCollections,
+  countDownloadedFiles,
+  countFiles,
+  countItems,
+  countProcessedFiles,
+  findItems,
+  generateTypes,
+  getCollectionSchemaByName,
+  getFilesByItem,
+  getItemById,
+  getTypeGenerationInputs,
+  listCollections,
+  queryItems,
+  createRuntimeEventMonitor,
+  type QueryItemsInput,
+  type RuntimeNotification,
+  type RuntimeStatus,
+} from "@contfu/contfu";
+import {
+  generateApplicationConnectionTypes,
+  type IncludeOption,
+  type QueryOptions,
+  type WithClause,
+} from "@contfu/core";
+import { basicAuth, checkBasicAuth } from "./basic-auth";
 import { events } from "./contfu";
 import { handleFileRequest } from "./files";
 
 // oxlint-disable-next-line typescript/no-redundant-type-constituents
 type RouteRequest = Request & { params: Record<string, string> };
 
-type SyncConnectionState = "disabled" | "connecting" | "syncing" | "connected" | "error";
-
-type SyncStatus = {
-  state: SyncConnectionState;
-  reason: string | null;
-};
-
-type LiveDataChangedKind = "item" | "schema" | "unknown";
-
 type LiveEvent =
   | { type: "ready"; ts: number }
-  | { type: "sync-status"; state: SyncConnectionState; reason: string | null; ts: number }
-  | {
-      type: "data-changed-batch";
-      count: number;
-      kinds: LiveDataChangedKind[];
-      windowMs: number;
-      ts: number;
-    };
+  | { type: "sync-status"; state: RuntimeStatus["state"]; reason: string | null; ts: number }
+  | Extract<RuntimeNotification, { type: "data-changed-batch" }>;
 
 type QueryParseResult = { options: QueryOptions } | { error: string };
+type RouteHandler = (request: RouteRequest) => Response | Promise<Response>;
 
-const DATA_CHANGED_WINDOW_MS = 250;
 const HEARTBEAT_MS = 25_000;
+const SERVER_IDLE_TIMEOUT_SECONDS = 60;
 const encoder = new TextEncoder();
+const runtimeEvents = createRuntimeEventMonitor(events);
 
-let syncStatus: SyncStatus = { state: "disabled", reason: null };
-let bufferedCount = 0;
-let bufferedKinds = new Set<LiveDataChangedKind>();
-let bufferTimer: ReturnType<typeof setTimeout> | null = null;
-const subscribers = new Set<(event: LiveEvent) => void>();
-
-function setSyncStatus(next: SyncStatus) {
-  syncStatus = next;
-}
-
-function publish(event: LiveEvent) {
-  for (const subscriber of subscribers) {
-    try {
-      subscriber(event);
-    } catch {
-      // Keep one broken subscriber from affecting the rest.
-    }
-  }
-}
-
-function publishSyncStatus(status: SyncStatus) {
-  publish({
-    type: "sync-status",
-    state: status.state,
-    reason: status.reason,
-    ts: Date.now(),
-  });
-}
-
-function clearBufferTimer() {
-  if (bufferTimer !== null) {
-    clearTimeout(bufferTimer);
-    bufferTimer = null;
-  }
-}
-
-function flushDataChangedBatch() {
-  if (bufferedCount === 0) {
-    clearBufferTimer();
-    return;
+function toLiveEvent(event: RuntimeNotification): LiveEvent {
+  if (event.type === "runtime-status") {
+    return { type: "sync-status", state: event.state, reason: event.reason, ts: event.ts };
   }
 
-  publish({
-    type: "data-changed-batch",
-    count: bufferedCount,
-    kinds: [...bufferedKinds],
-    windowMs: DATA_CHANGED_WINDOW_MS,
-    ts: Date.now(),
-  });
-
-  bufferedCount = 0;
-  bufferedKinds = new Set<LiveDataChangedKind>();
-  clearBufferTimer();
-}
-
-function bufferDataChanged(kind: LiveDataChangedKind) {
-  bufferedCount += 1;
-  bufferedKinds.add(kind);
-
-  if (bufferTimer !== null) {
-    return;
-  }
-
-  bufferTimer = setTimeout(() => {
-    flushDataChangedBatch();
-  }, DATA_CHANGED_WINDOW_MS);
+  return event;
 }
 
 function subscribe(subscriber: (event: LiveEvent) => void) {
-  subscribers.add(subscriber);
-  return () => {
-    subscribers.delete(subscriber);
-  };
+  return runtimeEvents.subscribe((event) => subscriber(toLiveEvent(event)));
 }
 
 function serializeSseEvent(event: LiveEvent | { type: "ping"; ts: number }) {
@@ -180,7 +127,60 @@ function deserializeQueryParams(params: URLSearchParams): QueryParseResult {
     options.fields = fields === "" ? [] : fields.split(",").map((s) => s.trim());
   }
 
+  const locale = params.get("locale");
+  if (locale) options.locale = locale;
+
+  const fallback = params.get("fallback");
+  if (fallback !== null) {
+    options.fallback = fallback === "false" ? false : fallback;
+  }
+
   return { options };
+}
+
+function parseOptionalIntegerParam(value: string | null): number | undefined {
+  if (value === null || value === "") return undefined;
+  if (!/^-?\d+$/.test(value)) return undefined;
+  return Number.parseInt(value, 10);
+}
+
+function parseQueryItemsInput(params: URLSearchParams): QueryItemsInput {
+  const propFiltersParam = params.get("propFilters");
+  let propFilters: QueryItemsInput["propFilters"];
+
+  if (propFiltersParam) {
+    try {
+      const parsed = JSON.parse(propFiltersParam);
+      if (Array.isArray(parsed)) {
+        propFilters = parsed;
+      }
+    } catch {
+      // ignore invalid filters and fall back to undefined
+    }
+  }
+
+  const sortField = params.get("sortField");
+  const sortDirection = params.get("sortDirection");
+
+  return {
+    collection: params.get("collection") ?? undefined,
+    changedAtFrom: parseOptionalIntegerParam(params.get("changedAtFrom")),
+    changedAtTo: parseOptionalIntegerParam(params.get("changedAtTo")),
+    propFilters,
+    sortField: sortField === "changedAt" || sortField === "collection" ? sortField : undefined,
+    sortDirection: sortDirection === "asc" || sortDirection === "desc" ? sortDirection : undefined,
+    page: parseOptionalIntegerParam(params.get("page")),
+    pageSize: parseOptionalIntegerParam(params.get("pageSize")),
+  };
+}
+
+function handleCollections() {
+  return json(listCollections());
+}
+
+function handleQueryItems(request: Request) {
+  const url = new URL(request.url);
+  return json(queryItems(parseQueryItemsInput(url.searchParams)));
 }
 
 function handleItems(request: Request) {
@@ -205,9 +205,16 @@ function handleCollectionItems(request: RouteRequest) {
   return json(findItems(options));
 }
 
+function handleItemFiles(request: RouteRequest) {
+  const id = Number(decodeURIComponent(request.params.id));
+  if (!Number.isInteger(id) || id <= 0) return text("Invalid item id", 400);
+  return json(getFilesByItem(id));
+}
+
 function handleItemById(request: RouteRequest) {
   const url = new URL(request.url);
-  const id = decodeURIComponent(request.params.id);
+  const id = Number(decodeURIComponent(request.params.id));
+  if (!Number.isInteger(id) || id <= 0) return text("Invalid item id", 400);
   const query = deserializeQueryParams(url.searchParams);
   if ("error" in query) {
     return text(query.error, 400);
@@ -229,6 +236,17 @@ function handleItemById(request: RouteRequest) {
   }
 
   return json({ data: item });
+}
+
+function handleStatus() {
+  return json({
+    itemCount: countItems(),
+    collectionCount: countCollections(),
+    fileCount: countFiles(),
+    downloadedCount: countDownloadedFiles(),
+    processedCount: countProcessedFiles(),
+    sync: runtimeEvents.getStatus(),
+  });
 }
 
 function handleLive() {
@@ -282,8 +300,8 @@ function handleLive() {
       send({ type: "ready", ts: Date.now() });
       send({
         type: "sync-status",
-        state: syncStatus.state,
-        reason: syncStatus.reason,
+        state: runtimeEvents.getStatus().state,
+        reason: runtimeEvents.getStatus().reason,
         ts: Date.now(),
       });
 
@@ -305,58 +323,33 @@ function handleLive() {
   });
 }
 
-function handleTypes() {
-  return text(generateTypes(getAllCollectionSchemas()));
+function handleCollectionDetail(request: RouteRequest) {
+  const url = new URL(request.url);
+  const name = decodeURIComponent(request.params.name);
+  const collection = listCollections().find((entry) => entry.name === name) ?? null;
+  const result = queryItems({
+    ...parseQueryItemsInput(url.searchParams),
+    collection: name,
+  });
+  const schema = getCollectionSchemaByName(name);
+  const typeString = schema != null ? generateTypes({ [name]: schema }) : null;
+
+  return json({ collection, result, typeString });
 }
 
-async function consumeEvents() {
-  console.log("[contfu] connecting to sync service...");
-  const connecting = { state: "connecting", reason: null } as const;
-  setSyncStatus(connecting);
-  publishSyncStatus(connecting);
+function handleTypes() {
+  return text(generateApplicationConnectionTypes(getTypeGenerationInputs()));
+}
 
-  try {
-    for await (const event of events) {
-      if (event.type === EventType.STREAM_CONNECTED) {
-        console.log("[contfu] stream connected");
-        const next = { state: "connected", reason: null } as const;
-        setSyncStatus(next);
-        publishSyncStatus(next);
-      } else if (event.type === EventType.SNAPSHOT_START) {
-        console.log("[contfu] snapshot sync started");
-        const next = { state: "syncing", reason: null } as const;
-        setSyncStatus(next);
-        publishSyncStatus(next);
-      } else if (event.type === EventType.SNAPSHOT_END) {
-        console.log("[contfu] snapshot sync complete");
-        const next = { state: "connected", reason: null } as const;
-        setSyncStatus(next);
-        publishSyncStatus(next);
-      } else if (event.type === EventType.STREAM_DISCONNECTED) {
-        console.error("[contfu] stream disconnected:", event.reason);
-        const next = {
-          state: "error",
-          reason: event.reason ?? "Disconnected from sync service",
-        } as const;
-        setSyncStatus(next);
-        publishSyncStatus(next);
-      } else if (event.type === EventType.COLLECTION_SCHEMA) {
-        bufferDataChanged("schema");
-      } else if (event.type === EventType.ITEM_CHANGED || event.type === EventType.ITEM_DELETED) {
-        bufferDataChanged("item");
-      } else {
-        bufferDataChanged("unknown");
-      }
+function withOptionalBasicAuth(handler: RouteHandler): RouteHandler {
+  return (request) => {
+    const authError = checkBasicAuth(request, basicAuth);
+    if (authError) {
+      return authError;
     }
-  } catch (error) {
-    console.error("[contfu] sync error:", error);
-    const next = {
-      state: "error",
-      reason: error instanceof Error ? error.message : "Unknown sync error",
-    } as const;
-    setSyncStatus(next);
-    publishSyncStatus(next);
-  }
+
+    return handler(request);
+  };
 }
 
 export type ServerOptions = {
@@ -375,20 +368,33 @@ export function createServeOptions(opts: ServerOptions = {}) {
     process.env.DATABASE_URL = db;
   }
 
-  void consumeEvents();
+  if (process.env.CONTFU_KEY) {
+    runtimeEvents.start();
+  }
 
-  // Bun.serve routes (runtime-supported, types not yet in @types/bun@1.3.11)
+  // Bun.serve routes (runtime-supported, types not yet in @types/bun@1.3.14)
   return {
     port,
+    idleTimeout: SERVER_IDLE_TIMEOUT_SECONDS,
     routes: {
-      "/api/items": handleItems,
-      "/api/collections/:name/items": handleCollectionItems,
-      "/api/items/:id": handleItemById,
-      "/api/live": handleLive,
-      "/api/types": handleTypes,
-      "/files/:path": handleFileRequest,
+      "/api/status": withOptionalBasicAuth(handleStatus),
+      "/api/collections": withOptionalBasicAuth(handleCollections),
+      "/api/collections/:name": withOptionalBasicAuth(handleCollectionDetail),
+      "/api/query-items": withOptionalBasicAuth(handleQueryItems),
+      "/api/items": withOptionalBasicAuth(handleItems),
+      "/api/collections/:name/items": withOptionalBasicAuth(handleCollectionItems),
+      "/api/items/:id/files": withOptionalBasicAuth(handleItemFiles),
+      "/api/items/:id": withOptionalBasicAuth(handleItemById),
+      "/api/live": withOptionalBasicAuth(handleLive),
+      "/api/types": withOptionalBasicAuth(handleTypes),
+      "/files/:path": withOptionalBasicAuth(handleFileRequest as RouteHandler),
     },
     fetch(request: Request) {
+      const authError = checkBasicAuth(request, basicAuth);
+      if (authError) {
+        return authError;
+      }
+
       if (request.method !== "GET") {
         return text("Method not allowed", 405);
       }

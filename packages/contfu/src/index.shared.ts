@@ -2,18 +2,21 @@ export {
   fileTable,
   collectionsTable,
   itemFileTable,
-  linkTable as itemLinkTable,
+  externalLinkTable,
+  internalLinkTable,
   itemsTable as itemTable,
   mediaVariantTable,
   syncTable,
   type FileUpdate,
   type DbFile,
   type DbItem,
-  type DbItemLink,
+  type DbExternalItemLink,
+  type DbInternalItemLink,
   type ItemUpdate,
   type NewFile,
   type NewItem,
-  type NewItemLink,
+  type NewExternalItemLink,
+  type NewInternalItemLink,
 } from "./infra/db/schema";
 
 // Stream exports
@@ -126,10 +129,21 @@ export {
 } from "./infra/types/content-types";
 
 // HTTP exports
-export { getFileStore, getMediaOptimizer } from "./infra/http";
+export { getFileStore, getMediaOptimizer, handleFileRequest } from "./infra/http";
 
 // Contfu factory
 export { contfu, type ContfuInstance, type ContfuOptions, type SyncEvent } from "./contfu";
+
+// i18n
+export { type ClientI18nConfig, type I18nQueryPlan, type LocaleScope } from "./domain/i18n";
+export {
+  createRuntimeEventMonitor,
+  type RuntimeConnectionState,
+  type RuntimeDataChangedKind,
+  type RuntimeEventMonitor,
+  type RuntimeNotification,
+  type RuntimeStatus,
+} from "./runtime-monitor";
 
 // Media exports
 export { convertMedia } from "./features/media/convertMedia";
@@ -171,6 +185,7 @@ export {
 // Collection exports
 export { generateTypes } from "./features/collections/generateTypes";
 export { getAllCollectionSchemas } from "./features/collections/getAllCollectionSchemas";
+export { getTypeGenerationInputs } from "./features/collections/getTypeGenerationInputs";
 export { getCollectionSchemaByName } from "./features/collections/getCollectionSchemaByName";
 export { setCollection } from "./features/collections/setCollection";
 

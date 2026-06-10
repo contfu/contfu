@@ -1,10 +1,10 @@
-# Media optimization
+# Media File optimization
 
-Contfu processes images, video, and audio in two places: once when content syncs from the CMS, and again on demand when a browser requests a file.
+The Local Runtime processes images, video, and audio in two places inside the application boundary: once when `@contfu/contfu` downloads Files referenced by synced content, and again on demand when a browser requests a File. The Cloud Service synchronizes item data and File references; it does not own storage or processing.
 
 ## Set up
 
-Pass a `fileStore` (where raw bytes live) and a `mediaOptimizer` (how conversion runs) to `contfu()`:
+Pass a `fileStore` (where Local Runtime File bytes live) and a `mediaOptimizer` (how Media File conversion runs) to `contfu()`:
 
 ```ts
 import { contfu } from "@contfu/contfu";
@@ -22,11 +22,11 @@ Two optimizers ship with Contfu:
 - `@contfu/media-optimizer` — runs locally (sharp + ffmpeg).
 - `@contfu/media-optimizer-remote` — calls a remote worker. Used automatically when `M4K_URL` is set.
 
-Without an optimizer, files still sync but aren't converted — they're served as uploaded.
+Without an optimizer, Files are still downloaded and stored by the Local Runtime but aren't converted — they're served as uploaded.
 
-## Sync-time conversion with `transformMedia`
+## Local Runtime conversion with `transformMedia`
 
-`transformMedia` rules run once per file during sync. Use them to convert masters to a modern format, strip EXIF, or restrict to specific collections.
+`transformMedia` rules run once per downloaded File during Local Runtime sync. Use them to convert media masters to a modern format, strip EXIF, or restrict to specific collections.
 
 ```ts
 contfu({
@@ -82,12 +82,12 @@ contfu({
 Three knobs:
 
 - **`presets`** — named conversion recipes. Request with `?variant=<name>`.
-- **`pregenerate`** — preset names to build during sync so the first request is a cache hit.
+- **`pregenerate`** — preset names to build during Local Runtime sync so the first request is a cache hit.
 - **`strict: true`** — reject requests that don't name a known preset. Use this to stop bots from hammering your optimizer with `?w=9999`.
 
 `collections.<name>` overrides `default` when a file belongs to that collection (pass `?collection=<name>` with the request).
 
-## Serving files
+## Serving Files
 
 Route file requests to `handleFileRequest`:
 

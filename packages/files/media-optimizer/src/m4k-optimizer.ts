@@ -19,6 +19,97 @@ import {
 } from "m4k";
 import { basename, extname } from "node:path";
 
+type BunImageOutput = {
+  bytes?: () => Promise<Uint8Array> | Uint8Array;
+  buffer?: () => Promise<ArrayBuffer> | ArrayBuffer;
+};
+
+type BunImageInstance = {
+  resize?: (width?: number, height?: number) => BunImageInstance;
+  jpeg?: (opts?: { quality?: number }) => BunImageOutput;
+  png?: (opts?: { quality?: number }) => BunImageOutput;
+  webp?: (opts?: { quality?: number }) => BunImageOutput;
+};
+
+type BunImageFactory = new (input: Buffer | Uint8Array | ArrayBuffer) => BunImageInstance;
+
+const bunImageInputFormats = new Set(["jpeg", "png", "webp", "gif", "bmp"]);
+const bunImageOutputFormats = new Set(["jpeg", "png", "webp"]);
+
+function getBunImage(): BunImageFactory | undefined {
+  return (globalThis as unknown as { Bun?: { Image?: BunImageFactory } }).Bun?.Image;
+}
+
+function detectBunImageInputFormat(input: Buffer): string | undefined {
+  if (input.subarray(0, 3).equals(Buffer.from([0xff, 0xd8, 0xff]))) return "jpeg";
+  if (input.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])))
+    return "png";
+  const gifHeader = input.subarray(0, 6).toString("ascii");
+  if (gifHeader === "GIF87a" || gifHeader === "GIF89a") return "gif";
+  if (input.subarray(0, 2).toString("ascii") === "BM") return "bmp";
+  if (
+    input.subarray(0, 4).toString("ascii") === "RIFF" &&
+    input.subarray(8, 12).toString("ascii") === "WEBP"
+  )
+    return "webp";
+  return undefined;
+}
+
+function canUseBunImage(
+  input: Buffer,
+  opts: {
+    format?: string;
+    width?: number;
+    height?: number;
+    resizeFit?: string;
+    rotate?: number;
+    crop?: unknown;
+    keepMetadata?: boolean;
+    keepExif?: boolean;
+    keepIcc?: boolean;
+    colorspace?: string;
+  },
+): opts is typeof opts & { format: "jpeg" | "png" | "webp" } {
+  return (
+    !!getBunImage() &&
+    !!detectBunImageInputFormat(input) &&
+    bunImageInputFormats.has(detectBunImageInputFormat(input)!) &&
+    !!opts.format &&
+    bunImageOutputFormats.has(opts.format) &&
+    !opts.rotate &&
+    !opts.crop &&
+    !opts.keepMetadata &&
+    !opts.keepExif &&
+    !opts.keepIcc &&
+    !opts.colorspace &&
+    (!opts.height || !!opts.width) &&
+    (!opts.resizeFit || opts.resizeFit === "inside")
+  );
+}
+
+async function processWithBunImage(
+  input: Buffer,
+  opts: { format: "jpeg" | "png" | "webp"; width?: number; height?: number; quality?: number },
+): Promise<Buffer | undefined> {
+  const Image = getBunImage();
+  if (!Image) return undefined;
+
+  try {
+    let image = new Image(input);
+    if (opts.width || opts.height) {
+      if (typeof image.resize !== "function") return undefined;
+      image = image.resize(opts.width, opts.height);
+    }
+    const encode = image[opts.format];
+    if (typeof encode !== "function") return undefined;
+    const output = encode.call(image, { quality: opts.quality });
+    if (typeof output.bytes === "function") return Buffer.from(await output.bytes());
+    if (typeof output.buffer === "function") return Buffer.from(await output.buffer());
+  } catch {
+    return undefined;
+  }
+}
+
 /**
  * Collect all chunks from a ProcessedFile's async stream into a Buffer.
  */
@@ -59,10 +150,9 @@ export class M4kOptimizer implements MediaOptimizer {
     input: Buffer | ReadableStream,
     opts: OptimizeImageOpts = { avif: [[]] },
   ): Promise<VariantResult[]> {
-    const m4kOpts: ImageOptions[] = [];
-    const pathTemplates: { width?: number; height?: number; ext: string; quality?: number }[] = [];
-
     const baseTransform = opts.base;
+    const buf = input instanceof Buffer ? input : await streamToBuffer(input as ReadableStream);
+    const results: VariantResult[] = [];
 
     for (const [format, entries] of Object.entries(opts)) {
       if (format === "base") continue;
@@ -70,46 +160,51 @@ export class M4kOptimizer implements MediaOptimizer {
         const [width, height, quality] = (typeof entry === "number" ? [entry] : entry).map(
           (v) => v ?? undefined,
         );
+        const w = width ? `w${width}` : "";
+        const h = height ? `h${height}` : "";
+        const path = `${base}${w || h ? "/" : ""}${w}${h}.${format}`;
 
-        const imageOpt: ImageOptions = {
-          format: format as ImageFormat,
-          ext: format as ImageFormat,
-          quality,
-          ...baseTransform,
-        };
-        if (width || height) {
-          imageOpt.resize = { width, height, fit: "inside" };
+        let buffer: Buffer | undefined;
+        if (canUseBunImage(buf, { format, width, height, resizeFit: "inside", ...baseTransform })) {
+          buffer = await processWithBunImage(buf, {
+            format: format as "jpeg" | "png" | "webp",
+            width,
+            height,
+            quality,
+          });
         }
-        m4kOpts.push(imageOpt);
-        pathTemplates.push({ width, height, ext: format, quality });
-      }
-    }
 
-    const buf = input instanceof Buffer ? input : await streamToBuffer(input as ReadableStream);
-    const iterable = processImage(toAsyncIterable(buf), m4kOpts);
-    if (!iterable) return [];
+        if (!buffer) {
+          const imageOpt: ImageOptions = {
+            format: format as ImageFormat,
+            ext: format as ImageFormat,
+            quality,
+            ...baseTransform,
+          };
+          if (width || height) {
+            imageOpt.resize = { width, height, fit: "inside" };
+          }
+          const iterable = processImage(toAsyncIterable(buf), imageOpt);
+          if (!iterable) continue;
+          for await (const item of iterable) {
+            if (item instanceof ProcessedFile) {
+              buffer = await collectProcessedFile(item);
+              break;
+            }
+          }
+        }
 
-    const results: VariantResult[] = [];
-    let templateIdx = 0;
-
-    for await (const item of iterable) {
-      if (item instanceof ProcessedFile) {
-        const tmpl = pathTemplates[templateIdx];
-        const w = tmpl.width ? `w${tmpl.width}` : "";
-        const h = tmpl.height ? `h${tmpl.height}` : "";
-        const path = `${base}${w || h ? "/" : ""}${w}${h}.${tmpl.ext}`;
-
-        const buffer = await collectProcessedFile(item);
-        results.push({
-          path,
-          width: tmpl.width,
-          height: tmpl.height,
-          ext: tmpl.ext,
-          quality: tmpl.quality,
-          size: buffer.byteLength,
-          data: buffer,
-        });
-        templateIdx++;
+        if (buffer) {
+          results.push({
+            path,
+            width,
+            height,
+            ext: format,
+            quality,
+            size: buffer.byteLength,
+            data: buffer,
+          });
+        }
       }
     }
 
@@ -229,6 +324,29 @@ export function createTransform(): MediaTransform {
       if (img.quality) imageOpt.quality = img.quality;
       if (img.rotate != null) imageOpt.rotate = img.rotate;
       if (img.crop) imageOpt.crop = img.crop;
+
+      if (
+        canUseBunImage(input, {
+          format: img.format,
+          width: img.resize?.width,
+          height: img.resize?.height,
+          resizeFit: img.resize?.fit,
+          rotate: img.rotate,
+          crop: img.crop,
+          keepMetadata: img.keepMetadata,
+          keepExif: img.keepExif,
+          keepIcc: img.keepIcc,
+          colorspace: img.colorspace,
+        })
+      ) {
+        const buffer = await processWithBunImage(input, {
+          format: img.format as "jpeg" | "png" | "webp",
+          width: img.resize?.width,
+          height: img.resize?.height,
+          quality: img.quality,
+        });
+        if (buffer) return buffer;
+      }
 
       const iterable = processImage(toAsyncIterable(input), imageOpt);
       if (!iterable) throw new Error("Image processing queue full");

@@ -193,7 +193,14 @@ export async function handleFileRequest<CMap = unknown>(
     const file = getFile(filePath);
     if (!file) return text("Not found", 404);
 
-    const data = await fileStore.read(`${file.id}.${file.ext}`);
+    if (file.status !== "ready") {
+      const row = getFile(file.id);
+      const source = row?.data?.toString("utf8");
+      return source && /^https?:\/\//i.test(source)
+        ? Response.redirect(source, 302)
+        : text("Not found", 404);
+    }
+    const data = file.data ?? (await fileStore.read(`${file.id}.${file.ext}`));
     if (!data) return text("Not found", 404);
 
     return new Response(new Uint8Array(data), {
@@ -214,7 +221,15 @@ export async function handleFileRequest<CMap = unknown>(
   const opts = rawOpts ?? (variant ? ({} as MediaConvertOpts) : null);
 
   if (!opts || mediaType === null) {
-    const data = await fileStore.read(filePath);
+    const file = getFile(parsed.id);
+    if (!file) return text("Not found", 404);
+    if (file.status !== "ready") {
+      const source = file.data?.toString("utf8");
+      return source && /^https?:\/\//i.test(source)
+        ? Response.redirect(source, 302)
+        : text("Not found", 404);
+    }
+    const data = file.data ?? (await fileStore.read(`${file.id}.${file.ext}`));
     if (!data) return text("Not found", 404);
 
     return new Response(new Uint8Array(data), {

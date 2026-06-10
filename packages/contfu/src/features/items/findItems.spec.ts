@@ -8,16 +8,12 @@ import { createItemLink } from "./createItemLink";
 import { findItems } from "./findItems";
 import { getItemById } from "./getItemById";
 
-function makeId(seed: number): string {
-  return Buffer.from([0, 0, 0, seed]).toString("base64url");
-}
-
 function seedItems() {
   setCollection("articles", "Articles", { title: 1 });
   setCollection("guides", "Guides", { title: 1 });
 
   createItem({
-    id: makeId(1),
+    id: 1,
     ref: "blog/tech/alpha",
     collection: "articles",
     props: { title: "Alpha Post", category: "news", featured: true, views: 10 },
@@ -25,7 +21,7 @@ function seedItems() {
   });
 
   createItem({
-    id: makeId(2),
+    id: 2,
     ref: "blog/lifestyle/bravo",
     collection: "articles",
     props: { title: "Bravo Post", category: "updates", featured: false, views: 5 },
@@ -33,7 +29,7 @@ function seedItems() {
   });
 
   createItem({
-    id: makeId(3),
+    id: 3,
     ref: "guides/charlie",
     collection: "guides",
     props: { title: "Charlie Guide", category: "docs", featured: true, views: 7 },
@@ -64,7 +60,7 @@ describe("findItems", () => {
   test("filters by props", () => {
     const result = findItems({ filter: 'category = "news"' });
     expect(result).toHaveLength(1);
-    expect(result[0].$id).toBe(makeId(1));
+    expect(result[0].$id).toBe(1);
   });
 
   test("filters with AND", () => {
@@ -72,7 +68,7 @@ describe("findItems", () => {
       filter: '$collection = "articles" && featured = true',
     });
     expect(result).toHaveLength(1);
-    expect(result[0].$id).toBe(makeId(1));
+    expect(result[0].$id).toBe(1);
   });
 
   test("filters with OR", () => {
@@ -96,21 +92,21 @@ describe("findItems", () => {
 
   test("sorts ascending by field", () => {
     const result = findItems({ sort: "$changedAt" });
-    expect(result[0].$id).toBe(makeId(1));
-    expect(result[2].$id).toBe(makeId(2));
+    expect(result[0].$id).toBe(1);
+    expect(result[2].$id).toBe(2);
   });
 
   test("sorts descending with - prefix", () => {
     const result = findItems({ sort: "-$changedAt" });
-    expect(result[0].$id).toBe(makeId(2));
-    expect(result[2].$id).toBe(makeId(1));
+    expect(result[0].$id).toBe(2);
+    expect(result[2].$id).toBe(1);
   });
 
   test("sorts with object notation", () => {
     const result = findItems({
       sort: { field: "$changedAt", direction: "asc" },
     });
-    expect(result[0].$id).toBe(makeId(1));
+    expect(result[0].$id).toBe(1);
   });
 
   test("respects limit", () => {
@@ -122,7 +118,7 @@ describe("findItems", () => {
   test("respects offset", () => {
     const result = findItems({ sort: "$changedAt", limit: 2, offset: 1 });
     expect(result).toHaveLength(2);
-    expect(result[0].$id).toBe(makeId(3));
+    expect(result[0].$id).toBe(3);
   });
 
   test("allows large limit", () => {
@@ -145,7 +141,7 @@ describe("findItems", () => {
   test("auto-includes content for collections whose schema has $content", () => {
     setCollection("articles", "Articles", { title: 1, $content: 0 });
     createItem({
-      id: makeId(99),
+      id: 99,
       ref: "blog/tech/with-content",
       collection: "articles",
       props: { title: "With Content" },
@@ -153,7 +149,7 @@ describe("findItems", () => {
       changedAt: 300,
     });
 
-    const result = findItems({ filter: '$ref = "blog/tech/with-content"' });
+    const result = findItems({ filter: 'title = "With Content"' });
     expect(result).toHaveLength(1);
     expect(result[0].content).toBeDefined();
 
@@ -167,13 +163,24 @@ describe("findItems", () => {
   test("supports search", () => {
     const result = findItems({ search: "Alpha" });
     expect(result).toHaveLength(1);
-    expect(result[0].$id).toBe(makeId(1));
+    expect(result[0].$id).toBe(1);
   });
 
   test("returns all selectable fields by default", () => {
     const result = findItems({ filter: '$collection = "articles"', sort: "$changedAt", limit: 1 });
     expect(result[0].title).toBe("Alpha Post");
-    expect(result[0].$ref).toBe("blog/tech/alpha");
+    expect(result[0].category).toBe("news");
+  });
+
+  test("projects specific fields", () => {
+    const result = findItems({
+      filter: '$collection = "articles"',
+      fields: ["title"],
+      sort: "$changedAt",
+      limit: 1,
+    });
+    expect(result[0].title).toBe("Alpha Post");
+    expect(result[0].category).toBeUndefined();
   });
 
   test("returns no selectable fields for empty fields array", () => {
@@ -182,58 +189,41 @@ describe("findItems", () => {
     expect(result[0].title).toBeUndefined();
   });
 
-  test("projects specific fields", () => {
-    const result = findItems({
-      filter: '$collection = "articles"',
-      fields: ["title", "$ref"],
-      sort: "title",
-      limit: 1,
-    });
-    expect(result[0].title).toBe("Alpha Post");
-    expect(result[0].$ref).toBe("blog/tech/alpha");
-    expect(result[0].$collection).toBeUndefined();
-  });
-
-  test("search matches ref", () => {
-    const result = findItems({ search: "lifestyle" });
-    expect(result).toHaveLength(1);
-    expect(result[0].$id).toBe(makeId(2));
-  });
-
   test("includes files when requested", () => {
+    const fileId = Buffer.from([10]).toString("base64url");
     createFile({
-      id: makeId(10),
-      originalUrl: "https://example.com/img.png",
-      mediaType: "image/png",
+      id: fileId,
+      status: "ready",
+      mediaType: "image",
       ext: "png",
       size: 1000,
       createdAt: 100,
     });
-    linkFileToItem(makeId(1), makeId(10));
+    linkFileToItem(1, fileId);
 
     const result = findItems({
       filter: '$collection = "articles"',
       include: ["files"],
     });
 
-    const item1 = result.find((i) => i.$id === makeId(1))!;
-    const item2 = result.find((i) => i.$id === makeId(2))!;
+    const item1 = result.find((i) => i.$id === 1)!;
+    const item2 = result.find((i) => i.$id === 2)!;
     expect(item1.files).toHaveLength(1);
-    expect(item1.files![0].id).toBe(makeId(10));
+    expect(item1.files![0].id).toBe(fileId);
     expect(item2.files).toEqual([]);
   });
 
   test("includes content links when requested", () => {
-    createItemLink({ prop: null, from: makeId(1), to: makeId(2), internal: true });
+    createItemLink({ prop: null, from: 1, to: 2 });
 
     const result = findItems({
       filter: '$collection = "articles"',
       include: ["links"],
     });
 
-    const item1 = result.find((i) => i.$id === makeId(1))!;
+    const item1 = result.find((i) => i.$id === 1)!;
     expect(item1.links).toHaveLength(1);
-    expect((item1.links[0] as any).$id).toBe(makeId(2));
+    expect((item1.links[0] as any).$id).toBe(2);
   });
 
   test("resolves with relations", () => {
@@ -241,20 +231,20 @@ describe("findItems", () => {
       filter: '$collection = "articles" && featured = true',
       with: {
         sameColl: {
-          filter: "$collection = $1.$collection && $ref != $1.$ref",
+          filter: "$collection = $1.$collection && $id != $1.$id",
         },
       },
     });
 
     expect(result).toHaveLength(1);
     expect(result[0].sameColl as any[]).toHaveLength(1);
-    expect((result[0].sameColl as any[])[0].$id).toBe(makeId(2));
+    expect((result[0].sameColl as any[])[0].$id).toBe(2);
   });
 
   test("relation values override projected raw fields", async () => {
     setCollection("persons", "Persons", { name: 1 });
     createItem({
-      id: makeId(10),
+      id: 10,
       ref: "person/alice",
       collection: "persons",
       props: { name: "Alice" },
@@ -263,14 +253,13 @@ describe("findItems", () => {
 
     const linkId = createItemLink({
       prop: "author",
-      from: makeId(1),
-      to: makeId(10),
-      internal: true,
+      from: 1,
+      to: 10,
     });
 
     const { createOrUpdateItem } = await import("./createOrUpdateItem");
     createOrUpdateItem({
-      id: makeId(1),
+      id: 1,
       ref: "blog/tech/alpha",
       collection: "articles",
       props: { title: "Alpha Post", category: "news", featured: true, views: 10, author: linkId },
@@ -278,7 +267,7 @@ describe("findItems", () => {
     });
 
     const result = findItems({
-      filter: `$id = "${makeId(1)}"`,
+      filter: `$id = "${1}"`,
       fields: ["author"],
       with: {
         author: {
@@ -296,7 +285,7 @@ describe("findItems", () => {
     setCollection("persons", "Persons", { name: 1 });
 
     createItem({
-      id: makeId(10),
+      id: 10,
       ref: "person/alice",
       collection: "persons",
       props: { name: "Alice" },
@@ -305,15 +294,14 @@ describe("findItems", () => {
 
     const linkId = createItemLink({
       prop: "author",
-      from: makeId(1),
-      to: makeId(10),
-      internal: true,
+      from: 1,
+      to: 10,
     });
 
     // Update item 1 to include the author link
     const { createOrUpdateItem } = await import("./createOrUpdateItem");
     createOrUpdateItem({
-      id: makeId(1),
+      id: 1,
       ref: "blog/tech/alpha",
       collection: "articles",
       props: { title: "Alpha Post", category: "news", featured: true, views: 10, author: linkId },
@@ -321,7 +309,7 @@ describe("findItems", () => {
     });
 
     const result = findItems({
-      filter: `$id = "${makeId(1)}"`,
+      filter: `$id = "${1}"`,
       with: {
         author: {
           collection: "persons",
@@ -333,14 +321,14 @@ describe("findItems", () => {
 
     expect(result).toHaveLength(1);
     expect(result[0].author).not.toBeNull();
-    expect((result[0].author as any).$id).toBe(makeId(10));
+    expect((result[0].author as any).$id).toBe(10);
   });
 
   test("findItems with backlink relation", async () => {
     setCollection("persons", "Persons", { name: 1 });
 
     createItem({
-      id: makeId(10),
+      id: 10,
       ref: "person/alice",
       collection: "persons",
       props: { name: "Alice" },
@@ -349,29 +337,27 @@ describe("findItems", () => {
 
     const linkId1 = createItemLink({
       prop: "author",
-      from: makeId(1),
-      to: makeId(10),
-      internal: true,
+      from: 1,
+      to: 10,
     });
 
     const linkId2 = createItemLink({
       prop: "author",
-      from: makeId(2),
-      to: makeId(10),
-      internal: true,
+      from: 2,
+      to: 10,
     });
 
     // Update articles to include author links
     const { createOrUpdateItem } = await import("./createOrUpdateItem");
     createOrUpdateItem({
-      id: makeId(1),
+      id: 1,
       ref: "blog/tech/alpha",
       collection: "articles",
       props: { title: "Alpha Post", category: "news", featured: true, views: 10, author: linkId1 },
       changedAt: 100,
     });
     createOrUpdateItem({
-      id: makeId(2),
+      id: 2,
       ref: "blog/lifestyle/bravo",
       collection: "articles",
       props: {
@@ -385,7 +371,7 @@ describe("findItems", () => {
     });
 
     const result = findItems({
-      filter: `$id = "${makeId(10)}"`,
+      filter: `$id = "${10}"`,
       with: {
         posts: {
           collection: "articles",
@@ -397,8 +383,8 @@ describe("findItems", () => {
     expect(result).toHaveLength(1);
     expect(result[0].posts as any[]).toHaveLength(2);
     const postIds = (result[0].posts as any[]).map((p: any) => p.$id);
-    expect(postIds).toContain(makeId(1));
-    expect(postIds).toContain(makeId(2));
+    expect(postIds).toContain(1);
+    expect(postIds).toContain(2);
   });
 });
 
@@ -409,48 +395,48 @@ describe("getItemById", () => {
   });
 
   test("returns item by id", () => {
-    const item = getItemById(makeId(1));
+    const item = getItemById(1);
     expect(item).not.toBeNull();
-    expect(item!.$id).toBe(makeId(1));
+    expect(item!.$id).toBe(1);
     expect(item!.$collection).toBe("articles");
   });
 
   test("returns null for non-existent id", () => {
-    const item = getItemById(makeId(99));
+    const item = getItemById(99);
     expect(item).toBeNull();
   });
 
   test("includes content by default", () => {
-    const item = getItemById(makeId(1));
+    const item = getItemById(1);
     // content is queried (may be undefined if no content set)
     expect(item).not.toBeNull();
   });
 
   test("resolves files when requested", () => {
     createFile({
-      id: makeId(10),
-      originalUrl: "https://example.com/img.png",
-      mediaType: "image/png",
+      id: String(10),
+      status: "ready",
+      mediaType: "image",
       ext: "png",
       size: 1000,
       createdAt: 100,
     });
-    linkFileToItem(makeId(1), makeId(10));
+    linkFileToItem(1, String(10));
 
-    const item = getItemById(makeId(1), { include: ["files"] });
+    const item = getItemById(1, { include: ["files"] });
     expect(item!.files).toHaveLength(1);
   });
 
   test("resolves relations", () => {
-    const item = getItemById(makeId(1), {
+    const item = getItemById(1, {
       with: {
         sameColl: {
-          filter: "$collection = $1.$collection && $ref != $1.$ref",
+          filter: "$collection = $1.$collection && $id != $1.$id",
         },
       },
     });
 
     expect(item!.sameColl as any[]).toHaveLength(1);
-    expect((item!.sameColl as any[])[0].$id).toBe(makeId(2));
+    expect((item!.sameColl as any[])[0].$id).toBe(2);
   });
 });

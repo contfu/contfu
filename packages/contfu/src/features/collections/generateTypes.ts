@@ -14,6 +14,8 @@ const TYPE_MAP: Record<number, string> = {
   [PropertyType.DATE]: "number",
   [PropertyType.ENUM]: "string",
   [PropertyType.ENUMS]: "string[]",
+  [PropertyType.BLOCK]: "Block[]",
+  [PropertyType.JSON]: "any",
 };
 
 function schemaValueToType(value: SchemaValue): string {
@@ -55,7 +57,10 @@ export function generateTypes(
     return `export type ${typeNames[name]} = {\n${props}\n};`;
   });
 
-  const baseTypes = interfaces.join("\n\n");
+  const hasBlock = entries.some(([, schema]) =>
+    Object.values(schema).some((value) => schemaType(value) === PropertyType.BLOCK),
+  );
+  const baseTypes = `${hasBlock ? 'import type { Block } from "@contfu/core";\n\n' : ""}${interfaces.join("\n\n")}`;
 
   if (!includeCollectionMap) {
     return baseTypes;

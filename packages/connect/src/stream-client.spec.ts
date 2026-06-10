@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { EventType, ConnectionType, type Block } from "@contfu/core";
+import { EventType, type Block } from "@contfu/core";
 import { pack } from "msgpackr";
 import { connectToStream, resolveSyncTransport } from "./stream-client";
 
@@ -61,6 +61,54 @@ function mockFetchCapture(
   };
 }
 
+async function withImmediateReconnectDelays<T>(run: (delays: number[]) => Promise<T>): Promise<T> {
+  const originalSetTimeout = globalThis.setTimeout;
+  const delays: number[] = [];
+
+  globalThis.setTimeout = ((
+    handler: (...args: unknown[]) => void,
+    timeout?: number,
+    ...args: unknown[]
+  ) => {
+    delays.push(timeout ?? 0);
+    queueMicrotask(() => handler(...args));
+    return 1 as unknown as Timer;
+  }) as typeof setTimeout;
+
+  try {
+    return await run(delays);
+  } finally {
+    globalThis.setTimeout = originalSetTimeout;
+  }
+}
+
+type MockReadResult = { value: Uint8Array | undefined; done: boolean };
+
+function createStallingBody() {
+  let resolveRead: ((result: MockReadResult) => void) | null = null;
+  let cancelled = false;
+
+  return {
+    getReader() {
+      return {
+        read() {
+          if (cancelled) {
+            return Promise.resolve({ value: undefined, done: true });
+          }
+          return new Promise<MockReadResult>((resolve) => {
+            resolveRead = resolve;
+          });
+        },
+        cancel() {
+          cancelled = true;
+          resolveRead?.({ value: undefined, done: true });
+          return Promise.resolve();
+        },
+      };
+    },
+  };
+}
+
 describe("stream-client", () => {
   const testKey = Buffer.alloc(32, 0xab);
   const originalFetch = globalThis.fetch;
@@ -79,11 +127,7 @@ describe("stream-client", () => {
 
   describe("connectToStream basic event parsing", () => {
     test("parses indexed DELETED event", async () => {
-      mockFetch(
-        createMockStream([
-          createBinaryMessage([EventType.ITEM_DELETED, new Uint8Array([1, 2, 3, 4]), 11]),
-        ]),
-      );
+      mockFetch(createMockStream([createBinaryMessage([EventType.ITEM_DELETED, 1234, 11])]));
 
       const events: unknown[] = [];
       for await (const event of connectToStream({
@@ -96,24 +140,22 @@ describe("stream-client", () => {
       expect(events).toHaveLength(1);
       expect(events[0]).toEqual({
         type: EventType.ITEM_DELETED,
-        item: expect.any(Buffer),
+        item: 1234,
         index: 11,
       });
-      expect((events[0] as { item: Buffer }).item.equals(Buffer.from([1, 2, 3, 4]))).toBe(true);
     });
 
     test("parses indexed CHANGED event with full item", async () => {
-      const ref = "https://example.com/article/42";
-      const id = new Uint8Array([0x03, 0x04]);
+      const id = 34;
       const content: Block[] = [["p", ["Hello"]]];
 
       const props = {
         title: "Test",
-        tags: [new Uint8Array([1]), new Uint8Array([2])],
+        tags: [1, new Uint8Array([2])],
         publishedAt: 1700000000,
         createdAt: 1699000000,
       };
-      const wireItem = [ConnectionType.WEB, ref, id, "article", 1700500000, props, content];
+      const wireItem = [id, "article", 1700500000, props, content];
       mockFetch(createMockStream([createBinaryMessage([EventType.ITEM_CHANGED, wireItem, 42])]));
 
       const events: unknown[] = [];
@@ -133,8 +175,6 @@ describe("stream-client", () => {
       expect(changedEvent.type).toBe(EventType.ITEM_CHANGED);
       expect(changedEvent.index).toBe(42);
       expect(changedEvent.item.collection).toBe("article");
-      expect(changedEvent.item.connectionType).toBe(ConnectionType.WEB);
-      expect(changedEvent.item.ref).toBe(ref);
       const itemProps = changedEvent.item.props as Record<string, unknown>;
       expect(itemProps.publishedAt).toBe(1700000000);
       expect(itemProps.createdAt).toBe(1699000000);
@@ -144,10 +184,50 @@ describe("stream-client", () => {
       expect(Array.isArray(itemProps.tags)).toBe(true);
     });
 
+    test("materializes sparse item patches", async () => {
+      const base = [34, "article", 1700500000, { title: "Old", slug: "old" }, [["p", ["Old"]]]];
+      const patch = [34, "article", 1700500001, { title: "New", slug: undefined }, []];
+      mockFetch(
+        createMockStream([
+          createBinaryMessage([EventType.ITEM_CHANGED, base, 42]),
+          createBinaryMessage([EventType.ITEM_CHANGED, patch, 43]),
+        ]),
+      );
+
+      const events: unknown[] = [];
+      for await (const event of connectToStream({ key: testKey, reconnect: false })) {
+        events.push(event);
+      }
+
+      const changed = events[1] as { item: Record<string, unknown> };
+      expect(changed.item.props).toEqual({ title: "New" });
+      expect(changed.item.content).toEqual([]);
+    });
+
+    test("preserves omitted sparse fields", async () => {
+      const base = [34, "article", 1700500000, { title: "Old" }, [["p", ["Old"]]]];
+      const patch = [34, "article", 1700500001, { title: "New" }];
+      mockFetch(
+        createMockStream([
+          createBinaryMessage([EventType.ITEM_CHANGED, base, 42]),
+          createBinaryMessage([EventType.ITEM_CHANGED, patch, 43]),
+        ]),
+      );
+
+      const events: unknown[] = [];
+      for await (const event of connectToStream({ key: testKey, reconnect: false })) {
+        events.push(event);
+      }
+
+      const changed = events[1] as { item: Record<string, unknown> };
+      expect(changed.item.props).toEqual({ title: "New" });
+      expect(changed.item.content).toEqual([["p", ["Old"]]]);
+    });
+
     test("ignores non-indexed item events", async () => {
       mockFetch(
         createMockStream([
-          createBinaryMessage([EventType.ITEM_DELETED, new Uint8Array([1])]),
+          createBinaryMessage([EventType.ITEM_DELETED, 1]),
           createBinaryMessage([
             EventType.ITEM_CHANGED,
             [null, null, new Uint8Array([2]), "c", 1, {}],
@@ -172,7 +252,7 @@ describe("stream-client", () => {
           createBinaryMessage([EventType.PING]),
           createBinaryMessage([EventType.PING]),
           createBinaryMessage([EventType.PING]),
-          createBinaryMessage([EventType.ITEM_DELETED, new Uint8Array([1]), 7]),
+          createBinaryMessage([EventType.ITEM_DELETED, 1, 7]),
         ]),
       );
 
@@ -191,9 +271,7 @@ describe("stream-client", () => {
 
   describe("connection lifecycle events", () => {
     test("yields stream lifecycle events", async () => {
-      mockFetch(
-        createMockStream([createBinaryMessage([EventType.ITEM_DELETED, new Uint8Array([1]), 2])]),
-      );
+      mockFetch(createMockStream([createBinaryMessage([EventType.ITEM_DELETED, 1, 2])]));
 
       const events: unknown[] = [];
       for await (const event of connectToStream({
@@ -230,7 +308,7 @@ describe("stream-client", () => {
       });
 
       await waitFor(() => sockets.length === 1 && sockets[0].ready());
-      sockets[0].emit(pack([EventType.ITEM_DELETED, new Uint8Array([9, 8]), 12]));
+      sockets[0].emit(pack([EventType.ITEM_DELETED, 98, 12]));
       sockets[0].close(1000, "done");
 
       const events = await eventsPromise;
@@ -238,10 +316,9 @@ describe("stream-client", () => {
       expect(events[0]).toEqual({ type: EventType.STREAM_CONNECTED });
       expect(events[1]).toEqual({
         type: EventType.ITEM_DELETED,
-        item: expect.any(Buffer),
+        item: 98,
         index: 12,
       });
-      expect((events[1] as { item: Buffer }).item.equals(Buffer.from([9, 8]))).toBe(true);
       expect(events[2]).toEqual({ type: EventType.STREAM_DISCONNECTED, reason: "done" });
     });
   });
@@ -264,6 +341,213 @@ describe("stream-client", () => {
 
       expect(thrownError).not.toBeNull();
       expect(thrownError!.message).toContain("401");
+    });
+
+    test("retries initial HTTP failures when reconnect is true", async () => {
+      await withImmediateReconnectDelays(async (delays) => {
+        let callCount = 0;
+        globalThis.fetch = ((_url: string) => {
+          callCount++;
+          if (callCount === 1) {
+            return Promise.resolve({
+              ok: false,
+              status: 503,
+              text: () => Promise.resolve("Unavailable"),
+              body: createMockStream([]),
+            });
+          }
+
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            text: () => Promise.resolve(""),
+            body: createMockStream([createBinaryMessage([EventType.ITEM_DELETED, 1, 4])]),
+          });
+        }) as typeof fetch;
+
+        const events: unknown[] = [];
+        for await (const event of connectToStream({
+          key: testKey,
+          reconnect: true,
+          connectionEvents: true,
+          transport: "http",
+          initialReconnectDelay: 5,
+          maxReconnectDelay: 20,
+        })) {
+          events.push(event);
+          if ((event as { type: number }).type === EventType.ITEM_DELETED) break;
+        }
+
+        expect(callCount).toBe(2);
+        expect(delays).toEqual([5]);
+        expect(events[0]).toEqual({
+          type: EventType.STREAM_DISCONNECTED,
+          reason: "Sync connection failed: 503 Unavailable",
+        });
+        expect(events[1]).toEqual({ type: EventType.STREAM_CONNECTED });
+        expect((events[2] as { type: number }).type).toBe(EventType.ITEM_DELETED);
+      });
+    });
+
+    test("caps reconnect backoff and resets it after a successful connection", async () => {
+      await withImmediateReconnectDelays(async (delays) => {
+        let callCount = 0;
+        globalThis.fetch = ((_url: string) => {
+          callCount++;
+          if (callCount <= 3) {
+            return Promise.resolve({
+              ok: false,
+              status: 503,
+              text: () => Promise.resolve("Unavailable"),
+              body: createMockStream([]),
+            });
+          }
+
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            text: () => Promise.resolve(""),
+            body: createMockStream(
+              callCount === 4 ? [] : [createBinaryMessage([EventType.ITEM_DELETED, 9, 9])],
+            ),
+          });
+        }) as typeof fetch;
+
+        for await (const event of connectToStream({
+          key: testKey,
+          reconnect: true,
+          connectionEvents: true,
+          transport: "http",
+          initialReconnectDelay: 5,
+          maxReconnectDelay: 20,
+        })) {
+          if ((event as { type: number }).type === EventType.ITEM_DELETED) break;
+        }
+
+        expect(callCount).toBe(5);
+        expect(delays).toEqual([5, 10, 20, 5]);
+      });
+    });
+
+    test("reconnects after a mid-stream disconnect without sending a replay cursor", async () => {
+      await withImmediateReconnectDelays(async (delays) => {
+        const urls: string[] = [];
+        let callCount = 0;
+        globalThis.fetch = ((url: string) => {
+          urls.push(url);
+          callCount++;
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            text: () => Promise.resolve(""),
+            body: createMockStream([
+              createBinaryMessage([EventType.ITEM_DELETED, callCount, callCount === 1 ? 7 : 8]),
+            ]),
+          });
+        }) as typeof fetch;
+
+        const itemIndexes: number[] = [];
+        for await (const event of connectToStream({
+          key: testKey,
+          reconnect: true,
+          connectionEvents: true,
+          transport: "http",
+          initialReconnectDelay: 5,
+          maxReconnectDelay: 20,
+        })) {
+          if ((event as { type: number }).type !== EventType.ITEM_DELETED) continue;
+          itemIndexes.push((event as { index: number }).index);
+          if (itemIndexes.length === 2) break;
+        }
+
+        expect(itemIndexes).toEqual([7, 8]);
+        expect(urls[0]).not.toContain("from=");
+        expect(urls[1]).not.toContain("from=");
+        expect(delays).toEqual([5]);
+      });
+    });
+
+    test("closes stalled HTTP streams and reconnects", async () => {
+      const originalSetInterval = globalThis.setInterval;
+      const originalClearInterval = globalThis.clearInterval;
+      const originalSetTimeout = globalThis.setTimeout;
+      const originalDateNow = Date.now;
+      let interval: (() => void) | undefined;
+      let now = 1_000;
+      const delays: number[] = [];
+      let callCount = 0;
+
+      globalThis.setInterval = ((handler: () => void) => {
+        interval = handler;
+        return 1 as unknown as Timer;
+      }) as typeof setInterval;
+      globalThis.clearInterval = (() => undefined) as typeof clearInterval;
+      globalThis.setTimeout = ((
+        handler: (...args: unknown[]) => void,
+        timeout?: number,
+        ...args: unknown[]
+      ) => {
+        delays.push(timeout ?? 0);
+        queueMicrotask(() => handler(...args));
+        return 1 as unknown as Timer;
+      }) as typeof setTimeout;
+      Date.now = () => now;
+      globalThis.fetch = ((_url: string) => {
+        callCount++;
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          text: () => Promise.resolve(""),
+          body:
+            callCount === 1
+              ? createStallingBody()
+              : createMockStream([createBinaryMessage([EventType.ITEM_DELETED, 1, 1])]),
+        });
+      }) as typeof fetch;
+
+      const iterator = connectToStream({
+        key: testKey,
+        reconnect: true,
+        connectionEvents: true,
+        transport: "http",
+        initialReconnectDelay: 5,
+        maxReconnectDelay: 20,
+      });
+
+      try {
+        expect(await iterator.next()).toEqual({
+          value: { type: EventType.STREAM_CONNECTED },
+          done: false,
+        });
+
+        now += 46_000;
+        interval?.();
+
+        expect(await iterator.next()).toEqual({
+          value: { type: EventType.STREAM_DISCONNECTED, reason: "Stream stalled" },
+          done: false,
+        });
+        expect(await iterator.next()).toEqual({
+          value: { type: EventType.STREAM_CONNECTED },
+          done: false,
+        });
+
+        const item = await iterator.next();
+        expect(item.done).toBe(false);
+        expect(item.value).toEqual({
+          type: EventType.ITEM_DELETED,
+          item: 1,
+          index: 1,
+        });
+        expect(callCount).toBe(2);
+        expect(delays).toEqual([5]);
+      } finally {
+        await iterator.return(undefined);
+        globalThis.setInterval = originalSetInterval;
+        globalThis.clearInterval = originalClearInterval;
+        globalThis.setTimeout = originalSetTimeout;
+        Date.now = originalDateNow;
+      }
     });
   });
 
@@ -294,32 +578,9 @@ describe("stream-client", () => {
       expect(syncUrl).toBe(`https://contfu.com/api/sync?key=${expectedKey}`);
     });
 
-    test("from option appends from parameter", async () => {
-      const { getUrls } = mockFetchCapture([]);
-
-      for await (const _ of connectToStream({
-        key: testKey,
-        reconnect: false,
-        from: 42,
-      })) {
-        // consume
-      }
-
-      const syncUrl = getUrls().find((u) => u.includes("/api/sync?"));
-      expect(syncUrl).toContain("&from=42");
-    });
-
-    test("acks the last processed sequence while reconnect resumes from the next one", async () => {
-      const originalSetInterval = globalThis.setInterval;
-      const originalClearInterval = globalThis.clearInterval;
-      let ackTimer: (() => void) | undefined;
+    test("acks a processed mutation batch without sending sequence progress", async () => {
       const calls: Array<{ url: string; method?: string }> = [];
 
-      globalThis.setInterval = ((fn: () => void) => {
-        ackTimer = fn;
-        return 1 as unknown as Timer;
-      }) as typeof setInterval;
-      globalThis.clearInterval = (() => undefined) as typeof clearInterval;
       globalThis.fetch = ((url: string, init?: RequestInit) => {
         calls.push({ url, method: init?.method });
         const isAck = init?.method === "POST";
@@ -329,31 +590,23 @@ describe("stream-client", () => {
           text: () => Promise.resolve(""),
           body: isAck
             ? null
-            : createMockStream([
-                createBinaryMessage([EventType.ITEM_DELETED, new Uint8Array([1]), 7]),
-              ]),
+            : createMockStream([createBinaryMessage([[EventType.ITEM_DELETED, 1, 7]])]),
         });
       }) as typeof fetch;
 
-      try {
-        for await (const _ of connectToStream({
-          key: testKey,
-          reconnect: false,
-          from: 7,
-        })) {
-          ackTimer?.();
-        }
-      } finally {
-        globalThis.setInterval = originalSetInterval;
-        globalThis.clearInterval = originalClearInterval;
+      for await (const _ of connectToStream({
+        key: testKey,
+        reconnect: false,
+      })) {
+        // consume
       }
 
       const syncCall = calls.find((call) => call.method == null);
       const ackCall = calls.find((call) => call.method === "POST");
 
-      expect(syncCall?.url).toContain("from=7");
+      expect(syncCall?.url).not.toContain("from=");
       expect(ackCall?.url).toContain("/api/sync/ack?");
-      expect(ackCall?.url).toContain("seq=7");
+      expect(ackCall?.url).not.toContain("seq=");
     });
   });
 

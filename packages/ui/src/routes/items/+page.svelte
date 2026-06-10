@@ -1,11 +1,17 @@
 <script lang="ts">
   import { invalidateAll } from "$app/navigation";
+  import { page } from "$app/state";
   import ItemListExplorer from "$lib/components/ItemListExplorer.svelte";
   import { subscribeLiveEvent } from "$lib/live/event-source";
+  import { parseItemQueryFromUrl } from "$lib/query/item-query";
+  import { getCollectionsQuery } from "$lib/remote/collections.remote";
+  import { getItemsQuery } from "$lib/remote/items.remote";
   import { onMount } from "svelte";
-  import type { PageData } from "./$types";
 
-  let { data }: { data: PageData } = $props();
+  const query = $derived(parseItemQueryFromUrl(page.url));
+  const [collections, result] = $derived(
+    await Promise.all([getCollectionsQuery(), getItemsQuery(query)]),
+  );
 
   onMount(() => {
     return subscribeLiveEvent("data-changed-batch", () => {
@@ -19,10 +25,5 @@
     <h1 class="text-xl font-semibold tracking-tight">Items</h1>
   </div>
 
-  <ItemListExplorer
-    basePath="/items"
-    query={data.query}
-    collections={data.collections}
-    result={data.result}
-  />
+  <ItemListExplorer basePath="/items" {query} {collections} {result} />
 </div>

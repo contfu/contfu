@@ -1,6 +1,6 @@
 {
   "name": "@contfu/vue",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -20,14 +20,14 @@
     }
   },
   "publishConfig": {
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
     "exports": {
       ".": {
         "types": "./dist/index.d.ts",
         "default": "./dist/index.js"
       }
-    },
-    "main": "dist/index.js",
-    "types": "dist/index.d.ts"
+    }
   },
   "scripts": {
     "test": "bun test src/",
@@ -39,9 +39,9 @@
     "@contfu/core": "workspace:^"
   },
   "devDependencies": {
-    "@vue/server-renderer": "^3",
+    "@vue/server-renderer": "^3.5.34",
     "typescript": "^5.9.3",
-    "vue": "^3"
+    "vue": "^3.5.34"
   },
   "peerDependencies": {
     "vue": ">=3"

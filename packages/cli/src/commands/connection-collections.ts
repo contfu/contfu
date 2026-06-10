@@ -3,7 +3,8 @@ import type {
   AddedScannedCollection,
   ScannedCollection,
 } from "@contfu/svc-api";
-import { getApiClient, handleApiError } from "../http";
+import { getApiClient, handleCliError } from "../http";
+import { resolveConnectionRef } from "./resources";
 import { multiSelect } from "./select";
 
 export interface ScanOptions {
@@ -44,16 +45,21 @@ function printScannedCollections(scanned: ScannedCollection[]) {
   printTable(scanned, [
     { header: "Ref", value: (row) => row.ref },
     { header: "Display Name", value: (row) => row.displayName },
+    { header: "Scope", value: (row) => row.scope ?? "" },
     { header: "Status", value: (row) => (row.alreadyAdded ? "already added" : "available") },
   ]);
 }
 
-function printAddedRows(title: string, rows: AddedScannedCollection[] | ScannedCollection[]) {
+function printAddedRows<T extends AddedScannedCollection | ScannedCollection>(
+  title: string,
+  rows: T[],
+) {
   if (rows.length === 0) return;
   console.log(title);
   printTable(rows, [
     { header: "Ref", value: (row) => row.ref },
     { header: "Display Name", value: (row) => row.displayName },
+    { header: "Scope", value: (row) => row.scope ?? "" },
   ]);
 }
 
@@ -90,7 +96,8 @@ export async function scanConnectionCollections(
   const client = getApiClient();
 
   try {
-    const scanned = await client.scanCollections(connectionId);
+    const resolvedConnectionId = await resolveConnectionRef(connectionId, client);
+    const scanned = await client.scanCollections(resolvedConnectionId);
 
     if (!options.select) {
       if (options.format === "json") printJson(scanned);
@@ -112,11 +119,11 @@ export async function scanConnectionCollections(
       })),
     );
 
-    const summary = await client.addScannedCollections(connectionId, { refs });
+    const summary = await client.addScannedCollections(resolvedConnectionId, { refs });
     if (options.format === "json") printJson(summary);
     else printAddSummary(summary);
   } catch (err) {
-    handleApiError(err);
+    handleCliError(err);
   }
 }
 
@@ -128,20 +135,21 @@ export async function addConnectionCollections(
 
   if (!options.all && (!options.refs || options.refs.length === 0)) {
     console.error(
-      "Usage: contfu connections add <connection-id> (--refs <comma-separated> | --all)",
+      "Usage: contfu connections add <connection-id-or-name> (--refs <comma-separated> | --all)",
     );
     process.exit(1);
   }
 
   try {
-    const summary = await client.addScannedCollections(connectionId, {
+    const resolvedConnectionId = await resolveConnectionRef(connectionId, client);
+    const summary = await client.addScannedCollections(resolvedConnectionId, {
       refs: options.all ? undefined : options.refs,
       all: options.all,
     });
     if (options.format === "json") printJson(summary);
     else printAddSummary(summary);
   } catch (err) {
-    handleApiError(err);
+    handleCliError(err);
   }
 }
 

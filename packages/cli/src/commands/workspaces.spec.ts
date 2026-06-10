@@ -1,0 +1,148 @@
+import { afterAll, afterEach, beforeEach, describe, expect, mock, spyOn, test } from "bun:test";
+
+let writtenConfig: Record<string, string> = {};
+
+await mock.module("./login", () => ({
+  readConfig: mock(() => Promise.resolve({ ...writtenConfig })),
+  writeConfig: mock((config: Record<string, string>) => {
+    writtenConfig = { ...config };
+    return Promise.resolve();
+  }),
+}));
+
+const mockFetch = mock<typeof fetch>();
+globalThis.fetch = mockFetch as any;
+
+const { listWorkspaces, revokeWorkspaceMember, switchWorkspace } = await import("./workspaces");
+
+function jsonResponse(data: unknown, status = 200): Response {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+let logSpy: ReturnType<typeof spyOn>;
+let errorSpy: ReturnType<typeof spyOn>;
+
+beforeEach(() => {
+  mockFetch.mockReset();
+  writtenConfig = {};
+  process.env.CONTFU_API_KEY = "test-key";
+  process.env.CONTFU_URL = "http://test.local";
+  delete process.env.CONTFU_WORKSPACE;
+  delete process.env.CONTFU_CLI_LINKS;
+  delete process.env.NO_COLOR;
+  logSpy = spyOn(console, "log").mockImplementation(() => {});
+  errorSpy = spyOn(console, "error").mockImplementation(() => {});
+});
+
+afterEach(() => {
+  logSpy.mockRestore();
+  errorSpy.mockRestore();
+});
+
+afterAll(() => {
+  delete process.env.CONTFU_WORKSPACE;
+});
+
+describe("listWorkspaces", () => {
+  test("prints display names and stable names", async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse([
+        {
+          id: "ws_1",
+          displayName: "Default workspace",
+          name: "defaultWorkspace",
+          isDefault: true,
+        },
+      ]),
+    );
+
+    await listWorkspaces("table");
+
+    const calls: string[] = logSpy.mock.calls.map((call: unknown[]) => String(call[0]));
+    expect(calls[0]).toContain("ID");
+    expect(calls[0]).toContain("Name");
+    expect(calls[0]).toContain("Display Name");
+    expect(calls.some((call) => call.includes("Default workspace"))).toBe(true);
+    expect(calls.some((call) => call.includes("defaultWorkspace"))).toBe(true);
+    expect(calls.some((call) => call.includes("\u001b]8;;http://test.local/workspaces/ws_1"))).toBe(
+      true,
+    );
+  });
+});
+
+describe("switchWorkspace", () => {
+  test("resolves workspaces by display name", async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse([
+        {
+          id: "ws_1",
+          displayName: "Shared Space",
+          name: "sharedSpace",
+          isDefault: false,
+          isJoined: true,
+        },
+      ]),
+    );
+
+    await switchWorkspace("Shared Space");
+
+    expect(writtenConfig.workspaceId).toBe("ws_1");
+    expect(logSpy).toHaveBeenCalledWith("Switched to workspace Shared Space (ws_1)");
+  });
+
+  test("rejects ambiguous workspace names", async () => {
+    const exitSpy = spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("exit");
+    });
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse([
+        {
+          id: "ws_1",
+          displayName: "Shared Space",
+          name: "sharedSpace",
+          isDefault: false,
+        },
+        {
+          id: "ws_2",
+          displayName: "Shared Space",
+          name: "sharedSpace",
+          isDefault: false,
+        },
+      ]),
+    );
+
+    // oxlint-disable-next-line typescript/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
+    await expect(switchWorkspace("Shared Space")).rejects.toThrow("exit");
+    expect(errorSpy).toHaveBeenCalledWith("Workspace name is ambiguous; use the workspace id");
+
+    exitSpy.mockRestore();
+  });
+});
+
+describe("revokeWorkspaceMember", () => {
+  test("revokes workspace membership by email", async () => {
+    mockFetch
+      .mockResolvedValueOnce(
+        jsonResponse([
+          {
+            id: "ws_1",
+            displayName: "Shared Space",
+            name: "sharedSpace",
+            isDefault: false,
+            isJoined: true,
+          },
+        ]),
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+
+    await revokeWorkspaceMember("sharedSpace", "teammate+cli@example.com");
+
+    expect(String(mockFetch.mock.calls[1][0])).toBe(
+      "http://test.local/api/v1/workspaces/ws_1/members/teammate%2Bcli%40example.com",
+    );
+    expect(logSpy).toHaveBeenCalledWith("Workspace membership revoked");
+  });
+});
