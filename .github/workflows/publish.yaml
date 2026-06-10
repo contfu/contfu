@@ -30,6 +30,8 @@ jobs:
       angular-npm-changed: ${{ steps.check.outputs.angular-npm-changed }}
       solid-npm-changed: ${{ steps.check.outputs.solid-npm-changed }}
       svelte-npm-changed: ${{ steps.check.outputs.svelte-npm-changed }}
+      sanity-npm-changed: ${{ steps.check.outputs.sanity-npm-changed }}
+      strapi-npm-changed: ${{ steps.check.outputs.strapi-npm-changed }}
       server-docker-changed: ${{ steps.check.outputs.server-docker-changed }}
       ui-docker-changed: ${{ steps.check.outputs.ui-docker-changed }}
       server-version: ${{ steps.check.outputs.server-version }}
@@ -88,6 +90,8 @@ jobs:
           CURRENT_ANGULAR_VERSION=$(get_version "packages/angular/package.json")
           CURRENT_SOLID_VERSION=$(get_version "packages/solid/package.json")
           CURRENT_SVELTE_VERSION=$(get_version "packages/svelte/package.json")
+          CURRENT_SANITY_VERSION=$(get_version "packages/plugins/sanity/package.json")
+          CURRENT_STRAPI_VERSION=$(get_version "packages/plugins/strapi/package.json")
 
           PUBLISHED_CORE_NPM=$(get_npm_version "@contfu/core")
           PUBLISHED_CONNECT_NPM=$(get_npm_version "@contfu/connect")
@@ -106,6 +110,8 @@ jobs:
           PUBLISHED_ANGULAR_NPM=$(get_npm_version "@contfu/angular")
           PUBLISHED_SOLID_NPM=$(get_npm_version "@contfu/solid")
           PUBLISHED_SVELTE_NPM=$(get_npm_version "@contfu/svelte")
+          PUBLISHED_SANITY_NPM=$(get_npm_version "@contfu/sanity")
+          PUBLISHED_STRAPI_NPM=$(get_npm_version "@contfu/strapi")
 
           PUBLISHED_SERVER_DOCKER=$(get_dockerhub_version "contfu/server" "$CURRENT_SERVER_VERSION")
           PUBLISHED_UI_DOCKER=$(get_dockerhub_version "contfu/client" "$CURRENT_UI_VERSION")
@@ -127,6 +133,8 @@ jobs:
           check_changed "angular-npm"                "$CURRENT_ANGULAR_VERSION"                "$PUBLISHED_ANGULAR_NPM"                "npm"
           check_changed "solid-npm"                  "$CURRENT_SOLID_VERSION"                  "$PUBLISHED_SOLID_NPM"                  "npm"
           check_changed "svelte-npm"                 "$CURRENT_SVELTE_VERSION"                 "$PUBLISHED_SVELTE_NPM"                 "npm"
+          check_changed "sanity-npm"                 "$CURRENT_SANITY_VERSION"                 "$PUBLISHED_SANITY_NPM"                 "npm"
+          check_changed "strapi-npm"                 "$CURRENT_STRAPI_VERSION"                 "$PUBLISHED_STRAPI_NPM"                 "npm"
           check_changed "server-docker"              "$CURRENT_SERVER_VERSION"                 "$PUBLISHED_SERVER_DOCKER"              "docker"
           check_changed "ui-docker"                  "$CURRENT_UI_VERSION"                     "$PUBLISHED_UI_DOCKER"                  "docker"
 
@@ -218,6 +226,14 @@ jobs:
       - name: Publish @contfu/svelte
         if: needs.check-version.outputs.svelte-npm-changed == 'true'
         working-directory: ./packages/svelte
+        run: bun run pack && npm publish *.tgz --access public --provenance
+      - name: Publish @contfu/sanity
+        if: needs.check-version.outputs.sanity-npm-changed == 'true'
+        working-directory: ./packages/plugins/sanity
+        run: bun run pack && npm publish *.tgz --access public --provenance
+      - name: Publish @contfu/strapi
+        if: needs.check-version.outputs.strapi-npm-changed == 'true'
+        working-directory: ./packages/plugins/strapi
         run: bun run pack && npm publish *.tgz --access public --provenance
 
   publish-docker:

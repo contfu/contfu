@@ -1,4 +1,4 @@
-import { createApiClient, ApiError, ConnectionTypeMeta } from "@contfu/svc-api";
+import { createApiClient, ApiError, ConnectionType, ConnectionTypeMeta } from "@contfu/svc-api";
 import type { ApiConnection, ServiceCollection, ServiceFlow } from "@contfu/svc-api";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
@@ -24,8 +24,8 @@ function printTable(result: StatusResult) {
 
   console.log("Authenticated: yes\n");
 
-  const sources = result.connections.filter((c) => c.typeLabel !== "app");
-  const clients = result.connections.filter((c) => c.typeLabel === "app");
+  const sources = result.connections.filter((c) => c.type !== ConnectionType.APP);
+  const applicationConnections = result.connections.filter((c) => c.type === ConnectionType.APP);
 
   console.log(`Connections (${result.connections.length})`);
   console.log("─".repeat(60));
@@ -34,9 +34,9 @@ function printTable(result: StatusResult) {
       console.log(`  ${c.id}  ${c.name.padEnd(30)} ${c.typeLabel}`);
     }
   }
-  if (clients.length > 0) {
-    for (const c of clients) {
-      console.log(`  ${c.id}  ${c.name.padEnd(30)} app`);
+  if (applicationConnections.length > 0) {
+    for (const c of applicationConnections) {
+      console.log(`  ${c.id}  ${c.name.padEnd(30)} ${c.typeLabel}`);
     }
   }
   if (result.connections.length === 0) {

@@ -1,5 +1,16 @@
 import { describe, test, expect, beforeEach, afterEach, mock, spyOn } from "bun:test";
-import { list, get, create, update, del, isResource, listConnectionTypes } from "./resources";
+import {
+  list,
+  get,
+  create,
+  update,
+  del,
+  isResource,
+  listConnectionTypes,
+  resolveCollectionRef,
+  resolveConnectionRef,
+} from "./resources";
+import { terminalLink, visibleWidth } from "../table";
 
 const mockFetch = mock<typeof fetch>();
 globalThis.fetch = mockFetch as any;
@@ -18,6 +29,8 @@ beforeEach(() => {
   mockFetch.mockReset();
   process.env.CONTFU_API_KEY = "test-key";
   process.env.CONTFU_URL = "http://test.local";
+  delete process.env.CONTFU_CLI_LINKS;
+  delete process.env.NO_COLOR;
   logSpy = spyOn(console, "log").mockImplementation(() => {});
   errorSpy = spyOn(console, "error").mockImplementation(() => {});
 });
@@ -55,6 +68,32 @@ describe("list", () => {
     expect(logSpy).toHaveBeenCalledWith(JSON.stringify(data, null, 2));
   });
 
+  test("lists connections with stable and display name columns", async () => {
+    const data = [
+      {
+        id: "conn_1",
+        name: "notionBrain",
+        displayName: "Notion Brain",
+        type: 1,
+        accountId: null,
+        hasCredentials: true,
+      },
+    ];
+    mockFetch.mockResolvedValueOnce(jsonResponse(data));
+
+    await list("connections", "table");
+
+    const calls: string[] = logSpy.mock.calls.map((c: unknown[]) => c[0] as string);
+    expect(calls[0]).toContain("ID");
+    expect(calls[0]).toContain("Name");
+    expect(calls[0]).toContain("Display Name");
+    expect(calls.some((c) => c.includes("notionBrain"))).toBe(true);
+    expect(calls.some((c) => c.includes("Notion Brain"))).toBe(true);
+    expect(calls.some((c) => c.includes("\u001b]8;;http://test.local/connections/conn_1"))).toBe(
+      true,
+    );
+  });
+
   test("lists collections in table format with headers and row data", async () => {
     const data = [{ id: 5, name: "posts", displayName: "Posts", connectionId: 1 }];
     mockFetch.mockResolvedValueOnce(jsonResponse(data));
@@ -63,44 +102,105 @@ describe("list", () => {
 
     const url = (mockFetch.mock.calls[0] as unknown[])[0] as string;
     expect(url).toBe("http://test.local/api/v1/collections");
-    const calls = logSpy.mock.calls.map((c) => (c as unknown[])[0] as string);
+    const calls: string[] = logSpy.mock.calls.map((c: unknown[]) => c[0] as string);
     expect(calls.some((c) => c.includes("Display Name"))).toBe(true);
     expect(calls.some((c) => c.includes("Posts"))).toBe(true);
+    expect(calls.some((c) => c.includes("\u001b]8;;http://test.local/collections/5"))).toBe(true);
   });
 
-  test("lists flows in table format showing yes for includeRef", async () => {
-    const data = [{ id: 3, sourceId: 1, targetId: 2, includeRef: true }];
+  test("keeps collection table columns aligned when display names contain emoji", async () => {
+    const data = [
+      { id: "with_emoji", name: "media", displayName: "🖼️ Medien", connectionId: "conn_1" },
+      { id: "plain", name: "pages", displayName: "Pages", connectionId: "conn_2" },
+    ];
     mockFetch.mockResolvedValueOnce(jsonResponse(data));
 
-    await list("flows", "table");
+    await list("collections", "table");
 
-    const url = (mockFetch.mock.calls[0] as unknown[])[0] as string;
-    expect(url).toBe("http://test.local/api/v1/flows");
-    const calls = logSpy.mock.calls.map((c) => (c as unknown[])[0] as string);
-    expect(calls.some((c) => c.includes("yes"))).toBe(true);
+    const calls: string[] = logSpy.mock.calls.map((c: unknown[]) => c[0] as string);
+    const emojiRow = calls.find((c) => c.includes("with_emoji"))!;
+    const plainRow = calls.find((c) => c.includes("plain"))!;
+    const emojiConnectionStart = visibleWidth(emojiRow.slice(0, emojiRow.indexOf("conn_1")));
+    const plainConnectionStart = visibleWidth(plainRow.slice(0, plainRow.indexOf("conn_2")));
+    expect(emojiConnectionStart).toBe(plainConnectionStart);
+  });
+});
+
+describe("table width", () => {
+  test("treats emoji presentation clusters as narrow by default", () => {
+    expect(visibleWidth("❤️ Empfehlungen")).toBe(14);
+    expect(visibleWidth("🖼️ Medien")).toBe(8);
+  });
+
+  test("allows wide emoji terminals to opt in", () => {
+    process.env.CONTFU_CLI_EMOJI_WIDTH = "2";
+    try {
+      expect(visibleWidth("❤️ Empfehlungen")).toBe(15);
+      expect(visibleWidth("🖼️ Medien")).toBe(9);
+    } finally {
+      delete process.env.CONTFU_CLI_EMOJI_WIDTH;
+    }
+  });
+
+  test("ignores terminal hyperlink escape sequences in visible width", () => {
+    const linked = terminalLink("YSsTjb", "http://test.local/collections/YSsTjb");
+    expect(visibleWidth(linked)).toBe(6);
+  });
+
+  test("can disable terminal hyperlinks", () => {
+    process.env.CONTFU_CLI_LINKS = "0";
+    try {
+      expect(terminalLink("YSsTjb", "http://test.local/collections/YSsTjb")).toBe("YSsTjb");
+    } finally {
+      delete process.env.CONTFU_CLI_LINKS;
+    }
   });
 });
 
 describe("get", () => {
   test("fetches and prints single resource", async () => {
     const data = { id: 1, name: "test" };
+    mockFetch.mockResolvedValueOnce(jsonResponse([data]));
     mockFetch.mockResolvedValueOnce(jsonResponse(data));
 
     await get("connections", "1");
 
-    const url = (mockFetch.mock.calls[0] as unknown[])[0] as string;
+    const url = (mockFetch.mock.calls[1] as unknown[])[0] as string;
     expect(url).toBe("http://test.local/api/v1/connections/1");
     expect(logSpy).toHaveBeenCalledWith(JSON.stringify(data, null, 2));
   });
 
+  test("fetches connection by name when the id is omitted", async () => {
+    const data = { id: "conn_1", name: "Brain" };
+    mockFetch.mockResolvedValueOnce(jsonResponse([data]));
+    mockFetch.mockResolvedValueOnce(jsonResponse(data));
+
+    await get("connections", "Brain");
+
+    const url = (mockFetch.mock.calls[1] as unknown[])[0] as string;
+    expect(url).toBe("http://test.local/api/v1/connections/conn_1");
+  });
+
   test("fetches collection by id", async () => {
     const data = { id: 5, displayName: "Posts" };
+    mockFetch.mockResolvedValueOnce(jsonResponse([data]));
     mockFetch.mockResolvedValueOnce(jsonResponse(data));
 
     await get("collections", "5");
 
-    const url = (mockFetch.mock.calls[0] as unknown[])[0] as string;
+    const url = (mockFetch.mock.calls[1] as unknown[])[0] as string;
     expect(url).toBe("http://test.local/api/v1/collections/5");
+  });
+
+  test("fetches collection by display name", async () => {
+    const data = { id: "col_1", name: "posts", displayName: "Posts" };
+    mockFetch.mockResolvedValueOnce(jsonResponse([data]));
+    mockFetch.mockResolvedValueOnce(jsonResponse(data));
+
+    await get("collections", "Posts");
+
+    const url = (mockFetch.mock.calls[1] as unknown[])[0] as string;
+    expect(url).toBe("http://test.local/api/v1/collections/col_1");
   });
 
   test("fetches flow by id", async () => {
@@ -139,6 +239,20 @@ describe("create", () => {
     expect(JSON.parse(opts.body as string)).toEqual({ name: "flagged", type: 20 });
   });
 
+  test("posts connection scopes from scope flags for any provider", async () => {
+    const data = { id: 2, label: "flagged" };
+    mockFetch.mockResolvedValueOnce(jsonResponse(data));
+
+    await create("connections", undefined, {
+      name: "flagged",
+      type: "contentful",
+      scopes: "master,staging",
+    });
+
+    const [, opts] = mockFetch.mock.calls[0] as unknown[] as [string, RequestInit];
+    expect(JSON.parse(opts.body as string)).toMatchObject({ scopes: ["master", "staging"] });
+  });
+
   test("exits with error when required flags missing", async () => {
     const exitSpy = spyOn(process, "exit").mockImplementation(() => {
       throw new Error("exit");
@@ -160,13 +274,37 @@ describe("create", () => {
     expect(JSON.parse(opts.body as string)).toMatchObject({ displayName: "My Col" });
   });
 
+  test("creates collection with connection name resolved to id", async () => {
+    const data = { id: "col_1", displayName: "My Col", connectionId: "conn_1" };
+    mockFetch.mockResolvedValueOnce(jsonResponse([{ id: "conn_1", name: "Brain" }]));
+    mockFetch.mockResolvedValueOnce(jsonResponse(data));
+
+    await create("collections", undefined, {
+      "display-name": "My Col",
+      "connection-id": "Brain",
+    });
+
+    const [url, opts] = mockFetch.mock.calls[1] as unknown[] as [string, RequestInit];
+    expect(url).toBe("http://test.local/api/v1/collections");
+    expect(JSON.parse(opts.body as string)).toMatchObject({
+      displayName: "My Col",
+      connectionId: "conn_1",
+    });
+  });
+
   test("creates flow with sourceId/targetId as strings", async () => {
     const data = { id: "1", sourceId: "3", targetId: "4" };
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse([
+        { id: "3", name: "source", displayName: "Source" },
+        { id: "4", name: "target", displayName: "Target" },
+      ]),
+    );
     mockFetch.mockResolvedValueOnce(jsonResponse(data));
 
     await create("flows", undefined, { "source-id": "3", "target-id": "4" });
 
-    const [, opts] = mockFetch.mock.calls[0] as unknown[] as [string, RequestInit];
+    const [, opts] = mockFetch.mock.calls[1] as unknown[] as [string, RequestInit];
     const body = JSON.parse(opts.body as string);
     expect(body.sourceId).toBe("3");
     expect(body.targetId).toBe("4");
@@ -174,59 +312,47 @@ describe("create", () => {
     expect(typeof body.targetId).toBe("string");
   });
 
-  test("creates flow with includeRef: true when --include-ref", async () => {
-    const data = { id: 1, sourceId: 3, targetId: 4, includeRef: true };
+  test("creates flow with collection names resolved to ids", async () => {
+    const data = { id: "flow_1", sourceId: "src_1", targetId: "dst_1" };
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse([
+        { id: "src_1", name: "source", displayName: "Source" },
+        { id: "dst_1", name: "target", displayName: "Target" },
+      ]),
+    );
     mockFetch.mockResolvedValueOnce(jsonResponse(data));
 
-    await create("flows", undefined, { "source-id": "3", "target-id": "4", "include-ref": true });
+    await create("flows", undefined, { "source-id": "Source", "target-id": "Target" });
 
-    const [, opts] = mockFetch.mock.calls[0] as unknown[] as [string, RequestInit];
-    expect(JSON.parse(opts.body as string)).toMatchObject({ includeRef: true });
-  });
-
-  test("creates collection with includeRef: false when --no-include-ref", async () => {
-    const data = { id: 5, displayName: "Col" };
-    mockFetch.mockResolvedValueOnce(jsonResponse(data));
-
-    await create("collections", undefined, {
-      "display-name": "Col",
-      "no-include-ref": true,
+    const [, opts] = mockFetch.mock.calls[1] as unknown[] as [string, RequestInit];
+    expect(JSON.parse(opts.body as string)).toMatchObject({
+      sourceId: "src_1",
+      targetId: "dst_1",
     });
-
-    const [, opts] = mockFetch.mock.calls[0] as unknown[] as [string, RequestInit];
-    expect(JSON.parse(opts.body as string)).toMatchObject({ includeRef: false });
   });
 });
 
 describe("update", () => {
   test("updates collection with displayName", async () => {
     const data = { id: 5, displayName: "Renamed" };
+    mockFetch.mockResolvedValueOnce(jsonResponse([{ id: 5, name: "posts", displayName: "Posts" }]));
     mockFetch.mockResolvedValueOnce(jsonResponse(data));
 
     await update("collections", "5", undefined, { "display-name": "Renamed" });
 
-    const [url, opts] = mockFetch.mock.calls[0] as unknown[] as [string, RequestInit];
+    const [url, opts] = mockFetch.mock.calls[1] as unknown[] as [string, RequestInit];
     expect(url).toBe("http://test.local/api/v1/collections/5");
     expect(JSON.parse(opts.body as string)).toMatchObject({ displayName: "Renamed" });
   });
 
-  test("updates flow with includeRef: true", async () => {
-    const data = { id: 7, includeRef: true };
-    mockFetch.mockResolvedValueOnce(jsonResponse(data));
-
-    await update("flows", "7", undefined, { "include-ref": true });
-
-    const [, opts] = mockFetch.mock.calls[0] as unknown[] as [string, RequestInit];
-    expect(JSON.parse(opts.body as string)).toMatchObject({ includeRef: true });
-  });
-
   test("patches with raw json data", async () => {
     const data = { id: 1, name: "updated" };
+    mockFetch.mockResolvedValueOnce(jsonResponse([{ id: 1, name: "test" }]));
     mockFetch.mockResolvedValueOnce(jsonResponse(data));
 
     await update("connections", "1", '{"label":"updated"}', {});
 
-    const [url, opts] = mockFetch.mock.calls[0] as unknown[] as [string, RequestInit];
+    const [url, opts] = mockFetch.mock.calls[1] as unknown[] as [string, RequestInit];
     expect(url).toBe("http://test.local/api/v1/connections/1");
     expect(opts.method).toBe("PATCH");
     expect(logSpy).toHaveBeenCalledWith(JSON.stringify(data, null, 2));
@@ -234,30 +360,33 @@ describe("update", () => {
 
   test("patches with field flags", async () => {
     const data = { id: 1, label: "renamed" };
+    mockFetch.mockResolvedValueOnce(jsonResponse([{ id: 1, name: "test" }]));
     mockFetch.mockResolvedValueOnce(jsonResponse(data));
 
-    await update("connections", "1", undefined, { name: "renamed" });
+    await update("connections", "1", undefined, { name: "renamed", scope: "staging" });
 
-    const [url, opts] = mockFetch.mock.calls[0] as unknown[] as [string, RequestInit];
+    const [url, opts] = mockFetch.mock.calls[1] as unknown[] as [string, RequestInit];
     expect(url).toBe("http://test.local/api/v1/connections/1");
     expect(opts.method).toBe("PATCH");
-    expect(JSON.parse(opts.body as string)).toEqual({ name: "renamed" });
+    expect(JSON.parse(opts.body as string)).toEqual({ name: "renamed", scopes: ["staging"] });
   });
 });
 
 describe("del", () => {
   test("deletes and prints confirmation", async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse([{ id: 42, name: "test" }]));
     mockFetch.mockResolvedValueOnce(new Response(null, { status: 200 }));
 
     await del("connections", "42");
 
-    const [url, opts] = mockFetch.mock.calls[0] as unknown[] as [string, RequestInit];
+    const [url, opts] = mockFetch.mock.calls[1] as unknown[] as [string, RequestInit];
     expect(url).toBe("http://test.local/api/v1/connections/42");
     expect(opts.method).toBe("DELETE");
     expect(logSpy).toHaveBeenCalledWith("Deleted connection 42");
   });
 
   test("deletes collection and prints confirmation", async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse([{ id: 5, name: "posts", displayName: "Posts" }]));
     mockFetch.mockResolvedValueOnce(new Response(null, { status: 200 }));
 
     await del("collections", "5");
@@ -271,6 +400,50 @@ describe("del", () => {
     await del("flows", "12");
 
     expect(logSpy).toHaveBeenCalledWith("Deleted flow 12");
+  });
+});
+
+describe("resource reference resolution", () => {
+  test("prefers connection id before matching names", async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse([
+        { id: "same", name: "By ID" },
+        { id: "conn_2", name: "same" },
+      ]),
+    );
+
+    // oxlint-disable-next-line typescript/await-thenable -- bun:test .resolves returns a Promise at runtime but types lack Thenable
+    await expect(resolveConnectionRef("same")).resolves.toBe("same");
+  });
+
+  test("rejects ambiguous connection names", async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse([
+        { id: "conn_1", name: "Brain" },
+        { id: "conn_2", name: "Brain" },
+      ]),
+    );
+
+    // oxlint-disable-next-line typescript/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
+    await expect(resolveConnectionRef("Brain")).rejects.toThrow(
+      "Connection name is ambiguous; use the Connection id",
+    );
+  });
+
+  test("resolves collection by stable name or display name", async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse([{ id: "col_1", name: "posts", displayName: "Posts" }]),
+    );
+
+    // oxlint-disable-next-line typescript/await-thenable -- bun:test .resolves returns a Promise at runtime but types lack Thenable
+    await expect(resolveCollectionRef("posts")).resolves.toBe("col_1");
+
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse([{ id: "col_1", name: "posts", displayName: "Posts" }]),
+    );
+
+    // oxlint-disable-next-line typescript/await-thenable -- bun:test .resolves returns a Promise at runtime but types lack Thenable
+    await expect(resolveCollectionRef("Posts")).resolves.toBe("col_1");
   });
 });
 

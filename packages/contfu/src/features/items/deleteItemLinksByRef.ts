@@ -1,12 +1,10 @@
 import { eq, or } from "drizzle-orm";
 import { db } from "../../infra/db/db";
-import { decodeId } from "../../infra/ids";
-import { linkTable } from "../../infra/db/schema";
+import { internalLinkTable } from "../../infra/db/schema";
 
-export function deleteItemLinksByRef(id: string, ctx = db): void {
-  const idBlob = decodeId(id);
+export function deleteItemLinksByRef(id: number, ctx = db): void {
   ctx
-    .delete(linkTable)
-    .where(or(eq(linkTable.from, idBlob), eq(linkTable.to, idBlob)))
+    .delete(internalLinkTable)
+    .where(or(eq(internalLinkTable.from, id), eq(internalLinkTable.to, id)))
     .run();
 }

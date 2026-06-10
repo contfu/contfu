@@ -2,9 +2,10 @@ import { db } from "../src/infra/db/db";
 import {
   fileTable,
   collectionsTable,
+  externalLinkTable,
+  internalLinkTable,
   itemFileTable,
   itemsTable,
-  linkTable,
   mediaVariantTable,
   syncTable,
 } from "../src/infra/db/schema";
@@ -17,7 +18,8 @@ export function truncateAllTables(): void {
   db.delete(mediaVariantTable).run();
   db.delete(itemFileTable).run();
   db.delete(fileTable).run();
-  db.delete(linkTable).run();
+  db.delete(externalLinkTable).run();
+  db.delete(internalLinkTable).run();
   db.delete(itemsTable).run();
   db.delete(syncTable).run();
   db.delete(collectionsTable).run();

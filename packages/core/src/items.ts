@@ -2,7 +2,7 @@ import type { Block } from "./blocks";
 
 export type PageProps = Record<
   string,
-  string | number | boolean | string[] | number[] | boolean[] | Block | Buffer[]
+  string | number | boolean | string[] | number[] | boolean[] | Block | Block[] | Buffer[] | any
 >;
 
 export type Item<T extends PageProps = Record<never, never>> = {

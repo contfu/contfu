@@ -4,6 +4,8 @@
     "**/db/migrations/**/*",
     "**/generated/**/*",
     ".planning/**/*",
-    "helm/**/*.y{a,}ml"
+    "helm/**/*.y{a,}ml",
+    "demos/consumer-app/**",
+    "demos/strapi-demo/**"
   ]
 }

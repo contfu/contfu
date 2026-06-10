@@ -1,6 +1,6 @@
 {
   "name": "@contfu/react",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -20,14 +20,14 @@
     }
   },
   "publishConfig": {
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
     "exports": {
       ".": {
         "types": "./dist/index.d.ts",
         "default": "./dist/index.js"
       }
-    },
-    "main": "dist/index.js",
-    "types": "dist/index.d.ts"
+    }
   },
   "scripts": {
     "test": "bun test src/",
@@ -39,9 +39,10 @@
     "@contfu/core": "workspace:^"
   },
   "devDependencies": {
-    "@types/react": "^19",
-    "react": "^19.2.5",
-    "react-dom": "^19.2.5",
+    "@types/react": "^19.2.15",
+    "@types/react-dom": "^19",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
     "typescript": "^5.9.3"
   },
   "peerDependencies": {

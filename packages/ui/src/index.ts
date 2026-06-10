@@ -31,7 +31,8 @@ export {
   getItemLinks,
   getLastChangedItem,
   getOrphanFiles,
-  itemLinkTable,
+  externalLinkTable,
+  internalLinkTable,
   itemTable,
   updateItem,
   // File exports
@@ -41,7 +42,8 @@ export {
   type FileUpdate,
   type DbFile,
   type DbItem,
-  type DbItemLink,
+  type DbExternalItemLink,
+  type DbInternalItemLink,
   type EventHandler,
   type HookOptions,
   // Item exports
@@ -54,6 +56,7 @@ export {
   type FileStore,
   type NewFile,
   type NewItem,
-  type NewItemLink,
+  type NewExternalItemLink,
+  type NewInternalItemLink,
   type OnFileProgress,
 } from "@contfu/contfu";

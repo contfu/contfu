@@ -152,13 +152,6 @@ describe("flows lifecycle", () => {
     expect(exitCode).toBe(0);
   });
 
-  test("flows set --include-ref", async () => {
-    const { exitCode, stdout } = await cli("flows", "set", flowId, "--include-ref");
-    expect(exitCode).toBe(0);
-    const data = JSON.parse(stdout);
-    expect(data.includeRef).toBe(true);
-  });
-
   test("flows delete", async () => {
     const { exitCode } = await cli("flows", "delete", flowId);
     expect(exitCode).toBe(0);

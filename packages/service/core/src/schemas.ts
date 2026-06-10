@@ -4,10 +4,12 @@ export {
   type SchemaValue,
   type RefTargets,
   type TypeGenerationInput,
+  type CustomBlockSchema,
   schemaType,
   schemaEnumValues,
   mergeSchemaValues,
   generateTypeScript,
+  generateApplicationConnectionTypes,
   generateConsumerTypes,
   isSystemSchemaKey,
 } from "@contfu/core";

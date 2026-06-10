@@ -1,7 +1,11 @@
 import {
   QueryResultArray,
+  type ContentFormat,
   type IncludeOption,
+  type MarkdownOptions,
   type QueryOptions,
+  type RenderOptions,
+  type ResolvedContent,
   type SortOption,
 } from "@contfu/core";
 import type { FileData, ItemData } from "../infra/types/content-types";
@@ -21,27 +25,36 @@ import type {
   notLike,
   or,
 } from "@contfu/core";
-import type { SystemFieldName } from "./system-fields";
+import type { SystemFieldName } from "@contfu/core";
 
 export type QuerySystemFields = {
-  $id: string;
-  $connectionType?: ItemData["connectionType"];
-  $ref: ItemData["ref"];
+  $id: number;
   $collection: string;
   $changedAt: number;
+  $locale?: string;
 };
 
-type ItemExtras = {
+type CollectionLocale<Props> = Props extends { $locale?: infer L }
+  ? Extract<L, string>
+  : Props extends { $locale: infer L }
+    ? Extract<L, string>
+    : never;
+
+export type QueryLocale<CMap> = [CollectionLocale<CMap[keyof CMap & string]>] extends [never]
+  ? string
+  : CollectionLocale<CMap[keyof CMap & string]>;
+
+type ItemExtras<CF extends ContentFormat = "object"> = {
   files?: FileData[];
   links: ItemData["links"];
-  content?: ItemData["content"];
+  content?: ResolvedContent<CF>;
 };
 
-export type ItemWithRelations<Props = {}, Rels = {}> = QuerySystemFields &
-  ItemExtras &
-  Props &
-  Rels &
-  Record<string, unknown>;
+export type ItemWithRelations<
+  Props = {},
+  Rels = {},
+  CF extends ContentFormat = "object",
+> = QuerySystemFields & ItemExtras<CF> & Props & Rels & Record<string, unknown>;
 
 export type QueryResult = QueryResultArray<ItemWithRelations<Record<string, unknown>>>;
 
@@ -53,9 +66,15 @@ export type PickFields<Props, F> = F extends readonly SelectableField<Props>[]
   ? Pick<SelectableShape<Props>, Extract<F[number], keyof SelectableShape<Props>>>
   : SelectableShape<Props>;
 
-export type TypedItem<Props> = ItemWithRelations<Props>;
+export type TypedItem<Props, CF extends ContentFormat = "object"> = ItemWithRelations<
+  Props,
+  {},
+  CF
+>;
 
-export type TypedQueryResult<Props> = QueryResultArray<TypedItem<Props>>;
+export type TypedQueryResult<Props, CF extends ContentFormat = "object"> = QueryResultArray<
+  TypedItem<Props, CF>
+>;
 
 export type TypedWithEntry<CMap, ChildC extends keyof CMap & string = keyof CMap & string> = {
   collection?: ChildC;
@@ -72,10 +91,13 @@ export type TypedWithInput<CMap, ParentProps> =
       [rel: string]: TypedWithEntry<CMap, any>;
     });
 
+export type FileMode = "local" | "remote";
+
 export type TypedQueryEntry<
   CMap,
   C extends keyof CMap & string = keyof CMap & string,
   F extends readonly SelectableField<CMap[C]>[] | undefined = undefined,
+  CF extends ContentFormat = "object",
 > = {
   collection?: C;
   filter?: string;
@@ -84,8 +106,14 @@ export type TypedQueryEntry<
   offset?: number;
   search?: string;
   include?: IncludeOption[];
+  fileMode?: FileMode;
   fields?: F;
   with?: TypedWithInput<CMap, CMap[C]>;
+  contentAs?: CF;
+  htmlOptions?: RenderOptions;
+  markdownOptions?: MarkdownOptions;
+  locale?: QueryLocale<CMap>;
+  fallback?: QueryLocale<CMap> | false;
 };
 
 type ResolveWithShape<W> = W extends (...args: any[]) => infer R ? R : W;
@@ -104,19 +132,27 @@ export type InferRels<CMap, W> = {
   [K in keyof ResolveWithShape<W>]: InferRelValue<CMap, ResolveWithShape<W>[K]>;
 };
 
-export type TypedQueryResultWithRels<Props, Rels = Record<string, unknown>> = QueryResultArray<
-  ItemWithRelations<Props, Rels>
->;
+export type TypedQueryResultWithRels<
+  Props,
+  Rels = Record<string, unknown>,
+  CF extends ContentFormat = "object",
+> = QueryResultArray<ItemWithRelations<Props, Rels, CF>>;
 
-export type EntryOpts<CMap, C extends keyof CMap & string> = {
+export type EntryOpts<CMap, C extends keyof CMap & string, CF extends ContentFormat = "object"> = {
   filter?: string | ((self: ItemRef<CMap[C]>) => string);
   sort?: SortOption | SortOption[];
   limit?: number;
   offset?: number;
   search?: string;
   include?: IncludeOption[];
+  fileMode?: FileMode;
   fields?: SelectableField<CMap[C]>[];
   with?: TypedWithInput<CMap, CMap[C]>;
+  contentAs?: CF;
+  htmlOptions?: RenderOptions;
+  markdownOptions?: MarkdownOptions;
+  locale?: QueryLocale<CMap>;
+  fallback?: QueryLocale<CMap> | false;
 };
 
 export interface TypedAllFn<CMap> {
@@ -126,7 +162,11 @@ export interface TypedAllFn<CMap> {
     collection: C,
     filter: (self: ItemRef<CMap[C]>) => string,
   ): { collection: C; filter: (self: ItemRef<CMap[C]>) => string };
-  <C extends keyof CMap & string, const O extends EntryOpts<CMap, C>>(
+  <
+    C extends keyof CMap & string,
+    CF extends ContentFormat = "object",
+    const O extends EntryOpts<CMap, C, CF> = EntryOpts<CMap, C, CF>,
+  >(
     collection: C,
     opts: O,
   ): O & { collection: C };
@@ -142,7 +182,11 @@ export interface TypedOneOfFn<CMap> {
     collection: C,
     filter: (self: ItemRef<CMap[C]>) => string,
   ): { collection: C; single: true; filter: (self: ItemRef<CMap[C]>) => string };
-  <C extends keyof CMap & string, const O extends EntryOpts<CMap, C>>(
+  <
+    C extends keyof CMap & string,
+    CF extends ContentFormat = "object",
+    const O extends EntryOpts<CMap, C, CF> = EntryOpts<CMap, C, CF>,
+  >(
     collection: C,
     opts: O,
   ): O & { collection: C; single: true };
@@ -165,6 +209,15 @@ interface TypedContfuClientBase<CMap> {
   linksTo: typeof linksTo;
   linkedFrom: typeof linkedFrom;
 
+  /**
+   * Returns a new query fn scoped to the given locale. Useful for SSR per-request scoping without mutating the shared client.
+   * The optional `fallback` overrides the client-configured fallback for this scope (`false` disables).
+   */
+  withLocale(
+    locale: QueryLocale<CMap>,
+    fallback?: QueryLocale<CMap> | false,
+  ): TypedContfuClient<CMap>;
+
   <C extends keyof CMap & string>(
     collection: C,
     filter: string,
@@ -181,13 +234,14 @@ interface TypedContfuClientBase<CMap> {
     const W extends { [rel: string]: TypedWithEntry<CMap, any> } = {
       [rel: string]: TypedWithEntry<CMap, any>;
     },
+    CF extends ContentFormat = "object",
   >(
     collection: C,
-    opts: Omit<EntryOpts<CMap, C>, "with" | "fields"> & {
+    opts: Omit<EntryOpts<CMap, C, CF>, "with" | "fields"> & {
       fields?: F;
       with: (parent: ItemRef<CMap[C]>) => W;
     },
-  ): Promise<TypedQueryResultWithRels<PickFields<CMap[C], F>, InferRels<CMap, W>>>;
+  ): Promise<TypedQueryResultWithRels<PickFields<CMap[C], F>, InferRels<CMap, W>, CF>>;
 
   <
     C extends keyof CMap & string,
@@ -195,18 +249,20 @@ interface TypedContfuClientBase<CMap> {
     const W extends { [rel: string]: TypedWithEntry<CMap, any> } = {
       [rel: string]: TypedWithEntry<CMap, any>;
     },
+    CF extends ContentFormat = "object",
   >(
     collection: C,
-    opts: Omit<EntryOpts<CMap, C>, "with" | "fields"> & { fields?: F; with: W },
-  ): Promise<TypedQueryResultWithRels<PickFields<CMap[C], F>, InferRels<CMap, W>>>;
+    opts: Omit<EntryOpts<CMap, C, CF>, "with" | "fields"> & { fields?: F; with: W },
+  ): Promise<TypedQueryResultWithRels<PickFields<CMap[C], F>, InferRels<CMap, W>, CF>>;
 
   <
     C extends keyof CMap & string,
     const F extends readonly SelectableField<CMap[C]>[] | undefined = undefined,
+    CF extends ContentFormat = "object",
   >(
     collection: C,
-    opts?: Omit<EntryOpts<CMap, C>, "fields"> & { fields?: F },
-  ): Promise<TypedQueryResult<PickFields<CMap[C], F>>>;
+    opts?: Omit<EntryOpts<CMap, C, CF>, "fields"> & { fields?: F },
+  ): Promise<TypedQueryResult<PickFields<CMap[C], F>, CF>>;
 
   <
     C extends keyof CMap & string,
@@ -214,9 +270,13 @@ interface TypedContfuClientBase<CMap> {
     const W extends { [rel: string]: TypedWithEntry<CMap, any> } = {
       [rel: string]: TypedWithEntry<CMap, any>;
     },
+    CF extends ContentFormat = "object",
   >(
-    options: TypedQueryEntry<CMap, C, F> & { collection: C; with: (parent: ItemRef<CMap[C]>) => W },
-  ): Promise<TypedQueryResultWithRels<PickFields<CMap[C], F>, InferRels<CMap, W>>>;
+    options: TypedQueryEntry<CMap, C, F, CF> & {
+      collection: C;
+      with: (parent: ItemRef<CMap[C]>) => W;
+    },
+  ): Promise<TypedQueryResultWithRels<PickFields<CMap[C], F>, InferRels<CMap, W>, CF>>;
 
   <
     C extends keyof CMap & string,
@@ -224,16 +284,18 @@ interface TypedContfuClientBase<CMap> {
     const W extends { [rel: string]: TypedWithEntry<CMap, any> } = {
       [rel: string]: TypedWithEntry<CMap, any>;
     },
+    CF extends ContentFormat = "object",
   >(
-    options: TypedQueryEntry<CMap, C, F> & { collection: C; with: W },
-  ): Promise<TypedQueryResultWithRels<PickFields<CMap[C], F>, InferRels<CMap, W>>>;
+    options: TypedQueryEntry<CMap, C, F, CF> & { collection: C; with: W },
+  ): Promise<TypedQueryResultWithRels<PickFields<CMap[C], F>, InferRels<CMap, W>, CF>>;
 
   <
     C extends keyof CMap & string,
     const F extends readonly SelectableField<CMap[C]>[] | undefined = undefined,
+    CF extends ContentFormat = "object",
   >(
-    options: TypedQueryEntry<CMap, C, F> & { collection: C },
-  ): Promise<TypedQueryResult<PickFields<CMap[C], F>>>;
+    options: TypedQueryEntry<CMap, C, F, CF> & { collection: C },
+  ): Promise<TypedQueryResult<PickFields<CMap[C], F>, CF>>;
 
   (options?: QueryOptions): Promise<QueryResult>;
 }

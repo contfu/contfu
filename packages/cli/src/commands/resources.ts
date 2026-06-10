@@ -13,9 +13,11 @@ import {
   type CreateFlowBody,
   type UpdateFlowBody,
   type CollectionSchema,
+  type ContfuApiClient,
 } from "@contfu/svc-api";
-import { getApiClient, handleApiError } from "../http";
+import { getApiClient, getBaseUrl, handleCliError } from "../http";
 import { writeEnvKey, ensureGitignore } from "../env";
+import { printTable, terminalLink, type TableColumn } from "../table";
 
 const RESOURCES = ["connections", "collections", "flows"] as const;
 type Resource = (typeof RESOURCES)[number];
@@ -32,11 +34,13 @@ export interface CliValues {
   "source-id"?: string;
   "target-id"?: string;
   "connection-id"?: string;
-  "include-ref"?: boolean;
-  "no-include-ref"?: boolean;
   content?: boolean;
   "no-content"?: boolean;
   token?: string;
+  "project-id"?: string;
+  scope?: string;
+  scopes?: string;
+  "webhook-secret"?: string;
   "generate-key"?: boolean;
 }
 
@@ -45,6 +49,16 @@ const REQUIRED_CREATE: Record<Resource, (keyof CliValues)[]> = {
   collections: ["display-name"],
   flows: ["source-id", "target-id"],
 };
+
+function parseScopeFlags(values: CliValues): string[] | undefined {
+  if (values.scopes !== undefined) {
+    return values.scopes
+      .split(",")
+      .map((scope) => scope.trim())
+      .filter(Boolean);
+  }
+  return values.scope !== undefined ? [values.scope] : undefined;
+}
 
 function buildConnectionCreateBody(values: CliValues): CreateConnectionBody {
   const missing = REQUIRED_CREATE.connections.filter((k) => values[k] === undefined);
@@ -55,14 +69,30 @@ function buildConnectionCreateBody(values: CliValues): CreateConnectionBody {
   const typeStr = values.type?.toLowerCase() ?? "notion";
   const typeEntry = Object.entries(ConnectionType).find(([k]) => k.toLowerCase() === typeStr);
   const type = typeEntry ? typeEntry[1] : ConnectionType.NOTION;
-  return { name: values.name!, type };
+  const body: CreateConnectionBody = { name: values.name!, type };
+  if (values.url !== undefined) body.url = values.url;
+  if (values.token !== undefined) body.credentials = values.token;
+  if (values["webhook-secret"] !== undefined) body.webhookSecret = values["webhook-secret"];
+  const scopes = parseScopeFlags(values);
+  if (scopes !== undefined) body.scopes = scopes;
+  if (type === ConnectionType.SANITY) {
+    if (!values["project-id"]) {
+      console.error("Missing required flag: --project-id");
+      process.exit(1);
+    }
+    body.url = `https://${values["project-id"]}.api.sanity.io`;
+    body.opts = {
+      projectId: values["project-id"],
+    };
+  }
+  return body;
 }
 
 function buildConnectionUpdateBody(values: CliValues): UpdateConnectionBody {
   const body: UpdateConnectionBody = {};
   if (values.name !== undefined) body.name = values.name;
-  if (values["include-ref"] === true) body.includeRef = true;
-  if (values["no-include-ref"] === true) body.includeRef = false;
+  const scopes = parseScopeFlags(values);
+  if (scopes !== undefined) body.scopes = scopes;
   return body;
 }
 
@@ -75,8 +105,6 @@ function buildCollectionCreateBody(values: CliValues): CreateCollectionBody {
   const body: CreateCollectionBody = { displayName: values["display-name"]! };
   if (values.name !== undefined) body.name = values.name;
   if (values["connection-id"] !== undefined) body.connectionId = values["connection-id"];
-  if (values["include-ref"] === true) body.includeRef = true;
-  if (values["no-include-ref"] === true) body.includeRef = false;
   if (values.content === true) body.includeContent = true;
   if (values["no-content"] === true) body.includeContent = false;
   return body;
@@ -86,8 +114,6 @@ function buildCollectionUpdateBody(values: CliValues): UpdateCollectionBody {
   const body: UpdateCollectionBody = {};
   if (values.name !== undefined) body.name = values.name;
   if (values["display-name"] !== undefined) body.displayName = values["display-name"];
-  if (values["include-ref"] === true) body.includeRef = true;
-  if (values["no-include-ref"] === true) body.includeRef = false;
   if (values.content === true) body.includeContent = true;
   if (values["no-content"] === true) body.includeContent = false;
   return body;
@@ -103,16 +129,11 @@ function buildFlowCreateBody(values: CliValues): CreateFlowBody {
     sourceId: values["source-id"]!,
     targetId: values["target-id"]!,
   };
-  if (values["include-ref"] === true) body.includeRef = true;
-  if (values["no-include-ref"] === true) body.includeRef = false;
   return body;
 }
 
-function buildFlowUpdateBody(values: CliValues): UpdateFlowBody {
-  const body: UpdateFlowBody = {};
-  if (values["include-ref"] === true) body.includeRef = true;
-  if (values["no-include-ref"] === true) body.includeRef = false;
-  return body;
+function buildFlowUpdateBody(_values: CliValues): UpdateFlowBody {
+  return {};
 }
 
 const PROPERTY_TYPE_LABEL: Record<number, string> = Object.fromEntries(
@@ -157,54 +178,107 @@ function printJson(data: unknown) {
   console.log(JSON.stringify(data, null, 2));
 }
 
-type Column<T> = { key: keyof T & string; header: string; format?: (v: unknown) => string };
-
-const CONNECTION_COLUMNS: Column<ApiConnection>[] = [
-  { key: "id", header: "ID" },
-  { key: "name", header: "Name" },
-  {
-    key: "type",
-    header: "Type",
-    format: (v) => ConnectionTypeMeta[v as number]?.label ?? String(v),
-  },
-  { key: "accountId", header: "Account", format: (v) => (v as string | null) ?? "" },
-  { key: "hasCredentials", header: "Credentials", format: (v) => (v ? "yes" : "no") },
-];
-
-const COLLECTION_COLUMNS: Column<ServiceCollection>[] = [
-  { key: "id", header: "ID" },
-  { key: "name", header: "Name" },
-  { key: "displayName", header: "Display Name" },
-  {
-    key: "connectionId",
-    header: "Connection",
-    format: (v) => (v == null ? "" : String(v)),
-  },
-];
-
-const FLOW_COLUMNS: Column<ServiceFlow>[] = [
-  { key: "id", header: "ID" },
-  { key: "sourceId", header: "Source" },
-  { key: "targetId", header: "Target" },
-  { key: "includeRef", header: "Ref", format: (v) => (v ? "yes" : "no") },
-];
-
-function printTable<T extends Record<string, unknown>>(rows: T[], columns: Column<T>[]) {
-  if (rows.length === 0) {
-    console.log("(none)");
-    return;
-  }
-  const cell = (col: Column<T>, row: T) =>
-    col.format ? col.format(row[col.key]) : String((row[col.key] as string) ?? "");
-  const widths = columns.map((col) =>
-    Math.max(col.header.length, ...rows.map((r) => cell(col, r).length)),
-  );
-  console.log(columns.map((col, i) => col.header.padEnd(widths[i])).join("  "));
-  console.log(widths.map((w) => "-".repeat(w)).join("  "));
-  for (const row of rows) {
-    console.log(columns.map((col, i) => cell(col, row).padEnd(widths[i])).join("  "));
-  }
+function uniqueById<T extends { id: unknown }>(rows: T[]): T[] {
+  return [...new Map(rows.map((row) => [String(row.id), row])).values()];
 }
+
+function resolveUniqueResource<T extends { id: unknown }>(
+  rows: T[],
+  ref: string,
+  isNameMatch: (row: T) => boolean,
+  label: string,
+): string {
+  const byId = rows.find((row) => String(row.id) === ref);
+  if (byId) return String(byId.id);
+
+  const byName = uniqueById(rows.filter(isNameMatch));
+  if (byName.length === 1) return String(byName[0].id);
+  if (byName.length > 1) throw new Error(`${label} name is ambiguous; use the ${label} id`);
+  throw new Error(`${label} not found: ${ref}`);
+}
+
+export async function resolveConnectionRef(
+  ref: string,
+  client: Pick<ContfuApiClient, "listConnections"> = getApiClient(),
+): Promise<string> {
+  const connections = await client.listConnections();
+  return resolveUniqueResource(
+    connections,
+    ref,
+    (connection) => connection.name === ref,
+    "Connection",
+  );
+}
+
+export async function resolveCollectionRef(
+  ref: string,
+  client: Pick<ContfuApiClient, "listCollections"> = getApiClient(),
+): Promise<string> {
+  const collections = await client.listCollections();
+  return resolveCollectionRefFromRows(ref, collections);
+}
+
+function resolveCollectionRefFromRows(ref: string, collections: ServiceCollection[]): string {
+  return resolveUniqueResource(
+    collections,
+    ref,
+    (collection) => collection.name === ref || collection.displayName === ref,
+    "Collection",
+  );
+}
+
+type ApiConnectionRow = ApiConnection & { displayName?: string | null };
+type ServiceFlowRow = ServiceFlow & {
+  sourceCollectionName?: string | null;
+  targetCollectionName?: string | null;
+};
+
+function appUrl(path: string): string {
+  return `${getBaseUrl().replace(/\/+$/, "")}${path}`;
+}
+
+function resourceLink(kind: "connections" | "collections", id: string): string {
+  return terminalLink(id, appUrl(`/${kind}/${encodeURIComponent(id)}`));
+}
+
+const CONNECTION_COLUMNS: TableColumn<ApiConnectionRow>[] = [
+  { header: "ID", value: (row) => resourceLink("connections", row.id) },
+  { header: "Name", value: (row) => row.name },
+  { header: "Display Name", value: (row) => row.displayName ?? row.name },
+  {
+    header: "Type",
+    value: (row) => ConnectionTypeMeta[row.type as ConnectionType]?.label ?? String(row.type),
+  },
+  { header: "Account", value: (row) => row.accountId ?? "" },
+  { header: "Scopes", value: (row) => row.scopes?.join(", ") ?? "" },
+  { header: "Credentials", value: (row) => (row.hasCredentials ? "yes" : "no") },
+];
+
+const COLLECTION_COLUMNS: TableColumn<ServiceCollection>[] = [
+  { header: "ID", value: (row) => resourceLink("collections", row.id) },
+  { header: "Name", value: (row) => row.name },
+  { header: "Display Name", value: (row) => row.displayName },
+  { header: "Scope", value: (row) => row.scope ?? "" },
+  { header: "Items", value: (row) => row.itemsCount },
+  {
+    header: "Connection",
+    value: (row) =>
+      typeof row.connectionId === "string" || typeof row.connectionId === "number"
+        ? resourceLink("connections", String(row.connectionId))
+        : "",
+  },
+];
+
+function collectionRefLabel(id: string, name?: string | null): string {
+  const label = name ? `(${id}) ${name}` : id;
+  return terminalLink(label, appUrl(`/collections/${encodeURIComponent(id)}`));
+}
+
+const FLOW_COLUMNS: TableColumn<ServiceFlowRow>[] = [
+  { header: "ID", value: (row) => row.id },
+  { header: "Source", value: (row) => collectionRefLabel(row.sourceId, row.sourceCollectionName) },
+  { header: "Target", value: (row) => collectionRefLabel(row.targetId, row.targetCollectionName) },
+];
 
 export async function list(resource: Resource, format: string) {
   const client = getApiClient();
@@ -226,7 +300,7 @@ export async function list(resource: Resource, format: string) {
       else printTable(data, FLOW_COLUMNS);
     }
   } catch (err) {
-    handleApiError(err);
+    handleCliError(err);
   }
 }
 
@@ -234,15 +308,17 @@ export async function get(resource: Resource, id: string) {
   const client = getApiClient();
   try {
     if (resource === "connections") {
-      printJson(await client.getConnection(id));
+      const resolvedId = await resolveConnectionRef(id, client);
+      printJson(await client.getConnection(resolvedId));
     } else if (resource === "collections") {
-      const data = await client.getCollection(id);
+      const resolvedId = await resolveCollectionRef(id, client);
+      const data = await client.getCollection(resolvedId);
       printJson({ ...data, schema: data.schema ? transformSchema(data.schema) : null });
     } else {
       printJson(await client.getFlow(id));
     }
   } catch (err) {
-    handleApiError(err);
+    handleCliError(err);
   }
 }
 
@@ -275,15 +351,23 @@ export async function create(
       const body = jsonData
         ? (untransformSchema(JSON.parse(jsonData)) as CreateCollectionBody)
         : buildCollectionCreateBody(values);
+      if (!jsonData && body.connectionId != null) {
+        body.connectionId = await resolveConnectionRef(body.connectionId, client);
+      }
       printJson(await client.createCollection(body));
     } else {
       const body = jsonData
         ? (untransformSchema(JSON.parse(jsonData)) as CreateFlowBody)
         : buildFlowCreateBody(values);
+      if (!jsonData) {
+        const collections = await client.listCollections();
+        body.sourceId = resolveCollectionRefFromRows(body.sourceId, collections);
+        body.targetId = resolveCollectionRefFromRows(body.targetId, collections);
+      }
       printJson(await client.createFlow(body));
     }
   } catch (err) {
-    handleApiError(err);
+    handleCliError(err);
   }
 }
 
@@ -296,15 +380,17 @@ export async function update(
   const client = getApiClient();
   try {
     if (resource === "connections") {
+      const resolvedId = await resolveConnectionRef(id, client);
       const body = jsonData
         ? (untransformSchema(JSON.parse(jsonData)) as UpdateConnectionBody)
         : buildConnectionUpdateBody(values);
-      printJson(await client.updateConnection(id, body));
+      printJson(await client.updateConnection(resolvedId, body));
     } else if (resource === "collections") {
+      const resolvedId = await resolveCollectionRef(id, client);
       const body = jsonData
         ? (untransformSchema(JSON.parse(jsonData)) as UpdateCollectionBody)
         : buildCollectionUpdateBody(values);
-      printJson(await client.updateCollection(id, body));
+      printJson(await client.updateCollection(resolvedId, body));
     } else {
       const body = jsonData
         ? (untransformSchema(JSON.parse(jsonData)) as UpdateFlowBody)
@@ -312,34 +398,38 @@ export async function update(
       printJson(await client.updateFlow(id, body));
     }
   } catch (err) {
-    handleApiError(err);
+    handleCliError(err);
   }
 }
 
 export async function del(resource: Resource, id: string) {
   const client = getApiClient();
   try {
+    let resolvedId = id;
     if (resource === "connections") {
-      await client.deleteConnection(id);
+      resolvedId = await resolveConnectionRef(id, client);
+      await client.deleteConnection(resolvedId);
     } else if (resource === "collections") {
-      await client.deleteCollection(id);
+      resolvedId = await resolveCollectionRef(id, client);
+      await client.deleteCollection(resolvedId);
     } else {
       await client.deleteFlow(id);
     }
-    console.log(`Deleted ${resource.slice(0, -1)} ${id}`);
+    console.log(`Deleted ${resource.slice(0, -1)} ${resolvedId}`);
   } catch (err) {
-    handleApiError(err);
+    handleCliError(err);
   }
 }
 
 export async function regenerateAppKey(id: string, envFile?: string) {
   const client = getApiClient();
   try {
-    const result = await client.regenerateAppKey(id);
+    const resolvedId = await resolveConnectionRef(id, client);
+    const result = await client.regenerateAppKey(resolvedId);
     writeEnvKey(envFile ?? ".env", result.apiKey);
     ensureGitignore();
   } catch (err) {
-    handleApiError(err);
+    handleCliError(err);
   }
 }
 

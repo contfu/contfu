@@ -1,10 +1,11 @@
+import { defineEnum, type EnumValue } from "@contfu/core";
 import { PropertyType } from "./schemas";
 
 /**
  * Filter operators for collection filtering.
  * Values are integers stored in the database.
  */
-export const FilterOperator = {
+export const FilterOperator = defineEnum({
   // Equality
   EQ: 1,
   NE: 2,
@@ -23,9 +24,9 @@ export const FilterOperator = {
   // Null checks
   IS_NULL: 12,
   IS_NOT_NULL: 13,
-} as const;
+});
 
-export type FilterOperator = (typeof FilterOperator)[keyof typeof FilterOperator];
+export type FilterOperator = EnumValue<typeof FilterOperator>;
 
 /**
  * A filter condition for collection items.

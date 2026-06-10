@@ -1,9 +1,8 @@
 import { eq, inArray } from "drizzle-orm";
 import type { IncludeOption, WithClause } from "@contfu/core";
 import type { ItemWithRelations } from "../../domain/query-types";
-import { encodeId } from "../ids";
 import { db, type DbCtx } from "./db";
-import { linkTable } from "./schema";
+import { internalLinkTable } from "./schema";
 
 const MAX_DEPTH = 3;
 
@@ -49,29 +48,24 @@ export function resolveRelations(
   }
 }
 
-function resolveLinkId(linkId: number, ctx: DbCtx): string | null {
+function resolveLinkId(linkId: number, ctx: DbCtx): number | null {
   const row = ctx
-    .select({ to: linkTable.to, internal: linkTable.internal })
-    .from(linkTable)
-    .where(eq(linkTable.id, linkId))
+    .select({ to: internalLinkTable.to })
+    .from(internalLinkTable)
+    .where(eq(internalLinkTable.id, linkId))
     .get();
-  if (!row || !row.internal) return null;
-  return encodeId(row.to);
+  return row?.to ?? null;
 }
 
-function resolveLinkIds(linkIds: number[], ctx: DbCtx): string[] {
+function resolveLinkIds(linkIds: number[], ctx: DbCtx): number[] {
   if (linkIds.length === 0) return [];
   const rows = ctx
-    .select({ id: linkTable.id, to: linkTable.to, internal: linkTable.internal })
-    .from(linkTable)
-    .where(inArray(linkTable.id, linkIds))
+    .select({ id: internalLinkTable.id, to: internalLinkTable.to })
+    .from(internalLinkTable)
+    .where(inArray(internalLinkTable.id, linkIds))
     .all();
-  const idMap = new Map<number, string>();
-  for (const row of rows) {
-    if (row.internal) {
-      idMap.set(row.id, encodeId(row.to));
-    }
-  }
+  const idMap = new Map<number, number>();
+  for (const row of rows) idMap.set(row.id, row.to);
   return linkIds.filter((id) => idMap.has(id)).map((id) => idMap.get(id)!);
 }
 
@@ -87,32 +81,25 @@ function substitutePlaceholders(
 
     const value = item[path];
 
-    if (path === "$id") return `"${item.$id}"`;
-    if (path === "$ref") return item.$ref !== null ? `"${item.$ref}"` : "null";
+    if (path === "$id") return String(item.$id);
     if (path === "$collection") return `"${item.$collection}"`;
     if (path === "$changedAt") return String(item.$changedAt);
-    if (path === "$connectionType") {
-      return item.$connectionType !== undefined && item.$connectionType !== null
-        ? String(item.$connectionType)
-        : "null";
-    }
 
     if (value === null || value === undefined) return "null";
 
     if (typeof value === "number") {
       const resolved = resolveLinkId(value, ctx);
-      return resolved ? `"${resolved}"` : String(value);
+      return resolved !== null ? String(resolved) : String(value);
     }
 
-    if (Array.isArray(value) && value.length > 0 && typeof value[0] === "number") {
-      const resolved = resolveLinkIds(value as unknown as number[], ctx);
-      if (resolved.length === 0) return "null";
-      if (resolved.length === 1) return `"${resolved[0]}"`;
-      return resolved.map((id) => `"${id}"`).join(", ");
+    if (Array.isArray(value)) {
+      const nums = value.filter((v): v is number => typeof v === "number");
+      const resolved = resolveLinkIds(nums, ctx);
+      return JSON.stringify(resolved);
     }
 
-    if (typeof value === "string") return `"${value}"`;
-    if (typeof value === "boolean") return value ? "true" : "false";
-    return typeof value === "object" ? JSON.stringify(value) : String(value as string);
+    if (typeof value === "string") return JSON.stringify(value);
+    if (typeof value === "boolean") return String(value);
+    return JSON.stringify(value);
   });
 }

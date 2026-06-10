@@ -11,7 +11,7 @@ export type CollectionIcon = { type: "emoji"; value: string } | { type: "image";
 export interface Collection {
   id: string;
   name: string;
-  includeRef: boolean;
+  scope?: string | null;
   includeContent: boolean;
   schema: CollectionSchema;
   refTargets?: RefTargets;

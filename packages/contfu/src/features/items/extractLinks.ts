@@ -1,11 +1,12 @@
 import type { Block, Inline } from "@contfu/core";
 import { isAnchor } from "@contfu/core";
 import { PropertyType, schemaType, type CollectionSchema } from "@contfu/core";
-import type { NewItemLink } from "../../infra/db/schema";
 
 const PLACEHOLDER_BASE = -1;
 
-export type LinkRecord = Omit<NewItemLink, "id">;
+export type LinkRecord =
+  | { kind: "internal"; prop: string | null; from: number; to: number }
+  | { kind: "external"; from: number; url: string };
 
 export interface ExtractedLinks {
   records: LinkRecord[];
@@ -23,56 +24,35 @@ function isExternalHref(href: string): boolean {
   );
 }
 
-function tryDecodeBase64url(s: string): Buffer | null {
-  try {
-    const buf = Buffer.from(s, "base64url");
-    if (buf.length === 0) return null;
-    // Round-trip check: re-encode and compare
-    if (buf.toString("base64url") !== s) return null;
-    return buf;
-  } catch {
-    return null;
-  }
+function tryDecodeItemId(value: unknown): number | null {
+  if (typeof value === "number" && Number.isInteger(value) && value > 0) return value;
+  if (typeof value !== "string") return null;
+  const id = Number.parseInt(value, 10);
+  return Number.isInteger(id) && id > 0 && String(id) === value ? id : null;
 }
 
-function walkInlines(inlines: Inline[], records: LinkRecord[], from: Buffer): Inline[] {
+function walkInlines(inlines: Inline[], records: LinkRecord[], from: number): Inline[] {
   return inlines.map((inline) => {
     if (!isAnchor(inline)) return inline;
     const href = inline[2] as unknown as string; // wire data arrives as string
     const placeholderIdx = records.length;
 
     if (isExternalHref(href)) {
-      records.push({
-        prop: null,
-        from,
-        to: Buffer.from(href, "utf8"),
-        internal: false,
-      });
+      records.push({ kind: "external", from, url: href });
     } else {
-      const decoded = tryDecodeBase64url(href);
-      if (decoded) {
-        records.push({
-          prop: null,
-          from,
-          to: decoded,
-          internal: true,
-        });
-      } else {
-        // Treat as external URL
-        records.push({
-          prop: null,
-          from,
-          to: Buffer.from(href, "utf8"),
-          internal: false,
-        });
-      }
+      const decoded = tryDecodeItemId(href);
+      records.push(
+        decoded
+          ? { kind: "internal", prop: null, from, to: decoded }
+          : { kind: "external", from, url: href },
+      );
     }
 
     return ["a", inline[1], PLACEHOLDER_BASE - placeholderIdx] as unknown as Inline;
   });
 }
 
-function walkBlocks(blocks: Block[], records: LinkRecord[], from: Buffer): Block[] {
+function walkBlocks(blocks: Block[], records: LinkRecord[], from: number): Block[] {
   return blocks.map((block) => {
     const type = block[0];
     switch (type) {
@@ -130,7 +110,7 @@ function walkBlocks(blocks: Block[], records: LinkRecord[], from: Buffer): Block
 }
 
 export function extractLinks(
-  from: Buffer,
+  from: number,
   props: Record<string, unknown> | undefined,
   content: Block[] | null | undefined,
   schema: CollectionSchema | null,
@@ -138,17 +118,16 @@ export function extractLinks(
   const records: LinkRecord[] = [];
   const newProps = props ? { ...props } : {};
 
-  // Extract REF/REFS from props
   if (schema && props) {
     for (const [propName, propValue] of Object.entries(schema)) {
       const propType = schemaType(propValue);
       if (propType === PropertyType.REF) {
         const value = props[propName];
         if (value != null) {
-          const buf = toBuffer(value);
-          if (buf) {
+          const itemId = tryDecodeItemId(value);
+          if (itemId) {
             const placeholderIdx = records.length;
-            records.push({ prop: propName, from, to: buf, internal: true });
+            records.push({ kind: "internal", prop: propName, from, to: itemId });
             newProps[propName] = PLACEHOLDER_BASE - placeholderIdx;
           }
         }
@@ -157,10 +136,10 @@ export function extractLinks(
         if (Array.isArray(value) && value.length > 0) {
           const placeholders: number[] = [];
           for (const item of value) {
-            const buf = toBuffer(item);
-            if (buf) {
+            const itemId = tryDecodeItemId(item);
+            if (itemId) {
               const placeholderIdx = records.length;
-              records.push({ prop: propName, from, to: buf, internal: true });
+              records.push({ kind: "internal", prop: propName, from, to: itemId });
               placeholders.push(PLACEHOLDER_BASE - placeholderIdx);
             }
           }
@@ -170,23 +149,12 @@ export function extractLinks(
     }
   }
 
-  // Extract anchors from content
   let newContent = content;
   if (content && content.length > 0) {
     newContent = walkBlocks(content, records, from);
   }
 
   return { records, props: newProps, content: newContent };
-}
-
-function toBuffer(value: unknown): Buffer | null {
-  if (Buffer.isBuffer(value)) return value;
-  if (value instanceof Uint8Array) return Buffer.from(value);
-  if (typeof value === "string") {
-    const decoded = tryDecodeBase64url(value);
-    return decoded;
-  }
-  return null;
 }
 
 export function replacePlaceholders(
@@ -197,7 +165,6 @@ export function replacePlaceholders(
 ): { props: Record<string, unknown>; content: Block[] | null | undefined } {
   const newProps = { ...props };
 
-  // Replace prop placeholders with actual link IDs
   if (schema) {
     for (const [propName, propValue] of Object.entries(schema)) {
       const propType = schemaType(propValue);
@@ -222,7 +189,6 @@ export function replacePlaceholders(
     }
   }
 
-  // Replace content anchor placeholders with actual link IDs
   let newContent = content;
   if (content && content.length > 0) {
     newContent = replaceContentPlaceholders(content, linkIds);

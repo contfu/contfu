@@ -168,8 +168,8 @@ describe("filter-helpers operator type safety", () => {
   });
 
   // System fields with correct types
-  it("eq with $id (string system field)", () => {
-    const result = eq(self.$id, "item-123");
+  it("eq with $id (number system field)", () => {
+    const result = eq(self.$id, 123);
     expect(typeof result).toBe("string");
   });
 

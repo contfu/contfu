@@ -7,7 +7,7 @@ import {
 } from "./connection-collections";
 
 const mockFetch = mock<typeof fetch>();
-globalThis.fetch = mockFetch as typeof fetch;
+globalThis.fetch = mockFetch as unknown as typeof fetch;
 
 function jsonResponse(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
@@ -41,17 +41,19 @@ describe("parseAddRefs", () => {
 describe("scanConnectionCollections", () => {
   test("prints scanned collections as JSON", async () => {
     const collections = [{ ref: "db-1", displayName: "Blog Posts", alreadyAdded: false }];
+    mockFetch.mockResolvedValueOnce(jsonResponse([{ id: "42", name: "Brain" }]));
     mockFetch.mockResolvedValueOnce(jsonResponse(collections));
 
     await scanConnectionCollections("42", { format: "json" });
 
-    expect(mockFetch).toHaveBeenCalledTimes(1);
-    const url = mockFetch.mock.calls[0][0] as string;
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    const url = mockFetch.mock.calls[1][0] as string;
     expect(url).toContain("/api/v1/connections/42/scan");
     expect(logSpy).toHaveBeenCalledWith(JSON.stringify(collections, null, 2));
   });
 
   test("prints scanned collections in table format", async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse([{ id: "42", name: "Brain" }]));
     mockFetch.mockResolvedValueOnce(
       jsonResponse([
         { ref: "db-1", displayName: "Blog Posts", alreadyAdded: false },
@@ -61,7 +63,7 @@ describe("scanConnectionCollections", () => {
 
     await scanConnectionCollections("42", { format: "table" });
 
-    const calls = logSpy.mock.calls.map((call) => call[0]);
+    const calls: unknown[] = logSpy.mock.calls.map((call: unknown[]) => call[0]);
     expect(calls.some((call) => String(call).includes("Display Name"))).toBe(true);
     expect(calls.some((call) => String(call).includes("already added"))).toBe(true);
   });
@@ -74,11 +76,12 @@ describe("addConnectionCollections", () => {
       alreadyAdded: [],
       scanned: 2,
     };
+    mockFetch.mockResolvedValueOnce(jsonResponse([{ id: "42", name: "Brain" }]));
     mockFetch.mockResolvedValueOnce(jsonResponse(summary, 201));
 
-    await addConnectionCollections("42", { format: "json", refs: ["db-1"] });
+    await addConnectionCollections("Brain", { format: "json", refs: ["db-1"] });
 
-    const [url, options] = mockFetch.mock.calls[0] as [string, RequestInit];
+    const [url, options] = mockFetch.mock.calls[1] as [string, RequestInit];
     expect(url).toContain("/api/v1/connections/42/add");
     expect(options.method).toBe("POST");
     expect(JSON.parse(options.body as string)).toEqual({ refs: ["db-1"] });
@@ -86,11 +89,12 @@ describe("addConnectionCollections", () => {
   });
 
   test("posts all=true when requested", async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse([{ id: "42", name: "Brain" }]));
     mockFetch.mockResolvedValueOnce(jsonResponse({ added: [], alreadyAdded: [], scanned: 0 }, 201));
 
     await addConnectionCollections("42", { format: "json", all: true });
 
-    const [, options] = mockFetch.mock.calls[0] as [string, RequestInit];
+    const [, options] = mockFetch.mock.calls[1] as [string, RequestInit];
     expect(JSON.parse(options.body as string)).toEqual({ all: true });
   });
 
@@ -102,7 +106,7 @@ describe("addConnectionCollections", () => {
     // oxlint-disable-next-line typescript-eslint/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
     await expect(addConnectionCollections("42", { format: "table" })).rejects.toThrow("exit");
     expect(errorSpy).toHaveBeenCalledWith(
-      "Usage: contfu connections add <connection-id> (--refs <comma-separated> | --all)",
+      "Usage: contfu connections add <connection-id-or-name> (--refs <comma-separated> | --all)",
     );
 
     exitSpy.mockRestore();
@@ -117,7 +121,7 @@ describe("printAddSummary", () => {
       alreadyAdded: [{ ref: "authors", displayName: "Authors", alreadyAdded: true }],
     });
 
-    const calls = logSpy.mock.calls.map((call) => String(call[0]));
+    const calls: string[] = logSpy.mock.calls.map((call: unknown[]) => String(call[0]));
     expect(calls.some((call) => call.includes("Scanned 3 collections."))).toBe(true);
     expect(calls.some((call) => call.includes("Added 1 collection."))).toBe(true);
     expect(calls.some((call) => call.includes("Already added:"))).toBe(true);

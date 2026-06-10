@@ -1,23 +1,34 @@
-import { beforeEach, describe, expect, it } from "bun:test";
+import { afterEach, describe, expect, it } from "bun:test";
 import fs from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { BunFileStore } from "./file-store";
 
 describe("BunFileStore", () => {
-  const store = new BunFileStore("/tmp/contfu-test");
+  const tempRoots: string[] = [];
 
-  beforeEach(async () => {
-    await fs.rm("/tmp/contfu-test", { recursive: true, force: true });
-    await fs.mkdir("/tmp/contfu-test", { recursive: true });
+  afterEach(async () => {
+    await Promise.all(
+      tempRoots.splice(0).map((root) => fs.rm(root, { recursive: true, force: true })),
+    );
   });
+
+  async function createTestStore() {
+    const root = await fs.mkdtemp(join(tmpdir(), "contfu-test-"));
+    tempRoots.push(root);
+    return { root, store: new BunFileStore(root) };
+  }
 
   describe("exists()", () => {
     it("should return false, if no file exists", async () => {
+      const { store } = await createTestStore();
       const exists = await store.exists("test");
       expect(exists).toBe(false);
     });
 
     it("should return true, if file exists", async () => {
-      await Bun.write("/tmp/contfu-test/test", "");
+      const { root, store } = await createTestStore();
+      await Bun.write(join(root, "test"), "");
       const exists = await store.exists("test");
       expect(exists).toBe(true);
     });
@@ -25,26 +36,29 @@ describe("BunFileStore", () => {
 
   describe("write()", () => {
     it("should create a file", async () => {
+      const { root, store } = await createTestStore();
       await store.write("test", Buffer.from("test"));
 
-      const content = await Bun.file("/tmp/contfu-test/test").text();
+      const content = await Bun.file(join(root, "test")).text();
 
       expect(content).toEqual("test");
     });
 
     it("should overwrite content", async () => {
-      await Bun.write("/tmp/contfu-test/test", "test");
+      const { root, store } = await createTestStore();
+      await Bun.write(join(root, "test"), "test");
 
       await store.write("test", Buffer.from("test2"));
 
-      const content = await Bun.file("/tmp/contfu-test/test").text();
+      const content = await Bun.file(join(root, "test")).text();
       expect(content).toEqual("test2");
     });
   });
 
   describe("read()", () => {
     it("should read a file", async () => {
-      await Bun.write("/tmp/contfu-test/test", "test");
+      const { root, store } = await createTestStore();
+      await Bun.write(join(root, "test"), "test");
 
       const content = await store.read("test");
 
@@ -52,6 +66,7 @@ describe("BunFileStore", () => {
     });
 
     it("should return null, if file does not exist", async () => {
+      const { store } = await createTestStore();
       const content = await store.read("test");
 
       expect(content).toBeNull();

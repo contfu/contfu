@@ -1,13 +1,9 @@
 import { eq } from "drizzle-orm";
 import { db } from "../../infra/db/db";
-import { decodeId } from "../../infra/ids";
 import { itemsTable } from "../../infra/db/schema";
 import { deleteItemLinksByRef } from "./deleteItemLinksByRef";
 
-export function deleteItem(id: string, ctx = db): void {
+export function deleteItem(id: number, ctx = db): void {
   deleteItemLinksByRef(id, ctx);
-  ctx
-    .delete(itemsTable)
-    .where(eq(itemsTable.id, decodeId(id)))
-    .run();
+  ctx.delete(itemsTable).where(eq(itemsTable.id, id)).run();
 }

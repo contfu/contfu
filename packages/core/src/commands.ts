@@ -1,15 +1,19 @@
-export enum CommandType {
-  CONNECT = 1,
-  ACK = 2,
-}
+import { defineEnum, type EnumValue } from "./enums";
+
+export const CommandType = defineEnum({
+  CONNECT: 1,
+  ACK: 2,
+});
+
+export type CommandType = EnumValue<typeof CommandType>;
 
 export type ConnectCommand = {
-  type: CommandType.CONNECT;
+  type: typeof CommandType.CONNECT;
   key: Buffer;
 };
 
 export type AckCommand = {
-  type: CommandType.ACK;
+  type: typeof CommandType.ACK;
   itemId: Buffer;
 };
 

@@ -1,8 +1,8 @@
 # @contfu/contfu
 
-Core library for building Contfu-powered applications with a local database.
+Local Runtime and Local Store library for Contfu-powered applications.
 
-Use this package when you want to store and query content locally. If you prefer to query a remote Contfu server over HTTP, use `@contfu/client` instead.
+Use this package when you want to receive Sync Messages through the Connector, apply them into a local SQLite database, process Media Files, and query content locally. If your application should query a user-hosted Server over HTTP, use `@contfu/client` instead.
 
 ## Usage
 
@@ -11,15 +11,17 @@ By default, `@contfu/contfu` stores its SQLite database at `data/contfu.sqlite`.
 ```ts
 import { connect } from "@contfu/contfu";
 
-// Sync content into the local database
+// Run the Local Runtime: receive Sync Messages and write the Local Store.
 for await (const event of connect()) {
   console.log(event.type, event);
 }
 ```
 
-## Media processing
+## File and media processing
 
-You can plug in custom file storage and media optimization by passing `fileStore` and `mediaOptimizer` options to `connect()`:
+`@contfu/contfu` runs inside the Local Runtime. During `connect()`, it receives item data and File references, downloads referenced files from their source URLs, stores them locally, and processes media inside the application boundary. The Cloud Service does not own file storage or media processing for this package.
+
+You can plug in custom local or application-operated file storage and media optimization by passing `fileStore` and `mediaOptimizer` options to `connect()`:
 
 ```ts
 import { connect } from "@contfu/contfu";
@@ -30,7 +32,7 @@ for await (const event of connect({
   fileStore: new BunFileStore("/var/contfu/files"),
   mediaOptimizer: new M4kOptimizer(),
 })) {
-  // files are stored and optimized automatically during sync
+  // Files are downloaded, stored, and processed by the Local Runtime while Sync Messages are applied.
 }
 ```
 

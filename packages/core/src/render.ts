@@ -88,6 +88,7 @@ export function buildFileUrl(
   opts?: FileUrlOptions,
   mediaType?: MediaType,
 ): string {
+  if (/^https?:\/\//i.test(canonical)) return canonical;
   const dot = canonical.lastIndexOf(".");
   if (dot <= 0 || dot === canonical.length - 1) {
     throw new Error(`invalid canonical: expected <id>.<ext>, got "${canonical}"`);

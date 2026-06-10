@@ -93,7 +93,7 @@
 {:else if isUl(block)}
   {#if components.ul}
     <svelte:component this={components.ul} {block}>
-      {#each inlineItems(block.slice(1) as (Inline | Block)[][]) as item}
+      {#each inlineItems(block.slice(1) as (InlineType | BlockType)[][]) as item}
         <li>
           {#each item as child}
             {#if isInline(child)}<Inline inline={child} />{:else}<Block block={child} {components} />{/if}
@@ -103,7 +103,7 @@
     </svelte:component>
   {:else}
     <ul>
-      {#each inlineItems(block.slice(1) as (Inline | Block)[][]) as item}
+      {#each inlineItems(block.slice(1) as (InlineType | BlockType)[][]) as item}
         <li>
           {#each item as child}
             {#if isInline(child)}<Inline inline={child} />{:else}<Block block={child} {components} />{/if}
@@ -115,7 +115,7 @@
 {:else if isOl(block)}
   {#if components.ol}
     <svelte:component this={components.ol} {block}>
-      {#each inlineItems(block.slice(1) as (Inline | Block)[][]) as item}
+      {#each inlineItems(block.slice(1) as (InlineType | BlockType)[][]) as item}
         <li>
           {#each item as child}
             {#if isInline(child)}<Inline inline={child} />{:else}<Block block={child} {components} />{/if}
@@ -125,7 +125,7 @@
     </svelte:component>
   {:else}
     <ol>
-      {#each inlineItems(block.slice(1) as (Inline | Block)[][]) as item}
+      {#each inlineItems(block.slice(1) as (InlineType | BlockType)[][]) as item}
         <li>
           {#each item as child}
             {#if isInline(child)}<Inline inline={child} />{:else}<Block block={child} {components} />{/if}

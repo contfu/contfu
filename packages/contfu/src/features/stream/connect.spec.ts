@@ -1,9 +1,12 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
-import { EventType, ConnectionType, type ImageBlock } from "@contfu/core";
+import { EventType, type ImageBlock } from "@contfu/core";
 import { db } from "../../infra/db/db";
 import { fileTable, itemFileTable, syncTable } from "../../infra/db/schema";
 import { truncateAllTables } from "../../../test/setup";
+import { listCollections } from "../collections/listCollections";
 import { setCollection } from "../collections/setCollection";
+import { createItem } from "../items/createItem";
+import { queryItems } from "../items/queryItems";
 import type { FileStore } from "../../domain/files";
 import type { MediaOptimizer } from "../../domain/media";
 
@@ -19,6 +22,101 @@ describe("contfu connect", () => {
     mock.restore();
   });
 
+  test("throws when an item arrives before its collection schema", async () => {
+    await mock.module("@contfu/connect", () => ({
+      // eslint-disable-next-line typescript/require-await -- async generator required by AsyncGenerator return type
+      connectToStream: async function* () {
+        yield {
+          type: EventType.ITEM_CHANGED,
+          item: {
+            id: 9,
+            collection: "missing",
+            changedAt: 1700000000,
+            props: { title: "Hello" },
+          },
+          index: 1,
+        };
+      },
+    }));
+
+    const { connect } = await import("./connect");
+
+    // oxlint-disable-next-line typescript/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
+    await expect(
+      (async () => {
+        for await (const _ of connect({ key, reconnect: false })) {
+          // consume
+        }
+      })(),
+    ).rejects.toThrow('Received ITEM_CHANGED for unknown collection "missing" before schema');
+  });
+
+  test("persists collection rename events to collections and existing items", async () => {
+    createItem({
+      id: 101,
+      collection: "article",
+      changedAt: 1700000000,
+      props: { title: "Before rename" },
+      content: [],
+    });
+
+    await mock.module("@contfu/connect", () => ({
+      // eslint-disable-next-line typescript/require-await -- async generator required by AsyncGenerator return type
+      connectToStream: async function* () {
+        yield {
+          type: EventType.COLLECTION_RENAMED,
+          oldName: "article",
+          newName: "blogPosts",
+          newDisplayName: "Blog Posts",
+          index: 88,
+        };
+      },
+    }));
+
+    const { connect } = await import("./connect");
+
+    for await (const _ of connect({ key, reconnect: false })) {
+      // consume
+    }
+
+    const collections = listCollections();
+    expect(collections.some((collection) => collection.name === "article")).toBe(false);
+    const renamedCollection = collections.find((collection) => collection.name === "blogPosts");
+    expect(renamedCollection?.displayName).toBe("Blog Posts");
+    expect(queryItems({ collection: "article" }).items).toHaveLength(0);
+    expect(queryItems({ collection: "blogPosts" }).items[0].props.title).toBe("Before rename");
+  });
+
+  test("persists collection removal events to collections and items", async () => {
+    createItem({
+      id: 102,
+      collection: "article",
+      changedAt: 1700000000,
+      props: { title: "Before removal" },
+      content: [],
+    });
+
+    await mock.module("@contfu/connect", () => ({
+      // eslint-disable-next-line typescript/require-await -- async generator required by AsyncGenerator return type
+      connectToStream: async function* () {
+        yield {
+          type: EventType.COLLECTION_REMOVED,
+          collection: "article",
+          index: 89,
+        };
+      },
+    }));
+
+    const { connect } = await import("./connect");
+
+    for await (const _ of connect({ key, reconnect: false })) {
+      // consume
+    }
+
+    expect(listCollections().some((collection) => collection.name === "article")).toBe(false);
+    expect(queryItems({ collection: "article" }).items).toHaveLength(0);
+  });
+
   test("persists sync index from events", async () => {
     await mock.module("@contfu/connect", () => ({
       // eslint-disable-next-line typescript/require-await -- async generator required by AsyncGenerator return type
@@ -26,9 +124,7 @@ describe("contfu connect", () => {
         yield {
           type: EventType.ITEM_CHANGED,
           item: {
-            id: Buffer.from([1, 2, 3]),
-            connectionType: ConnectionType.WEB,
-            ref: "https://example.com/abc",
+            id: 1,
             collection: "article",
             changedAt: 1700000000,
             props: { title: "Hello" },
@@ -52,36 +148,7 @@ describe("contfu connect", () => {
     expect(rows[0].index).toBe(77);
   });
 
-  test("uses persisted sync index + 1 as from when reconnecting", async () => {
-    db.insert(syncTable).values({ index: 99 }).run();
-
-    let receivedFrom: number | undefined;
-
-    await mock.module("@contfu/connect", () => ({
-      // eslint-disable-next-line typescript/require-await -- async generator required by AsyncGenerator return type
-      connectToStream: async function* (opts?: { from?: number }) {
-        receivedFrom = opts?.from;
-        yield {
-          type: EventType.ITEM_DELETED,
-          item: Buffer.from([1]),
-          index: 100,
-        };
-      },
-    }));
-
-    const { connect } = await import("./connect");
-
-    for await (const _ of connect({ key, reconnect: false })) {
-      // consume
-    }
-
-    expect(receivedFrom).toBe(100);
-
-    const rows = db.select().from(syncTable).all();
-    expect(rows[0].index).toBe(100);
-  });
-
-  test("processes ImageBlocks when fileStore and mediaOptimizer provided", async () => {
+  test("Local Runtime downloads and processes Files when configured", async () => {
     const fileStore: FileStore = {
       write: mock(() => Promise.resolve()),
       read: mock(() => Promise.resolve(null)),
@@ -101,9 +168,7 @@ describe("contfu connect", () => {
         yield {
           type: EventType.ITEM_CHANGED,
           item: {
-            id: Buffer.from([4, 5, 6]),
-            connectionType: ConnectionType.WEB,
-            ref: "https://example.com/post",
+            id: 4,
             collection: "article",
             changedAt: 1700000000,
             props: { title: "With image" },
@@ -124,9 +189,10 @@ describe("contfu connect", () => {
     expect(mediaOptimizer.optimize).toHaveBeenCalledTimes(1);
     const files = db.select().from(fileTable).all();
     expect(files).toHaveLength(1);
-    expect(files[0].originalUrl).toBe("https://example.com/photo.png");
+    expect(files[0].status).toBe(2);
+    expect(files[0].data?.toString("utf8")).toBe("img");
 
-    // Junction row should exist
+    // Local Runtime file link should exist
     const junctions = db.select().from(itemFileTable).all();
     expect(junctions).toHaveLength(1);
   });
@@ -138,9 +204,7 @@ describe("contfu connect", () => {
         yield {
           type: EventType.ITEM_CHANGED,
           item: {
-            id: Buffer.from([7, 8, 9]),
-            connectionType: ConnectionType.WEB,
-            ref: "https://example.com/post2",
+            id: 7,
             collection: "article",
             changedAt: 1700000000,
             props: { title: "No files" },
@@ -160,7 +224,7 @@ describe("contfu connect", () => {
     // Default fileStore is used; files stored as-is (no optimizer)
     const files = db.select().from(fileTable).all();
     expect(files).toHaveLength(1);
-    expect(files[0].ext).toBe("png");
+    expect(files[0].meta.ext).toBe("png");
   });
 
   test("DELETED event calls deleteFilesByItem when fileStore provided", async () => {
@@ -175,7 +239,7 @@ describe("contfu connect", () => {
       connectToStream: async function* () {
         yield {
           type: EventType.ITEM_DELETED,
-          item: Buffer.from([1]),
+          item: 1,
           index: 400,
         };
       },

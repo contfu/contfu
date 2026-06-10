@@ -3,11 +3,13 @@
   import { Button } from "$lib/components/ui/button";
   import CopyTextButton from "$lib/components/CopyTextButton.svelte";
   import { subscribeLiveEvent } from "$lib/live/event-source";
+  import { getCollectionsQuery, getCombinedCollectionTypesQuery } from "$lib/remote/collections.remote";
   import * as Table from "$lib/components/ui/table";
   import { onMount } from "svelte";
-  import type { PageData } from "./$types";
 
-  let { data }: { data: PageData } = $props();
+  const [collections, combinedTypeString] = $derived(
+    await Promise.all([getCollectionsQuery(), getCombinedCollectionTypesQuery()]),
+  );
 
   onMount(() => {
     return subscribeLiveEvent("data-changed-batch", () => {
@@ -23,8 +25,8 @@
       label="copy typings"
       copiedLabel="typings copied"
       failedLabel="copy failed"
-      disabled={!data.combinedTypeString}
-      text={data.combinedTypeString}
+      disabled={!combinedTypeString}
+      text={combinedTypeString}
     />
   </div>
 
@@ -33,19 +35,18 @@
       <Table.Header>
         <Table.Row>
           <Table.Head class="text-muted-foreground">name</Table.Head>
-          <Table.Head class="text-muted-foreground">ref</Table.Head>
           <Table.Head class="text-muted-foreground">item_count</Table.Head>
         </Table.Row>
       </Table.Header>
       <Table.Body>
-        {#if data.collections.length === 0}
+        {#if collections.length === 0}
           <Table.Row>
-            <Table.Cell colspan={3} class="py-6 text-center text-muted-foreground">
+            <Table.Cell colspan={2} class="py-6 text-center text-muted-foreground">
               -- no collections found --
             </Table.Cell>
           </Table.Row>
         {:else}
-          {#each data.collections as collection}
+          {#each collections as collection}
             <Table.Row>
               <Table.Cell>
                 <Button
@@ -56,15 +57,14 @@
                   {collection.name}
                 </Button>
               </Table.Cell>
-              <Table.Cell class="text-muted-foreground">{collection.ref}</Table.Cell>
               <Table.Cell>{collection.itemCount}</Table.Cell>
             </Table.Row>
           {/each}
         {/if}
       </Table.Body>
     </Table.Root>
-    {#if data.collections.length > 0}
-      <p class="mt-3 text-xs text-muted-foreground">{data.collections.length} {data.collections.length === 1 ? "result" : "results"}</p>
+    {#if collections.length > 0}
+      <p class="mt-3 text-xs text-muted-foreground">{collections.length} {collections.length === 1 ? "result" : "results"}</p>
     {/if}
   </div>
 </div>

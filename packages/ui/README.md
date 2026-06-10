@@ -1,8 +1,8 @@
 # @contfu/ui
 
-SvelteKit dashboard for Contfu.
+SvelteKit dashboard for inspecting a Contfu Local Store through a user-hosted Contfu Server.
 
-Browser-side application that connects to `@contfu/server` to display and manage content. Built with SvelteKit, Tailwind CSS, and shadcn-svelte components.
+The UI queries `@contfu/server` over HTTP. It does not connect to the Cloud Service or synchronize content; the Local Runtime is responsible for receiving Sync Messages through the Connector and writing the Local Store.
 
 ## Development
 
@@ -16,6 +16,16 @@ bun preview    # preview production build
 
 - `src/routes/` — SvelteKit file-based routes
 - `src/lib/components/` — shared UI components
-- `build/` — compiled output served by `@contfu/server`
+- `build/` — compiled dashboard output
 
-This package is not published to npm. Its build output is bundled with `@contfu/server`.
+## Basic auth
+
+Set `CONTFU_BASIC_AUTH` to `user:password` to enable optional HTTP basic auth for `@contfu/ui`.
+
+When set, unauthenticated browser requests receive `401 Unauthorized` with `WWW-Authenticate: Basic realm="Contfu"`. SvelteKit app asset requests under `/_app/` remain unchallenged.
+
+The same `CONTFU_BASIC_AUTH` value is also used for server-side requests to a protected `@contfu/server`: the UI strips any incoming browser `Authorization` header and injects the configured basic-auth header into proxied `/api/*` and `/files/*` requests and into server-side data-loading requests.
+
+If `CONTFU_BASIC_AUTH` is unset or malformed, the UI does not challenge browser requests and does not send upstream basic auth.
+
+This package is not published to npm.

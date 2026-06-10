@@ -1,7 +1,7 @@
 import { and, asc, desc, eq, gte, lte, type SQL } from "drizzle-orm";
 import { db } from "../../infra/db/db";
+import { propsWithLocale } from "../../infra/db/mappers";
 import { itemsTable } from "../../infra/db/schema";
-import { encodeId } from "../../infra/ids";
 import type { ItemData } from "../../infra/types/content-types";
 
 export type ItemSortField = "changedAt" | "collection";
@@ -114,7 +114,7 @@ function compareItems(
   }
 
   if (primary === 0) {
-    return a.id.localeCompare(b.id);
+    return a.id - b.id;
   }
 
   return sortDirection === "asc" ? primary : -primary;
@@ -155,10 +155,9 @@ export function queryItems(input: QueryItemsInput = {}, ctx = db): QueryItemsRes
   const baseQuery = ctx
     .select({
       id: itemsTable.id,
-      connectionType: itemsTable.connectionType,
-      ref: itemsTable.ref,
       collectionName: itemsTable.collection,
       props: itemsTable.props,
+      locale: itemsTable.locale,
       content: itemsTable.content,
       changedAt: itemsTable.changedAt,
     })
@@ -178,11 +177,9 @@ export function queryItems(input: QueryItemsInput = {}, ctx = db): QueryItemsRes
       const content = row.content;
 
       return {
-        id: encodeId(row.id),
-        connectionType: row.connectionType ?? null,
-        ref: row.ref ?? null,
+        id: row.id,
         collection: row.collectionName,
-        props: props && typeof props === "object" ? props : {},
+        props: propsWithLocale(props && typeof props === "object" ? props : {}, row.locale),
         content: Array.isArray(content) ? content : undefined,
         changedAt: row.changedAt,
         links: [],

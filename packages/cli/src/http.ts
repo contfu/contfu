@@ -15,6 +15,18 @@ export function getApiKey(): string | undefined {
   }
 }
 
+export function getSelectedWorkspaceId(): string | undefined {
+  if (process.env.CONTFU_WORKSPACE) return process.env.CONTFU_WORKSPACE;
+
+  try {
+    const configPath = join(homedir(), ".config", "contfu", "config.json");
+    const config = JSON.parse(readFileSync(configPath, "utf-8"));
+    return config.workspaceId;
+  } catch {
+    return undefined;
+  }
+}
+
 export function getBaseUrl(): string {
   return process.env.CONTFU_URL ?? "https://contfu.com";
 }
@@ -84,7 +96,7 @@ export async function apiFetch(path: string, options?: RequestInit): Promise<Res
  * Errors are surfaced as ApiError; callers should handle them (or let the
  * top-level handler catch and exit).
  */
-export function getApiClient(): ContfuApiClient {
+export function getApiClient(workspaceId?: string | null): ContfuApiClient {
   const apiKey = getApiKey();
   if (!apiKey) {
     console.error(
@@ -92,7 +104,12 @@ export function getApiClient(): ContfuApiClient {
     );
     process.exit(1);
   }
-  return createApiClient(getBaseUrl(), apiKey);
+  return createApiClient(
+    getBaseUrl(),
+    apiKey,
+    globalThis.fetch,
+    workspaceId ?? getSelectedWorkspaceId(),
+  );
 }
 
 /** Handles an ApiError from the typed client in a CLI-friendly way. */
@@ -114,6 +131,15 @@ export function handleApiError(err: unknown): never {
       process.exit(1);
     }
     console.error(`Error ${err.status}: ${err.message}`);
+    process.exit(1);
+  }
+  throw err;
+}
+
+export function handleCliError(err: unknown): never {
+  if (err instanceof ApiError) return handleApiError(err);
+  if (err instanceof Error) {
+    console.error(err.message);
     process.exit(1);
   }
   throw err;

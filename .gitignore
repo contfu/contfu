@@ -204,6 +204,9 @@ logs/security/
 .worktree
 packages/client/app/data
 packages/ui/data
+packages/server/data
 .claude/worktrees
 .claude/review.md
 .forgejo-session
+docker/wordpress-e2e/.env.generated
+.fallow

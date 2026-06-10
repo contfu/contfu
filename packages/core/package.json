@@ -1,6 +1,6 @@
 {
   "name": "@contfu/core",
-  "version": "0.0.10",
+  "version": "0.1.0",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -13,14 +13,14 @@
   "type": "module",
   "main": "src/index.ts",
   "publishConfig": {
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
     "exports": {
       ".": {
         "types": "./dist/index.d.ts",
         "default": "./dist/index.js"
       }
-    },
-    "main": "dist/index.js",
-    "types": "dist/index.d.ts"
+    }
   },
   "scripts": {
     "test": "bun test src/",
@@ -30,7 +30,7 @@
   },
   "dependencies": {},
   "devDependencies": {
-    "@typescript/native-preview": "^7.0.0-dev.20260412.1",
+    "@typescript/native-preview": "^7.0.0-dev.20260526.1",
     "typescript": "^5.9.3"
   }
 }

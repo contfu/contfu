@@ -1,26 +1,56 @@
 #!/usr/bin/env node
 import { parseArgs } from "node:util";
 import {
-  isResource,
-  list,
-  get,
-  create,
-  update,
-  del,
-  listConnectionTypes,
-  regenerateAppKey,
-  type CliValues,
-} from "./commands/resources";
-import { connectionTypes, collectionTypes } from "./commands/generate-types";
-import { queryItems, countItems } from "./commands/items";
-import { login, logout } from "./commands/login";
-import { status } from "./commands/status";
-import { setup } from "./commands/setup";
-import {
   addConnectionCollections,
   parseAddRefs,
   scanConnectionCollections,
 } from "./commands/connection-collections";
+import { collectionTypes, connectionTypes } from "./commands/generate-types";
+import {
+  createComponentCommand,
+  deleteComponentCommand,
+  inspectComponent,
+  listConnectionComponents,
+  updateComponentCommand,
+} from "./commands/components";
+import { countItems, queryItems } from "./commands/items";
+import { login, logout } from "./commands/login";
+import {
+  acceptOrganizationInvite,
+  createOrganization,
+  getOrganization,
+  inviteOrganization,
+  listOrganizationMembers,
+  listOrganizations,
+  setOrganizationRole,
+  updateOrganization,
+} from "./commands/organizations";
+import {
+  create,
+  del,
+  get,
+  isResource,
+  list,
+  listConnectionTypes,
+  regenerateAppKey,
+  update,
+  type CliValues,
+} from "./commands/resources";
+import { setup } from "./commands/setup";
+import { status } from "./commands/status";
+import {
+  acceptWorkspaceInvite,
+  createWorkspace,
+  getWorkspace,
+  inviteWorkspace,
+  joinWorkspaceCommand,
+  listWorkspaceMembers,
+  listWorkspaces,
+  revokeWorkspaceMember,
+  switchWorkspace,
+  updateWorkspace,
+  updateWorkspaceBudget,
+} from "./commands/workspaces";
 
 function printUsage() {
   console.error(`Usage: contfu [--help] <command> [args...]
@@ -30,61 +60,95 @@ Commands:
   logout                            Clear stored credentials
   status                            Show resource summary
   setup                             Set up Contfu in a project
-  <resource> list                   List all items
-  <resource> get <id>               Get item by ID
+  <resource> list [options]         List all items
+  <resource> get <id-or-name>       Get item by ID or name
   <resource> create [options]       Create item
-  <resource> update <id> [options]  Update item
-  <resource> delete <id>            Delete item
-  connections scan <id>              Scan source collections for a connection
-  connections add <id>               Add scanned source collections to Contfu
-  connections types                  List valid connection types
-  connections types <id>             Print TypeScript types for a connection's collections
-  connections regenerate-key <id>    Regenerate API key and write to .env
-  collections types <id>             Print TypeScript types for a collection
-  items query [options]             Query items from client app
-  items count [options]             Count items from client app
+  <resource> update <id-or-name> [options]
+                                    Update item by ID or name
+  <resource> delete <id-or-name>    Delete item by ID or name
+  connections scan <id-or-name>     Scan source collections for a connection
+  connections add <id-or-name>      Add scanned source collections to Contfu
+  connections components <id-or-name>
+                                    List discovered components for a connection
+  components get <id>               Inspect a component
+  components update <id>            Edit component name/display/schema/mapping
+  connections types                 List valid connection types
+  connections types <id-or-name>    Print TypeScript types for a connection's collections
+  connections regenerate-key <id-or-name>
+                                    Regenerate API key and write to .env
+  collections types <id-or-name>    Print TypeScript types for a collection
+  items query [options]             Query items from a Server
+  items count [options]             Count items in a Server
+  workspaces list                   List workspaces
+  workspaces get <id-or-name>       Show workspace details
+  workspaces create [options]       Create workspace
+  workspaces update <id-or-name>    Update workspace
+  workspaces budget <id-or-name>    Update workspace budgets
+  workspaces invite <id-or-name>    Invite member by email
+  workspaces accept <token>         Accept workspace invitation
+  workspaces join <id-or-name>      Join workspace as org admin/owner
+  workspaces members <id-or-name>   List workspace members
+  workspaces revoke <id-or-name> <email>
+                                    Revoke workspace membership
+  workspaces switch <id-or-name>    Persist selected workspace
+  orgs list                         List organizations
+  orgs get <id-or-name>             Show organization details
+  orgs create [options]             Create organization
+  orgs update <id-or-name>          Update organization
+  orgs invite <id-or-name>          Invite member by email
+  orgs accept <token>               Accept organization invitation
+  orgs members <id-or-name>         List organization members
+  orgs promote <id-or-name> <email>
+                                    Grant organization admin role
+  orgs demote <id-or-name> <email>
+                                    Remove organization admin role
 
 Resources: connections, collections, flows
 
 collections options:
-      --display-name <name>    Display name (required for create)
-  -n, --name <name>            Name
-      --connection-id <id>     Associate with an app connection
-      --[no-]include-ref       Include ref transmission
-  -d, --data <json>            Raw JSON body (alternative to above flags)
+      --display-name <name>         Display name (required for create)
+  -n, --name <name>                 camelCase name
+      --connection-id <id-or-name>  Associate with an app connection
+  -d, --data <json>                 Raw JSON body (alternative to above flags)
 
 setup options:
-      --package <name>         Package to install: @contfu/contfu or @contfu/client
-      --app-name <name>        Name for the app connection
-      --env-file <path>        Write CONTFU_KEY to this .env file
-      --non-interactive        Skip all prompts (fail if required info is missing)
+      --package <name>              Package to install: @contfu/contfu or @contfu/client
+      --app-name <name>             Name for the app connection
+      --env-file <path>             Write CONTFU_KEY to this .env file
+      --non-interactive             Skip all prompts (fail if required info is missing)
 
 connections options:
-  -n, --name <name>            Label (required for create)
-  -t, --type <provider>        Provider ID (default: notion)
-      --token <token>           API token (for manual token-based connections)
-      --generate-key           Create an app connection and write its API key to .env
-  -d, --data <json>            Raw JSON body (alternative to above flags)
+  -n, --name <name>                 Label (required for create)
+  -t, --type <provider>             Provider ID (default: notion)
+      --token <token>               API token (for manual token-based connections)
+      --project-id <id>             Sanity project ID
+      --scope <scope>               Provider namespace restriction
+      --scopes <scopes>             Comma-separated provider namespace restrictions
+      --webhook-secret <secret>     Webhook signing secret
+      --generate-key                Create an app connection and write its API key to .env
+  -d, --data <json>                 Raw JSON body (alternative to above flags)
 
 flows options:
-      --source-id <id>         Source collection ID (required for create)
-      --target-id <id>         Target collection ID (required for create)
-      --[no-]include-ref       Include ref transmission
-  -d, --data <json>            Raw JSON body (alternative to above flags)
+      --source-id <id-or-name>      Source collection ID or name (required for create)
+      --target-id <id-or-name>      Target collection ID or name (required for create)
+  -d, --data <json>                 Raw JSON body (alternative to above flags)
 
 items options:
-  -u, --client-url <url>       Base URL of the client HTTP server (required)
-      --collection <name>      Filter by collection
-      --filter <expr>          Filter expression
-      --sort <fields>          Sort fields, comma-separated (query only)
-      --limit <n>              Limit results (query only, default 20)
-      --offset <n>             Offset results (query only, default 0)
-      --include <fields>       Comma-separated includes (query only)
-      --fields <fields>        Comma-separated field selection (query only)
-      --flat                   Flatten nested props (query only)
+  -u, --client-url <url>            Base URL of the Server HTTP API (required)
+      --collection <name>           Filter by collection
+      --filter <expr>               Filter expression
+      --sort <fields>               Sort fields, comma-separated (query only)
+      --limit <n>                   Limit results (query only, default 20)
+      --offset <n>                  Offset results (query only, default 0)
+      --include <fields>            Comma-separated includes (query only)
+      --fields <fields>             Comma-separated field selection (query only)
+      --flat                        Flatten nested props (query only)
+
+resource options:
+  -w, --workspace <id-or-name>      Scope connections, collections, or flows to a workspace
 
 list options:
-  -f, --format <fmt>           Output format: table (default) | json
+  -f, --format <fmt>                Output format: table (default) | json
 
 Environment:
   CONTFU_API_KEY   API key (overrides stored config)`);
@@ -104,11 +168,14 @@ async function main() {
       "source-id": { type: "string" },
       "target-id": { type: "string" },
       "connection-id": { type: "string" },
-      "include-ref": { type: "boolean" },
-      "no-include-ref": { type: "boolean" },
       content: { type: "boolean" },
       "no-content": { type: "boolean" },
       token: { type: "string" },
+      "project-id": { type: "string" },
+      scope: { type: "string" },
+      scopes: { type: "string" },
+      "webhook-secret": { type: "string" },
+      "provider-ref": { type: "string" },
       "generate-key": { type: "boolean" },
       format: { type: "string", short: "f" },
       package: { type: "string" },
@@ -118,12 +185,25 @@ async function main() {
       refs: { type: "string" },
       all: { type: "boolean" },
       select: { type: "boolean", short: "s" },
+      workspace: { type: "string", short: "w" },
+      organization: { type: "string", short: "o" },
+      email: { type: "string" },
+      role: { type: "string" },
+      connections: { type: "string" },
+      collections: { type: "string" },
+      flows: { type: "string" },
+      items: { type: "string" },
+      "item-changes": { type: "string" },
     },
     allowPositionals: true,
     strict: false,
   });
 
   const cmd = positionals[0];
+
+  if (values.workspace) {
+    process.env.CONTFU_WORKSPACE = values.workspace as string;
+  }
 
   if (values.help) {
     printUsage();
@@ -177,6 +257,200 @@ async function main() {
     }
   }
 
+  if (cmd === "workspaces") {
+    const action = positionals[1] ?? "list";
+    const ref = positionals[2];
+    if (action === "list") {
+      await listWorkspaces((values.format as string | undefined) ?? "table");
+      return;
+    }
+    if (action === "get") {
+      if (!ref) {
+        console.error("Usage: contfu workspaces get <id-or-name>");
+        process.exit(1);
+      }
+      await getWorkspace(ref);
+      return;
+    }
+    if (action === "create") {
+      await createWorkspace({
+        displayName: values["display-name"] as string | undefined,
+        name: values.name as string | undefined,
+        organizationId: values.organization as string | undefined,
+      });
+      return;
+    }
+    if (action === "update") {
+      if (!ref) {
+        console.error("Usage: contfu workspaces update <id-or-name>");
+        process.exit(1);
+      }
+      await updateWorkspace(ref, {
+        displayName: values["display-name"] as string | undefined,
+        name: values.name as string | undefined,
+      });
+      return;
+    }
+    if (action === "budget") {
+      if (!ref) {
+        console.error("Usage: contfu workspaces budget <id-or-name>");
+        process.exit(1);
+      }
+      await updateWorkspaceBudget(ref, values as Record<string, string | undefined>);
+      return;
+    }
+    if (action === "invite") {
+      if (!ref) {
+        console.error("Usage: contfu workspaces invite <id-or-name> --email <email>");
+        process.exit(1);
+      }
+      await inviteWorkspace(ref, values.email as string | undefined);
+      return;
+    }
+    if (action === "accept") {
+      await acceptWorkspaceInvite(ref);
+      return;
+    }
+    if (action === "join") {
+      if (!ref) {
+        console.error("Usage: contfu workspaces join <id-or-name>");
+        process.exit(1);
+      }
+      await joinWorkspaceCommand(ref);
+      return;
+    }
+    if (action === "members") {
+      if (!ref) {
+        console.error("Usage: contfu workspaces members <id-or-name>");
+        process.exit(1);
+      }
+      await listWorkspaceMembers(ref);
+      return;
+    }
+    if (action === "revoke") {
+      if (!ref) {
+        console.error("Usage: contfu workspaces revoke <id-or-name> <email>");
+        process.exit(1);
+      }
+      await revokeWorkspaceMember(ref, positionals[3]);
+      return;
+    }
+    if (action === "switch") {
+      if (!ref) {
+        console.error("Usage: contfu workspaces switch <id-or-name>");
+        process.exit(1);
+      }
+      await switchWorkspace(ref);
+      return;
+    }
+    console.error(`Unknown workspaces action: ${action}`);
+    process.exit(1);
+  }
+
+  if (cmd === "orgs" || cmd === "organizations") {
+    const action = positionals[1] ?? "list";
+    const ref = positionals[2];
+    if (action === "list") {
+      await listOrganizations((values.format as string | undefined) ?? "table");
+      return;
+    }
+    if (action === "get") {
+      if (!ref) {
+        console.error("Usage: contfu orgs get <id-or-name>");
+        process.exit(1);
+      }
+      await getOrganization(ref);
+      return;
+    }
+    if (action === "create") {
+      await createOrganization({
+        displayName: values["display-name"] as string | undefined,
+        name: values.name as string | undefined,
+      });
+      return;
+    }
+    if (action === "update") {
+      if (!ref) {
+        console.error("Usage: contfu orgs update <id-or-name>");
+        process.exit(1);
+      }
+      await updateOrganization(ref, {
+        displayName: values["display-name"] as string | undefined,
+        name: values.name as string | undefined,
+      });
+      return;
+    }
+    if (action === "invite") {
+      if (!ref) {
+        console.error("Usage: contfu orgs invite <id-or-name> --email <email>");
+        process.exit(1);
+      }
+      await inviteOrganization(ref, {
+        email: values.email as string | undefined,
+        role: values.role as string | undefined,
+      });
+      return;
+    }
+    if (action === "accept") {
+      await acceptOrganizationInvite(ref);
+      return;
+    }
+    if (action === "members") {
+      if (!ref) {
+        console.error("Usage: contfu orgs members <id-or-name>");
+        process.exit(1);
+      }
+      await listOrganizationMembers(ref);
+      return;
+    }
+    if (action === "promote" || action === "demote") {
+      if (!ref) {
+        console.error(`Usage: contfu orgs ${action} <id-or-name> <email>`);
+        process.exit(1);
+      }
+      await setOrganizationRole(ref, positionals[3], action === "promote" ? "admin" : "member");
+      return;
+    }
+    console.error(`Unknown orgs action: ${action}`);
+    process.exit(1);
+  }
+
+  if (cmd === "components") {
+    const action = positionals[1] ?? "get";
+    const id = positionals[2];
+    if (!id) {
+      console.error("Usage: contfu components get|update <component-id>");
+      process.exit(1);
+    }
+    if (action === "create") {
+      await createComponentCommand(id, {
+        name: values.name as string | undefined,
+        displayName: values["display-name"] as string | undefined,
+        providerRef: values["provider-ref"] as string | undefined,
+        data: values.data as string | undefined,
+      });
+      return;
+    }
+    if (action === "get" || action === "inspect") {
+      await inspectComponent(id);
+      return;
+    }
+    if (action === "delete") {
+      await deleteComponentCommand(id);
+      return;
+    }
+    if (action === "update" || action === "edit") {
+      await updateComponentCommand(id, {
+        name: values.name as string | undefined,
+        displayName: values["display-name"] as string | undefined,
+        data: values.data as string | undefined,
+      });
+      return;
+    }
+    console.error(`Unknown components action: ${action}`);
+    process.exit(1);
+  }
+
   if (isResource(cmd)) {
     const action = positionals[1];
     const id = positionals[2];
@@ -184,7 +458,7 @@ async function main() {
     // Special subcommands per resource
     if (cmd === "connections" && action === "scan") {
       if (!id) {
-        console.error("Usage: contfu connections scan <connection-id>");
+        console.error("Usage: contfu connections scan <connection-id-or-name>");
         process.exit(1);
       }
       await scanConnectionCollections(id, {
@@ -197,7 +471,7 @@ async function main() {
     if (cmd === "connections" && action === "add") {
       if (!id) {
         console.error(
-          "Usage: contfu connections add <connection-id> (--refs <comma-separated> | --all)",
+          "Usage: contfu connections add <connection-id-or-name> (--refs <comma-separated> | --all)",
         );
         process.exit(1);
       }
@@ -209,13 +483,22 @@ async function main() {
       return;
     }
 
+    if (cmd === "connections" && action === "components") {
+      if (!id) {
+        console.error("Usage: contfu connections components <connection-id-or-name>");
+        process.exit(1);
+      }
+      await listConnectionComponents(id, (values.format as string | undefined) ?? "table");
+      return;
+    }
+
     if (action === "regenerate-key") {
       if (cmd !== "connections") {
         console.error(`'regenerate-key' is only available for connections`);
         process.exit(1);
       }
       if (!id) {
-        console.error("Usage: contfu connections regenerate-key <id>");
+        console.error("Usage: contfu connections regenerate-key <connection-id-or-name>");
         process.exit(1);
       }
       await regenerateAppKey(id, values["env-file"] as string | undefined);
@@ -251,11 +534,13 @@ async function main() {
       "source-id": values["source-id"] as string | undefined,
       "target-id": values["target-id"] as string | undefined,
       "connection-id": values["connection-id"] as string | undefined,
-      "include-ref": values["include-ref"] as boolean | undefined,
-      "no-include-ref": values["no-include-ref"] as boolean | undefined,
       content: values.content as boolean | undefined,
       "no-content": values["no-content"] as boolean | undefined,
       token: values.token as string | undefined,
+      "project-id": values["project-id"] as string | undefined,
+      scope: values.scope as string | undefined,
+      scopes: values.scopes as string | undefined,
+      "webhook-secret": values["webhook-secret"] as string | undefined,
       "generate-key": values["generate-key"] as boolean | undefined,
     };
 

@@ -1,9 +1,13 @@
-// Re-export everything from @contfu/svc-core so external consumers
+// Re-export everything from @contfu/svc-core so external integrations
 // only need to depend on @contfu/svc-api.
 export {
   // API types
   ApiError,
   type ApiStatus,
+  type ApiWorkspace,
+  type ApiOrganization,
+  type ApiOrganizationMember,
+  type ApiWorkspaceMember,
   type ApiConnection,
   type CreateConnectionBody,
   type UpdateConnectionBody,
@@ -21,10 +25,21 @@ export {
   type SchemaValue,
   type RefTargets,
   type TypeGenerationInput,
+  type CollectionI18nConfig,
+  type ConnectionI18nConfig,
+  type EffectiveCollectionI18nConfig,
   type ScannedCollection,
   type AddedScannedCollection,
   type AddScannedCollectionsBody,
   type AddScannedCollectionsResult,
+  type CreateWorkspaceBody,
+  type UpdateWorkspaceBody,
+  type CreateOrganizationBody,
+  type UpdateOrganizationBody,
+  type CreateOrganizationInvitationBody,
+  type CreateOrganizationInvitationResult,
+  type CreateWorkspaceInvitationBody,
+  type CreateWorkspaceInvitationResult,
   // Constants & utilities
   ConnectionType,
   ConnectionTypeMeta,
@@ -34,6 +49,10 @@ export {
   schemaEnumValues,
   mergeSchemaValues,
   generateTypeScript,
+  generateApplicationConnectionTypes,
   generateConsumerTypes,
   FilterOperator,
+  BCP47_LOCALES,
+  canonicalizeBcp47,
+  isBcp47,
 } from "@contfu/svc-core";

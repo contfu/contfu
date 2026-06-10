@@ -1,6 +1,15 @@
-const SYSTEM_FIELD_NAMES = ["$id", "$ref", "$collection", "$changedAt", "$connectionType"] as const;
+export const SYSTEM_FIELD_NAMES = [
+  "$id",
+  "$ref",
+  "$collection",
+  "$changedAt",
+  "$connectionType",
+  "$locale",
+] as const;
 
-const SYSTEM_FIELD_SET = new Set<string>(SYSTEM_FIELD_NAMES);
+export type SystemFieldName = (typeof SYSTEM_FIELD_NAMES)[number];
+
+export const SYSTEM_FIELD_SET: ReadonlySet<string> = new Set<string>(SYSTEM_FIELD_NAMES);
 
 const FIELD_REF_TAG = Symbol("FieldRef");
 declare const FIELD_TYPE_TAG: unique symbol;
@@ -12,11 +21,12 @@ export type FieldRef<T = unknown> = {
 };
 
 type SystemFieldRefs = {
-  $id: FieldRef<string>;
+  $id: FieldRef<number>;
   $ref: FieldRef<string>;
   $collection: FieldRef<string>;
   $changedAt: FieldRef<number>;
   $connectionType: FieldRef<string | null>;
+  $locale: FieldRef<string>;
 };
 
 export type ItemRef<Props> = SystemFieldRefs & {

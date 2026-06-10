@@ -1,15 +1,12 @@
 # @contfu/client
 
-HTTP client for querying content from a remote Contfu server.
+HTTP client for querying content from a Contfu Server.
 
 ## When to use
 
-Contfu supports two modes for accessing content:
+Use `@contfu/client` when your application talks to a user-hosted Contfu Server over HTTP. A Client only queries a Server; it does not synchronize with the Cloud Service or with the Server.
 
-1. **Remote server** — content is stored and queried on a server. Use `@contfu/client` to query from the browser or any HTTP client.
-2. **Local database** — content is stored and queried locally. Use `@contfu/contfu` directly.
-
-Choose `@contfu/client` when your application talks to a Contfu server over HTTP rather than accessing a local database.
+For local access, use `@contfu/contfu` directly beside the Local Store.
 
 ## Usage
 

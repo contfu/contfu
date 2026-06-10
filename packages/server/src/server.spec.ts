@@ -1,10 +1,17 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
+import { checkBasicAuth } from "./basic-auth";
 import { createServeOptions } from "./server";
 
-async function callRoute(
-  route: (request: Request) => Response | Promise<Response>,
-  request: Request & { params?: Record<string, string> },
-) {
+type TestRoute = (request: Request) => Response | Promise<Response>;
+type ServeRoutes = NonNullable<ReturnType<typeof createServeOptions>["routes"]>;
+
+function getRoute(routes: ServeRoutes | undefined, path: keyof ServeRoutes): TestRoute {
+  const route = routes?.[path];
+  if (typeof route !== "function") throw new Error(`Route ${path} is not registered`);
+  return route as TestRoute;
+}
+
+async function callRoute(route: TestRoute, request: Request & { params?: Record<string, string> }) {
   return route(request);
 }
 
@@ -12,16 +19,119 @@ async function readText(response: Response) {
   return response.text();
 }
 
+function makeBasicAuthHeader(value: string) {
+  return `Basic ${Buffer.from(value).toString("base64")}`;
+}
+
 describe("@contfu/server routes", () => {
   afterEach(() => {
+    delete process.env.CONTFU_BASIC_AUTH;
     mock.restore();
+  });
+
+  test("returns server status", async () => {
+    await mock.module("@contfu/contfu", () => ({
+      contfu: mock(() => ({
+        events: (async function* () {})(),
+        handleFileRequest: mock(() => new Response("")),
+      })),
+      getFileStore: mock(() => ({})),
+      getMediaOptimizer: mock(() => ({})),
+      countCollections: mock(() => 2),
+      countDownloadedFiles: mock(() => 3),
+      countFiles: mock(() => 4),
+      countItems: mock(() => 5),
+      countProcessedFiles: mock(() => 1),
+      findItems: mock(() => ({ data: [] })),
+      getItemById: mock(() => null),
+      getTypeGenerationInputs: mock(() => []),
+    }));
+
+    const { routes } = createServeOptions();
+    const response = await callRoute(
+      getRoute(routes, "/api/status"),
+      new Request("http://localhost/api/status"),
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      itemCount: 5,
+      collectionCount: 2,
+      fileCount: 4,
+      downloadedCount: 3,
+      processedCount: 1,
+      sync: { state: "disabled", reason: null },
+    });
+  });
+
+  test("leaves routes unprotected when basic auth is not configured", async () => {
+    await mock.module("@contfu/contfu", () => ({
+      contfu: mock(() => ({
+        events: (async function* () {})(),
+        handleFileRequest: mock(() => new Response("")),
+      })),
+      getFileStore: mock(() => ({})),
+      getMediaOptimizer: mock(() => ({})),
+      countCollections: mock(() => 2),
+      countDownloadedFiles: mock(() => 3),
+      countFiles: mock(() => 4),
+      countItems: mock(() => 5),
+      countProcessedFiles: mock(() => 1),
+      findItems: mock(() => ({ data: [] })),
+      getItemById: mock(() => null),
+      getTypeGenerationInputs: mock(() => []),
+    }));
+
+    const { routes } = createServeOptions();
+    const response = await callRoute(
+      getRoute(routes, "/api/status"),
+      new Request("http://localhost/api/status"),
+    );
+
+    expect(response.status).toBe(200);
+  });
+
+  test("rejects protected requests without valid basic auth", async () => {
+    const response = checkBasicAuth(new Request("http://localhost/api/status"), "admin:secret");
+
+    expect(response?.status).toBe(401);
+    expect(response?.headers.get("WWW-Authenticate")).toBe('Basic realm="Contfu"');
+    expect(await readText(response!)).toBe("Unauthorized");
+  });
+
+  test("rejects protected requests with invalid basic auth", () => {
+    const response = checkBasicAuth(
+      new Request("http://localhost/api/status", {
+        headers: { authorization: makeBasicAuthHeader("admin:nope") },
+      }),
+      "admin:secret",
+    );
+
+    expect(response?.status).toBe(401);
+    expect(response?.headers.get("WWW-Authenticate")).toBe('Basic realm="Contfu"');
+  });
+
+  test("allows protected requests with valid basic auth", () => {
+    const response = checkBasicAuth(
+      new Request("http://localhost/api/status", {
+        headers: { authorization: makeBasicAuthHeader("admin:secret") },
+      }),
+      "admin:secret",
+    );
+
+    expect(response).toBeNull();
   });
 
   test("parses item query params and forwards them to findItems", async () => {
     const findItems = mock((options: Record<string, unknown>) => ({ data: options }));
 
     await mock.module("@contfu/contfu", () => ({
-      connect: mock(async function* () {}),
+      contfu: mock(() => ({
+        events: (async function* () {})(),
+        handleFileRequest: mock(() => new Response("")),
+      })),
+      getFileStore: mock(() => ({})),
+      getMediaOptimizer: mock(() => ({})),
       findItems,
       generateTypes: mock(() => ""),
       getAllCollectionSchemas: mock(() => []),
@@ -41,7 +151,7 @@ describe("@contfu/server routes", () => {
       with: JSON.stringify({ relation: true }),
     }).toString();
 
-    const response = await callRoute(routes["/api/items"], new Request(url));
+    const response = await callRoute(getRoute(routes, "/api/items"), new Request(url.href));
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
@@ -70,7 +180,12 @@ describe("@contfu/server routes", () => {
 
   test("rejects invalid item limit values", async () => {
     await mock.module("@contfu/contfu", () => ({
-      connect: mock(async function* () {}),
+      contfu: mock(() => ({
+        events: (async function* () {})(),
+        handleFileRequest: mock(() => new Response("")),
+      })),
+      getFileStore: mock(() => ({})),
+      getMediaOptimizer: mock(() => ({})),
       findItems: mock(() => ({ data: [] })),
       generateTypes: mock(() => ""),
       getAllCollectionSchemas: mock(() => []),
@@ -79,7 +194,7 @@ describe("@contfu/server routes", () => {
 
     const { routes } = createServeOptions();
     const url = new URL("http://localhost/api/items?limit=foo");
-    const response = await callRoute(routes["/api/items"], new Request(url));
+    const response = await callRoute(getRoute(routes, "/api/items"), new Request(url.href));
 
     expect(response.status).toBe(400);
     expect(await readText(response)).toBe("Invalid 'limit' parameter");
@@ -87,7 +202,12 @@ describe("@contfu/server routes", () => {
 
   test("rejects invalid collection offsets", async () => {
     await mock.module("@contfu/contfu", () => ({
-      connect: mock(async function* () {}),
+      contfu: mock(() => ({
+        events: (async function* () {})(),
+        handleFileRequest: mock(() => new Response("")),
+      })),
+      getFileStore: mock(() => ({})),
+      getMediaOptimizer: mock(() => ({})),
       findItems: mock(() => ({ data: [] })),
       generateTypes: mock(() => ""),
       getAllCollectionSchemas: mock(() => []),
@@ -96,10 +216,10 @@ describe("@contfu/server routes", () => {
 
     const { routes } = createServeOptions();
     const url = new URL("http://localhost/api/collections/articles/items?offset=bar");
-    const request = Object.assign(new Request(url), {
+    const request = Object.assign(new Request(url.href), {
       params: { name: "articles" },
     });
-    const response = await callRoute(routes["/api/collections/:name/items"], request);
+    const response = await callRoute(getRoute(routes, "/api/collections/:name/items"), request);
 
     expect(response.status).toBe(400);
     expect(await readText(response)).toBe("Invalid 'offset' parameter");
@@ -107,7 +227,12 @@ describe("@contfu/server routes", () => {
 
   test("rejects invalid with clauses on collection queries", async () => {
     await mock.module("@contfu/contfu", () => ({
-      connect: mock(async function* () {}),
+      contfu: mock(() => ({
+        events: (async function* () {})(),
+        handleFileRequest: mock(() => new Response("")),
+      })),
+      getFileStore: mock(() => ({})),
+      getMediaOptimizer: mock(() => ({})),
       findItems: mock(() => ({ data: [] })),
       generateTypes: mock(() => ""),
       getAllCollectionSchemas: mock(() => []),
@@ -116,20 +241,25 @@ describe("@contfu/server routes", () => {
 
     const { routes } = createServeOptions();
     const url = new URL("http://localhost/api/collections/articles/items?with=not-json");
-    const request = Object.assign(new Request(url), {
+    const request = Object.assign(new Request(url.href), {
       params: { name: "articles" },
     });
-    const response = await callRoute(routes["/api/collections/:name/items"], request);
+    const response = await callRoute(getRoute(routes, "/api/collections/:name/items"), request);
 
     expect(response.status).toBe(400);
     expect(await readText(response)).toBe("Invalid 'with' parameter");
   });
 
   test("rejects invalid with clauses on item lookups", async () => {
-    const getItemById = mock(() => ({ id: "article-1" }));
+    const getItemById = mock(() => ({ id: 1 }));
 
     await mock.module("@contfu/contfu", () => ({
-      connect: mock(async function* () {}),
+      contfu: mock(() => ({
+        events: (async function* () {})(),
+        handleFileRequest: mock(() => new Response("")),
+      })),
+      getFileStore: mock(() => ({})),
+      getMediaOptimizer: mock(() => ({})),
       findItems: mock(() => ({ data: [] })),
       generateTypes: mock(() => ""),
       getAllCollectionSchemas: mock(() => []),
@@ -137,11 +267,11 @@ describe("@contfu/server routes", () => {
     }));
 
     const { routes } = createServeOptions();
-    const url = new URL("http://localhost/api/items/article-1?with=not-json");
-    const request = Object.assign(new Request(url), {
-      params: { id: "article-1" },
+    const url = new URL("http://localhost/api/items/1?with=not-json");
+    const request = Object.assign(new Request(url.href), {
+      params: { id: "1" },
     });
-    const response = await callRoute(routes["/api/items/:id"], request);
+    const response = await callRoute(getRoute(routes, "/api/items/:id"), request);
 
     expect(response.status).toBe(400);
     expect(await readText(response)).toBe("Invalid 'with' parameter");
@@ -149,13 +279,18 @@ describe("@contfu/server routes", () => {
   });
 
   test("returns an item by id with parsed include and with clauses", async () => {
-    const getItemById = mock((id: string, options: Record<string, unknown>) => ({
+    const getItemById = mock((id: number, options: Record<string, unknown>) => ({
       id,
       options,
     }));
 
     await mock.module("@contfu/contfu", () => ({
-      connect: mock(async function* () {}),
+      contfu: mock(() => ({
+        events: (async function* () {})(),
+        handleFileRequest: mock(() => new Response("")),
+      })),
+      getFileStore: mock(() => ({})),
+      getMediaOptimizer: mock(() => ({})),
       findItems: mock(() => ({ data: [] })),
       generateTypes: mock(() => ""),
       getAllCollectionSchemas: mock(() => []),
@@ -164,24 +299,24 @@ describe("@contfu/server routes", () => {
 
     const { routes } = createServeOptions();
     const url = new URL(
-      "http://localhost/api/items/article-1?include=files,author&with=%7B%22relation%22%3Atrue%7D",
+      "http://localhost/api/items/1?include=files,author&with=%7B%22relation%22%3Atrue%7D",
     );
-    const request = Object.assign(new Request(url), {
-      params: { id: "article-1" },
+    const request = Object.assign(new Request(url.href), {
+      params: { id: "1" },
     });
-    const response = await callRoute(routes["/api/items/:id"], request);
+    const response = await callRoute(getRoute(routes, "/api/items/:id"), request);
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
       data: {
-        id: "article-1",
+        id: 1,
         options: {
           include: ["files", "author"],
           with: { relation: true },
         },
       },
     });
-    expect(getItemById).toHaveBeenCalledWith("article-1", {
+    expect(getItemById).toHaveBeenCalledWith(1, {
       include: ["files", "author"],
       with: { relation: true },
     });
@@ -191,7 +326,12 @@ describe("@contfu/server routes", () => {
     const findItems = mock((options: Record<string, unknown>) => ({ data: options }));
 
     await mock.module("@contfu/contfu", () => ({
-      connect: mock(async function* () {}),
+      contfu: mock(() => ({
+        events: (async function* () {})(),
+        handleFileRequest: mock(() => new Response("")),
+      })),
+      getFileStore: mock(() => ({})),
+      getMediaOptimizer: mock(() => ({})),
       findItems,
       generateTypes: mock(() => ""),
       getAllCollectionSchemas: mock(() => []),
@@ -202,10 +342,10 @@ describe("@contfu/server routes", () => {
     const url = new URL(
       "http://localhost/api/collections/articles/items?filter=published%20%3D%20true",
     );
-    const request = Object.assign(new Request(url), {
+    const request = Object.assign(new Request(url.href), {
       params: { name: "articles" },
     });
-    const response = await callRoute(routes["/api/collections/:name/items"], request);
+    const response = await callRoute(getRoute(routes, "/api/collections/:name/items"), request);
 
     expect(response.status).toBe(200);
     expect(findItems).toHaveBeenCalledWith({

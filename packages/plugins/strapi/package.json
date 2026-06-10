@@ -1,0 +1,33 @@
+{
+  "name": "@contfu/strapi",
+  "version": "0.1.0",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/contfu/contfu.git"
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.d.ts.map"
+  ],
+  "type": "commonjs",
+  "main": "dist/server/index.js",
+  "exports": {
+    "./package.json": "./package.json",
+    "./strapi-server": {
+      "types": "./dist/server/index.d.ts",
+      "default": "./dist/server/index.js"
+    }
+  },
+  "scripts": {
+    "build": "rm -rf dist && mkdir -p dist/server && bun build src/server/index.ts --target=node --format=cjs --outfile=dist/server/index.js && cp src/server/index.d.ts dist/server/",
+    "test": "echo '@contfu/strapi has no unit tests yet'",
+    "pack": "bun ../../../scripts/pack-package.ts .",
+    "clean": "rm -rf dist"
+  },
+  "strapi": {
+    "kind": "plugin",
+    "name": "contfu",
+    "displayName": "Contfu"
+  }
+}

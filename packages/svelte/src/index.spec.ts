@@ -17,11 +17,24 @@ import type {
   Block as BlockType,
 } from "@contfu/core";
 
-function html(
-  component: Parameters<typeof render>[0],
-  props: Parameters<typeof render>[1]["props"],
-): string {
-  return render(component, { props }).body.replace(/<!--[[/\]!].*?-->/g, "");
+type RenderComponent = Parameters<typeof render>[0];
+
+function stripSvelteMarkers(value: string): string {
+  let result = "";
+  let index = 0;
+  while (index < value.length) {
+    const start = value.indexOf("<" + "!--", index);
+    if (start === -1) return result + value.slice(index);
+    result += value.slice(index, start);
+    const end = value.indexOf("--" + ">", start + 4);
+    if (end === -1) return result + value.slice(start);
+    index = end + 3;
+  }
+  return result;
+}
+
+function html(component: unknown, props: Record<string, unknown>): string {
+  return stripSvelteMarkers(render(component as RenderComponent, { props: props as never }).body);
 }
 
 describe("Block (Svelte)", () => {

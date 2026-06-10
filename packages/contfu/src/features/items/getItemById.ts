@@ -1,41 +1,40 @@
 import { eq } from "drizzle-orm";
 import { db as defaultDb } from "../../infra/db/db";
+import { propsWithLocale } from "../../infra/db/mappers";
 import { resolveIncludes } from "../../infra/db/resolve-includes";
 import { resolveRelations } from "../../infra/db/resolve-relations";
 import { itemsTable } from "../../infra/db/schema";
-import { decodeId, encodeId } from "../../infra/ids";
 import { findItems } from "./findItems";
 import type { IncludeOption, WithClause } from "@contfu/core";
 import type { ItemWithRelations } from "../../domain/query-types";
 
 export function getItemById(
-  id: string,
+  id: number,
   options?: { include?: IncludeOption[]; with?: WithClause },
   ctx = defaultDb,
 ): ItemWithRelations | null {
   const row = ctx
     .select({
       id: itemsTable.id,
-      connectionType: itemsTable.connectionType,
-      ref: itemsTable.ref,
       collectionName: itemsTable.collection,
       props: itemsTable.props,
+      locale: itemsTable.locale,
       content: itemsTable.content,
       changedAt: itemsTable.changedAt,
     })
     .from(itemsTable)
-    .where(eq(itemsTable.id, decodeId(id)))
+    .where(eq(itemsTable.id, id))
     .get();
 
   if (!row) return null;
 
-  const props =
-    row.props && typeof row.props === "object" && !Array.isArray(row.props) ? row.props : {};
+  const props = propsWithLocale(
+    row.props && typeof row.props === "object" && !Array.isArray(row.props) ? row.props : {},
+    row.locale,
+  );
 
   const item: ItemWithRelations = {
-    $id: encodeId(Buffer.from(row.id)),
-    $connectionType: row.connectionType ?? undefined,
-    $ref: row.ref,
+    $id: row.id,
     $collection: row.collectionName,
     $changedAt: row.changedAt,
     ...props,

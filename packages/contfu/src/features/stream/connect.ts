@@ -1,11 +1,12 @@
 import { connectToStream, type ItemEvent, type StreamEvent } from "@contfu/connect";
 import { EventType } from "@contfu/core";
+import { sql } from "drizzle-orm";
 import { createOrUpdateItem } from "../items/createOrUpdateItem";
 import { deleteItem } from "../items/deleteItem";
 import { deleteOutgoingItemLinks } from "../items/deleteOutgoingItemLinks";
-import { extractLinks, replacePlaceholders } from "../items/extractLinks";
-import { getSyncIndex } from "../sync/getSyncIndex";
+import { extractLinks, replacePlaceholders, type LinkRecord } from "../items/extractLinks";
 import { setSyncIndex } from "../sync/setSyncIndex";
+import { configureMediaQueue, resumeMediaQueue } from "../files/mediaQueue";
 import { processFiles, processPropertyFiles } from "../files/processFiles";
 import { deleteFilesByItem } from "../files/deleteFilesByItem";
 import { setCollection } from "../collections/setCollection";
@@ -13,7 +14,7 @@ import { renameCollection } from "../collections/renameCollection";
 import { removeCollectionByName } from "../collections/removeCollectionByName";
 import { getCollectionSchemaByName } from "../collections/getCollectionSchemaByName";
 import { db } from "../../infra/db/db";
-import { collectionsTable, linkTable } from "../../infra/db/schema";
+import { externalLinkTable, internalLinkTable } from "../../infra/db/schema";
 import type {
   MediaConvertOpts,
   MediaOptimizer,
@@ -25,31 +26,39 @@ import type { FileStore } from "../../domain/files";
 import { fileStore as defaultFileStore } from "../../infra/media/media-defaults";
 
 /**
- * Connect to the stream and persist events into the local database.
+ * Run the Local Runtime: use the Connector to receive Sync Messages,
+ * apply them into the Local Store, and process Media Files.
  * The authentication key is read from CONTFU_KEY (base64url) by default.
  */
 export async function* connect<CMap = unknown>(opts?: {
   key?: Buffer;
-  from?: number;
   reconnect?: boolean;
   connectionEvents?: boolean;
   fileStore?: FileStore;
   mediaOptimizer?: MediaOptimizer;
   transformMedia?: TransformMediaRule<CMap>[];
   mediaVariants?: MediaVariants<CMap>;
+  localFiles?: boolean;
+  mediaQueueConcurrency?: number;
 }): AsyncGenerator<ItemEvent | StreamEvent> {
-  const persistedFrom = getSyncIndex();
-  const from = opts?.from ?? (persistedFrom != null ? persistedFrom + 1 : undefined);
   const {
     connectionEvents: _connectionEvents,
     fileStore: userFileStore,
     mediaOptimizer,
     transformMedia,
     mediaVariants,
+    localFiles = true,
+    mediaQueueConcurrency = 2,
     ...restOpts
   } = opts ?? {};
   const resolvedFileStore = userFileStore ?? defaultFileStore;
-  const baseOpts = { ...restOpts, from };
+  if (localFiles)
+    configureMediaQueue({
+      fileStore: resolvedFileStore,
+      mediaOptimizer,
+      concurrency: mediaQueueConcurrency,
+    });
+  const baseOpts = restOpts;
 
   if (opts?.connectionEvents) {
     for await (const event of connectToStream({ ...baseOpts, connectionEvents: true })) {
@@ -68,6 +77,7 @@ export async function* connect<CMap = unknown>(opts?: {
         mediaOptimizer,
         transformMedia,
         mediaVariants,
+        localFiles,
       );
       yield event;
     }
@@ -75,7 +85,14 @@ export async function* connect<CMap = unknown>(opts?: {
   }
 
   for await (const event of connectToStream(baseOpts)) {
-    await persistSyncEvent(event, resolvedFileStore, mediaOptimizer, transformMedia, mediaVariants);
+    await persistSyncEvent(
+      event,
+      resolvedFileStore,
+      mediaOptimizer,
+      transformMedia,
+      mediaVariants,
+      localFiles,
+    );
     yield event;
   }
 }
@@ -96,15 +113,36 @@ function resolvePregenerate<CMap>(
   return resolved.length > 0 ? resolved : undefined;
 }
 
+function insertLinkRecord(record: LinkRecord): number {
+  if (record.kind === "internal") {
+    return db
+      .insert(internalLinkTable)
+      .values({ prop: record.prop, from: record.from, to: record.to })
+      .returning({ id: internalLinkTable.id })
+      .get().id;
+  }
+
+  const next = db
+    .select({ id: sql<number>`coalesce(min(${externalLinkTable.id}), 0) - 1` })
+    .from(externalLinkTable)
+    .get()!.id;
+  return db
+    .insert(externalLinkTable)
+    .values({ id: next, from: record.from, url: record.url })
+    .returning({ id: externalLinkTable.id })
+    .get().id;
+}
+
 async function persistSyncEvent<CMap>(
   event: ItemEvent,
   fileStore?: FileStore,
   mediaOptimizer?: MediaOptimizer,
   transformMedia?: TransformMediaRule<CMap>[],
   mediaVariants?: MediaVariants<CMap>,
+  localFiles = true,
 ): Promise<void> {
   if (event.type === EventType.COLLECTION_SCHEMA) {
-    setCollection(event.collection, event.displayName, event.schema);
+    setCollection(event.collection, event.displayName, event.schema, event.i18n);
     return;
   }
 
@@ -119,31 +157,26 @@ async function persistSyncEvent<CMap>(
   }
 
   if (event.type === EventType.ITEM_CHANGED) {
-    const itemIdBuf = event.item.id;
-    const itemId = itemIdBuf.toString("base64url");
+    const itemId = event.item.id;
     let content = event.item.content;
     let props = event.item.props;
     const collection = event.item.collection;
     const pregenerate = resolvePregenerate(collection, mediaVariants);
 
-    // Ensure collection exists — ITEM_CHANGED may arrive before COLLECTION_SCHEMA during resync
-    db.insert(collectionsTable)
-      .values({ name: collection, displayName: collection, schema: {} })
-      .onConflictDoNothing()
-      .run();
+    const schema = getCollectionSchemaByName(collection);
+    if (!schema) {
+      throw new Error(`Received ITEM_CHANGED for unknown collection "${collection}" before schema`);
+    }
 
     // Delete existing outgoing links (will be re-created from current data)
     deleteOutgoingItemLinks(itemId);
 
     // Extract links from props (REF/REFS) and content (anchors)
-    const schema = getCollectionSchemaByName(collection);
-    const extracted = extractLinks(itemIdBuf, props, content, schema);
+    const extracted = extractLinks(event.item.id, props, content, schema);
 
-    // Create/update item before inserting links (linkTable.from has FK → items.id)
+    // Create/update item before inserting links (link rows reference items.id)
     createOrUpdateItem({
       id: itemId,
-      connectionType: event.item.connectionType,
-      ref: event.item.ref,
       collection,
       changedAt: event.item.changedAt,
       props,
@@ -153,9 +186,7 @@ async function persistSyncEvent<CMap>(
     // Insert link records and get auto-increment IDs
     let linkIds: number[] = [];
     if (extracted.records.length > 0) {
-      linkIds = extracted.records.map(
-        (rec) => db.insert(linkTable).values(rec).returning({ id: linkTable.id }).get().id,
-      );
+      linkIds = extracted.records.map(insertLinkRecord);
     }
 
     // Replace placeholder indices with actual link IDs
@@ -167,8 +198,6 @@ async function persistSyncEvent<CMap>(
     if (extracted.records.length > 0) {
       createOrUpdateItem({
         id: itemId,
-        connectionType: event.item.connectionType,
-        ref: event.item.ref,
         collection,
         changedAt: event.item.changedAt,
         props,
@@ -176,7 +205,7 @@ async function persistSyncEvent<CMap>(
       });
     }
 
-    if (fileStore) {
+    if (fileStore && localFiles) {
       let needsUpdate = false;
 
       if (content && content.length > 0) {
@@ -210,18 +239,17 @@ async function persistSyncEvent<CMap>(
       if (needsUpdate) {
         createOrUpdateItem({
           id: itemId,
-          connectionType: event.item.connectionType,
-          ref: event.item.ref,
           collection,
           changedAt: event.item.changedAt,
           props,
           content,
         });
+        resumeMediaQueue();
       }
     }
   } else if (event.type === EventType.ITEM_DELETED) {
-    const itemId = event.item.toString("base64url");
-    if (fileStore) {
+    const itemId = event.item;
+    if (fileStore && localFiles) {
       deleteFilesByItem(itemId);
     }
     deleteItem(itemId);

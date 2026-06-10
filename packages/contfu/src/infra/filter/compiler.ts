@@ -1,24 +1,21 @@
 import { and, eq, gt, gte, like, lt, lte, ne, not, or, sql, type SQL } from "drizzle-orm";
-import { itemsTable } from "../db/schema";
-import { decodeId } from "../ids";
+import { internalLinkTable, itemsTable } from "../db/schema";
 import { basenameExpr, depthExpr, parentExpr } from "./path-helpers";
 import type { FilterAST } from "./types";
 
 const DIRECT_COLUMNS: Record<string, SQL> = {
   $collection: sql`${itemsTable.collection}`,
   $changedAt: sql`${itemsTable.changedAt}`,
-  $ref: sql`${itemsTable.ref}`,
-  $connectionType: sql`${itemsTable.connectionType}`,
   $id: sql`${itemsTable.id}`,
+  $locale: sql`${itemsTable.locale}`,
 };
 
 const FUNCTION_MAP: Record<string, (args: string[]) => SQL> = {
   parent: (args) =>
-    parentExpr(args[0] ? (DIRECT_COLUMNS[args[0]] ?? itemsTable.ref) : itemsTable.ref),
-  depth: (args) =>
-    depthExpr(args[0] ? (DIRECT_COLUMNS[args[0]] ?? itemsTable.ref) : itemsTable.ref),
+    parentExpr(args[0] ? (DIRECT_COLUMNS[args[0]] ?? jsonExtract(args[0])) : sql`''`),
+  depth: (args) => depthExpr(args[0] ? (DIRECT_COLUMNS[args[0]] ?? jsonExtract(args[0])) : sql`''`),
   basename: (args) =>
-    basenameExpr(args[0] ? (DIRECT_COLUMNS[args[0]] ?? itemsTable.ref) : itemsTable.ref),
+    basenameExpr(args[0] ? (DIRECT_COLUMNS[args[0]] ?? jsonExtract(args[0])) : sql`''`),
 };
 
 function jsonExtract(field: string): SQL {
@@ -32,7 +29,7 @@ function getColumn(field: string): SQL {
 
 function compileValue(field: string, value: string | number | boolean | null): SQL {
   if (value === null) return sql`NULL`;
-  if (field === "$id") return sql`${decodeId(String(value))}`;
+  if (field === "$id") return sql`${value}`;
   if (typeof value === "boolean") return value ? sql`1` : sql`0`;
   return sql`${value}`;
 }
@@ -46,20 +43,25 @@ export function compileFilter(ast: FilterAST): SQL {
 
     case "function": {
       if (ast.name === "linksTo") {
-        if (typeof ast.value !== "string") throw new Error("linksTo requires a string target ID");
-        const prop = ast.args[0];
-        const buf = decodeId(ast.value);
-        const propCondition = prop ? sql`links.prop = ${prop}` : sql`links.prop IS NULL`;
-        return sql`EXISTS (SELECT 1 FROM links WHERE links."from" = ${itemsTable.id} AND ${propCondition} AND links."to" = ${buf})`;
-      }
-      if (ast.name === "linkedFrom") {
-        if (typeof ast.value !== "string") {
-          throw new Error("linkedFrom requires a string source ID");
+        if (typeof ast.value !== "string" && typeof ast.value !== "number") {
+          throw new Error("linksTo requires a target item ID");
         }
         const prop = ast.args[0];
-        const buf = decodeId(ast.value);
-        const propCondition = prop ? sql`links.prop = ${prop}` : sql`links.prop IS NULL`;
-        return sql`EXISTS (SELECT 1 FROM links WHERE links."to" = ${itemsTable.id} AND ${propCondition} AND links."from" = ${buf})`;
+        const propCondition = prop
+          ? sql`${internalLinkTable.prop} = ${prop}`
+          : sql`${internalLinkTable.prop} IS NULL`;
+        return sql`EXISTS (SELECT 1 FROM ${internalLinkTable} WHERE ${internalLinkTable.from} = ${itemsTable.id} AND ${propCondition} AND ${internalLinkTable.to} = ${Number(ast.value)})`;
+      }
+      if (ast.name === "linkedFrom") {
+        if (typeof ast.value !== "string" && typeof ast.value !== "number") {
+          throw new Error("linkedFrom requires a source item ID");
+        }
+        const prop = ast.args[0];
+        const sourceId = Number(ast.value);
+        const propCondition = prop
+          ? sql`${internalLinkTable.prop} = ${prop}`
+          : sql`${internalLinkTable.prop} IS NULL`;
+        return sql`EXISTS (SELECT 1 FROM ${internalLinkTable} WHERE ${internalLinkTable.to} = ${itemsTable.id} AND ${propCondition} AND ${internalLinkTable.from} = ${sourceId})`;
       }
       const fn = FUNCTION_MAP[ast.name];
       if (!fn) throw new Error(`Unknown function: ${ast.name}`);

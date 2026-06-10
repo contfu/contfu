@@ -1,21 +1,29 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "0fc24921-7746-44bf-b2a8-d07722f1f423",
+  "id": "00ec7eff-07c4-46a2-b92f-062e794f2976",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
   "ddl": [
     {
-      "name": "file",
-      "entityType": "tables"
-    },
-    {
       "name": "collections",
       "entityType": "tables"
     },
     {
-      "name": "item_file",
+      "name": "external_links",
+      "entityType": "tables"
+    },
+    {
+      "name": "files",
+      "entityType": "tables"
+    },
+    {
+      "name": "internal_links",
+      "entityType": "tables"
+    },
+    {
+      "name": "item_files",
       "entityType": "tables"
     },
     {
@@ -23,86 +31,12 @@
       "entityType": "tables"
     },
     {
-      "name": "links",
-      "entityType": "tables"
-    },
-    {
-      "name": "media_variant",
+      "name": "media_variants",
       "entityType": "tables"
     },
     {
       "name": "sync",
       "entityType": "tables"
-    },
-    {
-      "type": "blob",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "id",
-      "entityType": "columns",
-      "table": "file"
-    },
-    {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "originalUrl",
-      "entityType": "columns",
-      "table": "file"
-    },
-    {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "mediaType",
-      "entityType": "columns",
-      "table": "file"
-    },
-    {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "ext",
-      "entityType": "columns",
-      "table": "file"
-    },
-    {
-      "type": "integer",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "size",
-      "entityType": "columns",
-      "table": "file"
-    },
-    {
-      "type": "blob",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "data",
-      "entityType": "columns",
-      "table": "file"
-    },
-    {
-      "type": "integer",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "createdAt",
-      "entityType": "columns",
-      "table": "file"
     },
     {
       "type": "text",
@@ -136,23 +70,43 @@
     },
     {
       "type": "blob",
-      "notNull": true,
+      "notNull": false,
       "autoincrement": false,
       "default": null,
       "generated": null,
-      "name": "itemId",
+      "name": "i18n",
       "entityType": "columns",
-      "table": "item_file"
+      "table": "collections"
     },
     {
-      "type": "blob",
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "external_links"
+    },
+    {
+      "type": "integer",
       "notNull": true,
       "autoincrement": false,
       "default": null,
       "generated": null,
-      "name": "fileId",
+      "name": "from",
       "entityType": "columns",
-      "table": "item_file"
+      "table": "external_links"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "url",
+      "entityType": "columns",
+      "table": "external_links"
     },
     {
       "type": "blob",
@@ -162,7 +116,57 @@
       "generated": null,
       "name": "id",
       "entityType": "columns",
-      "table": "items"
+      "table": "files"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "status",
+      "entityType": "columns",
+      "table": "files"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "mediaType",
+      "entityType": "columns",
+      "table": "files"
+    },
+    {
+      "type": "blob",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "meta",
+      "entityType": "columns",
+      "table": "files"
+    },
+    {
+      "type": "blob",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "data",
+      "entityType": "columns",
+      "table": "files"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "createdAt",
+      "entityType": "columns",
+      "table": "files"
     },
     {
       "type": "integer",
@@ -170,9 +174,9 @@
       "autoincrement": false,
       "default": null,
       "generated": null,
-      "name": "connectionType",
+      "name": "id",
       "entityType": "columns",
-      "table": "items"
+      "table": "internal_links"
     },
     {
       "type": "text",
@@ -180,7 +184,57 @@
       "autoincrement": false,
       "default": null,
       "generated": null,
-      "name": "ref",
+      "name": "prop",
+      "entityType": "columns",
+      "table": "internal_links"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "from",
+      "entityType": "columns",
+      "table": "internal_links"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "to",
+      "entityType": "columns",
+      "table": "internal_links"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "itemId",
+      "entityType": "columns",
+      "table": "item_files"
+    },
+    {
+      "type": "blob",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "fileId",
+      "entityType": "columns",
+      "table": "item_files"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
       "entityType": "columns",
       "table": "items"
     },
@@ -205,6 +259,16 @@
       "table": "items"
     },
     {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "locale",
+      "entityType": "columns",
+      "table": "items"
+    },
+    {
       "type": "blob",
       "notNull": false,
       "autoincrement": false,
@@ -225,66 +289,6 @@
       "table": "items"
     },
     {
-      "type": "integer",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "id",
-      "entityType": "columns",
-      "table": "links"
-    },
-    {
-      "type": "text",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "prop",
-      "entityType": "columns",
-      "table": "links"
-    },
-    {
-      "type": "blob",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "from",
-      "entityType": "columns",
-      "table": "links"
-    },
-    {
-      "type": "blob",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "to",
-      "entityType": "columns",
-      "table": "links"
-    },
-    {
-      "type": "integer",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "internal",
-      "entityType": "columns",
-      "table": "links"
-    },
-    {
-      "type": "blob",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "id",
-      "entityType": "columns",
-      "table": "media_variant"
-    },
-    {
       "type": "blob",
       "notNull": true,
       "autoincrement": false,
@@ -292,7 +296,7 @@
       "generated": null,
       "name": "fileId",
       "entityType": "columns",
-      "table": "media_variant"
+      "table": "media_variants"
     },
     {
       "type": "text",
@@ -302,7 +306,7 @@
       "generated": null,
       "name": "ext",
       "entityType": "columns",
-      "table": "media_variant"
+      "table": "media_variants"
     },
     {
       "type": "integer",
@@ -312,7 +316,7 @@
       "generated": null,
       "name": "optsHash",
       "entityType": "columns",
-      "table": "media_variant"
+      "table": "media_variants"
     },
     {
       "type": "blob",
@@ -322,7 +326,7 @@
       "generated": null,
       "name": "opts",
       "entityType": "columns",
-      "table": "media_variant"
+      "table": "media_variants"
     },
     {
       "type": "integer",
@@ -332,7 +336,7 @@
       "generated": null,
       "name": "size",
       "entityType": "columns",
-      "table": "media_variant"
+      "table": "media_variants"
     },
     {
       "type": "blob",
@@ -342,7 +346,7 @@
       "generated": null,
       "name": "data",
       "entityType": "columns",
-      "table": "media_variant"
+      "table": "media_variants"
     },
     {
       "type": "integer",
@@ -352,7 +356,7 @@
       "generated": null,
       "name": "createdAt",
       "entityType": "columns",
-      "table": "media_variant"
+      "table": "media_variants"
     },
     {
       "type": "integer",
@@ -366,6 +370,36 @@
     },
     {
       "columns": [
+        "from"
+      ],
+      "tableTo": "items",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
+      "name": "fk_external_links_from_items_id_fk",
+      "entityType": "fks",
+      "table": "external_links"
+    },
+    {
+      "columns": [
+        "from"
+      ],
+      "tableTo": "items",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
+      "name": "fk_internal_links_from_items_id_fk",
+      "entityType": "fks",
+      "table": "internal_links"
+    },
+    {
+      "columns": [
         "itemId"
       ],
       "tableTo": "items",
@@ -375,24 +409,24 @@
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
-      "name": "fk_item_file_itemId_items_id_fk",
+      "name": "fk_item_files_itemId_items_id_fk",
       "entityType": "fks",
-      "table": "item_file"
+      "table": "item_files"
     },
     {
       "columns": [
         "fileId"
       ],
-      "tableTo": "file",
+      "tableTo": "files",
       "columnsTo": [
         "id"
       ],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
-      "name": "fk_item_file_fileId_file_id_fk",
+      "name": "fk_item_files_fileId_files_id_fk",
       "entityType": "fks",
-      "table": "item_file"
+      "table": "item_files"
     },
     {
       "columns": [
@@ -411,33 +445,18 @@
     },
     {
       "columns": [
-        "from"
-      ],
-      "tableTo": "items",
-      "columnsTo": [
-        "id"
-      ],
-      "onUpdate": "NO ACTION",
-      "onDelete": "CASCADE",
-      "nameExplicit": false,
-      "name": "fk_links_from_items_id_fk",
-      "entityType": "fks",
-      "table": "links"
-    },
-    {
-      "columns": [
         "fileId"
       ],
-      "tableTo": "file",
+      "tableTo": "files",
       "columnsTo": [
         "id"
       ],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
-      "name": "fk_media_variant_fileId_file_id_fk",
+      "name": "fk_media_variants_fileId_files_id_fk",
       "entityType": "fks",
-      "table": "media_variant"
+      "table": "media_variants"
     },
     {
       "columns": [
@@ -445,18 +464,20 @@
         "fileId"
       ],
       "nameExplicit": false,
-      "name": "item_file_pk",
+      "name": "item_files_pk",
       "entityType": "pks",
-      "table": "item_file"
+      "table": "item_files"
     },
     {
       "columns": [
-        "id"
+        "fileId",
+        "ext",
+        "optsHash"
       ],
       "nameExplicit": false,
-      "name": "file_pk",
-      "table": "file",
-      "entityType": "pks"
+      "name": "media_variants_pk",
+      "entityType": "pks",
+      "table": "media_variants"
     },
     {
       "columns": [
@@ -472,41 +493,82 @@
         "id"
       ],
       "nameExplicit": false,
+      "name": "external_links_pk",
+      "table": "external_links",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "files_pk",
+      "table": "files",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "internal_links_pk",
+      "table": "internal_links",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
       "name": "items_pk",
       "table": "items",
       "entityType": "pks"
     },
     {
       "columns": [
-        "id"
-      ],
-      "nameExplicit": false,
-      "name": "links_pk",
-      "table": "links",
-      "entityType": "pks"
-    },
-    {
-      "columns": [
-        "id"
-      ],
-      "nameExplicit": false,
-      "name": "media_variant_pk",
-      "table": "media_variant",
-      "entityType": "pks"
-    },
-    {
-      "columns": [
         {
-          "value": "ref",
+          "value": "from",
           "isExpression": false
         }
       ],
       "isUnique": false,
       "where": null,
       "origin": "manual",
-      "name": "idx_items_ref",
+      "name": "idx_external_links_from",
       "entityType": "indexes",
-      "table": "items"
+      "table": "external_links"
+    },
+    {
+      "columns": [
+        {
+          "value": "from",
+          "isExpression": false
+        },
+        {
+          "value": "to",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "idx_internal_links_from",
+      "entityType": "indexes",
+      "table": "internal_links"
+    },
+    {
+      "columns": [
+        {
+          "value": "to",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "idx_internal_links_to",
+      "entityType": "indexes",
+      "table": "internal_links"
     },
     {
       "columns": [
@@ -525,6 +587,20 @@
     {
       "columns": [
         {
+          "value": "locale",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "idx_items_locale",
+      "entityType": "indexes",
+      "table": "items"
+    },
+    {
+      "columns": [
+        {
           "value": "changedAt",
           "isExpression": false
         }
@@ -535,60 +611,6 @@
       "name": "idx_items_changedAt",
       "entityType": "indexes",
       "table": "items"
-    },
-    {
-      "columns": [
-        {
-          "value": "from",
-          "isExpression": false
-        },
-        {
-          "value": "to",
-          "isExpression": false
-        }
-      ],
-      "isUnique": false,
-      "where": null,
-      "origin": "manual",
-      "name": "idx_links_from",
-      "entityType": "indexes",
-      "table": "links"
-    },
-    {
-      "columns": [
-        {
-          "value": "to",
-          "isExpression": false
-        }
-      ],
-      "isUnique": false,
-      "where": null,
-      "origin": "manual",
-      "name": "idx_links_to",
-      "entityType": "indexes",
-      "table": "links"
-    },
-    {
-      "columns": [
-        {
-          "value": "fileId",
-          "isExpression": false
-        },
-        {
-          "value": "ext",
-          "isExpression": false
-        },
-        {
-          "value": "optsHash",
-          "isExpression": false
-        }
-      ],
-      "isUnique": false,
-      "where": null,
-      "origin": "manual",
-      "name": "idx_variant_lookup",
-      "entityType": "indexes",
-      "table": "media_variant"
     }
   ],
   "renames": []

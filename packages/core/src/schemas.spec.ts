@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   generateTypeScript,
-  generateConsumerTypes,
+  generateApplicationConnectionTypes,
   PropertyType,
   schemaType,
   schemaEnumValues,
@@ -140,17 +140,90 @@ describe("generateTypeScript", () => {
     expect(ts).toContain("tags: string[];");
   });
 
+  it("generates Block[] for BLOCK", () => {
+    const ts = generateTypeScript([
+      { name: "posts", displayName: "Posts", schema: { body: PropertyType.BLOCK } },
+    ]);
+    expect(ts).toContain('import type { Block } from "@contfu/core";');
+    expect(ts).toContain("body: Block[];");
+  });
+
   it("generates string[] for REFS without refTargets", () => {
     const ts = generateTypeScript([
       { name: "blogPosts", displayName: "Blog Posts", schema: { tags: PropertyType.REFS } },
     ]);
     expect(ts).toContain("tags: string[];");
   });
+
+  it("generates string for FILE", () => {
+    const ts = generateTypeScript([
+      { name: "assets", displayName: "Assets", schema: { hero: PropertyType.FILE } },
+    ]);
+    expect(ts).toContain("hero: string;");
+  });
+
+  it("generates string[] for FILES", () => {
+    const ts = generateTypeScript([
+      { name: "assets", displayName: "Assets", schema: { gallery: PropertyType.FILES } },
+    ]);
+    expect(ts).toContain("gallery: string[];");
+  });
+
+  it("generates any for JSON", () => {
+    const ts = generateTypeScript([
+      { name: "assets", displayName: "Assets", schema: { metadata: PropertyType.JSON } },
+    ]);
+    expect(ts).toContain("metadata: any;");
+  });
+
+  it("generates typed custom blocks from BLOCK schema metadata", () => {
+    const ts = generateTypeScript([
+      {
+        name: "posts",
+        displayName: "Posts",
+        schema: { body: [PropertyType.BLOCK, ["shared.seo", "shared.hero"]] },
+      },
+    ]);
+    expect(ts).toContain(
+      'export type SharedSeoComponent = ["shared.seo", Record<string, any>, BuiltInBlock[]];',
+    );
+    expect(ts).toContain(
+      'export type SharedHeroComponent = ["shared.hero", Record<string, any>, BuiltInBlock[]];',
+    );
+    expect(ts).toContain("body: (SharedSeoComponent | SharedHeroComponent)[];");
+  });
+
+  it("generates different custom block unions per dynamic-zone field", () => {
+    const ts = generateTypeScript([
+      {
+        name: "pages",
+        displayName: "Pages",
+        schema: {
+          heroZone: [PropertyType.BLOCK, ["hero", "callToAction"]],
+          sidebarZone: [PropertyType.BLOCK, ["teaser"]],
+          seo: [PropertyType.BLOCK, ["seo"]],
+        },
+        customBlocks: [
+          { name: "hero", props: { title: PropertyType.STRING } },
+          { name: "callToAction", props: { label: PropertyType.STRING } },
+          { name: "teaser", props: { eyebrow: PropertyType.STRING } },
+          { name: "seo", props: { metaTitle: PropertyType.STRING } },
+        ],
+      },
+    ]);
+
+    expect(ts).toContain("heroZone: (HeroComponent | CallToActionComponent)[];");
+    expect(ts).toContain("sidebarZone: (TeaserComponent)[];");
+    expect(ts).toContain("seo: (SeoComponent)[];");
+    expect(ts).toContain(
+      'export type HeroComponent = ["hero", { title: string }, BuiltInBlock[]];',
+    );
+  });
 });
 
-describe("generateConsumerTypes", () => {
+describe("generateApplicationConnectionTypes", () => {
   it("uses self-referencing lookup for refTargets", () => {
-    const ts = generateConsumerTypes([
+    const ts = generateApplicationConnectionTypes([
       {
         name: "blogPosts",
         displayName: "Blog Posts",
@@ -162,7 +235,7 @@ describe("generateConsumerTypes", () => {
   });
 
   it("uses lookup union for multiple targets", () => {
-    const ts = generateConsumerTypes([
+    const ts = generateApplicationConnectionTypes([
       {
         name: "blogPosts",
         displayName: "Blog Posts",
@@ -174,7 +247,7 @@ describe("generateConsumerTypes", () => {
   });
 
   it("uses lookup array for REFS", () => {
-    const ts = generateConsumerTypes([
+    const ts = generateApplicationConnectionTypes([
       {
         name: "blogPosts",
         displayName: "Blog Posts",
@@ -333,7 +406,7 @@ describe("generated types compile-time checks", () => {
   });
 
   it("consumer types with refTargets compile with typed query client pattern", async () => {
-    const generated = generateConsumerTypes([
+    const generated = generateApplicationConnectionTypes([
       {
         name: "authors",
         displayName: "Authors",
@@ -427,9 +500,9 @@ describe("generateTypeScript with inflowSchemas", () => {
   });
 });
 
-describe("generateConsumerTypes with inflowSchemas", () => {
+describe("generateApplicationConnectionTypes with inflowSchemas", () => {
   it("single inflow still emits block object", () => {
-    const ts = generateConsumerTypes([
+    const ts = generateApplicationConnectionTypes([
       {
         name: "posts",
         displayName: "Posts",
@@ -442,7 +515,7 @@ describe("generateConsumerTypes with inflowSchemas", () => {
   });
 
   it("two distinct inflows emit multi-line union", () => {
-    const ts = generateConsumerTypes([
+    const ts = generateApplicationConnectionTypes([
       {
         name: "posts",
         displayName: "Posts",
@@ -460,7 +533,7 @@ describe("generateConsumerTypes with inflowSchemas", () => {
   });
 
   it("duplicate inflows deduplicate to single member, still emits block object", () => {
-    const ts = generateConsumerTypes([
+    const ts = generateApplicationConnectionTypes([
       {
         name: "posts",
         displayName: "Posts",
@@ -474,7 +547,7 @@ describe("generateConsumerTypes with inflowSchemas", () => {
 });
 
 describe("$content system schema key", () => {
-  it("generateTypeScript maps $content to content: Block[] and prepends Block import", () => {
+  it("generateTypeScript maps $content to content: BuiltInBlock[] and prepends BuiltInBlock import", () => {
     const ts = generateTypeScript([
       {
         name: "blogPosts",
@@ -482,8 +555,8 @@ describe("$content system schema key", () => {
         schema: { title: PropertyType.STRING, $content: 0 },
       },
     ]);
-    expect(ts).toContain(`import type { Block } from "@contfu/core";`);
-    expect(ts).toContain("content: Block[];");
+    expect(ts).toContain(`import type { BuiltInBlock } from "@contfu/core";`);
+    expect(ts).toContain("content: BuiltInBlock[];");
     expect(ts).not.toContain("$content");
   });
 
@@ -495,23 +568,23 @@ describe("$content system schema key", () => {
         schema: { title: PropertyType.STRING },
       },
     ]);
-    expect(ts).not.toContain("import type { Block }");
+    expect(ts).not.toContain("import type { BuiltInBlock }");
     expect(ts).not.toContain("Block[]");
   });
 
-  it("generateConsumerTypes maps $content to content: Block[] and prepends Block import", () => {
-    const ts = generateConsumerTypes([
+  it("generateApplicationConnectionTypes maps $content to content: BuiltInBlock[] and prepends BuiltInBlock import", () => {
+    const ts = generateApplicationConnectionTypes([
       {
         name: "blogPosts",
         displayName: "Blog Posts",
         schema: { title: PropertyType.STRING, $content: 0 },
       },
     ]);
-    expect(ts).toContain(`import type { Block } from "@contfu/core";`);
-    expect(ts).toContain("content: Block[];");
+    expect(ts).toContain(`import type { BuiltInBlock } from "@contfu/core";`);
+    expect(ts).toContain("content: BuiltInBlock[];");
   });
 
-  it("generateTypeScript emits content: Block[] in union members from inflow schemas", () => {
+  it("generateTypeScript emits content: BuiltInBlock[] in union members from inflow schemas", () => {
     const ts = generateTypeScript([
       {
         name: "posts",
@@ -523,9 +596,73 @@ describe("$content system schema key", () => {
         ],
       },
     ]);
-    expect(ts).toContain(`import type { Block } from "@contfu/core";`);
-    expect(ts).toContain("content: Block[];");
+    expect(ts).toContain(`import type { BuiltInBlock } from "@contfu/core";`);
+    expect(ts).toContain("content: BuiltInBlock[];");
     expect(ts).not.toContain("$content");
+  });
+
+  it("generateApplicationConnectionTypes renders $locale only once for localized collections", () => {
+    const ts = generateApplicationConnectionTypes([
+      {
+        name: "posts",
+        displayName: "Posts",
+        schema: {
+          title: PropertyType.STRING,
+          $content: PropertyType.NULL,
+          $locale: [PropertyType.ENUM, ["en", "de"]],
+        },
+        inflowSchemas: [
+          {
+            title: PropertyType.STRING,
+            $content: PropertyType.NULL,
+            $locale: [PropertyType.ENUM, ["en", "de"]],
+          },
+          {
+            title: PropertyType.STRING,
+            category: PropertyType.STRING,
+            $content: PropertyType.NULL,
+            $locale: [PropertyType.ENUM, ["en", "de"]],
+          },
+        ],
+        i18n: { localized: true, locales: ["en", "de"] },
+      },
+    ]);
+
+    expect(ts).toContain("content: BuiltInBlock[];");
+    expect(ts.match(/\$locale: Locale;/g)).toHaveLength(2);
+    expect(ts).not.toContain('$locale: "en" | "de";');
+  });
+
+  it("generateApplicationConnectionTypes keeps localized content unions free of raw $locale enum members", () => {
+    const ts = generateApplicationConnectionTypes([
+      {
+        name: "posts",
+        displayName: "Posts",
+        schema: {
+          title: PropertyType.STRING,
+          $content: PropertyType.NULL,
+          $locale: [PropertyType.ENUM, ["en", "de"]],
+        },
+        inflowSchemas: [
+          {
+            title: PropertyType.STRING,
+            $content: PropertyType.NULL,
+            $locale: [PropertyType.ENUM, ["en", "de"]],
+          },
+          {
+            title: PropertyType.STRING,
+            category: PropertyType.STRING,
+            $content: PropertyType.NULL,
+            $locale: [PropertyType.ENUM, ["en", "de"]],
+          },
+        ],
+        i18n: { localized: true, locales: ["en", "de"] },
+      },
+    ]);
+
+    expect(ts).toContain("posts:");
+    expect(ts).toContain("$locale: Locale;");
+    expect(ts).not.toContain('$locale: "en" | "de";');
   });
 });
 

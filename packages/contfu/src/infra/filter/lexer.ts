@@ -1,4 +1,4 @@
-import { SYSTEM_FIELD_SET } from "../../domain/system-fields";
+import { SYSTEM_FIELD_SET } from "@contfu/core";
 import { TokenType, type Token } from "./types";
 
 export function tokenize(input: string): Token[] {

@@ -31,13 +31,13 @@ describe("tokenize", () => {
   });
 
   test("tokenizes booleans and null", () => {
-    const tokens = tokenize("featured = true && $ref != null");
+    const tokens = tokenize("featured = true && $id != null");
     expect(tokens).toEqual([
       { type: TokenType.Identifier, value: "featured" },
       { type: TokenType.Eq, value: "=" },
       { type: TokenType.Boolean, value: "true" },
       { type: TokenType.And, value: "&&" },
-      { type: TokenType.SystemField, value: "$ref" },
+      { type: TokenType.SystemField, value: "$id" },
       { type: TokenType.Neq, value: "!=" },
       { type: TokenType.Null, value: "null" },
     ]);
@@ -87,11 +87,11 @@ describe("tokenize", () => {
   });
 
   test("tokenizes function call syntax", () => {
-    const tokens = tokenize("depth($ref) = 2");
+    const tokens = tokenize("depth($id) = 2");
     expect(tokens).toEqual([
       { type: TokenType.Identifier, value: "depth" },
       { type: TokenType.LParen, value: "(" },
-      { type: TokenType.SystemField, value: "$ref" },
+      { type: TokenType.SystemField, value: "$id" },
       { type: TokenType.RParen, value: ")" },
       { type: TokenType.Eq, value: "=" },
       { type: TokenType.Number, value: "2" },

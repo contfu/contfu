@@ -34,10 +34,10 @@ describe("parse", () => {
   });
 
   test("parses null value", () => {
-    const ast = parse(tokenize("$ref = null"));
+    const ast = parse(tokenize("$id = null"));
     expect(ast).toEqual({
       kind: "comparison",
-      field: "$ref",
+      field: "$id",
       op: "=",
       value: null,
     });
@@ -91,11 +91,11 @@ describe("parse", () => {
   });
 
   test("parses function call", () => {
-    const ast = parse(tokenize("depth($ref) = 2"));
+    const ast = parse(tokenize("depth($id) = 2"));
     expect(ast).toEqual({
       kind: "function",
       name: "depth",
-      args: ["$ref"],
+      args: ["$id"],
       op: "=",
       value: 2,
     });

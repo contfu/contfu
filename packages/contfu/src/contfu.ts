@@ -1,4 +1,5 @@
 import {
+  EventType,
   all,
   and,
   contains,
@@ -18,14 +19,15 @@ import {
 } from "@contfu/core";
 import type { ItemEvent, StreamEvent } from "@contfu/connect";
 import type { FileStore } from "./domain/files";
+import type { ClientI18nConfig, LocaleScope } from "./domain/i18n";
 import type { MediaOptimizer, MediaVariants, TransformMediaRule } from "./domain/media";
-import { fileStore as defaultFileStore } from "./infra/media/media-defaults";
-import type { TypedContfuClient } from "./domain/query-types";
+import type { QueryLocale, TypedContfuClient } from "./domain/query-types";
 import { resolveWithFunctions } from "./domain/filter-helpers";
 import { findItems } from "./features/items/findItems";
 import { connect } from "./features/stream/connect";
-import { handleFileRequest as handleFileRequestImpl } from "./infra/http";
 import { db } from "./infra/db/db";
+import { handleFileRequest as handleFileRequestImpl } from "./infra/http";
+import { fileStore as defaultFileStore } from "./infra/media/media-defaults";
 
 export type ContfuOptions<CMap = unknown> = {
   fileStore?: FileStore;
@@ -38,6 +40,12 @@ export type ContfuOptions<CMap = unknown> = {
   key?: string;
   /** Cache optimized file variants in the database. Default: true */
   cacheOptimizedFiles?: boolean;
+  /** Localize remote files into Contfu storage. Default: true */
+  localFiles?: boolean;
+  /** Number of concurrent media download/processing jobs. Default: 2 */
+  mediaQueueConcurrency?: number;
+  /** Optional app-level i18n overrides. DB config remains the source of truth. */
+  i18n?: ClientI18nConfig<QueryLocale<CMap>>;
 };
 
 export type SyncEvent = ItemEvent | StreamEvent;
@@ -54,7 +62,7 @@ export function contfu<CMap = unknown>(options: ContfuOptions<CMap> = {}): Contf
   const key = options.key ?? process.env.CONTFU_KEY;
 
   return {
-    query: createLocalTypedClient(),
+    query: createLocalTypedClient(db, options.i18n),
     fileStore,
     events: key ? createHotEventStream(key, fileStore, options) : emptyAsyncIterable(),
     handleFileRequest: (request, filePath) =>
@@ -64,8 +72,11 @@ export function contfu<CMap = unknown>(options: ContfuOptions<CMap> = {}): Contf
 
 type Subscriber = {
   queue: SyncEvent[];
-  resolve: (() => void) | null;
+  resolve: ((result: IteratorResult<SyncEvent>) => void) | null;
 };
+
+const HOT_STREAM_INITIAL_RESTART_DELAY_MS = 1_000;
+const HOT_STREAM_MAX_RESTART_DELAY_MS = 30_000;
 
 function createHotEventStream<CMap>(
   key: string,
@@ -74,24 +85,56 @@ function createHotEventStream<CMap>(
 ): AsyncIterable<SyncEvent> {
   const subscribers = new Set<Subscriber>();
 
-  // Start consuming the connect() generator eagerly in the background
-  void (async () => {
-    for await (const event of connect({
-      connectionEvents: true,
-      reconnect: true,
-      key: Buffer.from(key, "base64url"),
-      fileStore,
-      mediaOptimizer: options.mediaOptimizer,
-      transformMedia: options.transformMedia,
-      mediaVariants: options.mediaVariants,
-    })) {
-      for (const sub of subscribers) {
-        sub.queue.push(event);
-        sub.resolve?.();
-        sub.resolve = null;
-      }
+  const publish = (event: SyncEvent) => {
+    for (const sub of subscribers) {
+      sub.queue.push(event);
+      sub.resolve?.({ value: sub.queue.shift()!, done: false });
+      sub.resolve = null;
     }
-  })();
+  };
+
+  void (async () => {
+    let restartDelay = HOT_STREAM_INITIAL_RESTART_DELAY_MS;
+
+    while (true) {
+      try {
+        for await (const event of connect({
+          connectionEvents: true,
+          reconnect: true,
+          key: Buffer.from(key, "base64url"),
+          fileStore,
+          mediaOptimizer: options.mediaOptimizer,
+          transformMedia: options.transformMedia,
+          mediaVariants: options.mediaVariants,
+          localFiles: options.localFiles ?? true,
+          mediaQueueConcurrency: options.mediaQueueConcurrency ?? 2,
+        })) {
+          if (event.type === EventType.STREAM_CONNECTED) {
+            restartDelay = HOT_STREAM_INITIAL_RESTART_DELAY_MS;
+          }
+          publish(event);
+        }
+
+        publish({
+          type: EventType.STREAM_DISCONNECTED,
+          reason: "Sync stream ended unexpectedly",
+        });
+      } catch (error) {
+        publish({
+          type: EventType.STREAM_DISCONNECTED,
+          reason: error instanceof Error ? error.message : "Unknown sync stream error",
+        });
+      }
+
+      await sleep(restartDelay);
+      restartDelay = Math.min(restartDelay * 2, HOT_STREAM_MAX_RESTART_DELAY_MS);
+    }
+  })().catch((error) => {
+    publish({
+      type: EventType.STREAM_DISCONNECTED,
+      reason: error instanceof Error ? error.message : "Unknown sync stream error",
+    });
+  });
 
   return {
     [Symbol.asyncIterator](): AsyncIterator<SyncEvent> {
@@ -104,16 +147,22 @@ function createHotEventStream<CMap>(
             return Promise.resolve({ value: sub.queue.shift()!, done: false });
           }
           return new Promise<IteratorResult<SyncEvent>>((resolve) => {
-            sub.resolve = () => resolve({ value: sub.queue.shift()!, done: false });
+            sub.resolve = resolve;
           });
         },
         return() {
           subscribers.delete(sub);
+          sub.resolve?.({ value: undefined, done: true });
+          sub.resolve = null;
           return Promise.resolve({ value: undefined, done: true });
         },
       };
     },
   };
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function emptyAsyncIterable(): AsyncIterable<SyncEvent> {
@@ -146,11 +195,15 @@ function resolveFilter(filter: unknown): string | undefined {
   return filter as string | undefined;
 }
 
-function createLocalTypedClient<_CMap>(ctx = db): any {
-  // eslint-disable-next-line typescript/require-await -- mirrors async remote API for seamless local/remote switching
+function createLocalTypedClient<_CMap>(
+  ctx = db,
+  appI18n?: ClientI18nConfig<QueryLocale<_CMap>>,
+  scope: LocaleScope<QueryLocale<_CMap>> = {},
+): any {
+  // eslint-disable-next-line typescript-eslint/require-await -- mirrors async remote API for seamless local/remote switching
   const callable = async (first?: any, second?: any) => {
     const { options } = normalizeArgs(first, second);
-    const { collection, ...rest } = options;
+    const { collection, locale, fallback, ...rest } = options;
     const filter = resolveFilter(rest.filter);
     const resolvedWith =
       rest.with && typeof rest.with === "function" ? resolveWithFunctions(rest.with, 1) : rest.with;
@@ -158,16 +211,26 @@ function createLocalTypedClient<_CMap>(ctx = db): any {
     if (collection) {
       const opts = {
         ...rest,
+        locale,
+        fallback,
         with: resolvedWith,
         filter: filter
           ? `$collection = "${collection}" && (${filter})`
           : `$collection = "${collection}"`,
       };
-      return findItems(opts, ctx);
+      return findItems(opts, ctx, appI18n, scope);
     }
 
-    return findItems({ ...rest, filter, with: resolvedWith }, ctx);
+    return findItems(
+      { ...rest, locale, fallback, filter, with: resolvedWith },
+      ctx,
+      appI18n,
+      scope,
+    );
   };
+
+  const withLocale = (locale: QueryLocale<_CMap>, fallback?: QueryLocale<_CMap> | false) =>
+    createLocalTypedClient(ctx, appI18n, { locale, fallback });
 
   return Object.assign(callable, {
     all,
@@ -185,5 +248,6 @@ function createLocalTypedClient<_CMap>(ctx = db): any {
     or,
     linksTo,
     linkedFrom,
+    withLocale,
   });
 }

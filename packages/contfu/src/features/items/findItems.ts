@@ -1,7 +1,7 @@
-import { and, asc, count, desc, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
 import { db as defaultDb } from "../../infra/db/db";
 import { collectionsTable, itemsTable } from "../../infra/db/schema";
-import { encodeId } from "../../infra/ids";
+import { propsWithLocale } from "../../infra/db/mappers";
 import { resolveIncludes } from "../../infra/db/resolve-includes";
 import { resolveRelations } from "../../infra/db/resolve-relations";
 import { compileFilter } from "../../infra/filter/compiler";
@@ -9,53 +9,116 @@ import { tokenize } from "../../infra/filter/lexer";
 import { parse } from "../../infra/filter/parser";
 import { QueryResultArray, type QueryOptions, type SortOption } from "@contfu/core";
 import type { ItemWithRelations, QueryResult, QuerySystemFields } from "../../domain/query-types";
+import {
+  buildI18nQueryPlan,
+  filterReferencesLocale,
+  type ClientI18nConfig,
+  type I18nQueryPlan,
+  type LocaleScope,
+} from "../../domain/i18n";
 
 const DEFAULT_LIMIT = 20;
 
 type SelectableFieldMap = QuerySystemFields & Record<string, unknown>;
 
-function encodeDbId(value: ArrayBuffer | Buffer | Uint8Array): string {
-  if (Buffer.isBuffer(value)) return encodeId(value);
-  if (value instanceof Uint8Array) return encodeId(Buffer.from(value));
-  return encodeId(Buffer.from(new Uint8Array(value)));
-}
-
-function toSelectableFields(row: {
-  id: Uint8Array | Buffer | ArrayBuffer;
-  connectionType: number | null;
-  ref: string | null;
+type DbRow = {
+  id: number;
   collectionName: string;
   props: unknown;
+  locale: string | null;
   changedAt: number;
-}) {
-  const props =
+  content?: unknown;
+};
+
+function toSelectableFields(row: DbRow) {
+  const props = propsWithLocale(
     row.props && typeof row.props === "object" && !Array.isArray(row.props)
       ? (row.props as Record<string, unknown>)
-      : {};
+      : {},
+    row.locale,
+  );
 
   return {
-    $id: encodeDbId(row.id),
-    $connectionType: row.connectionType as QuerySystemFields["$connectionType"],
-    $ref: row.ref,
+    $id: row.id,
     $collection: row.collectionName,
     $changedAt: row.changedAt,
     ...props,
   };
 }
 
-function buildWhere(options: QueryOptions): SQL | undefined {
-  const conditions: SQL[] = [];
+function localeColumnExpr(): SQL {
+  return sql`${itemsTable.locale}`;
+}
+
+function keyJsonExpr(keyField: string): SQL {
+  return sql`json_extract(${itemsTable.props}, ${"$." + keyField})`;
+}
+
+function extractCollectionName(filter: string | undefined): string | undefined {
+  if (!filter) return undefined;
+  const match = filter.match(/\$collection\s*=\s*"([^"]+)"/);
+  return match?.[1];
+}
+
+function resolveI18nPlan(
+  options: QueryOptions,
+  ctx: typeof defaultDb,
+  appI18n?: ClientI18nConfig,
+  scope?: LocaleScope,
+): { plan?: I18nQueryPlan; ast?: ReturnType<typeof parse> } {
+  const collection = extractCollectionName(options.filter);
+  let ast: ReturnType<typeof parse> | undefined;
+  let suppressImplicit = false;
 
   if (options.filter) {
-    const ast = parse(tokenize(options.filter));
+    ast = parse(tokenize(options.filter));
+    suppressImplicit = filterReferencesLocale(ast);
+  }
+
+  if (!collection) return { ast };
+
+  const row = ctx
+    .select({ i18n: collectionsTable.i18n })
+    .from(collectionsTable)
+    .where(eq(collectionsTable.name, collection))
+    .get();
+
+  const plan = buildI18nQueryPlan({
+    collection,
+    collectionI18n: row?.i18n ?? undefined,
+    appI18n,
+    scope,
+    locale: options.locale,
+    fallback: options.fallback,
+    suppressImplicit,
+  });
+
+  return { plan, ast };
+}
+
+function buildWhere(
+  options: QueryOptions,
+  ast?: ReturnType<typeof parse>,
+  i18nPlan?: I18nQueryPlan,
+): SQL | undefined {
+  const conditions: SQL[] = [];
+
+  if (ast) {
     conditions.push(compileFilter(ast));
   }
 
   if (options.search) {
     const pattern = `%${options.search}%`;
-    conditions.push(
-      sql`(json_extract(${itemsTable.props}, '$.title') LIKE ${pattern} OR ${itemsTable.ref} LIKE ${pattern})`,
-    );
+    conditions.push(sql`json_extract(${itemsTable.props}, '$.title') LIKE ${pattern}`);
+  }
+
+  if (i18nPlan?.wantedLocale) {
+    const localeCol = localeColumnExpr();
+    if (i18nPlan.fallbackLocale && i18nPlan.fallbackLocale !== i18nPlan.wantedLocale) {
+      conditions.push(inArray(localeCol, [i18nPlan.wantedLocale, i18nPlan.fallbackLocale]));
+    } else {
+      conditions.push(eq(localeCol, i18nPlan.wantedLocale));
+    }
   }
 
   if (conditions.length === 0) return undefined;
@@ -92,9 +155,8 @@ function descColumn(field: string) {
 function resolveColumn(field: string) {
   if (field === "$collection") return itemsTable.collection;
   if (field === "$changedAt") return itemsTable.changedAt;
-  if (field === "$ref") return itemsTable.ref;
-  if (field === "$connectionType") return itemsTable.connectionType;
   if (field === "$id") return itemsTable.id;
+  if (field === "$locale") return localeColumnExpr();
   return sql`json_extract(${itemsTable.props}, ${"$." + field})`;
 }
 
@@ -124,11 +186,17 @@ function pickRequestedFields(
   return projected as ItemWithRelations;
 }
 
-export function findItems(options: QueryOptions = {}, ctx = defaultDb): QueryResult {
+export function findItems(
+  options: QueryOptions = {},
+  ctx = defaultDb,
+  appI18n?: ClientI18nConfig,
+  scope?: LocaleScope,
+): QueryResult {
   const limit = Math.max(1, options.limit ?? DEFAULT_LIMIT);
   const offset = Math.max(0, options.offset ?? 0);
 
-  const where = buildWhere(options);
+  const { plan: i18nPlan, ast } = resolveI18nPlan(options, ctx, appI18n, scope);
+  const where = buildWhere(options, ast, i18nPlan);
   const orderBy = buildOrderBy(options.sort);
 
   const explicitIncludeContent = options.include?.includes("content");
@@ -145,34 +213,66 @@ export function findItems(options: QueryOptions = {}, ctx = defaultDb): QueryRes
   }
 
   const includeContentColumn = explicitIncludeContent || contentCollections.size > 0;
-
   const selectColumns = {
     id: itemsTable.id,
-    connectionType: itemsTable.connectionType,
-    ref: itemsTable.ref,
     collectionName: itemsTable.collection,
     props: itemsTable.props,
+    locale: itemsTable.locale,
     changedAt: itemsTable.changedAt,
     ...(includeContentColumn ? { content: itemsTable.content } : {}),
   };
 
-  const query = ctx.select(selectColumns).from(itemsTable);
+  const useFallbackGroup = Boolean(
+    i18nPlan?.key &&
+    i18nPlan.wantedLocale &&
+    i18nPlan.fallbackLocale &&
+    i18nPlan.fallbackLocale !== i18nPlan.wantedLocale,
+  );
 
-  const rows = where
-    ? query
-        .where(where)
-        .orderBy(...orderBy)
-        .limit(limit)
-        .offset(offset)
-        .all()
-    : query
-        .orderBy(...orderBy)
-        .limit(limit)
-        .offset(offset)
-        .all();
+  let rows: DbRow[];
+  let total: number;
 
-  const countQuery = ctx.select({ value: count() }).from(itemsTable);
-  const total = (where ? countQuery.where(where).get() : countQuery.get())?.value ?? 0;
+  if (useFallbackGroup && i18nPlan?.key) {
+    const localeCol = localeColumnExpr();
+    const keyCol = keyJsonExpr(i18nPlan.key);
+    const wantedLocale = i18nPlan.wantedLocale!;
+    const fallbackLocale = i18nPlan.fallbackLocale!;
+    const prefExpr = sql`MIN(CASE ${localeCol} WHEN ${wantedLocale} THEN 0 WHEN ${fallbackLocale} THEN 1 ELSE 2 END)`;
+    const query = ctx.select({ ...selectColumns, _pref: prefExpr }).from(itemsTable);
+
+    rows = (where ? query.where(where) : query)
+      .groupBy(keyCol)
+      .orderBy(...orderBy)
+      .limit(limit)
+      .offset(offset)
+      .all() as unknown as DbRow[];
+
+    const countRow = ctx
+      .select({ value: sql<number>`COUNT(DISTINCT ${keyCol})` })
+      .from(itemsTable)
+      .where(where)
+      .get();
+    total = countRow?.value ?? 0;
+  } else {
+    const query = ctx.select(selectColumns).from(itemsTable);
+    rows = (
+      where
+        ? query
+            .where(where)
+            .orderBy(...orderBy)
+            .limit(limit)
+            .offset(offset)
+            .all()
+        : query
+            .orderBy(...orderBy)
+            .limit(limit)
+            .offset(offset)
+            .all()
+    ) as DbRow[];
+
+    const countQuery = ctx.select({ value: count() }).from(itemsTable);
+    total = (where ? countQuery.where(where).get() : countQuery.get())?.value ?? 0;
+  }
 
   const rawItems = rows.map((row) => toSelectableFields(row));
 

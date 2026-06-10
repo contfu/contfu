@@ -101,7 +101,11 @@ export async function loadFile<CMap = unknown>(
     }
   }
 
-  const source = await resolvedFileStore.read(`${file.id}.${file.ext}`);
+  if (file.status !== "ready") {
+    throw new FileLoadError("Not found", 404);
+  }
+
+  const source = file.data ?? (await resolvedFileStore.read(`${file.id}.${file.ext}`));
   if (!source) {
     throw new FileLoadError("Not found", 404);
   }

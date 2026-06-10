@@ -1,28 +1,28 @@
-import type { Block, CollectionSchema, ConnectionType } from "@contfu/core";
+import type { Block, CollectionSchema, EffectiveCollectionI18nConfig } from "@contfu/core";
 import { blob, index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 export const collectionsTable = sqliteTable("collections", {
   name: text().primaryKey(),
   displayName: text().notNull(),
   schema: blob({ mode: "json" }).notNull().$type<CollectionSchema>(),
+  i18n: blob({ mode: "json" }).$type<EffectiveCollectionI18nConfig | null>(),
 });
 
 export const itemsTable = sqliteTable(
   "items",
   {
-    id: blob({ mode: "buffer" }).primaryKey(),
-    connectionType: integer().$type<ConnectionType | null>(),
-    ref: text(),
+    id: integer().primaryKey(),
     collection: text()
       .notNull()
       .references(() => collectionsTable.name, { onUpdate: "cascade" }),
     props: blob({ mode: "json" }).$type<Record<string, unknown>>(),
+    locale: text(),
     content: blob({ mode: "json" }).$type<Block[] | null>(),
     changedAt: integer().notNull(),
   },
   (table) => [
-    index("idx_items_ref").on(table.ref),
     index("idx_items_collection").on(table.collection),
+    index("idx_items_locale").on(table.locale),
     index("idx_items_changedAt").on(table.changedAt),
   ],
 );
@@ -31,33 +31,49 @@ export type DbItem = typeof itemsTable.$inferSelect;
 export type NewItem = typeof itemsTable.$inferInsert;
 export type ItemUpdate = Partial<NewItem>;
 
-export const linkTable = sqliteTable(
-  "links",
+export const internalLinkTable = sqliteTable(
+  "internal_links",
   {
     id: integer().primaryKey(),
     prop: text(),
-    from: blob({ mode: "buffer" })
+    from: integer()
       .notNull()
       .references(() => itemsTable.id, { onDelete: "cascade" }),
-    to: blob({ mode: "buffer" }).notNull(),
-    internal: integer({ mode: "boolean" }).notNull(),
+    to: integer().notNull(),
   },
-  (table) => [index("idx_links_from").on(table.from, table.to), index("idx_links_to").on(table.to)],
+  (table) => [
+    index("idx_internal_links_from").on(table.from, table.to),
+    index("idx_internal_links_to").on(table.to),
+  ],
 );
 
-export type DbItemLink = typeof linkTable.$inferSelect;
-export type NewItemLink = typeof linkTable.$inferInsert;
+export type DbInternalItemLink = typeof internalLinkTable.$inferSelect;
+export type NewInternalItemLink = typeof internalLinkTable.$inferInsert;
+
+export const externalLinkTable = sqliteTable(
+  "external_links",
+  {
+    id: integer().primaryKey(),
+    from: integer()
+      .notNull()
+      .references(() => itemsTable.id, { onDelete: "cascade" }),
+    url: text().notNull(),
+  },
+  (table) => [index("idx_external_links_from").on(table.from)],
+);
+
+export type DbExternalItemLink = typeof externalLinkTable.$inferSelect;
+export type NewExternalItemLink = typeof externalLinkTable.$inferInsert;
 
 export const syncTable = sqliteTable("sync", {
   index: integer().notNull(),
 });
 
-export const fileTable = sqliteTable("file", {
+export const fileTable = sqliteTable("files", {
   id: blob({ mode: "buffer" }).primaryKey(),
-  originalUrl: text().notNull(),
+  status: integer().notNull(),
   mediaType: text().notNull(),
-  ext: text().notNull(),
-  size: integer().notNull(),
+  meta: blob({ mode: "json" }).notNull().$type<Record<string, unknown>>(),
   data: blob({ mode: "buffer" }),
   createdAt: integer().notNull(),
 });
@@ -67,9 +83,9 @@ export type NewFile = typeof fileTable.$inferInsert;
 export type FileUpdate = Partial<NewFile>;
 
 export const itemFileTable = sqliteTable(
-  "item_file",
+  "item_files",
   {
-    itemId: blob({ mode: "buffer" })
+    itemId: integer()
       .notNull()
       .references(() => itemsTable.id, { onDelete: "cascade" }),
     fileId: blob({ mode: "buffer" })
@@ -80,7 +96,7 @@ export const itemFileTable = sqliteTable(
 );
 
 export const mediaVariantTable = sqliteTable(
-  "media_variant",
+  "media_variants",
   {
     fileId: blob({ mode: "buffer" })
       .notNull()

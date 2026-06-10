@@ -5,7 +5,7 @@ import { apiFetch } from "./http";
 void mock.module("node:os", () => ({ homedir: () => "/tmp/nonexistent-contfu-test" }));
 
 const mockFetch = mock<typeof fetch>();
-globalThis.fetch = mockFetch as typeof fetch;
+globalThis.fetch = mockFetch as unknown as typeof fetch;
 
 let errorSpy: ReturnType<typeof spyOn>;
 let exitSpy: ReturnType<typeof spyOn>;

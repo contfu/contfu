@@ -8,8 +8,6 @@ import {
 type BaseOpts = {
   /** Authentication key. If not provided, CONTFU_KEY env var (base64url) is used. */
   key?: Buffer;
-  /** Event index to replay from. Events since this index will be replayed before live events. */
-  from?: number;
   /** Explicit transport override. Defaults to runtime selection. */
   transport?: StreamTransport;
   /** Enable automatic reconnection on disconnect (default: true) */
@@ -24,9 +22,9 @@ type OptsWithConnectionEvents = BaseOpts & { connectionEvents: true };
 type OptsWithoutConnectionEvents = BaseOpts & { connectionEvents?: false };
 
 /**
- * Connect to the sync server using the active sync transport.
+ * Connect to the Cloud Service using the active Connector transport.
  *
- * Returns an async generator that yields events. Connection and
+ * Returns an async generator that yields Sync Messages. Connection and
  * reconnection happen automatically in the background.
  *
  * The authentication key can be provided via opts or the `CONTFU_KEY` environment variable (base64url-encoded).
@@ -61,10 +59,10 @@ export function connect(opts?: OptsWithoutConnectionEvents): AsyncGenerator<Sync
 export function connect(
   opts: BaseOpts & { connectionEvents?: boolean } = {},
 ): AsyncGenerator<SyncEvent | StreamEvent> {
-  const { key, from, connectionEvents, ...rest } = opts;
+  const { key, connectionEvents, ...rest } = opts;
 
   if (connectionEvents) {
-    return connectToStream({ key, from, connectionEvents: true, ...rest });
+    return connectToStream({ key, connectionEvents: true, ...rest });
   }
-  return connectToStream({ key, from, ...rest });
+  return connectToStream({ key, ...rest });
 }

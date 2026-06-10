@@ -1,37 +1,78 @@
 <script lang="ts">
   import { browser } from "$app/environment";
+  import { error } from "@sveltejs/kit";
   import { invalidateAll } from "$app/navigation";
-  import ConnectionIcon from "$lib/components/icons/ConnectionIcon.svelte";
+  import { page } from "$app/state";
+  import { getItemFilesQuery, getItemByIdQuery } from "$lib/remote/items.remote";
   import { Button } from "$lib/components/ui/button";
   import * as Card from "$lib/components/ui/card";
   import * as HoverCard from "$lib/components/ui/hover-card";
   import { subscribeLiveEvent } from "$lib/live/event-source";
-  import { parseSourceRef } from "$lib/source-ref";
   import type { Inline } from "@contfu/core";
-  import { ExternalLink, Link2Off } from "@lucide/svelte";
   import type { FileData, ItemData } from "@contfu/contfu";
   import { onMount } from "svelte";
-  import type { PageData } from "./$types";
-
-  let { data }: { data: PageData } = $props();
-  let sourceRef = $derived(parseSourceRef(data.item.connectionType, data.item.ref));
-  let fileMap = $derived(
-    new Map(data.files.map((a: FileData) => [a.id, a])),
-  );
-  let linkedItemMap = $derived(
-    new Map(Object.entries(data.linkedItems) as [string, ItemData][]),
-  );
 
   const FILE_ID_RE = /^[A-Za-z0-9_-]{8,32}$/;
+  const CANDIDATE_ID_RE = /^[A-Za-z0-9_-]{8,32}$/;
+
+  const [loadedItem, files] = $derived(
+    await Promise.all([getItemByIdQuery(page.params.id), getItemFilesQuery(page.params.id)]),
+  );
+
+  const item = $derived.by(() => {
+    if (!loadedItem) error(404, "Item not found");
+    return loadedItem;
+  });
+
+  const itemProps = $derived((item.props ?? {}) as Record<string, unknown>);
+  const itemLocale = $derived(typeof itemProps.$locale === "string" ? itemProps.$locale : null);
+  const typedFiles = $derived(files as FileData[]);
+  const fileIdSet = $derived(new Set(typedFiles.map((a) => a.id)));
+  const idsToCheck = $derived.by(() => {
+    const candidateIds = new Set<string>();
+    for (const val of Object.values(itemProps)) {
+      if (typeof val === "string") {
+        candidateIds.add(val);
+      } else if (Array.isArray(val)) {
+        for (const elem of val) {
+          if (typeof elem === "string") candidateIds.add(elem);
+        }
+      }
+    }
+
+    return [...candidateIds].filter(
+      (v) =>
+        !v.startsWith("http://") &&
+        !v.startsWith("https://") &&
+        !fileIdSet.has(v) &&
+        CANDIDATE_ID_RE.test(v),
+    );
+  });
+  const lookupResults = $derived(await Promise.all(
+    idsToCheck.map((id) =>
+      getItemByIdQuery(id)
+        .then((found) => (found ? ([id, found] as const) : null))
+        .catch(() => null),
+    ),
+  ));
+  const linkedItems = $derived(
+    Object.fromEntries(
+      lookupResults.filter((r): r is readonly [string, ItemData] => r !== null),
+    ),
+  );
+  let fileMap = $derived(new Map(typedFiles.map((a) => [a.id, a])));
+  let linkedItemMap = $derived(new Map(Object.entries(linkedItems) as [string, ItemData][]));
 
   function linkedItemTitle(item: ItemData): string {
-    const v = item.props.title ?? item.props.name;
+    const props = (item.props ?? {}) as Record<string, unknown>;
+    const v = props.title ?? props.name;
     if (typeof v === "string") return v;
-    return item.id;
+    return String(item.id);
   }
 
   function linkedItemIconUrl(item: ItemData): string | null {
-    const v = item.props.icon ?? item.props.image;
+    const props = (item.props ?? {}) as Record<string, unknown>;
+    const v = props.icon ?? props.image;
     if (typeof v !== "string" || !v) return null;
     if (v.startsWith("http://") || v.startsWith("https://")) return v;
     if (FILE_ID_RE.test(v)) return `/files/${v}`;
@@ -123,60 +164,25 @@
 
   <Card.Root>
     <Card.Header>
-      <Card.Title>{data.item.id}</Card.Title>
-      <Card.Description>{data.item.collection}</Card.Description>
+      <Card.Title>{item.id}</Card.Title>
+      <Card.Description>{item.collection}</Card.Description>
     </Card.Header>
     <Card.Content>
       <dl class="grid gap-2 text-sm">
         <div>
-          <dt class="text-muted-foreground">Source</dt>
-          <dd>
-            {#if sourceRef.href}
-              <Button
-                class="h-auto gap-1 p-0"
-                variant="link"
-                href={sourceRef.href}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {sourceRef.label}
-                {#if sourceRef.type !== null}
-                  <ConnectionIcon type={sourceRef.type} class="h-3.5 w-3.5" />
-                {/if}
-                <ExternalLink class="h-3.5 w-3.5" />
-              </Button>
-            {:else if sourceRef.type !== null}
-              <Button
-                class="h-auto gap-1 p-0 opacity-60"
-                variant="ghost"
-                disabled
-                title="Source link unavailable"
-              >
-                {sourceRef.label}
-                <ConnectionIcon type={sourceRef.type} class="h-3.5 w-3.5" />
-                <Link2Off class="h-3.5 w-3.5" />
-              </Button>
-            {:else}
-              <Button
-                class="h-auto gap-1 p-0 opacity-60"
-                variant="ghost"
-                disabled
-                title="Source link unavailable"
-              >
-                Unknown
-                <Link2Off class="h-3.5 w-3.5" />
-              </Button>
-            {/if}
-          </dd>
-        </div>
-        <div>
           <dt class="text-muted-foreground">ID</dt>
-          <dd class="font-mono text-xs">{data.item.id}</dd>
+          <dd class="font-mono text-xs">{item.id}</dd>
         </div>
         <div>
           <dt class="text-muted-foreground">Changed At</dt>
-          <dd>{data.item.changedAt}</dd>
+          <dd>{item.changedAt}</dd>
         </div>
+        {#if itemLocale}
+          <div>
+            <dt class="text-muted-foreground">Locale</dt>
+            <dd>{itemLocale}</dd>
+          </div>
+        {/if}
       </dl>
     </Card.Content>
   </Card.Root>
@@ -207,11 +213,11 @@
     </Card.Header>
     <Card.Content>
       {#if propsView === "pairs"}
-        {#if Object.keys(data.item.props).length === 0}
+        {#if Object.keys(itemProps).length === 0}
           <p class="text-sm text-muted-foreground">No properties available</p>
         {:else}
           <dl class="grid gap-2 text-sm">
-            {#each Object.entries(data.item.props) as [key, value]}
+            {#each Object.entries(itemProps) as [key, value]}
               <div>
                 <dt class="text-muted-foreground">{key}</dt>
                 <dd class="wrap-break-words">
@@ -369,7 +375,7 @@
         {/if}
       {:else}
         <pre class="overflow-auto rounded bg-muted p-3 text-xs">{JSON.stringify(
-            data.item.props,
+            itemProps,
             null,
             2,
           )}</pre>
@@ -402,17 +408,17 @@
       </div>
     </Card.Header>
     <Card.Content>
-      {#if data.item.content && data.item.content.length > 0}
+      {#if item.content && item.content.length > 0}
         {#if contentView === "json"}
           <pre
             class="overflow-auto rounded bg-muted p-3 text-xs">{JSON.stringify(
-              data.item.content,
+              item.content,
               null,
               2,
             )}</pre>
         {:else}
           <div class="space-y-3 text-sm">
-            {#each data.item.content as block}
+            {#each item.content as block}
               {#if block[0] === "1"}
                 <h2 class="text-xl font-semibold">
                   {block[1].map(inlineText).join("")}
