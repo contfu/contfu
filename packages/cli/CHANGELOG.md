@@ -2,6 +2,16 @@
 
 All notable changes to `@contfu/cli` are documented here.
 
+## [0.1.1] - 2026-06-14
+
+### Added
+
+- Added CLI resource management for integration localization, dry-run output, and expanded organization/workspace commands.
+
+### Changed
+
+- Renamed connection-oriented public APIs and UI labels toward integrations.
+
 ## [0.1.0] - 2026-06-09
 
 ### Changed
