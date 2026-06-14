@@ -1,5 +1,5 @@
 import { query } from "$app/server";
-import { fetchFromServer } from "$lib/server/proxy";
+import { fetchFromServer } from "../server/proxy";
 import type { CollectionSchema } from "@contfu/core";
 import * as v from "valibot";
 

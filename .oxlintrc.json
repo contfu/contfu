@@ -138,6 +138,24 @@
     "contfu/prefer-enum-helper": "error",
     "contfu/no-backend-infra-db-import": "error"
   },
+  "overrides": [
+    {
+      "files": ["packages/service/backend/src/features/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "warn",
+          {
+            "patterns": [
+              {
+                "group": ["../[!.]*/**", "@contfu/svc-backend/features/**"],
+                "message": "VSA: feature slices must not import other features. Move cross-feature code to shared/<topic>/, pure logic to domain/, or io to infra/."
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
   "settings": {
     "jsx-a11y": {
       "polymorphicPropName": null,
@@ -174,6 +192,7 @@
     "**/node_modules/**",
     "**/.svelte-kit/**",
     "**/.e2e-builds/**",
+    "packages/cli/dist/**",
     "demos/consumer-app/**",
     "demos/strapi-demo/**"
   ],

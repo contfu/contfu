@@ -87,6 +87,26 @@ describe("compileFilter", () => {
     expect(ids).toEqual([1]);
   });
 
+  test("filters by normalized system timestamp props ($-prefixed json keys)", () => {
+    createItem({
+      id: 10,
+      ref: "ts/early",
+      collection: "articles",
+      props: { title: "Early", $createdAt: 1000, $publishedAt: 1500 },
+      changedAt: 300,
+    });
+    createItem({
+      id: 11,
+      ref: "ts/late",
+      collection: "articles",
+      props: { title: "Late", $createdAt: 5000, $publishedAt: 6000 },
+      changedAt: 400,
+    });
+
+    expect(queryWithFilter("$createdAt > 2000")).toEqual([11]);
+    expect(queryWithFilter("$publishedAt <= 1500")).toEqual([10]);
+  });
+
   test("filters with like operator", () => {
     const ids = queryWithFilter('title ~ "Post"');
     expect(ids).toHaveLength(2);

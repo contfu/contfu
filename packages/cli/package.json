@@ -17,8 +17,7 @@
     "pack": "bun ../../scripts/pack-package.ts .",
     "build": "bun build src/main.ts --outdir dist --target node --minify",
     "contfu": "bun src/main.ts",
-    "test": "bun test src/",
-    "test:e2e": "bun test e2e/"
+    "test": "bun test src/commands/login.spec.ts && bun test $(find src -name '*.spec.ts' ! -path 'src/commands/login.spec.ts')"
   },
   "dependencies": {
     "@contfu/svc-api": "workspace:^"

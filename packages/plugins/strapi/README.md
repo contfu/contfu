@@ -27,7 +27,7 @@ The plugin registers static Strapi entry lifecycle webhook handlers for Strapi v
 
 ## Strapi v4 notes
 
-Contfu supports Strapi v4 and v5 as source connections.
+Contfu supports Strapi v4 and v5 as source integrations.
 
 - The API token must read collection entries and Content-Type Builder schemas. On some v4 projects the schema endpoints live under `/content-type-builder/*` and require admin/elevated access rather than a regular Content API token.
 - Draft sync uses Strapi v4 `publicationState=preview/live` and Strapi v5 `status=draft/published`. Contfu exposes `$draft` when draft sync is enabled.

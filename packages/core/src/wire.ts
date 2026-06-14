@@ -55,7 +55,7 @@ export type WireCollectionRenamedEvent = [
 /** Collection removed event: notifies consumers that a collection was removed. */
 export type WireCollectionRemovedEvent = [typeof EventType.COLLECTION_REMOVED, string];
 
-/** Combined wire event type for client connections. */
+/** Combined wire event type for client integrations. */
 export type WireEvent =
   | [typeof EventType.PING]
   | WireItemEvent

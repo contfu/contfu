@@ -183,13 +183,13 @@ describe("filter-helpers operator type safety", () => {
     expect(typeof result).toBe("string");
   });
 
-  it("eq with $connectionType (string|null system field)", () => {
-    const result = eq(self.$connectionType, "notion");
+  it("eq with $integrationType (string|null system field)", () => {
+    const result = eq(self.$integrationType, "notion");
     expect(typeof result).toBe("string");
   });
 
-  it("eq with $connectionType null", () => {
-    const result = eq(self.$connectionType, null);
+  it("eq with $integrationType null", () => {
+    const result = eq(self.$integrationType, null);
     expect(typeof result).toBe("string");
   });
 

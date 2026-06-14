@@ -229,8 +229,10 @@ function createLocalTypedClient<_CMap>(
     );
   };
 
-  const withLocale = (locale: QueryLocale<_CMap>, fallback?: QueryLocale<_CMap> | false) =>
-    createLocalTypedClient(ctx, appI18n, { locale, fallback });
+  const withLocale = (
+    locale: QueryLocale<_CMap> | false,
+    fallback?: QueryLocale<_CMap> | true | false,
+  ) => createLocalTypedClient(ctx, appI18n, { locale, fallback });
 
   return Object.assign(callable, {
     all,

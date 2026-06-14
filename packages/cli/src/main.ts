@@ -1,16 +1,16 @@
 #!/usr/bin/env node
 import { parseArgs } from "node:util";
 import {
-  addConnectionCollections,
+  addIntegrationCollections,
   parseAddRefs,
-  scanConnectionCollections,
-} from "./commands/connection-collections";
-import { collectionTypes, connectionTypes } from "./commands/generate-types";
+  scanIntegrationCollections,
+} from "./commands/integration-collections";
+import { collectionTypes, integrationTypes } from "./commands/generate-types";
 import {
   createComponentCommand,
   deleteComponentCommand,
   inspectComponent,
-  listConnectionComponents,
+  listIntegrationComponents,
   updateComponentCommand,
 } from "./commands/components";
 import { countItems, queryItems } from "./commands/items";
@@ -31,7 +31,7 @@ import {
   get,
   isResource,
   list,
-  listConnectionTypes,
+  listIntegrationTypes,
   regenerateAppKey,
   update,
   type CliValues,
@@ -59,29 +59,33 @@ Commands:
   login [--no-browser]              Authenticate
   logout                            Clear stored credentials
   status                            Show resource summary
-  setup                             Set up Contfu in a project
+  setup [--dry-run]                 Set up Contfu in a project
   <resource> list [options]         List all items
   <resource> get <id-or-name>       Get item by ID or name
-  <resource> create [options]       Create item
-  <resource> update <id-or-name> [options]
+  <resource> create [--dry-run] [options]
+                                    Create item
+  <resource> update <id-or-name> [--dry-run] [options]
                                     Update item by ID or name
-  <resource> delete <id-or-name>    Delete item by ID or name
-  connections scan <id-or-name>     Scan source collections for a connection
-  connections add <id-or-name>      Add scanned source collections to Contfu
-  connections components <id-or-name>
-                                    List discovered components for a connection
+  <resource> delete <id-or-name> [--dry-run]
+                                    Delete item by ID or name
+  integrations scan <id-or-name>     Scan source collections for an integration
+  integrations add <id-or-name> [--dry-run]
+                                    Add scanned source collections to Contfu
+  integrations components <id-or-name>
+                                    List discovered components for an integration
   components get <id>               Inspect a component
   components update <id>            Edit component name/display/schema/mapping
-  connections types                 List valid connection types
-  connections types <id-or-name>    Print TypeScript types for a connection's collections
-  connections regenerate-key <id-or-name>
+  integrations types                 List valid integration types
+  integrations types <id-or-name>    Print TypeScript types for an integration's collections
+  integrations regenerate-key <id-or-name> [--dry-run]
                                     Regenerate API key and write to .env
   collections types <id-or-name>    Print TypeScript types for a collection
   items query [options]             Query items from a Server
   items count [options]             Count items in a Server
   workspaces list                   List workspaces
   workspaces get <id-or-name>       Show workspace details
-  workspaces create [options]       Create workspace
+  workspaces create [--dry-run] [options]
+                                    Create workspace
   workspaces update <id-or-name>    Update workspace
   workspaces budget <id-or-name>    Update workspace budgets
   workspaces invite <id-or-name>    Invite member by email
@@ -90,42 +94,55 @@ Commands:
   workspaces members <id-or-name>   List workspace members
   workspaces revoke <id-or-name> <email>
                                     Revoke workspace membership
-  workspaces switch <id-or-name>    Persist selected workspace
+  workspaces switch <id-or-name> [--dry-run]
+                                    Persist selected workspace
   orgs list                         List organizations
   orgs get <id-or-name>             Show organization details
-  orgs create [options]             Create organization
+  orgs create [--dry-run] [options]
+                                    Create organization
   orgs update <id-or-name>          Update organization
   orgs invite <id-or-name>          Invite member by email
   orgs accept <token>               Accept organization invitation
   orgs members <id-or-name>         List organization members
   orgs promote <id-or-name> <email>
                                     Grant organization admin role
-  orgs demote <id-or-name> <email>
+  orgs demote <id-or-name> <email> [--dry-run]
                                     Remove organization admin role
 
-Resources: connections, collections, flows
+Resources: integrations, collections, flows
 
 collections options:
       --display-name <name>         Display name (required for create)
   -n, --name <name>                 camelCase name
-      --connection-id <id-or-name>  Associate with an app connection
+      --integration-id <id-or-name>  Associate with an app integration
+      --i18n-locale-field <field>   i18n Locale property used for source locale extraction
+      --i18n-locale-map <map>       Locale map entries raw=locale, comma-separated
+      --i18n-keep-raw-field         Keep raw locale field in emitted items
+      --i18n-drop-raw-field         Drop raw locale field from emitted items
+      --i18n-grouping-key <field>   Fallback Grouping Key for grouping translated variants
+      --reset-i18n                  Reset the collection user i18n layer; keeps detected i18n
   -d, --data <json>                 Raw JSON body (alternative to above flags)
 
 setup options:
       --package <name>              Package to install: @contfu/contfu or @contfu/client
-      --app-name <name>             Name for the app connection
+      --app-name <name>             Name for the app integration
       --env-file <path>             Write CONTFU_KEY to this .env file
       --non-interactive             Skip all prompts (fail if required info is missing)
+      --dry-run                     Preview planned changes without mutating state
 
-connections options:
+integrations options:
   -n, --name <name>                 Label (required for create)
   -t, --type <provider>             Provider ID (default: notion)
-      --token <token>               API token (for manual token-based connections)
+      --token <token>               API token (for manual token-based integrations)
       --project-id <id>             Sanity project ID
       --scope <scope>               Provider namespace restriction
       --scopes <scopes>             Comma-separated provider namespace restrictions
       --webhook-secret <secret>     Webhook signing secret
-      --generate-key                Create an app connection and write its API key to .env
+      --generate-key                Create an app integration and write its API key to .env
+      --i18n-locales <locales>      i18n Locales, comma-separated BCP 47 tags
+      --i18n-active-locales <mode>  Active locales: inherit or custom:<locales>
+      --i18n-locale-map <map>       Locale map entries raw=locale, comma-separated
+      --reset-i18n                  Reset the user i18n layer; keeps detected i18n
   -d, --data <json>                 Raw JSON body (alternative to above flags)
 
 flows options:
@@ -145,7 +162,7 @@ items options:
       --flat                        Flatten nested props (query only)
 
 resource options:
-  -w, --workspace <id-or-name>      Scope connections, collections, or flows to a workspace
+  -w, --workspace <id-or-name>      Scope integrations, collections, or flows to a workspace
 
 list options:
   -f, --format <fmt>                Output format: table (default) | json
@@ -167,7 +184,7 @@ async function main() {
       "display-name": { type: "string" },
       "source-id": { type: "string" },
       "target-id": { type: "string" },
-      "connection-id": { type: "string" },
+      "integration-id": { type: "string" },
       content: { type: "boolean" },
       "no-content": { type: "boolean" },
       token: { type: "string" },
@@ -177,6 +194,14 @@ async function main() {
       "webhook-secret": { type: "string" },
       "provider-ref": { type: "string" },
       "generate-key": { type: "boolean" },
+      "i18n-locales": { type: "string" },
+      "i18n-active-locales": { type: "string" },
+      "i18n-locale-map": { type: "string" },
+      "i18n-locale-field": { type: "string" },
+      "i18n-keep-raw-field": { type: "boolean" },
+      "i18n-drop-raw-field": { type: "boolean" },
+      "i18n-grouping-key": { type: "string" },
+      "reset-i18n": { type: "boolean" },
       format: { type: "string", short: "f" },
       package: { type: "string" },
       "app-name": { type: "string" },
@@ -189,11 +214,12 @@ async function main() {
       organization: { type: "string", short: "o" },
       email: { type: "string" },
       role: { type: "string" },
-      connections: { type: "string" },
+      integrations: { type: "string" },
       collections: { type: "string" },
       flows: { type: "string" },
       items: { type: "string" },
       "item-changes": { type: "string" },
+      "dry-run": { type: "boolean" },
     },
     allowPositionals: true,
     strict: false,
@@ -220,8 +246,10 @@ async function main() {
     return;
   }
 
+  const dryRun = (values["dry-run"] as boolean | undefined) ?? false;
+
   if (cmd === "logout") {
-    await logout();
+    await logout({ dryRun });
     return;
   }
 
@@ -236,6 +264,7 @@ async function main() {
       appName: values["app-name"] as string | undefined,
       envFile: values["env-file"] as string | undefined,
       nonInteractive: (values["non-interactive"] as boolean | undefined) ?? false,
+      dryRun,
     });
     return;
   }
@@ -277,6 +306,7 @@ async function main() {
         displayName: values["display-name"] as string | undefined,
         name: values.name as string | undefined,
         organizationId: values.organization as string | undefined,
+        dryRun,
       });
       return;
     }
@@ -288,6 +318,7 @@ async function main() {
       await updateWorkspace(ref, {
         displayName: values["display-name"] as string | undefined,
         name: values.name as string | undefined,
+        dryRun,
       });
       return;
     }
@@ -296,7 +327,7 @@ async function main() {
         console.error("Usage: contfu workspaces budget <id-or-name>");
         process.exit(1);
       }
-      await updateWorkspaceBudget(ref, values as Record<string, string | undefined>);
+      await updateWorkspaceBudget(ref, values as Record<string, string | undefined>, { dryRun });
       return;
     }
     if (action === "invite") {
@@ -304,11 +335,11 @@ async function main() {
         console.error("Usage: contfu workspaces invite <id-or-name> --email <email>");
         process.exit(1);
       }
-      await inviteWorkspace(ref, values.email as string | undefined);
+      await inviteWorkspace(ref, values.email as string | undefined, { dryRun });
       return;
     }
     if (action === "accept") {
-      await acceptWorkspaceInvite(ref);
+      await acceptWorkspaceInvite(ref, { dryRun });
       return;
     }
     if (action === "join") {
@@ -316,7 +347,7 @@ async function main() {
         console.error("Usage: contfu workspaces join <id-or-name>");
         process.exit(1);
       }
-      await joinWorkspaceCommand(ref);
+      await joinWorkspaceCommand(ref, { dryRun });
       return;
     }
     if (action === "members") {
@@ -332,7 +363,7 @@ async function main() {
         console.error("Usage: contfu workspaces revoke <id-or-name> <email>");
         process.exit(1);
       }
-      await revokeWorkspaceMember(ref, positionals[3]);
+      await revokeWorkspaceMember(ref, positionals[3], { dryRun });
       return;
     }
     if (action === "switch") {
@@ -340,7 +371,7 @@ async function main() {
         console.error("Usage: contfu workspaces switch <id-or-name>");
         process.exit(1);
       }
-      await switchWorkspace(ref);
+      await switchWorkspace(ref, { dryRun });
       return;
     }
     console.error(`Unknown workspaces action: ${action}`);
@@ -366,6 +397,7 @@ async function main() {
       await createOrganization({
         displayName: values["display-name"] as string | undefined,
         name: values.name as string | undefined,
+        dryRun,
       });
       return;
     }
@@ -377,6 +409,7 @@ async function main() {
       await updateOrganization(ref, {
         displayName: values["display-name"] as string | undefined,
         name: values.name as string | undefined,
+        dryRun,
       });
       return;
     }
@@ -388,6 +421,7 @@ async function main() {
       await inviteOrganization(ref, {
         email: values.email as string | undefined,
         role: values.role as string | undefined,
+        dryRun,
       });
       return;
     }
@@ -408,7 +442,9 @@ async function main() {
         console.error(`Usage: contfu orgs ${action} <id-or-name> <email>`);
         process.exit(1);
       }
-      await setOrganizationRole(ref, positionals[3], action === "promote" ? "admin" : "member");
+      await setOrganizationRole(ref, positionals[3], action === "promote" ? "admin" : "member", {
+        dryRun,
+      });
       return;
     }
     console.error(`Unknown orgs action: ${action}`);
@@ -428,6 +464,7 @@ async function main() {
         displayName: values["display-name"] as string | undefined,
         providerRef: values["provider-ref"] as string | undefined,
         data: values.data as string | undefined,
+        dryRun,
       });
       return;
     }
@@ -436,7 +473,7 @@ async function main() {
       return;
     }
     if (action === "delete") {
-      await deleteComponentCommand(id);
+      await deleteComponentCommand(id, { dryRun });
       return;
     }
     if (action === "update" || action === "edit") {
@@ -444,6 +481,7 @@ async function main() {
         name: values.name as string | undefined,
         displayName: values["display-name"] as string | undefined,
         data: values.data as string | undefined,
+        dryRun,
       });
       return;
     }
@@ -456,61 +494,63 @@ async function main() {
     const id = positionals[2];
 
     // Special subcommands per resource
-    if (cmd === "connections" && action === "scan") {
+    if (cmd === "integrations" && action === "scan") {
       if (!id) {
-        console.error("Usage: contfu connections scan <connection-id-or-name>");
+        console.error("Usage: contfu integrations scan <integration-id-or-name>");
         process.exit(1);
       }
-      await scanConnectionCollections(id, {
+      await scanIntegrationCollections(id, {
         format: (values.format as string | undefined) ?? "table",
         select: values.select as boolean | undefined,
+        dryRun,
       });
       return;
     }
 
-    if (cmd === "connections" && action === "add") {
+    if (cmd === "integrations" && action === "add") {
       if (!id) {
         console.error(
-          "Usage: contfu connections add <connection-id-or-name> (--refs <comma-separated> | --all)",
+          "Usage: contfu integrations add <integration-id-or-name> (--refs <comma-separated> | --all)",
         );
         process.exit(1);
       }
-      await addConnectionCollections(id, {
+      await addIntegrationCollections(id, {
         format: (values.format as string | undefined) ?? "table",
         refs: parseAddRefs(values.refs as string | undefined),
         all: values.all as boolean | undefined,
+        dryRun,
       });
       return;
     }
 
-    if (cmd === "connections" && action === "components") {
+    if (cmd === "integrations" && action === "components") {
       if (!id) {
-        console.error("Usage: contfu connections components <connection-id-or-name>");
+        console.error("Usage: contfu integrations components <integration-id-or-name>");
         process.exit(1);
       }
-      await listConnectionComponents(id, (values.format as string | undefined) ?? "table");
+      await listIntegrationComponents(id, (values.format as string | undefined) ?? "table");
       return;
     }
 
     if (action === "regenerate-key") {
-      if (cmd !== "connections") {
-        console.error(`'regenerate-key' is only available for connections`);
+      if (cmd !== "integrations") {
+        console.error(`'regenerate-key' is only available for integrations`);
         process.exit(1);
       }
       if (!id) {
-        console.error("Usage: contfu connections regenerate-key <connection-id-or-name>");
+        console.error("Usage: contfu integrations regenerate-key <integration-id-or-name>");
         process.exit(1);
       }
-      await regenerateAppKey(id, values["env-file"] as string | undefined);
+      await regenerateAppKey(id, values["env-file"] as string | undefined, { dryRun });
       return;
     }
 
     if (action === "types") {
-      if (cmd === "connections") {
+      if (cmd === "integrations") {
         if (!id) {
-          listConnectionTypes();
+          listIntegrationTypes();
         } else {
-          await connectionTypes(id);
+          await integrationTypes(id);
         }
         return;
       }
@@ -533,7 +573,7 @@ async function main() {
       "display-name": values["display-name"] as string | undefined,
       "source-id": values["source-id"] as string | undefined,
       "target-id": values["target-id"] as string | undefined,
-      "connection-id": values["connection-id"] as string | undefined,
+      "integration-id": values["integration-id"] as string | undefined,
       content: values.content as boolean | undefined,
       "no-content": values["no-content"] as boolean | undefined,
       token: values.token as string | undefined,
@@ -542,6 +582,14 @@ async function main() {
       scopes: values.scopes as string | undefined,
       "webhook-secret": values["webhook-secret"] as string | undefined,
       "generate-key": values["generate-key"] as boolean | undefined,
+      "i18n-locales": values["i18n-locales"] as string | undefined,
+      "i18n-active-locales": values["i18n-active-locales"] as string | undefined,
+      "i18n-locale-map": values["i18n-locale-map"] as string | undefined,
+      "i18n-locale-field": values["i18n-locale-field"] as string | undefined,
+      "i18n-keep-raw-field": values["i18n-keep-raw-field"] as boolean | undefined,
+      "i18n-drop-raw-field": values["i18n-drop-raw-field"] as boolean | undefined,
+      "i18n-grouping-key": values["i18n-grouping-key"] as string | undefined,
+      "reset-i18n": values["reset-i18n"] as boolean | undefined,
     };
 
     switch (action) {
@@ -562,6 +610,7 @@ async function main() {
           values.data as string | undefined,
           cliValues,
           values["env-file"] as string | undefined,
+          { dryRun },
         );
         return;
       case "update":
@@ -570,14 +619,14 @@ async function main() {
           console.error("Missing id");
           process.exit(1);
         }
-        await update(cmd, id, values.data as string | undefined, cliValues);
+        await update(cmd, id, values.data as string | undefined, cliValues, { dryRun });
         return;
       case "delete":
         if (!id) {
           console.error("Missing id");
           process.exit(1);
         }
-        await del(cmd, id);
+        await del(cmd, id, { dryRun });
         return;
       default:
         console.error(`Unknown action: ${action}. Use list, get, create, update, or delete`);

@@ -12,7 +12,7 @@ import type {
   OrderedListBlock,
   TableBlock,
   ImageBlock,
-  CustomBlock,
+  Component,
 } from "@contfu/core";
 import type { BlockComponents } from "./index";
 import React from "react";
@@ -107,10 +107,10 @@ describe("Block (React)", () => {
     ).toContain('<img src="/prop/abc.png" alt="alt"/>');
   });
 
-  test("custom block renders children", () => {
+  test("component block renders children", () => {
     const inner: ParagraphBlock = ["p", ["hi"]];
-    const custom: CustomBlock = ["x", "Widget", {}, [inner]];
-    expect(render(<Block block={custom} />)).toBe("<p>hi</p>");
+    const component: Component = ["x", "Widget", {}, [inner]];
+    expect(render(<Block block={component} />)).toBe("<p>hi</p>");
   });
 });
 

@@ -35,15 +35,24 @@ describe("generateTypes", () => {
         strs: PropertyType.STRINGS,
         num: PropertyType.NUMBER,
         nums: PropertyType.NUMBERS,
+        color: PropertyType.COLOR,
         bool: PropertyType.BOOLEAN,
         ref: PropertyType.REF,
         refs: PropertyType.REFS,
         file: PropertyType.FILE,
         files: PropertyType.FILES,
         date: PropertyType.DATE,
+        location: PropertyType.GEOPOINT,
       },
     });
     expect(result).toMatchSnapshot();
+  });
+
+  it("imports Color for color fields", () => {
+    const result = generateTypes({ themes: { accent: PropertyType.COLOR } });
+
+    expect(result).toContain('import type { Color } from "@contfu/core";');
+    expect(result).toContain("accent: Color;");
   });
 
   it("does not generate CollectionMap", () => {

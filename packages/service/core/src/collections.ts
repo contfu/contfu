@@ -7,9 +7,9 @@ export interface ServiceCollection extends Collection {
   schema: CollectionSchema;
   hasRef: boolean;
   refString: string | null;
-  connectionId: string | null;
-  connectionName: string | null;
-  connectionType: number | null;
+  integrationId: string | null;
+  integrationName: string | null;
+  integrationType: number | null;
   i18n?: CollectionI18nConfig;
   effectiveI18n?: EffectiveCollectionI18nConfig;
   itemsCount: number;

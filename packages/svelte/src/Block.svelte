@@ -12,7 +12,7 @@
     isOl,
     isTable,
     isImg,
-    isCustom,
+    isComponent,
     isInline,
     type Block as BlockType,
     type FileUrlOptions,
@@ -166,9 +166,9 @@
   {:else}
     <img src={buildFileUrl(block[1], resolvedFile, "image")} alt={block[2]} />
   {/if}
-{:else if isCustom(block)}
-  {#if components.custom}
-    <svelte:component this={components.custom} {block}>
+{:else if isComponent(block)}
+  {#if components.component}
+    <svelte:component this={components.component} {block}>
       {#each block[3] as child}<Block block={child} {components} />{/each}
     </svelte:component>
   {:else}

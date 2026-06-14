@@ -32,6 +32,11 @@ describe("safeCast", () => {
     // target accepts STRING|NUMBER, source is NUMBER → direct overlap
     expect(safeCast(T.NUMBER, T.STRING | T.NUMBER)).toBeNull();
   });
+
+  test("GeoPoint has no implicit casts", () => {
+    expect(safeCast(T.GEOPOINT, T.STRING)).toBeNull();
+    expect(safeCast(T.STRING, T.GEOPOINT)).toBeNull();
+  });
 });
 
 describe("typeCompatibility", () => {

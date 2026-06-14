@@ -1,11 +1,11 @@
 import { describe, test, expect, beforeEach, afterEach, mock, spyOn } from "bun:test";
-import { connectionTypes, collectionTypes } from "./generate-types";
+import { integrationTypes, collectionTypes } from "./generate-types";
 
 const mockFetch = mock<typeof fetch>();
 globalThis.fetch = mockFetch as any;
 
 void mock.module("@contfu/svc-api", () => ({
-  generateApplicationConnectionTypes: (cols: unknown[]) =>
+  generateApplicationIntegrationTypes: (cols: unknown[]) =>
     `export type ContfuCollections = { ${(cols as any[]).map((c) => c.name).join("; ")} };\n`,
 }));
 
@@ -37,8 +37,8 @@ afterEach(() => {
   exitSpy.mockRestore();
 });
 
-describe("connectionTypes", () => {
-  test("fetches collections for connection and prints map type", async () => {
+describe("integrationTypes", () => {
+  test("fetches collections for integration and prints map type", async () => {
     mockFetch.mockResolvedValueOnce(jsonResponse([{ id: "7", name: "Brain" }]));
     mockFetch.mockResolvedValueOnce(
       jsonResponse([
@@ -47,10 +47,10 @@ describe("connectionTypes", () => {
       ]),
     );
 
-    await connectionTypes("7");
+    await integrationTypes("7");
 
     const url = (mockFetch.mock.calls[1] as unknown[])[0] as string;
-    expect(url).toBe("http://test.local/api/v1/connections/7/types");
+    expect(url).toBe("http://test.local/api/v1/integrations/7/types");
     expect(writeSpy).toHaveBeenCalledTimes(1);
     const output = (writeSpy.mock.calls[0] as unknown[])[0] as string;
     expect(output).toContain("ContfuCollections");
@@ -61,9 +61,9 @@ describe("connectionTypes", () => {
     mockFetch.mockResolvedValueOnce(jsonResponse([]));
 
     // oxlint-disable-next-line typescript/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
-    await expect(connectionTypes("7")).rejects.toThrow("exit");
+    await expect(integrationTypes("7")).rejects.toThrow("exit");
 
-    expect(errorSpy).toHaveBeenCalledWith("No collections connected to this connection");
+    expect(errorSpy).toHaveBeenCalledWith("No collections connected to this integration");
   });
 });
 

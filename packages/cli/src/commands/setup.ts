@@ -4,12 +4,14 @@ import { execSync } from "node:child_process";
 import { getApiKey } from "../http";
 import { getAppKey, writeEnvKey, ensureGitignore } from "../env";
 import { prompt, select, type SelectOption } from "./select";
+import { printDryRun } from "./dry-run";
 
 export interface SetupOptions {
   package?: string;
   appName?: string;
   envFile?: string;
   nonInteractive?: boolean;
+  dryRun?: boolean;
 }
 
 function hasPackageJson(): boolean {
@@ -82,12 +84,16 @@ export async function setup(opts: SetupOptions = {}): Promise<void> {
       ]);
     }
 
-    installPackage(pkgToInstall);
-    console.log(`\n✓ ${pkgToInstall} installed successfully.\n`);
+    if (opts.dryRun) {
+      printDryRun(`install package ${pkgToInstall}`);
+    } else {
+      installPackage(pkgToInstall);
+      console.log(`\n✓ ${pkgToInstall} installed successfully.\n`);
+    }
   }
 
   // 3. Check authentication
-  if (!getApiKey()) {
+  if (!getApiKey() && !opts.dryRun) {
     if (nonInteractive) {
       console.error("Not authenticated. Set CONTFU_API_KEY or run `contfu login` first.");
       process.exit(1);
@@ -98,36 +104,45 @@ export async function setup(opts: SetupOptions = {}): Promise<void> {
     console.log();
   }
 
-  // 4. Set up app connection
-  await setupAppConnection(opts);
+  // 4. Set up app integration
+  await setupAppIntegration(opts);
 }
 
-async function setupAppConnection(opts: SetupOptions): Promise<void> {
-  // If CONTFU_KEY is already configured, skip app connection setup
+async function setupAppIntegration(opts: SetupOptions): Promise<void> {
+  // If CONTFU_KEY is already configured, skip app integration setup
   const existingKey = getAppKey();
   if (existingKey) {
     const source = process.env.CONTFU_KEY ? "CONTFU_KEY env var" : ".env file";
-    console.log(`✓ CONTFU_KEY already set (${source}). Skipping app connection setup.`);
+    console.log(`✓ CONTFU_KEY already set (${source}). Skipping app integration setup.`);
     console.log("\n✓ Setup complete. Run `contfu status` to verify your configuration.");
     return;
   }
 
+  if (opts.dryRun) {
+    const appName = opts.appName ?? "<prompted app name>";
+    printDryRun("create or regenerate app integration key", { appName });
+    printDryRun("write CONTFU_KEY to env file", { envFile: opts.envFile ?? ".env" });
+    printDryRun("ensure .gitignore contains .env");
+    console.log("\n✓ Dry run complete. No changes were made.");
+    return;
+  }
+
   const { getApiClient, handleApiError } = await import("../http");
-  const { ConnectionType } = await import("@contfu/svc-api");
+  const { IntegrationType } = await import("@contfu/svc-api");
   const client = getApiClient();
   const nonInteractive = opts.nonInteractive ?? false;
 
-  // Check for existing app connections
-  let connections: Awaited<ReturnType<typeof client.listConnections>>;
+  // Check for existing app integrations
+  let integrations: Awaited<ReturnType<typeof client.listIntegrations>>;
   try {
-    connections = await client.listConnections();
+    integrations = await client.listIntegrations();
   } catch (err) {
     handleApiError(err);
     return;
   }
 
-  const appTypeId = String(ConnectionType.APP);
-  const existingApps = connections.filter((c) => String(c.type) === appTypeId);
+  const appTypeId = String(IntegrationType.APP);
+  const existingApps = integrations.filter((c) => String(c.type) === appTypeId);
 
   let contfuKey: string;
 
@@ -145,7 +160,7 @@ async function setupAppConnection(opts: SetupOptions): Promise<void> {
     const options: SelectOption[] = [
       {
         label: "Create a new app",
-        description: "Creates a new app connection and generates an API key",
+        description: "Creates a new app integration and generates an API key",
         value: "new",
       },
       {
@@ -169,7 +184,7 @@ async function setupAppConnection(opts: SetupOptions): Promise<void> {
     } else if (choice === "new") {
       contfuKey = await createNewApp(client, opts);
     } else {
-      console.log("\nYour app connections:\n");
+      console.log("\nYour app integrations:\n");
       for (const [i, c] of existingApps.entries()) {
         console.log(`  ${i + 1}. ${c.name} (id: ${c.id})`);
       }
@@ -224,7 +239,7 @@ async function createNewApp(
   }
   try {
     console.log();
-    const result = await client.createAppConnection(name);
+    const result = await client.createAppIntegration(name);
     console.log(`✓ App "${name}" created (id: ${result.id})`);
     return result.apiKey;
   } catch (err) {

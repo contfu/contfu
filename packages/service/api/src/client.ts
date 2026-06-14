@@ -1,8 +1,8 @@
 import type {
   ApiStatus,
-  ApiConnection,
-  CreateConnectionBody,
-  UpdateConnectionBody,
+  ApiIntegration,
+  CreateIntegrationBody,
+  UpdateIntegrationBody,
   CreateCollectionBody,
   UpdateCollectionBody,
   CreateFlowBody,
@@ -35,7 +35,7 @@ import { ApiError } from "@contfu/svc-core";
 export interface ServiceComponent {
   id: string;
   workspaceId: string;
-  connectionId: string;
+  integrationId: string;
   providerRef: string;
   name: string;
   displayName: string;
@@ -99,7 +99,7 @@ function withWorkspace(path: string, workspaceId?: string | null): string {
   return `${path}${separator}workspace=${encodeURIComponent(workspaceId)}`;
 }
 
-export interface CreateAppResult extends ApiConnection {
+export interface CreateAppResult extends ApiIntegration {
   apiKey: string;
 }
 
@@ -110,21 +110,21 @@ export interface RegenerateKeyResult {
 export interface ContfuApiClient {
   getStatus(): Promise<ApiStatus>;
 
-  listConnections(): Promise<ApiConnection[]>;
-  getConnection(id: string): Promise<ApiConnection>;
-  createConnection(body: CreateConnectionBody): Promise<ApiConnection>;
-  createAppConnection(name: string): Promise<CreateAppResult>;
+  listIntegrations(): Promise<ApiIntegration[]>;
+  getIntegration(id: string): Promise<ApiIntegration>;
+  createIntegration(body: CreateIntegrationBody): Promise<ApiIntegration>;
+  createAppIntegration(name: string): Promise<CreateAppResult>;
   regenerateAppKey(id: string): Promise<RegenerateKeyResult>;
-  updateConnection(id: string, body: UpdateConnectionBody): Promise<ApiConnection>;
-  deleteConnection(id: string): Promise<void>;
-  getConnectionTypes(id: string): Promise<TypeGenerationInput[]>;
-  scanCollections(connectionId: string): Promise<ScannedCollection[]>;
+  updateIntegration(id: string, body: UpdateIntegrationBody): Promise<ApiIntegration>;
+  deleteIntegration(id: string): Promise<void>;
+  getIntegrationTypes(id: string): Promise<TypeGenerationInput[]>;
+  scanCollections(integrationId: string): Promise<ScannedCollection[]>;
   addScannedCollections(
-    connectionId: string,
+    integrationId: string,
     body: AddScannedCollectionsBody,
   ): Promise<AddScannedCollectionsResult>;
-  listConnectionComponents(connectionId: string): Promise<ServiceComponent[]>;
-  createComponent(connectionId: string, body: CreateComponentBody): Promise<ServiceComponent>;
+  listIntegrationComponents(integrationId: string): Promise<ServiceComponent[]>;
+  createComponent(integrationId: string, body: CreateComponentBody): Promise<ServiceComponent>;
   getComponent(id: string): Promise<ServiceComponent>;
   updateComponent(id: string, body: UpdateComponentBody): Promise<ServiceComponent>;
   deleteComponent(id: string): Promise<void>;
@@ -183,25 +183,26 @@ export function createApiClient(
   return {
     getStatus: () => req<ApiStatus>("GET", "/api/v1/status"),
 
-    listConnections: () => req<ApiConnection[]>("GET", "/api/v1/connections"),
-    getConnection: (id) => req<ApiConnection>("GET", `/api/v1/connections/${id}`),
-    createConnection: (body) => req<ApiConnection>("POST", "/api/v1/connections", body),
-    createAppConnection: (name) =>
-      req<CreateAppResult>("POST", "/api/v1/connections/app", { name }),
+    listIntegrations: () => req<ApiIntegration[]>("GET", "/api/v1/integrations"),
+    getIntegration: (id) => req<ApiIntegration>("GET", `/api/v1/integrations/${id}`),
+    createIntegration: (body) => req<ApiIntegration>("POST", "/api/v1/integrations", body),
+    createAppIntegration: (name) =>
+      req<CreateAppResult>("POST", "/api/v1/integrations/app", { name }),
     regenerateAppKey: (id) =>
-      req<RegenerateKeyResult>("POST", `/api/v1/connections/${id}/regenerate-key`),
-    updateConnection: (id, body) => req<ApiConnection>("PATCH", `/api/v1/connections/${id}`, body),
-    deleteConnection: (id) => req<void>("DELETE", `/api/v1/connections/${id}`),
-    getConnectionTypes: (id) =>
-      req<TypeGenerationInput[]>("GET", `/api/v1/connections/${id}/types`),
-    scanCollections: (connectionId) =>
-      req<ScannedCollection[]>("GET", `/api/v1/connections/${connectionId}/scan`),
-    addScannedCollections: (connectionId, body) =>
-      req<AddScannedCollectionsResult>("POST", `/api/v1/connections/${connectionId}/add`, body),
-    listConnectionComponents: (connectionId) =>
-      req<ServiceComponent[]>("GET", `/api/v1/connections/${connectionId}/components`),
-    createComponent: (connectionId, body) =>
-      req<ServiceComponent>("POST", `/api/v1/connections/${connectionId}/components`, body),
+      req<RegenerateKeyResult>("POST", `/api/v1/integrations/${id}/regenerate-key`),
+    updateIntegration: (id, body) =>
+      req<ApiIntegration>("PATCH", `/api/v1/integrations/${id}`, body),
+    deleteIntegration: (id) => req<void>("DELETE", `/api/v1/integrations/${id}`),
+    getIntegrationTypes: (id) =>
+      req<TypeGenerationInput[]>("GET", `/api/v1/integrations/${id}/types`),
+    scanCollections: (integrationId) =>
+      req<ScannedCollection[]>("GET", `/api/v1/integrations/${integrationId}/scan`),
+    addScannedCollections: (integrationId, body) =>
+      req<AddScannedCollectionsResult>("POST", `/api/v1/integrations/${integrationId}/add`, body),
+    listIntegrationComponents: (integrationId) =>
+      req<ServiceComponent[]>("GET", `/api/v1/integrations/${integrationId}/components`),
+    createComponent: (integrationId, body) =>
+      req<ServiceComponent>("POST", `/api/v1/integrations/${integrationId}/components`, body),
     getComponent: (id) => req<ServiceComponent>("GET", `/api/v1/components/${id}`),
     updateComponent: (id, body) => req<ServiceComponent>("PATCH", `/api/v1/components/${id}`, body),
     deleteComponent: (id) => req<void>("DELETE", `/api/v1/components/${id}`),

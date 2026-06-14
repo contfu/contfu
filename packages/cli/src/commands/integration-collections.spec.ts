@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from "bun:test";
 import {
-  addConnectionCollections,
+  addIntegrationCollections,
   parseAddRefs,
   printAddSummary,
-  scanConnectionCollections,
-} from "./connection-collections";
+  scanIntegrationCollections,
+} from "./integration-collections";
 
 const mockFetch = mock<typeof fetch>();
 globalThis.fetch = mockFetch as unknown as typeof fetch;
@@ -38,17 +38,17 @@ describe("parseAddRefs", () => {
   });
 });
 
-describe("scanConnectionCollections", () => {
+describe("scanIntegrationCollections", () => {
   test("prints scanned collections as JSON", async () => {
     const collections = [{ ref: "db-1", displayName: "Blog Posts", alreadyAdded: false }];
     mockFetch.mockResolvedValueOnce(jsonResponse([{ id: "42", name: "Brain" }]));
     mockFetch.mockResolvedValueOnce(jsonResponse(collections));
 
-    await scanConnectionCollections("42", { format: "json" });
+    await scanIntegrationCollections("42", { format: "json" });
 
     expect(mockFetch).toHaveBeenCalledTimes(2);
     const url = mockFetch.mock.calls[1][0] as string;
-    expect(url).toContain("/api/v1/connections/42/scan");
+    expect(url).toContain("/api/v1/integrations/42/scan");
     expect(logSpy).toHaveBeenCalledWith(JSON.stringify(collections, null, 2));
   });
 
@@ -61,7 +61,7 @@ describe("scanConnectionCollections", () => {
       ]),
     );
 
-    await scanConnectionCollections("42", { format: "table" });
+    await scanIntegrationCollections("42", { format: "table" });
 
     const calls: unknown[] = logSpy.mock.calls.map((call: unknown[]) => call[0]);
     expect(calls.some((call) => String(call).includes("Display Name"))).toBe(true);
@@ -69,7 +69,7 @@ describe("scanConnectionCollections", () => {
   });
 });
 
-describe("addConnectionCollections", () => {
+describe("addIntegrationCollections", () => {
   test("posts refs to the add endpoint", async () => {
     const summary = {
       added: [{ ref: "db-1", id: "5", displayName: "Blog Posts" }],
@@ -79,10 +79,10 @@ describe("addConnectionCollections", () => {
     mockFetch.mockResolvedValueOnce(jsonResponse([{ id: "42", name: "Brain" }]));
     mockFetch.mockResolvedValueOnce(jsonResponse(summary, 201));
 
-    await addConnectionCollections("Brain", { format: "json", refs: ["db-1"] });
+    await addIntegrationCollections("Brain", { format: "json", refs: ["db-1"] });
 
     const [url, options] = mockFetch.mock.calls[1] as [string, RequestInit];
-    expect(url).toContain("/api/v1/connections/42/add");
+    expect(url).toContain("/api/v1/integrations/42/add");
     expect(options.method).toBe("POST");
     expect(JSON.parse(options.body as string)).toEqual({ refs: ["db-1"] });
     expect(logSpy).toHaveBeenCalledWith(JSON.stringify(summary, null, 2));
@@ -92,7 +92,7 @@ describe("addConnectionCollections", () => {
     mockFetch.mockResolvedValueOnce(jsonResponse([{ id: "42", name: "Brain" }]));
     mockFetch.mockResolvedValueOnce(jsonResponse({ added: [], alreadyAdded: [], scanned: 0 }, 201));
 
-    await addConnectionCollections("42", { format: "json", all: true });
+    await addIntegrationCollections("42", { format: "json", all: true });
 
     const [, options] = mockFetch.mock.calls[1] as [string, RequestInit];
     expect(JSON.parse(options.body as string)).toEqual({ all: true });
@@ -104,9 +104,9 @@ describe("addConnectionCollections", () => {
     });
 
     // oxlint-disable-next-line typescript-eslint/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
-    await expect(addConnectionCollections("42", { format: "table" })).rejects.toThrow("exit");
+    await expect(addIntegrationCollections("42", { format: "table" })).rejects.toThrow("exit");
     expect(errorSpy).toHaveBeenCalledWith(
-      "Usage: contfu connections add <connection-id-or-name> (--refs <comma-separated> | --all)",
+      "Usage: contfu integrations add <integration-id-or-name> (--refs <comma-separated> | --all)",
     );
 
     exitSpy.mockRestore();
@@ -125,5 +125,19 @@ describe("printAddSummary", () => {
     expect(calls.some((call) => call.includes("Scanned 3 collections."))).toBe(true);
     expect(calls.some((call) => call.includes("Added 1 collection."))).toBe(true);
     expect(calls.some((call) => call.includes("Already added:"))).toBe(true);
+  });
+});
+
+describe("dry run", () => {
+  test("add resolves integration but does not POST", async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse([{ id: "42", name: "Brain" }]));
+
+    await addIntegrationCollections("Brain", { format: "table", refs: ["db-1"], dryRun: true });
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect((mockFetch.mock.calls[0] as unknown[])[1]).toMatchObject({ method: "GET" });
+    expect(logSpy.mock.calls.map((c: unknown[]) => String(c[0])).join("\n")).toContain(
+      "Dry run: would add scanned collections",
+    );
   });
 });

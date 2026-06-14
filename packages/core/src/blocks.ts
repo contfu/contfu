@@ -8,7 +8,7 @@ export type UnorderedListBlock = [type: "u", ...items: (Inline | Block)[][]];
 export type OrderedListBlock = [type: "o", ...items: (Inline | Block)[][]];
 export type TableBlock = [type: "t", hasHeader: boolean, cells: (Block | Inline)[][][]];
 export type ImageBlock = [type: "i", canonical: string, alt: string];
-export type CustomBlock = [type: "x", name: string, props: Record<string, any>, children: Block[]];
+export type Component = [type: "x", name: string, props: Record<string, any>, children: Block[]];
 
 export type BuiltInBlock =
   | QuoteBlock
@@ -22,7 +22,7 @@ export type BuiltInBlock =
   | TableBlock
   | ImageBlock;
 
-export type Block = BuiltInBlock | CustomBlock;
+export type Block = BuiltInBlock | Component;
 
 export type Anchor = [type: "a", text: string, href: string];
 export type Code = [type: "c", text: string];
@@ -61,7 +61,7 @@ export function isTable(block?: Block | null): block is TableBlock {
 export function isImg(block?: Block | null): block is ImageBlock {
   return block?.[0] === "i";
 }
-export function isCustom(block?: Block | null): block is CustomBlock {
+export function isComponent(block?: Block | null): block is Component {
   return block?.[0] === "x";
 }
 
@@ -91,7 +91,7 @@ export function toPlainText(inlines: Inline[]) {
 }
 
 export function getText(block: Block): Inline[] {
-  if (isCustom(block)) {
+  if (isComponent(block)) {
     return (block[3] as Block[]).flatMap(getText);
   }
   if (isP(block) || isH1(block) || isH2(block) || isH3(block)) return block[1];

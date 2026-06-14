@@ -35,8 +35,8 @@ export interface ServiceFlowWithDetails extends ServiceFlow {
   sourceSchema?: CollectionSchema | null;
   sourceCollectionName: string;
   sourceCollectionDisplayName: string;
-  sourceConnectionType: number | null;
+  sourceIntegrationType: number | null;
   targetCollectionName: string;
   targetCollectionDisplayName: string;
-  targetConnectionType: number | null;
+  targetIntegrationType: number | null;
 }

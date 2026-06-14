@@ -6,6 +6,7 @@ const TYPE_MAP: Record<number, string> = {
   [PropertyType.STRINGS]: "string[]",
   [PropertyType.NUMBER]: "number",
   [PropertyType.NUMBERS]: "number[]",
+  [PropertyType.COLOR]: "Color",
   [PropertyType.BOOLEAN]: "boolean",
   [PropertyType.REF]: "string",
   [PropertyType.REFS]: "string[]",
@@ -16,6 +17,7 @@ const TYPE_MAP: Record<number, string> = {
   [PropertyType.ENUMS]: "string[]",
   [PropertyType.BLOCK]: "Block[]",
   [PropertyType.JSON]: "any",
+  [PropertyType.GEOPOINT]: "GeoPoint",
 };
 
 function schemaValueToType(value: SchemaValue): string {
@@ -34,7 +36,15 @@ function schemaValueToType(value: SchemaValue): string {
     }
     return "string[]";
   }
-  return TYPE_MAP[numType] ?? "unknown";
+  if (TYPE_MAP[numType]) return TYPE_MAP[numType];
+
+  const members: string[] = [];
+  for (const propertyType of Object.values(PropertyType)) {
+    if (propertyType === PropertyType.NULL || (numType & propertyType) === 0) continue;
+    const rendered = TYPE_MAP[propertyType];
+    if (rendered && !members.includes(rendered)) members.push(rendered);
+  }
+  return members.length > 0 ? members.join(" | ") : "unknown";
 }
 
 function collectionNameToTypeName(name: string): string {
@@ -60,7 +70,22 @@ export function generateTypes(
   const hasBlock = entries.some(([, schema]) =>
     Object.values(schema).some((value) => schemaType(value) === PropertyType.BLOCK),
   );
-  const baseTypes = `${hasBlock ? 'import type { Block } from "@contfu/core";\n\n' : ""}${interfaces.join("\n\n")}`;
+  const hasGeoPoint = entries.some(([, schema]) =>
+    Object.values(schema).some((value) => (schemaType(value) & PropertyType.GEOPOINT) !== 0),
+  );
+  const hasColor = entries.some(([, schema]) =>
+    Object.values(schema).some((value) => (schemaType(value) & PropertyType.COLOR) !== 0),
+  );
+  const typeImports = [
+    hasBlock ? "Block" : null,
+    hasColor ? "Color" : null,
+    hasGeoPoint ? "GeoPoint" : null,
+  ].filter((name): name is string => name !== null);
+  const importHeader =
+    typeImports.length > 0
+      ? `import type { ${typeImports.join(", ")} } from "@contfu/core";\n\n`
+      : "";
+  const baseTypes = `${importHeader}${interfaces.join("\n\n")}`;
 
   if (!includeCollectionMap) {
     return baseTypes;

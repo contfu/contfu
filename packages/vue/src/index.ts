@@ -19,7 +19,7 @@ import {
   isOl,
   isTable,
   isImg,
-  isCustom,
+  isComponent,
   isAnchor,
   isMonospace,
   isBold,
@@ -42,7 +42,7 @@ export type BlockComponents = {
   ol?: ReturnType<typeof defineComponent>;
   table?: ReturnType<typeof defineComponent>;
   img?: ReturnType<typeof defineComponent>;
-  custom?: ReturnType<typeof defineComponent>;
+  component?: ReturnType<typeof defineComponent>;
 };
 
 export const FILE_URL_INJECTION_KEY: InjectionKey<FileUrlOptions> = Symbol("@contfu/file");
@@ -137,9 +137,11 @@ function renderBlockNode(
     const [, canonical, alt] = block;
     return h("img", { src: buildFileUrl(canonical, file, "image"), alt });
   }
-  if (isCustom(block)) {
+  if (isComponent(block)) {
     const children = (block[3] as BlockType[]).map((c) => renderBlockNode(c, components, file));
-    return components.custom ? h(components.custom, { block }, () => children) : h(() => children);
+    return components.component
+      ? h(components.component, { block }, () => children)
+      : h(() => children);
   }
   return null;
 }

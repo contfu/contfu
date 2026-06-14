@@ -17,7 +17,7 @@ void mock.module("node:fs", () => ({
 }));
 
 // Import after mocking
-const { readConfig, writeConfig, logout } = await import("./login");
+const { readConfig, writeConfig, logout } = await import("./login.ts");
 
 beforeEach(() => {
   mockReadFile.mockReset();

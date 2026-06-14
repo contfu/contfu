@@ -13,7 +13,8 @@ await mock.module("./login", () => ({
 const mockFetch = mock<typeof fetch>();
 globalThis.fetch = mockFetch as any;
 
-const { listWorkspaces, revokeWorkspaceMember, switchWorkspace } = await import("./workspaces");
+const { inviteWorkspace, listWorkspaces, revokeWorkspaceMember, switchWorkspace } =
+  await import("./workspaces");
 
 function jsonResponse(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
@@ -144,5 +145,31 @@ describe("revokeWorkspaceMember", () => {
       "http://test.local/api/v1/workspaces/ws_1/members/teammate%2Bcli%40example.com",
     );
     expect(logSpy).toHaveBeenCalledWith("Workspace membership revoked");
+  });
+});
+
+describe("dry run", () => {
+  test("switch resolves workspace but does not write config", async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse([{ id: "ws_1", name: "main", displayName: "Main", isJoined: true }]),
+    );
+
+    await switchWorkspace("main", { dryRun: true });
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(logSpy.mock.calls.map((c: unknown[]) => String(c[0])).join("\n")).toContain(
+      "Dry run: would persist selected workspace",
+    );
+  });
+
+  test("invite resolves workspace but does not POST", async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse([{ id: "ws_1", name: "main", displayName: "Main", isJoined: true }]),
+    );
+
+    await inviteWorkspace("main", "a@example.com", { dryRun: true });
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect((mockFetch.mock.calls[0] as unknown[])[1]).toMatchObject({ method: "GET" });
   });
 });

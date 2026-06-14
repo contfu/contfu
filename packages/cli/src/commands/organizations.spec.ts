@@ -90,3 +90,19 @@ describe("setOrganizationRole", () => {
     );
   });
 });
+
+describe("dry run", () => {
+  test("setOrganizationRole resolves org but does not PATCH", async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse([{ id: "org_1", name: "acme", displayName: "Acme", role: 0 }]),
+    );
+
+    await setOrganizationRole("acme", "dev@example.com", "admin", { dryRun: true });
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect((mockFetch.mock.calls[0] as unknown[])[1]).toMatchObject({ method: "GET" });
+    expect(logSpy.mock.calls.map((c: unknown[]) => String(c[0])).join("\n")).toContain(
+      "Dry run: would update organization member role",
+    );
+  });
+});

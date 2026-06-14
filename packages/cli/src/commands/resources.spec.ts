@@ -6,9 +6,9 @@ import {
   update,
   del,
   isResource,
-  listConnectionTypes,
+  listIntegrationTypes,
   resolveCollectionRef,
-  resolveConnectionRef,
+  resolveIntegrationRef,
 } from "./resources";
 import { terminalLink, visibleWidth } from "../table";
 
@@ -42,7 +42,7 @@ afterEach(() => {
 
 describe("isResource", () => {
   test("returns true for valid resources", () => {
-    expect(isResource("connections")).toBe(true);
+    expect(isResource("integrations")).toBe(true);
     expect(isResource("collections")).toBe(true);
     expect(isResource("flows")).toBe(true);
   });
@@ -60,15 +60,15 @@ describe("list", () => {
     const data = [{ id: 1, name: "test" }];
     mockFetch.mockResolvedValueOnce(jsonResponse(data));
 
-    await list("connections", "json");
+    await list("integrations", "json");
 
     expect(mockFetch).toHaveBeenCalledTimes(1);
     const url = (mockFetch.mock.calls[0] as unknown[])[0] as string;
-    expect(url).toBe("http://test.local/api/v1/connections");
+    expect(url).toBe("http://test.local/api/v1/integrations");
     expect(logSpy).toHaveBeenCalledWith(JSON.stringify(data, null, 2));
   });
 
-  test("lists connections with stable and display name columns", async () => {
+  test("lists integrations with stable and display name columns", async () => {
     const data = [
       {
         id: "conn_1",
@@ -81,7 +81,7 @@ describe("list", () => {
     ];
     mockFetch.mockResolvedValueOnce(jsonResponse(data));
 
-    await list("connections", "table");
+    await list("integrations", "table");
 
     const calls: string[] = logSpy.mock.calls.map((c: unknown[]) => c[0] as string);
     expect(calls[0]).toContain("ID");
@@ -89,13 +89,13 @@ describe("list", () => {
     expect(calls[0]).toContain("Display Name");
     expect(calls.some((c) => c.includes("notionBrain"))).toBe(true);
     expect(calls.some((c) => c.includes("Notion Brain"))).toBe(true);
-    expect(calls.some((c) => c.includes("\u001b]8;;http://test.local/connections/conn_1"))).toBe(
+    expect(calls.some((c) => c.includes("\u001b]8;;http://test.local/integrations/conn_1"))).toBe(
       true,
     );
   });
 
   test("lists collections in table format with headers and row data", async () => {
-    const data = [{ id: 5, name: "posts", displayName: "Posts", connectionId: 1 }];
+    const data = [{ id: 5, name: "posts", displayName: "Posts", integrationId: 1 }];
     mockFetch.mockResolvedValueOnce(jsonResponse(data));
 
     await list("collections", "table");
@@ -110,8 +110,8 @@ describe("list", () => {
 
   test("keeps collection table columns aligned when display names contain emoji", async () => {
     const data = [
-      { id: "with_emoji", name: "media", displayName: "🖼️ Medien", connectionId: "conn_1" },
-      { id: "plain", name: "pages", displayName: "Pages", connectionId: "conn_2" },
+      { id: "with_emoji", name: "media", displayName: "🖼️ Medien", integrationId: "conn_1" },
+      { id: "plain", name: "pages", displayName: "Pages", integrationId: "conn_2" },
     ];
     mockFetch.mockResolvedValueOnce(jsonResponse(data));
 
@@ -120,9 +120,9 @@ describe("list", () => {
     const calls: string[] = logSpy.mock.calls.map((c: unknown[]) => c[0] as string);
     const emojiRow = calls.find((c) => c.includes("with_emoji"))!;
     const plainRow = calls.find((c) => c.includes("plain"))!;
-    const emojiConnectionStart = visibleWidth(emojiRow.slice(0, emojiRow.indexOf("conn_1")));
-    const plainConnectionStart = visibleWidth(plainRow.slice(0, plainRow.indexOf("conn_2")));
-    expect(emojiConnectionStart).toBe(plainConnectionStart);
+    const emojiIntegrationStart = visibleWidth(emojiRow.slice(0, emojiRow.indexOf("conn_1")));
+    const plainIntegrationStart = visibleWidth(plainRow.slice(0, plainRow.indexOf("conn_2")));
+    expect(emojiIntegrationStart).toBe(plainIntegrationStart);
   });
 });
 
@@ -163,22 +163,22 @@ describe("get", () => {
     mockFetch.mockResolvedValueOnce(jsonResponse([data]));
     mockFetch.mockResolvedValueOnce(jsonResponse(data));
 
-    await get("connections", "1");
+    await get("integrations", "1");
 
     const url = (mockFetch.mock.calls[1] as unknown[])[0] as string;
-    expect(url).toBe("http://test.local/api/v1/connections/1");
+    expect(url).toBe("http://test.local/api/v1/integrations/1");
     expect(logSpy).toHaveBeenCalledWith(JSON.stringify(data, null, 2));
   });
 
-  test("fetches connection by name when the id is omitted", async () => {
+  test("fetches integration by name when the id is omitted", async () => {
     const data = { id: "conn_1", name: "Brain" };
     mockFetch.mockResolvedValueOnce(jsonResponse([data]));
     mockFetch.mockResolvedValueOnce(jsonResponse(data));
 
-    await get("connections", "Brain");
+    await get("integrations", "Brain");
 
     const url = (mockFetch.mock.calls[1] as unknown[])[0] as string;
-    expect(url).toBe("http://test.local/api/v1/connections/conn_1");
+    expect(url).toBe("http://test.local/api/v1/integrations/conn_1");
   });
 
   test("fetches collection by id", async () => {
@@ -219,10 +219,10 @@ describe("create", () => {
     const data = { id: 1, name: "new" };
     mockFetch.mockResolvedValueOnce(jsonResponse(data));
 
-    await create("connections", '{"label":"new"}', {});
+    await create("integrations", '{"label":"new"}', {});
 
     const [url, opts] = mockFetch.mock.calls[0] as unknown[] as [string, RequestInit];
-    expect(url).toBe("http://test.local/api/v1/connections");
+    expect(url).toBe("http://test.local/api/v1/integrations");
     expect(opts.method).toBe("POST");
     expect(logSpy).toHaveBeenCalledWith(JSON.stringify(data, null, 2));
   });
@@ -231,19 +231,19 @@ describe("create", () => {
     const data = { id: 2, label: "flagged" };
     mockFetch.mockResolvedValueOnce(jsonResponse(data));
 
-    await create("connections", undefined, { name: "flagged" });
+    await create("integrations", undefined, { name: "flagged" });
 
     const [url, opts] = mockFetch.mock.calls[0] as unknown[] as [string, RequestInit];
-    expect(url).toBe("http://test.local/api/v1/connections");
+    expect(url).toBe("http://test.local/api/v1/integrations");
     expect(opts.method).toBe("POST");
     expect(JSON.parse(opts.body as string)).toEqual({ name: "flagged", type: 20 });
   });
 
-  test("posts connection scopes from scope flags for any provider", async () => {
+  test("posts integration scopes from scope flags for any provider", async () => {
     const data = { id: 2, label: "flagged" };
     mockFetch.mockResolvedValueOnce(jsonResponse(data));
 
-    await create("connections", undefined, {
+    await create("integrations", undefined, {
       name: "flagged",
       type: "contentful",
       scopes: "master,staging",
@@ -274,21 +274,21 @@ describe("create", () => {
     expect(JSON.parse(opts.body as string)).toMatchObject({ displayName: "My Col" });
   });
 
-  test("creates collection with connection name resolved to id", async () => {
-    const data = { id: "col_1", displayName: "My Col", connectionId: "conn_1" };
+  test("creates collection with integration name resolved to id", async () => {
+    const data = { id: "col_1", displayName: "My Col", integrationId: "conn_1" };
     mockFetch.mockResolvedValueOnce(jsonResponse([{ id: "conn_1", name: "Brain" }]));
     mockFetch.mockResolvedValueOnce(jsonResponse(data));
 
     await create("collections", undefined, {
       "display-name": "My Col",
-      "connection-id": "Brain",
+      "integration-id": "Brain",
     });
 
     const [url, opts] = mockFetch.mock.calls[1] as unknown[] as [string, RequestInit];
     expect(url).toBe("http://test.local/api/v1/collections");
     expect(JSON.parse(opts.body as string)).toMatchObject({
       displayName: "My Col",
-      connectionId: "conn_1",
+      integrationId: "conn_1",
     });
   });
 
@@ -350,10 +350,10 @@ describe("update", () => {
     mockFetch.mockResolvedValueOnce(jsonResponse([{ id: 1, name: "test" }]));
     mockFetch.mockResolvedValueOnce(jsonResponse(data));
 
-    await update("connections", "1", '{"label":"updated"}', {});
+    await update("integrations", "1", '{"label":"updated"}', {});
 
     const [url, opts] = mockFetch.mock.calls[1] as unknown[] as [string, RequestInit];
-    expect(url).toBe("http://test.local/api/v1/connections/1");
+    expect(url).toBe("http://test.local/api/v1/integrations/1");
     expect(opts.method).toBe("PATCH");
     expect(logSpy).toHaveBeenCalledWith(JSON.stringify(data, null, 2));
   });
@@ -363,12 +363,125 @@ describe("update", () => {
     mockFetch.mockResolvedValueOnce(jsonResponse([{ id: 1, name: "test" }]));
     mockFetch.mockResolvedValueOnce(jsonResponse(data));
 
-    await update("connections", "1", undefined, { name: "renamed", scope: "staging" });
+    await update("integrations", "1", undefined, { name: "renamed", scope: "staging" });
 
     const [url, opts] = mockFetch.mock.calls[1] as unknown[] as [string, RequestInit];
-    expect(url).toBe("http://test.local/api/v1/connections/1");
+    expect(url).toBe("http://test.local/api/v1/integrations/1");
     expect(opts.method).toBe("PATCH");
     expect(JSON.parse(opts.body as string)).toEqual({ name: "renamed", scopes: ["staging"] });
+  });
+
+  test("configures integration i18n active locales and locale map", async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse([{ id: "app_1", name: "App" }]));
+    mockFetch.mockResolvedValueOnce(jsonResponse({ id: "app_1" }));
+
+    await update("integrations", "App", undefined, {
+      "i18n-locales": "en,de-DE",
+      "i18n-active-locales": "custom:en,de-de",
+      "i18n-locale-map": "English=en,German=de-DE",
+    });
+
+    const [, opts] = mockFetch.mock.calls[1] as unknown[] as [string, RequestInit];
+    expect(JSON.parse(opts.body as string)).toEqual({
+      i18n: {
+        locales: ["en", "de-DE"],
+        activeLocales: { mode: "custom", locales: ["en", "de-DE"] },
+        localeMap: { English: "en", German: "de-DE" },
+      },
+    });
+  });
+
+  test("resets integration user i18n layer", async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse([{ id: "app_1", name: "App" }]));
+    mockFetch.mockResolvedValueOnce(jsonResponse({ id: "app_1" }));
+
+    await update("integrations", "App", undefined, { "reset-i18n": true });
+
+    const [, opts] = mockFetch.mock.calls[1] as unknown[] as [string, RequestInit];
+    expect(JSON.parse(opts.body as string)).toEqual({
+      i18n: { activeLocales: { mode: "inherit" } },
+    });
+  });
+
+  test("configures collection manual localization", async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse([{ id: "col_1", name: "posts", displayName: "Posts" }]),
+    );
+    mockFetch.mockResolvedValueOnce(jsonResponse({ id: "col_1", schema: { locale: 2, slug: 2 } }));
+    mockFetch.mockResolvedValueOnce(jsonResponse({ id: "col_1" }));
+
+    await update("collections", "Posts", undefined, {
+      "i18n-locale-field": "locale",
+      "i18n-locale-map": "English=en",
+      "i18n-keep-raw-field": true,
+      "i18n-grouping-key": "slug",
+    });
+
+    const [, opts] = mockFetch.mock.calls[2] as unknown[] as [string, RequestInit];
+    expect(JSON.parse(opts.body as string)).toEqual({
+      i18n: {
+        localeField: "locale",
+        localeMap: { English: "en" },
+        keepLocaleField: true,
+        key: "slug",
+      },
+    });
+  });
+
+  test("rejects invalid locale map values", async () => {
+    const exitSpy = spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("exit");
+    });
+    mockFetch.mockResolvedValueOnce(jsonResponse([{ id: "app_1", name: "App" }]));
+
+    // oxlint-disable-next-line typescript/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
+    await expect(
+      update("integrations", "App", undefined, { "i18n-locale-map": "English=not_a_locale" }),
+    ).rejects.toThrow("exit");
+
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("invalid BCP 47 locale"));
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    exitSpy.mockRestore();
+  });
+
+  test("rejects integration locale map values outside configured locales", async () => {
+    const exitSpy = spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("exit");
+    });
+    mockFetch.mockResolvedValueOnce(jsonResponse([{ id: "app_1", name: "App" }]));
+
+    // oxlint-disable-next-line typescript/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
+    await expect(
+      update("integrations", "App", undefined, {
+        "i18n-locales": "en,de",
+        "i18n-locale-map": "French=fr",
+      }),
+    ).rejects.toThrow("exit");
+
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("must be one of --i18n-locales"));
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    exitSpy.mockRestore();
+  });
+
+  test("rejects non-scalar collection grouping key", async () => {
+    const exitSpy = spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("exit");
+    });
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse([{ id: "col_1", name: "posts", displayName: "Posts" }]),
+    );
+    mockFetch.mockResolvedValueOnce(jsonResponse({ id: "col_1", schema: { tags: 4 } }));
+
+    // oxlint-disable-next-line typescript/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
+    await expect(
+      update("collections", "Posts", undefined, { "i18n-grouping-key": "tags" }),
+    ).rejects.toThrow("exit");
+
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.stringContaining("Fallback Grouping Key must be a scalar"),
+    );
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    exitSpy.mockRestore();
   });
 });
 
@@ -377,12 +490,12 @@ describe("del", () => {
     mockFetch.mockResolvedValueOnce(jsonResponse([{ id: 42, name: "test" }]));
     mockFetch.mockResolvedValueOnce(new Response(null, { status: 200 }));
 
-    await del("connections", "42");
+    await del("integrations", "42");
 
     const [url, opts] = mockFetch.mock.calls[1] as unknown[] as [string, RequestInit];
-    expect(url).toBe("http://test.local/api/v1/connections/42");
+    expect(url).toBe("http://test.local/api/v1/integrations/42");
     expect(opts.method).toBe("DELETE");
-    expect(logSpy).toHaveBeenCalledWith("Deleted connection 42");
+    expect(logSpy).toHaveBeenCalledWith("Deleted integration 42");
   });
 
   test("deletes collection and prints confirmation", async () => {
@@ -404,7 +517,7 @@ describe("del", () => {
 });
 
 describe("resource reference resolution", () => {
-  test("prefers connection id before matching names", async () => {
+  test("prefers integration id before matching names", async () => {
     mockFetch.mockResolvedValueOnce(
       jsonResponse([
         { id: "same", name: "By ID" },
@@ -413,10 +526,10 @@ describe("resource reference resolution", () => {
     );
 
     // oxlint-disable-next-line typescript/await-thenable -- bun:test .resolves returns a Promise at runtime but types lack Thenable
-    await expect(resolveConnectionRef("same")).resolves.toBe("same");
+    await expect(resolveIntegrationRef("same")).resolves.toBe("same");
   });
 
-  test("rejects ambiguous connection names", async () => {
+  test("rejects ambiguous integration names", async () => {
     mockFetch.mockResolvedValueOnce(
       jsonResponse([
         { id: "conn_1", name: "Brain" },
@@ -425,8 +538,8 @@ describe("resource reference resolution", () => {
     );
 
     // oxlint-disable-next-line typescript/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
-    await expect(resolveConnectionRef("Brain")).rejects.toThrow(
-      "Connection name is ambiguous; use the Connection id",
+    await expect(resolveIntegrationRef("Brain")).rejects.toThrow(
+      "Integration name is ambiguous; use the Integration id",
     );
   });
 
@@ -447,11 +560,11 @@ describe("resource reference resolution", () => {
   });
 });
 
-describe("listConnectionTypes", () => {
-  test("writes connection type groups separated by blank line", () => {
+describe("listIntegrationTypes", () => {
+  test("writes integration type groups separated by blank line", () => {
     const writeSpy = spyOn(process.stdout, "write").mockImplementation(() => true);
 
-    listConnectionTypes();
+    listIntegrationTypes();
 
     const written = (writeSpy.mock.calls as unknown[][]).map((c) => c[0] as string).join("");
     writeSpy.mockRestore();
@@ -461,5 +574,36 @@ describe("listConnectionTypes", () => {
     expect(written).toContain("strapi");
     // blank line separator between groups
     expect(written).toContain("\n\n");
+  });
+});
+
+describe("dry run", () => {
+  test("create integration does not POST and redacts secrets", async () => {
+    await create(
+      "integrations",
+      undefined,
+      { name: "Notion", token: "secret-token", "webhook-secret": "hook-secret" },
+      undefined,
+      { dryRun: true },
+    );
+
+    expect(mockFetch).not.toHaveBeenCalled();
+    const output = logSpy.mock.calls.map((c: unknown[]) => String(c[0])).join("\n");
+    expect(output).toContain("Dry run: would create integration");
+    expect(output).toContain("[redacted]");
+    expect(output).not.toContain("secret-token");
+    expect(output).not.toContain("hook-secret");
+  });
+
+  test("delete integration resolves by GET but does not DELETE", async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse([{ id: "int_1", name: "Notion" }]));
+
+    await del("integrations", "Notion", { dryRun: true });
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect((mockFetch.mock.calls[0] as unknown[])[1]).toMatchObject({ method: "GET" });
+    expect(logSpy.mock.calls.map((c: unknown[]) => String(c[0])).join("\n")).toContain(
+      "Dry run: would delete integration",
+    );
   });
 });

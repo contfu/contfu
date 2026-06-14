@@ -28,8 +28,8 @@
     "@contfu/core": "workspace:^"
   },
   "devDependencies": {
-    "svelte": "^5.55.9",
-    "svelte-check": "^4.4.8",
+    "svelte": "^5.56.3",
+    "svelte-check": "^4.6.0",
     "typescript": "^5.9.3"
   },
   "peerDependencies": {

@@ -222,12 +222,18 @@ export function findItems(
     ...(includeContentColumn ? { content: itemsTable.content } : {}),
   };
 
-  const useFallbackGroup = Boolean(
-    i18nPlan?.key &&
-    i18nPlan.wantedLocale &&
+  const fallbackApplies = Boolean(
+    i18nPlan?.wantedLocale &&
     i18nPlan.fallbackLocale &&
     i18nPlan.fallbackLocale !== i18nPlan.wantedLocale,
   );
+  if (fallbackApplies && !i18nPlan?.key) {
+    throw new Error(
+      `Cannot apply i18n fallback for collection '${i18nPlan?.collection}': missing fallback grouping key`,
+    );
+  }
+
+  const useFallbackGroup = Boolean(fallbackApplies && i18nPlan?.key);
 
   let rows: DbRow[];
   let total: number;

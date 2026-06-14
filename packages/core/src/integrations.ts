@@ -1,10 +1,10 @@
 import { defineEnum, type EnumValue } from "./enums";
 
 /**
- * Connection type constants.
- * Identifies the kind of external service a connection links to.
+ * Integration type constants.
+ * Identifies the kind of external service an integration links to.
  */
-export const ConnectionType = defineEnum({
+export const IntegrationType = defineEnum({
   // Custom types (0–19)
   APP: 0,
   WEB: 1,
@@ -16,10 +16,10 @@ export const ConnectionType = defineEnum({
   SANITY: 24,
 });
 
-export type ConnectionType = EnumValue<typeof ConnectionType>;
+export type IntegrationType = EnumValue<typeof IntegrationType>;
 
 /**
- * Shared sync trigger modes for source connections.
+ * Shared sync trigger modes for source integrations.
  * Multiple modes can be enabled at once via bitwise OR.
  */
 export const SyncMode = defineEnum({

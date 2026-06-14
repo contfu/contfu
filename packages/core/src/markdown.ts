@@ -9,7 +9,7 @@ import {
   isOl,
   isTable,
   isImg,
-  isCustom,
+  isComponent,
   isAnchor,
   isMonospace,
   isBold,
@@ -28,7 +28,7 @@ import {
   type OrderedListBlock,
   type TableBlock,
   type ImageBlock,
-  type CustomBlock,
+  type Component,
   type Anchor,
   type Code,
   type Bold,
@@ -53,7 +53,7 @@ export type MarkdownBlockRenderers = {
   ol?: (block: OrderedListBlock, ctx: MarkdownRenderContext) => string;
   table?: (block: TableBlock, ctx: MarkdownRenderContext) => string;
   img?: (block: ImageBlock, ctx: MarkdownRenderContext) => string;
-  custom?: (block: CustomBlock, ctx: MarkdownRenderContext) => string;
+  component?: (block: Component, ctx: MarkdownRenderContext) => string;
 };
 
 export type MarkdownInlineRenderers = {
@@ -208,8 +208,8 @@ export function renderBlockMarkdown(block: Block, opts?: MarkdownOptions): strin
     const src = buildFileUrl(canonical, opts?.file, "image");
     return `![${escapeMarkdown(alt)}](${src})\n\n`;
   }
-  if (isCustom(block)) {
-    if (opts?.blocks?.custom) return opts.blocks.custom(block, ctx);
+  if (isComponent(block)) {
+    if (opts?.blocks?.component) return opts.blocks.component(block, ctx);
     const children = block[3] as Block[];
     return children.map((c) => renderBlockMarkdown(c, opts)).join("");
   }

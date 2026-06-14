@@ -28,7 +28,7 @@ describe("createApiClient", () => {
 
     expect(result).toEqual(scanned);
     expect(fetchMock).toHaveBeenCalledWith(
-      "http://test.local/api/v1/connections/42/scan",
+      "http://test.local/api/v1/integrations/42/scan",
       expect.objectContaining({ method: "GET" }),
     );
   });
@@ -50,7 +50,7 @@ describe("createApiClient", () => {
 
     expect(result).toEqual(summary);
     expect(fetchMock).toHaveBeenCalledWith(
-      "http://test.local/api/v1/connections/42/add",
+      "http://test.local/api/v1/integrations/42/add",
       expect.objectContaining({
         method: "POST",
         body: JSON.stringify({ refs: ["articles"] }),

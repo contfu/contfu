@@ -1,11 +1,11 @@
 import type { CollectionSchema, SchemaValue } from "./schemas";
 import type { Filter } from "./filters";
 import type { MappingRule } from "./mappings";
-import type { CollectionI18nConfig, ConnectionI18nConfig } from "./i18n";
+import type { CollectionI18nConfig, IntegrationI18nConfig } from "./i18n";
 
 /** Status summary returned by GET /api/v1/status */
 export interface ApiStatus {
-  connections: number;
+  integrations: number;
   collections: number;
   flows: number;
 }
@@ -20,7 +20,7 @@ export interface ApiWorkspace {
   organizationRole: number;
   isJoined: boolean;
   canManage: boolean;
-  maxConnections: number | null;
+  maxIntegrations: number | null;
   maxCollections: number | null;
   maxFlows: number | null;
   maxItems: number | null;
@@ -38,7 +38,7 @@ export interface CreateWorkspaceBody {
 export interface UpdateWorkspaceBody {
   displayName?: string;
   name?: string;
-  maxConnections?: number | null;
+  maxIntegrations?: number | null;
   maxCollections?: number | null;
   maxFlows?: number | null;
   maxItems?: number | null;
@@ -107,14 +107,16 @@ export interface CreateOrganizationInvitationResult {
   expiresAt: string;
 }
 
-export interface WordPressConnectionOpts {
+export interface WordPressIntegrationOpts {
   graphqlAvailable?: boolean;
   graphqlEndpoint?: string | null;
   modifiedAfterAvailable?: boolean;
   modifiedAfterCollections?: string[];
+  /** Include non-published post/media statuses and expose $draft. Defaults to false. */
+  includeDrafts?: boolean;
 }
 
-export interface SanityConnectionOpts {
+export interface SanityIntegrationOpts {
   projectId?: string;
   /** Include draft documents and expose $draft. Defaults to true. */
   includeDrafts?: boolean;
@@ -124,7 +126,7 @@ export interface SanityConnectionOpts {
   lastSchemaPushAt?: string;
 }
 
-export interface ContentfulConnectionOpts {
+export interface ContentfulIntegrationOpts {
   spaceId?: string;
   apiMode?: "delivery" | "preview";
   token?: string;
@@ -136,25 +138,25 @@ export interface ContentfulConnectionOpts {
   webhookSecret?: string;
 }
 
-export interface StrapiConnectionOpts {
+export interface StrapiIntegrationOpts {
   includeDrafts?: boolean;
   lastPush?: string;
 }
 
-export interface ConnectionOpts
+export interface IntegrationOpts
   extends
-    WordPressConnectionOpts,
-    SanityConnectionOpts,
-    ContentfulConnectionOpts,
-    StrapiConnectionOpts {}
+    WordPressIntegrationOpts,
+    SanityIntegrationOpts,
+    ContentfulIntegrationOpts,
+    StrapiIntegrationOpts {}
 
-/** Connection record returned by the service API */
+/** Integration record returned by the service API */
 export interface ProviderScope {
   value: string;
   label: string;
 }
 
-export interface ApiConnection {
+export interface ApiIntegration {
   id: string;
   name: string;
   type: number;
@@ -162,34 +164,34 @@ export interface ApiConnection {
   scopes: string[];
   accountId: string | null;
   url: string | null;
-  opts: ConnectionOpts | null;
+  opts: IntegrationOpts | null;
   hasCredentials: boolean;
-  i18n?: ConnectionI18nConfig;
+  i18n?: IntegrationI18nConfig;
   createdAt: string;
   updatedAt: string | null;
 }
 
 // --- Request body types ---
 
-export interface CreateConnectionBody {
+export interface CreateIntegrationBody {
   name: string;
   type: number;
   mode?: number;
   scopes?: string[];
   accountId?: string | null;
   url?: string | null;
-  i18n?: ConnectionI18nConfig;
-  opts?: ConnectionOpts | null;
+  i18n?: IntegrationI18nConfig;
+  opts?: IntegrationOpts | null;
   credentials?: string;
   webhookSecret?: string;
 }
 
-export interface UpdateConnectionBody {
+export interface UpdateIntegrationBody {
   name?: string;
   mode?: number;
   scopes?: string[];
-  i18n?: ConnectionI18nConfig;
-  opts?: ConnectionOpts | null;
+  i18n?: IntegrationI18nConfig;
+  opts?: IntegrationOpts | null;
   credentials?: string;
   webhookSecret?: string;
 }
@@ -197,7 +199,7 @@ export interface UpdateConnectionBody {
 export interface CreateCollectionBody {
   displayName: string;
   name?: string;
-  connectionId?: string | null;
+  integrationId?: string | null;
   includeContent?: boolean;
   i18n?: CollectionI18nConfig;
 }
@@ -223,7 +225,7 @@ export interface UpdateFlowBody {
   mappings?: MappingRule[] | null;
 }
 
-/** A collection available to scan from a CMS connection. */
+/** A collection available to scan from a CMS integration. */
 export interface ScannedCollection {
   ref: string;
   displayName: string;
@@ -268,7 +270,7 @@ export class ApiError extends Error {
 export interface ServiceComponent {
   id: string;
   workspaceId: string;
-  connectionId: string;
+  integrationId: string;
   providerRef: string;
   name: string;
   displayName: string;

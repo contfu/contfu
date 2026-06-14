@@ -109,6 +109,28 @@ describe("findItems", () => {
     expect(result[0].$id).toBe(1);
   });
 
+  test("sorts by a normalized system timestamp prop ($-prefixed json key)", () => {
+    createItem({
+      id: 10,
+      ref: "ts/a",
+      collection: "articles",
+      props: { title: "A", $createdAt: 5000 },
+      changedAt: 100,
+    });
+    createItem({
+      id: 11,
+      ref: "ts/b",
+      collection: "articles",
+      props: { title: "B", $createdAt: 1000 },
+      changedAt: 100,
+    });
+
+    const asc = findItems({ filter: '$collection = "articles"', sort: "$createdAt" }).filter((i) =>
+      [10, 11].includes(i.$id),
+    );
+    expect(asc.map((i) => i.$id)).toEqual([11, 10]);
+  });
+
   test("respects limit", () => {
     const result = findItems({ limit: 2 });
     expect(result).toHaveLength(2);

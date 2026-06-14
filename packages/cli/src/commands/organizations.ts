@@ -1,6 +1,7 @@
 import type { ApiOrganization } from "@contfu/svc-api";
 import { getApiClient, getBaseUrl, handleCliError } from "../http";
 import { printTable, terminalLink, type TableColumn } from "../table";
+import { printDryRun, type DryRunOption } from "./dry-run";
 
 const OrganizationRole = {
   OWNER: 0,
@@ -65,16 +66,23 @@ export async function getOrganization(ref: string): Promise<void> {
   }
 }
 
-export async function createOrganization(values: {
-  displayName?: string;
-  name?: string;
-}): Promise<void> {
+export async function createOrganization(
+  values: {
+    displayName?: string;
+    name?: string;
+  } & DryRunOption,
+): Promise<void> {
   try {
     if (!values.displayName) throw new Error("Missing required flag: --display-name");
-    const organization = await getApiClient(null).createOrganization({
+    const body = {
       displayName: values.displayName,
       name: values.name,
-    });
+    };
+    if (values.dryRun) {
+      printDryRun("create organization", body);
+      return;
+    }
+    const organization = await getApiClient(null).createOrganization(body);
     console.log(JSON.stringify(organization, null, 2));
   } catch (err) {
     handleCliError(err);
@@ -83,14 +91,19 @@ export async function createOrganization(values: {
 
 export async function updateOrganization(
   ref: string,
-  values: { displayName?: string; name?: string },
+  values: { displayName?: string; name?: string } & DryRunOption,
 ): Promise<void> {
   try {
     const organization = await resolveOrganization(ref);
-    const updated = await getApiClient(null).updateOrganization(organization.id, {
+    const body = {
       displayName: values.displayName,
       name: values.name,
-    });
+    };
+    if (values.dryRun) {
+      printDryRun("update organization", { id: organization.id, body });
+      return;
+    }
+    const updated = await getApiClient(null).updateOrganization(organization.id, body);
     console.log(JSON.stringify(updated, null, 2));
   } catch (err) {
     handleCliError(err);
@@ -99,24 +112,36 @@ export async function updateOrganization(
 
 export async function inviteOrganization(
   ref: string,
-  values: { email?: string; role?: string },
+  values: { email?: string; role?: string } & DryRunOption,
 ): Promise<void> {
   try {
     if (!values.email) throw new Error("Missing required flag: --email");
     const organization = await resolveOrganization(ref);
-    const invitation = await getApiClient(null).inviteOrganizationMember(organization.id, {
+    const body = {
       email: values.email,
       role: roleFromInput(values.role),
-    });
+    };
+    if (values.dryRun) {
+      printDryRun("invite organization member", { id: organization.id, body });
+      return;
+    }
+    const invitation = await getApiClient(null).inviteOrganizationMember(organization.id, body);
     console.log(JSON.stringify(invitation, null, 2));
   } catch (err) {
     handleCliError(err);
   }
 }
 
-export async function acceptOrganizationInvite(token?: string): Promise<void> {
+export async function acceptOrganizationInvite(
+  token?: string,
+  options: DryRunOption = {},
+): Promise<void> {
   try {
     if (!token) throw new Error("Usage: contfu orgs accept <token>");
+    if (options.dryRun) {
+      printDryRun("accept organization invitation", { token });
+      return;
+    }
     const result = await getApiClient(null).acceptOrganizationInvitation(token);
     console.log(JSON.stringify(result, null, 2));
   } catch (err) {
@@ -142,6 +167,7 @@ export async function setOrganizationRole(
   ref: string,
   email: string | undefined,
   role: "admin" | "member",
+  options: DryRunOption = {},
 ): Promise<void> {
   try {
     if (!email)
@@ -149,10 +175,19 @@ export async function setOrganizationRole(
         `Usage: contfu orgs ${role === "admin" ? "promote" : "demote"} <org> <email>`,
       );
     const organization = await resolveOrganization(ref);
+    const roleValue = role === "admin" ? OrganizationRole.ADMIN : OrganizationRole.MEMBER;
+    if (options.dryRun) {
+      printDryRun("update organization member role", {
+        id: organization.id,
+        email,
+        role: roleValue,
+      });
+      return;
+    }
     const updated = await getApiClient(null).updateOrganizationMemberRole(
       organization.id,
       email,
-      role === "admin" ? OrganizationRole.ADMIN : OrganizationRole.MEMBER,
+      roleValue,
     );
     console.log(JSON.stringify(updated, null, 2));
   } catch (err) {

@@ -1,5 +1,5 @@
 import { query } from "$app/server";
-import { fetchFromServer } from "$lib/server/proxy";
+import { fetchFromServer } from "../server/proxy";
 import * as v from "valibot";
 
 const syncStatusSchema = v.object({

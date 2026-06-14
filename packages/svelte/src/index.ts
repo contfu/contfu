@@ -10,7 +10,7 @@ import type {
   OrderedListBlock,
   TableBlock,
   ImageBlock,
-  CustomBlock,
+  Component,
 } from "@contfu/core";
 
 export type BlockComponents = {
@@ -24,7 +24,7 @@ export type BlockComponents = {
   ol?: typeof SvelteComponent<{ block: OrderedListBlock }>;
   table?: typeof SvelteComponent<{ block: TableBlock }>;
   img?: typeof SvelteComponent<{ block: ImageBlock }>;
-  custom?: typeof SvelteComponent<{ block: CustomBlock }>;
+  component?: typeof SvelteComponent<{ block: Component }>;
 };
 
 export const FILE_URL_CONTEXT_KEY = Symbol("@contfu/file");

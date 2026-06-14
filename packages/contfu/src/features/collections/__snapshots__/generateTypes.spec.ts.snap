@@ -21,16 +21,20 @@ export type AuthorsProps = {
 `;
 
 exports[`generateTypes maps all property types correctly 1`] = `
-"export type EverythingProps = {
+"import type { Color, GeoPoint } from \"@contfu/core\";
+
+export type EverythingProps = {
   str: string;
   strs: string[];
   num: number;
   nums: number[];
+  color: Color;
   bool: boolean;
   ref: string;
   refs: string[];
   file: string;
   files: string[];
   date: number;
+  location: GeoPoint;
 };"
 `;
