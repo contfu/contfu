@@ -11,7 +11,7 @@ function jsonResponse(data: unknown, statusCode = 200): Response {
   });
 }
 
-const CONNECTIONS = [
+const INTEGRATIONS = [
   {
     id: "1",
     name: "My Notion",
@@ -43,9 +43,9 @@ const COLLECTIONS = [
     schema: null,
     hasRef: false,
     refString: null,
-    connectionId: null,
-    connectionName: null,
-    connectionType: null,
+    integrationId: null,
+    integrationName: null,
+    integrationType: null,
     createdAt: "2026-01-01",
     updatedAt: null,
   },
@@ -81,7 +81,7 @@ afterEach(() => {
 
 function mockApiResponses() {
   mockFetch.mockImplementation(((url: string) => {
-    if (url.includes("/connections")) return Promise.resolve(jsonResponse(CONNECTIONS));
+    if (url.includes("/integrations")) return Promise.resolve(jsonResponse(INTEGRATIONS));
     if (url.includes("/collections")) return Promise.resolve(jsonResponse(COLLECTIONS));
     if (url.includes("/flows")) return Promise.resolve(jsonResponse(FLOWS));
     return Promise.resolve(jsonResponse({}, 404));
@@ -110,9 +110,9 @@ describe("status", () => {
     const output = logSpy.mock.calls[0][0];
     const parsed = JSON.parse(output);
     expect(parsed.authenticated).toBe(true);
-    expect(parsed.connections).toHaveLength(2);
-    expect(parsed.connections[0].typeLabel).toBe("notion");
-    expect(parsed.connections[1].typeLabel).toBe("Application Connection");
+    expect(parsed.integrations).toHaveLength(2);
+    expect(parsed.integrations[0].typeLabel).toBe("notion");
+    expect(parsed.integrations[1].typeLabel).toBe("Application Integration");
     expect(parsed.collections).toHaveLength(1);
     expect(parsed.flows).toHaveLength(1);
   });

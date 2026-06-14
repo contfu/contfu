@@ -138,7 +138,7 @@ export { contfu, type ContfuInstance, type ContfuOptions, type SyncEvent } from 
 export { type ClientI18nConfig, type I18nQueryPlan, type LocaleScope } from "./domain/i18n";
 export {
   createRuntimeEventMonitor,
-  type RuntimeConnectionState,
+  type RuntimeIntegrationState,
   type RuntimeDataChangedKind,
   type RuntimeEventMonitor,
   type RuntimeNotification,

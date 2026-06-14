@@ -1,4 +1,15 @@
 export * from "./api";
+export {
+  asColor,
+  colorFromHex,
+  colorFromRgba,
+  colorToCss,
+  colorToHex,
+  colorToRgba,
+  isColor,
+  type Color,
+  type ColorRgba,
+} from "@contfu/core";
 export * from "./collections";
 export * from "./flows";
 export * from "./utils";

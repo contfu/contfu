@@ -1,4 +1,12 @@
-import { For, Switch, Match, createContext, useContext, type Component, type JSX } from "solid-js";
+import {
+  For,
+  Switch,
+  Match,
+  createContext,
+  useContext,
+  type Component as SolidComponent,
+  type JSX,
+} from "solid-js";
 import {
   buildFileUrl,
   isP,
@@ -11,7 +19,7 @@ import {
   isOl,
   isTable,
   isImg,
-  isCustom,
+  isComponent,
   isAnchor,
   isMonospace,
   isBold,
@@ -31,23 +39,23 @@ import {
   type OrderedListBlock,
   type TableBlock,
   type ImageBlock,
-  type CustomBlock,
+  type Component,
 } from "@contfu/core";
 
 export const FileUrlContext = createContext<FileUrlOptions | undefined>(undefined);
 
 export type BlockComponents = {
-  p?: Component<{ block: ParagraphBlock; children?: JSX.Element }>;
-  h1?: Component<{ block: Heading1Block; children?: JSX.Element }>;
-  h2?: Component<{ block: Heading2Block; children?: JSX.Element }>;
-  h3?: Component<{ block: Heading3Block; children?: JSX.Element }>;
-  blockquote?: Component<{ block: QuoteBlock; children?: JSX.Element }>;
-  pre?: Component<{ block: CodeBlock }>;
-  ul?: Component<{ block: UnorderedListBlock; children?: JSX.Element }>;
-  ol?: Component<{ block: OrderedListBlock; children?: JSX.Element }>;
-  table?: Component<{ block: TableBlock; children?: JSX.Element }>;
-  img?: Component<{ block: ImageBlock }>;
-  custom?: Component<{ block: CustomBlock; children?: JSX.Element }>;
+  p?: SolidComponent<{ block: ParagraphBlock; children?: JSX.Element }>;
+  h1?: SolidComponent<{ block: Heading1Block; children?: JSX.Element }>;
+  h2?: SolidComponent<{ block: Heading2Block; children?: JSX.Element }>;
+  h3?: SolidComponent<{ block: Heading3Block; children?: JSX.Element }>;
+  blockquote?: SolidComponent<{ block: QuoteBlock; children?: JSX.Element }>;
+  pre?: SolidComponent<{ block: CodeBlock }>;
+  ul?: SolidComponent<{ block: UnorderedListBlock; children?: JSX.Element }>;
+  ol?: SolidComponent<{ block: OrderedListBlock; children?: JSX.Element }>;
+  table?: SolidComponent<{ block: TableBlock; children?: JSX.Element }>;
+  img?: SolidComponent<{ block: ImageBlock }>;
+  component?: SolidComponent<{ block: Component; children?: JSX.Element }>;
 };
 
 function InlineNode(props: { inline: Inline }): JSX.Element {
@@ -230,16 +238,16 @@ function BlockNode(props: BlockNodeProps): JSX.Element {
           return <img src={buildFileUrl(canonical, file, "image")} alt={alt} />;
         }}
       </Match>
-      <Match when={isCustom(block) && block}>
+      <Match when={isComponent(block) && block}>
         {(b) => {
-          const Custom = components.custom;
-          const childBlocks = (b() as CustomBlock)[3] as Block[];
+          const Comp = components.component;
+          const childBlocks = (b() as Component)[3] as Block[];
           const children = (
             <For each={childBlocks}>
               {(c) => <BlockNode block={c} components={components} file={file} />}
             </For>
           );
-          if (Custom) return <Custom block={b() as CustomBlock}>{children}</Custom>;
+          if (Comp) return <Comp block={b() as Component}>{children}</Comp>;
           return children;
         }}
       </Match>

@@ -26,6 +26,8 @@ function makeBasicAuthHeader(value: string) {
 describe("@contfu/server routes", () => {
   afterEach(() => {
     delete process.env.CONTFU_BASIC_AUTH;
+    delete process.env.CONTFU_DEFAULT_LOCALE;
+    delete process.env.CONTFU_FALLBACK_LOCALE;
     mock.restore();
   });
 
@@ -319,6 +321,113 @@ describe("@contfu/server routes", () => {
     expect(getItemById).toHaveBeenCalledWith(1, {
       include: ["files", "author"],
       with: { relation: true },
+    });
+  });
+
+  test("applies i18n defaults only when omitted on query endpoints", async () => {
+    const findItems = mock((options: Record<string, unknown>) => ({ data: options }));
+    const getItemById = mock((id: number, options: Record<string, unknown>) => ({ id, options }));
+
+    await mock.module("@contfu/contfu", () => ({
+      contfu: mock(() => ({
+        events: (async function* () {})(),
+        handleFileRequest: mock(() => new Response("")),
+      })),
+      getFileStore: mock(() => ({})),
+      getMediaOptimizer: mock(() => ({})),
+      findItems,
+      generateTypes: mock(() => ""),
+      getAllCollectionSchemas: mock(() => []),
+      getItemById,
+    }));
+
+    process.env.CONTFU_DEFAULT_LOCALE = "en";
+    process.env.CONTFU_FALLBACK_LOCALE = "true";
+    const { routes } = createServeOptions({ i18n: { defaultLocale: "de", fallback: "fr" } });
+
+    await callRoute(getRoute(routes, "/api/items"), new Request("http://localhost/api/items"));
+    expect(findItems).toHaveBeenLastCalledWith({ locale: "de", fallback: "fr" }, undefined, {
+      defaultLocale: "de",
+      fallback: "fr",
+    });
+
+    await callRoute(
+      getRoute(routes, "/api/items"),
+      new Request("http://localhost/api/items?locale=false&fallback=false"),
+    );
+    expect(findItems).toHaveBeenLastCalledWith({ locale: false, fallback: false }, undefined, {
+      defaultLocale: "de",
+      fallback: "fr",
+    });
+
+    const itemRequest = Object.assign(new Request("http://localhost/api/items/1"), {
+      params: { id: "1" },
+    });
+    await callRoute(getRoute(routes, "/api/items/:id"), itemRequest);
+    expect(getItemById).toHaveBeenLastCalledWith(1, {});
+  });
+
+  test("uses env i18n defaults when code config is absent", async () => {
+    const findItems = mock((options: Record<string, unknown>) => ({ data: options }));
+
+    await mock.module("@contfu/contfu", () => ({
+      contfu: mock(() => ({
+        events: (async function* () {})(),
+        handleFileRequest: mock(() => new Response("")),
+      })),
+      getFileStore: mock(() => ({})),
+      getMediaOptimizer: mock(() => ({})),
+      findItems,
+      generateTypes: mock(() => ""),
+      getAllCollectionSchemas: mock(() => []),
+      getItemById: mock(() => null),
+    }));
+
+    process.env.CONTFU_DEFAULT_LOCALE = "en";
+    process.env.CONTFU_FALLBACK_LOCALE = "false";
+    const { routes } = createServeOptions();
+
+    await callRoute(getRoute(routes, "/api/items"), new Request("http://localhost/api/items"));
+    expect(findItems).toHaveBeenLastCalledWith({ locale: "en", fallback: false }, undefined, {
+      defaultLocale: "en",
+      fallback: false,
+    });
+  });
+
+  test("passes server i18n config so fallback true can resolve through default locale", async () => {
+    const findItems = mock(
+      (options: Record<string, unknown>, _ctx: unknown, i18n?: Record<string, unknown>) => {
+        if (options.fallback === true && i18n?.defaultLocale !== "en") {
+          throw new Error("fallback=true requires server i18n defaultLocale");
+        }
+        return { data: options };
+      },
+    );
+
+    await mock.module("@contfu/contfu", () => ({
+      contfu: mock(() => ({
+        events: (async function* () {})(),
+        handleFileRequest: mock(() => new Response("")),
+      })),
+      getFileStore: mock(() => ({})),
+      getMediaOptimizer: mock(() => ({})),
+      findItems,
+      generateTypes: mock(() => ""),
+      getAllCollectionSchemas: mock(() => []),
+      getItemById: mock(() => null),
+    }));
+
+    const { routes } = createServeOptions({ i18n: { defaultLocale: "en", fallback: false } });
+
+    const response = await callRoute(
+      getRoute(routes, "/api/items"),
+      new Request("http://localhost/api/items?fallback=true"),
+    );
+
+    expect(response.status).toBe(200);
+    expect(findItems).toHaveBeenLastCalledWith({ locale: "en", fallback: true }, undefined, {
+      defaultLocale: "en",
+      fallback: false,
     });
   });
 

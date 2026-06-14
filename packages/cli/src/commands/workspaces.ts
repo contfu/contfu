@@ -2,6 +2,7 @@ import type { ApiWorkspace } from "@contfu/svc-api";
 import { getApiClient, getBaseUrl, handleCliError } from "../http";
 import { printTable as printRows, terminalLink, type TableColumn } from "../table";
 import { readConfig, writeConfig } from "./login";
+import { printDryRun, type DryRunOption } from "./dry-run";
 
 function workspaceLink(id: string): string {
   const baseUrl = getBaseUrl().replace(/\/+$/, "");
@@ -47,11 +48,18 @@ export async function listWorkspaces(format = "table"): Promise<void> {
   }
 }
 
-export async function switchWorkspace(ref: string): Promise<void> {
+export async function switchWorkspace(ref: string, options: DryRunOption = {}): Promise<void> {
   try {
     const workspace = await resolveWorkspace(ref);
     if (!workspace.isJoined) {
       throw new Error("Workspace is not joined; use `contfu workspaces join <id-or-name>` first");
+    }
+    if (options.dryRun) {
+      printDryRun("persist selected workspace", {
+        id: workspace.id,
+        displayName: workspace.displayName,
+      });
+      return;
     }
     const config = await readConfig();
     config.workspaceId = workspace.id;
@@ -71,18 +79,25 @@ export async function getWorkspace(ref: string): Promise<void> {
   }
 }
 
-export async function createWorkspace(values: {
-  displayName?: string;
-  name?: string;
-  organizationId?: string;
-}): Promise<void> {
+export async function createWorkspace(
+  values: {
+    displayName?: string;
+    name?: string;
+    organizationId?: string;
+  } & DryRunOption,
+): Promise<void> {
   try {
     if (!values.displayName) throw new Error("Missing required flag: --display-name");
-    const workspace = await getApiClient(null).createWorkspace({
+    const body = {
       displayName: values.displayName,
       name: values.name,
       organizationId: values.organizationId,
-    });
+    };
+    if (values.dryRun) {
+      printDryRun("create workspace", body);
+      return;
+    }
+    const workspace = await getApiClient(null).createWorkspace(body);
     console.log(JSON.stringify(workspace, null, 2));
   } catch (err) {
     handleCliError(err);
@@ -94,14 +109,19 @@ export async function updateWorkspace(
   values: {
     displayName?: string;
     name?: string;
-  },
+  } & DryRunOption,
 ): Promise<void> {
   try {
     const workspace = await resolveWorkspace(ref);
-    const updated = await getApiClient(null).updateWorkspace(workspace.id, {
+    const body = {
       displayName: values.displayName,
       name: values.name,
-    });
+    };
+    if (values.dryRun) {
+      printDryRun("update workspace", { id: workspace.id, body });
+      return;
+    }
+    const updated = await getApiClient(null).updateWorkspace(workspace.id, body);
     console.log(JSON.stringify(updated, null, 2));
   } catch (err) {
     handleCliError(err);
@@ -120,26 +140,40 @@ function parseBudget(value: string | undefined): number | null | undefined {
 export async function updateWorkspaceBudget(
   ref: string,
   values: Record<string, string | undefined>,
+  options: DryRunOption = {},
 ): Promise<void> {
   try {
     const workspace = await resolveWorkspace(ref);
-    const updated = await getApiClient(null).updateWorkspace(workspace.id, {
-      maxConnections: parseBudget(values.connections),
+    const body = {
+      maxIntegrations: parseBudget(values.integrations),
       maxCollections: parseBudget(values.collections),
       maxFlows: parseBudget(values.flows),
       maxItems: parseBudget(values.items),
       maxItemChanges: parseBudget(values["item-changes"]),
-    });
+    };
+    if (options.dryRun) {
+      printDryRun("update workspace budget", { id: workspace.id, body });
+      return;
+    }
+    const updated = await getApiClient(null).updateWorkspace(workspace.id, body);
     console.log(JSON.stringify(updated, null, 2));
   } catch (err) {
     handleCliError(err);
   }
 }
 
-export async function inviteWorkspace(ref: string, email?: string): Promise<void> {
+export async function inviteWorkspace(
+  ref: string,
+  email?: string,
+  options: DryRunOption = {},
+): Promise<void> {
   try {
     if (!email) throw new Error("Missing required flag: --email");
     const workspace = await resolveWorkspace(ref);
+    if (options.dryRun) {
+      printDryRun("invite workspace member", { id: workspace.id, email });
+      return;
+    }
     const invitation = await getApiClient(null).inviteWorkspaceMember(workspace.id, { email });
     console.log(JSON.stringify(invitation, null, 2));
   } catch (err) {
@@ -147,9 +181,16 @@ export async function inviteWorkspace(ref: string, email?: string): Promise<void
   }
 }
 
-export async function acceptWorkspaceInvite(token?: string): Promise<void> {
+export async function acceptWorkspaceInvite(
+  token?: string,
+  options: DryRunOption = {},
+): Promise<void> {
   try {
     if (!token) throw new Error("Usage: contfu workspaces accept <token>");
+    if (options.dryRun) {
+      printDryRun("accept workspace invitation", { token });
+      return;
+    }
     const result = await getApiClient(null).acceptWorkspaceInvitation(token);
     console.log(JSON.stringify(result, null, 2));
   } catch (err) {
@@ -157,9 +198,13 @@ export async function acceptWorkspaceInvite(token?: string): Promise<void> {
   }
 }
 
-export async function joinWorkspaceCommand(ref: string): Promise<void> {
+export async function joinWorkspaceCommand(ref: string, options: DryRunOption = {}): Promise<void> {
   try {
     const workspace = await resolveWorkspace(ref);
+    if (options.dryRun) {
+      printDryRun("join workspace", { id: workspace.id });
+      return;
+    }
     const result = await getApiClient(null).joinWorkspace(workspace.id);
     console.log(JSON.stringify(result, null, 2));
   } catch (err) {
@@ -180,10 +225,18 @@ export async function listWorkspaceMembers(ref: string): Promise<void> {
   }
 }
 
-export async function revokeWorkspaceMember(ref: string, email?: string): Promise<void> {
+export async function revokeWorkspaceMember(
+  ref: string,
+  email?: string,
+  options: DryRunOption = {},
+): Promise<void> {
   try {
     if (!email) throw new Error("Usage: contfu workspaces revoke <workspace> <email>");
     const workspace = await resolveWorkspace(ref);
+    if (options.dryRun) {
+      printDryRun("revoke workspace membership", { id: workspace.id, email });
+      return;
+    }
     await getApiClient(null).revokeWorkspaceMember(workspace.id, email);
     console.log("Workspace membership revoked");
   } catch (err) {

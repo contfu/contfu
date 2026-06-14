@@ -9,7 +9,7 @@ import {
   isOl,
   isTable,
   isImg,
-  isCustom,
+  isComponent,
   isAnchor,
   isMonospace,
   isBold,
@@ -28,7 +28,7 @@ import {
   type OrderedListBlock,
   type TableBlock,
   type ImageBlock,
-  type CustomBlock,
+  type Component,
   type Anchor,
   type Code,
   type Bold,
@@ -52,7 +52,7 @@ export type BlockRenderers = {
   ol?: (block: OrderedListBlock, ctx: RenderContext) => string;
   table?: (block: TableBlock, ctx: RenderContext) => string;
   img?: (block: ImageBlock, ctx: RenderContext) => string;
-  custom?: (block: CustomBlock, ctx: RenderContext) => string;
+  component?: (block: Component, ctx: RenderContext) => string;
 };
 
 export type InlineRenderers = {
@@ -233,8 +233,8 @@ export function renderBlock(block: Block, opts?: RenderOptions): string {
     const [, canonical, alt] = block;
     return `<img src="${escapeHtml(buildFileUrl(canonical, opts?.file, "image"))}" alt="${escapeHtml(alt)}">`;
   }
-  if (isCustom(block)) {
-    if (opts?.blocks?.custom) return opts.blocks.custom(block, ctx);
+  if (isComponent(block)) {
+    if (opts?.blocks?.component) return opts.blocks.component(block, ctx);
     const children = block[3] as Block[];
     return children.map((c) => renderBlock(c, opts)).join("");
   }

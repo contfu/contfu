@@ -1,15 +1,16 @@
 export {
   PropertyType,
   type CollectionSchema,
+  type GeoPoint,
   type SchemaValue,
   type RefTargets,
   type TypeGenerationInput,
-  type CustomBlockSchema,
+  type ComponentSchema,
   schemaType,
   schemaEnumValues,
   mergeSchemaValues,
   generateTypeScript,
-  generateApplicationConnectionTypes,
+  generateApplicationIntegrationTypes,
   generateConsumerTypes,
   isSystemSchemaKey,
 } from "@contfu/core";

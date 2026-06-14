@@ -1,4 +1,9 @@
-export type LiveSyncConnectionState = "disabled" | "connecting" | "syncing" | "connected" | "error";
+export type LiveSyncIntegrationState =
+  | "disabled"
+  | "connecting"
+  | "syncing"
+  | "connected"
+  | "error";
 
 export type LiveReadyEvent = {
   type: "ready";
@@ -7,7 +12,7 @@ export type LiveReadyEvent = {
 
 export type LiveSyncStatusEvent = {
   type: "sync-status";
-  state: LiveSyncConnectionState;
+  state: LiveSyncIntegrationState;
   reason: string | null;
   ts: number;
 };

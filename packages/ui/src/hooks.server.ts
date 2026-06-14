@@ -1,6 +1,6 @@
 import type { Handle } from "@sveltejs/kit";
-import { basicAuth, checkBasicAuth } from "$lib/server/basic-auth";
-import { proxyToServer } from "$lib/server/proxy";
+import { basicAuth, checkBasicAuth } from "./lib/server/basic-auth";
+import { proxyToServer } from "./lib/server/proxy";
 
 function shouldSkipBrowserBasicAuth(pathname: string) {
   return pathname.startsWith("/_app/") || pathname === "/favicon.ico";

@@ -11,7 +11,7 @@ import type {
   OrderedListBlock,
   TableBlock,
   ImageBlock,
-  CustomBlock,
+  Component,
   Anchor,
   Code,
   Bold,
@@ -191,18 +191,18 @@ describe("renderBlock", () => {
     expect(result).toBe('<img src="https://cdn/image/abc.png" alt="x">');
   });
 
-  test("custom block renders children", () => {
+  test("component block renders children", () => {
     const inner: ParagraphBlock = ["p", ["child"]];
-    const custom: CustomBlock = ["x", "MyWidget", { color: "red" }, [inner]];
-    expect(renderBlock(custom)).toBe("<p>child</p>");
+    const component: Component = ["x", "MyWidget", { color: "red" }, [inner]];
+    expect(renderBlock(component)).toBe("<p>child</p>");
   });
 
-  test("custom block override", () => {
+  test("component block override", () => {
     const inner: ParagraphBlock = ["p", ["child"]];
-    const custom: CustomBlock = ["x", "MyWidget", { color: "red" }, [inner]];
-    const result = renderBlock(custom, {
+    const component: Component = ["x", "MyWidget", { color: "red" }, [inner]];
+    const result = renderBlock(component, {
       blocks: {
-        custom: (b, ctx) => `<div data-widget="${b[1]}">${ctx.renderBlock(b[3][0])}</div>`,
+        component: (b, ctx) => `<div data-widget="${b[1]}">${ctx.renderBlock(b[3][0])}</div>`,
       },
     });
     expect(result).toBe('<div data-widget="MyWidget"><p>child</p></div>');

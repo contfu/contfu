@@ -79,6 +79,8 @@ describe("@contfu/sanity", () => {
               validation: (rule: any) => rule.required(),
             },
             { name: "image", type: "image" },
+            { name: "location", type: "geopoint" },
+            { name: "accent", type: "color" },
             { name: "body", type: "array", of: [{ type: "block" }] },
             {
               name: "authors",
@@ -98,6 +100,8 @@ describe("@contfu/sanity", () => {
           slug: PropertyType.STRING | PropertyType.NULL,
           publishedAt: PropertyType.DATE,
           image: PropertyType.FILE | PropertyType.NULL,
+          location: PropertyType.GEOPOINT | PropertyType.NULL,
+          accent: PropertyType.COLOR | PropertyType.NULL,
           body: PropertyType.BLOCK | PropertyType.NULL,
           authors: PropertyType.REFS | PropertyType.NULL,
         },

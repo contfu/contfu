@@ -18,8 +18,8 @@ export type QuotaState = {
   maxOrganizationMembers: number;
   workspaceMembers: number;
   maxWorkspaceMembers: number;
-  connections: number;
-  maxConnections: number;
+  integrations: number;
+  maxIntegrations: number;
   collections: number;
   maxCollections: number;
   flows: number;
@@ -42,7 +42,7 @@ export type QuotaState = {
     workspaces: QuotaResourceStatus;
     organizationMembers: QuotaResourceStatus;
     workspaceMembers: QuotaResourceStatus;
-    connections: QuotaResourceStatus;
+    integrations: QuotaResourceStatus;
     collections: QuotaResourceStatus;
     flows: QuotaResourceStatus;
     items: QuotaResourceStatus;
@@ -51,18 +51,31 @@ export type QuotaState = {
 };
 
 export type WorkspaceQuotaResourceName =
-  | "connections"
+  | "integrations"
   | "collections"
   | "flows"
   | "items"
   | "itemChanges";
 
+export type WorkspaceQuotaLimitSource =
+  | "workspace_budget"
+  | "organization_capacity"
+  | "organization_plan"
+  | "unlimited"
+  | "admin_managed";
+
 export type WorkspaceQuotaResource = {
   current: number;
+  /** Compatibility display/enforcement limit. Prefer effectiveMax for new callers. */
   max: number | null;
+  /** Effective limit visible to the current user, or null when intentionally hidden. */
+  effectiveMax: number | null;
   budget: number | null;
   available: number | null;
   orgLimit: number;
+  limitSource: WorkspaceQuotaLimitSource;
+  limitLabel: string;
+  actionHref: string | null;
   status: QuotaStatus;
   allowed: boolean;
   ownerOnlyLimit: boolean;

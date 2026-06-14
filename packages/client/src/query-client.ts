@@ -27,7 +27,18 @@ import {
   or,
 } from "@contfu/core";
 
-export function createHttpTypedClient<_CMap>(baseUrl: string, apiKey?: string): any {
+export type HttpClientOptions = {
+  i18n?: {
+    defaultLocale?: string;
+    fallback?: string | true | false;
+  };
+};
+
+export function contfuClient<_CMap>(
+  baseUrl: string,
+  apiKey?: string,
+  options: HttpClientOptions = {},
+): any {
   const headers: Record<string, string> = {
     Accept: "application/json",
   };
@@ -35,12 +46,27 @@ export function createHttpTypedClient<_CMap>(baseUrl: string, apiKey?: string): 
     headers["Authorization"] = `Bearer ${apiKey}`;
   }
 
-  return buildClient(baseUrl, headers);
+  return buildClient(baseUrl, headers, {
+    defaultLocale: options.i18n?.defaultLocale,
+    locale: options.i18n?.defaultLocale,
+    fallback: options.i18n?.fallback,
+  });
 }
 
+/**
+ * @deprecated Use `contfuClient` instead.
+ */
+export const createHttpClient = contfuClient;
+
+/**
+ * @deprecated Use `contfuClient` instead.
+ */
+export const createHttpTypedClient = contfuClient;
+
 type LocaleScope = {
-  locale?: string;
-  fallback?: string | false;
+  defaultLocale?: string;
+  locale?: string | false;
+  fallback?: string | true | false;
 };
 
 function buildClient(
@@ -85,10 +111,18 @@ function buildClient(
     const resolvedWith =
       rest.with && typeof rest.with === "function" ? resolveWithFunctions(rest.with, 1) : rest.with;
     const include = resolveInclude(rest.include, contentAs);
+    const effectiveLocale = locale ?? scope.locale;
+    const effectiveFallback = resolveFallbackParam(
+      fallback !== undefined ? fallback : scope.fallback,
+      scope.defaultLocale,
+    );
     const params = serializeQueryParams({
       ...rest,
-      locale: locale ?? scope.locale,
-      fallback: fallback !== undefined ? fallback : scope.fallback,
+      locale: effectiveLocale,
+      fallback:
+        effectiveLocale === false && fallback === undefined && scope.fallback !== false
+          ? undefined
+          : effectiveFallback,
       filter,
       with: resolvedWith,
       include,
@@ -102,8 +136,12 @@ function buildClient(
     return new QueryResultArray(data, json.meta);
   };
 
-  const withLocale = (locale: string, fallback?: string | false) =>
-    buildClient(baseUrl, headers, { locale, fallback });
+  const withLocale = (locale: string | false, fallback?: string | true | false) =>
+    buildClient(baseUrl, headers, {
+      defaultLocale: scope.defaultLocale,
+      locale,
+      fallback: fallback !== undefined ? fallback : scope.fallback,
+    });
 
   return Object.assign(callable, {
     all,
@@ -123,6 +161,14 @@ function buildClient(
     linkedFrom,
     withLocale,
   });
+}
+
+function resolveFallbackParam(
+  fallback: string | true | false | undefined,
+  defaultLocale: string | undefined,
+): string | true | false | undefined {
+  if (fallback === true) return defaultLocale ?? true;
+  return fallback;
 }
 
 function resolveWithFunctions(withVal: any, parentLevel: number): WithClause {
@@ -204,7 +250,7 @@ export function serializeQueryParams(options: QueryOptions): URLSearchParams {
   if (options.include?.length) params.set("include", options.include.join(","));
   if (options.with) params.set("with", JSON.stringify(options.with));
   if (options.fields !== undefined) params.set("fields", options.fields.join(","));
-  if (options.locale) params.set("locale", options.locale);
+  if (options.locale !== undefined) params.set("locale", String(options.locale));
   if (options.fallback !== undefined) params.set("fallback", String(options.fallback));
 
   return params;

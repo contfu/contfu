@@ -1,7 +1,7 @@
-export type SyncConnectionState = "disabled" | "connecting" | "syncing" | "connected" | "error";
+export type SyncIntegrationState = "disabled" | "connecting" | "syncing" | "connected" | "error";
 
 export type SyncStatus = {
-  state: SyncConnectionState;
+  state: SyncIntegrationState;
   reason: string | null;
 };
 

@@ -112,8 +112,8 @@ export type TypedQueryEntry<
   contentAs?: CF;
   htmlOptions?: RenderOptions;
   markdownOptions?: MarkdownOptions;
-  locale?: QueryLocale<CMap>;
-  fallback?: QueryLocale<CMap> | false;
+  locale?: QueryLocale<CMap> | false;
+  fallback?: QueryLocale<CMap> | true | false;
 };
 
 type ResolveWithShape<W> = W extends (...args: any[]) => infer R ? R : W;
@@ -151,8 +151,8 @@ export type EntryOpts<CMap, C extends keyof CMap & string, CF extends ContentFor
   contentAs?: CF;
   htmlOptions?: RenderOptions;
   markdownOptions?: MarkdownOptions;
-  locale?: QueryLocale<CMap>;
-  fallback?: QueryLocale<CMap> | false;
+  locale?: QueryLocale<CMap> | false;
+  fallback?: QueryLocale<CMap> | true | false;
 };
 
 export interface TypedAllFn<CMap> {
@@ -214,8 +214,8 @@ interface TypedContfuClientBase<CMap> {
    * The optional `fallback` overrides the client-configured fallback for this scope (`false` disables).
    */
   withLocale(
-    locale: QueryLocale<CMap>,
-    fallback?: QueryLocale<CMap> | false,
+    locale: QueryLocale<CMap> | false,
+    fallback?: QueryLocale<CMap> | true | false,
   ): TypedContfuClient<CMap>;
 
   <C extends keyof CMap & string>(

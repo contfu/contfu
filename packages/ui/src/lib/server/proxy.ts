@@ -1,4 +1,4 @@
-import { basicAuth, buildBasicAuthHeader } from "$lib/server/basic-auth";
+import { basicAuth, buildBasicAuthHeader } from "./basic-auth";
 
 const defaultServerUrl = "http://localhost:3001";
 

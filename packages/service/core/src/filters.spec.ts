@@ -40,10 +40,36 @@ describe("filters", () => {
       expect(ops).not.toContain(FilterOperator.CONTAINS);
     });
 
+    test("geopoint type only supports null checks", () => {
+      const ops = getOperatorsForType(PropertyType.GEOPOINT);
+      expect(ops).toEqual([FilterOperator.IS_NULL, FilterOperator.IS_NOT_NULL]);
+    });
+
+    test("color type supports equality and null checks only", () => {
+      const ops = getOperatorsForType(PropertyType.COLOR);
+      expect(ops).toContain(FilterOperator.EQ);
+      expect(ops).toContain(FilterOperator.NE);
+      expect(ops).toContain(FilterOperator.IS_NULL);
+      expect(ops).toContain(FilterOperator.IS_NOT_NULL);
+      expect(ops).not.toContain(FilterOperator.LT);
+      expect(ops).not.toContain(FilterOperator.CONTAINS);
+    });
+
     test("nullable type strips NULL flag and returns base type operators", () => {
       const ops = getOperatorsForType(PropertyType.STRING | PropertyType.NULL);
       expect(ops).toContain(FilterOperator.CONTAINS);
       expect(ops).toContain(FilterOperator.STARTS_WITH);
+      expect(ops).toContain(FilterOperator.IS_NULL);
+    });
+
+    test("type bitmasks include operators for each supported member", () => {
+      const ops = getOperatorsForType(
+        PropertyType.STRING | PropertyType.NUMBER | PropertyType.BOOLEAN | PropertyType.DATE,
+      );
+      expect(ops).toContain(FilterOperator.EQ);
+      expect(ops).toContain(FilterOperator.CONTAINS);
+      expect(ops).toContain(FilterOperator.LT);
+      expect(ops).toContain(FilterOperator.GT);
       expect(ops).toContain(FilterOperator.IS_NULL);
     });
   });

@@ -12,7 +12,7 @@ import type {
   OrderedListBlock,
   TableBlock,
   ImageBlock,
-  CustomBlock,
+  Component,
   Block as BlockType,
 } from "@contfu/core";
 
@@ -89,10 +89,10 @@ describe("Block (Solid)", () => {
     );
   });
 
-  test("custom block renders children", () => {
+  test("component block renders children", () => {
     const inner: ParagraphBlock = ["p", ["hi"]];
-    const custom: CustomBlock = ["x", "Widget", {}, [inner]];
-    expect(render(() => <Block block={custom} />)).toBe("<p>hi</p>");
+    const component: Component = ["x", "Widget", {}, [inner]];
+    expect(render(() => <Block block={component} />)).toBe("<p>hi</p>");
   });
 });
 

@@ -18,7 +18,7 @@ import {
   type RuntimeStatus,
 } from "@contfu/contfu";
 import {
-  generateApplicationConnectionTypes,
+  generateApplicationIntegrationTypes,
   type IncludeOption,
   type QueryOptions,
   type WithClause,
@@ -37,6 +37,10 @@ type LiveEvent =
 
 type QueryParseResult = { options: QueryOptions } | { error: string };
 type RouteHandler = (request: RouteRequest) => Response | Promise<Response>;
+export type ServerI18nOptions = {
+  defaultLocale?: string;
+  fallback?: string | true | false;
+};
 
 const HEARTBEAT_MS = 25_000;
 const SERVER_IDLE_TIMEOUT_SECONDS = 60;
@@ -128,11 +132,11 @@ function deserializeQueryParams(params: URLSearchParams): QueryParseResult {
   }
 
   const locale = params.get("locale");
-  if (locale) options.locale = locale;
+  if (locale !== null) options.locale = locale === "false" ? false : locale;
 
   const fallback = params.get("fallback");
   if (fallback !== null) {
-    options.fallback = fallback === "false" ? false : fallback;
+    options.fallback = fallback === "false" ? false : fallback === "true" ? true : fallback;
   }
 
   return { options };
@@ -183,26 +187,57 @@ function handleQueryItems(request: Request) {
   return json(queryItems(parseQueryItemsInput(url.searchParams)));
 }
 
-function handleItems(request: Request) {
-  const url = new URL(request.url);
-  const query = deserializeQueryParams(url.searchParams);
-  if ("error" in query) {
-    return text(query.error, 400);
-  }
-  return json(findItems(query.options));
+function hasI18nConfig(i18n: ServerI18nOptions): boolean {
+  return i18n.defaultLocale !== undefined || i18n.fallback !== undefined;
 }
 
-function handleCollectionItems(request: RouteRequest) {
-  const url = new URL(request.url);
-  const name = decodeURIComponent(request.params.name);
-  const query = deserializeQueryParams(url.searchParams);
-  if ("error" in query) {
-    return text(query.error, 400);
+function findItemsWithServerI18n(options: QueryOptions, i18n: ServerI18nOptions) {
+  if (!hasI18nConfig(i18n)) return findItems(options);
+  return findItems(options, undefined, i18n);
+}
+
+function applyI18nDefaults(
+  options: QueryOptions,
+  params: URLSearchParams,
+  i18n: ServerI18nOptions,
+): QueryOptions {
+  if (!params.has("locale") && i18n.defaultLocale !== undefined) {
+    options.locale = i18n.defaultLocale;
   }
-  const options = query.options;
-  const collectionFilter = `$collection = ${JSON.stringify(name)}`;
-  options.filter = options.filter ? `${collectionFilter} && (${options.filter})` : collectionFilter;
-  return json(findItems(options));
+  if (!params.has("fallback") && i18n.fallback !== undefined) {
+    options.fallback = i18n.fallback;
+  }
+  return options;
+}
+
+function createItemsHandler(i18n: ServerI18nOptions) {
+  return function handleItems(request: Request) {
+    const url = new URL(request.url);
+    const query = deserializeQueryParams(url.searchParams);
+    if ("error" in query) {
+      return text(query.error, 400);
+    }
+    return json(
+      findItemsWithServerI18n(applyI18nDefaults(query.options, url.searchParams, i18n), i18n),
+    );
+  };
+}
+
+function createCollectionItemsHandler(i18n: ServerI18nOptions) {
+  return function handleCollectionItems(request: RouteRequest) {
+    const url = new URL(request.url);
+    const name = decodeURIComponent(request.params.name);
+    const query = deserializeQueryParams(url.searchParams);
+    if ("error" in query) {
+      return text(query.error, 400);
+    }
+    const options = applyI18nDefaults(query.options, url.searchParams, i18n);
+    const collectionFilter = `$collection = ${JSON.stringify(name)}`;
+    options.filter = options.filter
+      ? `${collectionFilter} && (${options.filter})`
+      : collectionFilter;
+    return json(findItemsWithServerI18n(options, i18n));
+  };
 }
 
 function handleItemFiles(request: RouteRequest) {
@@ -318,7 +353,7 @@ function handleLive() {
     headers: {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache, no-transform",
-      Connection: "keep-alive",
+      Integration: "keep-alive",
     },
   });
 }
@@ -338,7 +373,7 @@ function handleCollectionDetail(request: RouteRequest) {
 }
 
 function handleTypes() {
-  return text(generateApplicationConnectionTypes(getTypeGenerationInputs()));
+  return text(generateApplicationIntegrationTypes(getTypeGenerationInputs()));
 }
 
 function withOptionalBasicAuth(handler: RouteHandler): RouteHandler {
@@ -355,13 +390,31 @@ function withOptionalBasicAuth(handler: RouteHandler): RouteHandler {
 export type ServerOptions = {
   db?: string;
   port?: number;
+  i18n?: ServerI18nOptions;
 };
 
 const defaultPort = 3001;
 
+function parseEnvString(value: string | undefined): string | undefined {
+  if (value === undefined || value === "") return undefined;
+  return value;
+}
+
+function parseEnvFallback(value: string | undefined): string | true | false | undefined {
+  const parsed = parseEnvString(value);
+  if (parsed === undefined) return undefined;
+  if (parsed === "true") return true;
+  if (parsed === "false") return false;
+  return parsed;
+}
+
 export function createServeOptions(opts: ServerOptions = {}) {
   const port = opts.port ?? defaultPort;
   const db = opts.db ?? process.env.CONTFU_DB ?? process.env.DATABASE_URL;
+  const i18n: ServerI18nOptions = {
+    defaultLocale: opts.i18n?.defaultLocale ?? parseEnvString(process.env.CONTFU_DEFAULT_LOCALE),
+    fallback: opts.i18n?.fallback ?? parseEnvFallback(process.env.CONTFU_FALLBACK_LOCALE),
+  };
 
   if (db) {
     process.env.CONTFU_DB = db;
@@ -381,8 +434,8 @@ export function createServeOptions(opts: ServerOptions = {}) {
       "/api/collections": withOptionalBasicAuth(handleCollections),
       "/api/collections/:name": withOptionalBasicAuth(handleCollectionDetail),
       "/api/query-items": withOptionalBasicAuth(handleQueryItems),
-      "/api/items": withOptionalBasicAuth(handleItems),
-      "/api/collections/:name/items": withOptionalBasicAuth(handleCollectionItems),
+      "/api/items": withOptionalBasicAuth(createItemsHandler(i18n)),
+      "/api/collections/:name/items": withOptionalBasicAuth(createCollectionItemsHandler(i18n)),
       "/api/items/:id/files": withOptionalBasicAuth(handleItemFiles),
       "/api/items/:id": withOptionalBasicAuth(handleItemById),
       "/api/live": withOptionalBasicAuth(handleLive),

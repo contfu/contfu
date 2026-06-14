@@ -36,10 +36,10 @@ export type QueryOptions = {
   contentAs?: ContentFormat;
   htmlOptions?: RenderOptions;
   markdownOptions?: MarkdownOptions;
-  /** Requested locale. Resolved client-side via i18n config; sent as raw locale filter when not disabled. */
-  locale?: string;
-  /** Fallback locale override. `false` disables the configured fallback for this call. */
-  fallback?: string | false;
+  /** Requested locale. `false` explicitly requests all locales and suppresses defaults. */
+  locale?: string | false;
+  /** Fallback locale override. `true` resolves to the configured default locale; `false` disables fallback. */
+  fallback?: string | true | false;
 };
 
 export type QueryMeta = {

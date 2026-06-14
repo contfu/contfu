@@ -11,16 +11,18 @@ For local access, use `@contfu/contfu` directly beside the Local Store.
 ## Usage
 
 ```ts
-import { createHttpTypedClient } from "@contfu/client";
+import { contfuClient } from "@contfu/client";
 
-const client = createHttpTypedClient("https://your-server.example.com", "your-token");
+const client = contfuClient("https://your-server.example.com", "your-token", {
+  i18n: { defaultLocale: "en", fallback: true },
+});
 
 const items = await client.items.query({ collection: "posts" });
 ```
 
 ## Exports
 
-- `createHttpTypedClient(baseUrl, token)` — create a typed HTTP client
+- `contfuClient(baseUrl, token, { i18n })` — create a typed HTTP client
 - `serializeQueryParams(opts)` — serialize filter/sort/include options to URL query params
 - `QueryResultArray` — typed wrapper around paginated item results
 - Types: `IncludeOption`, `QueryMeta`, `QueryOptions`, `SortOption`, `WithClause`

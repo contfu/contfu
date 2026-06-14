@@ -21,13 +21,13 @@ login [--no-browser]              Authenticate with the Contfu service
 logout                            Clear stored credentials
 status                            Show resource summary
 
-connections list|get|create|update|delete
+integrations list|get|create|update|delete
 collections  list|get|create|update|delete
 flows        list|get|create|update|delete
 
-connections scan <id>             Scan source collections for a connection
-connections add <id>              Add scanned source collections to Contfu
-connections types                 List valid connection types
+integrations scan <id>             Scan source collections for an integration
+integrations add <id>              Add scanned source collections to Contfu
+integrations types                 List valid integration types
 collections types                 Generate TypeScript types for a collection
 items query  --collection <id>    Query items
 items count  --collection <id>    Count items
@@ -41,8 +41,8 @@ Credentials are stored locally after `contfu login`. The `CONTFU_API_KEY` enviro
 
 ## Scanning and adding source collections
 
-Use `contfu connections scan <connection-id>` to inspect source collections available from a source connection. The default output is a table; pass `--format json` for automation.
+Use `contfu integrations scan <integration-id>` to inspect source collections available from a source integration. The default output is a table; pass `--format json` for automation.
 
-Use `contfu connections add <connection-id> --refs <comma-separated-refs>` to add selected scanned collections to Contfu, or `--all` to add every scanned collection that is not already added.
+Use `contfu integrations add <integration-id> --refs <comma-separated-refs>` to add selected scanned collections to Contfu, or `--all` to add every scanned collection that is not already added.
 
-In interactive terminals, `contfu connections scan <connection-id> --select` lets you pick multiple scanned collections and immediately add them.
+In interactive terminals, `contfu integrations scan <integration-id> --select` lets you pick multiple scanned collections and immediately add them.

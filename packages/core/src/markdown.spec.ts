@@ -16,7 +16,7 @@ import type {
   OrderedListBlock,
   TableBlock,
   ImageBlock,
-  CustomBlock,
+  Component,
   Anchor,
   Code,
   Bold,
@@ -154,7 +154,7 @@ describe("renderBlockMarkdown", () => {
     ).toBe("![x](https://cdn/image/abc.png)\n\n");
   });
 
-  test("image with custom block renderer", () => {
+  test("image with component block renderer", () => {
     const img: ImageBlock = ["i", "abc.png", "cat"];
     expect(
       renderBlockMarkdown(img, {
@@ -171,10 +171,10 @@ describe("renderBlockMarkdown", () => {
     ).toBe("<<click->/x>>");
   });
 
-  test("custom block renders children", () => {
+  test("component block renders children", () => {
     const inner: ParagraphBlock = ["p", ["child"]];
-    const custom: CustomBlock = ["x", "Widget", {}, [inner]];
-    expect(renderBlockMarkdown(custom)).toBe("child\n\n");
+    const component: Component = ["x", "Widget", {}, [inner]];
+    expect(renderBlockMarkdown(component)).toBe("child\n\n");
   });
 });
 

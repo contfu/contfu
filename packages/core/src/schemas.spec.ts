@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   generateTypeScript,
-  generateApplicationConnectionTypes,
+  generateApplicationIntegrationTypes,
   PropertyType,
   schemaType,
   schemaEnumValues,
@@ -49,6 +49,24 @@ async function assertDoesNotCompile(code: string): Promise<void> {
 }
 
 describe("generateTypeScript", () => {
+  it("generates TypeScript unions for schema type bitmasks", () => {
+    const ts = generateTypeScript([
+      {
+        name: "tasks",
+        displayName: "Tasks",
+        schema: {
+          computed:
+            PropertyType.STRING | PropertyType.NUMBER | PropertyType.BOOLEAN | PropertyType.DATE,
+          summary:
+            PropertyType.STRING | PropertyType.STRINGS | PropertyType.NUMBER | PropertyType.NUMBERS,
+        },
+      },
+    ]);
+
+    expect(ts).toContain("computed: string | number | boolean;");
+    expect(ts).toContain("summary: string | string[] | number | number[];");
+  });
+
   it("generates string for REF without refTargets", () => {
     const ts = generateTypeScript([
       { name: "blogPosts", displayName: "Blog Posts", schema: { author: PropertyType.REF } },
@@ -148,6 +166,23 @@ describe("generateTypeScript", () => {
     expect(ts).toContain("body: Block[];");
   });
 
+  it("generates Color imports for COLOR fields and bitmasks", () => {
+    const ts = generateTypeScript([
+      {
+        name: "themes",
+        displayName: "Themes",
+        schema: {
+          accent: PropertyType.COLOR,
+          token: PropertyType.COLOR | PropertyType.STRING,
+        },
+      },
+    ]);
+
+    expect(ts).toContain('import type { Color } from "@contfu/core";');
+    expect(ts).toContain("accent: Color;");
+    expect(ts).toContain("token: string | Color;");
+  });
+
   it("generates string[] for REFS without refTargets", () => {
     const ts = generateTypeScript([
       { name: "blogPosts", displayName: "Blog Posts", schema: { tags: PropertyType.REFS } },
@@ -176,7 +211,15 @@ describe("generateTypeScript", () => {
     expect(ts).toContain("metadata: any;");
   });
 
-  it("generates typed custom blocks from BLOCK schema metadata", () => {
+  it("generates GeoPoint for GEOPOINT", () => {
+    const ts = generateTypeScript([
+      { name: "venues", displayName: "Venues", schema: { location: PropertyType.GEOPOINT } },
+    ]);
+    expect(ts).toContain('import type { GeoPoint } from "@contfu/core";');
+    expect(ts).toContain("location: GeoPoint;");
+  });
+
+  it("generates typed component blocks from BLOCK schema metadata", () => {
     const ts = generateTypeScript([
       {
         name: "posts",
@@ -193,7 +236,7 @@ describe("generateTypeScript", () => {
     expect(ts).toContain("body: (SharedSeoComponent | SharedHeroComponent)[];");
   });
 
-  it("generates different custom block unions per dynamic-zone field", () => {
+  it("generates different component block unions per dynamic-zone field", () => {
     const ts = generateTypeScript([
       {
         name: "pages",
@@ -203,7 +246,7 @@ describe("generateTypeScript", () => {
           sidebarZone: [PropertyType.BLOCK, ["teaser"]],
           seo: [PropertyType.BLOCK, ["seo"]],
         },
-        customBlocks: [
+        components: [
           { name: "hero", props: { title: PropertyType.STRING } },
           { name: "callToAction", props: { label: PropertyType.STRING } },
           { name: "teaser", props: { eyebrow: PropertyType.STRING } },
@@ -221,9 +264,25 @@ describe("generateTypeScript", () => {
   });
 });
 
-describe("generateApplicationConnectionTypes", () => {
+describe("generateApplicationIntegrationTypes", () => {
+  it("imports Color for custom block props", () => {
+    const ts = generateApplicationIntegrationTypes([
+      {
+        name: "pages",
+        displayName: "Pages",
+        schema: { body: [PropertyType.BLOCK, ["hero"]] },
+        components: [{ name: "hero", props: { background: PropertyType.COLOR } }],
+      },
+    ]);
+
+    expect(ts).toContain('import type { BuiltInBlock, Color } from "@contfu/core";');
+    expect(ts).toContain(
+      'export type HeroComponent = ["hero", { background: Color }, BuiltInBlock[]];',
+    );
+  });
+
   it("uses self-referencing lookup for refTargets", () => {
-    const ts = generateApplicationConnectionTypes([
+    const ts = generateApplicationIntegrationTypes([
       {
         name: "blogPosts",
         displayName: "Blog Posts",
@@ -235,7 +294,7 @@ describe("generateApplicationConnectionTypes", () => {
   });
 
   it("uses lookup union for multiple targets", () => {
-    const ts = generateApplicationConnectionTypes([
+    const ts = generateApplicationIntegrationTypes([
       {
         name: "blogPosts",
         displayName: "Blog Posts",
@@ -247,7 +306,7 @@ describe("generateApplicationConnectionTypes", () => {
   });
 
   it("uses lookup array for REFS", () => {
-    const ts = generateApplicationConnectionTypes([
+    const ts = generateApplicationIntegrationTypes([
       {
         name: "blogPosts",
         displayName: "Blog Posts",
@@ -256,6 +315,27 @@ describe("generateApplicationConnectionTypes", () => {
       },
     ]);
     expect(ts).toContain('tags: ContfuCollections["tags"][];');
+  });
+
+  it("imports GeoPoint for collection, inflow, and component block props", () => {
+    const ts = generateApplicationIntegrationTypes([
+      {
+        name: "venues",
+        displayName: "Venues",
+        schema: { location: PropertyType.GEOPOINT },
+        inflowSchemas: [
+          { title: PropertyType.STRING },
+          { title: PropertyType.STRING, location: PropertyType.GEOPOINT },
+        ],
+        components: [{ name: "map", props: { center: PropertyType.GEOPOINT } }],
+      },
+    ]);
+
+    expect(ts).toContain('import type { BuiltInBlock, GeoPoint } from "@contfu/core";');
+    expect(ts).toContain(
+      'export type MapComponent = ["map", { center: GeoPoint }, BuiltInBlock[]];',
+    );
+    expect(ts).toContain("location: GeoPoint;");
   });
 });
 
@@ -406,7 +486,7 @@ describe("generated types compile-time checks", () => {
   });
 
   it("consumer types with refTargets compile with typed query client pattern", async () => {
-    const generated = generateApplicationConnectionTypes([
+    const generated = generateApplicationIntegrationTypes([
       {
         name: "authors",
         displayName: "Authors",
@@ -500,9 +580,9 @@ describe("generateTypeScript with inflowSchemas", () => {
   });
 });
 
-describe("generateApplicationConnectionTypes with inflowSchemas", () => {
+describe("generateApplicationIntegrationTypes with inflowSchemas", () => {
   it("single inflow still emits block object", () => {
-    const ts = generateApplicationConnectionTypes([
+    const ts = generateApplicationIntegrationTypes([
       {
         name: "posts",
         displayName: "Posts",
@@ -515,7 +595,7 @@ describe("generateApplicationConnectionTypes with inflowSchemas", () => {
   });
 
   it("two distinct inflows emit multi-line union", () => {
-    const ts = generateApplicationConnectionTypes([
+    const ts = generateApplicationIntegrationTypes([
       {
         name: "posts",
         displayName: "Posts",
@@ -533,7 +613,7 @@ describe("generateApplicationConnectionTypes with inflowSchemas", () => {
   });
 
   it("duplicate inflows deduplicate to single member, still emits block object", () => {
-    const ts = generateApplicationConnectionTypes([
+    const ts = generateApplicationIntegrationTypes([
       {
         name: "posts",
         displayName: "Posts",
@@ -572,8 +652,8 @@ describe("$content system schema key", () => {
     expect(ts).not.toContain("Block[]");
   });
 
-  it("generateApplicationConnectionTypes maps $content to content: BuiltInBlock[] and prepends BuiltInBlock import", () => {
-    const ts = generateApplicationConnectionTypes([
+  it("generateApplicationIntegrationTypes maps $content to content: BuiltInBlock[] and prepends BuiltInBlock import", () => {
+    const ts = generateApplicationIntegrationTypes([
       {
         name: "blogPosts",
         displayName: "Blog Posts",
@@ -601,8 +681,8 @@ describe("$content system schema key", () => {
     expect(ts).not.toContain("$content");
   });
 
-  it("generateApplicationConnectionTypes renders $locale only once for localized collections", () => {
-    const ts = generateApplicationConnectionTypes([
+  it("generateApplicationIntegrationTypes renders $locale only once for localized collections", () => {
+    const ts = generateApplicationIntegrationTypes([
       {
         name: "posts",
         displayName: "Posts",
@@ -633,8 +713,8 @@ describe("$content system schema key", () => {
     expect(ts).not.toContain('$locale: "en" | "de";');
   });
 
-  it("generateApplicationConnectionTypes keeps localized content unions free of raw $locale enum members", () => {
-    const ts = generateApplicationConnectionTypes([
+  it("generateApplicationIntegrationTypes keeps localized content unions free of raw $locale enum members", () => {
+    const ts = generateApplicationIntegrationTypes([
       {
         name: "posts",
         displayName: "Posts",

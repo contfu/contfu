@@ -1,33 +1,33 @@
-import { ConnectionType, defineEnum, type EnumValue } from "@contfu/core";
-export { ConnectionType, SyncMode } from "@contfu/core";
+import { IntegrationType, defineEnum, type EnumValue } from "@contfu/core";
+export { IntegrationType, SyncMode } from "@contfu/core";
 
-/** Metadata for each connection type. */
-export const ConnectionTypeMeta: Record<
-  ConnectionType,
+/** Metadata for each integration type. */
+export const IntegrationTypeMeta: Record<
+  IntegrationType,
   { label: string; editable: boolean; source: boolean; target: boolean }
 > = {
-  [ConnectionType.APP]: {
-    label: "Application Connection",
+  [IntegrationType.APP]: {
+    label: "Application Integration",
     editable: true,
     source: false,
     target: true,
   },
-  [ConnectionType.WEB]: { label: "web", editable: false, source: true, target: false },
-  [ConnectionType.NOTION]: { label: "notion", editable: false, source: true, target: false },
-  [ConnectionType.STRAPI]: { label: "strapi", editable: false, source: true, target: false },
-  [ConnectionType.CONTENTFUL]: {
+  [IntegrationType.WEB]: { label: "web", editable: false, source: true, target: false },
+  [IntegrationType.NOTION]: { label: "notion", editable: false, source: true, target: false },
+  [IntegrationType.STRAPI]: { label: "strapi", editable: false, source: true, target: false },
+  [IntegrationType.CONTENTFUL]: {
     label: "contentful",
     editable: false,
     source: true,
     target: false,
   },
-  [ConnectionType.WORDPRESS]: {
+  [IntegrationType.WORDPRESS]: {
     label: "wordpress",
     editable: false,
     source: true,
     target: false,
   },
-  [ConnectionType.SANITY]: {
+  [IntegrationType.SANITY]: {
     label: "sanity",
     editable: false,
     source: true,
@@ -35,7 +35,7 @@ export const ConnectionTypeMeta: Record<
   },
 };
 
-/** Authentication types for web connections. */
+/** Authentication types for web integrations. */
 export const WebAuthType = defineEnum({
   NONE: 0,
   BEARER: 1,

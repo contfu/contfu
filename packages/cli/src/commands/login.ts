@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { homedir } from "node:os";
 import { spawn } from "node:child_process";
 import { getBaseUrl } from "../http";
+import { printDryRun, type DryRunOption } from "./dry-run";
 
 const CONFIG_PATH = join(homedir(), ".config", "contfu", "config.json");
 
@@ -149,9 +150,13 @@ export async function login(opts: { noBrowser?: boolean } = {}): Promise<void> {
   console.log("Logged in successfully");
 }
 
-export async function logout(): Promise<void> {
+export async function logout(options: DryRunOption = {}): Promise<void> {
   try {
     const config = await readConfig();
+    if (options.dryRun) {
+      printDryRun("clear stored credentials", { configPath: CONFIG_PATH });
+      return;
+    }
     delete config.apiKey;
     await writeConfig(config);
     console.log("Logged out");

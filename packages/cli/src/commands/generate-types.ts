@@ -1,23 +1,23 @@
-import { generateApplicationConnectionTypes, type TypeGenerationInput } from "@contfu/svc-api";
+import { generateApplicationIntegrationTypes, type TypeGenerationInput } from "@contfu/svc-api";
 import { getApiClient, handleCliError } from "../http";
-import { resolveCollectionRef, resolveConnectionRef } from "./resources";
+import { resolveCollectionRef, resolveIntegrationRef } from "./resources";
 
-export async function connectionTypes(id: string) {
+export async function integrationTypes(id: string) {
   const client = getApiClient();
   let collections: TypeGenerationInput[];
   try {
-    const resolvedId = await resolveConnectionRef(id, client);
-    collections = await client.getConnectionTypes(resolvedId);
+    const resolvedId = await resolveIntegrationRef(id, client);
+    collections = await client.getIntegrationTypes(resolvedId);
   } catch (err) {
     handleCliError(err);
   }
 
   if (collections.length === 0) {
-    console.error("No collections connected to this connection");
+    console.error("No collections connected to this integration");
     process.exit(1);
   }
 
-  process.stdout.write(generateApplicationConnectionTypes(collections));
+  process.stdout.write(generateApplicationIntegrationTypes(collections));
 }
 
 export async function collectionTypes(id: string) {
@@ -35,5 +35,5 @@ export async function collectionTypes(id: string) {
     process.exit(1);
   }
 
-  process.stdout.write(generateApplicationConnectionTypes(collections));
+  process.stdout.write(generateApplicationIntegrationTypes(collections));
 }

@@ -4,15 +4,16 @@ import type {
   ScannedCollection,
 } from "@contfu/svc-api";
 import { getApiClient, handleCliError } from "../http";
-import { resolveConnectionRef } from "./resources";
+import { resolveIntegrationRef } from "./resources";
 import { multiSelect } from "./select";
+import { printDryRun, type DryRunOption } from "./dry-run";
 
-export interface ScanOptions {
+export interface ScanOptions extends DryRunOption {
   format: string;
   select?: boolean;
 }
 
-export interface AddOptions {
+export interface AddOptions extends DryRunOption {
   format: string;
   refs?: string[];
   all?: boolean;
@@ -89,15 +90,15 @@ function parseRefs(refs: string | undefined): string[] | undefined {
   return parsed && parsed.length > 0 ? parsed : undefined;
 }
 
-export async function scanConnectionCollections(
-  connectionId: string,
+export async function scanIntegrationCollections(
+  integrationId: string,
   options: ScanOptions,
 ): Promise<void> {
   const client = getApiClient();
 
   try {
-    const resolvedConnectionId = await resolveConnectionRef(connectionId, client);
-    const scanned = await client.scanCollections(resolvedConnectionId);
+    const resolvedIntegrationId = await resolveIntegrationRef(integrationId, client);
+    const scanned = await client.scanCollections(resolvedIntegrationId);
 
     if (!options.select) {
       if (options.format === "json") printJson(scanned);
@@ -119,7 +120,15 @@ export async function scanConnectionCollections(
       })),
     );
 
-    const summary = await client.addScannedCollections(resolvedConnectionId, { refs });
+    if (options.dryRun) {
+      printDryRun("add selected scanned collections", {
+        integrationId: resolvedIntegrationId,
+        refs,
+      });
+      return;
+    }
+
+    const summary = await client.addScannedCollections(resolvedIntegrationId, { refs });
     if (options.format === "json") printJson(summary);
     else printAddSummary(summary);
   } catch (err) {
@@ -127,25 +136,30 @@ export async function scanConnectionCollections(
   }
 }
 
-export async function addConnectionCollections(
-  connectionId: string,
+export async function addIntegrationCollections(
+  integrationId: string,
   options: AddOptions,
 ): Promise<void> {
   const client = getApiClient();
 
   if (!options.all && (!options.refs || options.refs.length === 0)) {
     console.error(
-      "Usage: contfu connections add <connection-id-or-name> (--refs <comma-separated> | --all)",
+      "Usage: contfu integrations add <integration-id-or-name> (--refs <comma-separated> | --all)",
     );
     process.exit(1);
   }
 
   try {
-    const resolvedConnectionId = await resolveConnectionRef(connectionId, client);
-    const summary = await client.addScannedCollections(resolvedConnectionId, {
+    const resolvedIntegrationId = await resolveIntegrationRef(integrationId, client);
+    const body = {
       refs: options.all ? undefined : options.refs,
       all: options.all,
-    });
+    };
+    if (options.dryRun) {
+      printDryRun("add scanned collections", { integrationId: resolvedIntegrationId, body });
+      return;
+    }
+    const summary = await client.addScannedCollections(resolvedIntegrationId, body);
     if (options.format === "json") printJson(summary);
     else printAddSummary(summary);
   } catch (err) {

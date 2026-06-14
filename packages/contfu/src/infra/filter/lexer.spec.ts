@@ -103,6 +103,17 @@ describe("tokenize", () => {
     expect(tokens[0]).toEqual({ type: TokenType.SystemField, value: "$id" });
   });
 
+  test("tokenizes normalized system timestamp fields", () => {
+    for (const field of ["$createdAt", "$publishedAt"]) {
+      const tokens = tokenize(`${field} >= 100`);
+      expect(tokens[0]).toEqual({ type: TokenType.SystemField, value: field });
+    }
+  });
+
+  test("throws on an unknown system field", () => {
+    expect(() => tokenize("$bogus = 1")).toThrow("Unknown system field");
+  });
+
   test("throws on unexpected character", () => {
     expect(() => tokenize("a @ b")).toThrow("Unexpected character");
   });

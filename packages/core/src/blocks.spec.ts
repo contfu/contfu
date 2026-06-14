@@ -10,7 +10,7 @@ import {
   isOl,
   isTable,
   isImg,
-  isCustom,
+  isComponent,
   isAnchor,
   isMonospace,
   isBold,
@@ -29,7 +29,7 @@ import {
   type OrderedListBlock,
   type TableBlock,
   type ImageBlock,
-  type CustomBlock,
+  type Component,
   type Anchor,
   type Code,
   type Bold,
@@ -49,7 +49,7 @@ describe("blocks", () => {
   const olBlock: OrderedListBlock = ["o", ["item 1"], ["item 2"]];
   const tableBlock: TableBlock = ["t", true, [[["cell"]]]];
   const imageBlock: ImageBlock = ["i", "image.jpg", "alt text"];
-  const customBlock: CustomBlock = ["x", "MyComponent", { prop: "value" }, []];
+  const componentBlock: Component = ["x", "MyComponent", { prop: "value" }, []];
 
   // Test fixtures for inline types
   const anchor: Anchor = ["a", "link text", "https://example.com"];
@@ -235,20 +235,20 @@ describe("blocks", () => {
       });
     });
 
-    describe("isCustom", () => {
-      test("returns true for custom blocks", () => {
-        expect(isCustom(customBlock)).toBe(true);
+    describe("isComponent", () => {
+      test("returns true for component blocks", () => {
+        expect(isComponent(componentBlock)).toBe(true);
       });
 
       test("returns false for other block types", () => {
-        expect(isCustom(paragraphBlock)).toBe(false);
-        expect(isCustom(codeBlock)).toBe(false);
-        expect(isCustom(imageBlock)).toBe(false);
+        expect(isComponent(paragraphBlock)).toBe(false);
+        expect(isComponent(codeBlock)).toBe(false);
+        expect(isComponent(imageBlock)).toBe(false);
       });
 
       test("handles null and undefined", () => {
-        expect(isCustom(null)).toBe(false);
-        expect(isCustom(undefined)).toBe(false);
+        expect(isComponent(null)).toBe(false);
+        expect(isComponent(undefined)).toBe(false);
       });
     });
   });
@@ -414,14 +414,14 @@ describe("blocks", () => {
         expect(result).toEqual(["text"]);
       });
 
-      test("extracts text from custom blocks recursively", () => {
-        const nestedCustom: CustomBlock = [
+      test("extracts text from component blocks recursively", () => {
+        const nestedComponent: Component = [
           "x",
           "Wrapper",
           {},
           [["p", ["nested paragraph"]] as ParagraphBlock],
         ];
-        expect(getText(nestedCustom)).toEqual(["nested paragraph"]);
+        expect(getText(nestedComponent)).toEqual(["nested paragraph"]);
       });
 
       test("returns empty array for blocks without text", () => {

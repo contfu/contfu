@@ -3,7 +3,9 @@ export const SYSTEM_FIELD_NAMES = [
   "$ref",
   "$collection",
   "$changedAt",
-  "$connectionType",
+  "$createdAt",
+  "$publishedAt",
+  "$integrationType",
   "$locale",
 ] as const;
 
@@ -25,7 +27,9 @@ type SystemFieldRefs = {
   $ref: FieldRef<string>;
   $collection: FieldRef<string>;
   $changedAt: FieldRef<number>;
-  $connectionType: FieldRef<string | null>;
+  $createdAt: FieldRef<number>;
+  $publishedAt: FieldRef<number | null>;
+  $integrationType: FieldRef<string | null>;
   $locale: FieldRef<string>;
 };
 

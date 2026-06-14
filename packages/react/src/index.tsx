@@ -11,7 +11,7 @@ import {
   isOl,
   isTable,
   isImg,
-  isCustom,
+  isComponent,
   isAnchor,
   isMonospace,
   isBold,
@@ -31,7 +31,7 @@ import {
   type OrderedListBlock,
   type TableBlock,
   type ImageBlock,
-  type CustomBlock,
+  type Component,
 } from "@contfu/core";
 
 export const FileUrlContext = React.createContext<FileUrlOptions | undefined>(undefined);
@@ -47,7 +47,7 @@ export type BlockComponents = {
   ol?: React.ComponentType<{ block: OrderedListBlock; children: React.ReactNode }>;
   table?: React.ComponentType<{ block: TableBlock; children: React.ReactNode }>;
   img?: React.ComponentType<{ block: ImageBlock }>;
-  custom?: React.ComponentType<{ block: CustomBlock; children: React.ReactNode }>;
+  component?: React.ComponentType<{ block: Component; children: React.ReactNode }>;
 };
 
 interface InlineProps {
@@ -198,13 +198,13 @@ function BlockNode({ block, components }: BlockNodeProps): React.ReactNode {
     const [, canonical, alt] = block;
     return <img src={buildFileUrl(canonical, fileCtx, "image")} alt={alt} />;
   }
-  if (isCustom(block)) {
-    const Custom = components?.custom;
+  if (isComponent(block)) {
+    const Comp = components?.component;
     const childBlocks = block[3] as Block[];
     const children = childBlocks.map((c, i) => (
       <BlockNode key={i} block={c} components={components} />
     ));
-    return Custom ? <Custom block={block}>{children}</Custom> : <>{children}</>;
+    return Comp ? <Comp block={block}>{children}</Comp> : <>{children}</>;
   }
   return null;
 }

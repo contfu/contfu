@@ -46,7 +46,7 @@ export function subscribeLiveEvent<K extends LiveEventName>(
     try {
       handler(JSON.parse(message.data) as LiveEventMap[K]);
     } catch {
-      // Ignore malformed payloads and keep the shared connection alive.
+      // Ignore malformed payloads and keep the shared integration alive.
     }
   };
 

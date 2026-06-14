@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import type { Heading1Block, ImageBlock } from "@contfu/core";
-import { createHttpTypedClient, serializeQueryParams } from "./query-client";
+import {
+  contfuClient,
+  createHttpClient,
+  createHttpTypedClient,
+  serializeQueryParams,
+} from "./query-client";
 
 describe("serializeQueryParams", () => {
   test("serializes filter", () => {
@@ -59,6 +64,12 @@ describe("serializeQueryParams", () => {
     expect(serializeQueryParams({ fields: [] }).get("fields")).toBe("");
   });
 
+  test("serializes i18n boolean preferences", () => {
+    const params = serializeQueryParams({ locale: false, fallback: true });
+    expect(params.get("locale")).toBe("false");
+    expect(params.get("fallback")).toBe("true");
+  });
+
   test("omits contentAs, htmlOptions, markdownOptions", () => {
     const params = serializeQueryParams({
       contentAs: "markdown",
@@ -71,7 +82,14 @@ describe("serializeQueryParams", () => {
   });
 });
 
-describe("createHttpTypedClient contentAs", () => {
+describe("contfuClient compatibility", () => {
+  test("keeps deprecated factory aliases", () => {
+    expect(createHttpClient).toBe(contfuClient);
+    expect(createHttpTypedClient).toBe(contfuClient);
+  });
+});
+
+describe("contfuClient contentAs", () => {
   const originalFetch = globalThis.fetch;
   let lastUrl = "";
 
@@ -106,14 +124,14 @@ describe("createHttpTypedClient contentAs", () => {
   });
 
   test("default returns block content unchanged", async () => {
-    const client = createHttpTypedClient("http://x");
+    const client = contfuClient("http://x");
     const res = await client("articles");
     expect(Array.isArray(res[0].content)).toBe(true);
     expect(res[0].content[0]).toEqual(["1", ["Hello"]]);
   });
 
   test("contentAs markdown renders content to string and auto-includes content", async () => {
-    const client = createHttpTypedClient("http://x");
+    const client = contfuClient("http://x");
     const res = await client("articles", { contentAs: "markdown" });
     expect(typeof res[0].content).toBe("string");
     expect(res[0].content).toContain("# Hello");
@@ -122,14 +140,14 @@ describe("createHttpTypedClient contentAs", () => {
   });
 
   test("contentAs html renders content to html string", async () => {
-    const client = createHttpTypedClient("http://x");
+    const client = contfuClient("http://x");
     const res = await client("articles", { contentAs: "html" });
     expect(typeof res[0].content).toBe("string");
     expect(res[0].content).toBe("<h1>Hello</h1><p>world</p>");
   });
 
   test("contentAs html uses htmlOptions custom renderer", async () => {
-    const client = createHttpTypedClient("http://x");
+    const client = contfuClient("http://x");
     const res = await client("articles", {
       contentAs: "html",
       htmlOptions: { blocks: { h1: (b: Heading1Block) => `<H1>${String(b[1][0])}</H1>` } },
@@ -138,21 +156,56 @@ describe("createHttpTypedClient contentAs", () => {
   });
 
   test("contentAs preserves existing include entries", async () => {
-    const client = createHttpTypedClient("http://x");
+    const client = contfuClient("http://x");
     await client("articles", { contentAs: "markdown", include: ["files", "links"] });
     const url = new URL(lastUrl);
     expect(url.searchParams.get("include")).toBe("files,links,content");
   });
 
   test("contentAs object leaves include untouched", async () => {
-    const client = createHttpTypedClient("http://x");
+    const client = contfuClient("http://x");
     await client("articles", { contentAs: "object" });
     const url = new URL(lastUrl);
     expect(url.searchParams.has("include")).toBe(false);
   });
+
+  test("constructor i18n defaults are serialized and explicit query values win", async () => {
+    const client = contfuClient("http://x", undefined, {
+      i18n: { defaultLocale: "en", fallback: "de" },
+    });
+    await client("articles");
+    let url = new URL(lastUrl);
+    expect(url.searchParams.get("locale")).toBe("en");
+    expect(url.searchParams.get("fallback")).toBe("de");
+
+    await client("articles", { locale: false, fallback: false });
+    url = new URL(lastUrl);
+    expect(url.searchParams.get("locale")).toBe("false");
+    expect(url.searchParams.get("fallback")).toBe("false");
+  });
+
+  test("withLocale inherits constructor fallback unless overridden", async () => {
+    const client = contfuClient("http://x", undefined, {
+      i18n: { defaultLocale: "en", fallback: true },
+    }).withLocale("fr");
+    await client("articles");
+    let url = new URL(lastUrl);
+    expect(url.searchParams.get("locale")).toBe("fr");
+    expect(url.searchParams.get("fallback")).toBe("en");
+
+    await client.withLocale(false)("articles");
+    url = new URL(lastUrl);
+    expect(url.searchParams.get("locale")).toBe("false");
+    expect(url.searchParams.has("fallback")).toBe(false);
+
+    await client.withLocale(false, false)("articles");
+    url = new URL(lastUrl);
+    expect(url.searchParams.get("locale")).toBe("false");
+    expect(url.searchParams.get("fallback")).toBe("false");
+  });
 });
 
-describe("createHttpTypedClient markdownOptions", () => {
+describe("contfuClient markdownOptions", () => {
   const originalFetch = globalThis.fetch;
 
   beforeEach(() => {
@@ -180,13 +233,13 @@ describe("createHttpTypedClient markdownOptions", () => {
   });
 
   test("markdown img uses default /files base", async () => {
-    const client = createHttpTypedClient("http://x");
+    const client = contfuClient("http://x");
     const res = await client("articles", { contentAs: "markdown" });
     expect(res[0].content).toBe("![cat](/files/abc.png)");
   });
 
   test("markdown img honors markdownOptions.file.baseUrl", async () => {
-    const client = createHttpTypedClient("http://x");
+    const client = contfuClient("http://x");
     const res = await client("articles", {
       contentAs: "markdown",
       markdownOptions: { file: { baseUrl: "https://cdn/x" } },
@@ -195,7 +248,7 @@ describe("createHttpTypedClient markdownOptions", () => {
   });
 
   test("markdown custom block renderer wins", async () => {
-    const client = createHttpTypedClient("http://x");
+    const client = contfuClient("http://x");
     const res = await client("articles", {
       contentAs: "markdown",
       markdownOptions: { blocks: { img: (b: ImageBlock) => `[IMG:${b[1]}:${b[2]}]` } },

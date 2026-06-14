@@ -1,5 +1,5 @@
 export type DashboardStats = {
-  connectionCount: number;
+  integrationCount: number;
   collectionCount: number;
   flowCount: number;
   totalItemCount: number;

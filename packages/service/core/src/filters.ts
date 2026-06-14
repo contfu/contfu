@@ -71,6 +71,8 @@ export function getOperatorsForType(propertyType: number): FilterOperator[] {
     case PropertyType.NUMBER:
     case PropertyType.NUMBERS:
       return [...equality, ...comparison, ...arrayOps, ...common];
+    case PropertyType.COLOR:
+      return [...equality, ...common];
     case PropertyType.DATE:
       return [...equality, ...comparison, ...common];
     case PropertyType.BOOLEAN:
@@ -80,8 +82,65 @@ export function getOperatorsForType(propertyType: number): FilterOperator[] {
       return [...equality, ...arrayOps, ...common];
     case PropertyType.FILE:
     case PropertyType.FILES:
+    case PropertyType.GEOPOINT:
       return common;
     default:
-      return [...equality, ...common];
+      return getOperatorsForTypeMask(baseType, {
+        equality,
+        comparison,
+        arrayOps,
+        stringOps,
+        common,
+      });
   }
+}
+
+function getOperatorsForTypeMask(
+  baseType: number,
+  operators: {
+    equality: FilterOperator[];
+    comparison: FilterOperator[];
+    arrayOps: FilterOperator[];
+    stringOps: FilterOperator[];
+    common: FilterOperator[];
+  },
+): FilterOperator[] {
+  const result = new Set([...operators.equality, ...operators.common]);
+
+  if (
+    baseType & PropertyType.STRING ||
+    baseType & PropertyType.STRINGS ||
+    baseType & PropertyType.ENUM ||
+    baseType & PropertyType.ENUMS
+  ) {
+    for (const operator of operators.stringOps) result.add(operator);
+  }
+
+  if (
+    baseType & PropertyType.NUMBER ||
+    baseType & PropertyType.NUMBERS ||
+    baseType & PropertyType.DATE
+  ) {
+    for (const operator of operators.comparison) result.add(operator);
+  }
+
+  if (
+    baseType & PropertyType.STRINGS ||
+    baseType & PropertyType.NUMBERS ||
+    baseType & PropertyType.ENUMS ||
+    baseType & PropertyType.REF ||
+    baseType & PropertyType.REFS
+  ) {
+    for (const operator of operators.arrayOps) result.add(operator);
+  }
+
+  if (baseType === PropertyType.FILE || baseType === PropertyType.FILES) {
+    return operators.common;
+  }
+
+  if (baseType === PropertyType.COLOR) {
+    return [...operators.equality, ...operators.common];
+  }
+
+  return [...result];
 }

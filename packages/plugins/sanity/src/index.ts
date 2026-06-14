@@ -56,8 +56,10 @@ function normalizeFieldType(field: SanityFieldDefinition): number | null {
     return PropertyType.STRING;
   if (field.type === "url" || field.type === "email") return PropertyType.STRING;
   if (field.type === "number") return PropertyType.NUMBER;
+  if (field.type === "color") return PropertyType.COLOR;
   if (field.type === "boolean") return PropertyType.BOOLEAN;
   if (field.type === "datetime" || field.type === "date") return PropertyType.DATE;
+  if (field.type === "geopoint") return PropertyType.GEOPOINT;
   if (field.type === "reference") return PropertyType.REF;
   if (field.type === "image" || field.type === "file") return PropertyType.FILE;
   if (field.type === "block") return PropertyType.BLOCK;

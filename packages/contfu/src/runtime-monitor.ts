@@ -1,17 +1,17 @@
 import { EventType } from "@contfu/core";
 import type { SyncEvent } from "./contfu";
 
-export type RuntimeConnectionState = "disabled" | "connecting" | "syncing" | "connected" | "error";
+export type RuntimeIntegrationState = "disabled" | "connecting" | "syncing" | "connected" | "error";
 
 export type RuntimeStatus = {
-  state: RuntimeConnectionState;
+  state: RuntimeIntegrationState;
   reason: string | null;
 };
 
 export type RuntimeDataChangedKind = "item" | "schema" | "unknown";
 
 export type RuntimeNotification =
-  | { type: "runtime-status"; state: RuntimeConnectionState; reason: string | null; ts: number }
+  | { type: "runtime-status"; state: RuntimeIntegrationState; reason: string | null; ts: number }
   | {
       type: "data-changed-batch";
       count: number;

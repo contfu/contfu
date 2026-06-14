@@ -1,18 +1,18 @@
-import { createApiClient, ApiError, ConnectionType, ConnectionTypeMeta } from "@contfu/svc-api";
-import type { ApiConnection, ServiceCollection, ServiceFlow } from "@contfu/svc-api";
+import { createApiClient, ApiError, IntegrationType, IntegrationTypeMeta } from "@contfu/svc-api";
+import type { ApiIntegration, ServiceCollection, ServiceFlow } from "@contfu/svc-api";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { getApiKey, getBaseUrl } from "../http";
 import { getAppKey } from "../env";
 
 function resolveTypeLabel(type: number): string {
-  const meta = ConnectionTypeMeta[type as keyof typeof ConnectionTypeMeta];
+  const meta = IntegrationTypeMeta[type as keyof typeof IntegrationTypeMeta];
   return meta?.label ?? `unknown(${type})`;
 }
 
 export interface StatusResult {
   authenticated: boolean;
-  connections: Array<ApiConnection & { typeLabel: string }>;
+  integrations: Array<ApiIntegration & { typeLabel: string }>;
   collections: ServiceCollection[];
   flows: ServiceFlow[];
   appKey?: { present: boolean; source: "env" | "dotenv" };
@@ -24,22 +24,22 @@ function printTable(result: StatusResult) {
 
   console.log("Authenticated: yes\n");
 
-  const sources = result.connections.filter((c) => c.type !== ConnectionType.APP);
-  const applicationConnections = result.connections.filter((c) => c.type === ConnectionType.APP);
+  const sources = result.integrations.filter((c) => c.type !== IntegrationType.APP);
+  const applicationIntegrations = result.integrations.filter((c) => c.type === IntegrationType.APP);
 
-  console.log(`Connections (${result.connections.length})`);
+  console.log(`Integrations (${result.integrations.length})`);
   console.log("─".repeat(60));
   if (sources.length > 0) {
     for (const c of sources) {
       console.log(`  ${c.id}  ${c.name.padEnd(30)} ${c.typeLabel}`);
     }
   }
-  if (applicationConnections.length > 0) {
-    for (const c of applicationConnections) {
+  if (applicationIntegrations.length > 0) {
+    for (const c of applicationIntegrations) {
       console.log(`  ${c.id}  ${c.name.padEnd(30)} ${c.typeLabel}`);
     }
   }
-  if (result.connections.length === 0) {
+  if (result.integrations.length === 0) {
     console.log("  (none)");
   }
 
@@ -109,15 +109,15 @@ export async function status(format = "table"): Promise<void> {
   }
 
   try {
-    const [connections, collections, flows] = await Promise.all([
-      apiClient.listConnections(),
+    const [integrations, collections, flows] = await Promise.all([
+      apiClient.listIntegrations(),
       apiClient.listCollections(),
       apiClient.listFlows(),
     ]);
 
     const result: StatusResult = {
       authenticated: true,
-      connections: connections.map((c) => ({ ...c, typeLabel: resolveTypeLabel(c.type) })),
+      integrations: integrations.map((c) => ({ ...c, typeLabel: resolveTypeLabel(c.type) })),
       collections,
       flows,
       ...(appKeyInfo !== undefined ? { appKey: appKeyInfo } : {}),

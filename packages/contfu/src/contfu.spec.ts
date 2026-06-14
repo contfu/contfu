@@ -146,7 +146,7 @@ describe("contfu typed query client", () => {
 });
 
 // --- Typed ref target tests ---
-// When generateApplicationConnectionTypes is configured with refTargets, REF/REFS properties
+// When generateApplicationIntegrationTypes is configured with refTargets, REF/REFS properties
 // reference sibling collection types instead of plain strings. These tests verify
 // the query client types work correctly with that pattern.
 
