@@ -9,14 +9,17 @@ export type SanitySchemaSyncPayload = {
 const SCHEMA_SYNC_PATH = "/webhooks/sanity/schema";
 const DEFAULT_CONTFU_ORIGIN = "https://contfu.com";
 
-export type UpdateConftuSchemaOptions = {
+export type UpdateContfuSchemaOptions = {
   webhookSecret: string;
   dataset: string;
   schemaTypes: SanitySchemaDefinition[];
   signal?: AbortSignal;
 };
 
-export function updateConftuSchema(options: UpdateConftuSchemaOptions): Promise<Response> {
+/** @deprecated Use UpdateContfuSchemaOptions. */
+export type UpdateConftuSchemaOptions = UpdateContfuSchemaOptions;
+
+export function updateContfuSchema(options: UpdateContfuSchemaOptions): Promise<Response> {
   return fetch(getSchemaSyncEndpoint(), {
     method: "POST",
     headers: {
@@ -27,6 +30,9 @@ export function updateConftuSchema(options: UpdateConftuSchemaOptions): Promise<
     signal: options.signal,
   });
 }
+
+/** @deprecated Use updateContfuSchema. */
+export const updateConftuSchema = updateContfuSchema;
 
 export function buildSanitySchemaSyncPayload(
   dataset: string,

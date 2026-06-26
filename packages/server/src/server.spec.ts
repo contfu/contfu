@@ -93,6 +93,37 @@ describe("@contfu/server routes", () => {
     expect(response.status).toBe(200);
   });
 
+  test("rejects non-GET requests on registered routes", async () => {
+    const countItems = mock(() => 5);
+
+    await mock.module("@contfu/contfu", () => ({
+      contfu: mock(() => ({
+        events: (async function* () {})(),
+        handleFileRequest: mock(() => new Response("")),
+      })),
+      getFileStore: mock(() => ({})),
+      getMediaOptimizer: mock(() => ({})),
+      countCollections: mock(() => 2),
+      countDownloadedFiles: mock(() => 3),
+      countFiles: mock(() => 4),
+      countItems,
+      countProcessedFiles: mock(() => 1),
+      findItems: mock(() => ({ data: [] })),
+      getItemById: mock(() => null),
+      getTypeGenerationInputs: mock(() => []),
+    }));
+
+    const { routes } = createServeOptions();
+    const response = await callRoute(
+      getRoute(routes, "/api/status"),
+      new Request("http://localhost/api/status", { method: "POST" }),
+    );
+
+    expect(response.status).toBe(405);
+    expect(await readText(response)).toBe("Method not allowed");
+    expect(countItems).not.toHaveBeenCalled();
+  });
+
   test("rejects protected requests without valid basic auth", async () => {
     const response = checkBasicAuth(new Request("http://localhost/api/status"), "admin:secret");
 
@@ -150,6 +181,7 @@ describe("@contfu/server routes", () => {
       offset: "2",
       include: "files,author",
       fields: "title,slug",
+      flat: "true",
       with: JSON.stringify({ relation: true }),
     }).toString();
 
@@ -165,6 +197,7 @@ describe("@contfu/server routes", () => {
         offset: 2,
         include: ["files", "author"],
         fields: ["title", "slug"],
+        flat: true,
         with: { relation: true },
       },
     });
@@ -176,6 +209,7 @@ describe("@contfu/server routes", () => {
       offset: 2,
       include: ["files", "author"],
       fields: ["title", "slug"],
+      flat: true,
       with: { relation: true },
     });
   });
@@ -391,6 +425,32 @@ describe("@contfu/server routes", () => {
     expect(findItems).toHaveBeenLastCalledWith({ locale: "en", fallback: false }, undefined, {
       defaultLocale: "en",
       fallback: false,
+    });
+  });
+
+  test("ignores unresolved server fallback true defaults", async () => {
+    const findItems = mock((options: Record<string, unknown>) => ({ data: options }));
+
+    await mock.module("@contfu/contfu", () => ({
+      contfu: mock(() => ({
+        events: (async function* () {})(),
+        handleFileRequest: mock(() => new Response("")),
+      })),
+      getFileStore: mock(() => ({})),
+      getMediaOptimizer: mock(() => ({})),
+      findItems,
+      generateTypes: mock(() => ""),
+      getAllCollectionSchemas: mock(() => []),
+      getItemById: mock(() => null),
+    }));
+
+    process.env.CONTFU_FALLBACK_LOCALE = "true";
+    const { routes } = createServeOptions();
+
+    await callRoute(getRoute(routes, "/api/items"), new Request("http://localhost/api/items"));
+    expect(findItems).toHaveBeenLastCalledWith({}, undefined, {
+      defaultLocale: undefined,
+      fallback: true,
     });
   });
 

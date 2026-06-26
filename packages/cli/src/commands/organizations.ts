@@ -1,5 +1,5 @@
 import type { ApiOrganization } from "@contfu/svc-api";
-import { getApiClient, getBaseUrl, handleCliError } from "../http";
+import { BASE_URL, getApiClient, handleCliError } from "../http";
 import { printTable, terminalLink, type TableColumn } from "../table";
 import { printDryRun, type DryRunOption } from "./dry-run";
 
@@ -10,7 +10,7 @@ const OrganizationRole = {
 } as const;
 
 function organizationLink(id: string): string {
-  const baseUrl = getBaseUrl().replace(/\/+$/, "");
+  const baseUrl = BASE_URL.replace(/\/+$/, "");
   return terminalLink(id, `${baseUrl}/organizations/${encodeURIComponent(id)}`);
 }
 

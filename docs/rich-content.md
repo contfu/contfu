@@ -2,8 +2,8 @@
 
 Beyond typed props, items can carry **rich content** — long-form prose modeled as a tree
 of structured **blocks** and **inlines**. Contfu normalizes provider rich text (Notion
-blocks, Contentful rich text, WordPress HTML, …) into one block model defined in
-`@contfu/core`, so you render the same shapes regardless of source.
+blocks, Contentful rich text, Strapi blocks, WordPress HTML, …) into one block model
+defined in `@contfu/core`, so you render the same shapes regardless of source.
 
 ## The block model
 
@@ -11,17 +11,27 @@ Block and inline types live in `@contfu/core`:
 
 - **Blocks** — `ParagraphBlock`, `Heading1Block`/`Heading2Block`/`Heading3Block`,
   `QuoteBlock`, `CodeBlock`, `UnorderedListBlock`, `OrderedListBlock`, `TableBlock`,
-  `ImageBlock`, and `CustomBlock` (your [components](./collections.md#components)).
+  `ImageBlock`, and component blocks (`Component`, tuple shape
+  `["x", name, props, children]`) for your [components](./collections.md#components) or
+  provider-specific rich nodes that do not have a built-in Contfu equivalent.
 - **Inlines** — plain strings plus anchors, inline code, bold, and italic marks.
 
 You rarely touch these directly — render them with a framework adapter, or render to
-HTML/Markdown strings.
+HTML/Markdown strings. Provider-specific block nodes are preserved as component blocks
+when possible instead of being silently dropped; for example, unsupported Contentful rich
+text nodes use component names like `contentful.<nodeType>`, unsupported Notion blocks
+use names like `notion.<blockType>` with the Notion block payload under `props.notion`,
+Sanity Portable Text image objects with resolvable asset URLs become `sanity.image`
+component blocks with an image child and raw image metadata in `props`, and custom Sanity
+Portable Text objects are emitted as component blocks with their raw `_type` metadata
+preserved in `props`.
 
 ## Framework adapters
 
-Each adapter exports `Blocks` (render an array) and `Block` (render one), and lets you
-override the component used for any block type via a `components` map. Provide file-URL
-options via context so media blocks resolve to your file endpoint.
+Each adapter exports `Blocks` (render an array) and `Block` (render one). React,
+Svelte, Vue, and Solid also let you override the component used for any built-in block type
+or named component block via a `components` map. Provide file-URL options via props or
+framework context so media blocks resolve to your file endpoint.
 
 | Framework | Package           |
 | --------- | ----------------- |
@@ -43,7 +53,7 @@ function Article({ post }) {
         blocks={post.content}
         components={{
           h1: ({ block, children }) => <h1 className="font-display">{children}</h1>,
-          custom: ({ block, children }) => <Callout kind={block.name}>{children}</Callout>,
+          Callout: ({ block, children }) => <Callout kind={block[2].kind}>{children}</Callout>,
         }}
       />
     </FileUrlContext.Provider>
@@ -51,13 +61,33 @@ function Article({ post }) {
 }
 ```
 
-`Block` renders a single block with the same `components` and `file` props.
+`Block` renders a single block with the same `components` and `file` props. Component
+block override keys match the tuple's name field (`["x", name, props, children]`); use
+`component` as a generic fallback for component blocks without a name-specific override.
 
 ### Svelte / Vue / Solid
 
 The shape mirrors React: import `Blocks` / `Block`, pass a `components` override map, and
 supply file-URL options through the framework's context/inject mechanism
 (`FILE_URL_CONTEXT_KEY` in Svelte, `FILE_URL_INJECTION_KEY` in Vue).
+
+### Angular
+
+```ts
+import { Blocks, CONTFU_FILE_URL } from "@contfu/angular";
+
+@Component({
+  imports: [Blocks],
+  providers: [{ provide: CONTFU_FILE_URL, useValue: { baseUrl: "/files" } }],
+  template: `<contfu-blocks [blocks]="post.content" />`,
+})
+export class ArticleComponent {}
+```
+
+Angular also exports the underlying `BlockComponent` / `BlocksComponent` class names for
+projects that prefer explicit Angular component naming. The Angular adapter renders with
+Contfu's string renderer; pass core `RenderOptions` through `[options]` to customize
+built-in block/inline output, and use `[file]` or `CONTFU_FILE_URL` for media URLs.
 
 ## Rendering to strings
 

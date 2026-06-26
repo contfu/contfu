@@ -131,6 +131,8 @@ function deserializeQueryParams(params: URLSearchParams): QueryParseResult {
     options.fields = fields === "" ? [] : fields.split(",").map((s) => s.trim());
   }
 
+  if (params.get("flat") === "true") options.flat = true;
+
   const locale = params.get("locale");
   if (locale !== null) options.locale = locale === "false" ? false : locale;
 
@@ -205,7 +207,9 @@ function applyI18nDefaults(
     options.locale = i18n.defaultLocale;
   }
   if (!params.has("fallback") && i18n.fallback !== undefined) {
-    options.fallback = i18n.fallback;
+    if (i18n.fallback !== true || i18n.defaultLocale !== undefined) {
+      options.fallback = i18n.fallback;
+    }
   }
   return options;
 }
@@ -376,6 +380,16 @@ function handleTypes() {
   return text(generateApplicationIntegrationTypes(getTypeGenerationInputs()));
 }
 
+function withGetOnly(handler: RouteHandler): RouteHandler {
+  return (request) => {
+    if (request.method !== "GET") {
+      return text("Method not allowed", 405);
+    }
+
+    return handler(request);
+  };
+}
+
 function withOptionalBasicAuth(handler: RouteHandler): RouteHandler {
   return (request) => {
     const authError = checkBasicAuth(request, basicAuth);
@@ -385,6 +399,10 @@ function withOptionalBasicAuth(handler: RouteHandler): RouteHandler {
 
     return handler(request);
   };
+}
+
+function getRoute(handler: RouteHandler): RouteHandler {
+  return withOptionalBasicAuth(withGetOnly(handler));
 }
 
 export type ServerOptions = {
@@ -430,17 +448,17 @@ export function createServeOptions(opts: ServerOptions = {}) {
     port,
     idleTimeout: SERVER_IDLE_TIMEOUT_SECONDS,
     routes: {
-      "/api/status": withOptionalBasicAuth(handleStatus),
-      "/api/collections": withOptionalBasicAuth(handleCollections),
-      "/api/collections/:name": withOptionalBasicAuth(handleCollectionDetail),
-      "/api/query-items": withOptionalBasicAuth(handleQueryItems),
-      "/api/items": withOptionalBasicAuth(createItemsHandler(i18n)),
-      "/api/collections/:name/items": withOptionalBasicAuth(createCollectionItemsHandler(i18n)),
-      "/api/items/:id/files": withOptionalBasicAuth(handleItemFiles),
-      "/api/items/:id": withOptionalBasicAuth(handleItemById),
-      "/api/live": withOptionalBasicAuth(handleLive),
-      "/api/types": withOptionalBasicAuth(handleTypes),
-      "/files/:path": withOptionalBasicAuth(handleFileRequest as RouteHandler),
+      "/api/status": getRoute(handleStatus),
+      "/api/collections": getRoute(handleCollections),
+      "/api/collections/:name": getRoute(handleCollectionDetail),
+      "/api/query-items": getRoute(handleQueryItems),
+      "/api/items": getRoute(createItemsHandler(i18n)),
+      "/api/collections/:name/items": getRoute(createCollectionItemsHandler(i18n)),
+      "/api/items/:id/files": getRoute(handleItemFiles),
+      "/api/items/:id": getRoute(handleItemById),
+      "/api/live": getRoute(handleLive),
+      "/api/types": getRoute(handleTypes),
+      "/files/:path": getRoute(handleFileRequest as RouteHandler),
     },
     fetch(request: Request) {
       const authError = checkBasicAuth(request, basicAuth);

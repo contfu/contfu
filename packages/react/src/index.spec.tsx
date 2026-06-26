@@ -157,4 +157,16 @@ describe("Block custom components", () => {
       '<div class="code-block" data-lang="js"><pre>var x;</pre></div>',
     );
   });
+
+  test("overrides named component block", () => {
+    const component: Component = ["x", "Callout", { kind: "info" }, [["p", ["hello"]]]];
+    const components: BlockComponents = {
+      Callout: ({ block, children }: { block: Component; children: React.ReactNode }) => (
+        <aside data-kind={block[2].kind}>{children}</aside>
+      ),
+    };
+    expect(render(<Block block={component} components={components} />)).toBe(
+      '<aside data-kind="info"><p>hello</p></aside>',
+    );
+  });
 });

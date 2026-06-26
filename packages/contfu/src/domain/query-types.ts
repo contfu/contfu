@@ -105,6 +105,7 @@ export type TypedQueryEntry<
   limit?: number;
   offset?: number;
   search?: string;
+  flat?: boolean;
   include?: IncludeOption[];
   fileMode?: FileMode;
   fields?: F;
@@ -144,6 +145,7 @@ export type EntryOpts<CMap, C extends keyof CMap & string, CF extends ContentFor
   limit?: number;
   offset?: number;
   search?: string;
+  flat?: boolean;
   include?: IncludeOption[];
   fileMode?: FileMode;
   fields?: SelectableField<CMap[C]>[];

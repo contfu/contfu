@@ -1,6 +1,6 @@
 {
   "name": "@contfu/media-optimizer-remote",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -23,6 +23,7 @@
     }
   },
   "scripts": {
+    "test": "bun test src/",
     "build": "tsc -b",
     "pack": "bun ../../../scripts/pack-package.ts .",
     "clean": "rm -rf dist"

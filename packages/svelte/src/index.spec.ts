@@ -18,6 +18,28 @@ import type {
 } from "@contfu/core";
 
 type RenderComponent = Parameters<typeof render>[0];
+type SvelteServerRenderer = {
+  push: (value: string) => void;
+  component?: (render: (renderer: SvelteServerRenderer) => void) => void;
+};
+
+type SvelteServerComponentProps = {
+  block: Component;
+  children?: (renderer: SvelteServerRenderer) => void;
+};
+
+function NamedComponentFixture(
+  renderer: SvelteServerRenderer,
+  props: SvelteServerComponentProps,
+): void {
+  const renderComponent = (target: SvelteServerRenderer) => {
+    target.push(`<section data-name="${props.block[1]}" data-kind="${props.block[2].kind}">`);
+    props.children?.(target);
+    target.push("</section>");
+  };
+  if (renderer.component) renderer.component(renderComponent);
+  else renderComponent(renderer);
+}
 
 function stripSvelteMarkers(value: string): string {
   let result = "";
@@ -115,6 +137,16 @@ describe("Block (Svelte)", () => {
     const inner: ParagraphBlock = ["p", ["hi"]];
     const component: Component = ["x", "Widget", {}, [inner]];
     expect(html(Block, { block: component })).toBe("<p>hi</p>");
+  });
+
+  test("overrides named component block", () => {
+    const component: Component = ["x", "Callout", { kind: "info" }, [["p", ["hello"]]]];
+    expect(
+      html(Block, {
+        block: component,
+        components: { Callout: NamedComponentFixture },
+      }),
+    ).toBe('<section data-name="Callout" data-kind="info"><p>hello</p></section>');
   });
 });
 

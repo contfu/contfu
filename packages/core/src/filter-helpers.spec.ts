@@ -1,5 +1,6 @@
 import { describe, it, expect } from "bun:test";
 import {
+  all,
   createItemRef,
   eq,
   ne,
@@ -10,6 +11,7 @@ import {
   like,
   notLike,
   contains,
+  oneOf,
   type FieldRef,
 } from "./filter-helpers";
 
@@ -24,6 +26,28 @@ type TestProps = {
 };
 
 const self = createItemRef<TestProps>(0);
+
+describe("filter-helpers query builders", () => {
+  it("builds all and oneOf query shapes consistently", () => {
+    const filter = 'title = "hello"';
+    const filterFn = (self: any) => eq(self.title, "hello");
+
+    expect(all("posts")).toEqual({ collection: "posts" });
+    expect(all("posts", filter)).toEqual({ collection: "posts", filter });
+    expect(all("posts", { limit: 5 })).toEqual({ collection: "posts", limit: 5 });
+    expect(oneOf("posts")).toEqual({ collection: "posts", single: true });
+    expect(oneOf("posts", filterFn)).toEqual({
+      collection: "posts",
+      single: true,
+      filter: filterFn,
+    });
+    expect(oneOf("posts", { order: "desc" })).toEqual({
+      collection: "posts",
+      single: true,
+      order: "desc",
+    });
+  });
+});
 
 describe("filter-helpers operator type safety", () => {
   // eq tests
@@ -183,13 +207,13 @@ describe("filter-helpers operator type safety", () => {
     expect(typeof result).toBe("string");
   });
 
-  it("eq with $integrationType (string|null system field)", () => {
-    const result = eq(self.$integrationType, "notion");
+  it("eq with $collection (string system field)", () => {
+    const result = eq(self.$collection, "posts");
     expect(typeof result).toBe("string");
   });
 
-  it("eq with $integrationType null", () => {
-    const result = eq(self.$integrationType, null);
+  it("eq with $locale (string system field)", () => {
+    const result = eq(self.$locale, "en");
     expect(typeof result).toBe("string");
   });
 

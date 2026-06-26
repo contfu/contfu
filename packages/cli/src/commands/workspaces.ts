@@ -1,11 +1,11 @@
 import type { ApiWorkspace } from "@contfu/svc-api";
-import { getApiClient, getBaseUrl, handleCliError } from "../http";
+import { BASE_URL, getApiClient, handleCliError } from "../http";
 import { printTable as printRows, terminalLink, type TableColumn } from "../table";
 import { readConfig, writeConfig } from "./login";
 import { printDryRun, type DryRunOption } from "./dry-run";
 
 function workspaceLink(id: string): string {
-  const baseUrl = getBaseUrl().replace(/\/+$/, "");
+  const baseUrl = BASE_URL.replace(/\/+$/, "");
   return terminalLink(id, `${baseUrl}/workspaces/${encodeURIComponent(id)}`);
 }
 

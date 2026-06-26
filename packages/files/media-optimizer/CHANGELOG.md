@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.1] - 2026-06-26
+
+### Fixed
+
+- Forwarded local and remote m4k transform options correctly.
+
 All notable changes to `@contfu/media-optimizer` are documented here.
 
 ## [0.1.0] - 2026-06-09

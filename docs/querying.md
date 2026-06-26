@@ -6,10 +6,10 @@ you can switch between the two without rewriting query code.
 
 ## Two clients, one API
 
-| Package          | Use when                                                                               | Create with                |
-| ---------------- | -------------------------------------------------------------------------------------- | -------------------------- |
-| `@contfu/contfu` | Your app process runs the Local Runtime and reads the Local Store directly.            | `contfu()` → `{ query }`   |
-| `@contfu/client` | Your app queries a [self-hosted Server](./deployment.md#self-hosted-server) over HTTP. | `contfuClient(url, token)` |
+| Package          | Use when                                                                               | Create with                           |
+| ---------------- | -------------------------------------------------------------------------------------- | ------------------------------------- |
+| `@contfu/contfu` | Your app process runs the Local Runtime and reads the Local Store directly.            | `contfu()` → `{ query }`              |
+| `@contfu/client` | Your app queries a [self-hosted Server](./deployment.md#self-hosted-server) over HTTP. | `contfuClient(url, token?, options?)` |
 
 ### Embedded (Local Runtime)
 
@@ -30,12 +30,17 @@ the runtime options.
 ```ts
 import { contfuClient } from "@contfu/client";
 
-const query = contfuClient("https://content.example.com", "your-token");
+const query = contfuClient("https://content.example.com", undefined, {
+  // If the Server uses CONTFU_BASIC_AUTH=user:password:
+  basicAuth: "user:password",
+});
 
 const posts = await query("blogPost", { limit: 10 });
 ```
 
-The HTTP client only queries — it never synchronizes. It throws on non-2xx responses.
+The HTTP client only queries — it never synchronizes. It throws on non-2xx responses. Pass a
+second argument only when your deployment expects a Bearer token, for example behind a
+custom proxy.
 
 > `createHttpClient` / `createHttpTypedClient` are deprecated aliases for `contfuClient`;
 > use `contfuClient`.
@@ -64,9 +69,10 @@ Every result is a `QueryResultArray` — an array of items that also carries pag
 | `limit`               | Maximum items to return.                                                                       |
 | `offset`              | Skip N items (offset pagination).                                                              |
 | `fields`              | Restrict the returned props to a named subset.                                                 |
-| `include`             | Include related data such as `assets` or `links`.                                              |
+| `search`              | Convenience title search; matches `props.title` with a SQL `LIKE` pattern.                     |
+| `include`             | Include related data: `files`, `links`, or `content`.                                          |
 | `with`                | Nested relationship queries (see [Relations](#relations)).                                     |
-| `flat`                | Flatten nested properties in the result.                                                       |
+| `flat`                | Flatten nested object props into dot-separated result keys.                                    |
 | `locale` / `fallback` | Locale selection for this query — see [Localization](./i18n.md#per-query-overrides).           |
 
 HTTP-client-only options for [server-side rendering](./rich-content.md#server-side-rendering-through-the-http-client):
@@ -85,9 +91,14 @@ const recent = await query("blogPost", {
     ),
   sort: "-$publishedAt",
 });
+
+const matchingTitles = await query("blogPost", { search: "release" });
 ```
 
-Available helpers:
+`search` is a convenience shortcut for simple title searches. For any other field or
+compound condition, use `filter`.
+
+Available filter-expression helpers:
 
 | Helper                      | Meaning                                 |
 | --------------------------- | --------------------------------------- |
@@ -95,10 +106,11 @@ Available helpers:
 | `gt` / `gte` / `lt` / `lte` | Numeric and timestamp comparisons.      |
 | `like` / `notLike`          | Pattern match / negated pattern match.  |
 | `contains`                  | Membership in an array-valued property. |
-| `oneOf`                     | Property equals one of several values.  |
-| `all`                       | Match all items (no constraint).        |
 | `and` / `or`                | Combine sub-expressions.                |
 | `linksTo` / `linkedFrom`    | Traverse relationships — see below.     |
+
+There is no separate “property is one of these values” helper; combine `eq` clauses with
+`or` for that shape.
 
 [System properties](./system-properties.md) (`$publishedAt`, `$createdAt`, `$changedAt`,
 `$id`, `$collection`, `$locale`) are filterable and sortable like any other field.
@@ -112,7 +124,20 @@ Query across them in two directions:
 - `linkedFrom` — items referenced by a given source.
 
 Use `with` to fetch related items in the same query (nested relationship queries), and
-`include: "links"` / `include: "assets"` to expand referenced items or files.
+`include: ["links"]` / `include: ["files"]` to expand referenced items or files.
+
+The `all(collection, filterOrOptions?)` and `oneOf(collection, filterOrOptions?)` helpers
+build nested `with` entries. `all` returns an array relation, while `oneOf` marks the
+relation as `single: true` and returns the first matching item or `null`:
+
+```ts
+const posts = await query("blogPost", {
+  with: (post) => ({
+    author: query.oneOf("author", (author) => query.eq(author.$id, post.author)),
+    relatedPosts: query.all("blogPost", (other) => query.ne(other.$id, post.$id)),
+  }),
+});
+```
 
 ## Pagination
 
@@ -138,9 +163,11 @@ contfu integrations types <app-integration-id> > src/types/contfu.ts
 import { contfuClient } from "@contfu/client";
 import type { Collections } from "./types/contfu";
 
+const basicAuth = process.env.CONTFU_BASIC_AUTH;
 export const cq = contfuClient<Collections>(
   process.env.CONTFU_SERVER_URL!,
-  process.env.CONTFU_KEY!,
+  undefined,
+  basicAuth ? { basicAuth } : {},
 );
 
 // `"blogPost"` is checked against Collections; `p.title` is typed.
@@ -163,9 +190,11 @@ is fetched. Do not instantiate a fresh client per route, page, or component:
 import { contfuClient } from "@contfu/client";
 import type { Collections } from "../types/contfu";
 
+const basicAuth = process.env.CONTFU_BASIC_AUTH;
 export const cq = contfuClient<Collections>(
   process.env.CONTFU_SERVER_URL!,
-  process.env.CONTFU_KEY!,
+  undefined,
+  basicAuth ? { basicAuth } : {},
 );
 ```
 
@@ -187,6 +216,7 @@ const localized = cq.withLocale(requestLocale, "en");
 const posts = await localized("blogPost");
 ```
 
+`fallback: true` means “use the configured default locale”; inherited unresolved `true` fallbacks are ignored.
 Full model and examples: [Localization & i18n](./i18n.md).
 
 ## The CLI as a query client
@@ -194,8 +224,9 @@ Full model and examples: [Localization & i18n](./i18n.md).
 You can run queries from the terminal against a running Server — handy for debugging:
 
 ```bash
-contfu items query -u <server-url> --collection blogPost --sort -$changedAt --limit 5
-contfu items count -u <server-url> --collection blogPost
+contfu items query -u <server-url> --collection blogPost --search release --sort -$changedAt --limit 5
+contfu items query -u <server-url> --collection blogPost --locale fr --fallback en
+contfu items count -u <server-url> --collection blogPost --search release
 ```
 
 See [CLI reference → Item queries](./cli.md#item-queries).

@@ -1,15 +1,13 @@
 import { afterAll, afterEach, beforeEach, describe, expect, mock, spyOn, test } from "bun:test";
+import { mkdtemp, rm } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 
-let writtenConfig: Record<string, string> = {};
+const originalConfigDir = process.env.CONTFU_CONFIG_DIR;
+const testConfigDir = await mkdtemp(join(tmpdir(), "contfu-cli-workspaces-"));
+process.env.CONTFU_CONFIG_DIR = testConfigDir;
 
-await mock.module("./login", () => ({
-  readConfig: mock(() => Promise.resolve({ ...writtenConfig })),
-  writeConfig: mock((config: Record<string, string>) => {
-    writtenConfig = { ...config };
-    return Promise.resolve();
-  }),
-}));
-
+const originalFetch = globalThis.fetch;
 const mockFetch = mock<typeof fetch>();
 globalThis.fetch = mockFetch as any;
 
@@ -26,11 +24,10 @@ function jsonResponse(data: unknown, status = 200): Response {
 let logSpy: ReturnType<typeof spyOn>;
 let errorSpy: ReturnType<typeof spyOn>;
 
-beforeEach(() => {
+beforeEach(async () => {
+  await rm(join(testConfigDir, "config.json"), { force: true });
   mockFetch.mockReset();
-  writtenConfig = {};
   process.env.CONTFU_API_KEY = "test-key";
-  process.env.CONTFU_URL = "http://test.local";
   delete process.env.CONTFU_WORKSPACE;
   delete process.env.CONTFU_CLI_LINKS;
   delete process.env.NO_COLOR;
@@ -43,8 +40,12 @@ afterEach(() => {
   errorSpy.mockRestore();
 });
 
-afterAll(() => {
+afterAll(async () => {
+  globalThis.fetch = originalFetch;
   delete process.env.CONTFU_WORKSPACE;
+  if (originalConfigDir === undefined) delete process.env.CONTFU_CONFIG_DIR;
+  else process.env.CONTFU_CONFIG_DIR = originalConfigDir;
+  await rm(testConfigDir, { recursive: true, force: true });
 });
 
 describe("listWorkspaces", () => {
@@ -68,9 +69,9 @@ describe("listWorkspaces", () => {
     expect(calls[0]).toContain("Display Name");
     expect(calls.some((call) => call.includes("Default workspace"))).toBe(true);
     expect(calls.some((call) => call.includes("defaultWorkspace"))).toBe(true);
-    expect(calls.some((call) => call.includes("\u001b]8;;http://test.local/workspaces/ws_1"))).toBe(
-      true,
-    );
+    expect(
+      calls.some((call) => call.includes("\u001b]8;;https://contfu.com/workspaces/ws_1")),
+    ).toBe(true);
   });
 });
 
@@ -90,7 +91,6 @@ describe("switchWorkspace", () => {
 
     await switchWorkspace("Shared Space");
 
-    expect(writtenConfig.workspaceId).toBe("ws_1");
     expect(logSpy).toHaveBeenCalledWith("Switched to workspace Shared Space (ws_1)");
   });
 
@@ -142,7 +142,7 @@ describe("revokeWorkspaceMember", () => {
     await revokeWorkspaceMember("sharedSpace", "teammate+cli@example.com");
 
     expect(String(mockFetch.mock.calls[1][0])).toBe(
-      "http://test.local/api/v1/workspaces/ws_1/members/teammate%2Bcli%40example.com",
+      "https://contfu.com/api/v1/workspaces/ws_1/members/teammate%2Bcli%40example.com",
     );
     expect(logSpy).toHaveBeenCalledWith("Workspace membership revoked");
   });

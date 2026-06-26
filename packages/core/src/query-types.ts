@@ -1,4 +1,5 @@
 import type { Block } from "./blocks";
+import { createItemRef } from "./filter-helpers";
 import type { MarkdownOptions } from "./markdown";
 import type { RenderOptions } from "./render";
 
@@ -33,6 +34,8 @@ export type QueryOptions = {
   with?: WithClause;
   fields?: string[];
   search?: string;
+  /** Flatten nested object props into dot-separated result keys. */
+  flat?: boolean;
   contentAs?: ContentFormat;
   htmlOptions?: RenderOptions;
   markdownOptions?: MarkdownOptions;
@@ -41,6 +44,66 @@ export type QueryOptions = {
   /** Fallback locale override. `true` resolves to the configured default locale; `false` disables fallback. */
   fallback?: string | true | false;
 };
+
+export type QueryFilterFunction = (self: any) => string;
+
+export type QueryWithEntry = Omit<WithClause[string], "filter" | "with"> & {
+  filter?: string | QueryFilterFunction;
+  with?: QueryWithInput;
+};
+
+export type QueryWithEntries = Record<string, QueryWithEntry>;
+
+export type QueryWithInput = QueryWithEntries | ((parent: any) => QueryWithEntries);
+
+export function resolveQueryFilter(filter: unknown, level = 0): string | undefined {
+  if (typeof filter === "function") return (filter as QueryFilterFunction)(createItemRef(level));
+  return filter as string | undefined;
+}
+
+export function resolveQueryWithFunctions(
+  withVal: QueryWithInput | undefined,
+  parentLevel = 1,
+): WithClause | undefined {
+  if (!withVal) return undefined;
+
+  const entries = typeof withVal === "function" ? withVal(createItemRef(parentLevel)) : withVal;
+  const result: WithClause = {};
+
+  for (const [name, entry] of Object.entries(entries)) {
+    result[name] = {
+      collection: entry.collection,
+      filter: resolveQueryFilter(entry.filter),
+      limit: entry.limit,
+      include: entry.include,
+      single: entry.single,
+      with: resolveQueryWithFunctions(entry.with, parentLevel + 1),
+    };
+  }
+
+  return result;
+}
+
+export type QueryCallOptions = Omit<QueryOptions, "filter" | "with"> & {
+  collection?: string;
+  filter?: string | QueryFilterFunction;
+  with?: QueryWithInput;
+  [key: string]: unknown;
+};
+
+export function normalizeQueryArgs(
+  first?: string | QueryCallOptions,
+  second?: unknown,
+): { options: QueryCallOptions } {
+  if (typeof first === "string") {
+    if (second == null) return { options: { collection: first } };
+    if (typeof second === "string" || typeof second === "function") {
+      return { options: { collection: first, filter: second as string | QueryFilterFunction } };
+    }
+    return { options: { collection: first, ...(second as QueryCallOptions) } };
+  }
+  return { options: first ?? {} };
+}
 
 export type QueryMeta = {
   total: number;
@@ -61,10 +124,13 @@ export class QueryResultArray<T> extends Array<T> {
     this.limit = meta.limit;
     this.offset = meta.offset;
   }
+  get meta(): QueryMeta {
+    return { total: this.total, limit: this.limit, offset: this.offset };
+  }
   toJSON() {
     return {
       data: Array.from(this),
-      meta: { total: this.total, limit: this.limit, offset: this.offset },
+      meta: this.meta,
     };
   }
 }

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.1] - 2026-06-26
+
+### Fixed
+
+- Aligned constructor and on-demand transform setup with the documented URL options API.
+
 All notable changes to `@contfu/media-optimizer-remote` are documented here.
 
 ## [0.1.0] - 2026-06-09

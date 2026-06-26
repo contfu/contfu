@@ -8,6 +8,10 @@ System properties are distinct from your content fields:
 - They are normalized: the same property means the same thing across every provider.
 - They are additive and hidden — they do not replace the original provider data, and a provider only contributes the ones it actually exposes.
 
+Provider traceability such as the upstream ref is not emitted unless you model it deliberately
+as a collection property. Provider integration type remains service-side context and is not a
+built-in application system property.
+
 ## Reference
 
 | Property       | Type           | Meaning                                                                                                                 | Filterable |
@@ -18,7 +22,7 @@ System properties are distinct from your content fields:
 | `$createdAt`   | number         | When the source created the item.                                                                                       | yes        |
 | `$publishedAt` | number \| null | When the source published the item. `null`/absent for unpublished items.                                                | yes        |
 | `$locale`      | string         | Normalized BCP 47 locale of a localized item variant. See [Localization](./i18n.md).                                    | yes        |
-| `$draft`       | boolean        | Present on draft-capable collections; `true` when the item is a draft.                                                  | no         |
+| `$draft`       | boolean        | Present on draft-capable item collections; `true` when the item is a draft.                                             | no         |
 
 All timestamp values (`$changedAt`, `$createdAt`, `$publishedAt`) are **epoch milliseconds** (the same units as `Date.now()`), so they compare and sort numerically.
 

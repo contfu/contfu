@@ -22,7 +22,6 @@ let errorSpy: ReturnType<typeof spyOn>;
 beforeEach(() => {
   mockFetch.mockReset();
   process.env.CONTFU_API_KEY = "test-key";
-  process.env.CONTFU_URL = "http://test.local";
   logSpy = spyOn(console, "log").mockImplementation(() => {});
   errorSpy = spyOn(console, "error").mockImplementation(() => {});
 });
@@ -98,7 +97,7 @@ describe("addIntegrationCollections", () => {
     expect(JSON.parse(options.body as string)).toEqual({ all: true });
   });
 
-  test("requires refs or --all", async () => {
+  test("requires one add selection mode", async () => {
     const exitSpy = spyOn(process, "exit").mockImplementation(() => {
       throw new Error("exit");
     });
@@ -106,7 +105,41 @@ describe("addIntegrationCollections", () => {
     // oxlint-disable-next-line typescript-eslint/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
     await expect(addIntegrationCollections("42", { format: "table" })).rejects.toThrow("exit");
     expect(errorSpy).toHaveBeenCalledWith(
-      "Usage: contfu integrations add <integration-id-or-name> (--refs <comma-separated> | --all)",
+      "Usage: contfu integrations add <integration-id-or-name> (--refs <comma-separated> | --all | --select)",
+    );
+
+    exitSpy.mockRestore();
+  });
+
+  test("requires an interactive TTY for --select", async () => {
+    const exitSpy = spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("exit");
+    });
+    mockFetch.mockResolvedValueOnce(jsonResponse([{ id: "42", name: "Brain" }]));
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse([{ ref: "db-1", displayName: "Blog Posts", alreadyAdded: false }]),
+    );
+
+    // oxlint-disable-next-line typescript-eslint/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
+    await expect(
+      addIntegrationCollections("42", { format: "table", select: true }),
+    ).rejects.toThrow("exit");
+    expect(errorSpy).toHaveBeenCalledWith("--select requires an interactive TTY");
+
+    exitSpy.mockRestore();
+  });
+
+  test("rejects ambiguous add selection modes", async () => {
+    const exitSpy = spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("exit");
+    });
+
+    // oxlint-disable-next-line typescript-eslint/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
+    await expect(
+      addIntegrationCollections("42", { format: "table", refs: ["db-1"], select: true }),
+    ).rejects.toThrow("exit");
+    expect(errorSpy).toHaveBeenCalledWith(
+      "Usage: contfu integrations add <integration-id-or-name> (--refs <comma-separated> | --all | --select)",
     );
 
     exitSpy.mockRestore();

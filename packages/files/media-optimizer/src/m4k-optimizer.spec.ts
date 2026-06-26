@@ -1,11 +1,121 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { open, readFile } from "node:fs/promises";
-import { M4kOptimizer, createTransform } from "./m4k-optimizer";
+import {
+  M4kOptimizer,
+  createTransform,
+  toM4kAudioOptions,
+  toM4kImageOptions,
+  toM4kVideoOptions,
+} from "./m4k-optimizer";
 
 let optimizer: M4kOptimizer;
 
 beforeEach(() => {
   optimizer = new M4kOptimizer();
+});
+
+describe("option mapping", () => {
+  it("forwards on-demand image conversion options to m4k", () => {
+    expect(
+      toM4kImageOptions({
+        mediaType: "image",
+        format: "webp",
+        ext: "png",
+        quality: 70,
+        resize: { width: 320, height: 180, fit: "cover" },
+        rotate: 90,
+        crop: { left: 1, top: 2, width: 3, height: 4 },
+        keepMetadata: true,
+        keepExif: true,
+        keepIcc: true,
+        colorspace: "srgb",
+      }),
+    ).toEqual({
+      format: "webp",
+      ext: "png",
+      quality: 70,
+      resize: { width: 320, height: 180, fit: "cover" },
+      rotate: 90,
+      crop: { left: 1, top: 2, width: 3, height: 4 },
+      keepMetadata: true,
+      keepExif: true,
+      keepIcc: true,
+      colorspace: "srgb",
+    });
+  });
+
+  it("forwards full video and audio conversion options to m4k", () => {
+    expect(
+      toM4kVideoOptions({
+        mediaType: "video",
+        format: "mp4",
+        ext: "m4v",
+        videoCodec: "libx264",
+        videoBitrate: "1000k",
+        videoFilters: "scale=320:-1",
+        audioCodec: "aac",
+        audioBitrate: "128k",
+        audioFilters: "volume=0.5",
+        fps: 24,
+        width: 320,
+        height: 180,
+        aspect: "16:9",
+        frames: 10,
+        duration: "3",
+        seek: "1",
+        inputFormat: "mov",
+        pad: "ceil(iw/2)*2:ceil(ih/2)*2",
+        complexFilters: "[0:v]scale=320:-1[v]",
+        args: ["-movflags", "faststart"],
+      }),
+    ).toEqual({
+      format: "mp4",
+      ext: "m4v",
+      videoCodec: "libx264",
+      videoBitrate: "1000k",
+      videoFilters: "scale=320:-1",
+      audioCodec: "aac",
+      audioBitrate: "128k",
+      audioFilters: "volume=0.5",
+      fps: 24,
+      size: "320x180",
+      aspect: "16:9",
+      frames: 10,
+      duration: "3",
+      seek: "1",
+      inputFormat: "mov",
+      pad: "ceil(iw/2)*2:ceil(ih/2)*2",
+      complexFilters: "[0:v]scale=320:-1[v]",
+      args: ["-movflags", "faststart"],
+    });
+
+    expect(
+      toM4kAudioOptions({
+        mediaType: "audio",
+        format: "mp3",
+        ext: "mpga",
+        codec: "libmp3lame",
+        bitrate: "128k",
+        filters: "volume=0.5",
+        complexFilters: "[0:a]anull[a]",
+        duration: "3",
+        seek: "1",
+        inputFormat: "wav",
+        args: ["-ac", "1"],
+      }),
+    ).toEqual({
+      format: "mp3",
+      ext: "mpga",
+      codec: "libmp3lame",
+      bitrate: "128k",
+      filters: "volume=0.5",
+      complexFilters: "[0:a]anull[a]",
+      duration: "3",
+      seek: "1",
+      inputFormat: "wav",
+      args: ["-ac", "1"],
+    });
+  });
 });
 
 describe("optimize() — images", () => {

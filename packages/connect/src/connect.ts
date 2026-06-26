@@ -1,15 +1,8 @@
-import {
-  connectToStream,
-  type StreamEvent,
-  type StreamTransport,
-  type SyncEvent,
-} from "./stream-client";
+import { connectToStream, type StreamEvent, type SyncEvent } from "./stream-client";
 
 type BaseOpts = {
   /** Authentication key. If not provided, CONTFU_KEY env var (base64url) is used. */
   key?: Buffer;
-  /** Explicit transport override. Defaults to runtime selection. */
-  transport?: StreamTransport;
   /** Enable automatic reconnection on disconnect (default: true) */
   reconnect?: boolean;
   /** Maximum delay between reconnection attempts in ms (default: 30000) */
@@ -28,7 +21,7 @@ type OptsWithoutConnectionEvents = BaseOpts & { connectionEvents?: false };
  * reconnection happen automatically in the background.
  *
  * The authentication key can be provided via opts or the `CONTFU_KEY` environment variable (base64url-encoded).
- * Transport defaults to WebSocket in preview/production and HTTP streaming in local dev.
+ * Sync connects to Contfu Cloud over WebSocket first and automatically falls back to HTTP streaming when WebSocket setup is unavailable.
  *
  * @example
  * ```ts

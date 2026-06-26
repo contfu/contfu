@@ -28,6 +28,34 @@ export const FilterOperator = defineEnum({
 
 export type FilterOperator = EnumValue<typeof FilterOperator>;
 
+const NULL_CHECK_OPERATORS: readonly FilterOperator[] = [
+  FilterOperator.IS_NULL,
+  FilterOperator.IS_NOT_NULL,
+];
+const EQUALITY_OPERATORS: readonly FilterOperator[] = [FilterOperator.EQ, FilterOperator.NE];
+const COMPARISON_OPERATORS: readonly FilterOperator[] = [
+  FilterOperator.LT,
+  FilterOperator.LTE,
+  FilterOperator.GT,
+  FilterOperator.GTE,
+];
+const ARRAY_OPERATORS: readonly FilterOperator[] = [FilterOperator.IN, FilterOperator.NOT_IN];
+const STRING_OPERATORS: readonly FilterOperator[] = [
+  FilterOperator.CONTAINS,
+  FilterOperator.STARTS_WITH,
+  FilterOperator.ENDS_WITH,
+];
+
+const STRING_OPERATOR_TYPES =
+  PropertyType.STRING | PropertyType.STRINGS | PropertyType.ENUM | PropertyType.ENUMS;
+const COMPARISON_OPERATOR_TYPES = PropertyType.NUMBER | PropertyType.NUMBERS | PropertyType.DATE;
+const ARRAY_OPERATOR_TYPES =
+  PropertyType.STRINGS |
+  PropertyType.NUMBERS |
+  PropertyType.ENUMS |
+  PropertyType.REF |
+  PropertyType.REFS;
+
 /**
  * A filter condition for collection items.
  */
@@ -44,21 +72,6 @@ export interface Filter {
  * Get valid operators for a given property type.
  */
 export function getOperatorsForType(propertyType: number): FilterOperator[] {
-  const common: FilterOperator[] = [FilterOperator.IS_NULL, FilterOperator.IS_NOT_NULL];
-  const equality: FilterOperator[] = [FilterOperator.EQ, FilterOperator.NE];
-  const comparison: FilterOperator[] = [
-    FilterOperator.LT,
-    FilterOperator.LTE,
-    FilterOperator.GT,
-    FilterOperator.GTE,
-  ];
-  const arrayOps: FilterOperator[] = [FilterOperator.IN, FilterOperator.NOT_IN];
-  const stringOps: FilterOperator[] = [
-    FilterOperator.CONTAINS,
-    FilterOperator.STARTS_WITH,
-    FilterOperator.ENDS_WITH,
-  ];
-
   // Strip nullable flag to get the base type
   const baseType = propertyType & ~PropertyType.NULL;
 
@@ -67,79 +80,58 @@ export function getOperatorsForType(propertyType: number): FilterOperator[] {
     case PropertyType.STRINGS:
     case PropertyType.ENUM:
     case PropertyType.ENUMS:
-      return [...equality, ...stringOps, ...arrayOps, ...common];
+      return [
+        ...EQUALITY_OPERATORS,
+        ...STRING_OPERATORS,
+        ...ARRAY_OPERATORS,
+        ...NULL_CHECK_OPERATORS,
+      ];
     case PropertyType.NUMBER:
     case PropertyType.NUMBERS:
-      return [...equality, ...comparison, ...arrayOps, ...common];
+      return [
+        ...EQUALITY_OPERATORS,
+        ...COMPARISON_OPERATORS,
+        ...ARRAY_OPERATORS,
+        ...NULL_CHECK_OPERATORS,
+      ];
     case PropertyType.COLOR:
-      return [...equality, ...common];
-    case PropertyType.DATE:
-      return [...equality, ...comparison, ...common];
     case PropertyType.BOOLEAN:
-      return [...equality, ...common];
+      return [...EQUALITY_OPERATORS, ...NULL_CHECK_OPERATORS];
+    case PropertyType.DATE:
+      return [...EQUALITY_OPERATORS, ...COMPARISON_OPERATORS, ...NULL_CHECK_OPERATORS];
     case PropertyType.REF:
     case PropertyType.REFS:
-      return [...equality, ...arrayOps, ...common];
+      return [...EQUALITY_OPERATORS, ...ARRAY_OPERATORS, ...NULL_CHECK_OPERATORS];
     case PropertyType.FILE:
     case PropertyType.FILES:
     case PropertyType.GEOPOINT:
-      return common;
+      return [...NULL_CHECK_OPERATORS];
     default:
-      return getOperatorsForTypeMask(baseType, {
-        equality,
-        comparison,
-        arrayOps,
-        stringOps,
-        common,
-      });
+      return getOperatorsForTypeMask(baseType);
   }
 }
 
-function getOperatorsForTypeMask(
-  baseType: number,
-  operators: {
-    equality: FilterOperator[];
-    comparison: FilterOperator[];
-    arrayOps: FilterOperator[];
-    stringOps: FilterOperator[];
-    common: FilterOperator[];
-  },
-): FilterOperator[] {
-  const result = new Set([...operators.equality, ...operators.common]);
+function getOperatorsForTypeMask(baseType: number): FilterOperator[] {
+  const result = new Set<FilterOperator>([...EQUALITY_OPERATORS, ...NULL_CHECK_OPERATORS]);
 
-  if (
-    baseType & PropertyType.STRING ||
-    baseType & PropertyType.STRINGS ||
-    baseType & PropertyType.ENUM ||
-    baseType & PropertyType.ENUMS
-  ) {
-    for (const operator of operators.stringOps) result.add(operator);
+  if (baseType & STRING_OPERATOR_TYPES) {
+    for (const operator of STRING_OPERATORS) result.add(operator);
   }
 
-  if (
-    baseType & PropertyType.NUMBER ||
-    baseType & PropertyType.NUMBERS ||
-    baseType & PropertyType.DATE
-  ) {
-    for (const operator of operators.comparison) result.add(operator);
+  if (baseType & COMPARISON_OPERATOR_TYPES) {
+    for (const operator of COMPARISON_OPERATORS) result.add(operator);
   }
 
-  if (
-    baseType & PropertyType.STRINGS ||
-    baseType & PropertyType.NUMBERS ||
-    baseType & PropertyType.ENUMS ||
-    baseType & PropertyType.REF ||
-    baseType & PropertyType.REFS
-  ) {
-    for (const operator of operators.arrayOps) result.add(operator);
+  if (baseType & ARRAY_OPERATOR_TYPES) {
+    for (const operator of ARRAY_OPERATORS) result.add(operator);
   }
 
   if (baseType === PropertyType.FILE || baseType === PropertyType.FILES) {
-    return operators.common;
+    return [...NULL_CHECK_OPERATORS];
   }
 
   if (baseType === PropertyType.COLOR) {
-    return [...operators.equality, ...operators.common];
+    return [...EQUALITY_OPERATORS, ...NULL_CHECK_OPERATORS];
   }
 
   return [...result];

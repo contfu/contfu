@@ -55,6 +55,14 @@ const CAST_FNS: Record<string, (v: unknown) => unknown> = {
   enum: (v) => v, // pass-through — validation happens in validateSourceItem
 };
 
+type MappingValue = { found: true; value: unknown } | { found: false };
+
+function mappingValue(props: Record<string, unknown>, rule: MappingRule): MappingValue {
+  if (rule.source in props) return { found: true, value: props[rule.source] };
+  if ("default" in rule) return { found: true, value: rule.default };
+  return { found: false };
+}
+
 /**
  * Apply mapping rules to an item's properties.
  * - If mappings is null/empty → pass through unchanged.
@@ -72,19 +80,11 @@ export function applyMappings(
   );
   for (const rule of mappings) {
     const target = rule.target ?? rule.source;
-    let value: unknown;
+    const sourceValue = mappingValue(props, rule);
+    if (!sourceValue.found) continue;
 
-    if (rule.source in props) {
-      value = props[rule.source];
-    } else if ("default" in rule) {
-      value = rule.default;
-    } else {
-      continue;
-    }
-
-    if (rule.cast && CAST_FNS[rule.cast]) {
-      value = CAST_FNS[rule.cast](value);
-    }
+    const cast = rule.cast ? CAST_FNS[rule.cast] : undefined;
+    const value = cast ? cast(sourceValue.value) : sourceValue.value;
 
     result[target] = value;
   }
@@ -209,17 +209,11 @@ export function validateSourceItem(
   for (const rule of mappings) {
     if (!rule.cast || !CAST_FNS[rule.cast]) continue;
 
-    let value: unknown;
-    if (rule.source in props) {
-      value = props[rule.source];
-    } else if ("default" in rule) {
-      value = rule.default;
-    } else {
-      continue; // no value to validate
-    }
+    const sourceValue = mappingValue(props, rule);
+    if (!sourceValue.found) continue; // no value to validate
 
     if (rule.cast === "number") {
-      const n = Number(value);
+      const n = Number(sourceValue.value);
       if (Number.isNaN(n)) {
         errors.push({
           property: rule.target ?? rule.source,
@@ -227,12 +221,12 @@ export function validateSourceItem(
           cast: rule.cast,
         });
       }
-    } else if (rule.cast === "enum" && value != null) {
+    } else if (rule.cast === "enum" && sourceValue.value != null) {
       // Resolve enum values from explicit rule.enumValues or target schema
       const targetKey = rule.target ?? rule.source;
       const enumValues =
         rule.enumValues ?? (targetSchema ? schemaEnumValues(targetSchema[targetKey]) : undefined);
-      if (enumValues && !enumValues.includes(String(value))) {
+      if (enumValues && !enumValues.includes(String(sourceValue.value))) {
         errors.push({
           property: targetKey,
           sourceProperty: rule.source,

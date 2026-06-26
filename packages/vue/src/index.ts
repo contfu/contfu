@@ -31,6 +31,8 @@ import {
   type Inline,
 } from "@contfu/core";
 
+type ComponentBlockComponent = ReturnType<typeof defineComponent>;
+
 export type BlockComponents = {
   p?: ReturnType<typeof defineComponent>;
   h1?: ReturnType<typeof defineComponent>;
@@ -42,7 +44,8 @@ export type BlockComponents = {
   ol?: ReturnType<typeof defineComponent>;
   table?: ReturnType<typeof defineComponent>;
   img?: ReturnType<typeof defineComponent>;
-  component?: ReturnType<typeof defineComponent>;
+  component?: ComponentBlockComponent;
+  [componentName: string]: ReturnType<typeof defineComponent> | undefined;
 };
 
 export const FILE_URL_INJECTION_KEY: InjectionKey<FileUrlOptions> = Symbol("@contfu/file");
@@ -138,9 +141,11 @@ function renderBlockNode(
     return h("img", { src: buildFileUrl(canonical, file, "image"), alt });
   }
   if (isComponent(block)) {
-    const children = (block[3] as BlockType[]).map((c) => renderBlockNode(c, components, file));
-    return components.component
-      ? h(components.component, { block }, () => children)
+    const componentBlock = block;
+    const ComponentRenderer = components[componentBlock[1]] ?? components.component;
+    const children = componentBlock[3].map((c) => renderBlockNode(c, components, file));
+    return ComponentRenderer
+      ? h(ComponentRenderer, { block: componentBlock }, () => children)
       : h(() => children);
   }
   return null;

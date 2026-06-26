@@ -54,7 +54,11 @@ export function buildI18nQueryPlan(opts: {
   const configuredFallback = explicitAllLocales
     ? false
     : (fallback ?? scope?.fallback ?? appI18n?.fallback);
-  const fallbackLocale = resolveFallbackLocale(configuredFallback, appI18n?.defaultLocale);
+  const fallbackLocale = resolveFallbackLocale(
+    configuredFallback,
+    appI18n?.defaultLocale,
+    fallback === true,
+  );
   const effectiveFallbackLocale =
     wantedLocale !== undefined && fallbackLocale !== undefined && fallbackLocale !== wantedLocale
       ? fallbackLocale
@@ -71,11 +75,15 @@ export function buildI18nQueryPlan(opts: {
 function resolveFallbackLocale(
   fallback: string | true | false | undefined,
   defaultLocale: string | undefined,
+  requireDefaultLocale: boolean,
 ): string | undefined {
   if (fallback === false || fallback === undefined) return undefined;
   if (fallback === true) {
     if (!defaultLocale) {
-      throw new Error("fallback=true requires an i18n defaultLocale to resolve");
+      if (requireDefaultLocale) {
+        throw new Error("fallback=true requires an i18n defaultLocale to resolve");
+      }
+      return undefined;
     }
     return defaultLocale;
   }

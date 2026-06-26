@@ -94,6 +94,20 @@ describe("Block (Solid)", () => {
     const component: Component = ["x", "Widget", {}, [inner]];
     expect(render(() => <Block block={component} />)).toBe("<p>hi</p>");
   });
+
+  test("overrides named component block", () => {
+    const component: Component = ["x", "Callout", { kind: "info" }, [["p", ["hello"]]]];
+    expect(
+      render(() => (
+        <Block
+          block={component}
+          components={{
+            Callout: (props) => <aside data-kind={props.block[2].kind}>{props.children}</aside>,
+          }}
+        />
+      )),
+    ).toBe('<aside data-kind="info"><p>hello</p></aside>');
+  });
 });
 
 describe("Blocks (Solid)", () => {

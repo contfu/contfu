@@ -17,4 +17,20 @@ for await (const event of connect({ mediaOptimizer: new M4kOptimizer() })) {
 }
 ```
 
+You can also use the local m4k transform for one-off conversions through `convertMedia()`:
+
+```ts
+import { convertMedia } from "@contfu/contfu";
+import { createTransform } from "@contfu/media-optimizer";
+
+const output = await convertMedia(
+  fileId,
+  "webp",
+  { mediaType: "image", format: "webp", resize: { width: 1200 } },
+  createTransform(),
+);
+```
+
+Both sync-time optimization and one-off conversion honor the same image, video, and audio transform options exposed by `@contfu/contfu`.
+
 For horizontally scaled deployments, use `@contfu/media-optimizer-remote` instead.

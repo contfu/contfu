@@ -9,6 +9,7 @@ export {
   type ApiOrganizationMember,
   type ApiWorkspaceMember,
   type ApiIntegration,
+  type ApiTargetFailedDelivery,
   type CreateIntegrationBody,
   type UpdateIntegrationBody,
   type CreateCollectionBody,

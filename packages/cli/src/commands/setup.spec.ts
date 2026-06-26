@@ -42,4 +42,31 @@ describe("setup dry run", () => {
     expect(existsSync(join(cwd, ".env.local"))).toBe(false);
     expect(existsSync(join(cwd, ".gitignore"))).toBe(false);
   });
+
+  test("rejects unsupported package names before dry-run install output", () => {
+    const errorSpy = spyOn(console, "error").mockImplementation(() => {});
+    const exitSpy = spyOn(process, "exit").mockImplementation((code?: string | number | null) => {
+      throw new Error(`exit:${code}`);
+    });
+
+    try {
+      expect(() =>
+        setup({
+          package: "left-pad",
+          appName: "Website",
+          nonInteractive: true,
+          dryRun: true,
+        }),
+      ).toThrow("exit:1");
+
+      expect(errorSpy).toHaveBeenCalledWith(
+        "Unsupported package: expected @contfu/contfu or @contfu/client",
+      );
+      const output = logSpy.mock.calls.map((c: unknown[]) => String(c[0])).join("\n");
+      expect(output).not.toContain("Dry run: would install package left-pad");
+    } finally {
+      exitSpy.mockRestore();
+      errorSpy.mockRestore();
+    }
+  });
 });

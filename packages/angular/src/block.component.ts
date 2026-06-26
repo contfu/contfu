@@ -1,5 +1,5 @@
 import { Component, Inject, Input, Optional, type OnChanges } from "@angular/core";
-import { renderBlock, type Block, type FileUrlOptions } from "@contfu/core";
+import { renderBlock, type Block, type FileUrlOptions, type RenderOptions } from "@contfu/core";
 import { CONTFU_FILE_URL } from "./tokens";
 
 @Component({
@@ -10,6 +10,7 @@ import { CONTFU_FILE_URL } from "./tokens";
 export class BlockComponent implements OnChanges {
   @Input({ required: true }) block!: Block;
   @Input() file?: FileUrlOptions;
+  @Input() options?: RenderOptions;
 
   html = "";
 
@@ -19,6 +20,7 @@ export class BlockComponent implements OnChanges {
 
   ngOnChanges(): void {
     const file = this.file ?? this.injectedFile ?? undefined;
-    this.html = renderBlock(this.block, file ? { file } : undefined);
+    const options = file ? { ...this.options, file } : this.options;
+    this.html = renderBlock(this.block, options);
   }
 }

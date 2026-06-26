@@ -27,8 +27,8 @@ contfu flows create --source-id <source-collection-id> --target-id <target-colle
 
 Options:
 
-- `--include-ref` / `--no-include-ref` — whether to include source reference data.
-- `-d <json>` — raw JSON body for advanced configuration (mappings, filters, schema).
+- `-d <json>` — raw JSON body for advanced configuration (mappings and filters). You can
+  combine this with `--source-id`/`--target-id`, or include `sourceId` and `targetId` in the JSON.
 
 Inspect and remove:
 
@@ -44,17 +44,9 @@ A **mapping** translates item properties from the source collection's shape into
 target collection's shape. A flow with **no** mappings has an **identity** derived schema —
 it carries the source schema through unchanged.
 
-> The flow's `schema` field stores the source collection's schema at creation time; the UI
-> mapping editor reads it to populate the source-property dropdowns. When creating flows
-> programmatically (CLI/API), pass the source schema explicitly so the editor is not empty:
->
-> ```bash
-> contfu flows create --source-id <src> --target-id <tgt> \
->   -d '{"schema":{"title":"string","body":"richtext"}}'
-> ```
->
-> Match it to the source collection's schema, which you can inspect with
-> `contfu collections get <source-id>`.
+> The Cloud Service records the source collection's schema when the flow is created, so the
+> UI mapping editor can populate source-property dropdowns automatically. You do not need to
+> pass a `schema` field in CLI/API flow create requests.
 
 ## Filters
 

@@ -166,6 +166,18 @@ describe("generateTypeScript", () => {
     expect(ts).toContain("body: Block[];");
   });
 
+  it("imports Block for nullable BLOCK bitmasks", () => {
+    const ts = generateTypeScript([
+      {
+        name: "posts",
+        displayName: "Posts",
+        schema: { body: PropertyType.BLOCK | PropertyType.NULL },
+      },
+    ]);
+    expect(ts).toContain('import type { Block } from "@contfu/core";');
+    expect(ts).toContain("body: Block[];");
+  });
+
   it("generates Color imports for COLOR fields and bitmasks", () => {
     const ts = generateTypeScript([
       {
@@ -228,12 +240,26 @@ describe("generateTypeScript", () => {
       },
     ]);
     expect(ts).toContain(
-      'export type SharedSeoComponent = ["shared.seo", Record<string, any>, BuiltInBlock[]];',
+      'export type SharedSeoComponent = ["x", "shared.seo", Record<string, any>, Block[]];',
     );
     expect(ts).toContain(
-      'export type SharedHeroComponent = ["shared.hero", Record<string, any>, BuiltInBlock[]];',
+      'export type SharedHeroComponent = ["x", "shared.hero", Record<string, any>, Block[]];',
     );
     expect(ts).toContain("body: (SharedSeoComponent | SharedHeroComponent)[];");
+  });
+
+  it("generates typed component blocks from nullable BLOCK schema metadata", () => {
+    const ts = generateTypeScript([
+      {
+        name: "posts",
+        displayName: "Posts",
+        schema: { body: [PropertyType.BLOCK | PropertyType.NULL, ["shared.hero"]] },
+      },
+    ]);
+    expect(ts).toContain(
+      'export type SharedHeroComponent = ["x", "shared.hero", Record<string, any>, Block[]];',
+    );
+    expect(ts).toContain("body: (SharedHeroComponent)[];");
   });
 
   it("generates different component block unions per dynamic-zone field", () => {
@@ -258,9 +284,7 @@ describe("generateTypeScript", () => {
     expect(ts).toContain("heroZone: (HeroComponent | CallToActionComponent)[];");
     expect(ts).toContain("sidebarZone: (TeaserComponent)[];");
     expect(ts).toContain("seo: (SeoComponent)[];");
-    expect(ts).toContain(
-      'export type HeroComponent = ["hero", { title: string }, BuiltInBlock[]];',
-    );
+    expect(ts).toContain('export type HeroComponent = ["x", "hero", { title: string }, Block[]];');
   });
 });
 
@@ -275,9 +299,9 @@ describe("generateApplicationIntegrationTypes", () => {
       },
     ]);
 
-    expect(ts).toContain('import type { BuiltInBlock, Color } from "@contfu/core";');
+    expect(ts).toContain('import type { Block, Color } from "@contfu/core";');
     expect(ts).toContain(
-      'export type HeroComponent = ["hero", { background: Color }, BuiltInBlock[]];',
+      'export type HeroComponent = ["x", "hero", { background: Color }, Block[]];',
     );
   });
 
@@ -331,10 +355,8 @@ describe("generateApplicationIntegrationTypes", () => {
       },
     ]);
 
-    expect(ts).toContain('import type { BuiltInBlock, GeoPoint } from "@contfu/core";');
-    expect(ts).toContain(
-      'export type MapComponent = ["map", { center: GeoPoint }, BuiltInBlock[]];',
-    );
+    expect(ts).toContain('import type { Block, GeoPoint } from "@contfu/core";');
+    expect(ts).toContain('export type MapComponent = ["x", "map", { center: GeoPoint }, Block[]];');
     expect(ts).toContain("location: GeoPoint;");
   });
 });
@@ -627,7 +649,7 @@ describe("generateApplicationIntegrationTypes with inflowSchemas", () => {
 });
 
 describe("$content system schema key", () => {
-  it("generateTypeScript maps $content to content: BuiltInBlock[] and prepends BuiltInBlock import", () => {
+  it("generateTypeScript maps $content to content: Block[] and prepends Block import", () => {
     const ts = generateTypeScript([
       {
         name: "blogPosts",
@@ -635,8 +657,8 @@ describe("$content system schema key", () => {
         schema: { title: PropertyType.STRING, $content: 0 },
       },
     ]);
-    expect(ts).toContain(`import type { BuiltInBlock } from "@contfu/core";`);
-    expect(ts).toContain("content: BuiltInBlock[];");
+    expect(ts).toContain(`import type { Block } from "@contfu/core";`);
+    expect(ts).toContain("content: Block[];");
     expect(ts).not.toContain("$content");
   });
 
@@ -648,11 +670,11 @@ describe("$content system schema key", () => {
         schema: { title: PropertyType.STRING },
       },
     ]);
-    expect(ts).not.toContain("import type { BuiltInBlock }");
+    expect(ts).not.toContain("import type { Block }");
     expect(ts).not.toContain("Block[]");
   });
 
-  it("generateApplicationIntegrationTypes maps $content to content: BuiltInBlock[] and prepends BuiltInBlock import", () => {
+  it("generateApplicationIntegrationTypes maps $content to content: Block[] and prepends Block import", () => {
     const ts = generateApplicationIntegrationTypes([
       {
         name: "blogPosts",
@@ -660,11 +682,11 @@ describe("$content system schema key", () => {
         schema: { title: PropertyType.STRING, $content: 0 },
       },
     ]);
-    expect(ts).toContain(`import type { BuiltInBlock } from "@contfu/core";`);
-    expect(ts).toContain("content: BuiltInBlock[];");
+    expect(ts).toContain(`import type { Block } from "@contfu/core";`);
+    expect(ts).toContain("content: Block[];");
   });
 
-  it("generateTypeScript emits content: BuiltInBlock[] in union members from inflow schemas", () => {
+  it("generateTypeScript emits content: Block[] in union members from inflow schemas", () => {
     const ts = generateTypeScript([
       {
         name: "posts",
@@ -676,8 +698,8 @@ describe("$content system schema key", () => {
         ],
       },
     ]);
-    expect(ts).toContain(`import type { BuiltInBlock } from "@contfu/core";`);
-    expect(ts).toContain("content: BuiltInBlock[];");
+    expect(ts).toContain(`import type { Block } from "@contfu/core";`);
+    expect(ts).toContain("content: Block[];");
     expect(ts).not.toContain("$content");
   });
 
@@ -708,7 +730,7 @@ describe("$content system schema key", () => {
       },
     ]);
 
-    expect(ts).toContain("content: BuiltInBlock[];");
+    expect(ts).toContain("content: Block[];");
     expect(ts.match(/\$locale: Locale;/g)).toHaveLength(2);
     expect(ts).not.toContain('$locale: "en" | "de";');
   });

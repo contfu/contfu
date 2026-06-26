@@ -15,6 +15,7 @@
     isComponent,
     isInline,
     type Block as BlockType,
+    type Component as ComponentBlock,
     type FileUrlOptions,
     type Inline as InlineType,
   } from "@contfu/core";
@@ -33,9 +34,23 @@
   const ctxFile = getContext<FileUrlOptions | undefined>(FILE_URL_CONTEXT_KEY);
   const resolvedFile = file ?? ctxFile;
 
+  type ComponentBlockRenderer = NonNullable<BlockComponents["component"]>;
+
   function inlineItems(items: (InlineType | BlockType)[][]): (InlineType | BlockType)[][] {
     return items;
   }
+
+  function getComponentBlockRenderer(
+    componentBlock: ComponentBlock,
+  ): ComponentBlockRenderer | undefined {
+    return (components[componentBlock[1]] ?? components.component) as
+      | ComponentBlockRenderer
+      | undefined;
+  }
+
+  let componentRenderer = $derived(
+    isComponent(block) ? getComponentBlockRenderer(block as ComponentBlock) : undefined,
+  );
 </script>
 
 {#if isP(block)}
@@ -167,8 +182,8 @@
     <img src={buildFileUrl(block[1], resolvedFile, "image")} alt={block[2]} />
   {/if}
 {:else if isComponent(block)}
-  {#if components.component}
-    <svelte:component this={components.component} {block}>
+  {#if componentRenderer}
+    <svelte:component this={componentRenderer} {block}>
       {#each block[3] as child}<Block block={child} {components} />{/each}
     </svelte:component>
   {:else}

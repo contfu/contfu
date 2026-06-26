@@ -1,7 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import type { Block as BlockType, Heading1Block, ImageBlock, ParagraphBlock } from "@contfu/core";
-import { BlockComponent } from "./block.component";
-import { BlocksComponent } from "./blocks.component";
+import { Block, BlockComponent, Blocks, BlocksComponent } from "./index";
+
+describe("@contfu/angular exports", () => {
+  test("provides Block/Blocks aliases for docs parity", () => {
+    expect(Block).toBe(BlockComponent);
+    expect(Blocks).toBe(BlocksComponent);
+  });
+});
 
 describe("BlockComponent (Angular)", () => {
   test("renders paragraph", () => {
@@ -48,6 +54,27 @@ describe("BlockComponent (Angular)", () => {
     c.ngOnChanges();
     expect(c.html).toBe('<img src="/files/abc.avif" alt="x">');
   });
+
+  test("uses core render options", () => {
+    const c = new BlockComponent(null);
+    c.block = ["p", ["Body"]] as ParagraphBlock;
+    c.options = {
+      blocks: {
+        p: (block, ctx) => `<section>${ctx.renderInlines(block[1])}</section>`,
+      },
+    };
+    c.ngOnChanges();
+    expect(c.html).toBe("<section>Body</section>");
+  });
+
+  test("file prop beats options file", () => {
+    const c = new BlockComponent(null);
+    c.block = ["i", "abc.png", "alt"] as ImageBlock;
+    c.file = { baseUrl: "/prop" };
+    c.options = { file: { baseUrl: "/options" } };
+    c.ngOnChanges();
+    expect(c.html).toBe('<img src="/prop/abc.png" alt="alt">');
+  });
 });
 
 describe("BlocksComponent (Angular)", () => {
@@ -66,5 +93,17 @@ describe("BlocksComponent (Angular)", () => {
     c.blocks = [];
     c.ngOnChanges();
     expect(c.html).toBe("");
+  });
+
+  test("uses core render options", () => {
+    const c = new BlocksComponent(null);
+    c.blocks = [["1", ["Title"]] as Heading1Block] as BlockType[];
+    c.options = {
+      blocks: {
+        h1: (block, ctx) => `<hgroup>${ctx.renderInlines(block[1])}</hgroup>`,
+      },
+    };
+    c.ngOnChanges();
+    expect(c.html).toBe("<hgroup>Title</hgroup>");
   });
 });

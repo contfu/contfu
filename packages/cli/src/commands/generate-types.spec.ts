@@ -23,7 +23,6 @@ let exitSpy: ReturnType<typeof spyOn>;
 beforeEach(() => {
   mockFetch.mockReset();
   process.env.CONTFU_API_KEY = "test-key";
-  process.env.CONTFU_URL = "http://test.local";
   writeSpy = spyOn(process.stdout, "write").mockImplementation(() => true);
   errorSpy = spyOn(console, "error").mockImplementation(() => {});
   exitSpy = spyOn(process, "exit").mockImplementation(() => {
@@ -50,7 +49,7 @@ describe("integrationTypes", () => {
     await integrationTypes("7");
 
     const url = (mockFetch.mock.calls[1] as unknown[])[0] as string;
-    expect(url).toBe("http://test.local/api/v1/integrations/7/types");
+    expect(url).toBe("https://contfu.com/api/v1/integrations/7/types");
     expect(writeSpy).toHaveBeenCalledTimes(1);
     const output = (writeSpy.mock.calls[0] as unknown[])[0] as string;
     expect(output).toContain("ContfuCollections");
@@ -79,7 +78,7 @@ describe("collectionTypes", () => {
     await collectionTypes("3");
 
     const url = (mockFetch.mock.calls[1] as unknown[])[0] as string;
-    expect(url).toBe("http://test.local/api/v1/collections/3/types");
+    expect(url).toBe("https://contfu.com/api/v1/collections/3/types");
     expect(writeSpy).toHaveBeenCalledTimes(1);
     const output = (writeSpy.mock.calls[0] as unknown[])[0] as string;
     expect(output).toContain("ContfuCollections");

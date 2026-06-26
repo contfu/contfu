@@ -30,19 +30,34 @@ type DbRow = {
   content?: unknown;
 };
 
-function toSelectableFields(row: DbRow) {
-  const props = propsWithLocale(
-    row.props && typeof row.props === "object" && !Array.isArray(row.props)
-      ? (row.props as Record<string, unknown>)
-      : {},
-    row.locale,
-  );
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function flattenProps(
+  props: Record<string, unknown>,
+  prefix = "",
+  result: Record<string, unknown> = {},
+): Record<string, unknown> {
+  for (const [key, value] of Object.entries(props)) {
+    const path = prefix ? `${prefix}.${key}` : key;
+    if (isPlainObject(value)) {
+      flattenProps(value, path, result);
+    } else {
+      result[path] = value;
+    }
+  }
+  return result;
+}
+
+function toSelectableFields(row: DbRow, flat = false) {
+  const props = propsWithLocale(isPlainObject(row.props) ? row.props : {}, row.locale);
 
   return {
     $id: row.id,
     $collection: row.collectionName,
     $changedAt: row.changedAt,
-    ...props,
+    ...(flat ? flattenProps(props) : props),
   };
 }
 
@@ -280,7 +295,7 @@ export function findItems(
     total = (where ? countQuery.where(where).get() : countQuery.get())?.value ?? 0;
   }
 
-  const rawItems = rows.map((row) => toSelectableFields(row));
+  const rawItems = rows.map((row) => toSelectableFields(row, options.flat));
 
   const data: ItemWithRelations[] = rows.map((row, index) => {
     const shouldEmitContent =

@@ -3,6 +3,8 @@ import { join } from "node:path";
 import { homedir } from "node:os";
 import { createApiClient, ApiError, type ContfuApiClient } from "@contfu/svc-api";
 
+export const BASE_URL = "https://contfu.com";
+
 export function getApiKey(): string | undefined {
   if (process.env.CONTFU_API_KEY) return process.env.CONTFU_API_KEY;
 
@@ -25,10 +27,6 @@ export function getSelectedWorkspaceId(): string | undefined {
   } catch {
     return undefined;
   }
-}
-
-export function getBaseUrl(): string {
-  return process.env.CONTFU_URL ?? "https://contfu.com";
 }
 
 function getErrorMessageFromText(text: string): string | null {
@@ -57,7 +55,7 @@ export async function apiFetch(path: string, options?: RequestInit): Promise<Res
     process.exit(1);
   }
 
-  const url = `${getBaseUrl()}${path}`;
+  const url = `${BASE_URL}${path}`;
   const headers = new Headers(options?.headers);
   headers.set("Authorization", `Bearer ${apiKey}`);
 
@@ -105,7 +103,7 @@ export function getApiClient(workspaceId?: string | null): ContfuApiClient {
     process.exit(1);
   }
   return createApiClient(
-    getBaseUrl(),
+    BASE_URL,
     apiKey,
     globalThis.fetch,
     workspaceId ?? getSelectedWorkspaceId(),

@@ -120,12 +120,15 @@ function escapeHtml(text: string): string {
 }
 
 function makeContext(opts: RenderOptions | undefined): RenderContext {
-  const ctx: RenderContext = {
+  return {
     renderBlock: (block) => renderBlock(block, opts),
     renderInline: (inline) => renderInline(inline, opts),
     renderInlines: (inlines) => renderInlines(inlines, opts),
   };
-  return ctx;
+}
+
+function renderChildren(children: (Inline | Block)[], opts: RenderOptions | undefined): string {
+  return children.map((c) => (isInline(c) ? renderInline(c, opts) : renderBlock(c, opts))).join("");
 }
 
 export function renderInline(inline: Inline, opts?: RenderOptions): string {
@@ -179,11 +182,7 @@ export function renderBlock(block: Block, opts?: RenderOptions): string {
   }
   if (isQuote(block)) {
     if (opts?.blocks?.blockquote) return opts.blocks.blockquote(block, ctx);
-    const children = block[1];
-    const inner = children
-      .map((c) => (isInline(c) ? renderInline(c, opts) : renderBlock(c, opts)))
-      .join("");
-    return `<blockquote>${inner}</blockquote>`;
+    return `<blockquote>${renderChildren(block[1], opts)}</blockquote>`;
   }
   if (isCode(block)) {
     if (opts?.blocks?.pre) return opts.blocks.pre(block, ctx);
@@ -194,23 +193,13 @@ export function renderBlock(block: Block, opts?: RenderOptions): string {
   if (isUl(block)) {
     if (opts?.blocks?.ul) return opts.blocks.ul(block, ctx);
     const items = block.slice(1) as (Inline | Block)[][];
-    const lis = items.map((item) => {
-      const inner = item
-        .map((c) => (isInline(c) ? renderInline(c, opts) : renderBlock(c, opts)))
-        .join("");
-      return `<li>${inner}</li>`;
-    });
+    const lis = items.map((item) => `<li>${renderChildren(item, opts)}</li>`);
     return `<ul>${lis.join("")}</ul>`;
   }
   if (isOl(block)) {
     if (opts?.blocks?.ol) return opts.blocks.ol(block, ctx);
     const items = block.slice(1) as (Inline | Block)[][];
-    const lis = items.map((item) => {
-      const inner = item
-        .map((c) => (isInline(c) ? renderInline(c, opts) : renderBlock(c, opts)))
-        .join("");
-      return `<li>${inner}</li>`;
-    });
+    const lis = items.map((item) => `<li>${renderChildren(item, opts)}</li>`);
     return `<ol>${lis.join("")}</ol>`;
   }
   if (isTable(block)) {
@@ -219,10 +208,7 @@ export function renderBlock(block: Block, opts?: RenderOptions): string {
     const rendered = rows.map((row, ri) => {
       const cells = row.map((cell) => {
         const tag = hasHeader && ri === 0 ? "th" : "td";
-        const inner = cell
-          .map((c) => (isInline(c) ? renderInline(c, opts) : renderBlock(c, opts)))
-          .join("");
-        return `<${tag}>${inner}</${tag}>`;
+        return `<${tag}>${renderChildren(cell, opts)}</${tag}>`;
       });
       return `<tr>${cells.join("")}</tr>`;
     });

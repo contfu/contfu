@@ -28,19 +28,22 @@ export async function queryItems(args: string[]) {
       "client-url": { type: "string", short: "u" },
       collection: { type: "string" },
       filter: { type: "string" },
+      search: { type: "string" },
       sort: { type: "string" },
       limit: { type: "string", default: "20" },
       offset: { type: "string", default: "0" },
       include: { type: "string" },
       fields: { type: "string" },
+      locale: { type: "string" },
+      fallback: { type: "string" },
       flat: { type: "boolean", default: false },
     },
     allowPositionals: true,
   });
 
-  const serverUrl = values["client-url"];
+  const serverUrl = values["client-url"] ?? process.env.CONTFU_SERVER_URL;
   if (!serverUrl) {
-    console.error("Missing required --client-url flag");
+    console.error("Missing required --client-url flag or CONTFU_SERVER_URL");
     process.exit(1);
   }
 
@@ -48,11 +51,14 @@ export async function queryItems(args: string[]) {
 
   const qs = buildQueryString({
     filter: values.filter,
+    search: values.search,
     sort: values.sort,
     limit: values.limit,
     offset: values.offset,
     include: values.include,
     fields: values.fields,
+    locale: values.locale,
+    fallback: values.fallback,
     flat: values.flat ? "true" : undefined,
   });
 
@@ -68,13 +74,16 @@ export async function countItems(args: string[]) {
       "client-url": { type: "string", short: "u" },
       collection: { type: "string" },
       filter: { type: "string" },
+      search: { type: "string" },
+      locale: { type: "string" },
+      fallback: { type: "string" },
     },
     allowPositionals: true,
   });
 
-  const serverUrl = values["client-url"];
+  const serverUrl = values["client-url"] ?? process.env.CONTFU_SERVER_URL;
   if (!serverUrl) {
-    console.error("Missing required --client-url flag");
+    console.error("Missing required --client-url flag or CONTFU_SERVER_URL");
     process.exit(1);
   }
 
@@ -82,6 +91,9 @@ export async function countItems(args: string[]) {
 
   const qs = buildQueryString({
     filter: values.filter,
+    search: values.search,
+    locale: values.locale,
+    fallback: values.fallback,
     limit: "0",
   });
 

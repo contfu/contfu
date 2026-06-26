@@ -13,7 +13,9 @@ import type {
   Component,
 } from "@contfu/core";
 
-export type BlockComponents = {
+type ComponentBlockComponent = typeof SvelteComponent<{ block: Component }>;
+
+type BuiltInBlockComponents = {
   p?: typeof SvelteComponent<{ block: ParagraphBlock }>;
   h1?: typeof SvelteComponent<{ block: Heading1Block }>;
   h2?: typeof SvelteComponent<{ block: Heading2Block }>;
@@ -24,7 +26,11 @@ export type BlockComponents = {
   ol?: typeof SvelteComponent<{ block: OrderedListBlock }>;
   table?: typeof SvelteComponent<{ block: TableBlock }>;
   img?: typeof SvelteComponent<{ block: ImageBlock }>;
-  component?: typeof SvelteComponent<{ block: Component }>;
+  component?: ComponentBlockComponent;
+};
+
+export type BlockComponents = BuiltInBlockComponents & {
+  [componentName: string]: BuiltInBlockComponents[keyof BuiltInBlockComponents] | undefined;
 };
 
 export const FILE_URL_CONTEXT_KEY = Symbol("@contfu/file");

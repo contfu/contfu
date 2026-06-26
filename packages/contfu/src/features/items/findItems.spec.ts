@@ -205,6 +205,32 @@ describe("findItems", () => {
     expect(result[0].category).toBeUndefined();
   });
 
+  test("flattens nested object props into dot-separated keys", () => {
+    createItem({
+      id: 10,
+      ref: "blog/tech/nested",
+      collection: "articles",
+      props: {
+        title: "Nested Post",
+        seo: { title: "SEO Title", image: { alt: "Hero" } },
+        tags: ["docs"],
+      },
+      changedAt: 300,
+    });
+
+    const result = findItems({
+      filter: 'title = "Nested Post"',
+      flat: true,
+      fields: ["title", "seo.title", "seo.image.alt", "tags"],
+    });
+
+    expect(result[0].title).toBe("Nested Post");
+    expect(result[0]["seo.title"]).toBe("SEO Title");
+    expect(result[0]["seo.image.alt"]).toBe("Hero");
+    expect(result[0].seo).toBeUndefined();
+    expect(result[0].tags).toEqual(["docs"]);
+  });
+
   test("returns no selectable fields for empty fields array", () => {
     const result = findItems({ filter: '$collection = "articles"', fields: [], limit: 1 });
     expect(result[0].$id).toBeUndefined();

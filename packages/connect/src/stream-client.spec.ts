@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { EventType, type Block } from "@contfu/core";
 import { pack } from "msgpackr";
-import { connectToStream, resolveSyncTransport } from "./stream-client";
+import { connectToStream } from "./stream-client";
 
 function createBinaryMessage(wireEvent: unknown): Uint8Array {
   const encoded = pack(wireEvent);
@@ -29,6 +29,7 @@ function createMockStream(messages: Uint8Array[]): ReadableStream<Uint8Array> {
 }
 
 function mockFetch(stream: ReadableStream<Uint8Array>, status = 200) {
+  globalThis.WebSocket = createFailingWebSocketClass() as typeof WebSocket;
   globalThis.fetch = ((_url: string) =>
     Promise.resolve({
       ok: status >= 200 && status < 300,
@@ -42,6 +43,7 @@ function mockFetchCapture(
   messages: Uint8Array[],
   status = 200,
 ): { getUrl: () => string; getCallCount: () => number; getUrls: () => string[] } {
+  globalThis.WebSocket = createFailingWebSocketClass() as typeof WebSocket;
   const calledUrls: string[] = [];
   let callCount = 0;
   globalThis.fetch = ((_url: string) => {
@@ -109,20 +111,46 @@ function createStallingBody() {
   };
 }
 
+function createRejectedCloseBody() {
+  let rejectRead: ((error: Error) => void) | null = null;
+  let readStarted = false;
+
+  return {
+    body: {
+      getReader() {
+        return {
+          read() {
+            readStarted = true;
+            return new Promise<MockReadResult>((_resolve, reject) => {
+              rejectRead = reject;
+            });
+          },
+          cancel() {
+            const err = new TypeError("terminated");
+            rejectRead?.(err);
+            return Promise.reject(err);
+          },
+        };
+      },
+    },
+    isReading() {
+      return readStarted;
+    },
+  };
+}
+
 describe("stream-client", () => {
   const testKey = Buffer.alloc(32, 0xab);
   const originalFetch = globalThis.fetch;
   const originalWebSocket = globalThis.WebSocket;
   const originalNodeEnv = process.env.NODE_ENV;
   const originalPreview = process.env.VITE_PREVIEW;
-  const originalTransport = process.env.CONTFU_SYNC_TRANSPORT;
 
   afterEach(() => {
     globalThis.fetch = originalFetch;
     globalThis.WebSocket = originalWebSocket;
     process.env.NODE_ENV = originalNodeEnv;
     process.env.VITE_PREVIEW = originalPreview;
-    process.env.CONTFU_SYNC_TRANSPORT = originalTransport;
   });
 
   describe("connectToStream basic event parsing", () => {
@@ -298,7 +326,6 @@ describe("stream-client", () => {
         const events: unknown[] = [];
         for await (const event of connectToStream({
           key: testKey,
-          transport: "websocket",
           reconnect: false,
           connectionEvents: true,
         })) {
@@ -343,7 +370,8 @@ describe("stream-client", () => {
       expect(thrownError!.message).toContain("401");
     });
 
-    test("retries initial HTTP failures when reconnect is true", async () => {
+    test("retries initial HTTP failures by default", async () => {
+      globalThis.WebSocket = createFailingWebSocketClass() as typeof WebSocket;
       await withImmediateReconnectDelays(async (delays) => {
         let callCount = 0;
         globalThis.fetch = ((_url: string) => {
@@ -368,9 +396,7 @@ describe("stream-client", () => {
         const events: unknown[] = [];
         for await (const event of connectToStream({
           key: testKey,
-          reconnect: true,
           connectionEvents: true,
-          transport: "http",
           initialReconnectDelay: 5,
           maxReconnectDelay: 20,
         })) {
@@ -390,6 +416,7 @@ describe("stream-client", () => {
     });
 
     test("caps reconnect backoff and resets it after a successful connection", async () => {
+      globalThis.WebSocket = createFailingWebSocketClass() as typeof WebSocket;
       await withImmediateReconnectDelays(async (delays) => {
         let callCount = 0;
         globalThis.fetch = ((_url: string) => {
@@ -417,7 +444,6 @@ describe("stream-client", () => {
           key: testKey,
           reconnect: true,
           connectionEvents: true,
-          transport: "http",
           initialReconnectDelay: 5,
           maxReconnectDelay: 20,
         })) {
@@ -430,6 +456,7 @@ describe("stream-client", () => {
     });
 
     test("reconnects after a mid-stream disconnect without sending a replay cursor", async () => {
+      globalThis.WebSocket = createFailingWebSocketClass() as typeof WebSocket;
       await withImmediateReconnectDelays(async (delays) => {
         const urls: string[] = [];
         let callCount = 0;
@@ -451,7 +478,6 @@ describe("stream-client", () => {
           key: testKey,
           reconnect: true,
           connectionEvents: true,
-          transport: "http",
           initialReconnectDelay: 5,
           maxReconnectDelay: 20,
         })) {
@@ -468,6 +494,7 @@ describe("stream-client", () => {
     });
 
     test("closes stalled HTTP streams and reconnects", async () => {
+      globalThis.WebSocket = createFailingWebSocketClass() as typeof WebSocket;
       const originalSetInterval = globalThis.setInterval;
       const originalClearInterval = globalThis.clearInterval;
       const originalSetTimeout = globalThis.setTimeout;
@@ -509,7 +536,6 @@ describe("stream-client", () => {
         key: testKey,
         reconnect: true,
         connectionEvents: true,
-        transport: "http",
         initialReconnectDelay: 5,
         maxReconnectDelay: 20,
       });
@@ -520,10 +546,13 @@ describe("stream-client", () => {
           done: false,
         });
 
+        const disconnected = iterator.next();
+        await Promise.resolve();
+
         now += 46_000;
         interval?.();
 
-        expect(await iterator.next()).toEqual({
+        expect(await disconnected).toEqual({
           value: { type: EventType.STREAM_DISCONNECTED, reason: "Stream stalled" },
           done: false,
         });
@@ -546,6 +575,59 @@ describe("stream-client", () => {
         globalThis.setInterval = originalSetInterval;
         globalThis.clearInterval = originalClearInterval;
         globalThis.setTimeout = originalSetTimeout;
+        Date.now = originalDateNow;
+      }
+    });
+
+    test("swallows expected HTTP stream close rejections when the consumer stops", async () => {
+      globalThis.WebSocket = createFailingWebSocketClass() as typeof WebSocket;
+      const originalSetInterval = globalThis.setInterval;
+      const originalClearInterval = globalThis.clearInterval;
+      const originalDateNow = Date.now;
+      let interval: (() => void) | undefined;
+      let now = 1_000;
+
+      globalThis.setInterval = ((handler: () => void) => {
+        interval = handler;
+        return 1 as unknown as Timer;
+      }) as typeof setInterval;
+      globalThis.clearInterval = (() => undefined) as typeof clearInterval;
+      Date.now = () => now;
+      const stream = createRejectedCloseBody();
+      globalThis.fetch = ((_url: string) =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          text: () => Promise.resolve(""),
+          body: stream.body,
+        })) as unknown as typeof fetch;
+
+      const iterator = connectToStream({
+        key: testKey,
+        reconnect: false,
+        connectionEvents: true,
+      });
+
+      try {
+        expect(await iterator.next()).toEqual({
+          value: { type: EventType.STREAM_CONNECTED },
+          done: false,
+        });
+
+        const disconnected = iterator.next();
+        await waitFor(() => stream.isReading());
+
+        now += 46_000;
+        interval?.();
+
+        expect(await disconnected).toEqual({
+          value: { type: EventType.STREAM_DISCONNECTED, reason: "Stream stalled" },
+          done: false,
+        });
+      } finally {
+        await iterator.return(undefined);
+        globalThis.setInterval = originalSetInterval;
+        globalThis.clearInterval = originalClearInterval;
         Date.now = originalDateNow;
       }
     });
@@ -610,34 +692,83 @@ describe("stream-client", () => {
     });
   });
 
-  describe("transport selection", () => {
-    test("defaults to websocket in production", () => {
-      process.env.NODE_ENV = "production";
-      delete process.env.VITE_PREVIEW;
-      delete process.env.CONTFU_SYNC_TRANSPORT;
-      expect(resolveSyncTransport()).toBe("websocket");
+  describe("transport fallback", () => {
+    test("uses websocket first when setup succeeds", async () => {
+      const sockets: MockWebSocket[] = [];
+      globalThis.WebSocket = createMockWebSocketClass(sockets) as typeof WebSocket;
+      const fetchCalls: string[] = [];
+      globalThis.fetch = ((url: string) => {
+        fetchCalls.push(url);
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          text: () => Promise.resolve(""),
+          body: null,
+        });
+      }) as typeof fetch;
+
+      const eventsPromise = collectEvents(async () => {
+        const events: unknown[] = [];
+        for await (const event of connectToStream({ key: testKey, reconnect: false })) {
+          events.push(event);
+        }
+        return events;
+      });
+
+      await waitFor(() => sockets.length === 1 && sockets[0].ready());
+      sockets[0].emit(pack([EventType.ITEM_DELETED, 98, 12]));
+      sockets[0].close(1000, "done");
+
+      expect(await eventsPromise).toEqual([{ type: EventType.ITEM_DELETED, item: 98, index: 12 }]);
+      expect(sockets[0].url).toContain("wss://contfu.com/api/sync");
+      expect(fetchCalls).toEqual([]);
     });
 
-    test("defaults to http in local development", () => {
-      process.env.NODE_ENV = "development";
-      delete process.env.VITE_PREVIEW;
-      delete process.env.CONTFU_SYNC_TRANSPORT;
-      expect(resolveSyncTransport()).toBe("http");
-    });
+    test("falls back to HTTP when websocket setup fails", async () => {
+      globalThis.WebSocket = createFailingWebSocketClass() as typeof WebSocket;
+      const { getUrls } = mockFetchCapture([createBinaryMessage([EventType.ITEM_DELETED, 7, 3])]);
+      globalThis.WebSocket = createFailingWebSocketClass() as typeof WebSocket;
 
-    test("honors explicit env override", () => {
-      process.env.NODE_ENV = "production";
-      process.env.CONTFU_SYNC_TRANSPORT = "http";
-      expect(resolveSyncTransport()).toBe("http");
+      const events: unknown[] = [];
+      for await (const event of connectToStream({ key: testKey, reconnect: false })) {
+        events.push(event);
+      }
+
+      expect(events).toEqual([{ type: EventType.ITEM_DELETED, item: 7, index: 3 }]);
+      expect(getUrls()[0]).toContain("https://contfu.com/api/sync");
     });
   });
 });
 
 type MockWebSocket = {
+  url: string;
   ready: () => boolean;
   emit: (data: Uint8Array) => void;
   close: (code?: number, reason?: string) => void;
 };
+
+function createFailingWebSocketClass() {
+  return class {
+    static readonly CONNECTING = 0;
+    static readonly OPEN = 1;
+    static readonly CLOSING = 2;
+    static readonly CLOSED = 3;
+
+    binaryType: "arraybuffer" | "blob" = "blob";
+    readyState = 0;
+    onopen: ((event: Event) => void) | null = null;
+    onmessage: ((event: MessageEvent) => void) | null = null;
+    onerror: ((event: Event) => void) | null = null;
+    onclose: ((event: CloseEvent) => void) | null = null;
+
+    constructor(public readonly url: string) {
+      queueMicrotask(() => this.onerror?.({} as Event));
+    }
+
+    send(_data: string | ArrayBufferLike | Blob | ArrayBufferView) {}
+    close(_code = 1000, _reason = "") {}
+  };
+}
 
 function createMockWebSocketClass(sockets: MockWebSocket[]) {
   return class {
@@ -655,6 +786,7 @@ function createMockWebSocketClass(sockets: MockWebSocket[]) {
 
     constructor(public readonly url: string) {
       sockets.push({
+        url,
         ready: () => this.onmessage != null && this.onclose != null,
         emit: (data) => {
           this.onmessage?.({
