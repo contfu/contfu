@@ -13,11 +13,13 @@ export interface ServiceCollection extends Collection {
   i18n?: CollectionI18nConfig;
   effectiveI18n?: EffectiveCollectionI18nConfig;
   itemsCount: number;
-  inboundStatus: number;
+  sourceSyncStatus: number;
   stale: boolean;
   staleReason: number | null;
   staleAt: Date | null;
   fullPullRequired: boolean;
+  sourceRepairGeneration: number | null;
+  sourceRepairStartedAt: Date | null;
   flowSourceCount: number;
   flowTargetCount: number;
   createdAt: Date;

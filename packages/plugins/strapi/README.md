@@ -23,7 +23,9 @@ export default ({ env }) => ({
 });
 ```
 
-The plugin registers static Strapi entry lifecycle webhook handlers for Strapi v4 and v5 and sends `x-strapi-signature: sha256=<hmac>` over the exact JSON request body using the configured webhook secret.
+The package root is the Strapi plugin entry that Strapi loads after installation. The plugin registers static Strapi entry lifecycle webhook handlers for Strapi v4 and v5 and sends `x-strapi-signature: sha256=<hmac>` over the exact JSON request body using the configured webhook secret.
+
+If your Strapi setup needs an explicit server entry path, use `@contfu/strapi/strapi-server`; it exports the same plugin module as the package root.
 
 ## Strapi v4 notes
 

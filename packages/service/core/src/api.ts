@@ -2,6 +2,7 @@ import type { CollectionSchema, SchemaValue } from "./schemas";
 import type { Filter } from "./filters";
 import type { MappingRule } from "./mappings";
 import type { CollectionI18nConfig, IntegrationI18nConfig } from "./i18n";
+import type { IntegrationCapability, IntegrationRole } from "@contfu/core";
 
 /** Status summary returned by GET /api/v1/status */
 export interface ApiStatus {
@@ -143,17 +144,41 @@ export interface StrapiIntegrationOpts {
   lastPush?: string;
 }
 
+export interface WebhookTargetIntegrationOpts {
+  headers?: Record<string, string>;
+  maxAttempts?: number;
+  deliveryWindow?: number;
+}
+
 export interface IntegrationOpts
   extends
     WordPressIntegrationOpts,
     SanityIntegrationOpts,
     ContentfulIntegrationOpts,
-    StrapiIntegrationOpts {}
+    StrapiIntegrationOpts,
+    WebhookTargetIntegrationOpts {}
 
 /** Integration record returned by the service API */
 export interface ProviderScope {
   value: string;
   label: string;
+}
+
+export interface IntegrationCapabilityState {
+  supported: IntegrationCapability[];
+  granted: IntegrationCapability[];
+  enabled: IntegrationCapability[];
+  disabledReasons?: Partial<Record<IntegrationCapability, string>>;
+}
+
+export interface ApiTargetFailedDelivery {
+  id: string;
+  workspaceId: string;
+  collectionId: string;
+  itemId: number;
+  attempts: number;
+  lastError: string | null;
+  lastAttemptAt: string | null;
 }
 
 export interface ApiIntegration {
@@ -166,6 +191,8 @@ export interface ApiIntegration {
   url: string | null;
   opts: IntegrationOpts | null;
   hasCredentials: boolean;
+  roles?: IntegrationRole[];
+  capabilities?: IntegrationCapabilityState;
   i18n?: IntegrationI18nConfig;
   createdAt: string;
   updatedAt: string | null;

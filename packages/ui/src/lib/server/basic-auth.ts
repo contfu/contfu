@@ -1,33 +1,21 @@
-export type BasicAuthConfig = string;
+import {
+  buildBasicAuthHeader,
+  checkBasicAuth as checkBasicAuthRequest,
+  isBasicAuthConfig,
+  unauthorizedBasicAuthResponse,
+  type BasicAuthConfig,
+} from "@contfu/core";
 
-const BASIC_AUTH_REALM = "Contfu";
+export type { BasicAuthConfig };
+export { buildBasicAuthHeader, unauthorizedBasicAuthResponse };
 
-export const basicAuth = process.env.CONTFU_BASIC_AUTH?.includes(":")
+export const basicAuth = isBasicAuthConfig(process.env.CONTFU_BASIC_AUTH)
   ? process.env.CONTFU_BASIC_AUTH
   : null;
-
-export function buildBasicAuthHeader(config: BasicAuthConfig): string {
-  return `Basic ${Buffer.from(config).toString("base64")}`;
-}
-
-export function unauthorizedBasicAuthResponse(): Response {
-  return new Response("Unauthorized", {
-    status: 401,
-    headers: {
-      "WWW-Authenticate": `Basic realm="${BASIC_AUTH_REALM}"`,
-    },
-  });
-}
 
 export function checkBasicAuth(
   request: Request,
   config: BasicAuthConfig | null = basicAuth,
 ): Response | null {
-  if (!config) {
-    return null;
-  }
-
-  return request.headers.get("authorization") === buildBasicAuthHeader(config)
-    ? null
-    : unauthorizedBasicAuthResponse();
+  return checkBasicAuthRequest(request, config);
 }

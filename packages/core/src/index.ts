@@ -1,3 +1,4 @@
+export * from "./basic-auth";
 export * from "./blocks";
 export * from "./collections";
 export * from "./colors";

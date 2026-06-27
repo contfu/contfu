@@ -13,7 +13,6 @@ let logSpy: ReturnType<typeof spyOn>;
 beforeEach(() => {
   mockFetch.mockReset();
   process.env.CONTFU_API_KEY = "test-key";
-  process.env.CONTFU_URL = "http://test.local";
   logSpy = spyOn(console, "log").mockImplementation(() => {});
 });
 

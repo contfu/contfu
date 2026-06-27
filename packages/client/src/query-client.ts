@@ -1,4 +1,11 @@
-import { QueryResultArray, renderBlocks, renderBlocksMarkdown } from "@contfu/core";
+import {
+  QueryResultArray,
+  normalizeQueryArgs,
+  renderBlocks,
+  renderBlocksMarkdown,
+  resolveQueryFilter,
+  resolveQueryWithFunctions,
+} from "@contfu/core";
 import type {
   Block,
   ContentFormat,
@@ -6,13 +13,11 @@ import type {
   QueryMeta,
   QueryOptions,
   RenderOptions,
-  WithClause,
 } from "@contfu/core";
 import {
   all,
   and,
   contains,
-  createItemRef,
   eq,
   gt,
   gte,
@@ -32,7 +37,23 @@ export type HttpClientOptions = {
     defaultLocale?: string;
     fallback?: string | true | false;
   };
+  /** HTTP Basic auth for a Server protected with CONTFU_BASIC_AUTH. */
+  basicAuth?: string | { username: string; password: string };
 };
+
+function normalizeBasicAuth(basicAuth: NonNullable<HttpClientOptions["basicAuth"]>): string {
+  return typeof basicAuth === "string" ? basicAuth : `${basicAuth.username}:${basicAuth.password}`;
+}
+
+function buildBasicAuthHeader(config: string): string {
+  if (typeof globalThis.btoa === "function") {
+    const bytes = new TextEncoder().encode(config);
+    let binary = "";
+    for (const byte of bytes) binary += String.fromCharCode(byte);
+    return `Basic ${globalThis.btoa(binary)}`;
+  }
+  return `Basic ${Buffer.from(config, "utf8").toString("base64")}`;
+}
 
 export function contfuClient<_CMap>(
   baseUrl: string,
@@ -44,6 +65,9 @@ export function contfuClient<_CMap>(
   };
   if (apiKey) {
     headers["Authorization"] = `Bearer ${apiKey}`;
+  }
+  if (options.basicAuth) {
+    headers["Authorization"] = buildBasicAuthHeader(normalizeBasicAuth(options.basicAuth));
   }
 
   return buildClient(baseUrl, headers, {
@@ -67,6 +91,7 @@ type LocaleScope = {
   defaultLocale?: string;
   locale?: string | false;
   fallback?: string | true | false;
+  fallbackExplicit?: boolean;
 };
 
 function buildClient(
@@ -82,39 +107,21 @@ function buildClient(
     return res.json() as Promise<T>;
   }
 
-  function normalizeArgs(
-    first?: string | Record<string, any>,
-    second?: any,
-  ): { options: Record<string, any> } {
-    if (typeof first === "string") {
-      if (second == null) return { options: { collection: first } };
-      if (typeof second === "string" || typeof second === "function") {
-        return { options: { collection: first, filter: second } };
-      }
-      return { options: { collection: first, ...second } };
-    }
-    return { options: first ?? {} };
-  }
-
-  function resolveFilter(filter: unknown): string | undefined {
-    if (typeof filter === "function") return filter(createItemRef(0));
-    return filter as string | undefined;
-  }
-
   const callable = async (first?: any, second?: any) => {
-    const { options } = normalizeArgs(first, second);
+    const { options } = normalizeQueryArgs(first, second);
     const { collection, contentAs, htmlOptions, markdownOptions, locale, fallback, ...rest } =
       options as QueryOptions & {
         collection?: string;
       };
-    const filter = resolveFilter(rest.filter);
-    const resolvedWith =
-      rest.with && typeof rest.with === "function" ? resolveWithFunctions(rest.with, 1) : rest.with;
+    const filter = resolveQueryFilter(rest.filter);
+    const resolvedWith = resolveQueryWithFunctions(rest.with as any);
     const include = resolveInclude(rest.include, contentAs);
     const effectiveLocale = locale ?? scope.locale;
+    const fallbackExplicit = fallback !== undefined || scope.fallbackExplicit === true;
     const effectiveFallback = resolveFallbackParam(
       fallback !== undefined ? fallback : scope.fallback,
       scope.defaultLocale,
+      fallbackExplicit,
     );
     const params = serializeQueryParams({
       ...rest,
@@ -141,6 +148,7 @@ function buildClient(
       defaultLocale: scope.defaultLocale,
       locale,
       fallback: fallback !== undefined ? fallback : scope.fallback,
+      fallbackExplicit: fallback !== undefined ? true : scope.fallbackExplicit,
     });
 
   return Object.assign(callable, {
@@ -166,37 +174,10 @@ function buildClient(
 function resolveFallbackParam(
   fallback: string | true | false | undefined,
   defaultLocale: string | undefined,
+  fallbackExplicit: boolean,
 ): string | true | false | undefined {
-  if (fallback === true) return defaultLocale ?? true;
+  if (fallback === true) return defaultLocale ?? (fallbackExplicit ? true : undefined);
   return fallback;
-}
-
-function resolveWithFunctions(withVal: any, parentLevel: number): WithClause {
-  let entries: Record<string, any>;
-  if (typeof withVal === "function") {
-    entries = withVal(createItemRef(parentLevel));
-  } else {
-    entries = withVal;
-  }
-
-  const result: WithClause = {};
-  for (const [name, entry] of Object.entries(entries)) {
-    let filter: string | undefined;
-    if (typeof entry.filter === "function") {
-      filter = entry.filter(createItemRef(0));
-    } else {
-      filter = entry.filter;
-    }
-    result[name] = {
-      collection: entry.collection,
-      filter,
-      limit: entry.limit,
-      include: entry.include,
-      single: entry.single,
-      with: entry.with ? resolveWithFunctions(entry.with, parentLevel + 1) : undefined,
-    };
-  }
-  return result;
 }
 
 function resolveInclude(
@@ -231,27 +212,31 @@ function transformContent<T extends { content?: unknown }>(
 export function serializeQueryParams(options: QueryOptions): URLSearchParams {
   const params = new URLSearchParams();
 
-  if (options.filter) params.set("filter", options.filter);
-  if (options.search) params.set("search", options.search);
-
-  if (options.sort) {
-    const sorts = Array.isArray(options.sort) ? options.sort : [options.sort];
-    const sortStr = sorts
-      .map((s) => {
-        if (typeof s === "string") return s;
-        return s.direction === "desc" ? `-${s.field}` : s.field;
-      })
-      .join(",");
-    params.set("sort", sortStr);
-  }
-
-  if (options.limit !== undefined) params.set("limit", String(options.limit));
-  if (options.offset !== undefined) params.set("offset", String(options.offset));
-  if (options.include?.length) params.set("include", options.include.join(","));
-  if (options.with) params.set("with", JSON.stringify(options.with));
-  if (options.fields !== undefined) params.set("fields", options.fields.join(","));
-  if (options.locale !== undefined) params.set("locale", String(options.locale));
-  if (options.fallback !== undefined) params.set("fallback", String(options.fallback));
+  setQueryParam(params, "filter", options.filter || undefined);
+  setQueryParam(params, "search", options.search || undefined);
+  setQueryParam(params, "sort", options.sort ? serializeSort(options.sort) : undefined);
+  setQueryParam(params, "limit", options.limit);
+  setQueryParam(params, "offset", options.offset);
+  setQueryParam(params, "include", options.include?.length ? options.include.join(",") : undefined);
+  setQueryParam(params, "with", options.with && JSON.stringify(options.with));
+  setQueryParam(params, "fields", options.fields?.join(","));
+  setQueryParam(params, "flat", options.flat ? "true" : undefined);
+  setQueryParam(params, "locale", options.locale);
+  setQueryParam(params, "fallback", options.fallback);
 
   return params;
+}
+
+function setQueryParam(params: URLSearchParams, name: string, value: unknown): void {
+  if (value !== undefined) params.set(name, String(value));
+}
+
+function serializeSort(sort: NonNullable<QueryOptions["sort"]>): string {
+  const sorts = Array.isArray(sort) ? sort : [sort];
+  return sorts
+    .map((s) => {
+      if (typeof s === "string") return s;
+      return s.direction === "desc" ? `-${s.field}` : s.field;
+    })
+    .join(",");
 }

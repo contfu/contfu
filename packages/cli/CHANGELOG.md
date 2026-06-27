@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.1.2] - 2026-06-26
+
+### Added
+
+- Added CLI support for explicit Contentful Delivery/Preview API mode setup.
+- Added WordPress application-password credentials and draft-mode setup flags.
+- Added `--search` support to item query/count commands.
+- Added i18n locale and fallback overrides to item query/count commands.
+- Added documented `contfu integrations add --select` support.
+- Added webhook target header and retry/window settings support.
+
+### Fixed
+
+- Fixed organization invitation acceptance dry-run handling.
+- Fixed WordPress, Contentful, integration secret rotation, flow creation, and rich-content CLI flag handling.
+- Rejected unsupported package names, unknown integration provider types, invalid i18n fallback grouping keys, and conflicting content flags.
+- Normalized collection flow counts and covered CLI endpoints.
+
 All notable changes to `@contfu/cli` are documented here.
 
 ## [0.1.1] - 2026-06-14

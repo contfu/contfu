@@ -4,7 +4,7 @@ Contfu's **Cloud Service** is managed — you use it at [contfu.com](https://con
 never host it. What you deploy is the **Local Runtime** that holds your synchronized
 content, in one of two shapes:
 
-- **Self-hosted Server** — run the prebuilt `@contfu/server` (Docker image, or Bun/Node
+- **Self-hosted Server** — run the prebuilt `@contfu/server` (Docker image, or Bun
   process) as an HTTP query API that any number of clients query over HTTP.
 - **Embedded Local Runtime** — import `@contfu/contfu` into your own app process and query
   the Local Store in-process.
@@ -44,9 +44,9 @@ docker run -d \
 The image runs the Local Runtime and exposes the HTTP query API on port `3001`. Mount a
 volume at `/data` to persist the SQLite store across restarts.
 
-### Bun / Node
+### Bun
 
-`@contfu/server` is a thin wrapper you can run or embed directly:
+`@contfu/server` is a thin Bun HTTP wrapper you can run or embed directly:
 
 ```ts
 import serve from "@contfu/server";
@@ -81,13 +81,43 @@ See [Localization → Server defaults](./i18n.md#server-defaults) for the locale
 ### Basic auth
 
 Set `CONTFU_BASIC_AUTH=user:password` to protect every request. Clients must then send a
-matching `Authorization: Basic …` header.
+matching `Authorization: Basic …` header. `@contfu/client` can attach it directly:
+
+```ts
+import { contfuClient } from "@contfu/client";
+
+const query = contfuClient("https://content.example.com", undefined, {
+  basicAuth: "user:password",
+});
+```
+
+### HTTP API
+
+The query client uses the Server's public HTTP API, and the same routes are useful for
+health checks or debugging:
+
+| Route                              | Purpose                                                                                           |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `GET /api/items`                   | Query items with the documented query parameters (`filter`, `sort`, `limit`, etc.).               |
+| `GET /api/collections/:name/items` | Query one collection; accepts the same query parameters as `/api/items`.                          |
+| `GET /api/items/:id`               | Fetch one item by Contfu item id; supports `include` and `with`.                                  |
+| `GET /api/items/:id/files`         | List files linked to one item.                                                                    |
+| `GET /api/collections`             | List collections.                                                                                 |
+| `GET /api/collections/:name`       | Return collection metadata, admin query rows, schema, and generated types.                        |
+| `GET /api/query-items`             | UI/admin item listing endpoint with collection, change-window, filter, sort, and page parameters. |
+| `GET /api/types`                   | Return generated application TypeScript types.                                                    |
+| `GET /api/status`                  | Return item, collection, file, and sync-status counts.                                            |
+| `GET /api/live`                    | Server-sent events for runtime status and data-change notifications.                              |
+| `GET /files/:path`                 | Serve stored files and on-demand media variants.                                                  |
+
+When Basic auth is enabled, it applies to all of these routes.
 
 ## Embedded Local Runtime
 
 Run the Local Runtime inside your own process and query it directly — no network hop:
 
 ```ts
+import { EventType } from "@contfu/core";
 import { contfu } from "@contfu/contfu";
 
 const { query, events, fileStore, handleFileRequest } = contfu({
@@ -96,7 +126,7 @@ const { query, events, fileStore, handleFileRequest } = contfu({
 
 // Drive synchronization by consuming the live event stream.
 for await (const event of events) {
-  // item-changed, item-deleted, schema-changed, sync-started/completed, …
+  if (event.type === EventType.ITEM_CHANGED) console.log(event.item);
 }
 
 const posts = await query("blogPost", { limit: 10 });
@@ -129,11 +159,11 @@ The default Local Store path is `data/contfu.sqlite`; override with `DATABASE_UR
 
 ### Platform builds
 
-| Import                  | Runtime                                 |
-| ----------------------- | --------------------------------------- |
-| `@contfu/contfu`        | Bun                                     |
-| `@contfu/contfu/node`   | Node.js                                 |
-| `@contfu/contfu/shared` | Browser-safe subset (no local database) |
+| Import                  | Runtime                                                                                                                        |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `@contfu/contfu`        | Default Local Runtime entry. Uses Bun's DB client under Bun and a Node-compatible fallback elsewhere.                          |
+| `@contfu/contfu/node`   | Node.js Local Runtime entry that loads the Node SQLite client directly.                                                        |
+| `@contfu/contfu/shared` | Shared Local Runtime exports without the `db` singleton export; still intended for server-side local-store code, not browsers. |
 
 ### Sync event stream
 
@@ -141,17 +171,19 @@ For server-side apps that only need raw live updates (not a query layer), consum
 Connector directly with `@contfu/connect`:
 
 ```ts
+import { EventType } from "@contfu/core";
 import { connect } from "@contfu/connect";
 
 for await (const event of connect()) {
-  if (event.type === "item-changed") console.log(event.item);
+  if (event.type === EventType.ITEM_CHANGED) console.log(event.item);
 }
 ```
 
-Event types include `item-changed`, `item-deleted`, `collection-renamed`,
-`collection-removed`, `schema-changed`, `sync-started`, `sync-completed`, and the
-`stream-*` / `stream-snapshot-*` connection lifecycle events. `connect()` auto-reconnects;
-tune it with `{ reconnect, initialReconnectDelay, maxReconnectDelay, connectionEvents }`.
+`connect()` yields events with numeric `EventType` values from `@contfu/core`, including
+`ITEM_CHANGED`, `ITEM_DELETED`, `COLLECTION_SCHEMA`, `COLLECTION_RENAMED`,
+`COLLECTION_REMOVED`, `STREAM_CONNECTED`, `STREAM_DISCONNECTED`, `SNAPSHOT_START`, and
+`SNAPSHOT_END`. It auto-reconnects; tune it with
+`{ reconnect, initialReconnectDelay, maxReconnectDelay, connectionEvents }`.
 
 ## File & media storage
 

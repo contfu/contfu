@@ -4,10 +4,16 @@ import { promises as fs } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
 import { spawn } from "node:child_process";
-import { getBaseUrl } from "../http";
+import { BASE_URL } from "../http";
 import { printDryRun, type DryRunOption } from "./dry-run";
 
-const CONFIG_PATH = join(homedir(), ".config", "contfu", "config.json");
+function configDir(): string {
+  return process.env.CONTFU_CONFIG_DIR ?? join(homedir(), ".config", "contfu");
+}
+
+function configPath(): string {
+  return join(configDir(), "config.json");
+}
 
 async function openBrowser(url: string): Promise<void> {
   const platform = process.platform;
@@ -141,7 +147,7 @@ async function loginCode(baseUrl: string): Promise<string> {
 }
 
 export async function login(opts: { noBrowser?: boolean } = {}): Promise<void> {
-  const baseUrl = getBaseUrl();
+  const baseUrl = BASE_URL;
   const useCodeFlow = opts.noBrowser || isHeadless();
 
   const token = useCodeFlow ? await loginCode(baseUrl) : await loginBrowser(baseUrl);
@@ -154,7 +160,7 @@ export async function logout(options: DryRunOption = {}): Promise<void> {
   try {
     const config = await readConfig();
     if (options.dryRun) {
-      printDryRun("clear stored credentials", { configPath: CONFIG_PATH });
+      printDryRun("clear stored credentials", { configPath: configPath() });
       return;
     }
     delete config.apiKey;
@@ -167,7 +173,7 @@ export async function logout(options: DryRunOption = {}): Promise<void> {
 
 export async function readConfig(): Promise<Record<string, string>> {
   try {
-    const content = await fs.readFile(CONFIG_PATH, "utf-8");
+    const content = await fs.readFile(configPath(), "utf-8");
     return JSON.parse(content);
   } catch {
     return {};
@@ -175,7 +181,6 @@ export async function readConfig(): Promise<Record<string, string>> {
 }
 
 export async function writeConfig(config: Record<string, string>): Promise<void> {
-  const dir = join(homedir(), ".config", "contfu");
-  await fs.mkdir(dir, { recursive: true });
-  await fs.writeFile(CONFIG_PATH, JSON.stringify(config, null, 2) + "\n", "utf-8");
+  await fs.mkdir(configDir(), { recursive: true });
+  await fs.writeFile(configPath(), JSON.stringify(config, null, 2) + "\n", "utf-8");
 }

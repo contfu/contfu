@@ -18,7 +18,6 @@ let errorSpy: ReturnType<typeof spyOn>;
 beforeEach(() => {
   mockFetch.mockReset();
   process.env.CONTFU_API_KEY = "test-key";
-  process.env.CONTFU_URL = "http://test.local";
   delete process.env.CONTFU_CLI_LINKS;
   delete process.env.NO_COLOR;
   logSpy = spyOn(console, "log").mockImplementation(() => {});
@@ -86,7 +85,7 @@ describe("setOrganizationRole", () => {
     await setOrganizationRole("acme", "admin+cli@example.com", "admin");
 
     expect(String(mockFetch.mock.calls[1][0])).toBe(
-      "http://test.local/api/v1/organizations/org_1/members/admin%2Bcli%40example.com",
+      "https://contfu.com/api/v1/organizations/org_1/members/admin%2Bcli%40example.com",
     );
   });
 });

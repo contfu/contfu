@@ -6,6 +6,9 @@ import type { MappingRule } from "./mappings";
 export const FlowState = defineEnum({
   ACTIVE: 0,
   FROZEN: 1,
+  CREDENTIAL_BLOCKED: 2,
+  CAPABILITY_BLOCKED: 3,
+  QUOTA_BLOCKED: 4,
 });
 
 export type FlowState = EnumValue<typeof FlowState>;

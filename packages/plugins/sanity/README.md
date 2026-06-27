@@ -39,14 +39,14 @@ import { postType } from "./postType";
 export const schemaTypes = [postType];
 ```
 
-Call `updateConftuSchema` from `sanity.cli.ts` so the schema sync runs server-side when the Sanity CLI starts:
+Call `updateContfuSchema` from `sanity.cli.ts` so the schema sync runs server-side when the Sanity CLI starts:
 
 ```ts
-import { updateConftuSchema } from "@contfu/sanity";
+import { updateContfuSchema } from "@contfu/sanity";
 import { defineCliConfig } from "sanity/cli";
 import { schemaTypes } from "./schemaTypes";
 
-await updateConftuSchema({
+await updateContfuSchema({
   webhookSecret: process.env.CONTFU_SANITY_WEBHOOK_SECRET!,
   dataset: process.env.SANITY_STUDIO_DATASET ?? "production",
   schemaTypes,

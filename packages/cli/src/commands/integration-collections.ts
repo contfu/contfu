@@ -17,6 +17,7 @@ export interface AddOptions extends DryRunOption {
   format: string;
   refs?: string[];
   all?: boolean;
+  select?: boolean;
 }
 
 function printJson(data: unknown) {
@@ -82,6 +83,9 @@ export function printAddSummary(summary: AddScannedCollectionsResult) {
   }
 }
 
+const ADD_USAGE =
+  "Usage: contfu integrations add <integration-id-or-name> (--refs <comma-separated> | --all | --select)";
+
 function parseRefs(refs: string | undefined): string[] | undefined {
   const parsed = refs
     ?.split(",")
@@ -106,19 +110,7 @@ export async function scanIntegrationCollections(
       return;
     }
 
-    if (!process.stdin.isTTY) {
-      console.error("--select requires an interactive TTY");
-      process.exit(1);
-    }
-
-    const refs = await multiSelect(
-      scanned.map((collection) => ({
-        label: collection.displayName,
-        description: collection.ref,
-        value: collection.ref,
-        disabled: collection.alreadyAdded,
-      })),
-    );
+    const refs = await selectScannedCollectionRefs(scanned);
 
     if (options.dryRun) {
       printDryRun("add selected scanned collections", {
@@ -142,15 +134,32 @@ export async function addIntegrationCollections(
 ): Promise<void> {
   const client = getApiClient();
 
-  if (!options.all && (!options.refs || options.refs.length === 0)) {
-    console.error(
-      "Usage: contfu integrations add <integration-id-or-name> (--refs <comma-separated> | --all)",
-    );
+  const hasRefs = !!options.refs && options.refs.length > 0;
+  const selectedModes = [hasRefs, !!options.all, !!options.select].filter(Boolean).length;
+  if (selectedModes !== 1) {
+    console.error(ADD_USAGE);
     process.exit(1);
   }
 
   try {
     const resolvedIntegrationId = await resolveIntegrationRef(integrationId, client);
+
+    if (options.select) {
+      const scanned = await client.scanCollections(resolvedIntegrationId);
+      const refs = await selectScannedCollectionRefs(scanned);
+      if (options.dryRun) {
+        printDryRun("add selected scanned collections", {
+          integrationId: resolvedIntegrationId,
+          refs,
+        });
+        return;
+      }
+      const summary = await client.addScannedCollections(resolvedIntegrationId, { refs });
+      if (options.format === "json") printJson(summary);
+      else printAddSummary(summary);
+      return;
+    }
+
     const body = {
       refs: options.all ? undefined : options.refs,
       all: options.all,
@@ -165,6 +174,22 @@ export async function addIntegrationCollections(
   } catch (err) {
     handleCliError(err);
   }
+}
+
+async function selectScannedCollectionRefs(scanned: ScannedCollection[]): Promise<string[]> {
+  if (!process.stdin.isTTY) {
+    console.error("--select requires an interactive TTY");
+    process.exit(1);
+  }
+
+  return multiSelect(
+    scanned.map((collection) => ({
+      label: collection.displayName,
+      description: collection.ref,
+      value: collection.ref,
+      disabled: collection.alreadyAdded,
+    })),
+  );
 }
 
 export function parseAddRefs(rawRefs: string | undefined): string[] | undefined {

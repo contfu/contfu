@@ -123,6 +123,72 @@ export async function collectProcessedFile(file: ProcessedFile): Promise<Buffer>
   return Buffer.concat(chunks);
 }
 
+export function toM4kImageOptions(
+  img: Extract<MediaConvertOpts, { mediaType?: "image" }>,
+): ImageOptions {
+  const imageOpt: ImageOptions = {};
+  if (img.resize?.width || img.resize?.height) {
+    imageOpt.resize = {
+      width: img.resize.width,
+      height: img.resize.height,
+      fit: img.resize.fit ?? "inside",
+    };
+  }
+  if (img.format) imageOpt.format = img.format as ImageOptions["format"];
+  if (img.ext ?? img.format) imageOpt.ext = (img.ext ?? img.format) as ImageOptions["ext"];
+  if (img.quality) imageOpt.quality = img.quality;
+  if (img.rotate != null) imageOpt.rotate = img.rotate;
+  if (img.crop) imageOpt.crop = img.crop;
+  if (img.keepMetadata != null) imageOpt.keepMetadata = img.keepMetadata;
+  if (img.keepExif != null) imageOpt.keepExif = img.keepExif;
+  if (img.keepIcc != null) imageOpt.keepIcc = img.keepIcc;
+  if (img.colorspace) imageOpt.colorspace = img.colorspace;
+  return imageOpt;
+}
+
+export function toM4kVideoOptions(
+  video: OptimizeVideoOpts | Extract<MediaConvertOpts, { mediaType?: "video" }> | undefined,
+): VideoOptions {
+  const videoOpt: VideoOptions = {};
+  if (video?.format) videoOpt.format = video.format;
+  if (video?.ext) videoOpt.ext = video.ext;
+  if (video?.videoCodec) videoOpt.videoCodec = video.videoCodec;
+  if (video?.videoBitrate) videoOpt.videoBitrate = video.videoBitrate;
+  if (video?.videoFilters) videoOpt.videoFilters = video.videoFilters;
+  if (video?.width || video?.height) videoOpt.size = formatSize(video?.width, video?.height);
+  if (video?.size) videoOpt.size = video.size;
+  if (video?.fps) videoOpt.fps = video.fps;
+  if (video?.audioCodec) videoOpt.audioCodec = video.audioCodec;
+  if (video?.audioBitrate) videoOpt.audioBitrate = video.audioBitrate;
+  if (video?.audioFilters) videoOpt.audioFilters = video.audioFilters;
+  if (video?.aspect != null) videoOpt.aspect = video.aspect;
+  if (video?.frames != null) videoOpt.frames = video.frames;
+  if (video?.duration != null) videoOpt.duration = video.duration;
+  if (video?.seek != null) videoOpt.seek = video.seek;
+  if (video?.inputFormat) videoOpt.inputFormat = video.inputFormat;
+  if (video?.pad) videoOpt.pad = video.pad;
+  if (video?.complexFilters) videoOpt.complexFilters = video.complexFilters;
+  if (video?.args) videoOpt.args = video.args;
+  return videoOpt;
+}
+
+export function toM4kAudioOptions(
+  audio: OptimizeAudioOpts | Extract<MediaConvertOpts, { mediaType?: "audio" }> | undefined,
+): AudioOptions {
+  const audioOpt: AudioOptions = {};
+  if (audio?.format) audioOpt.format = audio.format;
+  if (audio?.ext) audioOpt.ext = audio.ext;
+  if (audio?.codec) audioOpt.codec = audio.codec;
+  if (audio?.bitrate) audioOpt.bitrate = audio.bitrate;
+  if (audio?.filters) audioOpt.filters = audio.filters;
+  if (audio?.complexFilters) audioOpt.complexFilters = audio.complexFilters;
+  if (audio?.duration != null) audioOpt.duration = audio.duration;
+  if (audio?.seek != null) audioOpt.seek = audio.seek;
+  if (audio?.inputFormat) audioOpt.inputFormat = audio.inputFormat;
+  if (audio?.args) audioOpt.args = audio.args;
+  return audioOpt;
+}
+
 export class M4kOptimizer implements MediaOptimizer {
   async optimize(
     path: string,
@@ -216,27 +282,8 @@ export class M4kOptimizer implements MediaOptimizer {
     input: Buffer | ReadableStream,
     opts?: OptimizeVideoOpts,
   ): Promise<VariantResult[]> {
-    const ext = opts?.format ?? "mp4";
-    const videoOpts: VideoOptions = {};
-    if (opts?.format) videoOpts.format = opts.format;
-    if (opts?.ext) videoOpts.ext = opts.ext;
-    if (opts?.videoCodec) videoOpts.videoCodec = opts.videoCodec;
-    if (opts?.videoBitrate) videoOpts.videoBitrate = opts.videoBitrate;
-    if (opts?.videoFilters) videoOpts.videoFilters = opts.videoFilters;
-    if (opts?.width || opts?.height) videoOpts.size = formatSize(opts?.width, opts?.height);
-    if (opts?.size) videoOpts.size = opts.size;
-    if (opts?.fps) videoOpts.fps = opts.fps;
-    if (opts?.audioCodec) videoOpts.audioCodec = opts.audioCodec;
-    if (opts?.audioBitrate) videoOpts.audioBitrate = opts.audioBitrate;
-    if (opts?.audioFilters) videoOpts.audioFilters = opts.audioFilters;
-    if (opts?.aspect != null) videoOpts.aspect = opts.aspect;
-    if (opts?.frames != null) videoOpts.frames = opts.frames;
-    if (opts?.duration != null) videoOpts.duration = opts.duration;
-    if (opts?.seek != null) videoOpts.seek = opts.seek;
-    if (opts?.inputFormat) videoOpts.inputFormat = opts.inputFormat;
-    if (opts?.pad) videoOpts.pad = opts.pad;
-    if (opts?.complexFilters) videoOpts.complexFilters = opts.complexFilters;
-    if (opts?.args) videoOpts.args = opts.args;
+    const ext = opts?.ext ?? opts?.format ?? "mp4";
+    const videoOpts = toM4kVideoOptions(opts);
 
     const buf = input instanceof Buffer ? input : await streamToBuffer(input as ReadableStream);
     const iterable = processVideo(toAsyncIterable(buf), videoOpts);
@@ -265,18 +312,8 @@ export class M4kOptimizer implements MediaOptimizer {
     input: Buffer | ReadableStream,
     opts?: OptimizeAudioOpts,
   ): Promise<VariantResult[]> {
-    const ext = opts?.format ?? "mp3";
-    const audioOpts: AudioOptions = {};
-    if (opts?.format) audioOpts.format = opts.format;
-    if (opts?.ext) audioOpts.ext = opts.ext;
-    if (opts?.codec) audioOpts.codec = opts.codec;
-    if (opts?.bitrate) audioOpts.bitrate = opts.bitrate;
-    if (opts?.filters) audioOpts.filters = opts.filters;
-    if (opts?.complexFilters) audioOpts.complexFilters = opts.complexFilters;
-    if (opts?.duration != null) audioOpts.duration = opts.duration;
-    if (opts?.seek != null) audioOpts.seek = opts.seek;
-    if (opts?.inputFormat) audioOpts.inputFormat = opts.inputFormat;
-    if (opts?.args) audioOpts.args = opts.args;
+    const ext = opts?.ext ?? opts?.format ?? "mp3";
+    const audioOpts = toM4kAudioOptions(opts);
 
     const buf = input instanceof Buffer ? input : await streamToBuffer(input as ReadableStream);
     const iterable = processAudio(toAsyncIterable(buf), audioOpts);
@@ -309,21 +346,7 @@ export function createTransform(): MediaTransform {
 
     if (mediaType === "image") {
       const img = opts as Extract<MediaConvertOpts, { mediaType?: "image" }>;
-      const imageOpt: ImageOptions = {};
-      if (img.resize?.width || img.resize?.height) {
-        imageOpt.resize = {
-          width: img.resize.width,
-          height: img.resize.height,
-          fit: img.resize.fit ?? "inside",
-        };
-      }
-      if (img.format) {
-        imageOpt.format = img.format as ImageOptions["format"];
-        imageOpt.ext = img.format as ImageOptions["format"];
-      }
-      if (img.quality) imageOpt.quality = img.quality;
-      if (img.rotate != null) imageOpt.rotate = img.rotate;
-      if (img.crop) imageOpt.crop = img.crop;
+      const imageOpt = toM4kImageOptions(img);
 
       if (
         canUseBunImage(input, {
@@ -360,16 +383,7 @@ export function createTransform(): MediaTransform {
 
     if (mediaType === "video") {
       const v = opts as Extract<MediaConvertOpts, { mediaType?: "video" }>;
-      const videoOpt: VideoOptions = {};
-      if (v.format) videoOpt.format = v.format;
-      if (v.ext) videoOpt.ext = v.ext;
-      if (v.videoCodec) videoOpt.videoCodec = v.videoCodec;
-      if (v.videoBitrate) videoOpt.videoBitrate = v.videoBitrate;
-      if (v.width || v.height) videoOpt.size = formatSize(v.width, v.height);
-      if (v.size) videoOpt.size = v.size;
-      if (v.fps) videoOpt.fps = v.fps;
-      if (v.audioCodec) videoOpt.audioCodec = v.audioCodec;
-      if (v.audioBitrate) videoOpt.audioBitrate = v.audioBitrate;
+      const videoOpt = toM4kVideoOptions(v);
 
       const iterable = processVideo(toAsyncIterable(input), videoOpt);
       if (!iterable) throw new Error("Video processing queue full");
@@ -383,11 +397,7 @@ export function createTransform(): MediaTransform {
 
     if (mediaType === "audio") {
       const a = opts as Extract<MediaConvertOpts, { mediaType?: "audio" }>;
-      const audioOpt: AudioOptions = {};
-      if (a.format) audioOpt.format = a.format;
-      if (a.ext) audioOpt.ext = a.ext;
-      if (a.codec) audioOpt.codec = a.codec;
-      if (a.bitrate) audioOpt.bitrate = a.bitrate;
+      const audioOpt = toM4kAudioOptions(a);
 
       const iterable = processAudio(toAsyncIterable(input), audioOpt);
       if (!iterable) throw new Error("Audio processing queue full");

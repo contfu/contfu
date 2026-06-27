@@ -29,15 +29,18 @@ An item is a single entry in a collection. Every item carries:
   [Rich content](./rich-content.md)).
 
 Model **props** for metadata, taxonomy, references, settings, media URLs, and anything you
-query or route by. Model **content blocks** for long-form rich text: headings, lists,
-code, callouts, media embeds, tables, and nested prose.
+query or route by. Provider fields such as `metadata`, or Contentful/Sanity JSON objects with
+ordinary keys such as `audience` and `priority`, are ordinary props; Contfu reserves only
+the `$`-prefixed system-property namespace. Provider locale maps keyed by real locale
+codes still drive localized item variants. Model **content blocks** for long-form rich
+text: headings, lists, code, callouts, media embeds, tables, and nested prose.
 
 ## Create and manage target collections
 
 ```bash
 contfu collections create --display-name "Blog Posts" --integration-id <app-integration-id>
-# --name blog-posts        # camelCase slug, auto-derived if omitted
-# --include-ref            # keep source reference IDs on synced items
+# --name blogPosts         # camelCase slug, auto-derived if omitted
+# --no-content             # omit rich content blocks if this collection only uses props
 ```
 
 ```bash
@@ -78,18 +81,28 @@ value kind that generates a consistent application type across every provider. N
 property types define synchronization and query contracts; they intentionally do **not**
 model provider editor widgets, field layout, or validation rules.
 
-The property schema shape:
+In API payloads and generated sync messages, a collection schema is a property map whose
+values are `PropertyType` constants from `@contfu/core`:
 
 ```ts
-interface CollectionSchema {
-  properties: {
-    [key: string]: {
-      type: "string" | "number" | "boolean" | "color" | "string[]" | "number[]" | "ref[]";
-      required?: boolean;
-    };
-  };
-}
+import { PropertyType, type CollectionSchema } from "@contfu/core";
+
+const schema: CollectionSchema = {
+  title: PropertyType.STRING,
+  views: PropertyType.NUMBER,
+  tags: PropertyType.STRINGS,
+  scores: PropertyType.NUMBERS,
+  heroImage: PropertyType.FILE,
+  relatedPosts: PropertyType.REFS,
+  status: [PropertyType.ENUM, ["draft", "published"]],
+};
 ```
+
+Supported first-class property kinds include strings, numbers, booleans, colors, dates,
+enums, JSON values, rich-content blocks, files, single refs, ref arrays, string arrays, and
+number arrays. Provider fields whose shapes have no first-class equivalent are preserved as
+JSON where the integration can do so without overclaiming schema semantics; for example,
+Contentful boolean/object arrays import as JSON instead of string arrays.
 
 Native `color` values use Contfu's compact numeric representation: unsigned `0xRRGGBBAA`
 (red in the most significant byte, alpha in the least significant byte). Generated
@@ -99,7 +112,9 @@ boundaries.
 
 Model relationships — including single relations — as `ref[]`. Prefer explicit, stable
 fields such as `slug`, `publishedAt`, `order`, and relation refs when the app will query or
-route by them.
+route by them. Contentful entry-link arrays are imported as refs from the native link shape even
+when the content model has no target-content-type validation; target validations only add provider
+metadata and do not change the Contfu relation contract.
 
 ## Components
 
@@ -112,20 +127,24 @@ Key rules:
 
 - A component is **scoped to an ingress integration**, and its name is unique within that
   integration.
-- The component name is delivered to applications as the **block discriminator**, so
-  renaming a component is a **breaking application contract change**.
+- The component name is delivered to applications in the component block tuple
+  (`["x", name, props, children]`), so renaming a component is a **breaking application
+  contract change**.
 - An integration may auto-discover provider components and create unreviewed ones;
   unreviewed components still appear in generated types.
 - Each component has one mapping from the ingress component shape to its internal props
   schema (identity by default). Component mappings run **before** collection/flow
   mappings, so downstream mappings see normalized block props.
 - When multiple inflows forward same-named components, their prop schemas merge: equal
-  schemas collapse into one block type; differing schemas produce a unioned block type for
-  that runtime name.
+  schemas collapse into one generated component type; differing schemas produce a unioned
+  prop type for that runtime name.
 - Incompatible component schema/mapping changes use the same
   [frozen-flow and incident model](./flows.md#incidents) as collections.
 
-Components have their own detail pages, listed from their owning integration.
+Components have their own detail pages, listed from their owning integration. From the CLI,
+list them with `contfu integrations components <integration-id>`, inspect one with
+`contfu components get <component-id>`, and edit its name, display label, schema, or
+mapping with `contfu components update <component-id>`.
 
 ## Generated types
 

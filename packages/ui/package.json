@@ -1,6 +1,6 @@
 {
   "name": "@contfu/ui",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Contfu Server query UI for a Local Store",
   "repository": {
     "type": "git",

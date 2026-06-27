@@ -58,6 +58,54 @@ describe("createApiClient", () => {
     );
   });
 
+  test("lists target failed deliveries through the target-delivery endpoint", async () => {
+    const deliveries = [
+      {
+        id: "td_1",
+        workspaceId: "ws_1",
+        collectionId: "col_1",
+        itemId: 42,
+        attempts: 3,
+        lastError: "HTTP 500",
+        lastAttemptAt: "2026-06-20T00:00:00.000Z",
+      },
+    ];
+    fetchMock.mockResolvedValueOnce(jsonResponse(deliveries));
+
+    const client = createApiClient(
+      "http://test.local",
+      "api-key",
+      fetchMock as unknown as typeof fetch,
+    );
+    const result = await client.listTargetFailedDeliveries({ integrationId: "int_1" });
+
+    expect(result).toEqual(deliveries);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://test.local/api/v1/target-deliveries/failed?integration=int_1",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+
+  test("redelivers target failed deliveries through the target-delivery endpoint", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ accepted: 1 }));
+
+    const client = createApiClient(
+      "http://test.local",
+      "api-key",
+      fetchMock as unknown as typeof fetch,
+    );
+    const result = await client.redeliverTargetFailedDelivery("td_1");
+
+    expect(result).toEqual({ accepted: 1 });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://test.local/api/v1/target-deliveries/failed/td_1",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ action: "redeliver" }),
+      }),
+    );
+  });
+
   test("throws ApiError with server message on non-ok responses", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ message: "Unknown refs: missing" }, 400));
 

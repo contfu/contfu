@@ -28,7 +28,6 @@ let errorSpy: ReturnType<typeof spyOn>;
 beforeEach(() => {
   mockFetch.mockReset();
   process.env.CONTFU_API_KEY = "test-key";
-  process.env.CONTFU_URL = "http://test.local";
   delete process.env.CONTFU_CLI_LINKS;
   delete process.env.NO_COLOR;
   logSpy = spyOn(console, "log").mockImplementation(() => {});
@@ -64,7 +63,7 @@ describe("list", () => {
 
     expect(mockFetch).toHaveBeenCalledTimes(1);
     const url = (mockFetch.mock.calls[0] as unknown[])[0] as string;
-    expect(url).toBe("http://test.local/api/v1/integrations");
+    expect(url).toBe("https://contfu.com/api/v1/integrations");
     expect(logSpy).toHaveBeenCalledWith(JSON.stringify(data, null, 2));
   });
 
@@ -89,7 +88,7 @@ describe("list", () => {
     expect(calls[0]).toContain("Display Name");
     expect(calls.some((c) => c.includes("notionBrain"))).toBe(true);
     expect(calls.some((c) => c.includes("Notion Brain"))).toBe(true);
-    expect(calls.some((c) => c.includes("\u001b]8;;http://test.local/integrations/conn_1"))).toBe(
+    expect(calls.some((c) => c.includes("\u001b]8;;https://contfu.com/integrations/conn_1"))).toBe(
       true,
     );
   });
@@ -101,11 +100,11 @@ describe("list", () => {
     await list("collections", "table");
 
     const url = (mockFetch.mock.calls[0] as unknown[])[0] as string;
-    expect(url).toBe("http://test.local/api/v1/collections");
+    expect(url).toBe("https://contfu.com/api/v1/collections");
     const calls: string[] = logSpy.mock.calls.map((c: unknown[]) => c[0] as string);
     expect(calls.some((c) => c.includes("Display Name"))).toBe(true);
     expect(calls.some((c) => c.includes("Posts"))).toBe(true);
-    expect(calls.some((c) => c.includes("\u001b]8;;http://test.local/collections/5"))).toBe(true);
+    expect(calls.some((c) => c.includes("\u001b]8;;https://contfu.com/collections/5"))).toBe(true);
   });
 
   test("keeps collection table columns aligned when display names contain emoji", async () => {
@@ -143,14 +142,14 @@ describe("table width", () => {
   });
 
   test("ignores terminal hyperlink escape sequences in visible width", () => {
-    const linked = terminalLink("YSsTjb", "http://test.local/collections/YSsTjb");
+    const linked = terminalLink("YSsTjb", "https://contfu.com/collections/YSsTjb");
     expect(visibleWidth(linked)).toBe(6);
   });
 
   test("can disable terminal hyperlinks", () => {
     process.env.CONTFU_CLI_LINKS = "0";
     try {
-      expect(terminalLink("YSsTjb", "http://test.local/collections/YSsTjb")).toBe("YSsTjb");
+      expect(terminalLink("YSsTjb", "https://contfu.com/collections/YSsTjb")).toBe("YSsTjb");
     } finally {
       delete process.env.CONTFU_CLI_LINKS;
     }
@@ -166,7 +165,7 @@ describe("get", () => {
     await get("integrations", "1");
 
     const url = (mockFetch.mock.calls[1] as unknown[])[0] as string;
-    expect(url).toBe("http://test.local/api/v1/integrations/1");
+    expect(url).toBe("https://contfu.com/api/v1/integrations/1");
     expect(logSpy).toHaveBeenCalledWith(JSON.stringify(data, null, 2));
   });
 
@@ -178,7 +177,7 @@ describe("get", () => {
     await get("integrations", "Brain");
 
     const url = (mockFetch.mock.calls[1] as unknown[])[0] as string;
-    expect(url).toBe("http://test.local/api/v1/integrations/conn_1");
+    expect(url).toBe("https://contfu.com/api/v1/integrations/conn_1");
   });
 
   test("fetches collection by id", async () => {
@@ -189,7 +188,7 @@ describe("get", () => {
     await get("collections", "5");
 
     const url = (mockFetch.mock.calls[1] as unknown[])[0] as string;
-    expect(url).toBe("http://test.local/api/v1/collections/5");
+    expect(url).toBe("https://contfu.com/api/v1/collections/5");
   });
 
   test("fetches collection by display name", async () => {
@@ -200,7 +199,7 @@ describe("get", () => {
     await get("collections", "Posts");
 
     const url = (mockFetch.mock.calls[1] as unknown[])[0] as string;
-    expect(url).toBe("http://test.local/api/v1/collections/col_1");
+    expect(url).toBe("https://contfu.com/api/v1/collections/col_1");
   });
 
   test("fetches flow by id", async () => {
@@ -210,7 +209,7 @@ describe("get", () => {
     await get("flows", "7");
 
     const url = (mockFetch.mock.calls[0] as unknown[])[0] as string;
-    expect(url).toBe("http://test.local/api/v1/flows/7");
+    expect(url).toBe("https://contfu.com/api/v1/flows/7");
   });
 });
 
@@ -222,7 +221,7 @@ describe("create", () => {
     await create("integrations", '{"label":"new"}', {});
 
     const [url, opts] = mockFetch.mock.calls[0] as unknown[] as [string, RequestInit];
-    expect(url).toBe("http://test.local/api/v1/integrations");
+    expect(url).toBe("https://contfu.com/api/v1/integrations");
     expect(opts.method).toBe("POST");
     expect(logSpy).toHaveBeenCalledWith(JSON.stringify(data, null, 2));
   });
@@ -234,7 +233,7 @@ describe("create", () => {
     await create("integrations", undefined, { name: "flagged" });
 
     const [url, opts] = mockFetch.mock.calls[0] as unknown[] as [string, RequestInit];
-    expect(url).toBe("http://test.local/api/v1/integrations");
+    expect(url).toBe("https://contfu.com/api/v1/integrations");
     expect(opts.method).toBe("POST");
     expect(JSON.parse(opts.body as string)).toEqual({ name: "flagged", type: 20 });
   });
@@ -251,6 +250,139 @@ describe("create", () => {
 
     const [, opts] = mockFetch.mock.calls[0] as unknown[] as [string, RequestInit];
     expect(JSON.parse(opts.body as string)).toMatchObject({ scopes: ["master", "staging"] });
+  });
+
+  test("posts webhook target options from webhook flags", async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse({ id: 2, label: "webhook" }));
+
+    await create("integrations", undefined, {
+      name: "Search webhook",
+      type: "webhook",
+      url: "https://example.com/{itemId}",
+      "webhook-header": "X-Index=search,X-Env=prod",
+      "webhook-max-attempts": "3",
+      "webhook-delivery-window": "25",
+    });
+
+    const [, opts] = mockFetch.mock.calls[0] as unknown[] as [string, RequestInit];
+    expect(JSON.parse(opts.body as string)).toEqual({
+      name: "Search webhook",
+      type: 2,
+      url: "https://example.com/{itemId}",
+      opts: {
+        headers: { "X-Index": "search", "X-Env": "prod" },
+        maxAttempts: 3,
+        deliveryWindow: 25,
+      },
+    });
+  });
+
+  test("maps Contentful --url to persisted space options", async () => {
+    const data = { id: 2, label: "contentful" };
+    mockFetch.mockResolvedValueOnce(jsonResponse(data));
+
+    await create("integrations", undefined, {
+      name: "Contentful",
+      type: "contentful",
+      url: "space_123",
+      token: "delivery-token",
+      scope: "staging",
+    });
+
+    const [, opts] = mockFetch.mock.calls[0] as unknown[] as [string, RequestInit];
+    expect(JSON.parse(opts.body as string)).toEqual({
+      name: "Contentful",
+      type: 22,
+      url: null,
+      credentials: "delivery-token",
+      scopes: ["staging"],
+      opts: { spaceId: "space_123" },
+    });
+  });
+
+  test("creates Contentful preview integrations with explicit preview credentials", async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse({ id: "cf_1", name: "Preview" }));
+
+    await create("integrations", undefined, {
+      name: "Preview",
+      type: "contentful",
+      url: "space_123",
+      scope: "preview-env",
+      "contentful-api-mode": "preview",
+      "contentful-delivery-token": "delivery-token",
+      "contentful-preview-token": "preview-token",
+    });
+
+    const [, opts] = mockFetch.mock.calls[0] as unknown[] as [string, RequestInit];
+    expect(JSON.parse(opts.body as string)).toEqual({
+      name: "Preview",
+      type: 22,
+      url: null,
+      credentials: JSON.stringify({
+        deliveryToken: "delivery-token",
+        previewToken: "preview-token",
+      }),
+      scopes: ["preview-env"],
+      opts: { apiMode: "preview", spaceId: "space_123" },
+    });
+  });
+
+  test("creates WordPress integrations with application password credentials and draft mode", async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse({ id: "wp_1", name: "Site" }));
+
+    await create("integrations", undefined, {
+      name: "Site",
+      type: "wordpress",
+      url: "https://example.com",
+      username: "editor",
+      "application-password": "app pass",
+      "include-drafts": true,
+    });
+
+    const [, opts] = mockFetch.mock.calls[0] as unknown[] as [string, RequestInit];
+    expect(JSON.parse(opts.body as string)).toEqual({
+      name: "Site",
+      type: 23,
+      url: "https://example.com",
+      credentials: Buffer.from("editor:app pass", "utf-8").toString("base64"),
+      opts: { includeDrafts: true },
+    });
+  });
+
+  test("rejects conflicting integration credential flags", async () => {
+    const exitSpy = spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("exit");
+    });
+
+    // oxlint-disable-next-line typescript/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
+    await expect(
+      create("integrations", undefined, {
+        name: "Site",
+        type: "wordpress",
+        token: "token",
+        username: "editor",
+        "application-password": "app pass",
+      }),
+    ).rejects.toThrow("exit");
+
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("Use either --token"));
+    expect(mockFetch).not.toHaveBeenCalled();
+    exitSpy.mockRestore();
+  });
+
+  test("rejects unknown integration types", async () => {
+    const exitSpy = spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("exit");
+    });
+
+    // oxlint-disable-next-line typescript/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
+    await expect(
+      create("integrations", undefined, { name: "Mystery", type: "strapii" }),
+    ).rejects.toThrow("exit");
+
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("Unknown integration type"));
+    expect(mockFetch).not.toHaveBeenCalled();
+    exitSpy.mockRestore();
   });
 
   test("exits with error when required flags missing", async () => {
@@ -270,8 +402,39 @@ describe("create", () => {
     await create("collections", undefined, { "display-name": "My Col" });
 
     const [url, opts] = mockFetch.mock.calls[0] as unknown[] as [string, RequestInit];
-    expect(url).toBe("http://test.local/api/v1/collections");
+    expect(url).toBe("https://contfu.com/api/v1/collections");
     expect(JSON.parse(opts.body as string)).toMatchObject({ displayName: "My Col" });
+  });
+
+  test("creates collection with rich content disabled", async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse({ id: 5, displayName: "Props Only" }));
+
+    await create("collections", undefined, { "display-name": "Props Only", "no-content": true });
+
+    const [, opts] = mockFetch.mock.calls[0] as unknown[] as [string, RequestInit];
+    expect(JSON.parse(opts.body as string)).toMatchObject({
+      displayName: "Props Only",
+      includeContent: false,
+    });
+  });
+
+  test("rejects conflicting collection content flags", async () => {
+    const exitSpy = spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("exit");
+    });
+
+    // oxlint-disable-next-line typescript/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
+    await expect(
+      create("collections", undefined, {
+        "display-name": "My Col",
+        content: true,
+        "no-content": true,
+      }),
+    ).rejects.toThrow("exit");
+
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("--content or --no-content"));
+    expect(mockFetch).not.toHaveBeenCalled();
+    exitSpy.mockRestore();
   });
 
   test("creates collection with integration name resolved to id", async () => {
@@ -285,7 +448,7 @@ describe("create", () => {
     });
 
     const [url, opts] = mockFetch.mock.calls[1] as unknown[] as [string, RequestInit];
-    expect(url).toBe("http://test.local/api/v1/collections");
+    expect(url).toBe("https://contfu.com/api/v1/collections");
     expect(JSON.parse(opts.body as string)).toMatchObject({
       displayName: "My Col",
       integrationId: "conn_1",
@@ -330,6 +493,43 @@ describe("create", () => {
       targetId: "dst_1",
     });
   });
+
+  test("merges flow flags into raw json data", async () => {
+    const data = { id: "flow_1", sourceId: "src_1", targetId: "dst_1" };
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse([
+        { id: "src_1", name: "source", displayName: "Source" },
+        { id: "dst_1", name: "target", displayName: "Target" },
+      ]),
+    );
+    mockFetch.mockResolvedValueOnce(jsonResponse(data));
+
+    await create("flows", '{"mappings":[{"source":"title","target":"headline"}]}', {
+      "source-id": "Source",
+      "target-id": "Target",
+    });
+
+    const [, opts] = mockFetch.mock.calls[1] as unknown[] as [string, RequestInit];
+    expect(JSON.parse(opts.body as string)).toEqual({
+      mappings: [{ source: "title", target: "headline" }],
+      sourceId: "src_1",
+      targetId: "dst_1",
+    });
+  });
+
+  test("keeps complete raw flow json data as the API body", async () => {
+    const data = { id: "flow_1", sourceId: "src_1", targetId: "dst_1" };
+    mockFetch.mockResolvedValueOnce(jsonResponse(data));
+
+    await create("flows", '{"sourceId":"src_1","targetId":"dst_1","filters":[]}', {});
+
+    const [, opts] = mockFetch.mock.calls[0] as unknown[] as [string, RequestInit];
+    expect(JSON.parse(opts.body as string)).toEqual({
+      sourceId: "src_1",
+      targetId: "dst_1",
+      filters: [],
+    });
+  });
 });
 
 describe("update", () => {
@@ -341,8 +541,18 @@ describe("update", () => {
     await update("collections", "5", undefined, { "display-name": "Renamed" });
 
     const [url, opts] = mockFetch.mock.calls[1] as unknown[] as [string, RequestInit];
-    expect(url).toBe("http://test.local/api/v1/collections/5");
+    expect(url).toBe("https://contfu.com/api/v1/collections/5");
     expect(JSON.parse(opts.body as string)).toMatchObject({ displayName: "Renamed" });
+  });
+
+  test("updates collection rich content setting", async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse([{ id: 5, name: "posts", displayName: "Posts" }]));
+    mockFetch.mockResolvedValueOnce(jsonResponse({ id: 5, displayName: "Posts" }));
+
+    await update("collections", "5", undefined, { content: true });
+
+    const [, opts] = mockFetch.mock.calls[1] as unknown[] as [string, RequestInit];
+    expect(JSON.parse(opts.body as string)).toEqual({ includeContent: true });
   });
 
   test("patches with raw json data", async () => {
@@ -353,7 +563,7 @@ describe("update", () => {
     await update("integrations", "1", '{"label":"updated"}', {});
 
     const [url, opts] = mockFetch.mock.calls[1] as unknown[] as [string, RequestInit];
-    expect(url).toBe("http://test.local/api/v1/integrations/1");
+    expect(url).toBe("https://contfu.com/api/v1/integrations/1");
     expect(opts.method).toBe("PATCH");
     expect(logSpy).toHaveBeenCalledWith(JSON.stringify(data, null, 2));
   });
@@ -366,9 +576,65 @@ describe("update", () => {
     await update("integrations", "1", undefined, { name: "renamed", scope: "staging" });
 
     const [url, opts] = mockFetch.mock.calls[1] as unknown[] as [string, RequestInit];
-    expect(url).toBe("http://test.local/api/v1/integrations/1");
+    expect(url).toBe("https://contfu.com/api/v1/integrations/1");
     expect(opts.method).toBe("PATCH");
     expect(JSON.parse(opts.body as string)).toEqual({ name: "renamed", scopes: ["staging"] });
+  });
+
+  test("updates integration credentials from secret flags", async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse([{ id: "conn_1", name: "Contentful" }]));
+    mockFetch.mockResolvedValueOnce(jsonResponse({ id: "conn_1", hasCredentials: true }));
+
+    await update("integrations", "Contentful", undefined, {
+      token: "new-token",
+      "webhook-secret": "new-webhook-secret",
+    });
+
+    const [url, opts] = mockFetch.mock.calls[1] as unknown[] as [string, RequestInit];
+    expect(url).toBe("https://contfu.com/api/v1/integrations/conn_1");
+    expect(opts.method).toBe("PATCH");
+    expect(JSON.parse(opts.body as string)).toEqual({
+      credentials: "new-token",
+      webhookSecret: "new-webhook-secret",
+    });
+  });
+
+  test("updates integration draft mode without clearing other provider options", async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse([{ id: "wp_1", name: "Site" }]));
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({ id: "wp_1", opts: { graphqlAvailable: true, includeDrafts: true } }),
+    );
+    mockFetch.mockResolvedValueOnce(jsonResponse({ id: "wp_1" }));
+
+    await update("integrations", "Site", undefined, { "no-include-drafts": true });
+
+    const [url, opts] = mockFetch.mock.calls[2] as unknown[] as [string, RequestInit];
+    expect(url).toBe("https://contfu.com/api/v1/integrations/wp_1");
+    expect(opts.method).toBe("PATCH");
+    expect(JSON.parse(opts.body as string)).toEqual({
+      opts: { graphqlAvailable: true, includeDrafts: false },
+    });
+  });
+
+  test("updates Contentful API mode without clearing persisted space options", async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse([{ id: "cf_1", name: "Contentful" }]));
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({ id: "cf_1", opts: { spaceId: "space_123", apiMode: "delivery" } }),
+    );
+    mockFetch.mockResolvedValueOnce(jsonResponse({ id: "cf_1" }));
+
+    await update("integrations", "Contentful", undefined, {
+      "contentful-api-mode": "preview",
+      "contentful-preview-token": "preview-token",
+    });
+
+    const [url, opts] = mockFetch.mock.calls[2] as unknown[] as [string, RequestInit];
+    expect(url).toBe("https://contfu.com/api/v1/integrations/cf_1");
+    expect(opts.method).toBe("PATCH");
+    expect(JSON.parse(opts.body as string)).toEqual({
+      credentials: JSON.stringify({ previewToken: "preview-token" }),
+      opts: { spaceId: "space_123", apiMode: "preview" },
+    });
   });
 
   test("configures integration i18n active locales and locale map", async () => {
@@ -458,7 +724,45 @@ describe("update", () => {
       }),
     ).rejects.toThrow("exit");
 
-    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("must be one of --i18n-locales"));
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("must be one of active locales"));
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    exitSpy.mockRestore();
+  });
+
+  test("rejects integration locale map values outside custom active locales", async () => {
+    const exitSpy = spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("exit");
+    });
+    mockFetch.mockResolvedValueOnce(jsonResponse([{ id: "app_1", name: "App" }]));
+
+    // oxlint-disable-next-line typescript/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
+    await expect(
+      update("integrations", "App", undefined, {
+        "i18n-locales": "en,fr",
+        "i18n-active-locales": "custom:en",
+        "i18n-locale-map": "French=fr",
+      }),
+    ).rejects.toThrow("exit");
+
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("must be one of active locales"));
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    exitSpy.mockRestore();
+  });
+
+  test("rejects system collection grouping keys", async () => {
+    const exitSpy = spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("exit");
+    });
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse([{ id: "col_1", name: "posts", displayName: "Posts" }]),
+    );
+
+    // oxlint-disable-next-line typescript/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
+    await expect(
+      update("collections", "Posts", undefined, { "i18n-grouping-key": "$locale" }),
+    ).rejects.toThrow("exit");
+
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("normal collection property"));
     expect(mockFetch).toHaveBeenCalledTimes(1);
     exitSpy.mockRestore();
   });
@@ -493,7 +797,7 @@ describe("del", () => {
     await del("integrations", "42");
 
     const [url, opts] = mockFetch.mock.calls[1] as unknown[] as [string, RequestInit];
-    expect(url).toBe("http://test.local/api/v1/integrations/42");
+    expect(url).toBe("https://contfu.com/api/v1/integrations/42");
     expect(opts.method).toBe("DELETE");
     expect(logSpy).toHaveBeenCalledWith("Deleted integration 42");
   });

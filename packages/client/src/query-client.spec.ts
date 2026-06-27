@@ -64,6 +64,11 @@ describe("serializeQueryParams", () => {
     expect(serializeQueryParams({ fields: [] }).get("fields")).toBe("");
   });
 
+  test("serializes flat result requests", () => {
+    expect(serializeQueryParams({ flat: true }).get("flat")).toBe("true");
+    expect(serializeQueryParams({ flat: false }).has("flat")).toBe(false);
+  });
+
   test("serializes i18n boolean preferences", () => {
     const params = serializeQueryParams({ locale: false, fallback: true });
     expect(params.get("locale")).toBe("false");
@@ -86,6 +91,43 @@ describe("contfuClient compatibility", () => {
   test("keeps deprecated factory aliases", () => {
     expect(createHttpClient).toBe(contfuClient);
     expect(createHttpTypedClient).toBe(contfuClient);
+  });
+});
+
+describe("contfuClient auth", () => {
+  const originalFetch = globalThis.fetch;
+  let lastHeaders: Headers;
+
+  beforeEach(() => {
+    lastHeaders = new Headers();
+    globalThis.fetch = ((_url: string, init?: RequestInit) => {
+      lastHeaders = new Headers(init?.headers);
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ data: [], meta: { total: 0, limit: 20, offset: 0 } }),
+      } as Response);
+    }) as unknown as typeof fetch;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  test("sends bearer auth when an API key is passed", async () => {
+    await contfuClient("http://x", "secret")("articles");
+    expect(lastHeaders.get("authorization")).toBe("Bearer secret");
+  });
+
+  test("sends basic auth for Servers protected by CONTFU_BASIC_AUTH", async () => {
+    await contfuClient("http://x", undefined, { basicAuth: "admin:secret" })("articles");
+    expect(lastHeaders.get("authorization")).toBe("Basic YWRtaW46c2VjcmV0");
+  });
+
+  test("basic auth overrides bearer auth because both use Authorization", async () => {
+    await contfuClient("http://x", "token", {
+      basicAuth: { username: "admin", password: "secret" },
+    })("articles");
+    expect(lastHeaders.get("authorization")).toBe("Basic YWRtaW46c2VjcmV0");
   });
 });
 
@@ -202,6 +244,22 @@ describe("contfuClient contentAs", () => {
     url = new URL(lastUrl);
     expect(url.searchParams.get("locale")).toBe("false");
     expect(url.searchParams.get("fallback")).toBe("false");
+  });
+
+  test("omits unresolved inherited fallback true", async () => {
+    const client = contfuClient("http://x", undefined, { i18n: { fallback: true } });
+    await client("articles", { locale: "fr" });
+    let url = new URL(lastUrl);
+    expect(url.searchParams.get("locale")).toBe("fr");
+    expect(url.searchParams.has("fallback")).toBe(false);
+
+    await client("articles", { locale: "fr", fallback: true });
+    url = new URL(lastUrl);
+    expect(url.searchParams.get("fallback")).toBe("true");
+
+    await client.withLocale("fr", true)("articles");
+    url = new URL(lastUrl);
+    expect(url.searchParams.get("fallback")).toBe("true");
   });
 });
 

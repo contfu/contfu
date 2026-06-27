@@ -36,7 +36,9 @@ import {
 
 export const FileUrlContext = React.createContext<FileUrlOptions | undefined>(undefined);
 
-export type BlockComponents = {
+type ComponentBlockComponent = React.ComponentType<{ block: Component; children: React.ReactNode }>;
+
+type BuiltInBlockComponents = {
   p?: React.ComponentType<{ block: ParagraphBlock; children: React.ReactNode }>;
   h1?: React.ComponentType<{ block: Heading1Block; children: React.ReactNode }>;
   h2?: React.ComponentType<{ block: Heading2Block; children: React.ReactNode }>;
@@ -47,7 +49,11 @@ export type BlockComponents = {
   ol?: React.ComponentType<{ block: OrderedListBlock; children: React.ReactNode }>;
   table?: React.ComponentType<{ block: TableBlock; children: React.ReactNode }>;
   img?: React.ComponentType<{ block: ImageBlock }>;
-  component?: React.ComponentType<{ block: Component; children: React.ReactNode }>;
+  component?: ComponentBlockComponent;
+};
+
+export type BlockComponents = BuiltInBlockComponents & {
+  [componentName: string]: BuiltInBlockComponents[keyof BuiltInBlockComponents] | undefined;
 };
 
 interface InlineProps {
@@ -199,7 +205,9 @@ function BlockNode({ block, components }: BlockNodeProps): React.ReactNode {
     return <img src={buildFileUrl(canonical, fileCtx, "image")} alt={alt} />;
   }
   if (isComponent(block)) {
-    const Comp = components?.component;
+    const Comp = (components?.[block[1]] ?? components?.component) as
+      | ComponentBlockComponent
+      | undefined;
     const childBlocks = block[3] as Block[];
     const children = childBlocks.map((c, i) => (
       <BlockNode key={i} block={c} components={components} />

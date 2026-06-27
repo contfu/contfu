@@ -13,7 +13,6 @@ let exitSpy: ReturnType<typeof spyOn>;
 beforeEach(() => {
   mockFetch.mockReset();
   process.env.CONTFU_API_KEY = "test-key";
-  process.env.CONTFU_URL = "http://test.local";
   errorSpy = spyOn(console, "error").mockImplementation(() => {});
   exitSpy = spyOn(process, "exit").mockImplementation(() => {
     throw new Error("exit");

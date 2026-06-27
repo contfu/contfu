@@ -28,6 +28,7 @@ afterEach(() => {
   logSpy.mockRestore();
   errorSpy.mockRestore();
   exitSpy.mockRestore();
+  delete process.env.CONTFU_SERVER_URL;
 });
 
 describe("queryItems", () => {
@@ -53,7 +54,7 @@ describe("queryItems", () => {
     expect(url).toContain("/api/collections/blogPosts/items");
   });
 
-  test("passes filter, sort, include, fields, flat params", async () => {
+  test("passes filter, search, sort, include, fields, locale, fallback, and flat params", async () => {
     mockFetch.mockResolvedValueOnce(jsonResponse({ data: [], meta: { total: 0 } }));
 
     await queryItems([
@@ -61,6 +62,8 @@ describe("queryItems", () => {
       "http://localhost:5173",
       "--filter",
       "status=published",
+      "--search",
+      "release notes",
       "--sort=-createdAt",
       "--limit",
       "5",
@@ -70,23 +73,42 @@ describe("queryItems", () => {
       "content,files",
       "--fields",
       "title,slug",
+      "--locale",
+      "fr",
+      "--fallback",
+      "en",
       "--flat",
     ]);
 
     const url = (mockFetch.mock.calls[0] as unknown[])[0] as string;
     expect(url).toContain("filter=status%3Dpublished");
+    expect(url).toContain("search=release+notes");
     expect(url).toContain("sort=-createdAt");
     expect(url).toContain("limit=5");
     expect(url).toContain("offset=10");
     expect(url).toContain("include=content%2Cfiles");
     expect(url).toContain("fields=title%2Cslug");
+    expect(url).toContain("locale=fr");
+    expect(url).toContain("fallback=en");
     expect(url).toContain("flat=true");
   });
 
-  test("exits with error when --client-url is missing", async () => {
+  test("uses CONTFU_SERVER_URL when --client-url is missing", async () => {
+    process.env.CONTFU_SERVER_URL = "http://localhost:5173";
+    mockFetch.mockResolvedValueOnce(jsonResponse({ data: [], meta: { total: 0 } }));
+
+    await queryItems([]);
+
+    const url = (mockFetch.mock.calls[0] as unknown[])[0] as string;
+    expect(url).toContain("http://localhost:5173/api/items");
+  });
+
+  test("exits with error when no server URL is configured", async () => {
     // oxlint-disable-next-line typescript/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
     await expect(queryItems([])).rejects.toThrow("exit");
-    expect(errorSpy).toHaveBeenCalledWith("Missing required --client-url flag");
+    expect(errorSpy).toHaveBeenCalledWith(
+      "Missing required --client-url flag or CONTFU_SERVER_URL",
+    );
   });
 });
 
@@ -103,7 +125,7 @@ describe("countItems", () => {
     expect(logSpy).toHaveBeenCalledWith(42);
   });
 
-  test("uses collection path and filter", async () => {
+  test("uses collection path, filter, search, and i18n params", async () => {
     mockFetch.mockResolvedValueOnce(jsonResponse({ data: [], meta: { total: 5 } }));
 
     await countItems([
@@ -113,16 +135,38 @@ describe("countItems", () => {
       "posts",
       "--filter",
       "draft=true",
+      "--search",
+      "release",
+      "--locale",
+      "false",
+      "--fallback",
+      "false",
     ]);
 
     const url = (mockFetch.mock.calls[0] as unknown[])[0] as string;
     expect(url).toContain("/api/collections/posts/items");
     expect(url).toContain("filter=draft%3Dtrue");
+    expect(url).toContain("search=release");
+    expect(url).toContain("locale=false");
+    expect(url).toContain("fallback=false");
   });
 
-  test("exits with error when --client-url is missing", async () => {
+  test("uses CONTFU_SERVER_URL when --client-url is missing", async () => {
+    process.env.CONTFU_SERVER_URL = "http://localhost:5173";
+    mockFetch.mockResolvedValueOnce(jsonResponse({ data: [], meta: { total: 12 } }));
+
+    await countItems([]);
+
+    const url = (mockFetch.mock.calls[0] as unknown[])[0] as string;
+    expect(url).toContain("http://localhost:5173/api/items");
+    expect(logSpy).toHaveBeenCalledWith(12);
+  });
+
+  test("exits with error when no server URL is configured", async () => {
     // oxlint-disable-next-line typescript/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
     await expect(countItems([])).rejects.toThrow("exit");
-    expect(errorSpy).toHaveBeenCalledWith("Missing required --client-url flag");
+    expect(errorSpy).toHaveBeenCalledWith(
+      "Missing required --client-url flag or CONTFU_SERVER_URL",
+    );
   });
 });

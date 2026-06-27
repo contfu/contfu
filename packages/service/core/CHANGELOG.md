@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.1.1] - 2026-06-26
+
+### Added
+
+- Added webhook target static headers and retry/window settings.
+- Buffered source pushes during repair and staged reset source state.
+- Added webhook integrations and integration role/capability metadata.
+
+### Changed
+
+- Renamed repair controls to source sync language.
+- Improved actionable incident details and incident resolution modes.
+
 All notable changes to `@contfu/svc-core` are documented here.
 
 ## [0.1.0] - 2026-06-09

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { renderToString } from "@vue/server-renderer";
-import { createSSRApp } from "vue";
+import { createSSRApp, defineComponent, h } from "vue";
 import { Blocks, Block } from "./index";
 import type {
   ParagraphBlock,
@@ -96,6 +96,19 @@ describe("Block (Vue)", () => {
     const inner: ParagraphBlock = ["p", ["hi"]];
     const component: Component = ["x", "Widget", {}, [inner]];
     expect(await render(Block, { block: component })).toBe("<p>hi</p>");
+  });
+
+  test("overrides named component block", async () => {
+    const component: Component = ["x", "Callout", { kind: "info" }, [["p", ["hello"]]]];
+    const Callout = defineComponent({
+      props: ["block"],
+      setup(props, { slots }) {
+        return () => h("aside", { "data-kind": props.block[2].kind }, slots.default?.());
+      },
+    });
+    expect(await render(Block, { block: component, components: { Callout } })).toBe(
+      '<aside data-kind="info"><p>hello</p></aside>',
+    );
   });
 });
 

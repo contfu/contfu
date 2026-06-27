@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1] - 2026-06-26
+
+### Added
+
+- Added Angular rich-content render option support.
+- Aligned Angular rich-content adapter exports with the documented Block/Blocks API.
+
 All notable changes to `@contfu/angular` are documented here.
 
 ## [0.1.0] - 2026-06-09

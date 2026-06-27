@@ -19,4 +19,21 @@ for await (const event of connect({
 }
 ```
 
+You can also pass the m4k host URL directly as a string.
+
+For one-off conversions through `convertMedia()`, use the same options shape with `createTransform()`:
+
+```ts
+import { convertMedia } from "@contfu/contfu";
+import { createTransform } from "@contfu/media-optimizer-remote";
+
+const transform = createTransform({ url: "http://m4k:8080" });
+const output = await convertMedia(
+  fileId,
+  "webp",
+  { mediaType: "image", format: "webp" },
+  transform,
+);
+```
+
 For single-instance deployments, use `@contfu/media-optimizer` to process locally.

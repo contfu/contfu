@@ -6,12 +6,18 @@ import { getAppKey, writeEnvKey, ensureGitignore } from "../env";
 import { prompt, select, type SelectOption } from "./select";
 import { printDryRun } from "./dry-run";
 
+const SUPPORTED_SETUP_PACKAGES = new Set(["@contfu/contfu", "@contfu/client"]);
+
 export interface SetupOptions {
   package?: string;
   appName?: string;
   envFile?: string;
   nonInteractive?: boolean;
   dryRun?: boolean;
+}
+
+function isSupportedSetupPackage(pkg: string): boolean {
+  return SUPPORTED_SETUP_PACKAGES.has(pkg);
 }
 
 function hasPackageJson(): boolean {
@@ -64,6 +70,10 @@ export async function setup(opts: SetupOptions = {}): Promise<void> {
   } else {
     // Need to install — determine which package
     if (opts.package) {
+      if (!isSupportedSetupPackage(opts.package)) {
+        console.error("Unsupported package: expected @contfu/contfu or @contfu/client");
+        process.exit(1);
+      }
       pkgToInstall = opts.package;
     } else if (nonInteractive) {
       console.error("Missing required flag: --package (@contfu/contfu or @contfu/client)");

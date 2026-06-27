@@ -18,7 +18,7 @@ import {
   type CollectionI18nConfig,
   type IntegrationI18nConfig,
 } from "@contfu/svc-api";
-import { getApiClient, getBaseUrl, handleCliError } from "../http";
+import { BASE_URL, getApiClient, handleCliError } from "../http";
 import { writeEnvKey, ensureGitignore } from "../env";
 import { printTable, terminalLink, type TableColumn } from "../table";
 import { printDryRun, type DryRunOption } from "./dry-run";
@@ -41,10 +41,19 @@ export interface CliValues {
   content?: boolean;
   "no-content"?: boolean;
   token?: string;
+  username?: string;
+  "application-password"?: string;
+  "contentful-api-mode"?: string;
+  "contentful-delivery-token"?: string;
+  "contentful-preview-token"?: string;
+  "contentful-management-token"?: string;
   "project-id"?: string;
   scope?: string;
   scopes?: string;
   "webhook-secret"?: string;
+  "webhook-header"?: string;
+  "webhook-max-attempts"?: string;
+  "webhook-delivery-window"?: string;
   "generate-key"?: boolean;
   "i18n-locales"?: string;
   "i18n-active-locales"?: string;
@@ -54,6 +63,8 @@ export interface CliValues {
   "i18n-drop-raw-field"?: boolean;
   "i18n-grouping-key"?: string;
   "reset-i18n"?: boolean;
+  "include-drafts"?: boolean;
+  "no-include-drafts"?: boolean;
 }
 
 const REQUIRED_CREATE: Record<Resource, (keyof CliValues)[]> = {
@@ -116,15 +127,6 @@ function applyIntegrationI18n(
   if (values["i18n-locales"] !== undefined) {
     i18n.locales = parseLocaleList(values["i18n-locales"], "--i18n-locales");
   }
-  if (values["i18n-locale-map"] !== undefined) {
-    i18n.localeMap = parseLocaleMap(values["i18n-locale-map"]);
-    if (i18n.locales && i18n.locales.length > 0) {
-      const locales = new Set(i18n.locales);
-      const invalid = Object.values(i18n.localeMap).find((locale) => !locales.has(locale));
-      if (invalid)
-        throw new Error(`--i18n-locale-map value must be one of --i18n-locales: ${invalid}`);
-    }
-  }
   if (values["i18n-active-locales"] !== undefined) {
     const value = values["i18n-active-locales"].trim();
     if (value === "inherit") i18n.activeLocales = { mode: "inherit" };
@@ -137,7 +139,177 @@ function applyIntegrationI18n(
       throw new Error(`--i18n-active-locales must be inherit or custom:<locales>`);
     }
   }
+  if (values["i18n-locale-map"] !== undefined) {
+    i18n.localeMap = parseLocaleMap(values["i18n-locale-map"]);
+    const activeLocales =
+      i18n.activeLocales?.mode === "custom" ? i18n.activeLocales.locales : i18n.locales;
+    if (activeLocales !== undefined) {
+      const locales = new Set(activeLocales);
+      const invalid = Object.values(i18n.localeMap).find((locale) => !locales.has(locale));
+      if (invalid)
+        throw new Error(`--i18n-locale-map value must be one of active locales: ${invalid}`);
+    }
+  }
   if (Object.keys(i18n).length > 0) body.i18n = i18n;
+}
+
+function validateCollectionContentFlags(values: CliValues) {
+  if (values.content === true && values["no-content"] === true) {
+    throw new Error(`Use only one of --content or --no-content`);
+  }
+}
+
+function validateFallbackGroupingKey(key: string): void {
+  if (key.startsWith("$")) {
+    throw new Error("Fallback grouping key must be a normal collection property");
+  }
+}
+
+function hasBasicIntegrationCredentials(values: CliValues): boolean {
+  return values.username !== undefined || values["application-password"] !== undefined;
+}
+
+function applyIntegrationCredentials(
+  body: CreateIntegrationBody | UpdateIntegrationBody,
+  values: CliValues,
+) {
+  const hasBasicCredentials = hasBasicIntegrationCredentials(values);
+  if (hasBasicCredentials && values.token !== undefined) {
+    throw new Error(`Use either --token or --username/--application-password`);
+  }
+  if (hasBasicCredentials) {
+    if (!values.username || !values["application-password"]) {
+      throw new Error(`--username and --application-password must be used together`);
+    }
+    body.credentials = Buffer.from(
+      `${values.username}:${values["application-password"]}`,
+      "utf-8",
+    ).toString("base64");
+    return;
+  }
+  if (values.token !== undefined) body.credentials = values.token;
+}
+
+function parseContentfulApiMode(value: string | undefined): "delivery" | "preview" | undefined {
+  if (value === undefined) return undefined;
+  const normalized = value.toLowerCase();
+  if (normalized === "delivery" || normalized === "preview") return normalized;
+  throw new Error(`--contentful-api-mode must be delivery or preview`);
+}
+
+function hasContentfulCredentialFlags(values: CliValues): boolean {
+  return (
+    values["contentful-delivery-token"] !== undefined ||
+    values["contentful-preview-token"] !== undefined ||
+    values["contentful-management-token"] !== undefined
+  );
+}
+
+function hasContentfulSettings(values: CliValues): boolean {
+  return values["contentful-api-mode"] !== undefined || hasContentfulCredentialFlags(values);
+}
+
+function applyContentfulIntegrationSettings(
+  body: CreateIntegrationBody | UpdateIntegrationBody,
+  values: CliValues,
+  options: { creating?: boolean } = {},
+) {
+  if (hasBasicIntegrationCredentials(values)) {
+    throw new Error(`Contentful integrations use token credentials, not username/password`);
+  }
+  const apiMode = parseContentfulApiMode(values["contentful-api-mode"]);
+  if (apiMode !== undefined) body.opts = { ...body.opts, apiMode };
+
+  const hasSpecificCredentials = hasContentfulCredentialFlags(values);
+  if (!hasSpecificCredentials) {
+    if (apiMode === "preview" && values.token !== undefined) {
+      body.credentials = JSON.stringify({ previewToken: values.token });
+    } else if (values.token !== undefined) {
+      body.credentials = values.token;
+    }
+  } else {
+    if (values.token !== undefined && values["contentful-delivery-token"] !== undefined) {
+      throw new Error(`Use either --token or --contentful-delivery-token`);
+    }
+    const credentials = {
+      deliveryToken: values["contentful-delivery-token"] ?? values.token,
+      previewToken: values["contentful-preview-token"],
+      managementToken: values["contentful-management-token"],
+    };
+    body.credentials = JSON.stringify(
+      Object.fromEntries(Object.entries(credentials).filter(([, value]) => value !== undefined)),
+    );
+  }
+
+  if (options.creating === true && apiMode === "preview" && body.credentials === undefined) {
+    throw new Error(`Contentful preview mode requires --contentful-preview-token or --token`);
+  }
+}
+
+function applyIntegrationDraftFlags(
+  body: CreateIntegrationBody | UpdateIntegrationBody,
+  values: CliValues,
+) {
+  if (values["include-drafts"] === true && values["no-include-drafts"] === true) {
+    throw new Error(`Use only one of --include-drafts or --no-include-drafts`);
+  }
+  if (values["include-drafts"] === true) body.opts = { ...body.opts, includeDrafts: true };
+  if (values["no-include-drafts"] === true) body.opts = { ...body.opts, includeDrafts: false };
+}
+
+function hasWebhookTargetOptions(values: CliValues): boolean {
+  return (
+    values["webhook-header"] !== undefined ||
+    values["webhook-max-attempts"] !== undefined ||
+    values["webhook-delivery-window"] !== undefined
+  );
+}
+
+function parsePositiveIntegerFlag(value: string, flag: string): number {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0)
+    throw new Error(`${flag} must be a positive integer`);
+  return parsed;
+}
+
+function parseWebhookHeaders(value: string): Record<string, string> {
+  const headers: Record<string, string> = {};
+  for (const entry of value
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean)) {
+    const separator = entry.indexOf("=");
+    if (separator <= 0) throw new Error(`--webhook-header entries must use Name=Value`);
+    const name = entry.slice(0, separator).trim();
+    const headerValue = entry.slice(separator + 1).trim();
+    if (!name) throw new Error(`--webhook-header entries must include a header name`);
+    headers[name] = headerValue;
+  }
+  return headers;
+}
+
+function applyWebhookTargetOptions(
+  body: CreateIntegrationBody | UpdateIntegrationBody,
+  values: CliValues,
+) {
+  if (!hasWebhookTargetOptions(values)) return;
+  const opts: NonNullable<CreateIntegrationBody["opts"]> = {};
+  if (values["webhook-header"] !== undefined) {
+    opts.headers = parseWebhookHeaders(values["webhook-header"]);
+  }
+  if (values["webhook-max-attempts"] !== undefined) {
+    opts.maxAttempts = parsePositiveIntegerFlag(
+      values["webhook-max-attempts"],
+      "--webhook-max-attempts",
+    );
+  }
+  if (values["webhook-delivery-window"] !== undefined) {
+    opts.deliveryWindow = parsePositiveIntegerFlag(
+      values["webhook-delivery-window"],
+      "--webhook-delivery-window",
+    );
+  }
+  body.opts = { ...body.opts, ...opts };
 }
 
 function applyCollectionI18n(body: CreateCollectionBody | UpdateCollectionBody, values: CliValues) {
@@ -160,8 +332,11 @@ function applyCollectionI18n(body: CreateCollectionBody | UpdateCollectionBody, 
   }
   if (values["i18n-keep-raw-field"] === true) i18n.keepLocaleField = true;
   if (values["i18n-drop-raw-field"] === true) i18n.keepLocaleField = false;
-  if (values["i18n-grouping-key"] !== undefined)
-    i18n.key = values["i18n-grouping-key"] || undefined;
+  if (values["i18n-grouping-key"] !== undefined) {
+    const key = values["i18n-grouping-key"] || undefined;
+    if (key !== undefined) validateFallbackGroupingKey(key);
+    i18n.key = key;
+  }
   if (Object.keys(i18n).length > 0) body.i18n = i18n;
 }
 
@@ -173,13 +348,33 @@ function buildIntegrationCreateBody(values: CliValues): CreateIntegrationBody {
   }
   const typeStr = values.type?.toLowerCase() ?? "notion";
   const typeEntry = Object.entries(IntegrationType).find(([k]) => k.toLowerCase() === typeStr);
-  const type = typeEntry ? typeEntry[1] : IntegrationType.NOTION;
+  if (!typeEntry) {
+    throw new Error(
+      `Unknown integration type: ${values.type}. Run \`contfu integrations types\` to list supported types.`,
+    );
+  }
+  const type = typeEntry[1];
   const body: CreateIntegrationBody = { name: values.name!, type };
   if (values.url !== undefined) body.url = values.url;
-  if (values.token !== undefined) body.credentials = values.token;
+  if (type === IntegrationType.CONTENTFUL) {
+    applyContentfulIntegrationSettings(body, values, { creating: true });
+  } else {
+    applyIntegrationCredentials(body, values);
+  }
   if (values["webhook-secret"] !== undefined) body.webhookSecret = values["webhook-secret"];
+  if (hasWebhookTargetOptions(values) && type !== IntegrationType.WEBHOOK) {
+    throw new Error(`Webhook target options require --type webhook`);
+  }
+  applyWebhookTargetOptions(body, values);
   const scopes = parseScopeFlags(values);
   if (scopes !== undefined) body.scopes = scopes;
+  if (type === IntegrationType.CONTENTFUL && values.url !== undefined) {
+    body.url = null;
+    body.opts = {
+      ...body.opts,
+      spaceId: values.url,
+    };
+  }
   if (type === IntegrationType.SANITY) {
     if (!values["project-id"]) {
       console.error("Missing required flag: --project-id");
@@ -190,6 +385,7 @@ function buildIntegrationCreateBody(values: CliValues): CreateIntegrationBody {
       projectId: values["project-id"],
     };
   }
+  applyIntegrationDraftFlags(body, values);
   applyIntegrationI18n(body, values);
   return body;
 }
@@ -197,13 +393,22 @@ function buildIntegrationCreateBody(values: CliValues): CreateIntegrationBody {
 function buildIntegrationUpdateBody(values: CliValues): UpdateIntegrationBody {
   const body: UpdateIntegrationBody = {};
   if (values.name !== undefined) body.name = values.name;
+  if (hasContentfulSettings(values)) {
+    applyContentfulIntegrationSettings(body, values);
+  } else {
+    applyIntegrationCredentials(body, values);
+  }
+  if (values["webhook-secret"] !== undefined) body.webhookSecret = values["webhook-secret"];
+  applyWebhookTargetOptions(body, values);
   const scopes = parseScopeFlags(values);
   if (scopes !== undefined) body.scopes = scopes;
+  applyIntegrationDraftFlags(body, values);
   applyIntegrationI18n(body, values);
   return body;
 }
 
 function buildCollectionCreateBody(values: CliValues): CreateCollectionBody {
+  validateCollectionContentFlags(values);
   const missing = REQUIRED_CREATE.collections.filter((k) => values[k] === undefined);
   if (missing.length > 0) {
     console.error(`Missing required flag(s): ${missing.map((k) => `--${k}`).join(", ")}`);
@@ -219,6 +424,7 @@ function buildCollectionCreateBody(values: CliValues): CreateCollectionBody {
 }
 
 function buildCollectionUpdateBody(values: CliValues): UpdateCollectionBody {
+  validateCollectionContentFlags(values);
   const body: UpdateCollectionBody = {};
   if (values.name !== undefined) body.name = values.name;
   if (values["display-name"] !== undefined) body.displayName = values["display-name"];
@@ -285,9 +491,8 @@ function isScalarSchemaValue(value: unknown): boolean {
   return scalarTypes.includes(type);
 }
 
-function systemScalarSchemaValue(field: string): number | undefined {
+function localeFieldSchemaValue(field: string): number | undefined {
   if (field === "$locale") return PropertyType.STRING;
-  if (field === "$draft") return PropertyType.BOOLEAN;
   return undefined;
 }
 
@@ -299,7 +504,8 @@ function validateCollectionI18nFields(collection: ServiceCollection, body: Updat
     ["Fallback Grouping Key", body.i18n.key],
   ] as const) {
     if (field === undefined) continue;
-    const value = schema[field] ?? systemScalarSchemaValue(field);
+    const value =
+      schema[field] ?? (label === "Locale property" ? localeFieldSchemaValue(field) : undefined);
     if (value === undefined) throw new Error(`${label} not found in collection schema: ${field}`);
     if (!isScalarSchemaValue(value))
       throw new Error(`${label} must be a scalar schema field: ${field}`);
@@ -377,7 +583,7 @@ type ServiceFlowRow = ServiceFlow & {
 };
 
 function appUrl(path: string): string {
-  return `${getBaseUrl().replace(/\/+$/, "")}${path}`;
+  return `${BASE_URL.replace(/\/+$/, "")}${path}`;
 }
 
 function resourceLink(kind: "integrations" | "collections", id: string): string {
@@ -516,18 +722,37 @@ export async function create(
       printJson(await client.createCollection(body));
     } else {
       const body = jsonData
-        ? (untransformSchema(JSON.parse(jsonData)) as CreateFlowBody)
+        ? (untransformSchema(JSON.parse(jsonData)) as Partial<CreateFlowBody>)
         : buildFlowCreateBody(values);
-      if (!jsonData) {
-        const collections = await client.listCollections();
-        body.sourceId = resolveCollectionRefFromRows(body.sourceId, collections);
-        body.targetId = resolveCollectionRefFromRows(body.targetId, collections);
+      if (jsonData) {
+        if (values["source-id"] !== undefined) body.sourceId = values["source-id"];
+        if (values["target-id"] !== undefined) body.targetId = values["target-id"];
       }
+      const missing = [
+        ["source-id", body.sourceId],
+        ["target-id", body.targetId],
+      ].filter(([, value]) => value === undefined);
+      if (missing.length > 0) {
+        console.error(
+          `Missing required flag(s): ${missing.map(([flag]) => `--${flag}`).join(", ")}`,
+        );
+        process.exit(1);
+      }
+      if (!jsonData || values["source-id"] !== undefined || values["target-id"] !== undefined) {
+        const collections = await client.listCollections();
+        if (!jsonData || values["source-id"] !== undefined) {
+          body.sourceId = resolveCollectionRefFromRows(body.sourceId!, collections);
+        }
+        if (!jsonData || values["target-id"] !== undefined) {
+          body.targetId = resolveCollectionRefFromRows(body.targetId!, collections);
+        }
+      }
+      const createBody = body as CreateFlowBody;
       if (options.dryRun) {
-        printDryRun("create flow", body);
+        printDryRun("create flow", createBody);
         return;
       }
-      printJson(await client.createFlow(body));
+      printJson(await client.createFlow(createBody));
     }
   } catch (err) {
     handleCliError(err);
@@ -548,6 +773,13 @@ export async function update(
       const body = jsonData
         ? (untransformSchema(JSON.parse(jsonData)) as UpdateIntegrationBody)
         : buildIntegrationUpdateBody(values);
+      if (!jsonData && body.opts !== undefined) {
+        const existing = await client.getIntegration(resolvedId);
+        if (hasWebhookTargetOptions(values) && existing.type !== IntegrationType.WEBHOOK) {
+          throw new Error(`Webhook target options can only update webhook integrations`);
+        }
+        body.opts = { ...existing.opts, ...body.opts };
+      }
       if (options.dryRun) {
         printDryRun("update integration", { id: resolvedId, body });
         return;

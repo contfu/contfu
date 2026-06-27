@@ -22,11 +22,12 @@ List the providers your workspace can connect:
 contfu integrations types
 ```
 
-Typical types: `notion`, `strapi`, `contentful`, `web`. Providers fall into two
+Typical types: `notion`, `strapi`, `contentful`, `wordpress`, `sanity`, `web`. Providers fall into two
 authentication styles:
 
 - **OAuth providers** (e.g. Notion) — authorization happens in a browser consent screen.
-- **Token providers** (e.g. Strapi, Contentful, Web) — you paste an API token.
+- **Token providers** (e.g. Strapi, Contentful, Sanity, Web) — you paste an API token.
+- **Application-password providers** (e.g. WordPress) — public content can be read anonymously, while preview/draft access uses a WordPress username and application password.
 
 ### Connect via the web UI
 
@@ -39,17 +40,35 @@ https://contfu.com/integrations/new?type=<type>
 
 - `?type=notion` — starts the OAuth flow automatically; you authorize in the consent
   screen, then grant Contfu access to the specific pages/databases.
-- `?type=strapi` (or `contentful`, `web`) — opens a pre-filled form; enter a name and API
+- `?type=strapi` (or `contentful`, `sanity`, `web`) — opens a pre-filled form; enter a name and API
   token.
+- `?type=wordpress` — enter the public site URL; add a WordPress username and application password only when you enable non-published content.
 - `?type=app` — jumps to the application integration tab (see below).
 
-### Connect a token provider from the CLI
+### Connect a provider from the CLI
 
-Token-based providers can be created without the UI:
+Token-based and application-password providers can be created without the UI. Use
+`contfu integrations types` to list valid provider IDs; unknown `--type` values fail before any
+request is sent.
 
 ```bash
-contfu integrations create --name "Marketing CMS" --type strapi --token <token>
+contfu integrations create --name "Marketing CMS" --type strapi --url <api-url> --token <token>
+contfu integrations create --name "Sanity" --type sanity --project-id <project-id> --scope <dataset> --token <token>
+contfu integrations create --name "Contentful" --type contentful --url <space-id> --scope <environment> --token <delivery-token>
+contfu integrations create --name "Contentful Preview" --type contentful --url <space-id> --scope <environment> --contentful-api-mode preview --contentful-preview-token <preview-token>
+contfu integrations create --name "Web" --type web --url <site-url> --token <bearer-token>
+contfu integrations create --name "WordPress" --type wordpress --url <site-url> --username <user> --application-password <password>
 ```
+
+For Sanity, `--project-id` is required and `--scope` names the dataset to expose. For
+Contentful, the `--url` value is the space ID and `--scope` names the environment to
+expose (for example, `master` or `staging`). Delivery API mode is the default; use
+`--contentful-api-mode preview` with `--contentful-preview-token` to create a Preview API
+integration, and pass `--contentful-delivery-token` as well when you want both tokens stored.
+For Web sources, `--url` is the base URL and `--token` is sent as a Bearer token; omit the
+token for public pages. For WordPress, credentials are optional for published-only sync and
+required for authenticated preview/draft reads. Use `--include-drafts` or `--no-include-drafts`
+to change draft-mode settings for providers that support them.
 
 Verify and capture the ID:
 
@@ -84,6 +103,38 @@ synchronization an explicit setting:
   include unpublished records.
 - **Disabled** — pulls request published-only records and draft-only pushes are ignored.
 
+WordPress defaults to published-only sync. When WordPress draft sync is enabled, `$draft` is
+emitted for post and media collections; taxonomies and users stay on published/view reads and do
+not get synthesized draft state. Strapi and Sanity integrations default to including drafts unless
+you disable that setting. Changing draft mode or source credentials resets accepted source state
+for connected collections and schedules a repair full pull so draft/published schemas and cursors do
+not mix.
+
+### Deletions from polling sources
+
+WordPress source collections use authoritative scheduled full pulls for deletion reconciliation:
+Contfu compares the latest REST listing with the last successful upstream item snapshot and emits
+delete sync messages for WordPress items that disappeared. Downstream consumer collections can then
+remove items that were deleted in WordPress instead of waiting for a provider webhook.
+
+### Webhook signing and provider diagnostics
+
+For providers with signed webhooks, store the signing secret on the integration with
+`--webhook-secret` or the equivalent UI field. Contfu verifies the raw webhook body before
+parsing when a secret is configured. Supported source webhook schemes include Contentful's
+`x-contentful-signature` plus `x-contentful-timestamp`, Sanity webhook signatures, and Strapi
+`x-strapi-signature` / `x-webhook-signature` HMAC signatures. The `@contfu/strapi`
+package root is a loadable Strapi plugin entry; `@contfu/strapi/strapi-server` remains
+available for setups that need an explicit server entry path.
+
+Webhook payloads remain provider-owned dirty signals. Contfu stores provider metadata such as
+event names, scopes, Contentful revisions/versions, and Sanity transaction, document, dataset,
+and perspective headers for diagnostics and buffering, but applications should use normalized
+item properties and Contfu scopes rather than depending on provider-specific webhook metadata.
+When a Contentful delete/unpublish webhook omits localized field data, Contfu deletes the base
+item ref and also dirties the collection so reconciliation can remove any materialized locale
+variants safely.
+
 ### Discover and import source collections
 
 After the integration exists, scan what it exposes:
@@ -93,8 +144,11 @@ contfu integrations scan <integration-id>
 ```
 
 This returns the available source collections — Notion databases, Strapi content types,
-etc. — each with `ref`, `displayName`, and `alreadyAdded`. Import the ones you want so
-they get stable Contfu IDs:
+etc. — each with `ref`, `displayName`, and `alreadyAdded`. Sanity scans are conservative:
+Sanity system and asset document types are omitted by default unless an explicit type allowlist
+includes them. For Strapi, Contfu stores the REST route name from the content-type metadata
+(for example `people` instead of a naive `persons` plural) so later pulls and pushes use the
+provider's real route. Import the ones you want so they get stable Contfu IDs:
 
 ```bash
 contfu integrations add <integration-id> --refs <comma-separated-refs>
@@ -144,6 +198,31 @@ contfu integrations create --name my-app --type app
 Collections become visible to an app by being associated with its app integration
 (`--integration-id <app-integration-id>` when creating them). See
 [Collections](./collections.md#associating-collections-with-an-app).
+
+### Webhook target integrations
+
+Webhook integrations are egress-only targets that receive item payloads over HTTPS. Create one
+with an endpoint URL template and optionally a signing secret:
+
+```bash
+contfu integrations create --name "Search index webhook" --type webhook \
+  --url "https://example.com/contfu/{collection}/{itemId}" \
+  --webhook-secret <shared-secret>
+```
+
+Supported URL template parameters are `{collection}`, `{collectionName}`, and `{itemId}`.
+Add static outbound headers with `--webhook-header "Name=Value[,Name=Value]"` and tune retry
+handling with `--webhook-max-attempts` / `--webhook-delivery-window`; Contfu-managed content
+type, version, timestamp, and signature headers take precedence over static headers. Contfu sends
+a versioned `item.current_state` JSON body with the target collection, Contfu item id,
+`changedAt`, `props`, and optional `content`. Removal deliveries use the same payload shape with
+`deleted: true` and omit `props`/`content`. When a secret is configured, requests include
+`contfu-webhook-timestamp` and `contfu-webhook-signature: sha256=<hmac>` over
+`<timestamp>.<raw-body>`.
+
+Create a target collection for the webhook integration, then point flows at that target
+collection. Non-2xx responses and network failures retry through the target-delivery queue;
+acknowledged current-state redeliveries clear earlier unacknowledged records for the same item.
 
 ### Rotate the API key
 

@@ -14,5 +14,4 @@ export {
   type StreamSnapshotStartEvent,
   type StreamSnapshotEndEvent,
   type StreamEvent,
-  type StreamTransport,
 } from "./stream-client";

@@ -56,8 +56,84 @@ function formatSize(width?: number, height?: number): string {
   return "";
 }
 
+export type M4kRemoteOptimizerOptions = string | { url: string };
+
+function resolveM4kHost(options: M4kRemoteOptimizerOptions): string {
+  return typeof options === "string" ? options : options.url;
+}
+
+function toRemoteImageOptions(
+  img: Extract<MediaConvertOpts, { mediaType?: "image" }>,
+): RemoteImageOptions {
+  const imageOpt: RemoteImageOptions = {};
+  if (img.resize?.width || img.resize?.height) {
+    imageOpt.resize = {
+      width: img.resize.width,
+      height: img.resize.height,
+      fit: img.resize.fit,
+    };
+  }
+  if (img.format) imageOpt.format = img.format as ImageOptions["format"];
+  if (img.ext ?? img.format) imageOpt.ext = (img.ext ?? img.format) as ImageOptions["ext"];
+  if (img.quality) imageOpt.quality = img.quality;
+  if (img.rotate != null) imageOpt.rotate = img.rotate;
+  if (img.crop) imageOpt.crop = img.crop;
+  if (img.keepMetadata != null) imageOpt.keepMetadata = img.keepMetadata;
+  if (img.keepExif != null) imageOpt.keepExif = img.keepExif;
+  if (img.keepIcc != null) imageOpt.keepIcc = img.keepIcc;
+  if (img.colorspace) imageOpt.colorspace = img.colorspace;
+  return imageOpt;
+}
+
+function toRemoteVideoOptions(
+  video: OptimizeVideoOpts | Extract<MediaConvertOpts, { mediaType?: "video" }> | undefined,
+): RemoteVideoOptions {
+  const videoOpt: RemoteVideoOptions = {};
+  if (video?.format) videoOpt.format = video.format;
+  if (video?.ext) videoOpt.ext = video.ext;
+  if (video?.videoCodec) videoOpt.videoCodec = video.videoCodec;
+  if (video?.videoBitrate) videoOpt.videoBitrate = video.videoBitrate;
+  if (video?.videoFilters) videoOpt.videoFilters = video.videoFilters;
+  if (video?.width || video?.height) videoOpt.size = formatSize(video?.width, video?.height);
+  if (video?.size) videoOpt.size = video.size;
+  if (video?.fps) videoOpt.fps = video.fps;
+  if (video?.audioCodec) videoOpt.audioCodec = video.audioCodec;
+  if (video?.audioBitrate) videoOpt.audioBitrate = video.audioBitrate;
+  if (video?.audioFilters) videoOpt.audioFilters = video.audioFilters;
+  if (video?.aspect != null) videoOpt.aspect = video.aspect;
+  if (video?.frames != null) videoOpt.frames = video.frames;
+  if (video?.duration != null) videoOpt.duration = video.duration;
+  if (video?.seek != null) videoOpt.seek = video.seek;
+  if (video?.inputFormat) videoOpt.inputFormat = video.inputFormat;
+  if (video?.pad) videoOpt.pad = video.pad;
+  if (video?.complexFilters) videoOpt.complexFilters = video.complexFilters;
+  if (video?.args) videoOpt.args = video.args;
+  return videoOpt;
+}
+
+function toRemoteAudioOptions(
+  audio: OptimizeAudioOpts | Extract<MediaConvertOpts, { mediaType?: "audio" }> | undefined,
+): RemoteAudioOptions {
+  const audioOpt: RemoteAudioOptions = {};
+  if (audio?.format) audioOpt.format = audio.format;
+  if (audio?.ext) audioOpt.ext = audio.ext;
+  if (audio?.codec) audioOpt.codec = audio.codec;
+  if (audio?.bitrate) audioOpt.bitrate = audio.bitrate;
+  if (audio?.filters) audioOpt.filters = audio.filters;
+  if (audio?.complexFilters) audioOpt.complexFilters = audio.complexFilters;
+  if (audio?.duration != null) audioOpt.duration = audio.duration;
+  if (audio?.seek != null) audioOpt.seek = audio.seek;
+  if (audio?.inputFormat) audioOpt.inputFormat = audio.inputFormat;
+  if (audio?.args) audioOpt.args = audio.args;
+  return audioOpt;
+}
+
 export class M4kRemoteOptimizer implements MediaOptimizer {
-  constructor(private readonly host: string) {}
+  private readonly host: string;
+
+  constructor(options: M4kRemoteOptimizerOptions) {
+    this.host = resolveM4kHost(options);
+  }
 
   async optimize(
     path: string,
@@ -96,6 +172,7 @@ export class M4kRemoteOptimizer implements MediaOptimizer {
         );
 
         const imageOpt: RemoteImageOptions = {
+          ...opts.base,
           format: format as ImageFormat,
           ext: format as ImageFormat,
           quality,
@@ -143,15 +220,8 @@ export class M4kRemoteOptimizer implements MediaOptimizer {
     input: Buffer | ReadableStream,
     opts?: OptimizeVideoOpts,
   ): Promise<VariantResult[]> {
-    const ext = opts?.format ?? "mp4";
-    const videoOpts: RemoteVideoOptions = {};
-    if (opts?.format) videoOpts.format = opts.format;
-    if (opts?.videoCodec) videoOpts.videoCodec = opts.videoCodec;
-    if (opts?.videoBitrate) videoOpts.videoBitrate = opts.videoBitrate;
-    if (opts?.width || opts?.height) videoOpts.size = formatSize(opts?.width, opts?.height);
-    if (opts?.fps) videoOpts.fps = opts.fps;
-    if (opts?.audioCodec) videoOpts.audioCodec = opts.audioCodec;
-    if (opts?.audioBitrate) videoOpts.audioBitrate = opts.audioBitrate;
+    const ext = opts?.ext ?? opts?.format ?? "mp4";
+    const videoOpts = toRemoteVideoOptions(opts);
 
     const buf = input instanceof Buffer ? input : await streamToBuffer(input as ReadableStream);
     const iterable = processVideo(this.host, toAsyncIterable(buf), videoOpts);
@@ -179,11 +249,8 @@ export class M4kRemoteOptimizer implements MediaOptimizer {
     input: Buffer | ReadableStream,
     opts?: OptimizeAudioOpts,
   ): Promise<VariantResult[]> {
-    const ext = opts?.format ?? "mp3";
-    const audioOpts: RemoteAudioOptions = {};
-    if (opts?.format) audioOpts.format = opts.format;
-    if (opts?.codec) audioOpts.codec = opts.codec;
-    if (opts?.bitrate) audioOpts.bitrate = opts.bitrate;
+    const ext = opts?.ext ?? opts?.format ?? "mp3";
+    const audioOpts = toRemoteAudioOptions(opts);
 
     const buf = input instanceof Buffer ? input : await streamToBuffer(input as ReadableStream);
     const iterable = processAudio(this.host, toAsyncIterable(buf), audioOpts);
@@ -209,27 +276,15 @@ export class M4kRemoteOptimizer implements MediaOptimizer {
  * Create a MediaTransform function backed by @m4k/client.
  * Use with convertMedia() for on-demand remote media conversion.
  */
-export function createTransform(host: string): MediaTransform {
+export function createTransform(options: M4kRemoteOptimizerOptions): MediaTransform {
+  const host = resolveM4kHost(options);
+
   return async (input: Buffer, opts: MediaConvertOpts): Promise<Buffer> => {
     const mediaType = opts.mediaType ?? "image";
 
     if (mediaType === "image") {
       const img = opts as Extract<MediaConvertOpts, { mediaType?: "image" }>;
-      const imageOpt: RemoteImageOptions = {};
-      if (img.resize?.width || img.resize?.height) {
-        imageOpt.resize = {
-          width: img.resize.width,
-          height: img.resize.height,
-          fit: img.resize.fit,
-        };
-      }
-      if (img.format) {
-        imageOpt.format = img.format as ImageOptions["format"];
-        imageOpt.ext = img.format as ImageOptions["format"];
-      }
-      if (img.quality) imageOpt.quality = img.quality;
-      if (img.rotate != null) imageOpt.rotate = img.rotate;
-      if (img.crop) imageOpt.crop = img.crop;
+      const imageOpt = toRemoteImageOptions(img);
 
       const iterable = processImage(host, toAsyncIterable(input), imageOpt);
       for await (const item of iterable) {
@@ -242,16 +297,7 @@ export function createTransform(host: string): MediaTransform {
 
     if (mediaType === "video") {
       const v = opts as Extract<MediaConvertOpts, { mediaType?: "video" }>;
-      const videoOpt: RemoteVideoOptions = {};
-      if (v.format) videoOpt.format = v.format;
-      if (v.ext) videoOpt.ext = v.ext;
-      if (v.videoCodec) videoOpt.videoCodec = v.videoCodec;
-      if (v.videoBitrate) videoOpt.videoBitrate = v.videoBitrate;
-      if (v.width || v.height) videoOpt.size = formatSize(v.width, v.height);
-      if (v.size) videoOpt.size = v.size;
-      if (v.fps) videoOpt.fps = v.fps;
-      if (v.audioCodec) videoOpt.audioCodec = v.audioCodec;
-      if (v.audioBitrate) videoOpt.audioBitrate = v.audioBitrate;
+      const videoOpt = toRemoteVideoOptions(v);
 
       const iterable = processVideo(host, toAsyncIterable(input), videoOpt);
       for await (const item of iterable) {
@@ -264,11 +310,7 @@ export function createTransform(host: string): MediaTransform {
 
     if (mediaType === "audio") {
       const a = opts as Extract<MediaConvertOpts, { mediaType?: "audio" }>;
-      const audioOpt: RemoteAudioOptions = {};
-      if (a.format) audioOpt.format = a.format;
-      if (a.ext) audioOpt.ext = a.ext;
-      if (a.codec) audioOpt.codec = a.codec;
-      if (a.bitrate) audioOpt.bitrate = a.bitrate;
+      const audioOpt = toRemoteAudioOptions(a);
 
       const iterable = processAudio(host, toAsyncIterable(input), audioOpt);
       for await (const item of iterable) {

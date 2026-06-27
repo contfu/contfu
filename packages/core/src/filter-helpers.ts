@@ -5,7 +5,6 @@ export const SYSTEM_FIELD_NAMES = [
   "$changedAt",
   "$createdAt",
   "$publishedAt",
-  "$integrationType",
   "$locale",
 ] as const;
 
@@ -29,7 +28,6 @@ type SystemFieldRefs = {
   $changedAt: FieldRef<number>;
   $createdAt: FieldRef<number>;
   $publishedAt: FieldRef<number | null>;
-  $integrationType: FieldRef<string | null>;
   $locale: FieldRef<string>;
 };
 
@@ -49,11 +47,7 @@ export function createItemRef<Props>(level: number): ItemRef<Props> {
     {
       get(_target, prop: string) {
         if (typeof prop !== "string") return undefined;
-        const path =
-          SYSTEM_FIELD_SET.has(prop) || prop.startsWith("$")
-            ? `${prefix}${prop}`
-            : `${prefix}${prop}`;
-        return { [FIELD_REF_TAG]: true, path } as FieldRef;
+        return { [FIELD_REF_TAG]: true, path: `${prefix}${prop}` } as FieldRef;
       },
     },
   ) as ItemRef<Props>;
@@ -68,6 +62,7 @@ function formatValue(v: FieldRef | string | number | boolean | null): string {
 }
 
 type FilterOperand = FieldRef | string | number | boolean | null;
+type CollectionFilter = string | ((self: any) => string) | Record<string, unknown>;
 type Comparable = string | number;
 
 function binOp(op: string) {
@@ -166,15 +161,12 @@ export function all<C extends string>(
   collection: C,
   filter: (self: any) => string,
 ): { collection: C; filter: (self: any) => string };
-export function all(
-  collection: string,
-  filterOrOpts?: string | ((self: any) => string) | Record<string, unknown>,
-) {
-  if (filterOrOpts == null) return { collection };
-  if (typeof filterOrOpts === "string" || typeof filterOrOpts === "function") {
-    return { collection, filter: filterOrOpts };
-  }
-  return { collection, ...filterOrOpts };
+export function all<C extends string, O extends Record<string, unknown>>(
+  collection: C,
+  opts: O,
+): { collection: C } & O;
+export function all(collection: string, filterOrOpts?: CollectionFilter) {
+  return collectionQuery(collection, false, filterOrOpts);
 }
 
 export function oneOf<C extends string>(collection: C): { collection: C; single: true };
@@ -186,13 +178,19 @@ export function oneOf<C extends string>(
   collection: C,
   filter: (self: any) => string,
 ): { collection: C; single: true; filter: (self: any) => string };
-export function oneOf(
-  collection: string,
-  filterOrOpts?: string | ((self: any) => string) | Record<string, unknown>,
-) {
-  if (filterOrOpts == null) return { collection, single: true as const };
+export function oneOf<C extends string, O extends Record<string, unknown>>(
+  collection: C,
+  opts: O,
+): { collection: C; single: true } & O;
+export function oneOf(collection: string, filterOrOpts?: CollectionFilter) {
+  return collectionQuery(collection, true, filterOrOpts);
+}
+
+function collectionQuery(collection: string, single: boolean, filterOrOpts?: CollectionFilter) {
+  const base = single ? { collection, single: true as const } : { collection };
+  if (filterOrOpts == null) return base;
   if (typeof filterOrOpts === "string" || typeof filterOrOpts === "function") {
-    return { collection, single: true as const, filter: filterOrOpts };
+    return { ...base, filter: filterOrOpts };
   }
-  return { collection, single: true as const, ...filterOrOpts };
+  return { ...base, ...filterOrOpts };
 }

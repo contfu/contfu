@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { PropertyType } from "@contfu/core";
-import { buildSanitySchemaSyncPayload, updateConftuSchema } from "./index";
+import { buildSanitySchemaSyncPayload, updateContfuSchema, updateConftuSchema } from "./index";
 
 const originalFetch = globalThis.fetch;
 
@@ -19,7 +19,7 @@ describe("@contfu/sanity", () => {
       return Promise.resolve(new Response("ok", { status: 200 }));
     }) as typeof fetch;
 
-    const response = await updateConftuSchema({
+    const response = await updateContfuSchema({
       webhookSecret: "secret-webhook-secret",
       dataset: "production",
       schemaTypes: [
@@ -45,6 +45,10 @@ describe("@contfu/sanity", () => {
         post: { $draft: PropertyType.BOOLEAN, title: PropertyType.STRING | PropertyType.NULL },
       },
     });
+  });
+
+  test("keeps the deprecated Conftu-typo export as an alias", () => {
+    expect(updateConftuSchema).toBe(updateContfuSchema);
   });
 
   test("supports overriding Contfu origin for development", async () => {

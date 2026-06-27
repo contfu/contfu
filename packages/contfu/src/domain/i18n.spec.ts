@@ -66,6 +66,33 @@ describe("buildI18nQueryPlan", () => {
     });
   });
 
+  test("ignores inherited fallback true when no default locale can resolve it", () => {
+    expect(
+      buildI18nQueryPlan({
+        collection: "blogPost",
+        collectionI18n,
+        appI18n: { fallback: true },
+        locale: "en",
+      }),
+    ).toEqual({
+      collection: "blogPost",
+      key: "slug",
+      wantedLocale: "en",
+      fallbackLocale: undefined,
+    });
+  });
+
+  test("explicit fallback true still requires a resolvable default locale", () => {
+    expect(() =>
+      buildI18nQueryPlan({
+        collection: "blogPost",
+        collectionI18n,
+        locale: "en",
+        fallback: true,
+      }),
+    ).toThrow("fallback=true requires an i18n defaultLocale to resolve");
+  });
+
   test("suppresses implicit locale selection when filter already references $locale", () => {
     expect(
       buildI18nQueryPlan({

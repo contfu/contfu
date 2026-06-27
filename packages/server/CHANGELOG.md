@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.1] - 2026-06-26
+
+### Changed
+
+- Documented the implemented HTTP surface and corrected deployment wording.
+
+### Fixed
+
+- Aligned registered routes with the documented GET-only HTTP API.
+- Implemented flat query options for HTTP queries.
+- Aligned i18n fallback handling with the spec.
+
 All notable changes to `@contfu/server` are documented here.
 
 ## [0.1.0] - 2026-06-09

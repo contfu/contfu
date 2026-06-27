@@ -2,7 +2,7 @@ import { createApiClient, ApiError, IntegrationType, IntegrationTypeMeta } from 
 import type { ApiIntegration, ServiceCollection, ServiceFlow } from "@contfu/svc-api";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { getApiKey, getBaseUrl } from "../http";
+import { BASE_URL, getApiKey } from "../http";
 import { getAppKey } from "../env";
 
 function resolveTypeLabel(type: number): string {
@@ -89,7 +89,7 @@ export async function status(format = "table"): Promise<void> {
     return;
   }
 
-  const apiClient = createApiClient(getBaseUrl(), apiKey);
+  const apiClient = createApiClient(BASE_URL, apiKey);
 
   // Detect app project context
   let appKeyInfo: StatusResult["appKey"];

@@ -1,9 +1,11 @@
 import {
   EventType,
+  normalizeQueryArgs,
+  resolveQueryFilter,
+  resolveQueryWithFunctions,
   all,
   and,
   contains,
-  createItemRef,
   eq,
   gt,
   gte,
@@ -22,7 +24,6 @@ import type { FileStore } from "./domain/files";
 import type { ClientI18nConfig, LocaleScope } from "./domain/i18n";
 import type { MediaOptimizer, MediaVariants, TransformMediaRule } from "./domain/media";
 import type { QueryLocale, TypedContfuClient } from "./domain/query-types";
-import { resolveWithFunctions } from "./domain/filter-helpers";
 import { findItems } from "./features/items/findItems";
 import { connect } from "./features/stream/connect";
 import { db } from "./infra/db/db";
@@ -176,25 +177,6 @@ function emptyAsyncIterable(): AsyncIterable<SyncEvent> {
   };
 }
 
-function normalizeArgs(
-  first?: string | Record<string, any>,
-  second?: any,
-): { options: Record<string, any> } {
-  if (typeof first === "string") {
-    if (second == null) return { options: { collection: first } };
-    if (typeof second === "string" || typeof second === "function") {
-      return { options: { collection: first, filter: second } };
-    }
-    return { options: { collection: first, ...second } };
-  }
-  return { options: first ?? {} };
-}
-
-function resolveFilter(filter: unknown): string | undefined {
-  if (typeof filter === "function") return filter(createItemRef(0));
-  return filter as string | undefined;
-}
-
 function createLocalTypedClient<_CMap>(
   ctx = db,
   appI18n?: ClientI18nConfig<QueryLocale<_CMap>>,
@@ -202,11 +184,10 @@ function createLocalTypedClient<_CMap>(
 ): any {
   // eslint-disable-next-line typescript-eslint/require-await -- mirrors async remote API for seamless local/remote switching
   const callable = async (first?: any, second?: any) => {
-    const { options } = normalizeArgs(first, second);
+    const { options } = normalizeQueryArgs(first, second);
     const { collection, locale, fallback, ...rest } = options;
-    const filter = resolveFilter(rest.filter);
-    const resolvedWith =
-      rest.with && typeof rest.with === "function" ? resolveWithFunctions(rest.with, 1) : rest.with;
+    const filter = resolveQueryFilter(rest.filter);
+    const resolvedWith = resolveQueryWithFunctions(rest.with as any);
 
     if (collection) {
       const opts = {

@@ -1,38 +1,45 @@
-import { IntegrationType, defineEnum, type EnumValue } from "@contfu/core";
+import {
+  IntegrationRole,
+  IntegrationType,
+  defineEnum,
+  integrationHasRole,
+  type EnumValue,
+} from "@contfu/core";
 export { IntegrationType, SyncMode } from "@contfu/core";
 
+type IntegrationTypeMetaEntry = {
+  label: string;
+  editable: boolean;
+  source: boolean;
+  target: boolean;
+};
+
+function integrationTypeMeta(
+  label: string,
+  type: IntegrationType,
+  editable = false,
+): IntegrationTypeMetaEntry {
+  return {
+    label,
+    editable,
+    source: integrationHasRole(type, IntegrationRole.SourceRole),
+    target: integrationHasRole(type, IntegrationRole.TargetRole),
+  };
+}
+
 /** Metadata for each integration type. */
-export const IntegrationTypeMeta: Record<
-  IntegrationType,
-  { label: string; editable: boolean; source: boolean; target: boolean }
-> = {
-  [IntegrationType.APP]: {
-    label: "Application Integration",
-    editable: true,
-    source: false,
-    target: true,
-  },
-  [IntegrationType.WEB]: { label: "web", editable: false, source: true, target: false },
-  [IntegrationType.NOTION]: { label: "notion", editable: false, source: true, target: false },
-  [IntegrationType.STRAPI]: { label: "strapi", editable: false, source: true, target: false },
-  [IntegrationType.CONTENTFUL]: {
-    label: "contentful",
-    editable: false,
-    source: true,
-    target: false,
-  },
-  [IntegrationType.WORDPRESS]: {
-    label: "wordpress",
-    editable: false,
-    source: true,
-    target: false,
-  },
-  [IntegrationType.SANITY]: {
-    label: "sanity",
-    editable: false,
-    source: true,
-    target: false,
-  },
+export const IntegrationTypeMeta: Record<IntegrationType, IntegrationTypeMetaEntry> = {
+  [IntegrationType.APP]: integrationTypeMeta("Application Integration", IntegrationType.APP, true),
+  [IntegrationType.WEB]: integrationTypeMeta("web", IntegrationType.WEB),
+  [IntegrationType.WEBHOOK]: integrationTypeMeta("webhook", IntegrationType.WEBHOOK, true),
+  [IntegrationType.NOTION]: integrationTypeMeta("notion", IntegrationType.NOTION),
+  [IntegrationType.STRAPI]: integrationTypeMeta("strapi", IntegrationType.STRAPI),
+  [IntegrationType.CONTENTFUL]: integrationTypeMeta("contentful", IntegrationType.CONTENTFUL),
+  [IntegrationType.WORDPRESS]: integrationTypeMeta("wordpress", IntegrationType.WORDPRESS),
+  [IntegrationType.SANITY]: integrationTypeMeta("sanity", IntegrationType.SANITY),
+  [IntegrationType.STORYBLOK]: integrationTypeMeta("storyblok", IntegrationType.STORYBLOK),
+  [IntegrationType.DIRECTUS]: integrationTypeMeta("directus", IntegrationType.DIRECTUS),
+  [IntegrationType.PRISMIC]: integrationTypeMeta("prismic", IntegrationType.PRISMIC),
 };
 
 /** Authentication types for web integrations. */

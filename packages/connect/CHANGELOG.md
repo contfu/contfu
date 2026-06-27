@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.1] - 2026-06-26
+
+### Added
+
+- Tightened public sync transport and endpoint configuration.
+
+### Fixed
+
+- Aligned reconnect behavior with the documented public API.
+
 All notable changes to `@contfu/connect` are documented here.
 
 ## [0.1.0] - 2026-06-09

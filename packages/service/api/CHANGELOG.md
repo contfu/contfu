@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1] - 2026-06-26
+
+### Added
+
+- Defined the Sanity draft identity contract.
+- Added webhook integration API support.
+
 All notable changes to `@contfu/svc-api` are documented here.
 
 ## [0.1.0] - 2026-06-09

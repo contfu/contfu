@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.1] - 2026-06-26
+
+### Changed
+
+- Updated dependencies.
+
 All notable changes to `@contfu/bun-file-store` are documented here.
 
 ## [0.1.0] - 2026-06-09

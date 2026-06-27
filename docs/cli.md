@@ -23,7 +23,8 @@ contfu logout                # clear stored credentials
 ```
 
 Credentials are stored in `~/.config/contfu/config.json`. Override with the
-`CONTFU_API_KEY` environment variable (handy in CI).
+`CONTFU_API_KEY` environment variable (handy in CI). Cloud Service commands target
+`https://contfu.com` implicitly.
 
 > `CONTFU_API_KEY` authenticates the CLI as a user. It is **not** the same as `CONTFU_KEY`,
 > which is the app integration key the [Local Runtime](./deployment.md) uses to sync.
@@ -39,10 +40,39 @@ contfu status -f json       # JSON: authenticated, integrations, collections, fl
 
 ```bash
 contfu workspaces list [-f json]
+contfu workspaces get <id-or-name>
+contfu workspaces create --display-name "Marketing" [--name marketing] [--organization <id-or-name>]
+contfu workspaces update <id-or-name> [--display-name "New name"] [--name newName]
+contfu workspaces budget <id-or-name> [--integrations <n>] [--collections <n>] [--flows <n>] [--items <n>] [--item-changes <n>]
+contfu workspaces invite <id-or-name> --email <email>
+contfu workspaces accept <token>
+contfu workspaces join <id-or-name>
+contfu workspaces members <id-or-name>
+contfu workspaces revoke <id-or-name> <email>
 contfu workspaces switch <workspace-id-or-name>
 ```
 
-Refs resolve by ID first, then exact `name`/`displayName`. Prefer IDs in scripts.
+Refs resolve by ID first, then exact `name`/`displayName`. Prefer IDs in scripts. Budget
+values are integers; use `unlimited` for no limit and `unset`, `null`, or an empty value to
+clear an override. Mutating workspace membership and invite commands support `--dry-run`.
+
+## Organizations
+
+```bash
+contfu orgs list [-f json]
+contfu orgs get <id-or-name>
+contfu orgs create --display-name "Acme" [--name acme]
+contfu orgs update <id-or-name> [--display-name "New name"] [--name newName]
+contfu orgs invite <id-or-name> --email <email> [--role member|admin]
+contfu orgs accept <token>
+contfu orgs members <id-or-name>
+contfu orgs promote <id-or-name> <email>
+contfu orgs demote <id-or-name> <email>
+```
+
+`organizations` is accepted as a long alias for `orgs`. Organization roles accepted by the
+CLI are `member` and `admin`; owner assignment is managed by the service. Mutating organization
+membership and invite commands support `--dry-run`.
 
 ## Setup wizard
 
@@ -72,21 +102,75 @@ app integration.
 contfu integrations list [-f json]
 contfu integrations get <id-or-name>
 contfu integrations create -n "<label>" -t <provider> [--token <token>]
+contfu integrations create -n "Contentful" -t contentful --url <space-id> --scope <environment> [--contentful-api-mode delivery|preview]
+contfu integrations create -n "WordPress" -t wordpress --url <site-url> [--username <user> --application-password <password>]
 contfu integrations update <id-or-name> [flags]
 contfu integrations delete <id-or-name>
 
 contfu integrations types                       # list valid provider types
 contfu integrations scan <id-or-name>           # discover source collections
+contfu integrations scan <id-or-name> --select  # discover and choose collections interactively
 contfu integrations add  <id-or-name> --refs <a,b> | --all | --select
 contfu integrations regenerate-key <id-or-name> # rotate an app integration's API key
 ```
 
-Create flags: `-n/--name` (required), `-t/--type` (`notion`, `contentful`, `strapi`,
-`app`; default `notion`), `--token`, `-d/--data <json>`.
+Create flags: `-n/--name` (required), `-t/--type` (one of the provider IDs from
+`contfu integrations types`; default `notion`), `--token`, `--username` plus
+`--application-password` for WordPress application-password auth, `--url <url-or-id>` for
+provider base URLs or provider-specific identifiers such as a Contentful space ID,
+`--project-id` for Sanity, `--scope`/`--scopes`, `--webhook-secret`, webhook target
+`--webhook-header`, `--webhook-max-attempts`, and `--webhook-delivery-window`, Contentful
+`--contentful-api-mode delivery|preview`, `--contentful-delivery-token`,
+`--contentful-preview-token`, and `--contentful-management-token`, `--include-drafts` /
+`--no-include-drafts` for providers with draft modes, `--generate-key`, and
+`-d/--data <json>`. For Sanity, `--project-id` is required and `--scope`/`--scopes`
+restrict exposed datasets. For Contentful, `--url` is the space ID, `--scope`/`--scopes` restrict
+exposed environments, Delivery API mode is the default, and Preview API mode requires a preview
+token on create. For Web sources, `--url` is the base URL and `--token` is sent as a
+Bearer token. For webhook target integrations, `--url` is the HTTPS endpoint template
+and may use `{collection}`, `{collectionName}`, or `{itemId}`. Use `--webhook-header
+Name=Value[,Name=Value]` for static outbound headers; Contfu-managed content type, version,
+timestamp, and signature headers take precedence. Unknown `--type` values fail before
+any request is sent. Update flags include `-n/--name`, `--token`, WordPress credential flags,
+Contentful API-mode/token flags, `--scope`/`--scopes`, `--webhook-secret`, webhook target flags,
+draft-mode flags, localization flags, and `-d/--data <json>`.
 
-`scan` returns `[{ ref, displayName, alreadyAdded, icon? }]`. `add` imports source
-collections so they get numeric IDs usable as `--source-id` in flows. See
-[Integrations](./integrations.md).
+Localization flags: `--i18n-locales <en,de>`, `--i18n-active-locales inherit|custom:<locales>`,
+`--i18n-locale-map <raw=locale,...>`, and `--reset-i18n`. Locale map values must be active
+locales. See [Localization and i18n](./i18n.md).
+
+`scan` returns `[{ ref, displayName, scope?, alreadyAdded, icon? }]`. `scan --select` and
+`add --select` open the same interactive picker; `add --refs` and `add --all` are better for
+scripts. `add` imports source collections so they get numeric IDs usable as `--source-id`
+in flows. See [Integrations](./integrations.md).
+
+## Components
+
+```bash
+contfu integrations components <integration-id-or-name> [-f json]
+contfu components get <component-id>
+contfu components create <integration-id-or-name> \
+  --name hero \
+  --display-name "Hero" \
+  --provider-ref hero
+contfu components update <component-id> [flags]
+contfu components delete <component-id>
+```
+
+Components are scoped to an ingress integration. List discovered or configured components
+from that integration with `contfu integrations components`; inspect a component with
+`contfu components get`.
+
+| Flag                    | Description                                                                  |
+| ----------------------- | ---------------------------------------------------------------------------- |
+| `-n, --name <name>`     | Runtime component name delivered as the application block discriminator.     |
+| `--display-name <name>` | Human-readable label.                                                        |
+| `--provider-ref <ref>`  | Provider component identifier; required for manual create.                   |
+| `-d, --data <json>`     | Raw JSON body for fields such as `propsSchema`, `mapping`, or status fields. |
+| `--dry-run`             | Preview create/update/delete without mutating state.                         |
+
+Renaming `name` is a breaking application contract change. See
+[Collections → Components](./collections.md#components).
 
 ## Collections
 
@@ -98,13 +182,20 @@ contfu collections update <id-or-name> [flags]
 contfu collections delete <id-or-name>
 ```
 
-| Flag                            | Description                                        |
-| ------------------------------- | -------------------------------------------------- |
-| `--display-name <name>`         | Required for create.                               |
-| `-n, --name <name>`             | camelCase slug (auto-derived if omitted).          |
-| `--integration-id <id-or-name>` | Associate with an app integration (prefer the ID). |
-| `--[no-]include-ref`            | Include source reference IDs in synced items.      |
-| `-d, --data <json>`             | Raw JSON body.                                     |
+| Flag                            | Description                                                                                        |
+| ------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `--display-name <name>`         | Required for create.                                                                               |
+| `-n, --name <name>`             | camelCase slug (auto-derived if omitted).                                                          |
+| `--integration-id <id-or-name>` | Associate with an app integration (prefer the ID).                                                 |
+| `--content`                     | Include rich content blocks in synced items.                                                       |
+| `--no-content`                  | Exclude rich content blocks from synced items.                                                     |
+| `--i18n-locale-field <field>`   | Raw source property used for locale extraction.                                                    |
+| `--i18n-locale-map <map>`       | Locale map entries as `raw=locale`, comma-separated.                                               |
+| `--i18n-keep-raw-field`         | Keep the raw locale property in emitted items.                                                     |
+| `--i18n-drop-raw-field`         | Drop the raw locale property from emitted items.                                                   |
+| `--i18n-grouping-key <field>`   | Normal scalar property used to group translated variants for fallback. System fields are rejected. |
+| `--reset-i18n`                  | Reset user i18n overrides and keep detected i18n.                                                  |
+| `-d, --data <json>`             | Raw JSON body.                                                                                     |
 
 See [Collections](./collections.md).
 
@@ -118,12 +209,11 @@ contfu flows update <id-or-name> [flags]
 contfu flows delete <id-or-name>
 ```
 
-| Flag                       | Description                                             |
-| -------------------------- | ------------------------------------------------------- |
-| `--source-id <id-or-name>` | Source collection (required for create; prefer the ID). |
-| `--target-id <id-or-name>` | Target collection (required for create; prefer the ID). |
-| `--[no-]include-ref`       | Include source reference data.                          |
-| `-d, --data <json>`        | Raw JSON body (mappings, filters, schema).              |
+| Flag                       | Description                                                                   |
+| -------------------------- | ----------------------------------------------------------------------------- |
+| `--source-id <id-or-name>` | Source collection (required for create; prefer the ID).                       |
+| `--target-id <id-or-name>` | Target collection (required for create; prefer the ID).                       |
+| `-d, --data <json>`        | Raw JSON body for mappings/filters; may be combined with source/target flags. |
 
 See [Flows](./flows.md).
 
@@ -152,19 +242,25 @@ debugging content and sync:
 ```bash
 contfu items query -u <server-url> [options]
 contfu items count -u <server-url> [options]
+
+# or set CONTFU_SERVER_URL instead of passing -u each time
+CONTFU_SERVER_URL=http://localhost:5173 contfu items query
 ```
 
-| Option                   | Description                                 |
-| ------------------------ | ------------------------------------------- |
-| `-u, --client-url <url>` | Server base URL (required).                 |
-| `--collection <name>`    | Filter by collection.                       |
-| `--filter <expr>`        | Filter expression.                          |
-| `--sort <fields>`        | Comma-separated; prefix `-` for descending. |
-| `--limit <n>`            | Max results (default 20).                   |
-| `--offset <n>`           | Skip N results.                             |
-| `--include <fields>`     | Comma-separated includes.                   |
-| `--fields <fields>`      | Comma-separated field selection.            |
-| `--flat`                 | Flatten nested properties.                  |
+| Option                                 | Description                                            |
+| -------------------------------------- | ------------------------------------------------------ |
+| `-u, --client-url <url>`               | Server base URL (overrides `CONTFU_SERVER_URL`).       |
+| `--collection <name>`                  | Filter by collection.                                  |
+| `--filter <expr>`                      | Filter expression.                                     |
+| `--search <text>`                      | Convenience title search.                              |
+| `--sort <fields>`                      | Comma-separated; prefix `-` for descending.            |
+| `--limit <n>`                          | Max results (default 20).                              |
+| `--offset <n>`                         | Skip N results.                                        |
+| `--include <fields>`                   | Comma-separated includes: `files`, `links`, `content`. |
+| `--fields <fields>`                    | Comma-separated field selection.                       |
+| `--locale <locale-or-false>`           | Locale override for localized collections.             |
+| `--fallback <locale-or-true-or-false>` | Fallback locale override.                              |
+| `--flat`                               | Flatten nested object props into dot-separated keys.   |
 
 ## Output format
 

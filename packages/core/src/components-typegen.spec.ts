@@ -17,7 +17,7 @@ describe("component block type generation", () => {
     ]);
 
     expect(out).toContain(
-      'export type HeroComponent = ["hero", { title: string } | { image: string }, BuiltInBlock[]];',
+      'export type HeroComponent = ["x", "hero", { title: string } | { image: string }, Block[]];',
     );
     expect(out).toContain("body: (HeroComponent)[];");
   });

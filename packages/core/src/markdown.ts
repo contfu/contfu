@@ -81,6 +81,17 @@ function makeMdContext(opts: MarkdownOptions | undefined): MarkdownRenderContext
   };
 }
 
+function renderChildrenMarkdown(
+  children: (Inline | Block)[],
+  opts: MarkdownOptions | undefined,
+): string {
+  return children
+    .map((c) =>
+      isInline(c) ? renderInlineMarkdown(c, opts) : renderBlockMarkdown(c, opts).trimEnd(),
+    )
+    .join("");
+}
+
 export function renderInlineMarkdown(inline: Inline, opts?: MarkdownOptions): string {
   if (isString(inline)) return escapeMarkdown(inline);
   if (isAnchor(inline)) {
@@ -131,12 +142,7 @@ export function renderBlockMarkdown(block: Block, opts?: MarkdownOptions): strin
   }
   if (isQuote(block)) {
     if (opts?.blocks?.blockquote) return opts.blocks.blockquote(block, ctx);
-    const children = block[1];
-    const inner = children
-      .map((c) =>
-        isInline(c) ? renderInlineMarkdown(c, opts) : renderBlockMarkdown(c, opts).trimEnd(),
-      )
-      .join("");
+    const inner = renderChildrenMarkdown(block[1], opts);
     return (
       inner
         .split("\n")
@@ -152,27 +158,13 @@ export function renderBlockMarkdown(block: Block, opts?: MarkdownOptions): strin
   if (isUl(block)) {
     if (opts?.blocks?.ul) return opts.blocks.ul(block, ctx);
     const items = block.slice(1) as (Inline | Block)[][];
-    const lines = items.map((item) => {
-      const inner = item
-        .map((c) =>
-          isInline(c) ? renderInlineMarkdown(c, opts) : renderBlockMarkdown(c, opts).trimEnd(),
-        )
-        .join("");
-      return `- ${inner}`;
-    });
+    const lines = items.map((item) => `- ${renderChildrenMarkdown(item, opts)}`);
     return lines.join("\n") + "\n\n";
   }
   if (isOl(block)) {
     if (opts?.blocks?.ol) return opts.blocks.ol(block, ctx);
     const items = block.slice(1) as (Inline | Block)[][];
-    const lines = items.map((item, i) => {
-      const inner = item
-        .map((c) =>
-          isInline(c) ? renderInlineMarkdown(c, opts) : renderBlockMarkdown(c, opts).trimEnd(),
-        )
-        .join("");
-      return `${i + 1}. ${inner}`;
-    });
+    const lines = items.map((item, i) => `${i + 1}. ${renderChildrenMarkdown(item, opts)}`);
     return lines.join("\n") + "\n\n";
   }
   if (isTable(block)) {
@@ -180,20 +172,7 @@ export function renderBlockMarkdown(block: Block, opts?: MarkdownOptions): strin
     const [, hasHeader, rows] = block;
     if (rows.length === 0) return "";
     const rendered = rows.map(
-      (row) =>
-        "| " +
-        row
-          .map((cell) =>
-            cell
-              .map((c) =>
-                isInline(c)
-                  ? renderInlineMarkdown(c, opts)
-                  : renderBlockMarkdown(c, opts).trimEnd(),
-              )
-              .join(""),
-          )
-          .join(" | ") +
-        " |",
+      (row) => "| " + row.map((cell) => renderChildrenMarkdown(cell, opts)).join(" | ") + " |",
     );
     if (hasHeader && rendered.length > 0) {
       const colCount = rows[0].length;

@@ -44,7 +44,9 @@ import {
 
 export const FileUrlContext = createContext<FileUrlOptions | undefined>(undefined);
 
-export type BlockComponents = {
+type ComponentBlockComponent = SolidComponent<{ block: Component; children?: JSX.Element }>;
+
+type BuiltInBlockComponents = {
   p?: SolidComponent<{ block: ParagraphBlock; children?: JSX.Element }>;
   h1?: SolidComponent<{ block: Heading1Block; children?: JSX.Element }>;
   h2?: SolidComponent<{ block: Heading2Block; children?: JSX.Element }>;
@@ -55,7 +57,11 @@ export type BlockComponents = {
   ol?: SolidComponent<{ block: OrderedListBlock; children?: JSX.Element }>;
   table?: SolidComponent<{ block: TableBlock; children?: JSX.Element }>;
   img?: SolidComponent<{ block: ImageBlock }>;
-  component?: SolidComponent<{ block: Component; children?: JSX.Element }>;
+  component?: ComponentBlockComponent;
+};
+
+export type BlockComponents = BuiltInBlockComponents & {
+  [componentName: string]: BuiltInBlockComponents[keyof BuiltInBlockComponents] | undefined;
 };
 
 function InlineNode(props: { inline: Inline }): JSX.Element {
@@ -240,14 +246,17 @@ function BlockNode(props: BlockNodeProps): JSX.Element {
       </Match>
       <Match when={isComponent(block) && block}>
         {(b) => {
-          const Comp = components.component;
-          const childBlocks = (b() as Component)[3] as Block[];
+          const componentBlock = b() as Component;
+          const Comp = (components[componentBlock[1]] ?? components.component) as
+            | ComponentBlockComponent
+            | undefined;
+          const childBlocks = componentBlock[3] as Block[];
           const children = (
             <For each={childBlocks}>
               {(c) => <BlockNode block={c} components={components} file={file} />}
             </For>
           );
-          if (Comp) return <Comp block={b() as Component}>{children}</Comp>;
+          if (Comp) return <Comp block={componentBlock}>{children}</Comp>;
           return children;
         }}
       </Match>

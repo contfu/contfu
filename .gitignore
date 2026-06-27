@@ -210,3 +210,4 @@ packages/server/data
 .forgejo-session
 docker/wordpress-e2e/.env.generated
 .fallow
+.discuss/

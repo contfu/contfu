@@ -74,18 +74,19 @@ export type StreamEvent =
   | StreamSnapshotStartEvent
   | StreamSnapshotEndEvent;
 
-export type StreamTransport = "http" | "websocket";
+type StreamTransport = "http" | "websocket";
 
 function getEnv(name: string): string | undefined {
   const g = globalThis as { process?: { env?: Record<string, string | undefined> } };
   return g.process?.env?.[name];
 }
 
+const CONTFU_URL = "https://contfu.com";
+const SYNC_TRANSPORT = "websocket";
+
 type BaseOpts = {
   /** Authentication key. If not provided, CONTFU_KEY env var (base64url) is used. */
   key?: Buffer;
-  /** Explicit transport override. Defaults to runtime selection. */
-  transport?: StreamTransport;
   /** Enable automatic reconnection on disconnect (default: true) */
   reconnect?: boolean;
   /** Maximum delay between reconnection attempts in ms (default: 30000) */
@@ -104,19 +105,6 @@ type TransportConnection = {
   getDisconnectReason(): string | undefined;
 };
 
-export function resolveSyncTransport(explicit?: StreamTransport): StreamTransport {
-  if (explicit) return explicit;
-
-  const forced = getEnv("CONTFU_SYNC_TRANSPORT");
-  if (forced === "http" || forced === "websocket") {
-    return forced;
-  }
-
-  return getEnv("NODE_ENV") === "production" || getEnv("VITE_PREVIEW") != null
-    ? "websocket"
-    : "http";
-}
-
 export function connectToStream(
   opts: OptsWithConnectionEvents,
 ): AsyncGenerator<SyncEvent | StreamEvent>;
@@ -125,27 +113,25 @@ export async function* connectToStream(
   opts: BaseOpts & { connectionEvents?: boolean } = {},
 ): AsyncGenerator<SyncEvent | StreamEvent> {
   const {
-    reconnect = false,
+    reconnect = true,
     maxReconnectDelay = 30_000,
     initialReconnectDelay = 1_000,
     connectionEvents = false,
   } = opts;
 
-  const rawUrl = getEnv("CONTFU_URL") ?? "https://contfu.com";
   const envKeyStr = getEnv("CONTFU_KEY");
   const key = opts.key ?? (envKeyStr ? Buffer.from(envKeyStr, "base64url") : undefined);
   if (!key) {
     throw new Error("No authentication key provided. Pass opts.key or set CONTFU_KEY.");
   }
 
-  const transport = resolveSyncTransport(opts.transport);
-  const baseUrl = rawUrl.replace(/\/$/, "");
-  const syncEndpoint = /\/api\/sync(?:$|\?)/.test(baseUrl) ? baseUrl : `${baseUrl}/api/sync`;
+  const syncEndpoint = `${CONTFU_URL}/api/sync`;
 
   let reconnectDelay = initialReconnectDelay;
   let shouldReconnect = true;
   let lastStreamActivityAt = 0;
   let currentConnection: TransportConnection | null = null;
+  let activeTransport: StreamTransport = SYNC_TRANSPORT;
   const materializedItems = new Map<string, WireItem>();
 
   const stopStallTimer = () => {
@@ -159,7 +145,7 @@ export async function* connectToStream(
   const startStallTimer = () => {
     lastStreamActivityAt = Date.now();
     stallTimer = setInterval(() => {
-      const timeout = transport === "http" ? 45 * SECONDS : 10 * MINUTES;
+      const timeout = activeTransport === "http" ? 45 * SECONDS : 10 * MINUTES;
       if (Date.now() - lastStreamActivityAt > timeout) currentConnection?.close("Stream stalled");
     }, 30 * SECONDS);
   };
@@ -169,7 +155,9 @@ export async function* connectToStream(
       let connection: TransportConnection | null = null;
 
       try {
-        connection = await openTransportConnection(transport, syncEndpoint, key);
+        const opened = await openDefaultTransportConnection(syncEndpoint, key, SYNC_TRANSPORT);
+        connection = opened.connection;
+        activeTransport = opened.transport;
         currentConnection = connection;
         materializedItems.clear();
 
@@ -240,15 +228,20 @@ export async function* connectToStream(
   }
 }
 
-async function openTransportConnection(
-  transport: StreamTransport,
+async function openDefaultTransportConnection(
   syncEndpoint: string,
   key: Buffer,
-): Promise<TransportConnection> {
-  if (transport === "websocket") {
-    return openWebSocketConnection(syncEndpoint, key);
+  transport: StreamTransport,
+): Promise<{ transport: StreamTransport; connection: TransportConnection }> {
+  if (transport === "http") {
+    return { transport: "http", connection: await openHttpConnection(syncEndpoint, key) };
   }
-  return openHttpConnection(syncEndpoint, key);
+
+  try {
+    return { transport: "websocket", connection: await openWebSocketConnection(syncEndpoint, key) };
+  } catch {
+    return { transport: "http", connection: await openHttpConnection(syncEndpoint, key) };
+  }
 }
 
 async function openHttpConnection(syncEndpoint: string, key: Buffer): Promise<TransportConnection> {
@@ -275,11 +268,20 @@ async function openHttpConnection(syncEndpoint: string, key: Buffer): Promise<Tr
       let buffer = new Uint8Array(0);
 
       while (true) {
-        const { value, done } = await reader.read();
+        let chunk: { value?: Uint8Array; done: boolean };
+        try {
+          chunk = await reader.read();
+        } catch (err) {
+          if (disconnectReason && isExpectedHttpStreamCloseError(err)) return;
+          throw err;
+        }
+
+        const { value, done } = chunk;
         if (done) {
           disconnectReason ??= "Stream ended";
           return;
         }
+        if (!value) continue;
 
         const newBuffer = new Uint8Array(buffer.length + value.length);
         newBuffer.set(buffer);
@@ -303,12 +305,17 @@ async function openHttpConnection(syncEndpoint: string, key: Buffer): Promise<Tr
     },
     close(reason: string) {
       disconnectReason = reason;
-      void reader.cancel(reason);
+      void reader.cancel(reason).catch(() => undefined);
     },
     getDisconnectReason() {
       return disconnectReason;
     },
   };
+}
+
+function isExpectedHttpStreamCloseError(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  return err.name === "AbortError" || err.message === "terminated";
 }
 
 async function openWebSocketConnection(

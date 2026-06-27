@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.2] - 2026-06-26
+
+### Changed
+
+- Consolidated duplicated helper logic.
+
 All notable changes to `@contfu/ui` are documented here.
 
 ## [0.1.1] - 2026-06-14

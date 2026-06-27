@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.1] - 2026-06-26
+
+### Fixed
+
+- Implemented flat query options for local/runtime queries.
+- Removed the stale `$integrationType` application query system field.
+- Exposed documented node/shared entry points.
+- Aligned i18n fallback handling with the spec.
+
 All notable changes to `@contfu/contfu` are documented here.
 
 ## [0.1.0] - 2026-06-09

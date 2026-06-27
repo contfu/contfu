@@ -29,6 +29,7 @@ import type {
   CollectionSchema,
   MappingRule,
   CreateComponentBody,
+  ApiTargetFailedDelivery,
 } from "@contfu/svc-core";
 import { ApiError } from "@contfu/svc-core";
 
@@ -129,6 +130,12 @@ export interface ContfuApiClient {
   updateComponent(id: string, body: UpdateComponentBody): Promise<ServiceComponent>;
   deleteComponent(id: string): Promise<void>;
 
+  listTargetFailedDeliveries(input?: {
+    integrationId?: string;
+  }): Promise<ApiTargetFailedDelivery[]>;
+  redeliverTargetFailedDelivery(id: string): Promise<{ accepted: number }>;
+  clearTargetFailedDelivery(id: string): Promise<void>;
+
   listCollections(): Promise<ServiceCollection[]>;
   getCollection(id: string): Promise<ServiceCollection>;
   createCollection(body: CreateCollectionBody): Promise<ServiceCollection>;
@@ -206,6 +213,19 @@ export function createApiClient(
     getComponent: (id) => req<ServiceComponent>("GET", `/api/v1/components/${id}`),
     updateComponent: (id, body) => req<ServiceComponent>("PATCH", `/api/v1/components/${id}`, body),
     deleteComponent: (id) => req<void>("DELETE", `/api/v1/components/${id}`),
+
+    listTargetFailedDeliveries: (input = {}) => {
+      const query = input.integrationId
+        ? `?integration=${encodeURIComponent(input.integrationId)}`
+        : "";
+      return req<ApiTargetFailedDelivery[]>("GET", `/api/v1/target-deliveries/failed${query}`);
+    },
+    redeliverTargetFailedDelivery: (id) =>
+      req<{ accepted: number }>("POST", `/api/v1/target-deliveries/failed/${id}`, {
+        action: "redeliver",
+      }),
+    clearTargetFailedDelivery: (id) =>
+      req<void>("DELETE", `/api/v1/target-deliveries/failed/${id}`),
 
     listCollections: () => req<ServiceCollection[]>("GET", "/api/v1/collections"),
     getCollection: (id) => req<ServiceCollection>("GET", `/api/v1/collections/${id}`),
