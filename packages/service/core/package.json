@@ -1,6 +1,6 @@
 {
   "name": "@contfu/svc-core",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -32,7 +32,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@contfu/core": "workspace:^"
+    "@contfu/core": "workspace:^0.1.1"
   },
   "devDependencies": {
     "typescript": "^5.9.3"

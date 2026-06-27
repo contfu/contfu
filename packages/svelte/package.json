@@ -1,6 +1,6 @@
 {
   "name": "@contfu/svelte",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -25,7 +25,7 @@
     "pack": "bun ../../scripts/pack-package.ts ."
   },
   "dependencies": {
-    "@contfu/core": "workspace:^"
+    "@contfu/core": "workspace:^0.1.1"
   },
   "devDependencies": {
     "svelte": "^5.56.3",
