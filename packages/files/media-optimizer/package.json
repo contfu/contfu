@@ -1,6 +1,6 @@
 {
   "name": "@contfu/media-optimizer",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -36,8 +36,8 @@
     "tasque": "^0.1.2"
   },
   "devDependencies": {
-    "@contfu/bun-file-store": "workspace:*",
-    "@contfu/contfu": "workspace:*",
+    "@contfu/bun-file-store": "workspace:^0.1.2",
+    "@contfu/contfu": "workspace:^0.1.2",
     "@types/bun": "^1.3.14"
   },
   "peerDependencies": {

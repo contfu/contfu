@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.3] - 2026-06-27
+
+### Fixed
+
+- Pinned internal @contfu dependency ranges to the matching release version so published packages resolve required exports.
+
 ## [0.1.2] - 2026-06-26
 
 ### Added
