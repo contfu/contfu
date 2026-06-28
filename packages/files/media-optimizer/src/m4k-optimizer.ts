@@ -190,6 +190,17 @@ export function toM4kAudioOptions(
 }
 
 export class M4kOptimizer implements MediaOptimizer {
+  async metadata(
+    input: Buffer | ReadableStream,
+    mediaType: "image" | "video" | "audio",
+  ): Promise<{ width?: number; height?: number; duration?: number }> {
+    if (mediaType !== "image") return {};
+    const { default: sharp } = await import("sharp");
+    const buf = Buffer.isBuffer(input) ? input : await streamToBuffer(input);
+    const metadata = await sharp(buf).metadata();
+    return { width: metadata.width, height: metadata.height };
+  }
+
   async optimize(
     path: string,
     input: Buffer | ReadableStream,

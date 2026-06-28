@@ -173,6 +173,12 @@ export type OptimizeAudioOpts = Omit<TransformAudioRule, OptimizerOmitFields>;
 /**
  * MediaOptimizer interface for optimizing media.
  */
+export interface MediaMetadata {
+  width?: number;
+  height?: number;
+  duration?: number;
+}
+
 export interface MediaOptimizer {
   optimize(
     path: string,
@@ -180,6 +186,10 @@ export interface MediaOptimizer {
     mediaType: "image" | "video" | "audio",
     opts?: OptimizeImageOpts | OptimizeVideoOpts | OptimizeAudioOpts,
   ): Promise<VariantResult[]>;
+  metadata?(
+    input: Buffer | ReadableStream,
+    mediaType: "image" | "video" | "audio",
+  ): Promise<MediaMetadata>;
 }
 
 /** Transform function: converts raw media bytes to a new format/size */

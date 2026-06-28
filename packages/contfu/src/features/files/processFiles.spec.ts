@@ -7,9 +7,24 @@ import { truncateAllTables } from "../../../test/setup";
 import { setCollection } from "../collections/setCollection";
 import type { FileStore } from "../../domain/files";
 import type { MediaOptimizer, TransformMediaRule } from "../../domain/media";
+import { configureMediaQueue } from "./mediaQueue";
 import { processFiles, processPropertyFiles } from "./processFiles";
+import { getFilesByItem } from "./getFilesByItem";
 
 const itemId = 1;
+const png1x1 = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/l1mQ8wAAAABJRU5ErkJggg==",
+  "base64",
+);
+
+async function waitUntilReady(): Promise<void> {
+  for (let i = 0; i < 20; i++) {
+    const files = db.select().from(fileTable).all();
+    if (files.some((file) => file.status === 2)) return;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  throw new Error("Timed out waiting for media queue");
+}
 
 function makeFileStore(): FileStore {
   return {
@@ -203,6 +218,53 @@ describe("processFiles", () => {
     const files = db.select().from(fileTable).all();
     expect(files).toHaveLength(1);
     expect(files[0].meta.ext).toBe("png");
+  });
+
+  test("stores image dimensions and omits binary data from item file queries", async () => {
+    globalThis.fetch = mock(() =>
+      Promise.resolve(
+        new Response(png1x1, {
+          status: 200,
+          headers: { "Content-Type": "image/png" },
+        }),
+      ),
+    ) as unknown as typeof fetch;
+    const fileStore = makeFileStore();
+    const processedImage = Buffer.from("processed-image");
+    const mediaOptimizer: MediaOptimizer = {
+      optimize: mock(() =>
+        Promise.resolve([
+          {
+            path: "image.png",
+            ext: "png",
+            size: processedImage.byteLength,
+            data: processedImage,
+          },
+        ]),
+      ),
+      metadata: mock((input) => {
+        expect(input).toEqual(png1x1);
+        return Promise.resolve({ width: 1, height: 1 });
+      }),
+    };
+
+    await processFiles({
+      itemId,
+      content: [makeImageBlock("https://example.com/photo.png")],
+      fileStore,
+      mediaOptimizer,
+    });
+    configureMediaQueue({ fileStore, mediaOptimizer, concurrency: 1 });
+    await waitUntilReady();
+
+    const rows = db.select().from(fileTable).all();
+    expect(rows[0].meta.width).toBe(1);
+    expect(rows[0].meta.height).toBe(1);
+
+    const files = getFilesByItem(itemId);
+    expect(files).toHaveLength(1);
+    expect(files[0]).toMatchObject({ width: 1, height: 1 });
+    expect(files[0]).not.toHaveProperty("data");
   });
 
   test("same pathname with different query params produces same id", async () => {

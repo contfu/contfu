@@ -37,6 +37,7 @@ describe("resolveIncludes", () => {
       mediaType: "image",
       ext: "png",
       size: 1000,
+      data: Buffer.from("binary"),
       createdAt: 100,
     });
 
@@ -59,6 +60,7 @@ describe("resolveIncludes", () => {
     resolveIncludes(items, ["files"]);
 
     expect(items[0].files).toHaveLength(2);
+    expect(items[0].files![0]).not.toHaveProperty("data");
     expect(items[1].files).toHaveLength(1);
     expect(items[1].files![0].id).toBe(file11);
   });

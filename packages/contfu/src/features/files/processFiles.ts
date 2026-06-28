@@ -56,7 +56,7 @@ function createPendingFile(
   const fileId = idFromUrl(originalUrl);
   const ext = extFromUrl(originalUrl) ?? "bin";
 
-  const existing = getFile(fileId);
+  const existing = getFile(fileId, db, { includeData: true });
   if (existing) {
     linkFileToItem(itemId, existing.id);
     return { id: fileId, ext: existing.ext };

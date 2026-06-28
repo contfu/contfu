@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.3] - 2026-06-28
+
+### Fixed
+
+- Omitted binary file data from file query results and persisted image dimensions.
+
 ## [0.1.2] - 2026-06-27
 
 ### Fixed

@@ -218,6 +218,12 @@ function buildAudioOptimizerOpts(constraints?: TransformAudioRule): OptimizeAudi
   };
 }
 
+async function sourceMetadata(mediaType: string, input: Buffer) {
+  const canReadMetadata = mediaType === "image" || mediaType === "video" || mediaType === "audio";
+  if (!canReadMetadata || !options.mediaOptimizer?.metadata) return {};
+  return options.mediaOptimizer.metadata(input, mediaType);
+}
+
 function storeVariantRecords(fileId: string, results: VariantResult[]): void {
   for (const variant of results) {
     const opts: Record<string, unknown> = {};
@@ -329,7 +335,7 @@ async function processOne(file: typeof fileTable.$inferSelect): Promise<void> {
     await store.write(`${id}.${processed.ext}`, processed.data);
     for (const variant of processed.variants) await store.write(variant.path, variant.data);
     storeVariantRecords(id, processed.variants);
-    const master = processed.variants[0];
+    const metadata = await sourceMetadata(file.mediaType, input);
     const {
       sourceUrl: _sourceUrl,
       transformMedia: _transformMedia,
@@ -346,9 +352,7 @@ async function processOne(file: typeof fileTable.$inferSelect): Promise<void> {
           ...readyMeta,
           ext: processed.ext,
           size: input.byteLength,
-          width: master?.width,
-          height: master?.height,
-          duration: (master as { duration?: number } | undefined)?.duration,
+          ...metadata,
           attempts,
         },
       })
