@@ -190,11 +190,11 @@ export async function handleFileRequest<CMap = unknown>(
   const fileStore = await getFileStore(options);
 
   if (!parsed) {
-    const file = getFile(filePath);
+    const file = getFile(filePath, undefined, { includeData: false });
     if (!file) return text("Not found", 404);
 
     if (file.status !== "ready") {
-      const row = getFile(file.id);
+      const row = getFile(file.id, undefined, { includeData: true });
       const source = row?.data?.toString("utf8");
       return source && /^https?:\/\//i.test(source)
         ? Response.redirect(source, 302)
@@ -221,7 +221,7 @@ export async function handleFileRequest<CMap = unknown>(
   const opts = rawOpts ?? (variant ? ({} as MediaConvertOpts) : null);
 
   if (!opts || mediaType === null) {
-    const file = getFile(parsed.id);
+    const file = getFile(parsed.id, undefined, { includeData: false });
     if (!file) return text("Not found", 404);
     if (file.status !== "ready") {
       const source = file.data?.toString("utf8");

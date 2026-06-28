@@ -7,7 +7,7 @@ import {
   itemFileTable,
   itemsTable,
 } from "./schema";
-import { fileFromDb, propsWithLocale } from "./mappers";
+import { fileMetadataFromDb, propsWithLocale } from "./mappers";
 import type { FileData, ResolvedLink } from "../types/content-types";
 import type { IncludeOption } from "@contfu/core";
 import type { ItemWithRelations } from "../../domain/query-types";
@@ -39,7 +39,16 @@ export function resolveIncludes(
 
   if (include.includes("files")) {
     const rows = ctx
-      .select({ itemId: itemFileTable.itemId, file: fileTable })
+      .select({
+        itemId: itemFileTable.itemId,
+        file: {
+          id: fileTable.id,
+          status: fileTable.status,
+          mediaType: fileTable.mediaType,
+          meta: fileTable.meta,
+          createdAt: fileTable.createdAt,
+        },
+      })
       .from(itemFileTable)
       .innerJoin(fileTable, eq(itemFileTable.fileId, fileTable.id))
       .where(inArray(itemFileTable.itemId, ids))
@@ -49,7 +58,7 @@ export function resolveIncludes(
     for (const row of rows) {
       const itemId = row.itemId;
       if (!filesByItem.has(itemId)) filesByItem.set(itemId, []);
-      filesByItem.get(itemId)!.push(fileFromDb(row.file));
+      filesByItem.get(itemId)!.push(fileMetadataFromDb({ ...row.file, data: null }));
     }
 
     for (const item of items) {

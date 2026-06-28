@@ -12,6 +12,15 @@ import type { MediaOptimizer } from "../../domain/media";
 
 const key = Buffer.alloc(32, 1);
 
+async function waitForReadyFile(): Promise<void> {
+  for (let i = 0; i < 20; i++) {
+    const files = db.select().from(fileTable).all();
+    if (files.some((file) => file.status === 2)) return;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  throw new Error("Timed out waiting for media queue");
+}
+
 describe("contfu connect", () => {
   beforeEach(() => {
     truncateAllTables();
@@ -187,6 +196,7 @@ describe("contfu connect", () => {
 
     // oxlint-disable-next-line typescript/unbound-method -- mock method reference in expect() assertion
     expect(mediaOptimizer.optimize).toHaveBeenCalledTimes(1);
+    await waitForReadyFile();
     const files = db.select().from(fileTable).all();
     expect(files).toHaveLength(1);
     expect(files[0].status).toBe(2);

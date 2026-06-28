@@ -19,7 +19,7 @@ export function fileToDb(file: FileData): NewFile {
   };
 }
 
-export function fileFromDb(dbo: DbFile): FileData {
+export function fileFromDb(dbo: DbFile, opts: { includeData?: boolean } = {}): FileData {
   const meta = dbo.meta ?? {};
   return deleteNulls({
     id: encodeId(dbo.id),
@@ -27,7 +27,7 @@ export function fileFromDb(dbo: DbFile): FileData {
     mediaType: dbo.mediaType,
     ext: typeof meta.ext === "string" ? meta.ext : "bin",
     size: typeof meta.size === "number" ? meta.size : 0,
-    data: dbo.data ?? undefined,
+    ...(opts.includeData !== false && { data: dbo.data ?? undefined }),
     createdAt: dbo.createdAt,
     width: typeof meta.width === "number" ? meta.width : undefined,
     height: typeof meta.height === "number" ? meta.height : undefined,
@@ -35,6 +35,10 @@ export function fileFromDb(dbo: DbFile): FileData {
     error: typeof meta.error === "string" ? meta.error : undefined,
     duration: typeof meta.duration === "number" ? meta.duration : undefined,
   });
+}
+
+export function fileMetadataFromDb(dbo: DbFile): FileData {
+  return fileFromDb(dbo, { includeData: false });
 }
 
 function splitLocaleFromProps(props: Record<string, unknown> | null | undefined): {

@@ -69,7 +69,7 @@ export async function loadFile<CMap = unknown>(
   const resolvedFileStore = fileStore ?? defaultFileStore;
   const parsed = parseFilePath(path);
   const mediaType = resolveMediaType(parsed.ext, opts.mediaType);
-  const file = getFile(parsed.id);
+  const file = getFile(parsed.id, db, { includeData: true });
 
   if (!file) {
     throw new FileLoadError("Not found", 404);
