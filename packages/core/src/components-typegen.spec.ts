@@ -16,8 +16,9 @@ describe("component block type generation", () => {
       },
     ]);
 
+    expect(out).toContain('import type { Block, FileMetadata } from "@contfu/core";');
     expect(out).toContain(
-      'export type HeroComponent = ["x", "hero", { title: string } | { image: string }, Block[]];',
+      'export type HeroComponent = ["x", "hero", { title: string } | { image: FileMetadata }, Block[]];',
     );
     expect(out).toContain("body: (HeroComponent)[];");
   });

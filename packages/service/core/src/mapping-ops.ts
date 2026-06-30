@@ -57,8 +57,26 @@ const CAST_FNS: Record<string, (v: unknown) => unknown> = {
 
 type MappingValue = { found: true; value: unknown } | { found: false };
 
+function isValidArrayIndex(arrayIndex: number | undefined): arrayIndex is number {
+  return arrayIndex !== undefined && Number.isInteger(arrayIndex);
+}
+
+function selectArrayValue(value: unknown, arrayIndex: number | undefined): MappingValue {
+  if (arrayIndex === undefined) return { found: true, value };
+  if (!isValidArrayIndex(arrayIndex)) return { found: false };
+  if (!Array.isArray(value)) {
+    return arrayIndex === 0 || arrayIndex === -1 ? { found: true, value } : { found: false };
+  }
+  const index = arrayIndex < 0 ? value.length + arrayIndex : arrayIndex;
+  if (index < 0 || index >= value.length) return { found: false };
+  return { found: true, value: value[index] };
+}
+
 function mappingValue(props: Record<string, unknown>, rule: MappingRule): MappingValue {
-  if (rule.source in props) return { found: true, value: props[rule.source] };
+  if (rule.source in props) {
+    const selected = selectArrayValue(props[rule.source], rule.arrayIndex);
+    if (selected.found) return selected;
+  }
   if ("default" in rule) return { found: true, value: rule.default };
   return { found: false };
 }
@@ -115,17 +133,37 @@ export function withExplicitRefMappingInput(
  * For "enum" cast: converts STRING→ENUM (or STRINGS→ENUMS), preserving nullable flag
  * and carrying enum values from rule.enumValues or the source if already a tuple.
  */
-function castSchemaValue(sourceValue: SchemaValue, rule: MappingRule): SchemaValue {
-  if (rule.cast !== "enum") return sourceValue;
+function selectArraySchemaValue(sourceValue: SchemaValue, rule: MappingRule): SchemaValue {
+  if (!isValidArrayIndex(rule.arrayIndex)) return sourceValue;
 
   const srcType = schemaType(sourceValue);
+  const enumValues = schemaEnumValues(sourceValue);
+  let selectedType = srcType;
+  if (srcType & PropertyType.STRINGS)
+    selectedType = (selectedType & ~PropertyType.STRINGS) | PropertyType.STRING;
+  if (srcType & PropertyType.NUMBERS)
+    selectedType = (selectedType & ~PropertyType.NUMBERS) | PropertyType.NUMBER;
+  if (srcType & PropertyType.REFS)
+    selectedType = (selectedType & ~PropertyType.REFS) | PropertyType.REF;
+  if (srcType & PropertyType.FILES)
+    selectedType = (selectedType & ~PropertyType.FILES) | PropertyType.FILE;
+  if (srcType & PropertyType.ENUMS)
+    selectedType = (selectedType & ~PropertyType.ENUMS) | PropertyType.ENUM;
+  return enumValues ? [selectedType, enumValues] : selectedType;
+}
+
+function castSchemaValue(sourceValue: SchemaValue, rule: MappingRule): SchemaValue {
+  const selectedValue = selectArraySchemaValue(sourceValue, rule);
+  if (rule.cast !== "enum") return selectedValue;
+
+  const srcType = schemaType(selectedValue);
   const nullable = !!(srcType & PropertyType.NULL);
   const isMulti = !!(srcType & PropertyType.STRINGS) || !!(srcType & PropertyType.ENUMS);
   const baseType = isMulti ? PropertyType.ENUMS : PropertyType.ENUM;
   const enumType = nullable ? baseType | PropertyType.NULL : baseType;
 
   // Prefer explicit rule.enumValues, then values already in the source tuple
-  const enumVals = rule.enumValues ?? schemaEnumValues(sourceValue) ?? [];
+  const enumVals = rule.enumValues ?? schemaEnumValues(selectedValue) ?? [];
   return [enumType, enumVals];
 }
 

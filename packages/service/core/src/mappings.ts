@@ -12,6 +12,8 @@ export interface MappingRule {
   default?: unknown;
   /** Cast type to coerce the value (e.g. "string", "number", "boolean", "date"). */
   cast?: string;
+  /** Optional integer array item index to select before applying casts. Negative values select from the end. */
+  arrayIndex?: number;
   /**
    * True when this mapping was auto-guessed (synonym match or type cast required).
    * The user should verify guessed mappings before relying on them.

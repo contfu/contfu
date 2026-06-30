@@ -1,5 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
+  normalizeIncludedFileMetadata,
+  normalizeFileMetadata,
   normalizeQueryArgs,
   QueryResultArray,
   resolveQueryFilter,
@@ -45,6 +47,59 @@ describe("QueryResultArray", () => {
       data: [{ title: "Hello" }],
       meta: { total: 42, limit: 10, offset: 20 },
     });
+  });
+});
+
+describe("file metadata normalization", () => {
+  it("normalizes canonical file refs into metadata with resolved urls", () => {
+    expect(normalizeFileMetadata("abc123.png")).toEqual({
+      id: "abc123",
+      ext: "png",
+      url: "/files/abc123.png",
+    });
+    expect(normalizeFileMetadata("abc123.png", { filesBasePath: "/custom-files" })).toEqual({
+      id: "abc123",
+      ext: "png",
+      url: "/custom-files/abc123.png",
+    });
+  });
+
+  it("preserves absolute and relative urls", () => {
+    expect(normalizeFileMetadata("https://cdn.example.com/a.png")).toEqual({
+      url: "https://cdn.example.com/a.png",
+    });
+    expect(normalizeFileMetadata("/custom-files/a.png")).toEqual({
+      url: "/custom-files/a.png",
+    });
+  });
+
+  it("hydrates included file props to metadata objects", () => {
+    const file = {
+      id: "abc123",
+      ext: "png",
+      status: "ready" as const,
+      mediaType: "image",
+      size: 100,
+      createdAt: 1,
+    };
+    const items = normalizeIncludedFileMetadata(
+      [
+        {
+          cover: "abc123.png",
+          gallery: ["abc123.png", "https://cdn.example.com/a.png"],
+          files: [file],
+        },
+      ],
+      { filesBasePath: "/custom-files" },
+    );
+
+    const item = items[0] as Record<string, unknown>;
+    expect(item.files).toEqual([{ ...file, url: "/custom-files/abc123.png" }]);
+    expect(item.cover).toEqual({ ...file, url: "/custom-files/abc123.png" });
+    expect(item.gallery).toEqual([
+      { ...file, url: "/custom-files/abc123.png" },
+      { url: "https://cdn.example.com/a.png" },
+    ]);
   });
 });
 

@@ -202,18 +202,20 @@ describe("generateTypeScript", () => {
     expect(ts).toContain("tags: string[];");
   });
 
-  it("generates string for FILE", () => {
+  it("generates FileMetadata for FILE", () => {
     const ts = generateTypeScript([
       { name: "assets", displayName: "Assets", schema: { hero: PropertyType.FILE } },
     ]);
-    expect(ts).toContain("hero: string;");
+    expect(ts).toContain('import type { FileMetadata } from "@contfu/core";');
+    expect(ts).toContain("hero: FileMetadata;");
   });
 
-  it("generates string[] for FILES", () => {
+  it("generates FileMetadata[] for FILES", () => {
     const ts = generateTypeScript([
       { name: "assets", displayName: "Assets", schema: { gallery: PropertyType.FILES } },
     ]);
-    expect(ts).toContain("gallery: string[];");
+    expect(ts).toContain('import type { FileMetadata } from "@contfu/core";');
+    expect(ts).toContain("gallery: FileMetadata[];");
   });
 
   it("generates any for JSON", () => {
@@ -503,6 +505,51 @@ describe("generated types compile-time checks", () => {
         const post: BlogPosts = {} as BlogPosts;
         // string doesn't have .name
         const name: string = post.externalRef.name;
+      `,
+    );
+  });
+
+  it("FILE and FILES compile as metadata with url", async () => {
+    const generated = generateApplicationIntegrationTypes([
+      {
+        name: "assets",
+        displayName: "Assets",
+        schema: { cover: PropertyType.FILE, gallery: PropertyType.FILES },
+      },
+    ]).replace(
+      'import type { FileMetadata } from "@contfu/core";',
+      "type FileMetadata = { url: string };",
+    );
+
+    await assertCompiles(
+      generated +
+        `
+        type CMap = ContfuCollections;
+        const asset: CMap["assets"] = {} as CMap["assets"];
+        const coverUrl: string = asset.cover.url;
+        const galleryUrl: string = asset.gallery[0].url;
+      `,
+      "FILE and FILES expose FileMetadata url",
+    );
+  });
+
+  it("FILE rejects string-only handling", async () => {
+    const generated = generateApplicationIntegrationTypes([
+      {
+        name: "assets",
+        displayName: "Assets",
+        schema: { cover: PropertyType.FILE },
+      },
+    ]).replace(
+      'import type { FileMetadata } from "@contfu/core";',
+      "type FileMetadata = { url: string };",
+    );
+
+    await assertDoesNotCompile(
+      generated +
+        `
+        const asset: ContfuCollections["assets"] = {} as ContfuCollections["assets"];
+        const cover: string = asset.cover;
       `,
     );
   });

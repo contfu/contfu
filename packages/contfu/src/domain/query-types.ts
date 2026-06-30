@@ -8,7 +8,8 @@ import {
   type ResolvedContent,
   type SortOption,
 } from "@contfu/core";
-import type { FileData, ItemData } from "../infra/types/content-types";
+import type { FileMetadata } from "@contfu/core";
+import type { ItemData } from "../infra/types/content-types";
 import type {
   and,
   contains,
@@ -45,7 +46,7 @@ export type QueryLocale<CMap> = [CollectionLocale<CMap[keyof CMap & string]>] ex
   : CollectionLocale<CMap[keyof CMap & string]>;
 
 type ItemExtras<CF extends ContentFormat = "object"> = {
-  files?: FileData[];
+  files?: FileMetadata[];
   links: ItemData["links"];
   content?: ResolvedContent<CF>;
 };

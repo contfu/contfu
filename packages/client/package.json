@@ -1,6 +1,6 @@
 {
   "name": "@contfu/client",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "HTTP client for querying a Contfu Server",
   "license": "MIT",
   "repository": {
@@ -38,7 +38,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@contfu/core": "workspace:^0.1.1"
+    "@contfu/core": "workspace:^0.2.0"
   },
   "devDependencies": {
     "typescript": "^5.9.3"

@@ -313,7 +313,7 @@ export function findItems(
 
   const includes = options.include?.filter((i) => i !== "content") ?? [];
   if (includes.length > 0) {
-    resolveIncludes(data, includes, ctx);
+    resolveIncludes(data, includes, ctx, { filesBasePath: options.filesBasePath });
   }
 
   if (options.with && Object.keys(options.with).length > 0) {

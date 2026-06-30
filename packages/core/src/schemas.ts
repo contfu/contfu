@@ -182,9 +182,9 @@ function propertyTypeToTs(
       }
       return "string[]";
     case PropertyType.FILE:
-      return "string";
+      return "FileMetadata";
     case PropertyType.FILES:
-      return "string[]";
+      return "FileMetadata[]";
     case PropertyType.DATE:
       return "string";
     case PropertyType.BLOCK:
@@ -359,6 +359,12 @@ function appendTypeGenerationPreamble(lines: string[], collections: TypeGenerati
   }
   if (schemasUsePropertyType(collections, PropertyType.COLOR)) {
     addImport(imports, "@contfu/core", "Color");
+  }
+  if (
+    schemasUsePropertyType(collections, PropertyType.FILE) ||
+    schemasUsePropertyType(collections, PropertyType.FILES)
+  ) {
+    addImport(imports, "@contfu/core", "FileMetadata");
   }
   lines.push(...renderImportHeader(imports));
 

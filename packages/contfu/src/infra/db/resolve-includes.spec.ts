@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, test } from "bun:test";
+import { PropertyType } from "@contfu/core";
 import { truncateAllTables } from "../../../test/setup";
 import type { ItemWithRelations } from "../../domain/query-types";
 import { setCollection } from "../../features/collections/setCollection";
@@ -63,6 +64,48 @@ describe("resolveIncludes", () => {
     expect(items[0].files![0]).not.toHaveProperty("data");
     expect(items[1].files).toHaveLength(1);
     expect(items[1].files![0].id).toBe(file11);
+  });
+
+  test("hydrates file props with resolved urls and preserves external urls", () => {
+    setCollection("articles", "Articles", {
+      cover: PropertyType.FILE,
+      gallery: PropertyType.FILES,
+      title: PropertyType.STRING,
+    });
+    createItem({
+      id: 1,
+      ref: "a",
+      collection: "articles",
+      props: {},
+      changedAt: 100,
+    });
+
+    const fileId = Buffer.from([12]).toString("base64url");
+    createFile({
+      id: fileId,
+      status: "ready",
+      mediaType: "image",
+      ext: "png",
+      size: 1000,
+      data: Buffer.from("binary"),
+      createdAt: 100,
+    });
+    linkFileToItem(1, fileId);
+
+    const externalUrl = "https://cdn.example.com/external.jpg";
+    const items = [
+      {
+        ...makeItem(1),
+        cover: `${fileId}.png`,
+        gallery: [`${fileId}.png`, externalUrl],
+      },
+    ];
+    resolveIncludes(items, ["files"], db, { filesBasePath: "/custom-files" });
+
+    expect(items[0].files![0].url).toBe(`/custom-files/${fileId}.png`);
+    expect((items[0].cover as any).url).toBe(`/custom-files/${fileId}.png`);
+    expect((items[0].gallery as any[])[0].url).toBe(`/custom-files/${fileId}.png`);
+    expect((items[0].gallery as any[])[1]).toEqual({ url: externalUrl });
   });
 
   test("resolves content links for items", () => {
