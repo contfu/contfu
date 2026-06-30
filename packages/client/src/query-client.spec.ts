@@ -263,6 +263,61 @@ describe("contfuClient contentAs", () => {
   });
 });
 
+describe("contfuClient file metadata", () => {
+  const originalFetch = globalThis.fetch;
+
+  beforeEach(() => {
+    globalThis.fetch = (() =>
+      Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            data: [
+              {
+                $id: "a",
+                $collection: "articles",
+                $changedAt: 0,
+                cover: "internal123.png",
+                externalCover: "https://cdn.example.com/external.jpg",
+                gallery: ["internal123.png", "https://cdn.example.com/external.jpg"],
+                files: [
+                  {
+                    id: "internal123",
+                    ext: "png",
+                    status: "ready",
+                    mediaType: "image",
+                    size: 123,
+                    createdAt: 100,
+                  },
+                ],
+                links: [],
+              },
+            ],
+            meta: { total: 1, limit: 20, offset: 0 },
+          }),
+      } as Response)) as unknown as typeof fetch;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  test("adds urls to included files and hydrates canonical prop values", async () => {
+    const client = contfuClient("http://x", undefined, { filesBasePath: "/custom-files" });
+    const res = await client("articles", { include: ["files"] });
+
+    expect(res[0].files[0].url).toBe("/custom-files/internal123.png");
+    expect(res[0].cover).toEqual(res[0].files[0]);
+    expect(res[0].externalCover).toEqual({
+      url: "https://cdn.example.com/external.jpg",
+    });
+    expect(res[0].gallery[0]).toEqual(res[0].files[0]);
+    expect(res[0].gallery[1]).toEqual({
+      url: "https://cdn.example.com/external.jpg",
+    });
+  });
+});
+
 describe("contfuClient markdownOptions", () => {
   const originalFetch = globalThis.fetch;
 

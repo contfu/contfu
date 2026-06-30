@@ -182,6 +182,99 @@ describe("applyMappings", () => {
       upstreamUrl: "https://cms.test/items/1",
     });
   });
+
+  test("selects array items from the start", () => {
+    expect(
+      applyMappings({ tags: ["first", "second", "third"] }, [
+        { source: "tags", target: "firstTag", arrayIndex: 0 },
+        { source: "tags", target: "secondTag", arrayIndex: 1 },
+      ]),
+    ).toEqual({ firstTag: "first", secondTag: "second" });
+  });
+
+  test("selects array items from the end", () => {
+    expect(
+      applyMappings({ tags: ["first", "second", "third"] }, [
+        { source: "tags", target: "lastTag", arrayIndex: -1 },
+        { source: "tags", target: "secondLastTag", arrayIndex: -2 },
+      ]),
+    ).toEqual({ lastTag: "third", secondLastTag: "second" });
+  });
+
+  test("falls back to default for out-of-range array selections", () => {
+    expect(
+      applyMappings({ tags: ["first"] }, [
+        { source: "tags", target: "missing", arrayIndex: 3, default: "fallback" },
+      ]),
+    ).toEqual({ missing: "fallback" });
+  });
+
+  test("skips out-of-range array selections without a default", () => {
+    expect(
+      applyMappings({ tags: ["first"] }, [{ source: "tags", target: "missing", arrayIndex: -2 }]),
+    ).toEqual({});
+  });
+
+  test("rejects non-integer array selections", () => {
+    expect(
+      applyMappings({ tags: ["first", "second"] }, [
+        { source: "tags", target: "tag", arrayIndex: 0.5 },
+      ]),
+    ).toEqual({});
+    expect(
+      applyMappings({ tags: ["first", "second"] }, [
+        { source: "tags", target: "tag", arrayIndex: 0.5, default: "fallback" },
+      ]),
+    ).toEqual({ tag: "fallback" });
+  });
+
+  test("treats scalar source values as the singleton for first or last selection", () => {
+    expect(
+      applyMappings({ tag: "featured" }, [
+        { source: "tag", target: "firstTag", arrayIndex: 0 },
+        { source: "tag", target: "lastTag", arrayIndex: -1 },
+      ]),
+    ).toEqual({ firstTag: "featured", lastTag: "featured" });
+  });
+
+  test("falls back for scalar source values when selecting a non-singleton index", () => {
+    expect(
+      applyMappings({ tag: "featured" }, [
+        { source: "tag", target: "secondTag", arrayIndex: 1, default: "fallback" },
+      ]),
+    ).toEqual({ secondTag: "fallback" });
+  });
+
+  test("selects file array items", () => {
+    const files = [
+      { id: "file-a", name: "a.png" },
+      { id: "file-b", name: "b.png" },
+    ];
+    expect(
+      applyMappings({ gallery: files }, [
+        { source: "gallery", target: "cover", arrayIndex: 0 },
+        { source: "gallery", target: "trailer", arrayIndex: -1 },
+      ]),
+    ).toEqual({ cover: files[0], trailer: files[1] });
+  });
+
+  test("selects number, ref, and enum array items", () => {
+    expect(
+      applyMappings({ scores: [1, 2], refs: ["a", "b"], statuses: ["draft", "published"] }, [
+        { source: "scores", target: "score", arrayIndex: 1 },
+        { source: "refs", target: "ref", arrayIndex: -1 },
+        { source: "statuses", target: "status", arrayIndex: 0 },
+      ]),
+    ).toEqual({ score: 2, ref: "b", status: "draft" });
+  });
+
+  test("casts after selecting an array item", () => {
+    expect(
+      applyMappings({ counts: ["7", "11"] }, [
+        { source: "counts", target: "count", arrayIndex: 1, cast: "number" },
+      ]),
+    ).toEqual({ count: 11 });
+  });
 });
 
 describe("validateSourceItem", () => {
@@ -234,6 +327,31 @@ describe("validateSourceItem", () => {
       { source: "missing", target: "score", cast: "number", default: "not-a-number" },
     ]);
     expect(errors).toEqual([{ property: "score", sourceProperty: "missing", cast: "number" }]);
+  });
+
+  test("validates the selected array item before casting", () => {
+    const errors = validateSourceItem({ values: ["42", "bad"] }, [
+      { source: "values", target: "score", cast: "number", arrayIndex: 0 },
+    ]);
+    expect(errors).toEqual([]);
+
+    const failing = validateSourceItem({ values: ["42", "bad"] }, [
+      { source: "values", target: "score", cast: "number", arrayIndex: 1 },
+    ]);
+    expect(failing).toEqual([{ property: "score", sourceProperty: "values", cast: "number" }]);
+  });
+
+  test("validates scalar singleton values selected with first or last index", () => {
+    expect(
+      validateSourceItem({ value: "42" }, [
+        { source: "value", target: "score", cast: "number", arrayIndex: -1 },
+      ]),
+    ).toEqual([]);
+    expect(
+      validateSourceItem({ value: "bad" }, [
+        { source: "value", target: "score", cast: "number", arrayIndex: 0 },
+      ]),
+    ).toEqual([{ property: "score", sourceProperty: "value", cast: "number" }]);
   });
 });
 
@@ -404,5 +522,36 @@ describe("applyMappingsToSchema", () => {
     expect(vals).toContain("published");
     expect(vals).toContain("active");
     expect(vals).toContain("inactive");
+  });
+
+  test("does not demote array schema values for non-integer indexes", () => {
+    const schema = { tags: T.STRINGS };
+    expect(
+      applyMappingsToSchema(schema, [{ source: "tags", target: "tag", arrayIndex: 0.5 }]),
+    ).toEqual({ tag: T.STRINGS });
+  });
+
+  test("demotes selected array schema values to singleton values", () => {
+    const schema = {
+      titles: T.STRINGS | T.NULL,
+      scores: T.NUMBERS,
+      refs: T.REFS,
+      files: T.FILES,
+      status: [T.ENUMS | T.NULL, ["draft", "published"]] as [number, string[]],
+    };
+    const result = applyMappingsToSchema(schema, [
+      { source: "titles", target: "title", arrayIndex: 0 },
+      { source: "scores", target: "score", arrayIndex: 1 },
+      { source: "refs", target: "ref", arrayIndex: -1 },
+      { source: "files", target: "file", arrayIndex: 0 },
+      { source: "status", target: "status", arrayIndex: 0 },
+    ]);
+    expect(result).toEqual({
+      title: T.STRING | T.NULL,
+      score: T.NUMBER,
+      ref: T.REF,
+      file: T.FILE,
+      status: [T.ENUM | T.NULL, ["draft", "published"]],
+    });
   });
 });

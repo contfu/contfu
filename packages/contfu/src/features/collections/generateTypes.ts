@@ -10,8 +10,8 @@ const TYPE_MAP: Record<number, string> = {
   [PropertyType.BOOLEAN]: "boolean",
   [PropertyType.REF]: "string",
   [PropertyType.REFS]: "string[]",
-  [PropertyType.FILE]: "string",
-  [PropertyType.FILES]: "string[]",
+  [PropertyType.FILE]: "FileMetadata",
+  [PropertyType.FILES]: "FileMetadata[]",
   [PropertyType.DATE]: "number",
   [PropertyType.ENUM]: "string",
   [PropertyType.ENUMS]: "string[]",
@@ -76,9 +76,15 @@ export function generateTypes(
   const hasColor = entries.some(([, schema]) =>
     Object.values(schema).some((value) => (schemaType(value) & PropertyType.COLOR) !== 0),
   );
+  const hasFiles = entries.some(([, schema]) =>
+    Object.values(schema).some(
+      (value) => (schemaType(value) & (PropertyType.FILE | PropertyType.FILES)) !== 0,
+    ),
+  );
   const typeImports = [
     hasBlock ? "Block" : null,
     hasColor ? "Color" : null,
+    hasFiles ? "FileMetadata" : null,
     hasGeoPoint ? "GeoPoint" : null,
   ].filter((name): name is string => name !== null);
   const importHeader =

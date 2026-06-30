@@ -1,5 +1,6 @@
 import {
   QueryResultArray,
+  normalizeIncludedFileMetadata,
   normalizeQueryArgs,
   renderBlocks,
   renderBlocksMarkdown,
@@ -39,6 +40,8 @@ export type HttpClientOptions = {
   };
   /** HTTP Basic auth for a Server protected with CONTFU_BASIC_AUTH. */
   basicAuth?: string | { username: string; password: string };
+  /** Base path used when resolving internal file metadata URLs. Default: /files */
+  filesBasePath?: string;
 };
 
 function normalizeBasicAuth(basicAuth: NonNullable<HttpClientOptions["basicAuth"]>): string {
@@ -74,6 +77,7 @@ export function contfuClient<_CMap>(
     defaultLocale: options.i18n?.defaultLocale,
     locale: options.i18n?.defaultLocale,
     fallback: options.i18n?.fallback,
+    filesBasePath: options.filesBasePath,
   });
 }
 
@@ -92,6 +96,7 @@ type LocaleScope = {
   locale?: string | false;
   fallback?: string | true | false;
   fallbackExplicit?: boolean;
+  filesBasePath?: string;
 };
 
 function buildClient(
@@ -140,6 +145,9 @@ function buildClient(
       : `${baseUrl}/api/items?${params.toString()}`;
     const json = await fetchJson<{ data: any[]; meta: QueryMeta }>(url);
     const data = transformContent(json.data, contentAs, htmlOptions, markdownOptions);
+    if (include?.includes("files")) {
+      normalizeIncludedFileMetadata(data, { filesBasePath: scope.filesBasePath });
+    }
     return new QueryResultArray(data, json.meta);
   };
 
@@ -149,6 +157,7 @@ function buildClient(
       locale,
       fallback: fallback !== undefined ? fallback : scope.fallback,
       fallbackExplicit: fallback !== undefined ? true : scope.fallbackExplicit,
+      filesBasePath: scope.filesBasePath,
     });
 
   return Object.assign(callable, {

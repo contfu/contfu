@@ -36,6 +36,7 @@ export {
   type BlockRenderers,
   type ContentFormat,
   type FieldRef,
+  type FileMetadata,
   type FileUrlOptions,
   type IncludeOption,
   type Inline,

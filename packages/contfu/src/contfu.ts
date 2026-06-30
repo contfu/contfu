@@ -43,6 +43,8 @@ export type ContfuOptions<CMap = unknown> = {
   cacheOptimizedFiles?: boolean;
   /** Localize remote files into Contfu storage. Default: true */
   localFiles?: boolean;
+  /** Base path used when resolving internal file metadata URLs. Default: /files */
+  filesBasePath?: string;
   /** Number of concurrent media download/processing jobs. Default: 2 */
   mediaQueueConcurrency?: number;
   /** Optional app-level i18n overrides. DB config remains the source of truth. */
@@ -63,7 +65,7 @@ export function contfu<CMap = unknown>(options: ContfuOptions<CMap> = {}): Contf
   const key = options.key ?? process.env.CONTFU_KEY;
 
   return {
-    query: createLocalTypedClient(db, options.i18n),
+    query: createLocalTypedClient(db, options.i18n, {}, options.filesBasePath),
     fileStore,
     events: key ? createHotEventStream(key, fileStore, options) : emptyAsyncIterable(),
     handleFileRequest: (request, filePath) =>
@@ -181,6 +183,7 @@ function createLocalTypedClient<_CMap>(
   ctx = db,
   appI18n?: ClientI18nConfig<QueryLocale<_CMap>>,
   scope: LocaleScope<QueryLocale<_CMap>> = {},
+  filesBasePath?: string,
 ): any {
   // eslint-disable-next-line typescript-eslint/require-await -- mirrors async remote API for seamless local/remote switching
   const callable = async (first?: any, second?: any) => {
@@ -195,6 +198,7 @@ function createLocalTypedClient<_CMap>(
         locale,
         fallback,
         with: resolvedWith,
+        filesBasePath,
         filter: filter
           ? `$collection = "${collection}" && (${filter})`
           : `$collection = "${collection}"`,
@@ -203,7 +207,7 @@ function createLocalTypedClient<_CMap>(
     }
 
     return findItems(
-      { ...rest, locale, fallback, filter, with: resolvedWith },
+      { ...rest, locale, fallback, filter, with: resolvedWith, filesBasePath },
       ctx,
       appI18n,
       scope,
@@ -213,7 +217,7 @@ function createLocalTypedClient<_CMap>(
   const withLocale = (
     locale: QueryLocale<_CMap> | false,
     fallback?: QueryLocale<_CMap> | true | false,
-  ) => createLocalTypedClient(ctx, appI18n, { locale, fallback });
+  ) => createLocalTypedClient(ctx, appI18n, { locale, fallback }, filesBasePath);
 
   return Object.assign(callable, {
     all,

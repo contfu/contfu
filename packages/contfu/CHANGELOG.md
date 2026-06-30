@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.2.0] - 2026-06-30
+
+### Changed
+
+- Breaking: changed query client file metadata results to return typed metadata.
+
 ## [0.1.3] - 2026-06-28
 
 ### Fixed

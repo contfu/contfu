@@ -22,6 +22,27 @@ export type WithClause = {
 
 export type IncludeOption = "files" | "links" | "content";
 
+export type FileStatusData = "pending" | "ready" | "failed";
+
+export type FileMetadata = {
+  url: string;
+  id?: string;
+  ext?: string;
+  status?: FileStatusData;
+  mediaType?: string;
+  size?: number;
+  createdAt?: number;
+  width?: number;
+  height?: number;
+  duration?: number;
+  attempts?: number;
+  error?: string;
+};
+
+export type FileMetadataOptions = {
+  filesBasePath?: string;
+};
+
 export type SortOption = string | { field: string; direction: "asc" | "desc" };
 
 export type QueryOptions = {
@@ -39,11 +60,97 @@ export type QueryOptions = {
   contentAs?: ContentFormat;
   htmlOptions?: RenderOptions;
   markdownOptions?: MarkdownOptions;
+  /** Base path used when resolving internal file metadata URLs. */
+  filesBasePath?: string;
   /** Requested locale. `false` explicitly requests all locales and suppresses defaults. */
   locale?: string | false;
   /** Fallback locale override. `true` resolves to the configured default locale; `false` disables fallback. */
   fallback?: string | true | false;
 };
+
+function isAbsoluteUrl(value: string): boolean {
+  return /^[a-z][a-z0-9+.-]*:\/\//i.test(value) || value.startsWith("//");
+}
+
+function isRelativeUrl(value: string): boolean {
+  return value.startsWith("/") && !value.startsWith("//");
+}
+
+function normalizeFilesBasePath(filesBasePath: string | undefined): string {
+  const base = filesBasePath ?? "/files";
+  return base.endsWith("/") ? base.slice(0, -1) : base;
+}
+
+export function buildFileMetadataUrl(
+  file: Pick<FileMetadata, "id" | "ext"> & Partial<Pick<FileMetadata, "url">>,
+  options: FileMetadataOptions = {},
+): string {
+  if (file.url && isAbsoluteUrl(file.url)) return file.url;
+  if (!file.id || !file.ext) return file.url ?? "";
+  return `${normalizeFilesBasePath(options.filesBasePath)}/${file.id}.${file.ext}`;
+}
+
+export function normalizeFileMetadata(
+  value: unknown,
+  options: FileMetadataOptions = {},
+): FileMetadata | undefined {
+  if (typeof value === "string") {
+    if (isAbsoluteUrl(value) || isRelativeUrl(value)) return { url: value };
+    const match = value.match(/^(.+)\.([^.]+)$/);
+    if (!match) return undefined;
+    return {
+      id: match[1],
+      ext: match[2],
+      url: buildFileMetadataUrl({ id: match[1], ext: match[2] }, options),
+    };
+  }
+
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const file = value as FileMetadata;
+  if (typeof file.url === "string") return { ...file, url: buildFileMetadataUrl(file, options) };
+  if (typeof file.id === "string" && typeof file.ext === "string") {
+    return { ...file, url: buildFileMetadataUrl(file, options) };
+  }
+  return undefined;
+}
+
+export function normalizeIncludedFileMetadata<T extends Record<string, unknown>>(
+  items: T[],
+  options: FileMetadataOptions = {},
+): T[] {
+  for (const item of items) {
+    const rawFiles = item["files"];
+    const files = Array.isArray(rawFiles)
+      ? rawFiles
+          .map((file) => normalizeFileMetadata(file, options))
+          .filter((file) => file !== undefined)
+      : [];
+    const byRef = new Map(files.map((file) => [`${file.id}.${file.ext}`, file]));
+    if (Array.isArray(rawFiles)) (item as Record<string, unknown>)["files"] = files;
+
+    for (const [key, value] of Object.entries(item)) {
+      if (key === "files") continue;
+      if (typeof value === "string") {
+        const file = byRef.get(value) ?? normalizeFileMetadata(value, options);
+        if (file) item[key as keyof T] = file as T[keyof T];
+      } else if (Array.isArray(value)) {
+        const hydrated = value.map((entry) => {
+          if (typeof entry === "string") {
+            return byRef.get(entry) ?? normalizeFileMetadata(entry, options) ?? entry;
+          }
+          return normalizeFileMetadata(entry, options) ?? entry;
+        });
+        if (hydrated.some((entry, index) => entry !== value[index])) {
+          item[key as keyof T] = hydrated as T[keyof T];
+        }
+      } else {
+        const file = normalizeFileMetadata(value, options);
+        if (file) item[key as keyof T] = file as T[keyof T];
+      }
+    }
+  }
+  return items;
+}
 
 export type QueryFilterFunction = (self: any) => string;
 
