@@ -11,6 +11,7 @@ export interface ItemData {
   collection: string;
   props: Record<string, unknown>;
   changedAt: number;
+  deletedAt?: number;
   content?: Block[];
   links: ContentLinks;
 }

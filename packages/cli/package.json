@@ -1,6 +1,6 @@
 {
   "name": "@contfu/cli",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -20,7 +20,7 @@
     "test": "bun test src/"
   },
   "dependencies": {
-    "@contfu/svc-api": "workspace:^0.1.3"
+    "@contfu/svc-api": "workspace:^0.1.4"
   },
   "devDependencies": {
     "@types/bun": "^1.3.14",

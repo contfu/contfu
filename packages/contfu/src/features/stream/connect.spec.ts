@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { EventType, type ImageBlock } from "@contfu/core";
+import { eq } from "drizzle-orm";
 import { db } from "../../infra/db/db";
-import { fileTable, itemFileTable, syncTable } from "../../infra/db/schema";
+import { fileTable, itemFileTable, itemsTable, syncTable } from "../../infra/db/schema";
 import { truncateAllTables } from "../../../test/setup";
 import { listCollections } from "../collections/listCollections";
 import { setCollection } from "../collections/setCollection";
@@ -124,6 +125,67 @@ describe("contfu connect", () => {
 
     expect(listCollections().some((collection) => collection.name === "article")).toBe(false);
     expect(queryItems({ collection: "article" }).items).toHaveLength(0);
+  });
+
+  test("soft-deletes items from delete events", async () => {
+    createItem({
+      id: 103,
+      collection: "article",
+      changedAt: 1700000000,
+      props: { title: "Before delete" },
+      content: [],
+    });
+
+    await mock.module("@contfu/connect", () => ({
+      // eslint-disable-next-line typescript/require-await -- async generator required by AsyncGenerator return type
+      connectToStream: async function* () {
+        yield {
+          type: EventType.ITEM_DELETED,
+          item: 103,
+          index: 90,
+        };
+      },
+    }));
+
+    const { connect } = await import("./connect");
+
+    for await (const _ of connect({ key, reconnect: false })) {
+      // consume
+    }
+
+    expect(queryItems({ collection: "article" }).items).toHaveLength(0);
+    const row = db.select().from(itemsTable).where(eq(itemsTable.id, 103)).get();
+    expect(row?.deletedAt).toBeNumber();
+  });
+
+  test("persists soft-deleted items from item change events", async () => {
+    await mock.module("@contfu/connect", () => ({
+      // eslint-disable-next-line typescript/require-await -- async generator required by AsyncGenerator return type
+      connectToStream: async function* () {
+        yield {
+          type: EventType.ITEM_CHANGED,
+          item: {
+            id: 104,
+            collection: "article",
+            changedAt: 1700000000,
+            props: { title: "Trashed", $deletedAt: 1700000000 },
+          },
+          index: 91,
+        };
+      },
+    }));
+
+    const { connect } = await import("./connect");
+
+    for await (const _ of connect({ key, reconnect: false })) {
+      // consume
+    }
+
+    expect(queryItems({ collection: "article" }).items).toHaveLength(0);
+    const deleted = queryItems({ collection: "article", onlyDeleted: true }).items;
+    expect(deleted).toHaveLength(1);
+    expect(deleted[0].deletedAt).toBe(1700000000);
+    expect(deleted[0].props).toEqual({ title: "Trashed" });
   });
 
   test("persists sync index from events", async () => {

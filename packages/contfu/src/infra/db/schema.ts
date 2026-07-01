@@ -19,11 +19,13 @@ export const itemsTable = sqliteTable(
     locale: text(),
     content: blob({ mode: "json" }).$type<Block[] | null>(),
     changedAt: integer().notNull(),
+    deletedAt: integer(),
   },
   (table) => [
     index("idx_items_collection").on(table.collection),
     index("idx_items_locale").on(table.locale),
     index("idx_items_changedAt").on(table.changedAt),
+    index("idx_items_deletedAt").on(table.deletedAt),
   ],
 );
 

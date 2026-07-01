@@ -59,7 +59,7 @@ describe("@contfu/sanity", () => {
     }) as typeof fetch;
     process.env.CONTFU_ORIGIN = "http://localhost:4173/";
 
-    await updateConftuSchema({
+    await updateContfuSchema({
       webhookSecret: "secret-webhook-secret",
       dataset: "production",
       schemaTypes: [],

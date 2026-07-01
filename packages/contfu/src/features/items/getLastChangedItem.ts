@@ -1,5 +1,5 @@
 import type { ItemData } from "../../infra/types/content-types";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import { db } from "../../infra/db/db";
 import { itemFromDb } from "../../infra/db/mappers";
 import { itemsTable } from "../../infra/db/schema";
@@ -8,7 +8,7 @@ export function getLastChangedItem(collection: string, ctx = db): Omit<ItemData,
   const dbo = ctx
     .select()
     .from(itemsTable)
-    .where(eq(itemsTable.collection, collection))
+    .where(and(eq(itemsTable.collection, collection), isNull(itemsTable.deletedAt)))
     .orderBy(desc(itemsTable.changedAt))
     .limit(1)
     .all();

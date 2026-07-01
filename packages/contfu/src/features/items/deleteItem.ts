@@ -5,5 +5,5 @@ import { deleteItemLinksByRef } from "./deleteItemLinksByRef";
 
 export function deleteItem(id: number, ctx = db): void {
   deleteItemLinksByRef(id, ctx);
-  ctx.delete(itemsTable).where(eq(itemsTable.id, id)).run();
+  ctx.update(itemsTable).set({ deletedAt: Date.now() }).where(eq(itemsTable.id, id)).run();
 }

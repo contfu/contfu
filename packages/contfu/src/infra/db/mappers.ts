@@ -41,13 +41,15 @@ export function fileMetadataFromDb(dbo: DbFile): FileData {
   return fileFromDb(dbo, { includeData: false });
 }
 
-function splitLocaleFromProps(props: Record<string, unknown> | null | undefined): {
+function splitSystemProps(props: Record<string, unknown> | null | undefined): {
   locale: string | null;
+  deletedAt: number | null;
   props: Record<string, unknown>;
 } {
-  const { $locale, ...rest } = props ?? {};
+  const { $locale, $deletedAt, ...rest } = props ?? {};
   return {
     locale: typeof $locale === "string" ? $locale : null,
+    deletedAt: typeof $deletedAt === "number" ? $deletedAt : null,
     props: rest,
   };
 }
@@ -65,7 +67,7 @@ export function itemToDb<T extends ItemData | Omit<ItemData, "links">>(
   item: T,
   _ctx: any,
 ): ItemUpdate | NewItem {
-  const { locale, props } = splitLocaleFromProps(item.props);
+  const { locale, deletedAt, props } = splitSystemProps(item.props);
   return {
     id: item.id,
     collection: item.collection,
@@ -73,6 +75,7 @@ export function itemToDb<T extends ItemData | Omit<ItemData, "links">>(
     locale,
     content: item.content ? item.content : null,
     changedAt: item.changedAt,
+    deletedAt: item.deletedAt ?? deletedAt,
   } satisfies ItemUpdate;
 }
 
@@ -83,6 +86,7 @@ export function itemFromDb(dbo: DbItem, _ctx: any, links?: ContentLinks): ItemDa
     props: propsWithLocale(dbo.props, dbo.locale),
     content: dbo.content ? dbo.content : undefined,
     changedAt: dbo.changedAt,
+    deletedAt: dbo.deletedAt ?? undefined,
     links: links ?? [],
   });
 }

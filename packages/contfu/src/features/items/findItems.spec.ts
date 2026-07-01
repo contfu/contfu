@@ -5,6 +5,7 @@ import { linkFileToItem } from "../files/linkFileToItem";
 import { setCollection } from "../collections/setCollection";
 import { createItem } from "./createItem";
 import { createItemLink } from "./createItemLink";
+import { deleteItem } from "./deleteItem";
 import { findItems } from "./findItems";
 import { getItemById } from "./getItemById";
 
@@ -180,6 +181,29 @@ describe("findItems", () => {
     for (const item of guideResult) {
       expect(item).not.toHaveProperty("content");
     }
+  });
+
+  test("filters soft-deleted items by default and can include or select them", () => {
+    deleteItem(2);
+
+    const active = findItems({ sort: "$id" });
+    expect(active.map((item) => item.$id)).toEqual([1, 3]);
+
+    const withDeleted = findItems({ includeDeleted: true, sort: "$id" });
+    expect(withDeleted.map((item) => item.$id)).toEqual([1, 2, 3]);
+    expect(withDeleted.find((item) => item.$id === 2)?.$deletedAt).toBeNumber();
+
+    const deleted = findItems({ onlyDeleted: true });
+    expect(deleted.map((item) => item.$id)).toEqual([2]);
+    expect(deleted[0].$deletedAt).toBeNumber();
+  });
+
+  test("gets soft-deleted items by id only when requested", () => {
+    deleteItem(2);
+
+    expect(getItemById(2)).toBeNull();
+    expect(getItemById(2, { includeDeleted: true })?.$deletedAt).toBeNumber();
+    expect(getItemById(1, { onlyDeleted: true })).toBeNull();
   });
 
   test("supports search", () => {

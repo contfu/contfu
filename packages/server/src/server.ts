@@ -132,6 +132,8 @@ function deserializeQueryParams(params: URLSearchParams): QueryParseResult {
   }
 
   if (params.get("flat") === "true") options.flat = true;
+  if (params.get("includeDeleted") === "true") options.includeDeleted = true;
+  if (params.get("onlyDeleted") === "true") options.onlyDeleted = true;
 
   const locale = params.get("locale");
   if (locale !== null) options.locale = locale === "false" ? false : locale;
@@ -177,6 +179,8 @@ function parseQueryItemsInput(params: URLSearchParams): QueryItemsInput {
     sortDirection: sortDirection === "asc" || sortDirection === "desc" ? sortDirection : undefined,
     page: parseOptionalIntegerParam(params.get("page")),
     pageSize: parseOptionalIntegerParam(params.get("pageSize")),
+    includeDeleted: params.get("includeDeleted") === "true" ? true : undefined,
+    onlyDeleted: params.get("onlyDeleted") === "true" ? true : undefined,
   };
 }
 
@@ -258,8 +262,13 @@ function handleItemById(request: RouteRequest) {
   if ("error" in query) {
     return text(query.error, 400);
   }
-  const { include, with: withClause } = query.options;
-  const options: { include?: IncludeOption[]; with?: WithClause } = {};
+  const { include, with: withClause, includeDeleted, onlyDeleted } = query.options;
+  const options: {
+    include?: IncludeOption[];
+    with?: WithClause;
+    includeDeleted?: boolean;
+    onlyDeleted?: boolean;
+  } = {};
 
   if (include) {
     options.include = include;
@@ -268,6 +277,8 @@ function handleItemById(request: RouteRequest) {
   if (withClause !== undefined) {
     options.with = withClause;
   }
+  if (includeDeleted) options.includeDeleted = true;
+  if (onlyDeleted) options.onlyDeleted = true;
 
   const item = getItemById(id, options);
   if (!item) {

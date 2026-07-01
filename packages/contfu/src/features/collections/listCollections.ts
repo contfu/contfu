@@ -1,4 +1,4 @@
-import { asc, count, eq } from "drizzle-orm";
+import { and, asc, count, eq, isNull } from "drizzle-orm";
 import { db } from "../../infra/db/db";
 import { collectionsTable, itemsTable } from "../../infra/db/schema";
 
@@ -21,7 +21,10 @@ export function listCollections(ctx = db): CollectionSummary[] {
       itemCount: count(itemsTable.id),
     })
     .from(collectionsTable)
-    .leftJoin(itemsTable, eq(itemsTable.collection, collectionsTable.name))
+    .leftJoin(
+      itemsTable,
+      and(eq(itemsTable.collection, collectionsTable.name), isNull(itemsTable.deletedAt)),
+    )
     .groupBy(collectionsTable.name)
     .orderBy(asc(collectionsTable.name))
     .all();

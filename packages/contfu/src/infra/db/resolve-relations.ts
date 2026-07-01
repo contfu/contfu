@@ -7,7 +7,14 @@ import { internalLinkTable } from "./schema";
 const MAX_DEPTH = 3;
 
 type FindItemsFn = (
-  options: { filter?: string; limit?: number; include?: IncludeOption[]; with?: WithClause },
+  options: {
+    filter?: string;
+    limit?: number;
+    include?: IncludeOption[];
+    with?: WithClause;
+    includeDeleted?: boolean;
+    onlyDeleted?: boolean;
+  },
   ctx?: any,
 ) => ItemWithRelations[];
 
@@ -39,6 +46,8 @@ export function resolveRelations(
           limit: relationDef.limit,
           include: relationDef.include,
           with: depth + 1 < MAX_DEPTH ? relationDef.with : undefined,
+          includeDeleted: relationDef.includeDeleted,
+          onlyDeleted: relationDef.onlyDeleted,
         },
         ctx,
       );
@@ -84,6 +93,7 @@ function substitutePlaceholders(
     if (path === "$id") return String(item.$id);
     if (path === "$collection") return `"${item.$collection}"`;
     if (path === "$changedAt") return String(item.$changedAt);
+    if (path === "$deletedAt") return item.$deletedAt == null ? "null" : String(item.$deletedAt);
 
     if (value === null || value === undefined) return "null";
 

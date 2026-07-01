@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, type SQL } from "drizzle-orm";
 import { db as defaultDb } from "../../infra/db/db";
 import { propsWithLocale } from "../../infra/db/mappers";
 import { resolveIncludes } from "../../infra/db/resolve-includes";
@@ -10,9 +10,21 @@ import type { ItemWithRelations } from "../../domain/query-types";
 
 export function getItemById(
   id: number,
-  options?: { include?: IncludeOption[]; with?: WithClause },
+  options?: {
+    include?: IncludeOption[];
+    with?: WithClause;
+    includeDeleted?: boolean;
+    onlyDeleted?: boolean;
+  },
   ctx = defaultDb,
 ): ItemWithRelations | null {
+  const conditions: SQL[] = [eq(itemsTable.id, id)];
+  if (options?.onlyDeleted) {
+    conditions.push(isNotNull(itemsTable.deletedAt));
+  } else if (!options?.includeDeleted) {
+    conditions.push(isNull(itemsTable.deletedAt));
+  }
+
   const row = ctx
     .select({
       id: itemsTable.id,
@@ -21,9 +33,10 @@ export function getItemById(
       locale: itemsTable.locale,
       content: itemsTable.content,
       changedAt: itemsTable.changedAt,
+      deletedAt: itemsTable.deletedAt,
     })
     .from(itemsTable)
-    .where(eq(itemsTable.id, id))
+    .where(and(...conditions))
     .get();
 
   if (!row) return null;
@@ -37,6 +50,7 @@ export function getItemById(
     $id: row.id,
     $collection: row.collectionName,
     $changedAt: row.changedAt,
+    ...(row.deletedAt != null ? { $deletedAt: row.deletedAt } : {}),
     ...props,
     content: Array.isArray(row.content) ? row.content : undefined,
     links: [],
