@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, test } from "bun:test";
 import { truncateAllTables } from "../../../test/setup";
 import { setCollection } from "../collections/setCollection";
 import { createItem } from "./createItem";
+import { deleteItem } from "./deleteItem";
 import { queryItems } from "./queryItems";
 
 function seedItems() {
@@ -67,6 +68,22 @@ describe("queryItems", () => {
 
     expect(result.items).toHaveLength(1);
     expect(result.items[0]?.id).toBe(2);
+  });
+
+  test("filters soft-deleted items by default and can include or select them", () => {
+    deleteItem(2);
+
+    const active = queryItems({ sortDirection: "asc" });
+    expect(active.items.map((item) => item.id)).toEqual([1, 3]);
+    expect(active.total).toBe(2);
+
+    const withDeleted = queryItems({ includeDeleted: true, sortDirection: "asc" });
+    expect(withDeleted.items.map((item) => item.id)).toEqual([1, 3, 2]);
+    expect(withDeleted.items.find((item) => item.id === 2)?.deletedAt).toBeNumber();
+
+    const deleted = queryItems({ onlyDeleted: true });
+    expect(deleted.items.map((item) => item.id)).toEqual([2]);
+    expect(deleted.total).toBe(1);
   });
 
   test("combines prop filters with AND", () => {

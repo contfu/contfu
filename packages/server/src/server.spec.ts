@@ -182,6 +182,8 @@ describe("@contfu/server routes", () => {
       include: "files,author",
       fields: "title,slug",
       flat: "true",
+      includeDeleted: "true",
+      onlyDeleted: "true",
       with: JSON.stringify({ relation: true }),
     }).toString();
 
@@ -198,6 +200,8 @@ describe("@contfu/server routes", () => {
         include: ["files", "author"],
         fields: ["title", "slug"],
         flat: true,
+        includeDeleted: true,
+        onlyDeleted: true,
         with: { relation: true },
       },
     });
@@ -210,6 +214,8 @@ describe("@contfu/server routes", () => {
       include: ["files", "author"],
       fields: ["title", "slug"],
       flat: true,
+      includeDeleted: true,
+      onlyDeleted: true,
       with: { relation: true },
     });
   });

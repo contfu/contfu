@@ -361,6 +361,51 @@ describe("generateApplicationIntegrationTypes", () => {
     expect(ts).toContain('export type MapComponent = ["x", "map", { center: GeoPoint }, Block[]];');
     expect(ts).toContain("location: GeoPoint;");
   });
+
+  it("generates FileMetadata for real-world single and multi-file fields", () => {
+    const ts = generateApplicationIntegrationTypes([
+      {
+        name: "ys1AZB",
+        displayName: "Reported Media Collection",
+        schema: {
+          image: PropertyType.FILES,
+          img: PropertyType.FILE,
+          cover: PropertyType.FILE,
+          icon: PropertyType.FILE,
+          file: PropertyType.FILES,
+        },
+      },
+    ]);
+
+    expect(ts).toContain('import type { FileMetadata } from "@contfu/core";');
+    expect(ts).toContain("image: FileMetadata[];");
+    expect(ts).toContain("img: FileMetadata;");
+    expect(ts).toContain("cover: FileMetadata;");
+    expect(ts).toContain("icon: FileMetadata;");
+    expect(ts).toContain("file: FileMetadata[];");
+    expect(ts).not.toContain("image: string[];");
+    expect(ts).not.toContain("img: string;");
+    expect(ts).not.toContain("cover: string;");
+    expect(ts).not.toContain("icon: string;");
+    expect(ts).not.toContain("file: string[];");
+  });
+
+  it("generates FileMetadata for nullable file bitmasks in integration types", () => {
+    const ts = generateApplicationIntegrationTypes([
+      {
+        name: "assets",
+        displayName: "Assets",
+        schema: {
+          cover: PropertyType.FILE | PropertyType.NULL,
+          gallery: PropertyType.FILES | PropertyType.NULL,
+        },
+      },
+    ]);
+
+    expect(ts).toContain('import type { FileMetadata } from "@contfu/core";');
+    expect(ts).toContain("cover: FileMetadata;");
+    expect(ts).toContain("gallery: FileMetadata[];");
+  });
 });
 
 describe("generated types compile-time checks", () => {

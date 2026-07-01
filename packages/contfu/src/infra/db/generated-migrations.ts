@@ -78,4 +78,10 @@ CREATE INDEX "idx_items_collection" ON "items" ("collection");--> statement-brea
 CREATE INDEX "idx_items_locale" ON "items" ("locale");--> statement-breakpoint
 CREATE INDEX "idx_items_changedAt" ON "items" ("changedAt");`,
   },
+  {
+    name: "20260630120000_soft_deleted_items",
+    timestamp: 20260630120000,
+    sql: `ALTER TABLE "items" ADD "deletedAt" integer;--> statement-breakpoint
+CREATE INDEX "idx_items_deletedAt" ON "items" ("deletedAt");`,
+  },
 ];

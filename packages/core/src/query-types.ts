@@ -17,6 +17,8 @@ export type WithClause = {
     include?: IncludeOption[];
     single?: boolean;
     with?: WithClause;
+    includeDeleted?: boolean;
+    onlyDeleted?: boolean;
   };
 };
 
@@ -66,6 +68,10 @@ export type QueryOptions = {
   locale?: string | false;
   /** Fallback locale override. `true` resolves to the configured default locale; `false` disables fallback. */
   fallback?: string | true | false;
+  /** Include soft-deleted items in addition to active items. */
+  includeDeleted?: boolean;
+  /** Return only soft-deleted items. */
+  onlyDeleted?: boolean;
 };
 
 function isAbsoluteUrl(value: string): boolean {
@@ -185,6 +191,8 @@ export function resolveQueryWithFunctions(
       include: entry.include,
       single: entry.single,
       with: resolveQueryWithFunctions(entry.with, parentLevel + 1),
+      includeDeleted: entry.includeDeleted,
+      onlyDeleted: entry.onlyDeleted,
     };
   }
 

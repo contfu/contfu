@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNotNull, isNull, sql, type SQL } from "drizzle-orm";
 import { db as defaultDb } from "../../infra/db/db";
 import { collectionsTable, itemsTable } from "../../infra/db/schema";
 import { propsWithLocale } from "../../infra/db/mappers";
@@ -27,6 +27,7 @@ type DbRow = {
   props: unknown;
   locale: string | null;
   changedAt: number;
+  deletedAt: number | null;
   content?: unknown;
 };
 
@@ -57,6 +58,7 @@ function toSelectableFields(row: DbRow, flat = false) {
     $id: row.id,
     $collection: row.collectionName,
     $changedAt: row.changedAt,
+    ...(row.deletedAt != null ? { $deletedAt: row.deletedAt } : {}),
     ...(flat ? flattenProps(props) : props),
   };
 }
@@ -117,6 +119,12 @@ function buildWhere(
   i18nPlan?: I18nQueryPlan,
 ): SQL | undefined {
   const conditions: SQL[] = [];
+
+  if (options.onlyDeleted) {
+    conditions.push(isNotNull(itemsTable.deletedAt));
+  } else if (!options.includeDeleted) {
+    conditions.push(isNull(itemsTable.deletedAt));
+  }
 
   if (ast) {
     conditions.push(compileFilter(ast));
@@ -234,6 +242,7 @@ export function findItems(
     props: itemsTable.props,
     locale: itemsTable.locale,
     changedAt: itemsTable.changedAt,
+    deletedAt: itemsTable.deletedAt,
     ...(includeContentColumn ? { content: itemsTable.content } : {}),
   };
 

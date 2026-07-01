@@ -105,17 +105,22 @@ synchronization an explicit setting:
 
 WordPress defaults to published-only sync. When WordPress draft sync is enabled, `$draft` is
 emitted for post and media collections; taxonomies and users stay on published/view reads and do
-not get synthesized draft state. Strapi and Sanity integrations default to including drafts unless
-you disable that setting. Changing draft mode or source credentials resets accepted source state
-for connected collections and schedules a repair full pull so draft/published schemas and cursors do
-not mix.
+not get synthesized draft state. WordPress preview reads can see trashed post/media records with
+`status: "trash"` and `$draft: true`, but the service treats those records as soft-deleted source
+items: Contfu keeps tracking them so they still count toward managed source inventory and do not
+produce redundant tombstones, while downstream targets receive delete delivery and should
+hard-delete them. Strapi and Sanity integrations default to including drafts unless you disable that
+setting. Changing draft mode or source credentials resets accepted source state for connected
+collections and schedules a repair full pull so draft/published schemas and cursors do not mix.
 
 ### Deletions from polling sources
 
 WordPress source collections use authoritative scheduled full pulls for deletion reconciliation:
 Contfu compares the latest REST listing with the last successful upstream item snapshot and emits
 delete sync messages for WordPress items that disappeared. Downstream consumer collections can then
-remove items that were deleted in WordPress instead of waiting for a provider webhook.
+remove items that were deleted in WordPress instead of waiting for a provider webhook. In WordPress
+draft sync, a post/media record that moves to `trash` emits a tombstone once and remains tracked as
+soft-deleted source state until WordPress stops returning it or it is restored.
 
 ### Webhook signing and provider diagnostics
 

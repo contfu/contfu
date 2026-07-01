@@ -232,6 +232,8 @@ export function serializeQueryParams(options: QueryOptions): URLSearchParams {
   setQueryParam(params, "flat", options.flat ? "true" : undefined);
   setQueryParam(params, "locale", options.locale);
   setQueryParam(params, "fallback", options.fallback);
+  setQueryParam(params, "includeDeleted", options.includeDeleted ? "true" : undefined);
+  setQueryParam(params, "onlyDeleted", options.onlyDeleted ? "true" : undefined);
 
   return params;
 }

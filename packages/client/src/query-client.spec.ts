@@ -64,6 +64,14 @@ describe("serializeQueryParams", () => {
     expect(serializeQueryParams({ fields: [] }).get("fields")).toBe("");
   });
 
+  test("serializes soft-delete filters", () => {
+    const includeParams = serializeQueryParams({ includeDeleted: true });
+    expect(includeParams.get("includeDeleted")).toBe("true");
+
+    const onlyParams = serializeQueryParams({ onlyDeleted: true });
+    expect(onlyParams.get("onlyDeleted")).toBe("true");
+  });
+
   test("serializes flat result requests", () => {
     expect(serializeQueryParams({ flat: true }).get("flat")).toBe("true");
     expect(serializeQueryParams({ flat: false }).has("flat")).toBe(false);

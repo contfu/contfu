@@ -32,6 +32,7 @@ export type QuerySystemFields = {
   $id: number;
   $collection: string;
   $changedAt: number;
+  $deletedAt?: number;
   $locale?: string;
 };
 
@@ -84,6 +85,8 @@ export type TypedWithEntry<CMap, ChildC extends keyof CMap & string = keyof CMap
   include?: IncludeOption[];
   single?: boolean;
   with?: TypedWithInput<CMap, CMap[ChildC]>;
+  includeDeleted?: boolean;
+  onlyDeleted?: boolean;
 };
 
 export type TypedWithInput<CMap, ParentProps> =
@@ -116,6 +119,8 @@ export type TypedQueryEntry<
   markdownOptions?: MarkdownOptions;
   locale?: QueryLocale<CMap> | false;
   fallback?: QueryLocale<CMap> | true | false;
+  includeDeleted?: boolean;
+  onlyDeleted?: boolean;
 };
 
 type ResolveWithShape<W> = W extends (...args: any[]) => infer R ? R : W;
@@ -156,6 +161,8 @@ export type EntryOpts<CMap, C extends keyof CMap & string, CF extends ContentFor
   markdownOptions?: MarkdownOptions;
   locale?: QueryLocale<CMap> | false;
   fallback?: QueryLocale<CMap> | true | false;
+  includeDeleted?: boolean;
+  onlyDeleted?: boolean;
 };
 
 export interface TypedAllFn<CMap> {

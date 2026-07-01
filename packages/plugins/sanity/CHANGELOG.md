@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.1.4] - 2026-07-01
+
+### Changed
+
+- Updated dependencies.
+
+## Unreleased
+
+### Changed
+
+- Updated bundled Sanity studio demo and tests to use the canonical `updateContfuSchema` helper.
+- Kept the deprecated `UpdateConftuSchemaOptions` and `updateConftuSchema` typo aliases for external compatibility for one more release; they are scheduled for removal in a future breaking release.
+
 ## [0.1.3] - 2026-06-30
 
 ### Changed
@@ -23,12 +36,6 @@
 - Aligned Sanity CLI/setup docs with implemented project and dataset flags.
 
 All notable changes to `@contfu/sanity` are documented here.
-
-## Unreleased
-
-### Added
-
-- Added correctly-spelled `updateContfuSchema` export while keeping `updateConftuSchema` as a deprecated alias.
 
 ## [0.1.0] - 2026-06-09
 

@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, lte, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, gte, isNotNull, isNull, lte, type SQL } from "drizzle-orm";
 import { db } from "../../infra/db/db";
 import { propsWithLocale } from "../../infra/db/mappers";
 import { itemsTable } from "../../infra/db/schema";
@@ -23,6 +23,8 @@ export type QueryItemsInput = {
   sortDirection?: SortDirection;
   page?: number;
   pageSize?: number;
+  includeDeleted?: boolean;
+  onlyDeleted?: boolean;
 };
 
 export type QueryItemsResult = {
@@ -128,6 +130,12 @@ export function queryItems(input: QueryItemsInput = {}, ctx = db): QueryItemsRes
 
   const whereConditions: SQL[] = [];
 
+  if (input.onlyDeleted) {
+    whereConditions.push(isNotNull(itemsTable.deletedAt));
+  } else if (!input.includeDeleted) {
+    whereConditions.push(isNull(itemsTable.deletedAt));
+  }
+
   const collectionName = input.collection?.trim();
   if (collectionName) {
     whereConditions.push(eq(itemsTable.collection, collectionName));
@@ -160,6 +168,7 @@ export function queryItems(input: QueryItemsInput = {}, ctx = db): QueryItemsRes
       locale: itemsTable.locale,
       content: itemsTable.content,
       changedAt: itemsTable.changedAt,
+      deletedAt: itemsTable.deletedAt,
     })
     .from(itemsTable);
 
@@ -182,6 +191,7 @@ export function queryItems(input: QueryItemsInput = {}, ctx = db): QueryItemsRes
         props: propsWithLocale(props && typeof props === "object" ? props : {}, row.locale),
         content: Array.isArray(content) ? content : undefined,
         changedAt: row.changedAt,
+        deletedAt: row.deletedAt ?? undefined,
         links: [],
       };
     })
