@@ -55,6 +55,15 @@ describe("generateTypes", () => {
     expect(result).toContain("accent: Color;");
   });
 
+  it("generates a string and FileMetadata union for mixed icon values", () => {
+    const result = generateTypes({
+      pages: { icon: PropertyType.FILE | PropertyType.STRING | PropertyType.NULL },
+    });
+
+    expect(result).toContain('import type { FileMetadata } from "@contfu/core";');
+    expect(result).toContain("icon: string | FileMetadata;");
+  });
+
   it("does not generate CollectionMap", () => {
     const result = generateTypes({
       articles: { title: PropertyType.STRING },

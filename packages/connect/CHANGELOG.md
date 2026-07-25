@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.1.5] - 2026-07-25
+
+### Added
+
+- Added application refresh command protocol support.
+
+### Changed
+
+- Documented local media reprocessing and refresh repair.
+- Upgraded TypeScript.
+
 ## [0.1.4] - 2026-07-01
 
 ### Changed

@@ -44,7 +44,9 @@ How an application reads content.
 How content reaches your application at runtime.
 
 - **[Deployment](./deployment.md)** — the self-hosted Server (Docker / Node / Bun), the
-  embedded Local Runtime, and file/media storage options.
+  embedded Local Runtime, sync acceptance/repair, and file/media storage options.
+- **[Media optimization](../packages/contfu/docs/media-optimization.md)** — Canonical Media
+  Masters, local reprocessing, transform rules, and variants.
 - **[CLI reference](./cli.md)** — manage every resource from the terminal.
 
 ## Reference

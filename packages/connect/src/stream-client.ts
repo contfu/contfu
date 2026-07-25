@@ -1,6 +1,9 @@
 import {
   ClientEventType,
+  ApplicationCommand,
+  CommandResult,
   EventType,
+  type RefreshStatus,
   type CollectionSchema,
   type EffectiveCollectionI18nConfig,
   type Item as InternalItem,
@@ -9,6 +12,8 @@ import {
   type WireEvent,
   type WireStreamPayload,
   type ClientWireEvent,
+  type WireCommand,
+  type WireCommandResult,
   materializeWireItemPatch,
   type WireItem,
   MINUTES,
@@ -44,13 +49,26 @@ export type CollectionRemovedEvent = {
   type: typeof EventType.COLLECTION_REMOVED;
   collection: string;
 };
-export type SyncEvent =
+export type RefreshCommandResultEvent = {
+  type: typeof CommandResult.REFRESH;
+  commandId: number;
+  status: RefreshStatus;
+  ignoredItemIds?: number[];
+};
+export type RefreshAllCommandResultEvent = {
+  type: typeof CommandResult.REFRESH_ALL;
+  commandId: number;
+  status: RefreshStatus;
+};
+export type CommandResultEvent = RefreshCommandResultEvent | RefreshAllCommandResultEvent;
+
+export type ItemEvent =
   | ItemChangedEvent
   | ItemDeletedEvent
   | SchemaEvent
   | CollectionRenamedEvent
   | CollectionRemovedEvent;
-export type ItemEvent = SyncEvent;
+export type SyncEvent = ItemEvent | CommandResultEvent;
 
 /** Emitted when stream connection is established. */
 export type StreamConnectedEvent = { type: typeof EventType.STREAM_CONNECTED };
@@ -93,7 +111,16 @@ type BaseOpts = {
   maxReconnectDelay?: number;
   /** Initial delay before first reconnection attempt in ms (default: 1000) */
   initialReconnectDelay?: number;
+  /** Yield command result events (default: true). Internal command result handling still runs. */
+  commandResults?: boolean;
 };
+
+export type StreamCommandSender = {
+  refresh(collection: string, itemIds: number[], source?: boolean): Promise<CommandResultEvent>;
+  refreshAll(collection: string, source?: boolean): Promise<CommandResultEvent>;
+};
+
+export type StreamClient<T> = AsyncGenerator<T> & StreamCommandSender;
 
 type OptsWithConnectionEvents = BaseOpts & { connectionEvents: true };
 type OptsWithoutConnectionEvents = BaseOpts & { connectionEvents?: false };
@@ -101,22 +128,87 @@ type OptsWithoutConnectionEvents = BaseOpts & { connectionEvents?: false };
 type TransportConnection = {
   events(): AsyncGenerator<WireStreamPayload>;
   sendAck(): Promise<void>;
+  sendCommand(command: WireCommand): Promise<WireCommandResult | void>;
   close(reason: string): void;
   getDisconnectReason(): string | undefined;
 };
 
 export function connectToStream(
   opts: OptsWithConnectionEvents,
-): AsyncGenerator<SyncEvent | StreamEvent>;
-export function connectToStream(opts?: OptsWithoutConnectionEvents): AsyncGenerator<SyncEvent>;
-export async function* connectToStream(
+): StreamClient<SyncEvent | StreamEvent>;
+export function connectToStream(opts?: OptsWithoutConnectionEvents): StreamClient<SyncEvent>;
+export function connectToStream(
   opts: BaseOpts & { connectionEvents?: boolean } = {},
+): StreamClient<SyncEvent | StreamEvent> {
+  let currentConnection: TransportConnection | null = null;
+  let nextCommandId = 1;
+  const pendingCommands = new Map<number, (event: CommandResultEvent) => void>();
+
+  const sendCommand = async (command: WireCommand): Promise<CommandResultEvent> => {
+    const commandId = command[1];
+    if (!currentConnection) throw new Error("Sync command failed: no active stream connection");
+    const resultPromise = new Promise<CommandResultEvent>((resolve) => {
+      pendingCommands.set(commandId, resolve);
+    });
+    let result: WireCommandResult | void;
+    try {
+      result = await currentConnection.sendCommand(command);
+    } catch (error) {
+      pendingCommands.delete(commandId);
+      throw error;
+    }
+    if (result) {
+      const event = fromWireCommandResult(result);
+      if (event) {
+        pendingCommands.delete(commandId);
+        return event;
+      }
+    }
+    return resultPromise;
+  };
+
+  const generator = streamEvents(opts, {
+    getCurrentConnection: () => currentConnection,
+    setCurrentConnection: (connection) => {
+      currentConnection = connection;
+    },
+    pendingCommands,
+  }) as StreamClient<SyncEvent | StreamEvent>;
+
+  generator.refresh = (collection, itemIds, source) => {
+    const commandId = nextCommandId++;
+    return sendCommand(
+      source === undefined
+        ? [ApplicationCommand.REFRESH, commandId, collection, itemIds]
+        : [ApplicationCommand.REFRESH, commandId, collection, itemIds, source],
+    );
+  };
+  generator.refreshAll = (collection, source) => {
+    const commandId = nextCommandId++;
+    return sendCommand(
+      source === undefined
+        ? [ApplicationCommand.REFRESH_ALL, commandId, collection]
+        : [ApplicationCommand.REFRESH_ALL, commandId, collection, source],
+    );
+  };
+
+  return generator;
+}
+
+async function* streamEvents(
+  opts: BaseOpts & { connectionEvents?: boolean } = {},
+  state: {
+    getCurrentConnection: () => TransportConnection | null;
+    setCurrentConnection: (connection: TransportConnection | null) => void;
+    pendingCommands: Map<number, (event: CommandResultEvent) => void>;
+  },
 ): AsyncGenerator<SyncEvent | StreamEvent> {
   const {
     reconnect = true,
     maxReconnectDelay = 30_000,
     initialReconnectDelay = 1_000,
     connectionEvents = false,
+    commandResults = true,
   } = opts;
 
   const envKeyStr = getEnv("CONTFU_KEY");
@@ -130,7 +222,6 @@ export async function* connectToStream(
   let reconnectDelay = initialReconnectDelay;
   let shouldReconnect = true;
   let lastStreamActivityAt = 0;
-  let currentConnection: TransportConnection | null = null;
   let activeTransport: StreamTransport = SYNC_TRANSPORT;
   const materializedItems = new Map<string, WireItem>();
 
@@ -146,7 +237,8 @@ export async function* connectToStream(
     lastStreamActivityAt = Date.now();
     stallTimer = setInterval(() => {
       const timeout = activeTransport === "http" ? 45 * SECONDS : 10 * MINUTES;
-      if (Date.now() - lastStreamActivityAt > timeout) currentConnection?.close("Stream stalled");
+      if (Date.now() - lastStreamActivityAt > timeout)
+        state.getCurrentConnection()?.close("Stream stalled");
     }, 30 * SECONDS);
   };
 
@@ -158,7 +250,7 @@ export async function* connectToStream(
         const opened = await openDefaultTransportConnection(syncEndpoint, key, SYNC_TRANSPORT);
         connection = opened.connection;
         activeTransport = opened.transport;
-        currentConnection = connection;
+        state.setCurrentConnection(connection);
         materializedItems.clear();
 
         reconnectDelay = initialReconnectDelay;
@@ -170,13 +262,23 @@ export async function* connectToStream(
         for await (const payload of connection.events()) {
           lastStreamActivityAt = Date.now();
           const wireEvents = isWireEventBatch(payload) ? payload : [payload];
-          const shouldAckBatch = isWireEventBatch(payload) || !isPingEvent(payload);
+          const shouldAckBatch =
+            isWireEventBatch(payload) ||
+            (!isPingEvent(payload) && !isCommandResultPayload(payload));
 
           for (const wireEvent of wireEvents) {
             const streamEvent = fromWireStreamEvent(wireEvent);
             if (streamEvent) {
               if (streamEvent.type === EventType.SNAPSHOT_START) materializedItems.clear();
               if (connectionEvents) yield streamEvent;
+              continue;
+            }
+
+            const commandResult = fromWireCommandResult(wireEvent);
+            if (commandResult) {
+              state.pendingCommands.get(commandResult.commandId)?.(commandResult);
+              state.pendingCommands.delete(commandResult.commandId);
+              if (commandResults) yield commandResult;
               continue;
             }
 
@@ -209,8 +311,8 @@ export async function* connectToStream(
         }
       }
 
-      if (currentConnection === connection) {
-        currentConnection = null;
+      if (state.getCurrentConnection() === connection) {
+        state.setCurrentConnection(null);
       }
 
       if (!reconnect) break;
@@ -221,8 +323,8 @@ export async function* connectToStream(
     }
   } finally {
     shouldReconnect = false;
-    const connection = currentConnection;
-    currentConnection = null;
+    const connection = state.getCurrentConnection();
+    state.setCurrentConnection(null);
     stopStallTimer();
     connection?.close("Stream consumer stopped");
   }
@@ -247,6 +349,7 @@ async function openDefaultTransportConnection(
 async function openHttpConnection(syncEndpoint: string, key: Buffer): Promise<TransportConnection> {
   const syncUrl = buildSyncUrl(syncEndpoint, key);
   const ackEndpoint = buildAckUrl(syncEndpoint, key);
+  const commandEndpoint = buildCommandUrl(syncEndpoint, key);
   const response = await fetch(syncUrl, {
     headers: { Accept: "application/octet-stream" },
   });
@@ -302,6 +405,16 @@ async function openHttpConnection(syncEndpoint: string, key: Buffer): Promise<Tr
     },
     sendAck() {
       return sendAck(ackEndpoint);
+    },
+    async sendCommand(command) {
+      const response = await fetch(commandEndpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/octet-stream", Accept: "application/octet-stream" },
+        body: new Uint8Array(pack(command)),
+      });
+      if (!response.ok)
+        throw new Error(`Sync command failed: ${response.status} ${await response.text()}`);
+      return unpack(Buffer.from(await response.arrayBuffer())) as WireCommandResult;
     },
     close(reason: string) {
       disconnectReason = reason;
@@ -363,6 +476,13 @@ async function openWebSocketConnection(
       socket.send(pack(message));
       return Promise.resolve();
     },
+    sendCommand(command) {
+      if (socket.readyState !== WebSocket.OPEN) {
+        return Promise.resolve();
+      }
+      socket.send(pack(command));
+      return Promise.resolve();
+    },
     close(reason: string) {
       disconnectReason = reason;
       socket.close(1000, reason);
@@ -375,6 +495,13 @@ async function openWebSocketConnection(
 
 function buildAckUrl(syncEndpoint: string, key: Buffer): string {
   const base = syncEndpoint.replace(/\/sync(?:\?.*)?$/, "/sync/ack");
+  const params = new URLSearchParams();
+  params.set("key", key.toString("base64url"));
+  return `${base}?${params.toString()}`;
+}
+
+function buildCommandUrl(syncEndpoint: string, key: Buffer): string {
+  const base = syncEndpoint.replace(/\/sync(?:\?.*)?$/, "/sync/command");
   const params = new URLSearchParams();
   params.set("key", key.toString("base64url"));
   return `${base}?${params.toString()}`;
@@ -413,6 +540,22 @@ function fromWireStreamEvent(
 
 function itemStateKey(collection: string, id: number): string {
   return `${collection}:${id}`;
+}
+
+function fromWireCommandResult(wireEvent: unknown): CommandResultEvent | null {
+  if (!Array.isArray(wireEvent)) return null;
+  const type = wireEvent[0];
+  if (type === CommandResult.REFRESH) {
+    const [, commandId, status, ignoredItemIds] = wireEvent as WireCommandResult;
+    if (typeof commandId !== "number" || typeof status !== "number") return null;
+    return { type, commandId, status, ignoredItemIds };
+  }
+  if (type === CommandResult.REFRESH_ALL) {
+    const [, commandId, status] = wireEvent as WireCommandResult;
+    if (typeof commandId !== "number" || typeof status !== "number") return null;
+    return { type, commandId, status };
+  }
+  return null;
 }
 
 function fromWireEvent(
@@ -589,4 +732,8 @@ function isWireEventBatch(payload: WireStreamPayload): payload is WireEvent[] {
 
 function isPingEvent(payload: WireStreamPayload): boolean {
   return payload[0] === EventType.PING;
+}
+
+function isCommandResultPayload(payload: WireStreamPayload): boolean {
+  return payload[0] === CommandResult.REFRESH || payload[0] === CommandResult.REFRESH_ALL;
 }

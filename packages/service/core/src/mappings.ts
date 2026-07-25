@@ -1,4 +1,4 @@
-import { PropertyType } from "./schemas";
+import { PropertyType, propertyTypeBase } from "./schemas";
 
 /**
  * A mapping rule defining how a source property maps to a target property.
@@ -45,10 +45,12 @@ const SAFE_CASTS: [number, number, string][] = [
  * Returns the cast string if sourceType can be safely cast to targetType, or null otherwise.
  */
 export function safeCast(sourceType: number, targetType: number): string | null {
-  // Direct type overlap — no cast needed
-  if (sourceType & targetType) return null;
+  sourceType = propertyTypeBase(sourceType) & ~PropertyType.NULL;
+  targetType = propertyTypeBase(targetType) & ~PropertyType.NULL;
+  // Every possible source value already fits the target — no cast needed.
+  if ((sourceType & ~targetType) === 0) return null;
   for (const [from, to, cast] of SAFE_CASTS) {
-    if (sourceType & from && targetType & to) return cast;
+    if (sourceType === from && (targetType & to) !== 0) return cast;
   }
   return null;
 }
@@ -60,8 +62,14 @@ export function typeCompatibility(
   sourceType: number,
   targetType: number,
 ): { compatible: true; cast: string | null } | { compatible: false } {
-  if (sourceType & targetType) return { compatible: true, cast: null };
-  const cast = safeCast(sourceType, targetType);
+  const sourceBase = propertyTypeBase(sourceType);
+  const targetBase = propertyTypeBase(targetType);
+  if ((sourceBase & PropertyType.NULL) !== 0 && (targetBase & PropertyType.NULL) === 0)
+    return { compatible: false };
+  const sourceValues = sourceBase & ~PropertyType.NULL;
+  const targetValues = targetBase & ~PropertyType.NULL;
+  if ((sourceValues & ~targetValues) === 0) return { compatible: true, cast: null };
+  const cast = safeCast(sourceValues, targetValues);
   if (cast) return { compatible: true, cast };
   return { compatible: false };
 }

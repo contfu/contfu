@@ -6,6 +6,7 @@ import {
   internalLinkTable,
   itemFileTable,
   itemsTable,
+  mediaMasterTable,
   mediaVariantTable,
   syncTable,
 } from "../src/infra/db/schema";
@@ -16,6 +17,7 @@ import {
  */
 export function truncateAllTables(): void {
   db.delete(mediaVariantTable).run();
+  db.delete(mediaMasterTable).run();
   db.delete(itemFileTable).run();
   db.delete(fileTable).run();
   db.delete(externalLinkTable).run();

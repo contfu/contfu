@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.5] - 2026-07-25
+
+### Added
+
+- Added Directus integration support.
+
 ## [0.1.4] - 2026-07-01
 
 ### Changed

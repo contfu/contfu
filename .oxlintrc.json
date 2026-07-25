@@ -136,25 +136,11 @@
     "typescript/prefer-enum-initializers": "error",
     "typescript/prefer-literal-enum-member": "error",
     "contfu/prefer-enum-helper": "error",
-    "contfu/no-backend-infra-db-import": "error"
+    "contfu/no-backend-infra-db-import": "error",
+    "contfu/no-cross-slice-imports": "error",
+    "contfu/one-feature-export-per-module": "error"
   },
   "overrides": [
-    {
-      "files": ["packages/service/backend/src/features/**/*.ts"],
-      "rules": {
-        "no-restricted-imports": [
-          "error",
-          {
-            "patterns": [
-              {
-                "group": ["../[!.]*/**", "@contfu/svc-backend/features/**"],
-                "message": "VSA: feature slices must not import other features. Move cross-feature code to shared/<topic>/, pure logic to domain/, or io to infra/."
-              }
-            ]
-          }
-        ]
-      }
-    },
     {
       "files": ["packages/service/backend/src/domain/**/*.ts"],
       "rules": {
@@ -169,7 +155,7 @@
                   "**/features/**",
                   "@contfu/svc-backend/features/**"
                 ],
-                "message": "VSA: domain is pure business logic and must not import infra or features. Move io to infra/, and keep cross-feature orchestration in features/."
+                "message": "VSA: domain is pure business logic and must not import infra or features. Move io to infra/, and keep composition in an explicit feature entry point."
               }
             ]
           }

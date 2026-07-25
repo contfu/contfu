@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { browser } from "$app/environment";
   import { error } from "@sveltejs/kit";
   import { invalidateAll } from "$app/navigation";
   import { page } from "$app/state";
@@ -102,15 +101,15 @@
     });
   });
 
-  $effect(() => {
-    if (!browser) return;
-    localStorage.setItem(PROPS_VIEW_KEY, propsView);
-  });
+  function setPropsView(view: "pairs" | "json") {
+    propsView = view;
+    localStorage.setItem(PROPS_VIEW_KEY, view);
+  }
 
-  $effect(() => {
-    if (!browser) return;
-    localStorage.setItem(CONTENT_VIEW_KEY, contentView);
-  });
+  function setContentView(view: "rendered" | "json") {
+    contentView = view;
+    localStorage.setItem(CONTENT_VIEW_KEY, view);
+  }
 
   function formatPropValue(value: unknown): string {
     if (value === null || value === undefined) return "-";
@@ -196,7 +195,7 @@
             type="button"
             size="sm"
             variant={propsView === "pairs" ? "secondary" : "ghost"}
-            onclick={() => (propsView = "pairs")}
+            onclick={() => setPropsView("pairs")}
           >
             Key-Value
           </Button>
@@ -204,7 +203,7 @@
             type="button"
             size="sm"
             variant={propsView === "json" ? "secondary" : "ghost"}
-            onclick={() => (propsView = "json")}
+            onclick={() => setPropsView("json")}
           >
             JSON
           </Button>
@@ -392,7 +391,7 @@
             type="button"
             size="sm"
             variant={contentView === "rendered" ? "secondary" : "ghost"}
-            onclick={() => (contentView = "rendered")}
+            onclick={() => setContentView("rendered")}
           >
             Rendered
           </Button>
@@ -400,7 +399,7 @@
             type="button"
             size="sm"
             variant={contentView === "json" ? "secondary" : "ghost"}
-            onclick={() => (contentView = "json")}
+            onclick={() => setContentView("json")}
           >
             JSON
           </Button>

@@ -1,6 +1,6 @@
 # System properties
 
-Contfu normalizes a small set of cross-provider metadata into reserved, `$`-prefixed **system properties**. They give applications a stable contract for things like identity, publishing state, and timestamps without having to know whether the content came from Contentful, Sanity, Strapi, or WordPress.
+Contfu normalizes a small set of cross-provider metadata into reserved, `$`-prefixed **system properties**. They give applications a stable contract for things like identity, publishing state, and timestamps without having to know whether the content came from Contentful, Notion, Sanity, Strapi, or WordPress.
 
 System properties are distinct from your content fields:
 
@@ -40,16 +40,21 @@ There is deliberately no separate `$updatedAt`: `$changedAt` already carries the
 
 Each provider contributes only the timestamps it actually reports:
 
-| Provider   | `$createdAt`                  | `$publishedAt`      | `$changedAt`          |
-| ---------- | ----------------------------- | ------------------- | --------------------- |
-| Contentful | yes                           | yes                 | yes (`sys.updatedAt`) |
-| Sanity     | yes                           | — (no publish time) | yes (`_updatedAt`)    |
-| Strapi     | yes                           | yes                 | yes (`updatedAt`)     |
-| WordPress  | — (no distinct creation time) | yes (`date_gmt`)    | yes (`modified_gmt`)  |
+| Provider   | `$createdAt`                  | `$publishedAt`      | `$changedAt`             |
+| ---------- | ----------------------------- | ------------------- | ------------------------ |
+| Contentful | yes                           | yes                 | yes (`sys.updatedAt`)    |
+| Notion     | yes (`created_time`)          | — (no publish time) | yes (`last_edited_time`) |
+| Sanity     | yes                           | — (no publish time) | yes (`_updatedAt`)       |
+| Strapi     | yes                           | yes                 | yes (`updatedAt`)        |
+| WordPress  | — (no distinct creation time) | yes (`date_gmt`)    | yes (`modified_gmt`)     |
 
 Sanity models publishing structurally rather than with a timestamp, so it has no `$publishedAt`. WordPress has no creation timestamp separate from its publish date, so it has no `$createdAt`. In both cases the missing property is simply absent — Contfu does not synthesize a value, because the source is the system of record.
 
 Providers that expose their own raw timestamp fields (for example WordPress `dateGmt` and `modifiedGmt`) still deliver those as ordinary content properties. Prefer the normalized `$`-properties for portable application code, and reach for the raw fields only when you need the exact provider representation.
+
+### Notion migration
+
+Notion page-level `created_time` is now exposed as `$createdAt`. This replaces the former synthetic `createdAt` property. A real Notion database property named **Created At** remains the ordinary `createdAt` field (and **Last Edited At** remains `lastEditedAt`); neither is promoted to system metadata. Refresh or resync affected Notion source collections, then regenerate application types and migrate mappings, filters, and consumers from the former synthetic `createdAt` to `$createdAt`.
 
 ## Querying
 

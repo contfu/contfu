@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.2.2] - 2026-07-25
+
+### Added
+
+- Added Directus integration support.
+- Added refresh-based media repair and canonical media masters for local reprocessing.
+- Added application refresh command protocol support.
+- Preserved Notion emoji page icons.
+
+### Changed
+
+- Documented local media reprocessing and refresh repair.
+- Enforced vertical-slice boundaries.
+- Upgraded TypeScript.
+
 ## [0.2.1] - 2026-07-01
 
 ### Added

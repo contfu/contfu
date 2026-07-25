@@ -1,5 +1,5 @@
 import { defineEnum, type EnumValue } from "@contfu/core";
-import { PropertyType } from "./schemas";
+import { PropertyType, propertyTypeBase } from "./schemas";
 
 /**
  * Filter operators for collection filtering.
@@ -73,7 +73,7 @@ export interface Filter {
  */
 export function getOperatorsForType(propertyType: number): FilterOperator[] {
   // Strip nullable flag to get the base type
-  const baseType = propertyType & ~PropertyType.NULL;
+  const baseType = propertyTypeBase(propertyType) & ~PropertyType.NULL;
 
   switch (baseType) {
     case PropertyType.STRING:

@@ -31,7 +31,6 @@ const query = contfuClient("https://your-server.example.com", "bearer-token");
 ## Exports
 
 - `contfuClient(baseUrl, token?, { i18n, basicAuth })` — create a typed HTTP query callable
-- `createHttpClient(...)` / `createHttpTypedClient(...)` — deprecated aliases for `contfuClient`
 - `serializeQueryParams(opts)` — serialize query options such as filter, search, sort, include, fields, locale, fallback, and flat mode to URL query params
 - `QueryResultArray` — typed wrapper around paginated item results
 - Query helpers from `@contfu/core`: `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `and`, `or`, `all`, `oneOf`, `contains`, `like`, `notLike`, `linksTo`, `linkedFrom`, `createItemRef`, and `isFieldRef`

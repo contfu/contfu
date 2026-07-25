@@ -42,6 +42,11 @@ describe("autoWireMappings", () => {
     expect(rules).toEqual([]);
   });
 
+  test("mixed source unions are not auto-wired to a file-only target", () => {
+    const rules = autoWireMappings({ icon: T.FILE }, { icon: T.FILE | T.STRING });
+    expect(rules).toEqual([]);
+  });
+
   test("scoring priority: exact+direct beats others", () => {
     const rules = autoWireMappings({ title: T.STRING }, { title: T.STRING, name: T.STRING });
     expect(rules).toEqual([{ source: "title", target: "title" }]);
@@ -119,6 +124,20 @@ describe("applyMappings", () => {
     const props = { title: "Hello" };
     const mappings: MappingRule[] = [{ source: "title" }];
     expect(applyMappings(props, mappings)).toEqual({ title: "Hello" });
+  });
+
+  test("maps normalized and explicit creation timestamps independently", () => {
+    const props = { $createdAt: 1, createdAt: 2 };
+    const mappings: MappingRule[] = [
+      { source: "$createdAt", target: "sourceCreatedAt" },
+      { source: "createdAt", target: "databaseCreatedAt" },
+    ];
+
+    expect(applyMappings(props, mappings)).toEqual({
+      $createdAt: 1,
+      sourceCreatedAt: 1,
+      databaseCreatedAt: 2,
+    });
   });
 
   test("drops unmapped source properties", () => {
@@ -419,6 +438,16 @@ describe("applyMappingsToSchema", () => {
     const schema = { title: T.STRING, extra: T.NUMBER };
     const mappings: MappingRule[] = [{ source: "title", target: "title" }];
     expect(applyMappingsToSchema(schema, mappings)).toEqual({ title: T.STRING });
+  });
+
+  test("preserves normalized system timestamps while mapping explicit timestamps", () => {
+    const schema = { $createdAt: T.NUMBER, createdAt: T.DATE };
+    const mappings: MappingRule[] = [{ source: "createdAt", target: "databaseCreatedAt" }];
+
+    expect(applyMappingsToSchema(schema, mappings)).toEqual({
+      $createdAt: T.NUMBER,
+      databaseCreatedAt: T.DATE,
+    });
   });
 
   test("drops $ref from pass-through schemas unless explicitly mapped", () => {

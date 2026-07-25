@@ -1,29 +1,40 @@
-import { connectToStream, type ItemEvent, type StreamEvent } from "@contfu/connect";
-import { EventType } from "@contfu/core";
+import {
+  connectToStream,
+  type CommandResultEvent,
+  type ItemEvent,
+  type StreamEvent,
+} from "@contfu/connect";
+import { CommandResult, EventType } from "@contfu/core";
 import { sql } from "drizzle-orm";
-import { createOrUpdateItem } from "../items/createOrUpdateItem";
-import { deleteItem } from "../items/deleteItem";
-import { deleteOutgoingItemLinks } from "../items/deleteOutgoingItemLinks";
-import { extractLinks, replacePlaceholders, type LinkRecord } from "../items/extractLinks";
-import { setSyncIndex } from "../sync/setSyncIndex";
-import { configureMediaQueue, resumeMediaQueue } from "../files/mediaQueue";
-import { processFiles, processPropertyFiles } from "../files/processFiles";
-import { deleteFilesByItem } from "../files/deleteFilesByItem";
-import { setCollection } from "../collections/setCollection";
-import { renameCollection } from "../collections/renameCollection";
-import { removeCollectionByName } from "../collections/removeCollectionByName";
-import { getCollectionSchemaByName } from "../collections/getCollectionSchemaByName";
-import { db } from "../../infra/db/db";
-import { externalLinkTable, internalLinkTable } from "../../infra/db/schema";
+import { createOrUpdateItem } from "./features/items/createOrUpdateItem";
+import { deleteItem } from "./features/items/deleteItem";
+import { deleteOutgoingItemLinks } from "./features/items/deleteOutgoingItemLinks";
+import { extractLinks, type LinkRecord } from "./features/items/extractLinks";
+import { replacePlaceholders } from "./features/items/replacePlaceholders";
+import { setSyncIndex } from "./features/sync/setSyncIndex";
+import { configureMediaQueue } from "./features/files/mediaQueue";
+import { reconcileConfiguredMediaMasters } from "./features/files/reconcileConfiguredMediaMasters";
+import { resumeMediaQueue } from "./features/files/resumeMediaQueue";
+import { processFiles } from "./features/files/processFiles";
+import { processPropertyFiles } from "./features/files/processPropertyFiles";
+import { deleteFilesByItem } from "./features/files/deleteFilesByItem";
+import { setCollection } from "./features/collections/setCollection";
+import { renameCollection } from "./features/collections/renameCollection";
+import { removeCollectionByName } from "./features/collections/removeCollectionByName";
+import { getCollectionSchemaByName } from "./features/collections/getCollectionSchemaByName";
+import { createMediaRepairCoordinator } from "./features/sync/mediaRepairCoordinator";
+import { db } from "./infra/db/db";
+import { externalLinkTable, internalLinkTable } from "./infra/db/schema";
 import type {
   MediaConvertOpts,
+  MediaMasterConfig,
   MediaOptimizer,
   MediaVariants,
   MediaVariantsConfig,
   TransformMediaRule,
-} from "../../domain/media";
-import type { FileStore } from "../../domain/files";
-import { fileStore as defaultFileStore } from "../../infra/media/media-defaults";
+} from "./domain/media";
+import type { FileStore } from "./domain/files";
+import { fileStore as defaultFileStore } from "./infra/media/media-defaults";
 
 /**
  * Run the Local Runtime: use the Connector to receive Sync Messages,
@@ -38,30 +49,48 @@ export async function* connect<CMap = unknown>(opts?: {
   mediaOptimizer?: MediaOptimizer;
   transformMedia?: TransformMediaRule<CMap>[];
   mediaVariants?: MediaVariants<CMap>;
+  mediaMaster?: false | MediaMasterConfig;
   localFiles?: boolean;
   mediaQueueConcurrency?: number;
-}): AsyncGenerator<ItemEvent | StreamEvent> {
+  commandResults?: boolean;
+}): AsyncGenerator<ItemEvent | StreamEvent | CommandResultEvent> {
   const {
     connectionEvents: _connectionEvents,
     fileStore: userFileStore,
     mediaOptimizer,
     transformMedia,
     mediaVariants,
+    mediaMaster,
     localFiles = true,
     mediaQueueConcurrency = 2,
     ...restOpts
   } = opts ?? {};
   const resolvedFileStore = userFileStore ?? defaultFileStore;
-  if (localFiles)
+  const mediaRepair = createMediaRepairCoordinator();
+  if (localFiles) {
     configureMediaQueue({
       fileStore: resolvedFileStore,
       mediaOptimizer,
+      mediaMaster,
+      transformMedia: transformMedia as TransformMediaRule[],
+      mediaVariants: mediaVariants as MediaVariants,
       concurrency: mediaQueueConcurrency,
+      onCloudRepair: (request) =>
+        mediaRepair.repair(request.collection, request.itemIds, request.source),
     });
+    await reconcileConfiguredMediaMasters();
+  }
   const baseOpts = restOpts;
 
   if (opts?.connectionEvents) {
-    for await (const event of connectToStream({ ...baseOpts, connectionEvents: true })) {
+    const stream = connectToStream({ ...baseOpts, connectionEvents: true });
+    for await (const event of stream) {
+      if (event.type === EventType.STREAM_CONNECTED) mediaRepair.connected(stream);
+      if (event.type === EventType.STREAM_DISCONNECTED) mediaRepair.disconnected();
+      if (event.type === CommandResult.REFRESH || event.type === CommandResult.REFRESH_ALL) {
+        yield event;
+        continue;
+      }
       if (
         event.type === EventType.STREAM_CONNECTED ||
         event.type === EventType.STREAM_DISCONNECTED ||
@@ -84,7 +113,21 @@ export async function* connect<CMap = unknown>(opts?: {
     return;
   }
 
-  for await (const event of connectToStream(baseOpts)) {
+  const stream = connectToStream({ ...baseOpts, connectionEvents: true });
+  for await (const event of stream) {
+    if (event.type === EventType.STREAM_CONNECTED) {
+      mediaRepair.connected(stream);
+      continue;
+    }
+    if (event.type === EventType.STREAM_DISCONNECTED) {
+      mediaRepair.disconnected();
+      continue;
+    }
+    if (event.type === EventType.SNAPSHOT_START || event.type === EventType.SNAPSHOT_END) continue;
+    if (event.type === CommandResult.REFRESH || event.type === CommandResult.REFRESH_ALL) {
+      yield event;
+      continue;
+    }
     await persistSyncEvent(
       event,
       resolvedFileStore,

@@ -7,6 +7,12 @@ export type Heading3Block = [type: "3", text: Inline[]];
 export type UnorderedListBlock = [type: "u", ...items: (Inline | Block)[][]];
 export type OrderedListBlock = [type: "o", ...items: (Inline | Block)[][]];
 export type TableBlock = [type: "t", hasHeader: boolean, cells: (Block | Inline)[][][]];
+/**
+ * Provider-neutral rich-text image: normalized URL and alternative text only.
+ *
+ * Media metadata such as dimensions, formats, captions, MIME data, and provider
+ * identifiers belongs to provider media-field contracts, not embedded image blocks.
+ */
 export type ImageBlock = [type: "i", canonical: string, alt: string];
 export type Component = [type: "x", name: string, props: Record<string, any>, children: Block[]];
 
@@ -87,7 +93,7 @@ export function isString(text?: Inline | null): text is string {
 }
 
 export function toPlainText(inlines: Inline[]) {
-  return inlines.map((t) => (isString(t) ? t : t[1])).join(" ");
+  return inlines.map((t) => (isString(t) ? t : t[1])).join("");
 }
 
 export function getText(block: Block): Inline[] {

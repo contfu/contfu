@@ -1,3 +1,4 @@
+import { ApplicationCommand, CommandResult, type RefreshStatus } from "./commands";
 import { ClientEventType, EventType } from "./events";
 import { defineEnum, type EnumValue } from "./enums";
 import type { EffectiveCollectionI18nConfig } from "./i18n";
@@ -17,6 +18,8 @@ import type { CollectionSchema } from "./schemas";
  * - COLLECTION_REMOVED: [12, collectionName] (EventType.COLLECTION_REMOVED)
  * - ITEM_CHANGED: [30, wireItem, index] (EventType.ITEM_CHANGED)
  * - ITEM_DELETED: [31, itemId, index] (EventType.ITEM_DELETED)
+ * - COMMAND_RESULT_REFRESH: [50, commandId, status, ignoredItemIds?] (CommandResult.REFRESH)
+ * - COMMAND_RESULT_REFRESH_ALL: [51, commandId, status] (CommandResult.REFRESH_ALL)
  */
 
 /** Item-related events sent to consumers via /api/sync. */
@@ -56,6 +59,10 @@ export type WireCollectionRenamedEvent = [
 export type WireCollectionRemovedEvent = [typeof EventType.COLLECTION_REMOVED, string];
 
 /** Combined wire event type for client integrations. */
+export type WireCommandResult =
+  | [typeof CommandResult.REFRESH, number, RefreshStatus, number[]?]
+  | [typeof CommandResult.REFRESH_ALL, number, RefreshStatus];
+
 export type WireEvent =
   | [typeof EventType.PING]
   | WireItemEvent
@@ -63,7 +70,8 @@ export type WireEvent =
   | WireCollectionRenamedEvent
   | WireCollectionRemovedEvent
   | [typeof EventType.SNAPSHOT_START]
-  | [typeof EventType.SNAPSHOT_END];
+  | [typeof EventType.SNAPSHOT_END]
+  | WireCommandResult;
 
 /** Client-to-server WebSocket control messages. */
 export type WireEventBatch = WireEvent[];
@@ -76,7 +84,22 @@ export const BatchEffectType = defineEnum({
 });
 export type BatchEffectType = EnumValue<typeof BatchEffectType>;
 
-export type ClientWireEvent = [typeof ClientEventType.ACK];
+export type WireRefreshCommand = [
+  typeof ApplicationCommand.REFRESH,
+  number,
+  string,
+  number[],
+  boolean?,
+];
+export type WireRefreshAllCommand = [
+  typeof ApplicationCommand.REFRESH_ALL,
+  number,
+  string,
+  boolean?,
+];
+export type WireCommand = WireRefreshCommand | WireRefreshAllCommand;
+
+export type ClientWireEvent = [typeof ClientEventType.ACK] | WireCommand;
 
 /**
  * Full wire item tuple:

@@ -3,6 +3,7 @@ import {
   IntegrationTypeMeta,
   PropertyType,
   canonicalizeBcp47,
+  propertyTypeBase,
   schemaType,
   type ServiceCollection,
   type ServiceFlow,
@@ -480,7 +481,7 @@ function untransformSchema(obj: unknown): unknown {
 
 function isScalarSchemaValue(value: unknown): boolean {
   if (value === undefined) return false;
-  const type = schemaType(value as never);
+  const type = propertyTypeBase(schemaType(value as never)) & ~PropertyType.NULL;
   const scalarTypes: readonly number[] = [
     PropertyType.STRING,
     PropertyType.NUMBER,
@@ -515,7 +516,7 @@ function validateCollectionI18nFields(collection: ServiceCollection, body: Updat
 function transformSchema(schema: CollectionSchema): Record<string, string> {
   return Object.fromEntries(
     Object.entries(schema).map(([prop, value]) => {
-      const type = schemaType(value);
+      const type = propertyTypeBase(schemaType(value)) & ~PropertyType.NULL;
       const label = PROPERTY_TYPE_LABEL[type] ?? String(type);
       const enumVals = Array.isArray(value) ? value[1] : undefined;
       return [prop, enumVals && enumVals.length > 0 ? `${label}(${enumVals.join("|")})` : label];

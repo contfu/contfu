@@ -1,6 +1,6 @@
 {
   "name": "@contfu/contfu",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Local Runtime and Local Store library for Contfu-powered applications",
   "license": "MIT",
   "repository": {
@@ -59,8 +59,8 @@
     "build": "bun run build:lib && bun run build:esm"
   },
   "dependencies": {
-    "@contfu/connect": "workspace:^0.1.4",
-    "@contfu/core": "workspace:^0.2.1",
+    "@contfu/connect": "workspace:^0.1.5",
+    "@contfu/core": "workspace:^0.2.2",
     "drizzle-orm": "1.0.0-rc.3"
   },
   "devDependencies": {
@@ -70,11 +70,11 @@
     "ts-essentials": "^10.2.1"
   },
   "peerDependencies": {
-    "typescript": "^5.9.3"
+    "typescript": "^7.0.2"
   },
   "optionalDependencies": {
-    "@contfu/bun-file-store": "workspace:^0.1.5",
-    "@contfu/media-optimizer": "workspace:^0.1.5",
-    "@contfu/media-optimizer-remote": "workspace:^0.1.5"
+    "@contfu/bun-file-store": "workspace:^0.1.6",
+    "@contfu/media-optimizer": "workspace:^0.1.6",
+    "@contfu/media-optimizer-remote": "workspace:^0.1.6"
   }
 }

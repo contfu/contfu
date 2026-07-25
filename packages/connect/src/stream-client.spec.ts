@@ -1,6 +1,13 @@
+/* oxlint-disable typescript/await-thenable -- Linux type-aware lint reports false positives for async iterator tests here */
 import { afterEach, describe, expect, test } from "bun:test";
-import { EventType, type Block } from "@contfu/core";
-import { pack } from "msgpackr";
+import {
+  ApplicationCommand,
+  CommandResult,
+  EventType,
+  RefreshStatus,
+  type Block,
+} from "@contfu/core";
+import { pack, unpack } from "msgpackr";
 import { connectToStream } from "./stream-client";
 
 function createBinaryMessage(wireEvent: unknown): Uint8Array {
@@ -29,7 +36,7 @@ function createMockStream(messages: Uint8Array[]): ReadableStream<Uint8Array> {
 }
 
 function mockFetch(stream: ReadableStream<Uint8Array>, status = 200) {
-  globalThis.WebSocket = createFailingWebSocketClass() as typeof WebSocket;
+  globalThis.WebSocket = createFailingWebSocketClass() as unknown as typeof WebSocket;
   globalThis.fetch = ((_url: string) =>
     Promise.resolve({
       ok: status >= 200 && status < 300,
@@ -43,7 +50,7 @@ function mockFetchCapture(
   messages: Uint8Array[],
   status = 200,
 ): { getUrl: () => string; getCallCount: () => number; getUrls: () => string[] } {
-  globalThis.WebSocket = createFailingWebSocketClass() as typeof WebSocket;
+  globalThis.WebSocket = createFailingWebSocketClass() as unknown as typeof WebSocket;
   const calledUrls: string[] = [];
   let callCount = 0;
   globalThis.fetch = ((_url: string) => {
@@ -89,11 +96,16 @@ type MockReadResult = { value: Uint8Array | undefined; done: boolean };
 function createStallingBody() {
   let resolveRead: ((result: MockReadResult) => void) | null = null;
   let cancelled = false;
+  let readStarted = false;
 
   return {
+    isReading() {
+      return readStarted;
+    },
     getReader() {
       return {
         read() {
+          readStarted = true;
           if (cancelled) {
             return Promise.resolve({ value: undefined, done: true });
           }
@@ -318,9 +330,78 @@ describe("stream-client", () => {
   });
 
   describe("websocket transport", () => {
+    test("sends refresh commands with monotonic ids and yields command results", async () => {
+      const sockets: MockWebSocket[] = [];
+      globalThis.WebSocket = createMockWebSocketClass(sockets) as unknown as typeof WebSocket;
+
+      const client = connectToStream({ key: testKey, reconnect: false });
+      const eventsPromise = collectEvents(async () => {
+        const events: unknown[] = [];
+        for await (const event of client) events.push(event);
+        return events;
+      });
+
+      await waitFor(() => sockets.length === 1 && sockets[0].ready());
+      const first = client.refresh("posts", [1, 2]);
+      const second = client.refreshAll("posts");
+      expect(sockets[0].sent()).toEqual([
+        [ApplicationCommand.REFRESH, 1, "posts", [1, 2]],
+        [ApplicationCommand.REFRESH_ALL, 2, "posts"],
+      ]);
+
+      sockets[0].emit(pack([CommandResult.REFRESH, 1, RefreshStatus.ACCEPTED, [2]]));
+      sockets[0].emit(pack([CommandResult.REFRESH_ALL, 2, RefreshStatus.ACCEPTED]));
+      expect(await first).toEqual({
+        type: CommandResult.REFRESH,
+        commandId: 1,
+        status: RefreshStatus.ACCEPTED,
+        ignoredItemIds: [2],
+      });
+      expect(await second).toEqual({
+        type: CommandResult.REFRESH_ALL,
+        commandId: 2,
+        status: RefreshStatus.ACCEPTED,
+      });
+      sockets[0].close(1000, "done");
+
+      expect(await eventsPromise).toEqual([
+        {
+          type: CommandResult.REFRESH,
+          commandId: 1,
+          status: RefreshStatus.ACCEPTED,
+          ignoredItemIds: [2],
+        },
+        { type: CommandResult.REFRESH_ALL, commandId: 2, status: RefreshStatus.ACCEPTED },
+      ]);
+    });
+
+    test("suppresses yielded command results when commandResults is false", async () => {
+      const sockets: MockWebSocket[] = [];
+      globalThis.WebSocket = createMockWebSocketClass(sockets) as unknown as typeof WebSocket;
+
+      const client = connectToStream({ key: testKey, reconnect: false, commandResults: false });
+      const eventsPromise = collectEvents(async () => {
+        const events: unknown[] = [];
+        for await (const event of client) events.push(event);
+        return events;
+      });
+
+      await waitFor(() => sockets.length === 1 && sockets[0].ready());
+      const result = client.refresh("posts", [1]);
+      sockets[0].emit(pack([CommandResult.REFRESH, 1, RefreshStatus.ACCEPTED]));
+      expect(await result).toEqual({
+        type: CommandResult.REFRESH,
+        commandId: 1,
+        status: RefreshStatus.ACCEPTED,
+        ignoredItemIds: undefined,
+      });
+      sockets[0].close(1000, "done");
+      expect(await eventsPromise).toEqual([]);
+    });
+
     test("parses binary websocket messages", async () => {
       const sockets: MockWebSocket[] = [];
-      globalThis.WebSocket = createMockWebSocketClass(sockets) as typeof WebSocket;
+      globalThis.WebSocket = createMockWebSocketClass(sockets) as unknown as typeof WebSocket;
 
       const eventsPromise = collectEvents(async () => {
         const events: unknown[] = [];
@@ -371,7 +452,7 @@ describe("stream-client", () => {
     });
 
     test("retries initial HTTP failures by default", async () => {
-      globalThis.WebSocket = createFailingWebSocketClass() as typeof WebSocket;
+      globalThis.WebSocket = createFailingWebSocketClass() as unknown as typeof WebSocket;
       await withImmediateReconnectDelays(async (delays) => {
         let callCount = 0;
         globalThis.fetch = ((_url: string) => {
@@ -416,7 +497,7 @@ describe("stream-client", () => {
     });
 
     test("caps reconnect backoff and resets it after a successful connection", async () => {
-      globalThis.WebSocket = createFailingWebSocketClass() as typeof WebSocket;
+      globalThis.WebSocket = createFailingWebSocketClass() as unknown as typeof WebSocket;
       await withImmediateReconnectDelays(async (delays) => {
         let callCount = 0;
         globalThis.fetch = ((_url: string) => {
@@ -456,7 +537,7 @@ describe("stream-client", () => {
     });
 
     test("reconnects after a mid-stream disconnect without sending a replay cursor", async () => {
-      globalThis.WebSocket = createFailingWebSocketClass() as typeof WebSocket;
+      globalThis.WebSocket = createFailingWebSocketClass() as unknown as typeof WebSocket;
       await withImmediateReconnectDelays(async (delays) => {
         const urls: string[] = [];
         let callCount = 0;
@@ -494,7 +575,7 @@ describe("stream-client", () => {
     });
 
     test("closes stalled HTTP streams and reconnects", async () => {
-      globalThis.WebSocket = createFailingWebSocketClass() as typeof WebSocket;
+      globalThis.WebSocket = createFailingWebSocketClass() as unknown as typeof WebSocket;
       const originalSetInterval = globalThis.setInterval;
       const originalClearInterval = globalThis.clearInterval;
       const originalSetTimeout = globalThis.setTimeout;
@@ -580,7 +661,7 @@ describe("stream-client", () => {
     });
 
     test("swallows expected HTTP stream close rejections when the consumer stops", async () => {
-      globalThis.WebSocket = createFailingWebSocketClass() as typeof WebSocket;
+      globalThis.WebSocket = createFailingWebSocketClass() as unknown as typeof WebSocket;
       const originalSetInterval = globalThis.setInterval;
       const originalClearInterval = globalThis.clearInterval;
       const originalDateNow = Date.now;
@@ -662,6 +743,7 @@ describe("stream-client", () => {
 
     test("acks a processed mutation batch without sending sequence progress", async () => {
       const calls: Array<{ url: string; method?: string }> = [];
+      globalThis.WebSocket = createFailingWebSocketClass() as unknown as typeof WebSocket;
 
       globalThis.fetch = ((url: string, init?: RequestInit) => {
         calls.push({ url, method: init?.method });
@@ -695,7 +777,7 @@ describe("stream-client", () => {
   describe("transport fallback", () => {
     test("uses websocket first when setup succeeds", async () => {
       const sockets: MockWebSocket[] = [];
-      globalThis.WebSocket = createMockWebSocketClass(sockets) as typeof WebSocket;
+      globalThis.WebSocket = createMockWebSocketClass(sockets) as unknown as typeof WebSocket;
       const fetchCalls: string[] = [];
       globalThis.fetch = ((url: string) => {
         fetchCalls.push(url);
@@ -725,9 +807,9 @@ describe("stream-client", () => {
     });
 
     test("falls back to HTTP when websocket setup fails", async () => {
-      globalThis.WebSocket = createFailingWebSocketClass() as typeof WebSocket;
+      globalThis.WebSocket = createFailingWebSocketClass() as unknown as typeof WebSocket;
       const { getUrls } = mockFetchCapture([createBinaryMessage([EventType.ITEM_DELETED, 7, 3])]);
-      globalThis.WebSocket = createFailingWebSocketClass() as typeof WebSocket;
+      globalThis.WebSocket = createFailingWebSocketClass() as unknown as typeof WebSocket;
 
       const events: unknown[] = [];
       for await (const event of connectToStream({ key: testKey, reconnect: false })) {
@@ -744,6 +826,7 @@ type MockWebSocket = {
   url: string;
   ready: () => boolean;
   emit: (data: Uint8Array) => void;
+  sent: () => unknown[];
   close: (code?: number, reason?: string) => void;
 };
 
@@ -783,6 +866,7 @@ function createMockWebSocketClass(sockets: MockWebSocket[]) {
     onmessage: ((event: MessageEvent) => void) | null = null;
     onerror: ((event: Event) => void) | null = null;
     onclose: ((event: CloseEvent) => void) | null = null;
+    private readonly sentMessages: unknown[] = [];
 
     constructor(public readonly url: string) {
       sockets.push({
@@ -793,6 +877,7 @@ function createMockWebSocketClass(sockets: MockWebSocket[]) {
             data: data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength),
           } as MessageEvent);
         },
+        sent: () => [...this.sentMessages],
         close: (code = 1000, reason = "") => {
           this.readyState = 3;
           this.onclose?.({ code, reason } as CloseEvent);
@@ -801,7 +886,13 @@ function createMockWebSocketClass(sockets: MockWebSocket[]) {
       queueMicrotask(() => this.onopen?.({} as Event));
     }
 
-    send(_data: string | ArrayBufferLike | Blob | ArrayBufferView) {}
+    send(data: string | ArrayBufferLike | Blob | ArrayBufferView) {
+      if (typeof data === "string" || data instanceof Blob) return;
+      const bytes = ArrayBuffer.isView(data)
+        ? new Uint8Array(data.buffer, data.byteOffset, data.byteLength)
+        : new Uint8Array(data);
+      this.sentMessages.push(unpack(bytes));
+    }
 
     close(code = 1000, reason = "") {
       this.readyState = 3;

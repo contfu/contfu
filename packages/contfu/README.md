@@ -55,3 +55,13 @@ The package barrel exports the Local Runtime surface used by embedded applicatio
 - Hooks and utilities: event hook composition helpers, `generateTypes`, local-store count/list helpers, `deleteNulls`, and `detectRuntime`.
 
 `@contfu/contfu/shared` omits the root-only `db` singleton export but otherwise exposes the shared Local Runtime API used by the runtime-specific entry points.
+
+## Import boundaries (VSA)
+
+- `features/<slice>/` contains public feature modules with at most one exported callable each.
+- `shared/<topic>/` contains reusable implementation and `domain/` contains pure business rules.
+- `infra/` contains storage and runtime adapters.
+
+Feature slices may use the architecture layers, but may not import sibling feature slices.
+The top-level `connect` module is the explicit composition root. Oxlint enforces both this
+path-aware boundary and the one-callable-export rule as errors without slice-specific exceptions.

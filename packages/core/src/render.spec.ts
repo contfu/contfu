@@ -160,6 +160,13 @@ describe("renderBlock", () => {
     expect(renderBlock(img)).toBe('<img src="/files/abc123def456ghij.png" alt="A photo">');
   });
 
+  test("preserves absolute HTTPS image URLs", () => {
+    const img: ImageBlock = ["i", "https://images.ctfassets.net/space/asset.png", "A photo"];
+    expect(renderBlock(img)).toBe(
+      '<img src="https://images.ctfassets.net/space/asset.png" alt="A photo">',
+    );
+  });
+
   test("image with custom baseUrl", () => {
     const img: ImageBlock = ["i", "abc123def456ghij.png", "A photo"];
     expect(renderBlock(img, { file: { baseUrl: "https://cdn.example.com/f" } })).toBe(

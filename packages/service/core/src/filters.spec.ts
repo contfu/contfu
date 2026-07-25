@@ -55,8 +55,10 @@ describe("filters", () => {
       expect(ops).not.toContain(FilterOperator.CONTAINS);
     });
 
-    test("nullable type strips NULL flag and returns base type operators", () => {
-      const ops = getOperatorsForType(PropertyType.STRING | PropertyType.NULL);
+    test("nullable type strips NULL and metadata flags and returns base type operators", () => {
+      const ops = getOperatorsForType(
+        PropertyType.STRING | PropertyType.NULL | PropertyType.IDENTITY,
+      );
       expect(ops).toContain(FilterOperator.CONTAINS);
       expect(ops).toContain(FilterOperator.STARTS_WITH);
       expect(ops).toContain(FilterOperator.IS_NULL);

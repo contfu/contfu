@@ -187,7 +187,9 @@ function defaultSchemaValue(rule: MappingRule): SchemaValue | undefined {
 
 /**
  * Remap a collection schema according to mapping rules.
- * Keys are renamed from source→target; unmapped keys are dropped.
+ * Keys are renamed from source→target; unmapped keys are dropped, except
+ * `$`-prefixed system keys (other than `$ref`), which are preserved to match
+ * runtime item mapping.
  * If a rule has cast="enum", the schema value is converted from STRING to ENUM.
  * If the source key is absent but the rule has a default, a synthetic schema entry
  * is injected (mirrors the runtime applyMappings default-fallback behaviour).
@@ -198,8 +200,9 @@ export function applyMappingsToSchema(
 ): CollectionSchema {
   if (!mappings || mappings.length === 0) return withoutExplicitRefSchema(schema);
 
-  const result: CollectionSchema =
-    DRAFT_SCHEMA_KEY in schema ? { [DRAFT_SCHEMA_KEY]: schema[DRAFT_SCHEMA_KEY] } : {};
+  const result = Object.fromEntries(
+    Object.entries(schema).filter(([key]) => key.startsWith("$") && key !== EXPLICIT_REF_KEY),
+  ) as CollectionSchema;
   for (const rule of mappings) {
     if (rule.source === DRAFT_SCHEMA_KEY) continue;
     const target = rule.target ?? rule.source;

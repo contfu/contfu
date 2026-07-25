@@ -145,17 +145,18 @@ The default Local Store path is `data/contfu.sqlite`; override with `DATABASE_UR
 
 ### Runtime options
 
-| Option                  | Default                  | Description                                                                     |
-| ----------------------- | ------------------------ | ------------------------------------------------------------------------------- |
-| `key`                   | `process.env.CONTFU_KEY` | Cloud Service auth key.                                                         |
-| `fileStore`             | database-backed          | Where downloaded files are stored ([below](#file--media-storage)).              |
-| `mediaOptimizer`        | —                        | Media processing implementation.                                                |
-| `transformMedia`        | —                        | Sync-time media conversion rules (format constraints, include/exclude filters). |
-| `mediaVariants`         | —                        | Named variant presets for on-demand serving and optional pre-generation.        |
-| `localFiles`            | `true`                   | Download remote files into your storage.                                        |
-| `cacheOptimizedFiles`   | `true`                   | Cache optimized variants in the database.                                       |
-| `mediaQueueConcurrency` | `2`                      | Concurrent media download/processing jobs.                                      |
-| `i18n`                  | —                        | App-level locale defaults ([Localization](./i18n.md#embedded-local-runtime)).   |
+| Option                  | Default                  | Description                                                                                                                                                                           |
+| ----------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `key`                   | `process.env.CONTFU_KEY` | Cloud Service auth key.                                                                                                                                                               |
+| `fileStore`             | database-backed          | Where downloaded files are stored ([below](#file--media-storage)).                                                                                                                    |
+| `mediaOptimizer`        | —                        | Media processing implementation.                                                                                                                                                      |
+| `mediaMaster`           | enabled                  | Canonical local master storage; set `false` globally or for a media type to opt out. See [media optimization](../packages/contfu/docs/media-optimization.md#canonical-media-masters). |
+| `transformMedia`        | —                        | Sync-time media conversion rules (format constraints, include/exclude filters).                                                                                                       |
+| `mediaVariants`         | —                        | Named variant presets for on-demand serving and optional pre-generation.                                                                                                              |
+| `localFiles`            | `true`                   | Download remote files into your storage.                                                                                                                                              |
+| `cacheOptimizedFiles`   | `true`                   | Cache optimized variants in the database.                                                                                                                                             |
+| `mediaQueueConcurrency` | `2`                      | Concurrent media download/processing jobs.                                                                                                                                            |
+| `i18n`                  | —                        | App-level locale defaults ([Localization](./i18n.md#embedded-local-runtime)).                                                                                                         |
 
 ### Platform builds
 
@@ -184,6 +185,14 @@ for await (const event of connect()) {
 `COLLECTION_REMOVED`, `STREAM_CONNECTED`, `STREAM_DISCONNECTED`, `SNAPSHOT_START`, and
 `SNAPSHOT_END`. It auto-reconnects; tune it with
 `{ reconnect, initialReconnectDelay, maxReconnectDelay, connectionEvents }`.
+
+### Sync acceptance and media repair
+
+A Sync Message ACK confirms that the Local Runtime accepted the item into its Local Store and queued any referenced file work. It does **not** mean that a file has downloaded, been transformed, or had its variants generated. File downloads and media processing continue asynchronously in the local media queue.
+
+When local file work finds a missing source URL or a repairable URL failure (HTTP `401`, `403`, or `404`), the Local Runtime automatically requests a targeted source refresh and redelivery when the connected source can provide it. Requests are coalesced per collection and survive stream reconnection. This is the normal repair path for expired or rejected provider URLs; **Reset Source State** and **Reset Target State** are operator recovery tools, not routine media repair steps.
+
+A refresh request only asks the Cloud Service to repair the item. It does not guarantee that the provider can issue a fresh URL, that the source pull succeeds, or that local download and processing have finished.
 
 ## File & media storage
 

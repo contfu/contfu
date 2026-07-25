@@ -262,7 +262,8 @@ export interface ScannedCollection {
   schema?: Record<string, SchemaValue> | null;
   i18n?: CollectionI18nConfig | null;
   locales?: string[];
-  routeName?: string | null;
+  refTargets?: Record<string, string[]> | null;
+  options?: Record<string, unknown> | null;
 }
 
 export interface AddScannedCollectionsBody {

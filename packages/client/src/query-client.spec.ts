@@ -1,11 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import type { Heading1Block, ImageBlock } from "@contfu/core";
-import {
-  contfuClient,
-  createHttpClient,
-  createHttpTypedClient,
-  serializeQueryParams,
-} from "./query-client";
+import { contfuClient, serializeQueryParams } from "./query-client";
 
 describe("serializeQueryParams", () => {
   test("serializes filter", () => {
@@ -92,13 +87,6 @@ describe("serializeQueryParams", () => {
     expect(params.has("contentAs")).toBe(false);
     expect(params.has("htmlOptions")).toBe(false);
     expect(params.has("markdownOptions")).toBe(false);
-  });
-});
-
-describe("contfuClient compatibility", () => {
-  test("keeps deprecated factory aliases", () => {
-    expect(createHttpClient).toBe(contfuClient);
-    expect(createHttpTypedClient).toBe(contfuClient);
   });
 });
 

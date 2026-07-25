@@ -129,6 +129,13 @@ describe("renderBlockMarkdown", () => {
     expect(renderBlockMarkdown(img)).toBe("![A photo](/files/abc123def456ghij.png)\n\n");
   });
 
+  test("preserves absolute HTTPS image URLs", () => {
+    const img: ImageBlock = ["i", "https://images.ctfassets.net/space/asset.png", "A photo"];
+    expect(renderBlockMarkdown(img)).toBe(
+      "![A photo](https://images.ctfassets.net/space/asset.png)\n\n",
+    );
+  });
+
   test("image with custom baseUrl", () => {
     const img: ImageBlock = ["i", "abc123def456ghij.png", "A photo"];
     expect(renderBlockMarkdown(img, { file: { baseUrl: "https://cdn.example.com/f" } })).toBe(

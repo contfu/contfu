@@ -17,14 +17,27 @@ Block and inline types live in `@contfu/core`:
 - **Inlines** — plain strings plus anchors, inline code, bold, and italic marks.
 
 You rarely touch these directly — render them with a framework adapter, or render to
-HTML/Markdown strings. Provider-specific block nodes are preserved as component blocks
+HTML/Markdown strings.
+
+### Embedded images
+
+Rich-text images use the provider-neutral tuple `['i', URL, alt]`. The URL is normalized
+for delivery and `alt` contains the image's alternative text (or an empty string when none
+is available). The tuple deliberately excludes dimensions, responsive formats, captions,
+MIME data, and provider identifiers so consumers can render embedded images consistently
+across sources.
+
+This narrow contract applies only to images embedded in rich content. Regular media fields
+use their provider media-field contract and may preserve additional metadata; for example,
+Strapi media fields normalized by `normalizeStrapiMedia()` are unaffected.
+
+Provider-specific block nodes are preserved as component blocks
 when possible instead of being silently dropped; for example, unsupported Contentful rich
-text nodes use component names like `contentful.<nodeType>`, unsupported Notion blocks
-use names like `notion.<blockType>` with the Notion block payload under `props.notion`,
-Sanity Portable Text image objects with resolvable asset URLs become `sanity.image`
-component blocks with an image child and raw image metadata in `props`, and custom Sanity
-Portable Text objects are emitted as component blocks with their raw `_type` metadata
-preserved in `props`.
+text nodes use component names like `contentful.<nodeType>` and unsupported Notion blocks
+use names like `notion.<blockType>` with the Notion block payload under `props.notion`.
+Sanity Portable Text images with resolvable asset URLs use the common embedded-image tuple,
+while custom Sanity Portable Text objects are emitted as component blocks with their raw
+`_type` metadata preserved in `props`.
 
 ## Framework adapters
 

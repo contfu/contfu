@@ -5,6 +5,8 @@ import {
   generateTypeScript,
   generateApplicationIntegrationTypes,
   PropertyType,
+  propertyTypeBase,
+  propertyTypeMetadata,
   schemaType,
   schemaEnumValues,
   mergeSchemaValues,
@@ -13,14 +15,14 @@ import {
 
 /**
  * Write generated TS code + assertion lines to a temp file
- * and run tsgo --noEmit to verify it compiles.
+ * and run tsc --noEmit to verify it compiles.
  */
 async function assertCompiles(code: string, description?: string): Promise<void> {
   const file = join(tmpdir(), `contfu-type-check-${Date.now()}.ts`);
   await Bun.write(file, code);
   try {
     const proc =
-      await Bun.$`bunx tsgo --noEmit --ignoreConfig --strict --target ESNext --moduleResolution bundler ${file}`.quiet();
+      await Bun.$`bunx tsc --noEmit --ignoreConfig --strict --target ESNext --moduleResolution bundler ${file}`.quiet();
     if (proc.exitCode !== 0) {
       throw new Error(
         `Type check failed${description ? ` (${description})` : ""}:\n${proc.stderr.toString()}`,
@@ -31,13 +33,13 @@ async function assertCompiles(code: string, description?: string): Promise<void>
   }
 }
 
-/** Expect tsgo to fail on the given code (negative type test). */
+/** Expect tsc to fail on the given code (negative type test). */
 async function assertDoesNotCompile(code: string): Promise<void> {
   const file = join(tmpdir(), `contfu-type-check-${Date.now()}.ts`);
   await Bun.write(file, code);
   try {
     const proc =
-      await Bun.$`bunx tsgo --noEmit --ignoreConfig --strict --target ESNext --moduleResolution bundler ${file}`.quiet();
+      await Bun.$`bunx tsc --noEmit --ignoreConfig --strict --target ESNext --moduleResolution bundler ${file}`.quiet();
     if (proc.exitCode === 0) {
       throw new Error("Expected type check to fail, but it succeeded");
     }
@@ -48,7 +50,30 @@ async function assertDoesNotCompile(code: string): Promise<void> {
   }
 }
 
+describe("PropertyType flags", () => {
+  it("keeps metadata outside base types", () => {
+    expect(propertyTypeBase(PropertyType.LOCALE)).toBe(0);
+    const type =
+      PropertyType.STRING | PropertyType.LOCALE | PropertyType.IDENTITY | PropertyType.UPDATED_AT;
+    expect(propertyTypeBase(type)).toBe(PropertyType.STRING);
+    expect(propertyTypeMetadata(type)).toBe(
+      PropertyType.LOCALE | PropertyType.IDENTITY | PropertyType.UPDATED_AT,
+    );
+  });
+});
+
 describe("generateTypeScript", () => {
+  it("renders locale properties as strings", () => {
+    const ts = generateTypeScript([
+      {
+        name: "posts",
+        displayName: "Posts",
+        schema: { locale: PropertyType.STRING | PropertyType.LOCALE },
+      },
+    ]);
+    expect(ts).toContain("locale: string;");
+  });
+
   it("generates TypeScript unions for schema type bitmasks", () => {
     const ts = generateTypeScript([
       {
@@ -216,6 +241,19 @@ describe("generateTypeScript", () => {
     ]);
     expect(ts).toContain('import type { FileMetadata } from "@contfu/core";');
     expect(ts).toContain("gallery: FileMetadata[];");
+  });
+
+  it("generates a string and FileMetadata union for mixed icon values", () => {
+    const ts = generateTypeScript([
+      {
+        name: "pages",
+        displayName: "Pages",
+        schema: { icon: PropertyType.FILE | PropertyType.STRING | PropertyType.NULL },
+      },
+    ]);
+
+    expect(ts).toContain('import type { FileMetadata } from "@contfu/core";');
+    expect(ts).toContain("icon: string | FileMetadata;");
   });
 
   it("generates any for JSON", () => {
@@ -737,6 +775,24 @@ describe("generateApplicationIntegrationTypes with inflowSchemas", () => {
     ]);
     expect(ts).toContain("posts: {");
     expect(ts).not.toContain("posts: { title: string } | {");
+  });
+});
+
+describe("$createdAt system schema key", () => {
+  it("emits normalized and explicit Notion creation timestamps independently", () => {
+    const ts = generateTypeScript([
+      {
+        name: "notionPages",
+        displayName: "Notion Pages",
+        schema: {
+          $createdAt: PropertyType.NUMBER,
+          createdAt: PropertyType.DATE,
+        },
+      },
+    ]);
+
+    expect(ts).toContain("$createdAt: number;");
+    expect(ts).toContain("createdAt: number;");
   });
 });
 

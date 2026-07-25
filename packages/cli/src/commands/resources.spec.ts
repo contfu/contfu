@@ -10,6 +10,7 @@ import {
   resolveCollectionRef,
   resolveIntegrationRef,
 } from "./resources";
+import { PropertyType } from "@contfu/svc-api";
 import { terminalLink, visibleWidth } from "../table";
 
 const mockFetch = mock<typeof fetch>();
@@ -673,7 +674,12 @@ describe("update", () => {
     mockFetch.mockResolvedValueOnce(
       jsonResponse([{ id: "col_1", name: "posts", displayName: "Posts" }]),
     );
-    mockFetch.mockResolvedValueOnce(jsonResponse({ id: "col_1", schema: { locale: 2, slug: 2 } }));
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        id: "col_1",
+        schema: { locale: PropertyType.STRING, slug: PropertyType.STRING },
+      }),
+    );
     mockFetch.mockResolvedValueOnce(jsonResponse({ id: "col_1" }));
 
     await update("collections", "Posts", undefined, {
@@ -774,7 +780,9 @@ describe("update", () => {
     mockFetch.mockResolvedValueOnce(
       jsonResponse([{ id: "col_1", name: "posts", displayName: "Posts" }]),
     );
-    mockFetch.mockResolvedValueOnce(jsonResponse({ id: "col_1", schema: { tags: 4 } }));
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({ id: "col_1", schema: { tags: PropertyType.STRINGS } }),
+    );
 
     // oxlint-disable-next-line typescript/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
     await expect(

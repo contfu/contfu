@@ -7,7 +7,7 @@ async function runCli(args: string[]) {
   const proc = Bun.spawn([process.execPath, cliPath, ...args], {
     stdout: "pipe",
     stderr: "pipe",
-    env: { ...process.env, NO_COLOR: "1" },
+    env: { ...process.env, CONTFU_API_KEY: "test-key", NO_COLOR: "1" },
   });
   const [stdout, stderr, exitCode] = await Promise.all([
     new Response(proc.stdout).text(),

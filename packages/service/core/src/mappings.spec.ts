@@ -28,9 +28,12 @@ describe("safeCast", () => {
     expect(safeCast(src, tgt)).toBeNull();
   });
 
-  test("bitmask overlap wins over safe cast", () => {
-    // target accepts STRING|NUMBER, source is NUMBER → direct overlap
+  test("a source type fully covered by a target union needs no cast", () => {
     expect(safeCast(T.NUMBER, T.STRING | T.NUMBER)).toBeNull();
+  });
+
+  test("partial bitmask overlap is not a safe cast", () => {
+    expect(safeCast(T.FILE | T.STRING, T.FILE)).toBeNull();
   });
 
   test("GeoPoint has no implicit casts", () => {
@@ -57,6 +60,14 @@ describe("typeCompatibility", () => {
   test("incompatible", () => {
     expect(typeCompatibility(T.STRING, T.NUMBER)).toEqual({
       compatible: false,
+    });
+  });
+
+  test("requires every source union member to be accepted by the target", () => {
+    expect(typeCompatibility(T.FILE | T.STRING, T.FILE)).toEqual({ compatible: false });
+    expect(typeCompatibility(T.FILE | T.STRING, T.FILE | T.STRING)).toEqual({
+      compatible: true,
+      cast: null,
     });
   });
 });

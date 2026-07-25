@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.5] - 2026-07-25
+
+### Changed
+
+- Upgraded TypeScript.
+
+### Fixed
+
+- Mapped Sanity object fields to JSON schema types.
+
 ## [0.1.4] - 2026-07-01
 
 ### Changed

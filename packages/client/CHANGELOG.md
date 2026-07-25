@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.3.0] - 2026-07-25
+
+### Changed
+
+- Removed deprecated client factory aliases.
+- Upgraded TypeScript.
+
+## [Unreleased]
+
+### Changed
+
+- **Breaking:** Removed `createHttpClient` and `createHttpTypedClient`. Use `contfuClient` instead.
+
 ## [0.2.1] - 2026-07-01
 
 ### Added

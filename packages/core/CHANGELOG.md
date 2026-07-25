@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.2.2] - 2026-07-25
+
+### Added
+
+- Added Directus integration support.
+- Added application refresh command protocol support.
+- Preserved Notion emoji page icons, creation timestamps, and rich-text spacing.
+
+### Changed
+
+- Documented the provider-neutral image block contract.
+- Upgraded TypeScript.
+
+### Fixed
+
+- Normalized Contentful rich-text asset URLs.
+
 ## [0.2.1] - 2026-07-01
 
 ### Added

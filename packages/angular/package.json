@@ -1,6 +1,6 @@
 {
   "name": "@contfu/angular",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -23,17 +23,17 @@
     "pack": "bun ../../scripts/pack-package.ts ."
   },
   "dependencies": {
-    "@contfu/core": "workspace:^0.2.1"
+    "@contfu/core": "workspace:^0.2.2"
   },
   "devDependencies": {
-    "@angular/common": "19.2.22",
-    "@angular/compiler": "19.2.22",
-    "@angular/core": "19.2.22",
-    "@angular/platform-browser": "19.2.22",
-    "@angular/platform-server": "19.2.22",
+    "@angular/common": "19.2.25",
+    "@angular/compiler": "19.2.25",
+    "@angular/core": "19.2.25",
+    "@angular/platform-browser": "19.2.25",
+    "@angular/platform-server": "19.2.25",
     "rxjs": "^7",
     "tslib": "^2",
-    "typescript": "^5.9.3",
+    "typescript": "^7.0.2",
     "zone.js": "^0.16"
   },
   "peerDependencies": {

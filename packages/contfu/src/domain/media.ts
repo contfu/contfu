@@ -164,6 +164,13 @@ export type AudioConvertOpts = Omit<TransformAudioRule, OptimizerOmitFields> & {
 /** On-demand conversion options for any media type */
 export type MediaConvertOpts = ImageConvertOpts | VideoConvertOpts | AudioConvertOpts;
 
+/** Canonical local master configuration used for reprocessing without refetching. */
+export interface MediaMasterConfig {
+  image?: false | ImageConvertOpts;
+  video?: false | VideoConvertOpts;
+  audio?: false | AudioConvertOpts;
+}
+
 /** Video optimizer options (single-variant optimizer input) */
 export type OptimizeVideoOpts = Omit<TransformVideoRule, OptimizerOmitFields>;
 

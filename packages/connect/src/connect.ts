@@ -1,4 +1,9 @@
-import { connectToStream, type StreamEvent, type SyncEvent } from "./stream-client";
+import {
+  connectToStream,
+  type StreamClient,
+  type StreamEvent,
+  type SyncEvent,
+} from "./stream-client";
 
 type BaseOpts = {
   /** Authentication key. If not provided, CONTFU_KEY env var (base64url) is used. */
@@ -9,6 +14,8 @@ type BaseOpts = {
   maxReconnectDelay?: number;
   /** Initial delay before first reconnection attempt in ms (default: 1000) */
   initialReconnectDelay?: number;
+  /** Yield command result events (default: true). */
+  commandResults?: boolean;
 };
 
 type OptsWithConnectionEvents = BaseOpts & { connectionEvents: true };
@@ -47,11 +54,11 @@ type OptsWithoutConnectionEvents = BaseOpts & { connectionEvents?: false };
  * }
  * ```
  */
-export function connect(opts: OptsWithConnectionEvents): AsyncGenerator<SyncEvent | StreamEvent>;
-export function connect(opts?: OptsWithoutConnectionEvents): AsyncGenerator<SyncEvent>;
+export function connect(opts: OptsWithConnectionEvents): StreamClient<SyncEvent | StreamEvent>;
+export function connect(opts?: OptsWithoutConnectionEvents): StreamClient<SyncEvent>;
 export function connect(
   opts: BaseOpts & { connectionEvents?: boolean } = {},
-): AsyncGenerator<SyncEvent | StreamEvent> {
+): StreamClient<SyncEvent | StreamEvent> {
   const { key, connectionEvents, ...rest } = opts;
 
   if (connectionEvents) {

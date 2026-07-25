@@ -42,9 +42,6 @@ The HTTP client only queries — it never synchronizes. It throws on non-2xx res
 second argument only when your deployment expects a Bearer token, for example behind a
 custom proxy.
 
-> `createHttpClient` / `createHttpTypedClient` are deprecated aliases for `contfuClient`;
-> use `contfuClient`.
-
 ## Calling conventions
 
 The callable accepts a collection name and an options object. Several shorthands exist:

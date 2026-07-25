@@ -38,6 +38,7 @@ export const IntegrationCapability = defineEnum({
   FileReceive: 6,
   TargetDeliveryCapability: 7,
   TargetSchemaDelivery: 8,
+  CollectionDiscovery: 9,
 });
 
 export type IntegrationCapability = EnumValue<typeof IntegrationCapability>;
@@ -73,12 +74,14 @@ export const IntegrationCapabilities = {
     IntegrationCapability.TargetDeliveryCapability,
   ],
   [IntegrationType.NOTION]: [
+    IntegrationCapability.CollectionDiscovery,
     IntegrationCapability.ManualLocalizationLayer,
     IntegrationCapability.ContentProvide,
     IntegrationCapability.ContentReceive,
     IntegrationCapability.TargetDeliveryCapability,
   ],
   [IntegrationType.STRAPI]: [
+    IntegrationCapability.CollectionDiscovery,
     IntegrationCapability.ComponentDiscovery,
     IntegrationCapability.ManualLocalizationLayer,
     IntegrationCapability.ContentProvide,
@@ -86,21 +89,27 @@ export const IntegrationCapabilities = {
     IntegrationCapability.TargetDeliveryCapability,
   ],
   [IntegrationType.CONTENTFUL]: [
+    IntegrationCapability.CollectionDiscovery,
     IntegrationCapability.ComponentDiscovery,
     IntegrationCapability.ManualLocalizationLayer,
     IntegrationCapability.ContentProvide,
   ],
   [IntegrationType.WORDPRESS]: [
+    IntegrationCapability.CollectionDiscovery,
     IntegrationCapability.ManualLocalizationLayer,
     IntegrationCapability.ContentProvide,
   ],
   [IntegrationType.SANITY]: [
+    IntegrationCapability.CollectionDiscovery,
     IntegrationCapability.ComponentDiscovery,
     IntegrationCapability.ManualLocalizationLayer,
     IntegrationCapability.ContentProvide,
   ],
   [IntegrationType.STORYBLOK]: [IntegrationCapability.ContentProvide],
-  [IntegrationType.DIRECTUS]: [IntegrationCapability.ContentProvide],
+  [IntegrationType.DIRECTUS]: [
+    IntegrationCapability.CollectionDiscovery,
+    IntegrationCapability.ContentProvide,
+  ],
   [IntegrationType.PRISMIC]: [IntegrationCapability.ContentProvide],
 } as const satisfies Record<IntegrationType, readonly IntegrationCapability[]>;
 

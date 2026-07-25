@@ -3,7 +3,9 @@ import { truncateAllTables } from "../../test/setup";
 import { db } from "../infra/db/db";
 import { fileTable, itemsTable, mediaVariantTable } from "../infra/db/schema";
 import { setCollection } from "./collections/setCollection";
-import { countDownloadedFiles, countFiles, countProcessedFiles } from "./files/countFiles";
+import { countFiles } from "./files/countFiles";
+import { countDownloadedFiles } from "./files/countDownloadedFiles";
+import { countProcessedFiles } from "./files/countProcessedFiles";
 import { countItems } from "./items/countItems";
 
 function makeId(seed: number): Buffer {

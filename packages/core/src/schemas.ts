@@ -1,26 +1,53 @@
 import { defineEnum, type EnumValue } from "./enums";
 import type { EffectiveCollectionI18nConfig } from "./i18n";
 
+/**
+ * Property types are bit flags. Value types use bits 0–16; bits 24–30 are
+ * metadata modifiers which may be combined with a value type.
+ */
 export const PropertyType = defineEnum({
-  NULL: 0,
-  BLOCK: 1,
-  STRING: 2,
-  STRINGS: 4,
-  NUMBER: 8,
-  NUMBERS: 16,
-  BOOLEAN: 32,
-  REF: 64,
-  REFS: 128,
-  FILE: 256,
-  FILES: 512,
-  DATE: 1024,
-  ENUM: 2048,
-  ENUMS: 4096,
-  JSON: 8192,
-  GEOPOINT: 16384,
-  COLOR: 32768,
+  // Value types (bits 0–16).
+  NULL: 1, // 1 << 0
+  BLOCK: 2, // 1 << 1
+  STRING: 4, // 1 << 2
+  STRINGS: 8, // 1 << 3
+  NUMBER: 16, // 1 << 4
+  NUMBERS: 32, // 1 << 5
+  BOOLEAN: 64, // 1 << 6
+  REF: 128, // 1 << 7
+  REFS: 256, // 1 << 8
+  FILE: 512, // 1 << 9
+  FILES: 1024, // 1 << 10
+  DATE: 2048, // 1 << 11
+  ENUM: 4096, // 1 << 12
+  ENUMS: 8192, // 1 << 13
+  JSON: 16384, // 1 << 14
+  GEOPOINT: 32768, // 1 << 15
+  COLOR: 65536, // 1 << 16
+
+  // Integration-neutral property metadata (bits 24–30).
+  LOCALE: 16777216, // 1 << 24
+  IDENTITY: 33554432, // 1 << 25
+  UPDATED_AT: 67108864, // 1 << 26
 });
 export type PropertyType = EnumValue<typeof PropertyType>;
+
+export const PROPERTY_TYPE_MASK = (1 << 17) - 1;
+export const PROPERTY_METADATA_MASK = 0x7f000000;
+
+/** Return only value-type bits, excluding integration-neutral metadata. */
+export function propertyTypeBase(type: number): number {
+  return type & PROPERTY_TYPE_MASK;
+}
+
+/** Return only metadata modifier bits. */
+export function propertyTypeMetadata(type: number): number {
+  return type & PROPERTY_METADATA_MASK;
+}
+
+export function hasPropertyType(type: number, flag: number): boolean {
+  return (type & flag) !== 0;
+}
 
 export type GeoPoint = { lat: number; lon: number };
 
@@ -79,7 +106,10 @@ function usesUnconstrainedBlock(collections: TypeGenerationInput[]): boolean {
       col.inflowSchemas && col.inflowSchemas.length > 0 ? col.inflowSchemas : [col.schema];
     for (const source of sources) {
       for (const value of Object.values(source)) {
-        if ((schemaType(value) & PropertyType.BLOCK) !== 0 && !schemaEnumValues(value)?.length) {
+        if (
+          (propertyTypeBase(schemaType(value)) & PropertyType.BLOCK) !== 0 &&
+          !schemaEnumValues(value)?.length
+        ) {
           return true;
         }
       }
@@ -157,6 +187,7 @@ function propertyTypeToTs(
   refFormat: RefFormat = "interface",
   enumValues?: string[],
 ): string {
+  type = propertyTypeBase(type);
   switch (type) {
     case PropertyType.STRING:
       return "string";
@@ -224,7 +255,12 @@ function propertyTypeMaskToTs(
   };
 
   for (const propertyType of Object.values(PropertyType)) {
-    if (propertyType === PropertyType.NULL || (type & propertyType) === 0) continue;
+    if (
+      (propertyType & PROPERTY_METADATA_MASK) !== 0 ||
+      propertyType === PropertyType.NULL ||
+      (type & propertyType) === 0
+    )
+      continue;
     const rendered = propertyTypeToTs(propertyType, targets, refFormat, enumValues);
     if (rendered === "unknown") continue;
     add(rendered);
@@ -265,7 +301,7 @@ function collectComponents(collections: TypeGenerationInput[]): ComponentSchema[
       col.inflowSchemas && col.inflowSchemas.length > 0 ? col.inflowSchemas : [col.schema];
     for (const source of sources) {
       for (const value of Object.values(source)) {
-        if ((schemaType(value) & PropertyType.BLOCK) === 0) continue;
+        if ((propertyTypeBase(schemaType(value)) & PropertyType.BLOCK) === 0) continue;
         for (const name of schemaEnumValues(value) ?? []) {
           if (!blocks.has(name)) blocks.set(name, { name, props: {} });
         }

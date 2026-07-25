@@ -1,5 +1,11 @@
 import type { CollectionSchema, SchemaValue } from "@contfu/core";
-import { PropertyType, schemaType, schemaEnumValues } from "@contfu/core";
+import {
+  PROPERTY_METADATA_MASK,
+  PropertyType,
+  propertyTypeBase,
+  schemaType,
+  schemaEnumValues,
+} from "@contfu/core";
 
 const TYPE_MAP: Record<number, string> = {
   [PropertyType.STRING]: "string",
@@ -21,7 +27,7 @@ const TYPE_MAP: Record<number, string> = {
 };
 
 function schemaValueToType(value: SchemaValue): string {
-  const numType = schemaType(value);
+  const numType = propertyTypeBase(schemaType(value));
   const enumVals = schemaEnumValues(value);
   if (numType === PropertyType.ENUM) {
     if (enumVals && enumVals.length > 0) {
@@ -40,7 +46,12 @@ function schemaValueToType(value: SchemaValue): string {
 
   const members: string[] = [];
   for (const propertyType of Object.values(PropertyType)) {
-    if (propertyType === PropertyType.NULL || (numType & propertyType) === 0) continue;
+    if (
+      (propertyType & PROPERTY_METADATA_MASK) !== 0 ||
+      propertyType === PropertyType.NULL ||
+      (numType & propertyType) === 0
+    )
+      continue;
     const rendered = TYPE_MAP[propertyType];
     if (rendered && !members.includes(rendered)) members.push(rendered);
   }
@@ -68,7 +79,9 @@ export function generateTypes(
   });
 
   const hasBlock = entries.some(([, schema]) =>
-    Object.values(schema).some((value) => schemaType(value) === PropertyType.BLOCK),
+    Object.values(schema).some(
+      (value) => (propertyTypeBase(schemaType(value)) & PropertyType.BLOCK) !== 0,
+    ),
   );
   const hasGeoPoint = entries.some(([, schema]) =>
     Object.values(schema).some((value) => (schemaType(value) & PropertyType.GEOPOINT) !== 0),

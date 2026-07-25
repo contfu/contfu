@@ -1,6 +1,6 @@
 {
   "name": "@contfu/core",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -30,7 +30,6 @@
   },
   "dependencies": {},
   "devDependencies": {
-    "@typescript/native-preview": "^7.0.0-dev.20260526.1",
-    "typescript": "^5.9.3"
+    "typescript": "^7.0.2"
   }
 }
