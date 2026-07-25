@@ -1,6 +1,7 @@
 /* oxlint-disable typescript/unbound-method -- mock method references in expect() assertions are intentionally unbound */
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { PropertyType, type Block, type ImageBlock } from "@contfu/core";
+import { FileStatus } from "../../domain/file-status";
 import { db } from "../../infra/db/db";
 import { fileTable, itemFileTable, itemsTable } from "../../infra/db/schema";
 import { truncateAllTables } from "../../../test/setup";
@@ -8,7 +9,8 @@ import { setCollection } from "../collections/setCollection";
 import type { FileStore } from "../../domain/files";
 import type { MediaOptimizer, TransformMediaRule } from "../../domain/media";
 import { configureMediaQueue } from "./mediaQueue";
-import { processFiles, processPropertyFiles } from "./processFiles";
+import { processFiles } from "./processFiles";
+import { processPropertyFiles } from "./processPropertyFiles";
 import { getFilesByItem } from "./getFilesByItem";
 
 const itemId = 1;
@@ -124,6 +126,27 @@ describe("processFiles", () => {
     // Still only one file record
     const files = db.select().from(fileTable).all();
     expect(files).toHaveLength(1);
+  });
+
+  test("requeues a failed file when refreshed content provides a new signed URL", async () => {
+    const fileStore = makeFileStore();
+    const firstUrl = "https://example.com/photo.png?token=expired";
+    await processFiles({ itemId, content: [makeImageBlock(firstUrl)], fileStore });
+    const file = db.select().from(fileTable).get()!;
+    db.update(fileTable)
+      .set({ status: FileStatus.Failed, meta: { ...file.meta, attempts: 1, error: "HTTP 403" } })
+      .run();
+
+    await processFiles({
+      itemId,
+      content: [makeImageBlock("https://example.com/photo.png?token=fresh")],
+      fileStore,
+    });
+
+    const refreshed = db.select().from(fileTable).get()!;
+    expect(refreshed.status).toBe(FileStatus.Pending);
+    expect(refreshed.data?.toString()).toBe("https://example.com/photo.png?token=fresh");
+    expect(refreshed.meta.attempts).toBe(0);
   });
 
   test("many-to-many: same file linked to multiple items", async () => {
@@ -510,6 +533,30 @@ describe("processPropertyFiles", () => {
     expect(images[0]).toMatch(/^[a-f0-9]{16}\.[a-z0-9]+$/);
     expect(images[1]).toMatch(/^[a-f0-9]{16}\.[a-z0-9]+$/);
     expect(mediaOptimizer.optimize).toHaveBeenCalledTimes(0);
+  });
+
+  test("mixed FILE and STRING props process URLs but preserve emoji strings", async () => {
+    const fileStore = makeFileStore();
+    const mediaOptimizer = makeMediaOptimizer();
+    const schema = { icon: PropertyType.FILE | PropertyType.STRING | PropertyType.NULL };
+
+    const image = await processPropertyFiles({
+      itemId,
+      props: { icon: "https://example.com/icon.png" },
+      schema,
+      fileStore,
+      mediaOptimizer,
+    });
+    const emoji = await processPropertyFiles({
+      itemId,
+      props: { icon: "🎉" },
+      schema,
+      fileStore,
+      mediaOptimizer,
+    });
+
+    expect(image.icon).toMatch(/^[a-f0-9]{16}\.[a-z0-9]+$/);
+    expect(emoji.icon).toBe("🎉");
   });
 
   test("non-FILE props are untouched", async () => {

@@ -1,6 +1,6 @@
 {
   "name": "@contfu/connect",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Connector for receiving Sync Messages from the Contfu Cloud Service",
   "license": "MIT",
   "repository": {
@@ -30,7 +30,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@contfu/core": "workspace:^0.2.1",
+    "@contfu/core": "workspace:^0.2.2",
     "msgpackr": "^1.12.1"
   },
   "devDependencies": {
@@ -38,7 +38,7 @@
     "ts-essentials": "^10.2.1"
   },
   "peerDependencies": {
-    "typescript": "^5.9.3"
+    "typescript": "^7.0.2"
   },
   "optionalDependencies": {
     "eventsource": "^4.1.0"

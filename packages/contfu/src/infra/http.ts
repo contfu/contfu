@@ -4,6 +4,7 @@ import type {
   CollectionName,
   ImageConvertOpts,
   MediaConvertOpts,
+  MediaMasterConfig,
   MediaOptimizer,
   MediaVariants,
 } from "../domain/media";
@@ -15,6 +16,7 @@ export type FileRequestOptions<CMap = unknown> = {
   fileStore?: FileStore;
   mediaOptimizer?: MediaOptimizer;
   mediaVariants?: MediaVariants<CMap>;
+  mediaMaster?: false | MediaMasterConfig;
   cacheOptimizedFiles?: boolean;
 };
 
@@ -247,6 +249,7 @@ export async function handleFileRequest<CMap = unknown>(
       mediaOptimizer,
       cache: options.cacheOptimizedFiles ?? true,
       mediaVariants: options.mediaVariants,
+      mediaMaster: options.mediaMaster,
       collection,
       variant,
     });

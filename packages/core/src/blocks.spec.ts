@@ -369,8 +369,8 @@ describe("blocks", () => {
 
   describe("utility functions", () => {
     describe("toPlainText", () => {
-      test("converts plain strings", () => {
-        expect(toPlainText(["hello", "world"])).toBe("hello world");
+      test("concatenates plain strings without adding separators", () => {
+        expect(toPlainText(["hello", "world"])).toBe("helloworld");
       });
 
       test("extracts text from inline elements", () => {
@@ -380,8 +380,11 @@ describe("blocks", () => {
         expect(toPlainText([italic])).toBe("italic text");
       });
 
-      test("handles mixed content", () => {
-        expect(toPlainText(["Hello ", bold, " world"])).toBe("Hello  bold text  world");
+      test("preserves mixed content boundaries", () => {
+        expect(toPlainText(["Hello ", bold, " world"])).toBe("Hello bold text world");
+        expect(toPlainText(["Hello", ["a", ", world", "https://example.com"], "  !"])).toBe(
+          "Hello, world  !",
+        );
       });
 
       test("handles empty array", () => {

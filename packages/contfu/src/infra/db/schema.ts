@@ -84,6 +84,23 @@ export type DbFile = typeof fileTable.$inferSelect;
 export type NewFile = typeof fileTable.$inferInsert;
 export type FileUpdate = Partial<NewFile>;
 
+export const mediaMasterTable = sqliteTable("media_masters", {
+  fileId: blob({ mode: "buffer" })
+    .primaryKey()
+    .references(() => fileTable.id, { onDelete: "cascade" }),
+  mediaType: text().notNull(),
+  ext: text().notNull(),
+  format: text().notNull(),
+  configFingerprint: integer().notNull(),
+  metadata: blob({ mode: "json" }).notNull().$type<Record<string, unknown>>(),
+  data: blob({ mode: "buffer" }).notNull(),
+  createdAt: integer().notNull(),
+  updatedAt: integer().notNull(),
+});
+
+export type DbMediaMaster = typeof mediaMasterTable.$inferSelect;
+export type NewMediaMaster = typeof mediaMasterTable.$inferInsert;
+
 export const itemFileTable = sqliteTable(
   "item_files",
   {

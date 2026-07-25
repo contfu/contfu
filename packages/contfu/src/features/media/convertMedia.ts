@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "../../infra/db/db";
-import { hashOpts } from "../../infra/hash";
+import { hashObject } from "../../infra/hash";
 import { decodeId } from "../../infra/ids";
 import { fileTable, mediaVariantTable } from "../../infra/db/schema";
 import type { MediaConvertOpts, MediaTransform } from "../../domain/media";
@@ -27,7 +27,7 @@ export async function convertMedia(
   if (files.length === 0 || !files[0].data) return null;
 
   const file = { id: files[0].id, data: files[0].data };
-  const optsHash = hashOpts(opts as Record<string, unknown>);
+  const optsHash = hashObject(opts as Record<string, unknown>);
 
   // Check cache by (fileId, ext, optsHash)
   const cached = db

@@ -5,6 +5,7 @@ export {
   externalLinkTable,
   internalLinkTable,
   itemsTable as itemTable,
+  mediaMasterTable,
   mediaVariantTable,
   syncTable,
   type FileUpdate,
@@ -12,8 +13,10 @@ export {
   type DbItem,
   type DbExternalItemLink,
   type DbInternalItemLink,
+  type DbMediaMaster,
   type ItemUpdate,
   type NewFile,
+  type NewMediaMaster,
   type NewItem,
   type NewExternalItemLink,
   type NewInternalItemLink,
@@ -27,7 +30,7 @@ export type {
   SchemaEvent,
   StreamEvent,
 } from "@contfu/connect";
-export { connect } from "./features/stream/connect";
+export { connect } from "./connect";
 export { getSyncIndex } from "./features/sync/getSyncIndex";
 export { setSyncIndex } from "./features/sync/setSyncIndex";
 
@@ -156,6 +159,7 @@ export {
   type ImageConvertOpts,
   type ImageFormat,
   type MediaConvertOpts,
+  type MediaMasterConfig,
   type MediaOptimizer,
   type MediaTransform,
   type MediaVariants,
@@ -172,7 +176,7 @@ export {
   type VideoFormat,
 } from "./domain/media";
 export { DBStore } from "./infra/media/db-store";
-export { fileStore } from "./infra/media/media-defaults";
+export { fileStore, mediaMasterDefaults } from "./infra/media/media-defaults";
 
 // Hooks exports
 export {
@@ -190,7 +194,9 @@ export { getCollectionSchemaByName } from "./features/collections/getCollectionS
 export { setCollection } from "./features/collections/setCollection";
 
 // Utility exports
-export { countFiles, countDownloadedFiles, countProcessedFiles } from "./features/files/countFiles";
+export { countFiles } from "./features/files/countFiles";
+export { countDownloadedFiles } from "./features/files/countDownloadedFiles";
+export { countProcessedFiles } from "./features/files/countProcessedFiles";
 export { countCollections } from "./features/collections/countCollections";
 export { listCollections, type CollectionSummary } from "./features/collections/listCollections";
 export { countItems } from "./features/items/countItems";

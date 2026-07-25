@@ -1,5 +1,10 @@
 export {
   PropertyType,
+  PROPERTY_TYPE_MASK,
+  PROPERTY_METADATA_MASK,
+  propertyTypeBase,
+  propertyTypeMetadata,
+  hasPropertyType,
   type CollectionSchema,
   type GeoPoint,
   type SchemaValue,

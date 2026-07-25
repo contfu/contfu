@@ -3,13 +3,14 @@ import { and, eq } from "drizzle-orm";
 import { getFile } from "./getFile";
 import { db } from "../../infra/db/db";
 import { mediaVariantTable } from "../../infra/db/schema";
-import { hashOpts } from "../../infra/hash";
+import { hashObject } from "../../infra/hash";
 import { decodeId } from "../../infra/ids";
 import { fileStore as defaultFileStore } from "../../infra/media/media-defaults";
 import type {
   CollectionName,
   ImageConvertOpts,
   MediaConvertOpts,
+  MediaMasterConfig,
   MediaOptimizer,
   MediaVariants,
   MediaVariantsConfig,
@@ -19,6 +20,7 @@ import type {
   VideoConvertOpts,
 } from "../../domain/media";
 import type { FileStore } from "../../domain/files";
+import { loadMediaMasterSource } from "./loadMediaMasterSource";
 
 export class FileLoadError extends Error {
   constructor(
@@ -34,6 +36,7 @@ export type LoadFileOptions<CMap = unknown> = {
   mediaOptimizer?: MediaOptimizer;
   fileStore?: FileStore;
   cache?: boolean;
+  mediaMaster?: false | MediaMasterConfig;
   /** Variant preset configuration. When set, strict mode rejects unknown requests. */
   mediaVariants?: MediaVariants<CMap>;
   /** Collection for variant config lookup (falls back to default config). */
@@ -61,6 +64,7 @@ export async function loadFile<CMap = unknown>(
     mediaOptimizer,
     fileStore,
     cache = false,
+    mediaMaster,
     mediaVariants,
     collection,
     variant,
@@ -105,7 +109,9 @@ export async function loadFile<CMap = unknown>(
     throw new FileLoadError("Not found", 404);
   }
 
-  const source = file.data ?? (await resolvedFileStore.read(`${file.id}.${file.ext}`));
+  const storedSource = file.data ?? (await resolvedFileStore.read(`${file.id}.${file.ext}`));
+  const source =
+    mediaMaster === false ? storedSource : loadMediaMasterSource(parsed.id, storedSource);
   if (!source) {
     throw new FileLoadError("Not found", 404);
   }
@@ -241,7 +247,7 @@ function readCachedVariant(fileId: string, ext: string, opts: MediaConvertOpts):
       and(
         eq(mediaVariantTable.fileId, decodeId(fileId)),
         eq(mediaVariantTable.ext, ext),
-        eq(mediaVariantTable.optsHash, hashOpts(opts as Record<string, unknown>)),
+        eq(mediaVariantTable.optsHash, hashObject(opts as Record<string, unknown>)),
       ),
     )
     .all();
@@ -259,7 +265,7 @@ function writeCachedVariant(
     .values({
       fileId: decodeId(fileId),
       ext,
-      optsHash: hashOpts(opts as Record<string, unknown>),
+      optsHash: hashObject(opts as Record<string, unknown>),
       opts: opts as Record<string, unknown>,
       size: data.byteLength,
       data,

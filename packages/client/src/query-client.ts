@@ -81,16 +81,6 @@ export function contfuClient<_CMap>(
   });
 }
 
-/**
- * @deprecated Use `contfuClient` instead.
- */
-export const createHttpClient = contfuClient;
-
-/**
- * @deprecated Use `contfuClient` instead.
- */
-export const createHttpTypedClient = contfuClient;
-
 type LocaleScope = {
   defaultLocale?: string;
   locale?: string | false;

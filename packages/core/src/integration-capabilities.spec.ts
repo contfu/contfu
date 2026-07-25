@@ -26,6 +26,7 @@ describe("integration capabilities", () => {
     [
       IntegrationType.NOTION,
       [
+        IntegrationCapability.CollectionDiscovery,
         IntegrationCapability.ManualLocalizationLayer,
         IntegrationCapability.ContentProvide,
         IntegrationCapability.ContentReceive,
@@ -35,6 +36,7 @@ describe("integration capabilities", () => {
     [
       IntegrationType.STRAPI,
       [
+        IntegrationCapability.CollectionDiscovery,
         IntegrationCapability.ComponentDiscovery,
         IntegrationCapability.ManualLocalizationLayer,
         IntegrationCapability.ContentProvide,
@@ -45,6 +47,7 @@ describe("integration capabilities", () => {
     [
       IntegrationType.CONTENTFUL,
       [
+        IntegrationCapability.CollectionDiscovery,
         IntegrationCapability.ComponentDiscovery,
         IntegrationCapability.ManualLocalizationLayer,
         IntegrationCapability.ContentProvide,
@@ -52,18 +55,26 @@ describe("integration capabilities", () => {
     ],
     [
       IntegrationType.WORDPRESS,
-      [IntegrationCapability.ManualLocalizationLayer, IntegrationCapability.ContentProvide],
+      [
+        IntegrationCapability.CollectionDiscovery,
+        IntegrationCapability.ManualLocalizationLayer,
+        IntegrationCapability.ContentProvide,
+      ],
     ],
     [
       IntegrationType.SANITY,
       [
+        IntegrationCapability.CollectionDiscovery,
         IntegrationCapability.ComponentDiscovery,
         IntegrationCapability.ManualLocalizationLayer,
         IntegrationCapability.ContentProvide,
       ],
     ],
     [IntegrationType.STORYBLOK, [IntegrationCapability.ContentProvide]],
-    [IntegrationType.DIRECTUS, [IntegrationCapability.ContentProvide]],
+    [
+      IntegrationType.DIRECTUS,
+      [IntegrationCapability.CollectionDiscovery, IntegrationCapability.ContentProvide],
+    ],
     [IntegrationType.PRISMIC, [IntegrationCapability.ContentProvide]],
     [
       IntegrationType.WEB,

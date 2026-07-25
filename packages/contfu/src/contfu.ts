@@ -1,4 +1,5 @@
 import {
+  CommandResult,
   EventType,
   normalizeQueryArgs,
   resolveQueryFilter,
@@ -22,10 +23,15 @@ import {
 import type { ItemEvent, StreamEvent } from "@contfu/connect";
 import type { FileStore } from "./domain/files";
 import type { ClientI18nConfig, LocaleScope } from "./domain/i18n";
-import type { MediaOptimizer, MediaVariants, TransformMediaRule } from "./domain/media";
+import type {
+  MediaMasterConfig,
+  MediaOptimizer,
+  MediaVariants,
+  TransformMediaRule,
+} from "./domain/media";
 import type { QueryLocale, TypedContfuClient } from "./domain/query-types";
 import { findItems } from "./features/items/findItems";
-import { connect } from "./features/stream/connect";
+import { connect } from "./connect";
 import { db } from "./infra/db/db";
 import { handleFileRequest as handleFileRequestImpl } from "./infra/http";
 import { fileStore as defaultFileStore } from "./infra/media/media-defaults";
@@ -37,6 +43,8 @@ export type ContfuOptions<CMap = unknown> = {
   transformMedia?: TransformMediaRule<CMap>[];
   /** Named variant presets for on-demand serving and optional sync-time pre-generation. */
   mediaVariants?: MediaVariants<CMap>;
+  /** Canonical local masters for reprocessing without redownloading. Default: enabled. */
+  mediaMaster?: false | MediaMasterConfig;
   /** Authentication key. Falls back to process.env.CONTFU_KEY. */
   key?: string;
   /** Cache optimized file variants in the database. Default: true */
@@ -109,9 +117,14 @@ function createHotEventStream<CMap>(
           mediaOptimizer: options.mediaOptimizer,
           transformMedia: options.transformMedia,
           mediaVariants: options.mediaVariants,
+          mediaMaster: options.mediaMaster,
           localFiles: options.localFiles ?? true,
           mediaQueueConcurrency: options.mediaQueueConcurrency ?? 2,
+          commandResults: false,
         })) {
+          if (event.type === CommandResult.REFRESH || event.type === CommandResult.REFRESH_ALL) {
+            continue;
+          }
           if (event.type === EventType.STREAM_CONNECTED) {
             restartDelay = HOT_STREAM_INITIAL_RESTART_DELAY_MS;
           }

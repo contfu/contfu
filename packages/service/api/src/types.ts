@@ -49,6 +49,7 @@ export {
   IntegrationTypeMeta,
   WebAuthType,
   PropertyType,
+  propertyTypeBase,
   asColor,
   colorFromHex,
   colorFromRgba,

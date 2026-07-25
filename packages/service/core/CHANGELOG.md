@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.5] - 2026-07-25
+
+### Added
+
+- Added Directus integration support.
+- Added collection options for Strapi route names.
+- Preserved Notion emoji page icons and normalized creation timestamps.
+
+### Changed
+
+- Upgraded TypeScript.
+
 ## [0.1.4] - 2026-07-01
 
 ### Changed

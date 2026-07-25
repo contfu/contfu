@@ -164,6 +164,14 @@ contfu integrations add <integration-id> --select    # interactive picker
 Imported source collections then appear in `contfu collections list -f json` with numeric
 `id`s — use those as `--source-id` when [wiring flows](./flows.md).
 
+### Ephemeral Notion file URLs
+
+Notion-hosted files use temporary URLs. Contfu records the earliest expiry it sees across a Notion page's file properties, icon, cover, and content blocks. Once that expiry passes, the cached source item is treated as stale: Contfu refreshes source content before it redelivers the item, so the Local Runtime can receive current file URLs.
+
+This freshness handling applies only to URLs that Notion marks as its own `file` URLs with an expiry. URLs from Notion's `external` file variant are not considered Notion-issued ephemeral URLs; their availability remains the external host's responsibility.
+
+If a Local Runtime encounters a missing, expired, or access-rejected Notion URL, it requests the normal targeted refresh/re-delivery path described in [Deployment](./deployment.md#sync-acceptance-and-media-repair). It is asynchronous and does not require Reset Source State or Reset Target State for ordinary URL expiry.
+
 ### Troubleshooting
 
 | Problem                                          | Fix                                                                                                 |

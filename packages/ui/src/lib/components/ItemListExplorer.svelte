@@ -39,26 +39,19 @@
   let { query, result, collections, basePath, lockedCollection }: Props =
     $props();
 
-  let propFilters = $state<EditablePropFilter[]>([]);
-  let selectedCollection = $state("");
-  let selectedSortField = $state("changedAt");
-  let selectedSortDirection = $state("desc");
-  let selectedPageSize = $state("20");
-
-  $effect(() => {
-    propFilters =
-      query.propFilters && query.propFilters.length > 0
-        ? query.propFilters.map((filter) => ({
-            key: filter.key,
-            op: filter.op,
-            value: String(filter.value),
-          }))
-        : [{ key: "", op: "eq", value: "" }];
-    selectedCollection = query.collection ?? "";
-    selectedSortField = query.sortField ?? "changedAt";
-    selectedSortDirection = query.sortDirection ?? "desc";
-    selectedPageSize = String(query.pageSize ?? 20);
-  });
+  let propFilters = $derived<EditablePropFilter[]>(
+    query.propFilters && query.propFilters.length > 0
+      ? query.propFilters.map((filter) => ({
+          key: filter.key,
+          op: filter.op,
+          value: String(filter.value),
+        }))
+      : [{ key: "", op: "eq", value: "" }],
+  );
+  let selectedCollection = $derived(query.collection ?? "");
+  let selectedSortField = $derived(query.sortField ?? "changedAt");
+  let selectedSortDirection = $derived(query.sortDirection ?? "desc");
+  let selectedPageSize = $derived(String(query.pageSize ?? 20));
 
   function addFilterRow() {
     propFilters.push({ key: "", op: "eq", value: "" });

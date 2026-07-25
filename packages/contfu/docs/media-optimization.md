@@ -24,6 +24,33 @@ Two optimizers ship with Contfu:
 
 Without an optimizer, Files are still downloaded and stored by the Local Runtime but aren't converted — they're served as uploaded.
 
+## Canonical Media Masters
+
+The Local Runtime keeps a **Canonical Media Master** for each image, video, or audio file by default. It derives the sync-time output and any on-demand or pre-generated variants from this local master, so future configuration changes do not normally need the provider URL again.
+
+A master is a working, normalized representation — not an archive of the source upload. In particular, its default conversions are lossy. Keep the original file elsewhere when you need original bytes or a preservation-grade asset.
+
+| Media type | Default canonical master                       |
+| ---------- | ---------------------------------------------- |
+| Image      | AVIF, quality `90`                             |
+| Video      | MP4 with H.264 (`libx264`) video and AAC audio |
+| Audio      | Opus (`libopus`), `160k` bitrate               |
+
+Set `mediaMaster` to override a type. Omitted types keep their defaults; set a type to `false` to opt that type out, or set the complete option to `false` to opt out globally:
+
+```ts
+contfu({
+  mediaMaster: {
+    image: { format: "webp", quality: 82 },
+    video: false,
+    audio: { format: "aac", codec: "aac", bitrate: "128k" },
+  },
+});
+
+// Do not store canonical masters for any media type.
+contfu({ mediaMaster: false });
+```
+
 ## Local Runtime conversion with `transformMedia`
 
 `transformMedia` rules run once per downloaded File during Local Runtime sync. Use them to convert media masters to a modern format, strip EXIF, or restrict to specific collections.
@@ -50,6 +77,12 @@ contfu({
 ```
 
 Each rule matches by `mediaType` and, optionally, `collections` and `include`/`exclude` extensions. The first matching rule wins. Files that match no rule pass through untouched.
+
+### Reprocess after a configuration change
+
+When `localFiles` is enabled (the default) and Canonical Media Masters remain enabled, startup compares every ready file's saved master configuration with the current `mediaMaster` and any explicitly supplied `transformMedia` or pre-generated `mediaVariants` settings. If they differ and a Canonical Media Master exists, the Local Runtime rebuilds the derived file and configured pre-generated variants from that master without downloading the source URL again.
+
+To clear prior transform rules or pre-generation, supply `transformMedia: []` or `mediaVariants: {}`; omitting either option preserves its stored per-file settings during reconciliation. Setting `mediaMaster: false` disables this reconciliation; it does not rebuild, remove, or repair existing ready files and masters. This is local reprocessing, not source-original preservation: a rebuild starts from the normalized master, which may already be lossy. Files without a usable master require normal source-based repair instead.
 
 ## On-demand variants with `mediaVariants`
 

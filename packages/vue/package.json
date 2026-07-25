@@ -1,6 +1,6 @@
 {
   "name": "@contfu/vue",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -36,11 +36,11 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@contfu/core": "workspace:^0.2.1"
+    "@contfu/core": "workspace:^0.2.2"
   },
   "devDependencies": {
     "@vue/server-renderer": "^3.5.34",
-    "typescript": "^5.9.3",
+    "typescript": "^7.0.2",
     "vue": "^3.5.34"
   },
   "peerDependencies": {

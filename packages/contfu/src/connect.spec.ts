@@ -1,15 +1,15 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { EventType, type ImageBlock } from "@contfu/core";
 import { eq } from "drizzle-orm";
-import { db } from "../../infra/db/db";
-import { fileTable, itemFileTable, itemsTable, syncTable } from "../../infra/db/schema";
-import { truncateAllTables } from "../../../test/setup";
-import { listCollections } from "../collections/listCollections";
-import { setCollection } from "../collections/setCollection";
-import { createItem } from "../items/createItem";
-import { queryItems } from "../items/queryItems";
-import type { FileStore } from "../../domain/files";
-import type { MediaOptimizer } from "../../domain/media";
+import { db } from "./infra/db/db";
+import { fileTable, itemFileTable, itemsTable, syncTable } from "./infra/db/schema";
+import { truncateAllTables } from "../test/setup";
+import { listCollections } from "./features/collections/listCollections";
+import { setCollection } from "./features/collections/setCollection";
+import { createItem } from "./features/items/createItem";
+import { queryItems } from "./features/items/queryItems";
+import type { FileStore } from "./domain/files";
+import type { MediaOptimizer } from "./domain/media";
 
 const key = Buffer.alloc(32, 1);
 
@@ -256,9 +256,9 @@ describe("contfu connect", () => {
       // consume
     }
 
-    // oxlint-disable-next-line typescript/unbound-method -- mock method reference in expect() assertion
-    expect(mediaOptimizer.optimize).toHaveBeenCalledTimes(1);
     await waitForReadyFile();
+    // oxlint-disable-next-line typescript/unbound-method -- mock method reference in expect() assertion
+    expect(mediaOptimizer.optimize).toHaveBeenCalledTimes(2);
     const files = db.select().from(fileTable).all();
     expect(files).toHaveLength(1);
     expect(files[0].status).toBe(2);

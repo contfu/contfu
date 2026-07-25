@@ -38,25 +38,36 @@ export function buildSanitySchemaSyncPayload(
   dataset: string,
   schemaTypes: SanitySchemaDefinition[],
 ): SanitySchemaSyncPayload {
+  const objectTypeNames = new Set(
+    schemaTypes.flatMap((schema) =>
+      schema.type === "object" && typeof schema.name === "string" ? [schema.name] : [],
+    ),
+  );
   const schemas: Record<string, CollectionSchema> = {};
   for (const document of schemaTypes) {
     if (document.type !== "document" || typeof document.name !== "string") continue;
-    schemas[document.name] = normalizeDocumentSchema(document);
+    schemas[document.name] = normalizeDocumentSchema(document, objectTypeNames);
   }
   return { dataset, environment: dataset, schemas };
 }
 
-function normalizeDocumentSchema(document: SanitySchemaDefinition): CollectionSchema {
+function normalizeDocumentSchema(
+  document: SanitySchemaDefinition,
+  objectTypeNames: ReadonlySet<string>,
+): CollectionSchema {
   const schema: CollectionSchema = { $draft: PropertyType.BOOLEAN };
   for (const field of Array.isArray(document.fields) ? document.fields : []) {
     if (typeof field.name !== "string") continue;
-    const type = normalizeFieldType(field);
+    const type = normalizeFieldType(field, objectTypeNames);
     if (type !== null) schema[field.name] = applyNullability(type, field);
   }
   return schema;
 }
 
-function normalizeFieldType(field: SanityFieldDefinition): number | null {
+function normalizeFieldType(
+  field: SanityFieldDefinition,
+  objectTypeNames: ReadonlySet<string>,
+): number | null {
   if (typeof field.type !== "string") return null;
   if (field.type === "string" || field.type === "text" || field.type === "slug")
     return PropertyType.STRING;
@@ -69,7 +80,8 @@ function normalizeFieldType(field: SanityFieldDefinition): number | null {
   if (field.type === "reference") return PropertyType.REF;
   if (field.type === "image" || field.type === "file") return PropertyType.FILE;
   if (field.type === "block") return PropertyType.BLOCK;
-  if (field.type === "array") return normalizeArrayType(field.of);
+  if (field.type === "object") return PropertyType.JSON;
+  if (field.type === "array") return normalizeArrayType(field.of, objectTypeNames);
   return PropertyType.STRING;
 }
 
@@ -102,15 +114,20 @@ function isRequiredField(field: SanityFieldDefinition): boolean {
   return required;
 }
 
-function normalizeArrayType(of: unknown): number {
+function normalizeArrayType(of: unknown, objectTypeNames: ReadonlySet<string>): number {
   const items = Array.isArray(of) ? (of as SanityFieldDefinition[]) : [];
   let result = PropertyType.NULL;
   for (const item of items) {
-    const type = normalizeFieldType(item);
+    const type = normalizeFieldType(item, objectTypeNames);
     if (type === null) continue;
     if (type & PropertyType.REF) return PropertyType.REFS;
     if (type & PropertyType.BLOCK) return PropertyType.BLOCK;
     if (type & PropertyType.FILE) return PropertyType.FILES;
+    if (
+      type & PropertyType.JSON ||
+      (typeof item.type === "string" && objectTypeNames.has(item.type))
+    )
+      return PropertyType.JSON;
     if (type & PropertyType.NUMBER) result |= PropertyType.NUMBERS;
     else result |= PropertyType.STRINGS;
   }
