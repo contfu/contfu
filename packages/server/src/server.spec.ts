@@ -1,6 +1,9 @@
-import { afterEach, describe, expect, mock, test } from "bun:test";
+import { afterAll, afterEach, describe, expect, mock, test } from "bun:test";
+import * as contfuModule from "@contfu/contfu";
 import { checkBasicAuth } from "./basic-auth";
 import { createServeOptions } from "./server";
+
+const originalContfuModule = { ...contfuModule };
 
 type TestRoute = (request: Request) => Response | Promise<Response>;
 type ServeRoutes = NonNullable<ReturnType<typeof createServeOptions>["routes"]>;
@@ -28,6 +31,11 @@ describe("@contfu/server routes", () => {
     delete process.env.CONTFU_BASIC_AUTH;
     delete process.env.CONTFU_DEFAULT_LOCALE;
     delete process.env.CONTFU_FALLBACK_LOCALE;
+    mock.restore();
+  });
+
+  afterAll(async () => {
+    await mock.module("@contfu/contfu", () => originalContfuModule);
     mock.restore();
   });
 
@@ -182,6 +190,7 @@ describe("@contfu/server routes", () => {
       include: "files,author",
       fields: "title,slug",
       flat: "true",
+      plainDatesAs: "milliseconds",
       includeDeleted: "true",
       onlyDeleted: "true",
       with: JSON.stringify({ relation: true }),
@@ -200,6 +209,7 @@ describe("@contfu/server routes", () => {
         include: ["files", "author"],
         fields: ["title", "slug"],
         flat: true,
+        plainDatesAs: "milliseconds",
         includeDeleted: true,
         onlyDeleted: true,
         with: { relation: true },
@@ -214,6 +224,7 @@ describe("@contfu/server routes", () => {
       include: ["files", "author"],
       fields: ["title", "slug"],
       flat: true,
+      plainDatesAs: "milliseconds",
       includeDeleted: true,
       onlyDeleted: true,
       with: { relation: true },
@@ -341,7 +352,7 @@ describe("@contfu/server routes", () => {
 
     const { routes } = createServeOptions();
     const url = new URL(
-      "http://localhost/api/items/1?include=files,author&with=%7B%22relation%22%3Atrue%7D",
+      "http://localhost/api/items/1?include=files,author&with=%7B%22relation%22%3Atrue%7D&plainDatesAs=milliseconds",
     );
     const request = Object.assign(new Request(url.href), {
       params: { id: "1" },
@@ -355,12 +366,14 @@ describe("@contfu/server routes", () => {
         options: {
           include: ["files", "author"],
           with: { relation: true },
+          plainDatesAs: "milliseconds",
         },
       },
     });
     expect(getItemById).toHaveBeenCalledWith(1, {
       include: ["files", "author"],
       with: { relation: true },
+      plainDatesAs: "milliseconds",
     });
   });
 

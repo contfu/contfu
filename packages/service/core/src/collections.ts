@@ -10,6 +10,7 @@ export interface ServiceCollection extends Collection {
   integrationId: string | null;
   integrationName: string | null;
   integrationType: number | null;
+  options?: Record<string, unknown> | null;
   i18n?: CollectionI18nConfig;
   effectiveI18n?: EffectiveCollectionI18nConfig;
   itemsCount: number;

@@ -37,7 +37,7 @@ export interface ServiceComponent {
   id: string;
   workspaceId: string;
   integrationId: string;
-  providerRef: string;
+  serviceRef: string;
   name: string;
   displayName: string;
   status: number;
@@ -91,6 +91,7 @@ async function request<T>(
 
   const text = await res.text();
   if (!text) return undefined as T;
+  if (!res.headers.get("content-type")?.includes("application/json")) return text as T;
   return JSON.parse(text) as T;
 }
 
@@ -141,7 +142,7 @@ export interface ContfuApiClient {
   createCollection(body: CreateCollectionBody): Promise<ServiceCollection>;
   updateCollection(id: string, body: UpdateCollectionBody): Promise<ServiceCollection>;
   deleteCollection(id: string): Promise<void>;
-  getCollectionTypes(id: string): Promise<TypeGenerationInput[]>;
+  getCollectionTypes(id: string): Promise<string>;
 
   listFlows(): Promise<ServiceFlow[]>;
   getFlow(id: string): Promise<ServiceFlowWithDetails>;
@@ -233,8 +234,7 @@ export function createApiClient(
     updateCollection: (id, body) =>
       req<ServiceCollection>("PATCH", `/api/v1/collections/${id}`, body),
     deleteCollection: (id) => req<void>("DELETE", `/api/v1/collections/${id}`),
-    getCollectionTypes: (id) =>
-      req<TypeGenerationInput[]>("GET", `/api/v1/collections/${id}/types`),
+    getCollectionTypes: (id) => req<string>("GET", `/api/v1/collections/${id}/types`),
 
     listFlows: () => req<ServiceFlow[]>("GET", "/api/v1/flows"),
     getFlow: (id) => req<ServiceFlowWithDetails>("GET", `/api/v1/flows/${id}`),

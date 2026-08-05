@@ -35,6 +35,7 @@ export type EverythingProps = {
   file: FileMetadata;
   files: FileMetadata[];
   date: number;
+  plainDate: string;
   location: GeoPoint;
 };"
 `;

@@ -1,7 +1,9 @@
 import type { ApiOrganization } from "@contfu/svc-api";
 import { BASE_URL, getApiClient, handleCliError } from "../http";
+import { isStructuredOutputFormat, printStructured } from "../output";
 import { printTable, terminalLink, type TableColumn } from "../table";
 import { printDryRun, type DryRunOption } from "./dry-run";
+import { translateEnum } from "./presentation";
 
 const OrganizationRole = {
   OWNER: 0,
@@ -19,6 +21,24 @@ const ROLE_LABEL: Record<number, string> = {
   [OrganizationRole.ADMIN]: "admin",
   [OrganizationRole.MEMBER]: "member",
 };
+
+function presentOrganization(organization: ApiOrganization) {
+  return {
+    ...organization,
+    role: translateEnum(organization.role, OrganizationRole),
+  };
+}
+
+function compactOrganization(organization: ApiOrganization) {
+  const presented = presentOrganization(organization);
+  return {
+    id: presented.id,
+    name: presented.name,
+    displayName: presented.displayName,
+    role: presented.role,
+    canManage: presented.canManage,
+  };
+}
 
 const ORGANIZATION_COLUMNS: TableColumn<ApiOrganization>[] = [
   { header: "ID", value: (organization) => organizationLink(organization.id) },
@@ -48,19 +68,33 @@ function roleFromInput(value?: string): number {
   throw new Error("Role must be member or admin");
 }
 
-export async function listOrganizations(format = "table"): Promise<void> {
+export async function listOrganizations(format = "default", full = false): Promise<void> {
   try {
     const organizations = await getApiClient(null).listOrganizations();
-    if (format === "json") console.log(JSON.stringify(organizations, null, 2));
+    if (isStructuredOutputFormat(format))
+      printStructured(organizations.map(presentOrganization), format, {
+        full,
+        compact: organizations.map(compactOrganization),
+      });
     else printTable(organizations, ORGANIZATION_COLUMNS);
   } catch (err) {
     handleCliError(err);
   }
 }
 
-export async function getOrganization(ref: string): Promise<void> {
+export async function getOrganization(
+  ref: string,
+  format = "default",
+  full = false,
+): Promise<void> {
   try {
-    console.log(JSON.stringify(await resolveOrganization(ref), null, 2));
+    const organization = await resolveOrganization(ref);
+    if (isStructuredOutputFormat(format)) {
+      printStructured(presentOrganization(organization), format, {
+        full,
+        compact: compactOrganization(organization),
+      });
+    } else console.log(JSON.stringify(organization, null, 2));
   } catch (err) {
     handleCliError(err);
   }

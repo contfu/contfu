@@ -1,5 +1,5 @@
 import { eq, inArray } from "drizzle-orm";
-import type { IncludeOption, WithClause } from "@contfu/core";
+import type { IncludeOption, PlainDateOutput, WithClause } from "@contfu/core";
 import type { ItemWithRelations } from "../../domain/query-types";
 import { db, type DbCtx } from "./db";
 import { internalLinkTable } from "./schema";
@@ -14,6 +14,7 @@ type FindItemsFn = (
     with?: WithClause;
     includeDeleted?: boolean;
     onlyDeleted?: boolean;
+    plainDatesAs?: PlainDateOutput;
   },
   ctx?: any,
 ) => ItemWithRelations[];
@@ -25,6 +26,7 @@ export function resolveRelations(
   ctx = db,
   depth = 0,
   ancestors: ItemWithRelations[] = [],
+  plainDatesAs?: PlainDateOutput,
 ): void {
   if (items.length === 0 || depth >= MAX_DEPTH) return;
 
@@ -48,6 +50,7 @@ export function resolveRelations(
           with: depth + 1 < MAX_DEPTH ? relationDef.with : undefined,
           includeDeleted: relationDef.includeDeleted,
           onlyDeleted: relationDef.onlyDeleted,
+          plainDatesAs,
         },
         ctx,
       );

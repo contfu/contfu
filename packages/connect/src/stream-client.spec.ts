@@ -375,6 +375,63 @@ describe("stream-client", () => {
       ]);
     });
 
+    test("rejects a pending refresh when the WebSocket disconnects", async () => {
+      const sockets: MockWebSocket[] = [];
+      globalThis.WebSocket = createMockWebSocketClass(sockets) as unknown as typeof WebSocket;
+
+      const client = connectToStream({ key: testKey, reconnect: false });
+      const eventsPromise = collectEvents(async () => {
+        for await (const _event of client) {
+          // consume the connection until it closes
+        }
+      });
+
+      await waitFor(() => sockets.length === 1 && sockets[0].ready());
+      const refresh = client.refresh("posts", [1]);
+      sockets[0].close(1006, "network lost");
+
+      await expect(refresh).rejects.toThrow("Sync command failed: network lost");
+      await eventsPromise;
+    });
+
+    test("rejects a pending refresh when the consumer cancels the iterator", async () => {
+      const sockets: MockWebSocket[] = [];
+      globalThis.WebSocket = createMockWebSocketClass(sockets) as unknown as typeof WebSocket;
+
+      const client = connectToStream({ key: testKey, reconnect: true });
+      const next = client.next();
+      await waitFor(() => sockets.length === 1 && sockets[0].ready());
+
+      const refresh = client.refresh("posts", [1]);
+      const cancelled = client.return(undefined);
+
+      await expect(refresh).rejects.toThrow("Sync command failed: Stream consumer stopped");
+      await cancelled;
+      await next;
+    });
+
+    test("rejects a refresh requested from a disconnect event", async () => {
+      const sockets: MockWebSocket[] = [];
+      globalThis.WebSocket = createMockWebSocketClass(sockets) as unknown as typeof WebSocket;
+
+      const client = connectToStream({ key: testKey, reconnect: false, connectionEvents: true });
+      const eventsPromise = collectEvents(async () => {
+        for await (const event of client) {
+          if (event.type === EventType.STREAM_DISCONNECTED) {
+            await expect(client.refresh("posts", [1])).rejects.toThrow(
+              "Sync command failed: no active stream connection",
+            );
+          }
+        }
+      });
+
+      await waitFor(() => sockets.length === 1 && sockets[0].ready());
+      sockets[0].close(1006, "network lost");
+
+      await eventsPromise;
+      expect(sockets[0].sent()).toEqual([]);
+    });
+
     test("suppresses yielded command results when commandResults is false", async () => {
       const sockets: MockWebSocket[] = [];
       globalThis.WebSocket = createMockWebSocketClass(sockets) as unknown as typeof WebSocket;

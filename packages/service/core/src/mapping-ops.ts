@@ -8,6 +8,7 @@ import {
   typeCompatibility,
   type MappingRule,
 } from "@contfu/svc-core";
+import { epochDayToIsoDate, epochDayToMilliseconds, millisecondsToEpochDay } from "@contfu/core";
 
 // ---------------------------------------------------------------------------
 // Synonym groups for auto-wiring
@@ -53,6 +54,9 @@ const CAST_FNS: Record<string, (v: unknown) => unknown> = {
   number: (v) => Number(v),
   boolean: (v) => Boolean(v),
   enum: (v) => v, // pass-through — validation happens in validateSourceItem
+  plainDateToDate: (v) => (v == null ? v : epochDayToMilliseconds(Number(v))),
+  dateToPlainDate: (v) => (v == null ? v : millisecondsToEpochDay(Number(v))),
+  plainDateToString: (v) => (v == null ? v : epochDayToIsoDate(Number(v))),
 };
 
 type MappingValue = { found: true; value: unknown } | { found: false };
@@ -154,13 +158,17 @@ function selectArraySchemaValue(sourceValue: SchemaValue, rule: MappingRule): Sc
 
 function castSchemaValue(sourceValue: SchemaValue, rule: MappingRule): SchemaValue {
   const selectedValue = selectArraySchemaValue(sourceValue, rule);
+  const srcType = schemaType(selectedValue);
+  const nullable = srcType & PropertyType.NULL;
+  if (rule.cast === "plainDateToDate") return PropertyType.DATE | nullable;
+  if (rule.cast === "dateToPlainDate") return PropertyType.PLAINDATE | nullable;
+  if (rule.cast === "plainDateToString") return PropertyType.STRING | nullable;
   if (rule.cast !== "enum") return selectedValue;
 
-  const srcType = schemaType(selectedValue);
-  const nullable = !!(srcType & PropertyType.NULL);
+  const isNullable = !!nullable;
   const isMulti = !!(srcType & PropertyType.STRINGS) || !!(srcType & PropertyType.ENUMS);
   const baseType = isMulti ? PropertyType.ENUMS : PropertyType.ENUM;
-  const enumType = nullable ? baseType | PropertyType.NULL : baseType;
+  const enumType = isNullable ? baseType | PropertyType.NULL : baseType;
 
   // Prefer explicit rule.enumValues, then values already in the source tuple
   const enumVals = rule.enumValues ?? schemaEnumValues(selectedValue) ?? [];
@@ -256,6 +264,19 @@ export function validateSourceItem(
     if (rule.cast === "number") {
       const n = Number(sourceValue.value);
       if (Number.isNaN(n)) {
+        errors.push({
+          property: rule.target ?? rule.source,
+          sourceProperty: rule.source,
+          cast: rule.cast,
+        });
+      }
+    } else if (
+      ["plainDateToDate", "dateToPlainDate", "plainDateToString"].includes(rule.cast) &&
+      sourceValue.value != null
+    ) {
+      try {
+        CAST_FNS[rule.cast](sourceValue.value);
+      } catch {
         errors.push({
           property: rule.target ?? rule.source,
           sourceProperty: rule.source,

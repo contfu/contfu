@@ -1,8 +1,8 @@
 # @contfu/ui
 
-SvelteKit dashboard for inspecting a Contfu Local Store through a user-hosted Contfu Server.
+SvelteKit dashboard for inspecting Contfu Local Store through a user-hosted Contfu Server.
 
-The UI queries `@contfu/server` over HTTP. It does not connect to the Cloud Service or synchronize content; the Local Runtime is responsible for receiving Sync Messages through the Connector and writing the Local Store.
+The UI queries `@contfu/server` over HTTP. It does not connect to Contfu or synchronize content; the Contfu runtime (`@contfu/contfu`) is responsible for receiving Sync Messages through the Connector and writing the Local Store.
 
 ## Development
 

@@ -8,7 +8,7 @@ Post your Sanity Studio schema to Contfu so Contfu can use the Studio schema as 
 bun add @contfu/sanity
 ```
 
-`@contfu/sanity` has a peer dependency on `sanity` and consumes your Studio `schemaTypes` array.
+`@contfu/sanity` consumes your Studio `schemaTypes` array without importing Sanity at runtime.
 
 ## Usage
 

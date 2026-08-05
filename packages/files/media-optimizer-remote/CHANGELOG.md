@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.8] - 2026-08-05
+
+### Changed
+
+- Updated remote media optimization dependencies and documentation.
+
+## [0.1.7] - 2026-07-25
+
+### Changed
+
+- Updated dependencies.
+
 ## [0.1.6] - 2026-07-25
 
 ### Changed

@@ -1,2 +1,2 @@
 export * from "./index.shared";
-export { db } from "./infra/db/db";
+export { createDatabaseClient, db, withDatabase } from "./infra/db/db";

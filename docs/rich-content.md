@@ -1,7 +1,7 @@
 # Rich Content & Media
 
 Beyond typed props, items can carry **rich content** — long-form prose modeled as a tree
-of structured **blocks** and **inlines**. Contfu normalizes provider rich text (Notion
+of structured **blocks** and **inlines**. Contfu normalizes Service rich text (Notion
 blocks, Contentful rich text, Strapi blocks, WordPress HTML, …) into one block model
 defined in `@contfu/core`, so you render the same shapes regardless of source.
 
@@ -13,7 +13,7 @@ Block and inline types live in `@contfu/core`:
   `QuoteBlock`, `CodeBlock`, `UnorderedListBlock`, `OrderedListBlock`, `TableBlock`,
   `ImageBlock`, and component blocks (`Component`, tuple shape
   `["x", name, props, children]`) for your [components](./collections.md#components) or
-  provider-specific rich nodes that do not have a built-in Contfu equivalent.
+  service-specific rich nodes that do not have a built-in Contfu equivalent.
 - **Inlines** — plain strings plus anchors, inline code, bold, and italic marks.
 
 You rarely touch these directly — render them with a framework adapter, or render to
@@ -21,17 +21,17 @@ HTML/Markdown strings.
 
 ### Embedded images
 
-Rich-text images use the provider-neutral tuple `['i', URL, alt]`. The URL is normalized
+Rich-text images use the service-neutral tuple `['i', URL, alt]`. The URL is normalized
 for delivery and `alt` contains the image's alternative text (or an empty string when none
 is available). The tuple deliberately excludes dimensions, responsive formats, captions,
-MIME data, and provider identifiers so consumers can render embedded images consistently
+MIME data, and service identifiers so consumers can render embedded images consistently
 across sources.
 
 This narrow contract applies only to images embedded in rich content. Regular media fields
-use their provider media-field contract and may preserve additional metadata; for example,
+use their service media-field contract and may preserve additional metadata; for example,
 Strapi media fields normalized by `normalizeStrapiMedia()` are unaffected.
 
-Provider-specific block nodes are preserved as component blocks
+Service-specific block nodes are preserved as component blocks
 when possible instead of being silently dropped; for example, unsupported Contentful rich
 text nodes use component names like `contentful.<nodeType>` and unsupported Notion blocks
 use names like `notion.<blockType>` with the Notion block payload under `props.notion`.
@@ -61,7 +61,7 @@ import { Blocks, FileUrlContext } from "@contfu/react";
 
 function Article({ post }) {
   return (
-    <FileUrlContext.Provider value={{ baseUrl: "/files" }}>
+    <FileUrlContext.Service value={{ baseUrl: "/files" }}>
       <Blocks
         blocks={post.content}
         components={{
@@ -69,7 +69,7 @@ function Article({ post }) {
           Callout: ({ block, children }) => <Callout kind={block[2].kind}>{children}</Callout>,
         }}
       />
-    </FileUrlContext.Provider>
+    </FileUrlContext.Service>
   );
 }
 ```
@@ -91,7 +91,7 @@ import { Blocks, CONTFU_FILE_URL } from "@contfu/angular";
 
 @Component({
   imports: [Blocks],
-  providers: [{ provide: CONTFU_FILE_URL, useValue: { baseUrl: "/files" } }],
+  services: [{ provide: CONTFU_FILE_URL, useValue: { baseUrl: "/files" } }],
   template: `<contfu-blocks [blocks]="post.content" />`,
 })
 export class ArticleComponent {}
@@ -124,6 +124,19 @@ Helpers: `renderBlock`, `renderBlocks`, `renderInline`, `renderInlines`, and the
 `…Markdown` counterparts. Override any block or inline renderer via `blocks` / `inlines`,
 and control media URLs via `file`.
 
+#### Link safety
+
+The default HTML and Markdown renderers share a safe-link policy. They preserve relative
+references (including `/path`, `./path`, `../path`, query, fragment, and protocol-relative
+forms), `http:` and `https:` URLs, and the explicitly supported `mailto:` and `tel:` schemes.
+Unknown schemes, including `javascript:`, `data:`, and `vbscript:`, are rejected after
+browser-relevant case and whitespace/control-character normalization. A rejected anchor is
+rendered as escaped plain text, without link syntax.
+
+Custom anchor renderers (`inlines.a`) are an intentional escape hatch: they receive the
+original anchor before the default policy is applied and own URL validation and escaping for
+their output.
+
 ### Server-side rendering through the HTTP client
 
 The HTTP client can render content for you, so the wire payload arrives already
@@ -143,7 +156,7 @@ const posts = await query("blogPost", {
 ## Files and media URLs
 
 Items reference **Files**; image/video/audio blocks reference **Media Files**. The Local
-Runtime downloads and stores these inside your boundary — the Cloud Service is never in the
+Runtime downloads and stores these inside your boundary — Contfu is never in the
 file path. See [Deployment → File & media storage](./deployment.md#file--media-storage).
 
 Adapters and string renderers turn a stored file reference (`<id>.<ext>`) into a URL via
@@ -161,7 +174,7 @@ keep their original URLs.
 ### Serving files
 
 A [self-hosted Server](./deployment.md#self-hosted-server) exposes the stored files over
-HTTP automatically. If you embed the Local Runtime, the `contfu()` instance gives you a
+HTTP automatically. If you embed the Contfu runtime, the `contfu()` instance gives you a
 `handleFileRequest(request, filePath)` helper to serve files (including on-demand media
 variants) from your own routes — see
-[Deployment → Embedded runtime](./deployment.md#embedded-local-runtime).
+[Deployment → Embedded runtime](./deployment.md#embedded-runtime).

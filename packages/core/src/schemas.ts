@@ -2,11 +2,11 @@ import { defineEnum, type EnumValue } from "./enums";
 import type { EffectiveCollectionI18nConfig } from "./i18n";
 
 /**
- * Property types are bit flags. Value types use bits 0–16; bits 24–30 are
+ * Property types are bit flags. Value types use bits 0–19; bits 24–30 are
  * metadata modifiers which may be combined with a value type.
  */
 export const PropertyType = defineEnum({
-  // Value types (bits 0–16).
+  // Value types (bits 0–17).
   NULL: 1, // 1 << 0
   BLOCK: 2, // 1 << 1
   STRING: 4, // 1 << 2
@@ -21,9 +21,13 @@ export const PropertyType = defineEnum({
   DATE: 2048, // 1 << 11
   ENUM: 4096, // 1 << 12
   ENUMS: 8192, // 1 << 13
-  JSON: 16384, // 1 << 14
+  OBJECT: 16384, // 1 << 14
   GEOPOINT: 32768, // 1 << 15
   COLOR: 65536, // 1 << 16
+  PLAINDATE: 131072, // 1 << 17
+  // Exact numeric values use canonical decimal strings at JSON/API boundaries.
+  BIGINT: 262144, // 1 << 18
+  DECIMAL: 524288, // 1 << 19
 
   // Integration-neutral property metadata (bits 24–30).
   LOCALE: 16777216, // 1 << 24
@@ -32,7 +36,7 @@ export const PropertyType = defineEnum({
 });
 export type PropertyType = EnumValue<typeof PropertyType>;
 
-export const PROPERTY_TYPE_MASK = (1 << 17) - 1;
+export const PROPERTY_TYPE_MASK = (1 << 20) - 1;
 export const PROPERTY_METADATA_MASK = 0x7f000000;
 
 /** Return only value-type bits, excluding integration-neutral metadata. */
@@ -197,6 +201,10 @@ function propertyTypeToTs(
       return "number";
     case PropertyType.NUMBERS:
       return "number[]";
+    // Exact numeric values are serialized as canonical base-10 strings.
+    case PropertyType.BIGINT:
+    case PropertyType.DECIMAL:
+      return "string";
     case PropertyType.COLOR:
       return "Color";
     case PropertyType.BOOLEAN:
@@ -217,6 +225,8 @@ function propertyTypeToTs(
     case PropertyType.FILES:
       return "FileMetadata[]";
     case PropertyType.DATE:
+      return "number";
+    case PropertyType.PLAINDATE:
       return "string";
     case PropertyType.BLOCK:
       if (enumValues && enumValues.length > 0) {
@@ -236,7 +246,7 @@ function propertyTypeToTs(
       return "string[]";
     case PropertyType.GEOPOINT:
       return "GeoPoint";
-    case PropertyType.JSON:
+    case PropertyType.OBJECT:
       return "any";
     default:
       return propertyTypeMaskToTs(type, targets, refFormat, enumValues);

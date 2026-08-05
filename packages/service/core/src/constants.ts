@@ -29,7 +29,7 @@ function integrationTypeMeta(
 
 /** Metadata for each integration type. */
 export const IntegrationTypeMeta: Record<IntegrationType, IntegrationTypeMetaEntry> = {
-  [IntegrationType.APP]: integrationTypeMeta("Application Integration", IntegrationType.APP, true),
+  [IntegrationType.APP]: integrationTypeMeta("application", IntegrationType.APP, true),
   [IntegrationType.WEB]: integrationTypeMeta("web", IntegrationType.WEB),
   [IntegrationType.WEBHOOK]: integrationTypeMeta("webhook", IntegrationType.WEBHOOK, true),
   [IntegrationType.NOTION]: integrationTypeMeta("notion", IntegrationType.NOTION),

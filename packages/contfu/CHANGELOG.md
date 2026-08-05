@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.3.1] - 2026-08-05
+
+### Added
+
+- Added plain-date support and preserved nullable enum unions in generated types.
+
+### Changed
+
+- Renamed the `json` property type to `object`.
+- Pruned stale file links when item media changes.
+
+### Fixed
+
+- Hardened local runtime reliability and aligned DATE type generation with epoch-millisecond values.
+
+## [0.3.0] - 2026-07-25
+
+### Changed
+
+- **Breaking:** Regenerated the complete local-store migration history. Existing local databases must be deleted and rebuilt from a fresh sync before upgrading.
+
 ## [0.2.2] - 2026-07-25
 
 ### Added

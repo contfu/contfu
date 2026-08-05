@@ -1,9 +1,11 @@
 import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from "bun:test";
+import { decode } from "@toon-format/toon";
 
 const mockFetch = mock<typeof fetch>();
 globalThis.fetch = mockFetch as any;
 
-const { listOrganizationMembers, setOrganizationRole } = await import("./organizations");
+const { getOrganization, listOrganizationMembers, listOrganizations, setOrganizationRole } =
+  await import("./organizations");
 
 function jsonResponse(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
@@ -27,6 +29,73 @@ beforeEach(() => {
 afterEach(() => {
   logSpy.mockRestore();
   errorSpy.mockRestore();
+});
+
+describe("listOrganizations", () => {
+  test("prints compact agent rows by default", async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse([
+        {
+          id: "org_1",
+          displayName: "Acme",
+          name: "acme",
+          role: 0,
+          canManage: true,
+          createdAt: "2026-01-01",
+        },
+      ]),
+    );
+
+    await listOrganizations("agent");
+
+    expect(logSpy.mock.calls[0][0]).toContain("id,name,displayName,role,canManage");
+    expect(logSpy.mock.calls[0][0]).not.toContain("createdAt");
+  });
+});
+
+describe("getOrganization", () => {
+  const organization = {
+    id: "org_1",
+    displayName: "Acme",
+    name: "acme",
+    role: 0,
+    canManage: true,
+    avatar: null,
+    createdAt: "2026-01-01",
+    updatedAt: null,
+  };
+
+  test("presents organization roles in JSON", async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse([organization]));
+
+    await getOrganization("acme", "json");
+
+    expect(JSON.parse(logSpy.mock.calls[0][0] as string)).toMatchObject({
+      id: "org_1",
+      role: "owner",
+    });
+  });
+
+  test("uses compact agent detail output by default and expands with full", async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse([organization]));
+    await getOrganization("acme", "agent");
+    expect(decode(logSpy.mock.calls[0][0] as string)).toEqual({
+      id: "org_1",
+      name: "acme",
+      displayName: "Acme",
+      role: "owner",
+      canManage: true,
+    });
+
+    logSpy.mockClear();
+    mockFetch.mockResolvedValueOnce(jsonResponse([organization]));
+    await getOrganization("acme", "agent", true);
+    expect(decode(logSpy.mock.calls[0][0] as string)).toMatchObject({
+      avatar: null,
+      createdAt: "2026-01-01",
+      role: "owner",
+    });
+  });
 });
 
 describe("listOrganizationMembers", () => {

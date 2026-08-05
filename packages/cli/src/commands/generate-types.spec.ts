@@ -1,5 +1,6 @@
 import { describe, test, expect, beforeEach, afterEach, mock, spyOn } from "bun:test";
 import { integrationTypes, collectionTypes } from "./generate-types";
+import { getSelectedWorkspaceId } from "../http";
 
 const mockFetch = mock<typeof fetch>();
 globalThis.fetch = mockFetch as any;
@@ -14,6 +15,20 @@ function jsonResponse(data: unknown): Response {
     status: 200,
     headers: { "Content-Type": "application/json" },
   });
+}
+
+function textResponse(data: string): Response {
+  return new Response(data, {
+    status: 200,
+    headers: { "Content-Type": "text/plain; charset=utf-8" },
+  });
+}
+
+function expectedApiUrl(path: string): string {
+  const workspaceId = getSelectedWorkspaceId();
+  return workspaceId
+    ? `https://contfu.com${path}?workspace=${encodeURIComponent(workspaceId)}`
+    : `https://contfu.com${path}`;
 }
 
 let writeSpy: ReturnType<typeof spyOn>;
@@ -49,7 +64,7 @@ describe("integrationTypes", () => {
     await integrationTypes("7");
 
     const url = (mockFetch.mock.calls[1] as unknown[])[0] as string;
-    expect(url).toBe("https://contfu.com/api/v1/integrations/7/types");
+    expect(url).toBe(expectedApiUrl("/api/v1/integrations/7/types"));
     expect(writeSpy).toHaveBeenCalledTimes(1);
     const output = (writeSpy.mock.calls[0] as unknown[])[0] as string;
     expect(output).toContain("ContfuCollections");
@@ -67,32 +82,18 @@ describe("integrationTypes", () => {
 });
 
 describe("collectionTypes", () => {
-  test("fetches types for collection and prints map type", async () => {
+  test("fetches and prints generated TypeScript returned by the API", async () => {
+    const generatedTypes = "export type Pages = { id: number };\n";
     mockFetch.mockResolvedValueOnce(
       jsonResponse([{ id: "3", name: "pages", displayName: "Pages" }]),
     );
-    mockFetch.mockResolvedValueOnce(
-      jsonResponse([{ name: "pages", displayName: "Pages", schema: {} }]),
-    );
+    mockFetch.mockResolvedValueOnce(textResponse(generatedTypes));
 
     await collectionTypes("3");
 
     const url = (mockFetch.mock.calls[1] as unknown[])[0] as string;
-    expect(url).toBe("https://contfu.com/api/v1/collections/3/types");
+    expect(url).toBe(expectedApiUrl("/api/v1/collections/3/types"));
     expect(writeSpy).toHaveBeenCalledTimes(1);
-    const output = (writeSpy.mock.calls[0] as unknown[])[0] as string;
-    expect(output).toContain("ContfuCollections");
-  });
-
-  test("exits when no types found for collection", async () => {
-    mockFetch.mockResolvedValueOnce(
-      jsonResponse([{ id: "3", name: "pages", displayName: "Pages" }]),
-    );
-    mockFetch.mockResolvedValueOnce(jsonResponse([]));
-
-    // oxlint-disable-next-line typescript/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
-    await expect(collectionTypes("3")).rejects.toThrow("exit");
-
-    expect(errorSpy).toHaveBeenCalledWith("No types found for this collection");
+    expect(writeSpy).toHaveBeenCalledWith(generatedTypes);
   });
 });

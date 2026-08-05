@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.6] - 2026-08-05
+
+### Fixed
+
+- Hardened local runtime reliability and stream reconnection behavior.
+
 ## [0.1.5] - 2026-07-25
 
 ### Added

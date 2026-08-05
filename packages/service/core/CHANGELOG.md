@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.6] - 2026-08-05
+
+### Added
+
+- Added plain-date schema support.
+
+### Fixed
+
+- Bounded paid item change quota overages.
+
 ## [0.1.5] - 2026-07-25
 
 ### Added

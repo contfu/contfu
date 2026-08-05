@@ -1,4 +1,8 @@
-import { describe, expect, test } from "bun:test";
+import { afterAll, describe, expect, test } from "bun:test";
+import { GlobalRegistrator } from "@happy-dom/global-registrator";
+import { compile } from "svelte/compiler";
+import { mkdir, rm, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import { render } from "svelte/server";
 import Blocks from "./Blocks.svelte";
 import Block from "./Block.svelte";
@@ -27,6 +31,35 @@ type SvelteServerComponentProps = {
   block: Component;
   children?: (renderer: SvelteServerRenderer) => void;
 };
+
+const hydrationDir = join(import.meta.dir, ".tmp-hydration");
+await mkdir(hydrationDir, { recursive: true });
+const clientSvelte = import.meta.resolve("svelte").replace("index-server", "index-client");
+for (const name of ["Block", "Inline"]) {
+  const source = await Bun.file(join(import.meta.dir, `${name}.svelte`)).text();
+  const code = compile(source, { generate: "client", filename: `${name}.svelte` })
+    .js.code.replaceAll('"./Inline.svelte"', '"./Inline.js"')
+    .replaceAll('"./Block.svelte"', '"./Block.js"')
+    .replaceAll('"./index.js"', '"./context.js"')
+    .replaceAll('from "svelte"', `from "${clientSvelte}"`);
+  await writeFile(join(hydrationDir, `${name}.js`), code);
+}
+const hostSource = `<script>import Block from './Block.js'; let { block, file } = $props(); let currentFile = $state(file); export function updateFile(next) { currentFile = next; }</script><Block {block} file={currentFile} />`;
+const hostCode = compile(hostSource, {
+  generate: "client",
+  filename: "HydrationHost.svelte",
+}).js.code.replaceAll('from "svelte"', `from "${clientSvelte}"`);
+await writeFile(join(hydrationDir, "Host.js"), hostCode);
+await writeFile(
+  join(hydrationDir, "context.js"),
+  'export const FILE_URL_CONTEXT_KEY = Symbol("file");',
+);
+GlobalRegistrator.register();
+const { hydrate, tick } = await import(clientSvelte);
+const BrowserHost = (await import(`${hydrationDir}/Host.js?test=${Date.now()}`)).default;
+afterAll(async () => {
+  await rm(hydrationDir, { recursive: true, force: true });
+});
 
 function NamedComponentFixture(
   renderer: SvelteServerRenderer,
@@ -110,7 +143,14 @@ describe("Block (Svelte)", () => {
   test("table with header", () => {
     const t: TableBlock = ["t", true, [[["Name"]], [["Alice"]]]];
     expect(html(Block, { block: t })).toBe(
-      "<table><tr><th>Name</th></tr><tr><td>Alice</td></tr></table>",
+      "<table><thead><tr><th>Name</th></tr></thead><tbody><tr><td>Alice</td></tr></tbody></table>",
+    );
+  });
+
+  test("table without header", () => {
+    const t: TableBlock = ["t", false, [[["A"]], [["B"]]]];
+    expect(html(Block, { block: t })).toBe(
+      "<table><tbody><tr><td>A</td></tr><tr><td>B</td></tr></tbody></table>",
     );
   });
 
@@ -133,6 +173,14 @@ describe("Block (Svelte)", () => {
     );
   });
 
+  test("nested image inherits file options", () => {
+    const image: ImageBlock = ["i", "nested.png", "nested"];
+    const component: Component = ["x", "Widget", {}, [image]];
+    expect(html(Block, { block: component, file: { baseUrl: "/assets" } })).toBe(
+      '<img src="/assets/nested.png" alt="nested"/>',
+    );
+  });
+
   test("component block renders children", () => {
     const inner: ParagraphBlock = ["p", ["hi"]];
     const component: Component = ["x", "Widget", {}, [inner]];
@@ -148,6 +196,37 @@ describe("Block (Svelte)", () => {
       }),
     ).toBe('<section data-name="Callout" data-kind="info"><p>hello</p></section>');
   });
+
+  test("hydrates browser-parsed tables without warnings and updates nested image URLs", async () => {
+    const nestedImage: ImageBlock = ["i", "nested.png", "nested"];
+    const component: Component = ["x", "Widget", {}, [nestedImage]];
+    const table = ["t", true, [[["Header"]], [[component]]]] as TableBlock;
+    const body = render(Block, { props: { block: table, file: { baseUrl: "/one" } } }).body;
+    const target = document.createElement("div");
+    target.innerHTML = body;
+    document.body.append(target);
+
+    const warnings: string[] = [];
+    const originalWarn = console.warn;
+    console.warn = (...args: unknown[]) => warnings.push(args.join(" "));
+    try {
+      const instance = hydrate(BrowserHost, {
+        target,
+        props: { block: table, file: { baseUrl: "/one" } },
+      });
+      await tick();
+      expect(warnings).toEqual([]);
+      expect(target.querySelector("thead th")?.textContent).toBe("Header");
+      expect(target.querySelector("img")?.getAttribute("src")).toBe("/one/nested.png");
+
+      instance.updateFile({ baseUrl: "/two" });
+      await tick();
+      expect(target.querySelector("img")?.getAttribute("src")).toBe("/two/nested.png");
+    } finally {
+      console.warn = originalWarn;
+      target.remove();
+    }
+  });
 });
 
 describe("Blocks (Svelte)", () => {
@@ -161,5 +240,12 @@ describe("Blocks (Svelte)", () => {
 
   test("empty array", () => {
     expect(html(Blocks, { blocks: [] })).toBe("");
+  });
+
+  test("nested image inherits file options", () => {
+    const blocks: BlockType[] = [["x", "Widget", {}, [["i", "nested.png", "nested"]]]];
+    expect(html(Blocks, { blocks, file: { baseUrl: "/assets" } })).toBe(
+      '<img src="/assets/nested.png" alt="nested"/>',
+    );
   });
 });

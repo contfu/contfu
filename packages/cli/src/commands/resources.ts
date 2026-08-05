@@ -1,4 +1,10 @@
 import {
+  IntegrationCapability,
+  IntegrationRole,
+  SyncMode,
+  isCreatableIntegrationType,
+} from "@contfu/core";
+import {
   IntegrationType,
   IntegrationTypeMeta,
   PropertyType,
@@ -21,8 +27,10 @@ import {
 } from "@contfu/svc-api";
 import { BASE_URL, getApiClient, handleCliError } from "../http";
 import { writeEnvKey, ensureGitignore } from "../env";
+import { isStructuredOutputFormat, printStructured, type StructuredOutputFormat } from "../output";
 import { printTable, terminalLink, type TableColumn } from "../table";
 import { printDryRun, type DryRunOption } from "./dry-run";
+import { enumFallback, translateEnum } from "./presentation";
 
 const RESOURCES = ["integrations", "collections", "flows"] as const;
 type Resource = (typeof RESOURCES)[number];
@@ -355,6 +363,11 @@ function buildIntegrationCreateBody(values: CliValues): CreateIntegrationBody {
     );
   }
   const type = typeEntry[1];
+  if (!isCreatableIntegrationType(type)) {
+    throw new Error(
+      `Integration type ${values.type} is not currently available. Run \`contfu integrations types\` to list supported types.`,
+    );
+  }
   const body: CreateIntegrationBody = { name: values.name!, type };
   if (values.url !== undefined) body.url = values.url;
   if (type === IntegrationType.CONTENTFUL) {
@@ -487,6 +500,7 @@ function isScalarSchemaValue(value: unknown): boolean {
     PropertyType.NUMBER,
     PropertyType.BOOLEAN,
     PropertyType.DATE,
+    PropertyType.PLAINDATE,
     PropertyType.ENUM,
   ];
   return scalarTypes.includes(type);
@@ -525,7 +539,164 @@ function transformSchema(schema: CollectionSchema): Record<string, string> {
 }
 
 function printJson(data: unknown) {
-  console.log(JSON.stringify(data, null, 2));
+  printStructured(data, "json");
+}
+
+function printData(data: unknown, format: StructuredOutputFormat, full: boolean, compact: unknown) {
+  printStructured(data, format, { full, compact });
+}
+
+function translateIntegrationType(value: unknown): string | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  if (typeof value === "string") return value;
+  return IntegrationTypeMeta[value as IntegrationType]?.label ?? enumFallback(value);
+}
+
+function translateSyncMode(value: unknown): string[] {
+  if (typeof value !== "number") return [enumFallback(value)];
+  if (value === SyncMode.NONE) return ["none"];
+  const labels: string[] = [];
+  if ((value & SyncMode.POLL) !== 0) labels.push("poll");
+  if ((value & SyncMode.WEBHOOK) !== 0) labels.push("webhook");
+  const known = SyncMode.POLL | SyncMode.WEBHOOK;
+  const unknownBits = value & ~known;
+  if (unknownBits !== 0) labels.push(enumFallback(unknownBits));
+  return labels.length > 0 ? labels : [enumFallback(value)];
+}
+
+function translateIntegrationRoles(values: unknown): string[] {
+  return Array.isArray(values)
+    ? values
+        .map((value) => translateEnum(value, IntegrationRole))
+        .map((label) => label.replace(/-role$/, ""))
+    : [];
+}
+
+function translateIntegrationCapabilities(values: unknown): string[] {
+  return Array.isArray(values)
+    ? values.map((value) => translateEnum(value, IntegrationCapability))
+    : [];
+}
+
+// These collection enums are owned by the service backend and intentionally are
+// kept as a CLI presentation mapping rather than importing backend internals.
+const COLLECTION_SOURCE_SYNC_STATUS = {
+  ACTIVE: 0,
+  EXPLICIT_PAUSED: 1,
+  QUOTA_BLOCKED: 2,
+  NEEDS_FULL_PULL: 3,
+  REPAIR_FAILED: 4,
+};
+const COLLECTION_STALE_REASON = { QUOTA_BLOCKED: 1 };
+const FLOW_STATE = {
+  ACTIVE: 0,
+  FROZEN: 1,
+  CREDENTIAL_BLOCKED: 2,
+  CAPABILITY_BLOCKED: 3,
+  QUOTA_BLOCKED: 4,
+};
+
+function presentIntegration(integration: ApiIntegration) {
+  return {
+    ...integration,
+    ...(integration.type !== undefined ? { type: translateIntegrationType(integration.type) } : {}),
+    ...(integration.mode !== undefined ? { mode: translateSyncMode(integration.mode) } : {}),
+    ...(integration.roles !== undefined
+      ? { roles: translateIntegrationRoles(integration.roles) }
+      : {}),
+    ...(integration.capabilities !== undefined
+      ? { capabilities: translateIntegrationCapabilities(integration.capabilities.enabled) }
+      : {}),
+  };
+}
+
+function compactIntegration(integration: ApiIntegration) {
+  const presented = presentIntegration(integration);
+  return {
+    id: presented.id,
+    name: presented.name,
+    type: integration.type === undefined ? String(integration.type) : presented.type,
+    ...(integration.mode !== undefined ? { mode: presented.mode } : {}),
+    ...(integration.roles !== undefined ? { roles: presented.roles } : {}),
+    ...(integration.capabilities !== undefined ? { capabilities: presented.capabilities } : {}),
+    ...(presented.scopes?.length > 0 ? { scopes: presented.scopes } : {}),
+    hasCredentials: presented.hasCredentials,
+  };
+}
+
+function compactIntegrations(integrations: ApiIntegration[]) {
+  return integrations.map(compactIntegration);
+}
+
+function presentCollection(collection: ServiceCollection) {
+  return {
+    ...collection,
+    ...(collection.integrationType !== undefined
+      ? { integrationType: translateIntegrationType(collection.integrationType) }
+      : {}),
+    ...(collection.sourceSyncStatus !== undefined
+      ? {
+          sourceSyncStatus: translateEnum(
+            collection.sourceSyncStatus,
+            COLLECTION_SOURCE_SYNC_STATUS,
+          ),
+        }
+      : {}),
+    ...(collection.staleReason !== undefined
+      ? {
+          staleReason:
+            collection.staleReason === null
+              ? null
+              : translateEnum(collection.staleReason, COLLECTION_STALE_REASON),
+        }
+      : {}),
+    ...(collection.schema !== undefined
+      ? { schema: collection.schema ? transformSchema(collection.schema) : null }
+      : {}),
+  };
+}
+
+function compactCollection(collection: ServiceCollection) {
+  const presented = presentCollection(collection);
+  return {
+    id: presented.id,
+    name: presented.name,
+    displayName: presented.displayName,
+    integrationId: presented.integrationId,
+    integrationType: presented.integrationType,
+    itemsCount: presented.itemsCount,
+    flowSourceCount: presented.flowSourceCount,
+    flowTargetCount: presented.flowTargetCount,
+    stale: presented.stale,
+    sourceSyncStatus: presented.sourceSyncStatus,
+    staleReason: presented.staleReason,
+  };
+}
+
+function compactCollections(collections: ServiceCollection[]) {
+  return collections.map(compactCollection);
+}
+
+function presentFlow(flow: ServiceFlow) {
+  const detailed = flow as ServiceFlow & {
+    sourceIntegrationType?: unknown;
+    targetIntegrationType?: unknown;
+  };
+  return {
+    ...flow,
+    state: translateEnum(flow.state, FLOW_STATE),
+    ...(detailed.sourceIntegrationType !== undefined
+      ? { sourceIntegrationType: translateIntegrationType(detailed.sourceIntegrationType) }
+      : {}),
+    ...(detailed.targetIntegrationType !== undefined
+      ? { targetIntegrationType: translateIntegrationType(detailed.targetIntegrationType) }
+      : {}),
+  };
+}
+
+function compactFlows(flows: ServiceFlow[]) {
+  return flows.map(({ id, sourceId, targetId }) => ({ id, sourceId, targetId }));
 }
 
 function uniqueById<T extends { id: unknown }>(rows: T[]): T[] {
@@ -630,23 +801,25 @@ const FLOW_COLUMNS: TableColumn<ServiceFlowRow>[] = [
   { header: "Target", value: (row) => collectionRefLabel(row.targetId, row.targetCollectionName) },
 ];
 
-export async function list(resource: Resource, format: string) {
+export async function list(resource: Resource, format: string, full = false) {
   const client = getApiClient();
   try {
     if (resource === "integrations") {
       const data = await client.listIntegrations();
-      if (format === "json") printJson(data);
-      else printTable(data, INTEGRATION_COLUMNS);
+      if (isStructuredOutputFormat(format)) {
+        printData(data.map(presentIntegration), format, full, compactIntegrations(data));
+      } else printTable(data, INTEGRATION_COLUMNS);
     } else if (resource === "collections") {
       const data = await client.listCollections();
-      if (format === "json") {
-        printJson(data.map((c) => ({ ...c, schema: c.schema ? transformSchema(c.schema) : null })));
+      if (isStructuredOutputFormat(format)) {
+        printData(data.map(presentCollection), format, full, compactCollections(data));
       } else {
         printTable(data, COLLECTION_COLUMNS);
       }
     } else {
       const data = await client.listFlows();
-      if (format === "json") printJson(data);
+      if (isStructuredOutputFormat(format))
+        printData(data.map(presentFlow), format, full, compactFlows(data));
       else printTable(data, FLOW_COLUMNS);
     }
   } catch (err) {
@@ -654,18 +827,26 @@ export async function list(resource: Resource, format: string) {
   }
 }
 
-export async function get(resource: Resource, id: string) {
+export async function get(resource: Resource, id: string, format = "default", full = false) {
   const client = getApiClient();
   try {
     if (resource === "integrations") {
       const resolvedId = await resolveIntegrationRef(id, client);
-      printJson(await client.getIntegration(resolvedId));
+      const data = await client.getIntegration(resolvedId);
+      if (isStructuredOutputFormat(format)) {
+        printData(presentIntegration(data), format, full, compactIntegration(data));
+      } else printJson(data);
     } else if (resource === "collections") {
       const resolvedId = await resolveCollectionRef(id, client);
       const data = await client.getCollection(resolvedId);
-      printJson({ ...data, schema: data.schema ? transformSchema(data.schema) : null });
+      if (isStructuredOutputFormat(format))
+        printData(presentCollection(data), format, full, compactCollection(data));
+      else printJson({ ...data, schema: data.schema ? transformSchema(data.schema) : null });
     } else {
-      printJson(await client.getFlow(id));
+      const data = await client.getFlow(id);
+      if (isStructuredOutputFormat(format))
+        printData(presentFlow(data), format, full, compactFlows([data])[0]);
+      else printJson(data);
     }
   } catch (err) {
     handleCliError(err);
@@ -865,14 +1046,16 @@ export async function regenerateAppKey(id: string, envFile?: string, options: Dr
 }
 
 export function listIntegrationTypes() {
-  const entries = Object.entries(IntegrationType);
+  const entries = Object.entries(IntegrationType).filter(([, type]) =>
+    isCreatableIntegrationType(type),
+  );
   const custom = entries
-    .filter(([, v]) => v < 20)
-    .map(([k]) => k.toLowerCase())
+    .filter(([, type]) => type < 20)
+    .map(([name]) => name.toLowerCase())
     .sort();
   const services = entries
-    .filter(([, v]) => v >= 20)
-    .map(([k]) => k.toLowerCase())
+    .filter(([, type]) => type >= 20)
+    .map(([name]) => name.toLowerCase())
     .sort();
   if (custom.length) process.stdout.write(custom.join("\n") + "\n");
   if (custom.length && services.length) process.stdout.write("\n");

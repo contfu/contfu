@@ -18,6 +18,7 @@ import { resumeMediaQueue } from "./features/files/resumeMediaQueue";
 import { processFiles } from "./features/files/processFiles";
 import { processPropertyFiles } from "./features/files/processPropertyFiles";
 import { deleteFilesByItem } from "./features/files/deleteFilesByItem";
+import { pruneItemFiles } from "./features/files/pruneItemFiles";
 import { setCollection } from "./features/collections/setCollection";
 import { renameCollection } from "./features/collections/renameCollection";
 import { removeCollectionByName } from "./features/collections/removeCollectionByName";
@@ -37,7 +38,7 @@ import type { FileStore } from "./domain/files";
 import { fileStore as defaultFileStore } from "./infra/media/media-defaults";
 
 /**
- * Run the Local Runtime: use the Connector to receive Sync Messages,
+ * Run the Contfu runtime: use the Connector to receive Sync Messages,
  * apply them into the Local Store, and process Media Files.
  * The authentication key is read from CONTFU_KEY (base64url) by default.
  */
@@ -250,6 +251,8 @@ async function persistSyncEvent<CMap>(
 
     if (fileStore && localFiles) {
       let needsUpdate = false;
+      // Every file the item still references; anything else linked to it is stale.
+      const linked = new Set<string>();
 
       if (content && content.length > 0) {
         content = await processFiles({
@@ -260,6 +263,7 @@ async function persistSyncEvent<CMap>(
           transformMedia,
           collection,
           pregenerate,
+          linked,
         });
         needsUpdate = true;
       }
@@ -275,9 +279,14 @@ async function persistSyncEvent<CMap>(
           transformMedia,
           collection,
           pregenerate,
+          linked,
         });
         needsUpdate = true;
       }
+
+      // The event carries the item's full current state, so files that disappeared
+      // upstream (a replaced image, for instance) have to lose their link here.
+      pruneItemFiles(itemId, linked);
 
       if (needsUpdate) {
         createOrUpdateItem({

@@ -22,13 +22,13 @@ type OptsWithConnectionEvents = BaseOpts & { connectionEvents: true };
 type OptsWithoutConnectionEvents = BaseOpts & { connectionEvents?: false };
 
 /**
- * Connect to the Cloud Service using the active Connector transport.
+ * Connect to Contfu using the active Connector transport.
  *
  * Returns an async generator that yields Sync Messages. Connection and
  * reconnection happen automatically in the background.
  *
  * The authentication key can be provided via opts or the `CONTFU_KEY` environment variable (base64url-encoded).
- * Sync connects to Contfu Cloud over WebSocket first and automatically falls back to HTTP streaming when WebSocket setup is unavailable.
+ * Sync connects to Contfu over WebSocket first and automatically falls back to HTTP streaming when WebSocket setup is unavailable.
  *
  * @example
  * ```ts

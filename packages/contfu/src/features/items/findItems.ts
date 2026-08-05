@@ -7,7 +7,13 @@ import { resolveRelations } from "../../infra/db/resolve-relations";
 import { compileFilter } from "../../infra/filter/compiler";
 import { tokenize } from "../../infra/filter/lexer";
 import { parse } from "../../infra/filter/parser";
-import { QueryResultArray, type QueryOptions, type SortOption } from "@contfu/core";
+import {
+  QueryResultArray,
+  formatPlainDateResults,
+  type CollectionSchema,
+  type QueryOptions,
+  type SortOption,
+} from "@contfu/core";
 import type { ItemWithRelations, QueryResult, QuerySystemFields } from "../../domain/query-types";
 import {
   buildI18nQueryPlan,
@@ -225,11 +231,13 @@ export function findItems(
   const explicitIncludeContent = options.include?.includes("content");
 
   const contentCollections = new Set<string>();
+  const schemas = new Map<string, CollectionSchema>();
   const schemaRows = ctx
     .select({ name: collectionsTable.name, schema: collectionsTable.schema })
     .from(collectionsTable)
     .all();
   for (const row of schemaRows) {
+    if (row.schema && typeof row.schema === "object") schemas.set(row.name, row.schema);
     if (row.schema && typeof row.schema === "object" && "$content" in row.schema) {
       contentCollections.add(row.name);
     }
@@ -326,13 +334,22 @@ export function findItems(
   }
 
   if (options.with && Object.keys(options.with).length > 0) {
-    resolveRelations(data, options.with, findItems, ctx);
+    resolveRelations(data, options.with, findItems, ctx, 0, [], options.plainDatesAs);
   }
 
-  return new QueryResultArray(
-    data.map((item, index) =>
-      pickRequestedFields(rawItems[index] as SelectableFieldMap, item, options.fields),
-    ),
-    { total, limit, offset },
+  const projected = data.map((item, index) =>
+    pickRequestedFields(rawItems[index] as SelectableFieldMap, item, options.fields),
   );
+  const temporaryCollections = new Set<Record<string, unknown>>();
+  for (let index = 0; index < projected.length; index++) {
+    const item = projected[index] as unknown as Record<string, unknown>;
+    if (!("$collection" in item)) {
+      item.$collection = rawItems[index].$collection;
+      temporaryCollections.add(item);
+    }
+  }
+  formatPlainDateResults(projected, schemas, options.plainDatesAs ?? "string");
+  for (const item of temporaryCollections) delete item.$collection;
+
+  return new QueryResultArray(projected, { total, limit, offset });
 }

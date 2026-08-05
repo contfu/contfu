@@ -2,13 +2,13 @@
 
 User-hosted Bun HTTP Server for Contfu.
 
-`@contfu/server` wraps the `@contfu/contfu` Local Runtime package: the Local Runtime uses the Connector to receive Sync Messages from the Cloud Service, applies them to the Local Store, processes Media Files, and the Server exposes HTTP query endpoints over that Local Store.
+`@contfu/server` wraps `@contfu/contfu`, the Contfu runtime and local store library: the runtime uses the Connector to receive Sync Messages from Contfu, applies them to the Local Store, and processes Media Files; the Server exposes HTTP query endpoints over that Local Store.
 
-The synchronization implementation lives in `@contfu/contfu`; `@contfu/server` only hosts the HTTP API and observes Local Runtime events for status and live UI invalidation.
+The synchronization implementation lives in `@contfu/contfu`; `@contfu/server` only hosts the HTTP API and observes runtime events for status and live UI invalidation.
 
 ## Usage
 
-`@contfu/server` is a Bun HTTP server wrapper.
+`@contfu/server` is a Bun HTTP server wrapper. It listens on port `3001` by default; pass `port` to override it.
 
 ```ts
 import serve from "@contfu/server";
@@ -29,9 +29,9 @@ Bun.serve({
 
 ## Prerequisites
 
-Configure the Local Runtime through environment variables:
+Configure the Contfu runtime through environment variables:
 
-- `CONTFU_KEY` — authentication key for the Cloud Service. When unset, the Server can still query an existing Local Store but no synchronization runs.
+- `CONTFU_KEY` — authentication key for Contfu. When unset, the Server can still query an existing Local Store but no synchronization runs.
 - `CONTFU_DB` or `DATABASE_URL` — SQLite Local Store path.
 - `FILE_URL` — optional file storage location for Media Files.
 - `CONTFU_DEFAULT_LOCALE` — optional default locale for requests that omit `locale`.

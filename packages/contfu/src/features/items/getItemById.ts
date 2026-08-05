@@ -3,9 +3,15 @@ import { db as defaultDb } from "../../infra/db/db";
 import { propsWithLocale } from "../../infra/db/mappers";
 import { resolveIncludes } from "../../infra/db/resolve-includes";
 import { resolveRelations } from "../../infra/db/resolve-relations";
-import { itemsTable } from "../../infra/db/schema";
+import { collectionsTable, itemsTable } from "../../infra/db/schema";
 import { findItems } from "./findItems";
-import type { IncludeOption, WithClause } from "@contfu/core";
+import {
+  formatPlainDateResults,
+  type CollectionSchema,
+  type IncludeOption,
+  type PlainDateOutput,
+  type WithClause,
+} from "@contfu/core";
 import type { ItemWithRelations } from "../../domain/query-types";
 
 export function getItemById(
@@ -15,6 +21,7 @@ export function getItemById(
     with?: WithClause;
     includeDeleted?: boolean;
     onlyDeleted?: boolean;
+    plainDatesAs?: PlainDateOutput;
   },
   ctx = defaultDb,
 ): ItemWithRelations | null {
@@ -62,8 +69,15 @@ export function getItemById(
   }
 
   if (options?.with && Object.keys(options.with).length > 0) {
-    resolveRelations([item], options.with, findItems, ctx);
+    resolveRelations([item], options.with, findItems, ctx, 0, [], options.plainDatesAs);
   }
 
-  return item;
+  const schemas = new Map<string, CollectionSchema>(
+    ctx
+      .select({ name: collectionsTable.name, schema: collectionsTable.schema })
+      .from(collectionsTable)
+      .all()
+      .map((entry) => [entry.name, entry.schema]),
+  );
+  return formatPlainDateResults(item, schemas, options?.plainDatesAs ?? "string");
 }

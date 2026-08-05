@@ -75,12 +75,13 @@ function normalizeFieldType(
   if (field.type === "number") return PropertyType.NUMBER;
   if (field.type === "color") return PropertyType.COLOR;
   if (field.type === "boolean") return PropertyType.BOOLEAN;
-  if (field.type === "datetime" || field.type === "date") return PropertyType.DATE;
+  if (field.type === "datetime") return PropertyType.DATE;
+  if (field.type === "date") return PropertyType.PLAINDATE;
   if (field.type === "geopoint") return PropertyType.GEOPOINT;
   if (field.type === "reference") return PropertyType.REF;
   if (field.type === "image" || field.type === "file") return PropertyType.FILE;
   if (field.type === "block") return PropertyType.BLOCK;
-  if (field.type === "object") return PropertyType.JSON;
+  if (field.type === "object" || objectTypeNames.has(field.type)) return PropertyType.OBJECT;
   if (field.type === "array") return normalizeArrayType(field.of, objectTypeNames);
   return PropertyType.STRING;
 }
@@ -124,10 +125,10 @@ function normalizeArrayType(of: unknown, objectTypeNames: ReadonlySet<string>): 
     if (type & PropertyType.BLOCK) return PropertyType.BLOCK;
     if (type & PropertyType.FILE) return PropertyType.FILES;
     if (
-      type & PropertyType.JSON ||
+      type & PropertyType.OBJECT ||
       (typeof item.type === "string" && objectTypeNames.has(item.type))
     )
-      return PropertyType.JSON;
+      return PropertyType.OBJECT;
     if (type & PropertyType.NUMBER) result |= PropertyType.NUMBERS;
     else result |= PropertyType.STRINGS;
   }

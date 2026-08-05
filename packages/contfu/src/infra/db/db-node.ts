@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import type { EmptyRelations } from "drizzle-orm";
 import type { NodeSQLiteDatabase } from "drizzle-orm/node-sqlite";
 import { migrations } from "./generated-migrations";
@@ -28,4 +29,22 @@ export async function createNodeDatabaseClient(url: string): Promise<Database> {
   return db;
 }
 
-export const db: Database = await createNodeDatabaseClient(dbUrl);
+const defaultDb = await createNodeDatabaseClient(dbUrl);
+const databaseContext = new AsyncLocalStorage<Database>();
+
+function createDatabaseProxy(getActiveDb: () => Database): Database {
+  return new Proxy({} as Database, {
+    get(_target, prop, receiver) {
+      const activeDb = getActiveDb() as unknown as Record<PropertyKey, unknown>;
+      const value = Reflect.get(activeDb, prop, receiver);
+      return typeof value === "function" ? value.bind(activeDb) : value;
+    },
+  });
+}
+
+export const createDatabaseClient = createNodeDatabaseClient;
+export function withDatabase<T>(database: Database, fn: () => T): T {
+  return databaseContext.run(database, fn);
+}
+
+export const db: Database = createDatabaseProxy(() => databaseContext.getStore() ?? defaultDb);

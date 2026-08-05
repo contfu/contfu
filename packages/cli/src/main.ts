@@ -37,6 +37,7 @@ import {
   type CliValues,
 } from "./commands/resources";
 import { setup } from "./commands/setup";
+import { isOutputFormat } from "./output";
 import { status } from "./commands/status";
 import {
   acceptWorkspaceInvite,
@@ -58,24 +59,29 @@ function printUsage() {
 Commands:
   login [--no-browser]              Authenticate
   logout                            Clear stored credentials
-  status                            Show resource summary
+  status [--format default|agent|json] [--full]
+                                    Show resource summary
   setup [--dry-run]                 Set up Contfu in a project
   <resource> list [options]         List all items
-  <resource> get <id-or-name>       Get item by ID or name
+  <resource> get <id-or-name> [--format default|agent|json] [--full]
+                                    Get item by ID or name
   <resource> create [--dry-run] [options]
                                     Create item
   <resource> update <id-or-name> [--dry-run] [options]
                                     Update item by ID or name
   <resource> delete <id-or-name> [--dry-run]
                                     Delete item by ID or name
-  integrations scan <id-or-name>     Scan source collections for an integration
-  integrations add <id-or-name> [--refs <refs> | --all | --select] [--dry-run]
+  integrations scan <id-or-name> [--format default|agent|json] [--full]
+                                    Scan source collections for an integration
+  integrations add <id-or-name> [--refs <refs> | --all | --select]
+  [--format default|agent|json] [--full] [--dry-run]
                                     Add scanned source collections to Contfu
-  integrations components <id-or-name>
+  integrations components <id-or-name> [--format default|agent|json] [--full]
                                     List discovered components for an integration
   components create <integration-id-or-name> [--dry-run]
                                     Create a component for an integration
-  components get <id>               Inspect a component
+  components get <id> [--format default|agent|json] [--full]
+                                    Inspect a component
   components update <id> [--dry-run]
                                     Edit component name/display/schema/mapping
   components delete <id> [--dry-run]
@@ -87,8 +93,10 @@ Commands:
   collections types <id-or-name>    Print TypeScript types for a collection
   items query [options]             Query items from a Server
   items count [options]             Count items in a Server
-  workspaces list                   List workspaces
-  workspaces get <id-or-name>       Show workspace details
+  workspaces list [--format default|agent|json] [--full]
+                                    List workspaces
+  workspaces get <id-or-name> [--format default|agent|json] [--full]
+                                    Show workspace details
   workspaces create [--dry-run] [options]
                                     Create workspace
   workspaces update <id-or-name>    Update workspace
@@ -101,8 +109,10 @@ Commands:
                                     Revoke workspace membership
   workspaces switch <id-or-name> [--dry-run]
                                     Persist selected workspace
-  orgs list                         List organizations
-  orgs get <id-or-name>             Show organization details
+  orgs list [--format default|agent|json] [--full]
+                                    List organizations
+  orgs get <id-or-name> [--format default|agent|json] [--full]
+                                    Show organization details
   orgs create [--dry-run] [options]
                                     Create organization
   orgs update <id-or-name>          Update organization
@@ -140,12 +150,12 @@ setup options:
 component options:
   -n, --name <name>                 Component runtime name / block discriminator
       --display-name <name>         Human-readable component name
-      --provider-ref <ref>          Provider component identifier (required for create)
+      --service-ref <ref>          Service component identifier (required for create)
   -d, --data <json>                 Raw JSON body for schema/mapping/status updates
 
 integrations options:
   -n, --name <name>                 Label (required for create)
-  -t, --type <provider>             Provider ID from integrations types (default: notion)
+  -t, --type <service>             Service ID from integrations types (default: notion)
       --token <token>               API token (for manual token-based integrations)
       --username <name>             WordPress username for application-password auth
       --application-password <pass> WordPress application password
@@ -153,15 +163,15 @@ integrations options:
       --contentful-delivery-token <token> Contentful Delivery API token
       --contentful-preview-token <token>  Contentful Preview API token
       --contentful-management-token <token> Contentful Management API token
-      --url <url-or-id>             Provider base URL or provider-specific space/site ID
+      --url <url-or-id>             Service base URL or service-specific space/site ID
       --project-id <id>             Sanity project ID
-      --scope <scope>               Provider namespace restriction
-      --scopes <scopes>             Comma-separated provider namespace restrictions
+      --scope <scope>               Service namespace restriction
+      --scopes <scopes>             Comma-separated service namespace restrictions
       --webhook-secret <secret>     Webhook signing secret
       --webhook-header <pairs>      Webhook target static headers as Name=Value pairs
       --webhook-max-attempts <n>    Webhook target retry cap
       --webhook-delivery-window <n> Webhook target failed-delivery window
-      --include-drafts              Include non-published content where the provider supports it
+      --include-drafts              Include non-published content where the service supports it
       --no-include-drafts           Sync published content only where draft mode is supported
       --generate-key                Create an app integration and write its API key to .env
       --i18n-locales <locales>      i18n Locales, comma-separated BCP 47 tags
@@ -213,8 +223,11 @@ items options:
 resource options:
   -w, --workspace <id-or-name>      Scope integrations, collections, or flows to a workspace
 
-list options:
-  -f, --format <fmt>                Output format: table (default) | json
+output options:
+  -f, --format <fmt>                Output format: default (default) | agent | json
+  -a, --agent                        Use compact agent output
+  -j, --json                         Use JSON output
+      --full                        Include all fields with --format agent
 
 Environment:
   CONTFU_API_KEY   API key (overrides stored config)`);
@@ -250,7 +263,7 @@ async function main() {
       "webhook-header": { type: "string" },
       "webhook-max-attempts": { type: "string" },
       "webhook-delivery-window": { type: "string" },
-      "provider-ref": { type: "string" },
+      "service-ref": { type: "string" },
       locale: { type: "string" },
       fallback: { type: "string" },
       "generate-key": { type: "boolean" },
@@ -265,6 +278,9 @@ async function main() {
       "include-drafts": { type: "boolean" },
       "no-include-drafts": { type: "boolean" },
       format: { type: "string", short: "f" },
+      agent: { type: "boolean", short: "a" },
+      json: { type: "boolean", short: "j" },
+      full: { type: "boolean" },
       package: { type: "string" },
       "app-name": { type: "string" },
       "env-file": { type: "string" },
@@ -303,6 +319,21 @@ async function main() {
     process.exit(1);
   }
 
+  const requestedFormat = values.format as string | undefined;
+  if (requestedFormat !== undefined && !isOutputFormat(requestedFormat)) {
+    console.error(`Unsupported output format: ${requestedFormat}. Use default, agent, or json.`);
+    process.exit(1);
+  }
+  const shortcutFormats = [
+    values.agent ? "agent" : undefined,
+    values.json ? "json" : undefined,
+  ].filter((format): format is string => format !== undefined);
+  if (shortcutFormats.length > 1 || (requestedFormat !== undefined && shortcutFormats.length > 0)) {
+    console.error("Choose only one output format via --format, -a, or -j.");
+    process.exit(1);
+  }
+  const outputFormat = requestedFormat ?? shortcutFormats[0] ?? "default";
+
   if (cmd === "login") {
     await login({ noBrowser: values["no-browser"] as boolean | undefined });
     return;
@@ -316,7 +347,7 @@ async function main() {
   }
 
   if (cmd === "status") {
-    await status((values.format as string | undefined) ?? "table");
+    await status(outputFormat, values.full as boolean | undefined);
     return;
   }
 
@@ -352,7 +383,7 @@ async function main() {
     const action = positionals[1] ?? "list";
     const ref = positionals[2];
     if (action === "list") {
-      await listWorkspaces((values.format as string | undefined) ?? "table");
+      await listWorkspaces(outputFormat, values.full as boolean | undefined);
       return;
     }
     if (action === "get") {
@@ -360,7 +391,7 @@ async function main() {
         console.error("Usage: contfu workspaces get <id-or-name>");
         process.exit(1);
       }
-      await getWorkspace(ref);
+      await getWorkspace(ref, outputFormat, values.full as boolean | undefined);
       return;
     }
     if (action === "create") {
@@ -444,7 +475,7 @@ async function main() {
     const action = positionals[1] ?? "list";
     const ref = positionals[2];
     if (action === "list") {
-      await listOrganizations((values.format as string | undefined) ?? "table");
+      await listOrganizations(outputFormat, values.full as boolean | undefined);
       return;
     }
     if (action === "get") {
@@ -452,7 +483,7 @@ async function main() {
         console.error("Usage: contfu orgs get <id-or-name>");
         process.exit(1);
       }
-      await getOrganization(ref);
+      await getOrganization(ref, outputFormat, values.full as boolean | undefined);
       return;
     }
     if (action === "create") {
@@ -526,14 +557,14 @@ async function main() {
       await createComponentCommand(id, {
         name: values.name as string | undefined,
         displayName: values["display-name"] as string | undefined,
-        providerRef: values["provider-ref"] as string | undefined,
+        serviceRef: values["service-ref"] as string | undefined,
         data: values.data as string | undefined,
         dryRun,
       });
       return;
     }
     if (action === "get" || action === "inspect") {
-      await inspectComponent(id);
+      await inspectComponent(id, outputFormat, values.full as boolean | undefined);
       return;
     }
     if (action === "delete") {
@@ -564,7 +595,8 @@ async function main() {
         process.exit(1);
       }
       await scanIntegrationCollections(id, {
-        format: (values.format as string | undefined) ?? "table",
+        format: outputFormat,
+        full: values.full as boolean | undefined,
         select: values.select as boolean | undefined,
         dryRun,
       });
@@ -579,7 +611,8 @@ async function main() {
         process.exit(1);
       }
       await addIntegrationCollections(id, {
-        format: (values.format as string | undefined) ?? "table",
+        format: outputFormat,
+        full: values.full as boolean | undefined,
         refs: parseAddRefs(values.refs as string | undefined),
         all: values.all as boolean | undefined,
         select: values.select as boolean | undefined,
@@ -593,7 +626,7 @@ async function main() {
         console.error("Usage: contfu integrations components <integration-id-or-name>");
         process.exit(1);
       }
-      await listIntegrationComponents(id, (values.format as string | undefined) ?? "table");
+      await listIntegrationComponents(id, outputFormat, values.full as boolean | undefined);
       return;
     }
 
@@ -671,14 +704,14 @@ async function main() {
     switch (action) {
       case "list":
       case undefined:
-        await list(cmd, (values.format as string | undefined) ?? "table");
+        await list(cmd, outputFormat, values.full as boolean | undefined);
         return;
       case "get":
         if (!id) {
           console.error("Missing id");
           process.exit(1);
         }
-        await get(cmd, id);
+        await get(cmd, id, outputFormat, values.full as boolean | undefined);
         return;
       case "create":
         await create(

@@ -220,6 +220,7 @@ export function serializeQueryParams(options: QueryOptions): URLSearchParams {
   setQueryParam(params, "with", options.with && JSON.stringify(options.with));
   setQueryParam(params, "fields", options.fields?.join(","));
   setQueryParam(params, "flat", options.flat ? "true" : undefined);
+  setQueryParam(params, "plainDatesAs", options.plainDatesAs);
   setQueryParam(params, "locale", options.locale);
   setQueryParam(params, "fallback", options.fallback);
   setQueryParam(params, "includeDeleted", options.includeDeleted ? "true" : undefined);

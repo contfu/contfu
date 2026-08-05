@@ -118,7 +118,7 @@ export type IntegrationI18nConfig = {
   /** User localization layer locales. */
   locales?: string[];
   localeMap?: Record<string, string>;
-  /** Provider-detected locales, kept separate from user layer config. */
+  /** Service-detected locales, kept separate from user layer config. */
   detected?: DetectedIntegrationI18nConfig;
   activeLocales?: ActiveLocalesConfig;
 };
@@ -129,7 +129,7 @@ export type CollectionI18nConfig = {
   localeMap?: Record<string, string>;
   keepLocaleField?: boolean;
   key?: string;
-  /** Provider-detected localization, kept separate from user layer config. */
+  /** Service-detected localization, kept separate from user layer config. */
   detected?: DetectedCollectionI18nConfig;
 };
 

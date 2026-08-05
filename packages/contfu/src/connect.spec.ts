@@ -219,7 +219,7 @@ describe("contfu connect", () => {
     expect(rows[0].index).toBe(77);
   });
 
-  test("Local Runtime downloads and processes Files when configured", async () => {
+  test("the Contfu runtime downloads and processes Files when configured", async () => {
     const fileStore: FileStore = {
       write: mock(() => Promise.resolve()),
       read: mock(() => Promise.resolve(null)),
@@ -264,7 +264,7 @@ describe("contfu connect", () => {
     expect(files[0].status).toBe(2);
     expect(files[0].data?.toString("utf8")).toBe("img");
 
-    // Local Runtime file link should exist
+    // Contfu runtime file link should exist
     const junctions = db.select().from(itemFileTable).all();
     expect(junctions).toHaveLength(1);
   });

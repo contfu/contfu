@@ -6,3 +6,7 @@
 !Dockerfile
 !tsconfig.json
 !bun.lock
+!docs
+!docs/**
+docs/private
+docs/private/**

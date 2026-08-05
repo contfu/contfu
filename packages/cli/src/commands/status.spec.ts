@@ -111,9 +111,30 @@ describe("status", () => {
     expect(parsed.authenticated).toBe(true);
     expect(parsed.integrations).toHaveLength(2);
     expect(parsed.integrations[0].typeLabel).toBe("notion");
-    expect(parsed.integrations[1].typeLabel).toBe("Application Integration");
+    expect(parsed.integrations[1].typeLabel).toBe("application");
     expect(parsed.collections).toHaveLength(1);
     expect(parsed.flows).toHaveLength(1);
+  });
+
+  test("prints agent output when requested", async () => {
+    mockApiResponses();
+    await status("agent");
+
+    const output = logSpy.mock.calls[0][0] as string;
+    expect(output).toContain("authenticated: true");
+    expect(output).toContain("integrations[2]{");
+    expect(output).toContain('",My Notion,notion,true');
+    expect(output).not.toContain("createdAt");
+    expect(output).not.toContain('"authenticated"');
+  });
+
+  test("includes all fields in full agent output", async () => {
+    mockApiResponses();
+    await status("agent", true);
+
+    const output = logSpy.mock.calls[0][0] as string;
+    expect(output).toContain("createdAt");
+    expect(output).toContain("typeLabel");
   });
 
   test("shows not authenticated when no key", async () => {

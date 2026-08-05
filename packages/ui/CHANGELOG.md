@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.1.9] - 2026-08-05
+
+### Added
+
+- Added shared page, status, and documentation UI primitives.
+
+### Changed
+
+- Aligned UI tokens and components with the terminal-native design system.
+- Updated dependencies for security fixes.
+
+## [0.1.8] - 2026-07-25
+
+### Changed
+
+- Updated dependencies.
+
 ## [0.1.7] - 2026-07-25
 
 ### Changed
