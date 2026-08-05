@@ -1,7 +1,7 @@
 # Getting Started
 
 This walkthrough takes you from nothing to a typed query running in your application. It
-uses Notion as the example source, but the shape is identical for any provider.
+uses Notion as the example source, but the shape is identical for any supported Service.
 
 The path is always the same:
 
@@ -40,7 +40,7 @@ This reports `authenticated`, plus your existing `integrations`, `collections`, 
 
 ## 2. Connect a content source
 
-Integrations are created in the web UI (OAuth providers authorize there; token providers
+Integrations are created in the web UI (OAuth Providers authorize there; token Services
 take an API token). The fastest path is a deep link with the type pre-selected:
 
 ```
@@ -48,11 +48,11 @@ https://contfu.com/integrations/new?type=notion
 ```
 
 For Notion, authorize Contfu in the consent screen, then grant it access to the pages or
-databases you want. For token providers (`strapi`, `contentful`, `web`) you can also
+databases you want. For token Services (`strapi`, `contentful`, `web`) you can also
 create the integration straight from the CLI:
 
 ```bash
-contfu integrations types          # list available provider types
+contfu integrations types          # list available Service types
 contfu integrations create --name "Marketing CMS" --type strapi --token <token>
 ```
 
@@ -62,7 +62,7 @@ Confirm it landed and grab its ID:
 contfu integrations list -f json
 ```
 
-See [Integrations](./integrations.md) for provider specifics, scopes, and drafts.
+See [Integrations](./integrations.md) for Service setup, scopes, and drafts.
 
 ## 3. Import source collections
 
@@ -82,7 +82,7 @@ contfu integrations add <integration-id> --select    # interactive picker
 
 ## 4. Register your application
 
-Create an **app integration** and install the SDK in one step. Do this before creating
+Create an **app integration** and install the package in one step. Do this before creating
 target collections — you need the app integration's ID to associate collections with it.
 
 ```bash
@@ -93,10 +93,10 @@ contfu setup --non-interactive \
 ```
 
 - `--package @contfu/client` — for apps that query a remote Server (most cases). Use
-  `@contfu/contfu` only for apps that embed the Local Runtime directly.
+  `@contfu/contfu` only for apps that embed the Contfu runtime directly.
 - `--env-file .env` — writes `CONTFU_KEY=...` (the app API key) to the file.
 
-Note the app integration's `id` from `contfu integrations list -f json`.
+Note the Application Integration's `id` from `contfu integrations list -f json`.
 
 ## 5. Create target collections
 
@@ -150,7 +150,7 @@ export const cq = contfuClient<Collections>(
 );
 ```
 
-**Embedded (Local Runtime in-process):**
+**Embedded (Contfu runtime in-process):**
 
 ```ts
 // src/lib/contfu.ts
@@ -176,7 +176,7 @@ Full query reference: [Querying content](./querying.md).
 
 ## Where to go next
 
-- Run the Local Runtime / Server: [Deployment](./deployment.md).
+- Run the Contfu runtime or Server: [Deployment](./deployment.md).
 - Render rich text and serve media: [Rich content & media](./rich-content.md).
 - Add localization: [Localization & i18n](./i18n.md).
 - Manage everything from the terminal: [CLI reference](./cli.md).

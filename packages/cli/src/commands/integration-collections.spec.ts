@@ -51,6 +51,39 @@ describe("scanIntegrationCollections", () => {
     expect(logSpy).toHaveBeenCalledWith(JSON.stringify(collections, null, 2));
   });
 
+  test("prints scanned collections as agent output", async () => {
+    const collections = [{ ref: "db-1", displayName: "Blog Posts", alreadyAdded: false }];
+    mockFetch.mockResolvedValueOnce(jsonResponse([{ id: "42", name: "Brain" }]));
+    mockFetch.mockResolvedValueOnce(jsonResponse(collections));
+
+    await scanIntegrationCollections("42", { format: "agent" });
+
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.stringContaining("[1]{ref,displayName,alreadyAdded}:"),
+    );
+  });
+
+  test("includes service metadata only in full agent output", async () => {
+    const collections = [
+      {
+        ref: "db-1",
+        displayName: "Blog Posts",
+        alreadyAdded: false,
+        locales: ["en", "de"],
+      },
+    ];
+    mockFetch.mockResolvedValueOnce(jsonResponse([{ id: "42", name: "Brain" }]));
+    mockFetch.mockResolvedValueOnce(jsonResponse(collections));
+    mockFetch.mockResolvedValueOnce(jsonResponse([{ id: "42", name: "Brain" }]));
+    mockFetch.mockResolvedValueOnce(jsonResponse(collections));
+
+    await scanIntegrationCollections("42", { format: "agent" });
+    await scanIntegrationCollections("42", { format: "agent", full: true });
+
+    expect(logSpy.mock.calls[0][0]).not.toContain("locales");
+    expect(logSpy.mock.calls[1][0]).toContain("locales");
+  });
+
   test("prints scanned collections in table format", async () => {
     mockFetch.mockResolvedValueOnce(jsonResponse([{ id: "42", name: "Brain" }]));
     mockFetch.mockResolvedValueOnce(
@@ -60,7 +93,7 @@ describe("scanIntegrationCollections", () => {
       ]),
     );
 
-    await scanIntegrationCollections("42", { format: "table" });
+    await scanIntegrationCollections("42", { format: "default" });
 
     const calls: unknown[] = logSpy.mock.calls.map((call: unknown[]) => call[0]);
     expect(calls.some((call) => String(call).includes("Display Name"))).toBe(true);
@@ -103,7 +136,7 @@ describe("addIntegrationCollections", () => {
     });
 
     // oxlint-disable-next-line typescript-eslint/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
-    await expect(addIntegrationCollections("42", { format: "table" })).rejects.toThrow("exit");
+    await expect(addIntegrationCollections("42", { format: "default" })).rejects.toThrow("exit");
     expect(errorSpy).toHaveBeenCalledWith(
       "Usage: contfu integrations add <integration-id-or-name> (--refs <comma-separated> | --all | --select)",
     );
@@ -122,7 +155,7 @@ describe("addIntegrationCollections", () => {
 
     // oxlint-disable-next-line typescript-eslint/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
     await expect(
-      addIntegrationCollections("42", { format: "table", select: true }),
+      addIntegrationCollections("42", { format: "default", select: true }),
     ).rejects.toThrow("exit");
     expect(errorSpy).toHaveBeenCalledWith("--select requires an interactive TTY");
 
@@ -136,7 +169,7 @@ describe("addIntegrationCollections", () => {
 
     // oxlint-disable-next-line typescript-eslint/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
     await expect(
-      addIntegrationCollections("42", { format: "table", refs: ["db-1"], select: true }),
+      addIntegrationCollections("42", { format: "default", refs: ["db-1"], select: true }),
     ).rejects.toThrow("exit");
     expect(errorSpy).toHaveBeenCalledWith(
       "Usage: contfu integrations add <integration-id-or-name> (--refs <comma-separated> | --all | --select)",
@@ -165,7 +198,7 @@ describe("dry run", () => {
   test("add resolves integration but does not POST", async () => {
     mockFetch.mockResolvedValueOnce(jsonResponse([{ id: "42", name: "Brain" }]));
 
-    await addIntegrationCollections("Brain", { format: "table", refs: ["db-1"], dryRun: true });
+    await addIntegrationCollections("Brain", { format: "default", refs: ["db-1"], dryRun: true });
 
     expect(mockFetch).toHaveBeenCalledTimes(1);
     expect((mockFetch.mock.calls[0] as unknown[])[1]).toMatchObject({ method: "GET" });

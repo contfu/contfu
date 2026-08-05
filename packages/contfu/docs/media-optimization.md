@@ -1,10 +1,10 @@
 # Media File optimization
 
-The Local Runtime processes images, video, and audio in two places inside the application boundary: once when `@contfu/contfu` downloads Files referenced by synced content, and again on demand when a browser requests a File. The Cloud Service synchronizes item data and File references; it does not own storage or processing.
+The Contfu runtime processes images, video, and audio in two places inside the application boundary: once when `@contfu/contfu` downloads Files referenced by synced content, and again on demand when a browser requests a File. Contfu synchronizes item data and File references; it does not own storage or processing.
 
 ## Set up
 
-Pass a `fileStore` (where Local Runtime File bytes live) and a `mediaOptimizer` (how Media File conversion runs) to `contfu()`:
+Pass a `fileStore` (where runtime File bytes live) and a `mediaOptimizer` (how Media File conversion runs) to `contfu()`:
 
 ```ts
 import { contfu } from "@contfu/contfu";
@@ -22,11 +22,11 @@ Two optimizers ship with Contfu:
 - `@contfu/media-optimizer` — runs locally (sharp + ffmpeg).
 - `@contfu/media-optimizer-remote` — calls a remote worker. Used automatically when `M4K_URL` is set.
 
-Without an optimizer, Files are still downloaded and stored by the Local Runtime but aren't converted — they're served as uploaded.
+Without an optimizer, Files are still downloaded and stored by the Contfu runtime but aren't converted — they're served as uploaded.
 
 ## Canonical Media Masters
 
-The Local Runtime keeps a **Canonical Media Master** for each image, video, or audio file by default. It derives the sync-time output and any on-demand or pre-generated variants from this local master, so future configuration changes do not normally need the provider URL again.
+The Contfu runtime keeps a **Canonical Media Master** for each image, video, or audio file by default. It derives the sync-time output and any on-demand or pre-generated variants from this local master, so future configuration changes do not normally need the service URL again.
 
 A master is a working, normalized representation — not an archive of the source upload. In particular, its default conversions are lossy. Keep the original file elsewhere when you need original bytes or a preservation-grade asset.
 
@@ -51,9 +51,9 @@ contfu({
 contfu({ mediaMaster: false });
 ```
 
-## Local Runtime conversion with `transformMedia`
+## Runtime conversion with `transformMedia`
 
-`transformMedia` rules run once per downloaded File during Local Runtime sync. Use them to convert media masters to a modern format, strip EXIF, or restrict to specific collections.
+`transformMedia` rules run once per downloaded File during runtime synchronization. Use them to convert media masters to a modern format, strip EXIF, or restrict to specific collections.
 
 ```ts
 contfu({
@@ -80,7 +80,7 @@ Each rule matches by `mediaType` and, optionally, `collections` and `include`/`e
 
 ### Reprocess after a configuration change
 
-When `localFiles` is enabled (the default) and Canonical Media Masters remain enabled, startup compares every ready file's saved master configuration with the current `mediaMaster` and any explicitly supplied `transformMedia` or pre-generated `mediaVariants` settings. If they differ and a Canonical Media Master exists, the Local Runtime rebuilds the derived file and configured pre-generated variants from that master without downloading the source URL again.
+When `localFiles` is enabled (the default) and Canonical Media Masters remain enabled, startup compares every ready file's saved master configuration with the current `mediaMaster` and any explicitly supplied `transformMedia` or pre-generated `mediaVariants` settings. If they differ and a Canonical Media Master exists, the Contfu runtime rebuilds the derived file and configured pre-generated variants from that master without downloading the source URL again.
 
 To clear prior transform rules or pre-generation, supply `transformMedia: []` or `mediaVariants: {}`; omitting either option preserves its stored per-file settings during reconciliation. Setting `mediaMaster: false` disables this reconciliation; it does not rebuild, remove, or repair existing ready files and masters. This is local reprocessing, not source-original preservation: a rebuild starts from the normalized master, which may already be lossy. Files without a usable master require normal source-based repair instead.
 
@@ -115,7 +115,7 @@ contfu({
 Three knobs:
 
 - **`presets`** — named conversion recipes. Request with `?variant=<name>`.
-- **`pregenerate`** — preset names to build during Local Runtime sync so the first request is a cache hit.
+- **`pregenerate`** — preset names to build during runtime synchronization so the first request is a cache hit.
 - **`strict: true`** — reject requests that don't name a known preset. Use this to stop bots from hammering your optimizer with `?w=9999`.
 
 `collections.<name>` overrides `default` when a file belongs to that collection (pass `?collection=<name>` with the request).

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, test } from "bun:test";
+import { PropertyType } from "@contfu/core";
 import { truncateAllTables } from "../../../test/setup";
 import { createFile } from "../files/createFile";
 import { linkFileToItem } from "../files/linkFileToItem";
@@ -56,6 +57,42 @@ describe("findItems", () => {
     const result = findItems({ filter: '$collection = "articles"' });
     expect(result).toHaveLength(2);
     expect(result.every((i) => i.$collection === "articles")).toBe(true);
+  });
+
+  test("formats plain dates as ISO strings by default and milliseconds on request", () => {
+    setCollection("dated", "Dated", { publishDate: PropertyType.PLAINDATE });
+    createItem({
+      id: 20,
+      ref: "dated/one",
+      collection: "dated",
+      props: { publishDate: 20_635 },
+      changedAt: 1,
+    });
+
+    const previous = process.env.TZ;
+    process.env.TZ = "America/Los_Angeles";
+    try {
+      const [stringResult] = findItems({ filter: '$collection = "dated"' });
+      expect(stringResult.publishDate).toBe("2026-07-01");
+
+      const [projectedResult] = findItems({
+        filter: '$collection = "dated"',
+        fields: ["publishDate"],
+      });
+      expect(projectedResult.publishDate).toBe("2026-07-01");
+      expect(projectedResult.$collection).toBeUndefined();
+
+      const [millisecondsResult] = findItems({
+        filter: '$collection = "dated"',
+        plainDatesAs: "milliseconds",
+      });
+      expect(millisecondsResult.publishDate).toBe(Date.UTC(2026, 6, 1));
+      expect(getItemById(20, { plainDatesAs: "milliseconds" })?.publishDate).toBe(
+        Date.UTC(2026, 6, 1),
+      );
+    } finally {
+      process.env.TZ = previous;
+    }
   });
 
   test("filters by props", () => {

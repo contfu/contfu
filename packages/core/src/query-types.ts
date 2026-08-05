@@ -60,6 +60,8 @@ export type QueryOptions = {
   /** Flatten nested object props into dot-separated result keys. */
   flat?: boolean;
   contentAs?: ContentFormat;
+  /** Public representation for plain calendar dates. Defaults to YYYY-MM-DD strings. */
+  plainDatesAs?: "string" | "milliseconds";
   htmlOptions?: RenderOptions;
   markdownOptions?: MarkdownOptions;
   /** Base path used when resolving internal file metadata URLs. */

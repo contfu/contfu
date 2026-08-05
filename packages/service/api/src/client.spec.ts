@@ -10,6 +10,13 @@ function jsonResponse(data: unknown, status = 200): Response {
   });
 }
 
+function textResponse(data: string, status = 200): Response {
+  return new Response(data, {
+    status,
+    headers: { "Content-Type": "text/plain; charset=utf-8" },
+  });
+}
+
 describe("createApiClient", () => {
   beforeEach(() => {
     fetchMock.mockReset();
@@ -29,6 +36,25 @@ describe("createApiClient", () => {
     expect(result).toEqual(scanned);
     expect(fetchMock).toHaveBeenCalledWith(
       "http://test.local/api/v1/integrations/42/scan",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+
+  test("getCollectionTypes returns text responses and passes workspace context", async () => {
+    const generatedTypes = "export type Pages = { id: number };\n";
+    fetchMock.mockResolvedValueOnce(textResponse(generatedTypes));
+
+    const client = createApiClient(
+      "http://test.local",
+      "api-key",
+      fetchMock as unknown as typeof fetch,
+      "ws_42",
+    );
+    const result = await client.getCollectionTypes("42");
+
+    expect(result).toBe(generatedTypes);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://test.local/api/v1/collections/42/types?workspace=ws_42",
       expect.objectContaining({ method: "GET" }),
     );
   });

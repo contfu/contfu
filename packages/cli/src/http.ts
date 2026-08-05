@@ -5,12 +5,15 @@ import { createApiClient, ApiError, type ContfuApiClient } from "@contfu/svc-api
 
 export const BASE_URL = "https://contfu.com";
 
+function configPath(): string {
+  return join(process.env.CONTFU_CONFIG_DIR ?? join(homedir(), ".config", "contfu"), "config.json");
+}
+
 export function getApiKey(): string | undefined {
   if (process.env.CONTFU_API_KEY) return process.env.CONTFU_API_KEY;
 
   try {
-    const configPath = join(homedir(), ".config", "contfu", "config.json");
-    const config = JSON.parse(readFileSync(configPath, "utf-8"));
+    const config = JSON.parse(readFileSync(configPath(), "utf-8"));
     return config.apiKey;
   } catch {
     return undefined;
@@ -21,8 +24,7 @@ export function getSelectedWorkspaceId(): string | undefined {
   if (process.env.CONTFU_WORKSPACE) return process.env.CONTFU_WORKSPACE;
 
   try {
-    const configPath = join(homedir(), ".config", "contfu", "config.json");
-    const config = JSON.parse(readFileSync(configPath, "utf-8"));
+    const config = JSON.parse(readFileSync(configPath(), "utf-8"));
     return config.workspaceId;
   } catch {
     return undefined;
@@ -90,7 +92,7 @@ export async function apiFetch(path: string, options?: RequestInit): Promise<Res
 }
 
 /**
- * Returns a typed API client for interacting with the Contfu service API.
+ * Returns a typed API client for interacting with Contfu API.
  * Errors are surfaced as ApiError; callers should handle them (or let the
  * top-level handler catch and exit).
  */

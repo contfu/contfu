@@ -22,6 +22,53 @@ export const IntegrationType = defineEnum({
 
 export type IntegrationType = EnumValue<typeof IntegrationType>;
 
+/**
+ * Lifecycle of an integration identifier. Storage identity is intentionally
+ * broader than what can be created at runtime so planned services retain
+ * their durable numeric values without being advertised as operational.
+ */
+export const IntegrationAvailability = defineEnum({
+  IMPLEMENTED: 1,
+  UNRELEASED: 2,
+  PLANNED: 3,
+});
+
+export type IntegrationAvailability = EnumValue<typeof IntegrationAvailability>;
+
+export const IntegrationTypeAvailability = {
+  [IntegrationType.APP]: IntegrationAvailability.IMPLEMENTED,
+  [IntegrationType.WEB]: IntegrationAvailability.IMPLEMENTED,
+  [IntegrationType.WEBHOOK]: IntegrationAvailability.IMPLEMENTED,
+  [IntegrationType.NOTION]: IntegrationAvailability.IMPLEMENTED,
+  [IntegrationType.STRAPI]: IntegrationAvailability.IMPLEMENTED,
+  [IntegrationType.CONTENTFUL]: IntegrationAvailability.IMPLEMENTED,
+  [IntegrationType.WORDPRESS]: IntegrationAvailability.IMPLEMENTED,
+  [IntegrationType.SANITY]: IntegrationAvailability.IMPLEMENTED,
+  [IntegrationType.STORYBLOK]: IntegrationAvailability.PLANNED,
+  [IntegrationType.DIRECTUS]: IntegrationAvailability.UNRELEASED,
+  [IntegrationType.PRISMIC]: IntegrationAvailability.PLANNED,
+} as const satisfies Record<IntegrationType, IntegrationAvailability>;
+
+export const creatableIntegrationTypes = Object.entries(IntegrationTypeAvailability)
+  .filter(
+    ([, availability]) =>
+      availability === IntegrationAvailability.IMPLEMENTED ||
+      availability === IntegrationAvailability.UNRELEASED,
+  )
+  .map(([type]) => Number(type) as IntegrationType);
+
+export function isIntegrationType(value: unknown): value is IntegrationType {
+  return typeof value === "number" && (Object.values(IntegrationType) as number[]).includes(value);
+}
+
+export function isCreatableIntegrationType(value: unknown): value is IntegrationType {
+  return (
+    isIntegrationType(value) &&
+    (IntegrationTypeAvailability[value] === IntegrationAvailability.IMPLEMENTED ||
+      IntegrationTypeAvailability[value] === IntegrationAvailability.UNRELEASED)
+  );
+}
+
 export const IntegrationRole = defineEnum({
   SourceRole: 1,
   TargetRole: 2,
@@ -105,12 +152,12 @@ export const IntegrationCapabilities = {
     IntegrationCapability.ManualLocalizationLayer,
     IntegrationCapability.ContentProvide,
   ],
-  [IntegrationType.STORYBLOK]: [IntegrationCapability.ContentProvide],
+  [IntegrationType.STORYBLOK]: [],
   [IntegrationType.DIRECTUS]: [
     IntegrationCapability.CollectionDiscovery,
     IntegrationCapability.ContentProvide,
   ],
-  [IntegrationType.PRISMIC]: [IntegrationCapability.ContentProvide],
+  [IntegrationType.PRISMIC]: [],
 } as const satisfies Record<IntegrationType, readonly IntegrationCapability[]>;
 
 export function integrationHasCapability(

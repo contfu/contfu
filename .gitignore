@@ -211,3 +211,5 @@ packages/server/data
 docker/wordpress-e2e/.env.generated
 .fallow
 .discuss/
+.pi-subagents
+packages/service/app/src/lib/server/docs.generated.ts

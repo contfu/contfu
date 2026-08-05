@@ -32,4 +32,7 @@ const dbModule = await (detectRuntime() === "bun"
   : importDbModule("db-node"));
 
 // Preserve existing query ergonomics for internal call sites.
-export const db = (dbModule as typeof import("./db-bun")).db;
+const runtimeDbModule = dbModule as typeof import("./db-bun");
+export const db = runtimeDbModule.db;
+export const createDatabaseClient = runtimeDbModule.createDatabaseClient;
+export const withDatabase = runtimeDbModule.withDatabase;

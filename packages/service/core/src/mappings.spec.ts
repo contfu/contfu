@@ -16,6 +16,9 @@ describe("safeCast", () => {
     [T.REFS, T.STRINGS, "string"],
     [T.BOOLEAN, T.STRING, "string"],
     [T.DATE, T.STRING, "string"],
+    [T.PLAINDATE, T.DATE, "plainDateToDate"],
+    [T.DATE, T.PLAINDATE, "dateToPlainDate"],
+    [T.PLAINDATE, T.STRING, "plainDateToString"],
   ] as const)("safe cast %p → %p returns %p", (src, tgt, expected) => {
     expect(safeCast(src, tgt)).toBe(expected);
   });

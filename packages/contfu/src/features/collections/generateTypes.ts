@@ -12,6 +12,9 @@ const TYPE_MAP: Record<number, string> = {
   [PropertyType.STRINGS]: "string[]",
   [PropertyType.NUMBER]: "number",
   [PropertyType.NUMBERS]: "number[]",
+  // Exact numeric values cross client/API boundaries as canonical decimal strings.
+  [PropertyType.BIGINT]: "string",
+  [PropertyType.DECIMAL]: "string",
   [PropertyType.COLOR]: "Color",
   [PropertyType.BOOLEAN]: "boolean",
   [PropertyType.REF]: "string",
@@ -19,28 +22,37 @@ const TYPE_MAP: Record<number, string> = {
   [PropertyType.FILE]: "FileMetadata",
   [PropertyType.FILES]: "FileMetadata[]",
   [PropertyType.DATE]: "number",
+  [PropertyType.PLAINDATE]: "string",
   [PropertyType.ENUM]: "string",
   [PropertyType.ENUMS]: "string[]",
   [PropertyType.BLOCK]: "Block[]",
-  [PropertyType.JSON]: "any",
+  [PropertyType.OBJECT]: "any",
   [PropertyType.GEOPOINT]: "GeoPoint",
 };
+
+function enumValuesToType(propertyType: number, enumVals: string[]): string {
+  const union = enumVals.map((v) => JSON.stringify(v)).join(" | ");
+  if (propertyType === PropertyType.ENUM) return union;
+  return enumVals.length > 1 ? `(${union})[]` : `${union}[]`;
+}
 
 function schemaValueToType(value: SchemaValue): string {
   const numType = propertyTypeBase(schemaType(value));
   const enumVals = schemaEnumValues(value);
-  if (numType === PropertyType.ENUM) {
-    if (enumVals && enumVals.length > 0) {
-      return enumVals.map((v) => JSON.stringify(v)).join(" | ");
-    }
-    return "string";
+  const enumType = numType & (PropertyType.ENUM | PropertyType.ENUMS);
+  const nonEnumType = numType & ~(PropertyType.ENUM | PropertyType.ENUMS | PropertyType.NULL);
+
+  // NULL is intentionally ignored for generated property types, but enum
+  // tuples retain their literal values when they are otherwise standalone.
+  if (nonEnumType === 0 && enumType === PropertyType.ENUM) {
+    return enumVals && enumVals.length > 0
+      ? enumValuesToType(PropertyType.ENUM, enumVals)
+      : "string";
   }
-  if (numType === PropertyType.ENUMS) {
-    if (enumVals && enumVals.length > 0) {
-      const union = enumVals.map((v) => JSON.stringify(v)).join(" | ");
-      return enumVals.length > 1 ? `(${union})[]` : `${union}[]`;
-    }
-    return "string[]";
+  if (nonEnumType === 0 && enumType === PropertyType.ENUMS) {
+    return enumVals && enumVals.length > 0
+      ? enumValuesToType(PropertyType.ENUMS, enumVals)
+      : "string[]";
   }
   if (TYPE_MAP[numType]) return TYPE_MAP[numType];
 
@@ -52,7 +64,12 @@ function schemaValueToType(value: SchemaValue): string {
       (numType & propertyType) === 0
     )
       continue;
-    const rendered = TYPE_MAP[propertyType];
+    const rendered =
+      (propertyType === PropertyType.ENUM || propertyType === PropertyType.ENUMS) &&
+      enumVals &&
+      enumVals.length > 0
+        ? enumValuesToType(propertyType, enumVals)
+        : TYPE_MAP[propertyType];
     if (rendered && !members.includes(rendered)) members.push(rendered);
   }
   return members.length > 0 ? members.join(" | ") : "unknown";

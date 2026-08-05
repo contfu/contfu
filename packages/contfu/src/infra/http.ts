@@ -103,6 +103,25 @@ function parseFilePath(filePath: string): { id: string; ext: string } | null {
   return { id: filePath.slice(0, dotIdx), ext: filePath.slice(dotIdx + 1).toLowerCase() };
 }
 
+function pendingFileRedirect(source: string | undefined): Response | null {
+  if (
+    !source ||
+    [...source].some((char) => {
+      const code = char.charCodeAt(0);
+      return code <= 0x1f || code === 0x7f;
+    })
+  ) {
+    return null;
+  }
+  try {
+    const url = new URL(source);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    return Response.redirect(url.toString(), 302);
+  } catch {
+    return null;
+  }
+}
+
 function mediaTypeFromExt(ext: string): "image" | "video" | "audio" | null {
   const mime = mimeTypes[ext];
   if (!mime) return null;
@@ -197,10 +216,7 @@ export async function handleFileRequest<CMap = unknown>(
 
     if (file.status !== "ready") {
       const row = getFile(file.id, undefined, { includeData: true });
-      const source = row?.data?.toString("utf8");
-      return source && /^https?:\/\//i.test(source)
-        ? Response.redirect(source, 302)
-        : text("Not found", 404);
+      return pendingFileRedirect(row?.data?.toString("utf8")) ?? text("Not found", 404);
     }
     const data = file.data ?? (await fileStore.read(`${file.id}.${file.ext}`));
     if (!data) return text("Not found", 404);
@@ -226,10 +242,11 @@ export async function handleFileRequest<CMap = unknown>(
     const file = getFile(parsed.id, undefined, { includeData: false });
     if (!file) return text("Not found", 404);
     if (file.status !== "ready") {
-      const source = file.data?.toString("utf8");
-      return source && /^https?:\/\//i.test(source)
-        ? Response.redirect(source, 302)
-        : text("Not found", 404);
+      return (
+        pendingFileRedirect(
+          getFile(file.id, undefined, { includeData: true })?.data?.toString("utf8"),
+        ) ?? text("Not found", 404)
+      );
     }
     const data = file.data ?? (await fileStore.read(`${file.id}.${file.ext}`));
     if (!data) return text("Not found", 404);

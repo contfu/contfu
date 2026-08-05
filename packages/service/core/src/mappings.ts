@@ -30,10 +30,15 @@ export interface MappingRule {
 const SAFE_CASTS: [number, number, string][] = [
   [PropertyType.NUMBER, PropertyType.STRING, "string"],
   [PropertyType.NUMBERS, PropertyType.STRINGS, "string"],
+  [PropertyType.BIGINT, PropertyType.STRING, "string"],
+  [PropertyType.DECIMAL, PropertyType.STRING, "string"],
   [PropertyType.REF, PropertyType.STRING, "string"],
   [PropertyType.REFS, PropertyType.STRINGS, "string"],
   [PropertyType.BOOLEAN, PropertyType.STRING, "string"],
   [PropertyType.DATE, PropertyType.STRING, "string"],
+  [PropertyType.PLAINDATE, PropertyType.DATE, "plainDateToDate"],
+  [PropertyType.DATE, PropertyType.PLAINDATE, "dateToPlainDate"],
+  [PropertyType.PLAINDATE, PropertyType.STRING, "plainDateToString"],
   // ENUM ↔ STRING casts
   [PropertyType.STRING, PropertyType.ENUM, "enum"],
   [PropertyType.STRINGS, PropertyType.ENUMS, "enum"],

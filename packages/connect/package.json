@@ -1,7 +1,7 @@
 {
   "name": "@contfu/connect",
-  "version": "0.1.5",
-  "description": "Connector for receiving Sync Messages from the Contfu Cloud Service",
+  "version": "0.1.6",
+  "description": "Connector for receiving Sync Messages from Contfu",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -30,7 +30,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@contfu/core": "workspace:^0.2.2",
+    "@contfu/core": "workspace:^0.3.0",
     "msgpackr": "^1.12.1"
   },
   "devDependencies": {

@@ -159,7 +159,7 @@ export interface IntegrationOpts
     WebhookTargetIntegrationOpts {}
 
 /** Integration record returned by the service API */
-export interface ProviderScope {
+export interface ServiceScope {
   value: string;
   label: string;
 }
@@ -299,7 +299,7 @@ export interface ServiceComponent {
   id: string;
   workspaceId: string;
   integrationId: string;
-  providerRef: string;
+  serviceRef: string;
   name: string;
   displayName: string;
   status: number;
@@ -308,7 +308,7 @@ export interface ServiceComponent {
 }
 
 export interface CreateComponentBody {
-  providerRef: string;
+  serviceRef: string;
   name: string;
   displayName: string;
   propsSchema?: CollectionSchema;

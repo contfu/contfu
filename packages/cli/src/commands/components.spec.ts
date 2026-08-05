@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from "bun:test";
-import { createComponentCommand, updateComponentCommand } from "./components";
+import { decode } from "@toon-format/toon";
+import {
+  createComponentCommand,
+  inspectComponent,
+  listIntegrationComponents,
+  updateComponentCommand,
+} from "./components";
 
 const mockFetch = mock<typeof fetch>();
 globalThis.fetch = mockFetch as unknown as typeof fetch;
@@ -20,6 +26,70 @@ afterEach(() => {
   logSpy.mockRestore();
 });
 
+describe("listIntegrationComponents", () => {
+  test("prints compact agent rows by default", async () => {
+    mockFetch
+      .mockResolvedValueOnce(jsonResponse([{ id: "int_1", name: "CMS" }]))
+      .mockResolvedValueOnce(
+        jsonResponse([
+          {
+            id: "cmp_1",
+            name: "hero",
+            displayName: "Hero",
+            serviceRef: "hero",
+            status: 0,
+            propsSchema: { title: "string" },
+          },
+        ]),
+      );
+
+    await listIntegrationComponents("CMS", "agent");
+
+    expect(logSpy.mock.calls[0][0]).toContain("id,name,displayName,serviceRef,status");
+    expect(logSpy.mock.calls[0][0]).not.toContain("propsSchema");
+  });
+});
+
+describe("inspectComponent", () => {
+  const component = {
+    id: "cmp_1",
+    name: "hero",
+    displayName: "Hero",
+    serviceRef: "hero",
+    status: 1,
+    propsSchema: { title: "string" },
+    mapping: null,
+  };
+
+  test("presents status labels in JSON", async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse(component));
+
+    await inspectComponent("cmp_1", "json");
+
+    expect(JSON.parse(logSpy.mock.calls[0][0] as string)).toMatchObject({ status: "reviewed" });
+  });
+
+  test("uses compact agent detail output by default and expands with full", async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse(component));
+    await inspectComponent("cmp_1", "agent");
+    expect(decode(logSpy.mock.calls[0][0] as string)).toEqual({
+      id: "cmp_1",
+      name: "hero",
+      displayName: "Hero",
+      serviceRef: "hero",
+      status: "reviewed",
+    });
+
+    logSpy.mockClear();
+    mockFetch.mockResolvedValueOnce(jsonResponse(component));
+    await inspectComponent("cmp_1", "agent", true);
+    expect(decode(logSpy.mock.calls[0][0] as string)).toMatchObject({
+      propsSchema: { title: "string" },
+      status: "reviewed",
+    });
+  });
+});
+
 describe("component dry run", () => {
   test("create resolves integration but does not POST", async () => {
     mockFetch.mockResolvedValueOnce(jsonResponse([{ id: "int_1", name: "CMS" }]));
@@ -27,7 +97,7 @@ describe("component dry run", () => {
     await createComponentCommand("CMS", {
       name: "hero",
       displayName: "Hero",
-      providerRef: "hero",
+      serviceRef: "hero",
       dryRun: true,
     });
 

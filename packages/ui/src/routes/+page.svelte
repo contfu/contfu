@@ -89,7 +89,7 @@
       <Alert.Root>
         <Alert.Title>no content synced yet</Alert.Title>
         <Alert.Description>
-          your Local Store is empty. configure the Local Runtime with a Connector to receive Sync Messages from the Cloud Service.
+          your Local Store is empty. configure the Contfu runtime with a Connector to receive Sync Messages from Contfu.
         </Alert.Description>
       </Alert.Root>
     {:else}

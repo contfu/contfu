@@ -13,9 +13,12 @@ import {
   listCollections,
   queryItems,
   createRuntimeEventMonitor,
+  createDatabaseClient,
+  withDatabase,
   type QueryItemsInput,
   type RuntimeNotification,
   type RuntimeStatus,
+  type SyncEvent,
 } from "@contfu/contfu";
 import {
   generateApplicationIntegrationTypes,
@@ -24,7 +27,7 @@ import {
   type WithClause,
 } from "@contfu/core";
 import { basicAuth, checkBasicAuth } from "./basic-auth";
-import { events } from "./contfu";
+import { createServerContfu } from "./contfu";
 import { handleFileRequest } from "./files";
 
 // oxlint-disable-next-line typescript/no-redundant-type-constituents
@@ -45,8 +48,6 @@ export type ServerI18nOptions = {
 const HEARTBEAT_MS = 25_000;
 const SERVER_IDLE_TIMEOUT_SECONDS = 60;
 const encoder = new TextEncoder();
-const runtimeEvents = createRuntimeEventMonitor(events);
-
 function toLiveEvent(event: RuntimeNotification): LiveEvent {
   if (event.type === "runtime-status") {
     return { type: "sync-status", state: event.state, reason: event.reason, ts: event.ts };
@@ -55,7 +56,10 @@ function toLiveEvent(event: RuntimeNotification): LiveEvent {
   return event;
 }
 
-function subscribe(subscriber: (event: LiveEvent) => void) {
+function subscribe(
+  runtimeEvents: ReturnType<typeof createRuntimeEventMonitor>,
+  subscriber: (event: LiveEvent) => void,
+) {
   return runtimeEvents.subscribe((event) => subscriber(toLiveEvent(event)));
 }
 
@@ -132,6 +136,10 @@ function deserializeQueryParams(params: URLSearchParams): QueryParseResult {
   }
 
   if (params.get("flat") === "true") options.flat = true;
+  const plainDatesAs = params.get("plainDatesAs");
+  if (plainDatesAs === "string" || plainDatesAs === "milliseconds") {
+    options.plainDatesAs = plainDatesAs;
+  }
   if (params.get("includeDeleted") === "true") options.includeDeleted = true;
   if (params.get("onlyDeleted") === "true") options.onlyDeleted = true;
 
@@ -262,12 +270,13 @@ function handleItemById(request: RouteRequest) {
   if ("error" in query) {
     return text(query.error, 400);
   }
-  const { include, with: withClause, includeDeleted, onlyDeleted } = query.options;
+  const { include, with: withClause, includeDeleted, onlyDeleted, plainDatesAs } = query.options;
   const options: {
     include?: IncludeOption[];
     with?: WithClause;
     includeDeleted?: boolean;
     onlyDeleted?: boolean;
+    plainDatesAs?: "string" | "milliseconds";
   } = {};
 
   if (include) {
@@ -279,6 +288,7 @@ function handleItemById(request: RouteRequest) {
   }
   if (includeDeleted) options.includeDeleted = true;
   if (onlyDeleted) options.onlyDeleted = true;
+  if (plainDatesAs) options.plainDatesAs = plainDatesAs;
 
   const item = getItemById(id, options);
   if (!item) {
@@ -288,7 +298,7 @@ function handleItemById(request: RouteRequest) {
   return json({ data: item });
 }
 
-function handleStatus() {
+function handleStatus(runtimeEvents: ReturnType<typeof createRuntimeEventMonitor>) {
   return json({
     itemCount: countItems(),
     collectionCount: countCollections(),
@@ -299,7 +309,7 @@ function handleStatus() {
   });
 }
 
-function handleLive() {
+function handleLive(runtimeEvents: ReturnType<typeof createRuntimeEventMonitor>) {
   let cleanup = () => {};
 
   const stream = new ReadableStream<Uint8Array>({
@@ -343,7 +353,7 @@ function handleLive() {
       };
 
       cleanup = close;
-      unsubscribe = subscribe((event) => {
+      unsubscribe = subscribe(runtimeEvents, (event) => {
         send(event);
       });
 
@@ -368,7 +378,6 @@ function handleLive() {
     headers: {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache, no-transform",
-      Integration: "keep-alive",
     },
   });
 }
@@ -416,6 +425,50 @@ function getRoute(handler: RouteHandler): RouteHandler {
   return withOptionalBasicAuth(withGetOnly(handler));
 }
 
+type ServerDatabase = Awaited<ReturnType<typeof createDatabaseClient>>;
+
+function withServerDatabase(
+  handler: RouteHandler,
+  database: Promise<ServerDatabase> | null,
+): RouteHandler {
+  if (!database) return handler;
+  return async (request) => {
+    const db = await database;
+    return withDatabase(db, () => handler(request));
+  };
+}
+
+function createServerEvents(database: Promise<ServerDatabase> | null): AsyncIterable<SyncEvent> {
+  return {
+    [Symbol.asyncIterator](): AsyncIterator<SyncEvent> {
+      let instance: Promise<Awaited<ReturnType<typeof createServerContfu>>> | null = null;
+      const getInstance = () => {
+        if (!instance) {
+          instance = database
+            ? database.then((db) => createServerContfu(db))
+            : createServerContfu();
+        }
+        return instance;
+      };
+      let iterator: AsyncIterator<SyncEvent> | null = null;
+      const getIterator = async () => {
+        if (!iterator) iterator = (await getInstance()).events[Symbol.asyncIterator]();
+        return iterator;
+      };
+
+      return {
+        next: async (...args) => (await getIterator()).next(...args),
+        return: async (value) => {
+          const activeIterator = await getIterator();
+          return activeIterator.return
+            ? activeIterator.return(value)
+            : { value: undefined, done: true };
+        },
+      };
+    },
+  };
+}
+
 export type ServerOptions = {
   db?: string;
   port?: number;
@@ -445,10 +498,12 @@ export function createServeOptions(opts: ServerOptions = {}) {
     fallback: opts.i18n?.fallback ?? parseEnvFallback(process.env.CONTFU_FALLBACK_LOCALE),
   };
 
-  if (db) {
-    process.env.CONTFU_DB = db;
-    process.env.DATABASE_URL = db;
-  }
+  // The Contfu runtime module has a default database for embedded use. Server
+  // instances with an explicit path create their own database and bind every
+  // request to it, so separate Bun.serve instances never share state.
+  const serverDatabase = db ? createDatabaseClient(db) : null;
+  const runtimeEvents = createRuntimeEventMonitor(createServerEvents(serverDatabase));
+  const route = (handler: RouteHandler) => getRoute(withServerDatabase(handler, serverDatabase));
 
   if (process.env.CONTFU_KEY) {
     runtimeEvents.start();
@@ -459,17 +514,17 @@ export function createServeOptions(opts: ServerOptions = {}) {
     port,
     idleTimeout: SERVER_IDLE_TIMEOUT_SECONDS,
     routes: {
-      "/api/status": getRoute(handleStatus),
-      "/api/collections": getRoute(handleCollections),
-      "/api/collections/:name": getRoute(handleCollectionDetail),
-      "/api/query-items": getRoute(handleQueryItems),
-      "/api/items": getRoute(createItemsHandler(i18n)),
-      "/api/collections/:name/items": getRoute(createCollectionItemsHandler(i18n)),
-      "/api/items/:id/files": getRoute(handleItemFiles),
-      "/api/items/:id": getRoute(handleItemById),
-      "/api/live": getRoute(handleLive),
-      "/api/types": getRoute(handleTypes),
-      "/files/:path": getRoute(handleFileRequest as RouteHandler),
+      "/api/status": route(() => handleStatus(runtimeEvents)),
+      "/api/collections": route(handleCollections),
+      "/api/collections/:name": route(handleCollectionDetail),
+      "/api/query-items": route(handleQueryItems),
+      "/api/items": route(createItemsHandler(i18n)),
+      "/api/collections/:name/items": route(createCollectionItemsHandler(i18n)),
+      "/api/items/:id/files": route(handleItemFiles),
+      "/api/items/:id": route(handleItemById),
+      "/api/live": route(() => handleLive(runtimeEvents)),
+      "/api/types": route(handleTypes),
+      "/files/:path": route(handleFileRequest as RouteHandler),
     },
     fetch(request: Request) {
       const authError = checkBasicAuth(request, basicAuth);

@@ -1,8 +1,10 @@
 import type { ApiWorkspace } from "@contfu/svc-api";
 import { BASE_URL, getApiClient, handleCliError } from "../http";
+import { isStructuredOutputFormat, printStructured } from "../output";
 import { printTable as printRows, terminalLink, type TableColumn } from "../table";
 import { readConfig, writeConfig } from "./login";
 import { printDryRun, type DryRunOption } from "./dry-run";
+import { translateEnum } from "./presentation";
 
 function workspaceLink(id: string): string {
   const baseUrl = BASE_URL.replace(/\/+$/, "");
@@ -17,6 +19,32 @@ const WORKSPACE_COLUMNS: TableColumn<ApiWorkspace>[] = [
   { header: "Manage", value: (workspace) => (workspace.canManage ? "yes" : "no") },
   { header: "Default", value: (workspace) => (workspace.isDefault ? "yes" : "") },
 ];
+
+const ORGANIZATION_ROLE = { OWNER: 0, ADMIN: 1, MEMBER: 2 };
+
+function presentWorkspace(workspace: ApiWorkspace) {
+  return {
+    ...workspace,
+    ...(workspace.organizationRole !== undefined
+      ? { organizationRole: translateEnum(workspace.organizationRole, ORGANIZATION_ROLE) }
+      : {}),
+  };
+}
+
+function compactWorkspace(workspace: ApiWorkspace) {
+  const presented = presentWorkspace(workspace);
+  return {
+    id: presented.id,
+    name: presented.name,
+    displayName: presented.displayName,
+    ...(workspace.organizationRole !== undefined
+      ? { organizationRole: presented.organizationRole }
+      : {}),
+    isJoined: presented.isJoined,
+    canManage: presented.canManage,
+    isDefault: presented.isDefault,
+  };
+}
 
 function printTable(workspaces: ApiWorkspace[]) {
   printRows(workspaces, WORKSPACE_COLUMNS);
@@ -38,10 +66,14 @@ async function resolveWorkspace(ref: string): Promise<ApiWorkspace> {
   throw new Error(`Workspace not found: ${ref}`);
 }
 
-export async function listWorkspaces(format = "table"): Promise<void> {
+export async function listWorkspaces(format = "default", full = false): Promise<void> {
   try {
     const workspaces = await getApiClient(null).listWorkspaces();
-    if (format === "json") console.log(JSON.stringify(workspaces, null, 2));
+    if (isStructuredOutputFormat(format))
+      printStructured(workspaces.map(presentWorkspace), format, {
+        full,
+        compact: workspaces.map(compactWorkspace),
+      });
     else printTable(workspaces);
   } catch (err) {
     handleCliError(err);
@@ -70,10 +102,15 @@ export async function switchWorkspace(ref: string, options: DryRunOption = {}): 
   }
 }
 
-export async function getWorkspace(ref: string): Promise<void> {
+export async function getWorkspace(ref: string, format = "default", full = false): Promise<void> {
   try {
     const workspace = await resolveWorkspace(ref);
-    console.log(JSON.stringify(workspace, null, 2));
+    if (isStructuredOutputFormat(format)) {
+      printStructured(presentWorkspace(workspace), format, {
+        full,
+        compact: compactWorkspace(workspace),
+      });
+    } else console.log(JSON.stringify(workspace, null, 2));
   } catch (err) {
     handleCliError(err);
   }

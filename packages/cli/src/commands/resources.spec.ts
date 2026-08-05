@@ -1,4 +1,8 @@
-import { describe, test, expect, beforeEach, afterEach, mock, spyOn } from "bun:test";
+import { afterAll, describe, test, expect, beforeEach, afterEach, mock, spyOn } from "bun:test";
+import { decode } from "@toon-format/toon";
+import { rm, mkdtemp, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 import {
   list,
   get,
@@ -12,6 +16,7 @@ import {
 } from "./resources";
 import { PropertyType } from "@contfu/svc-api";
 import { terminalLink, visibleWidth } from "../table";
+import { getSelectedWorkspaceId } from "../http";
 
 const mockFetch = mock<typeof fetch>();
 globalThis.fetch = mockFetch as any;
@@ -23,21 +28,43 @@ function jsonResponse(data: unknown, status = 200): Response {
   });
 }
 
+function expectedApiUrl(path: string): string {
+  const workspaceId = getSelectedWorkspaceId();
+  return workspaceId
+    ? `https://contfu.com${path}?workspace=${encodeURIComponent(workspaceId)}`
+    : `https://contfu.com${path}`;
+}
+
 let logSpy: ReturnType<typeof spyOn>;
 let errorSpy: ReturnType<typeof spyOn>;
+const originalWorkspace = process.env.CONTFU_WORKSPACE;
+const originalConfigDir = process.env.CONTFU_CONFIG_DIR;
+const testConfigDir = await mkdtemp(join(tmpdir(), "contfu-cli-resources-"));
+process.env.CONTFU_CONFIG_DIR = testConfigDir;
 
 beforeEach(() => {
   mockFetch.mockReset();
   process.env.CONTFU_API_KEY = "test-key";
+  delete process.env.CONTFU_WORKSPACE;
   delete process.env.CONTFU_CLI_LINKS;
   delete process.env.NO_COLOR;
   logSpy = spyOn(console, "log").mockImplementation(() => {});
   errorSpy = spyOn(console, "error").mockImplementation(() => {});
 });
 
-afterEach(() => {
+afterEach(async () => {
   logSpy.mockRestore();
   errorSpy.mockRestore();
+  if (originalWorkspace === undefined) delete process.env.CONTFU_WORKSPACE;
+  else process.env.CONTFU_WORKSPACE = originalWorkspace;
+  process.env.CONTFU_CONFIG_DIR = testConfigDir;
+  await rm(join(testConfigDir, "config.json"), { force: true });
+});
+
+afterAll(async () => {
+  if (originalConfigDir === undefined) delete process.env.CONTFU_CONFIG_DIR;
+  else process.env.CONTFU_CONFIG_DIR = originalConfigDir;
+  await rm(testConfigDir, { recursive: true, force: true });
 });
 
 describe("isResource", () => {
@@ -64,8 +91,42 @@ describe("list", () => {
 
     expect(mockFetch).toHaveBeenCalledTimes(1);
     const url = (mockFetch.mock.calls[0] as unknown[])[0] as string;
-    expect(url).toBe("https://contfu.com/api/v1/integrations");
+    expect(url).toBe(expectedApiUrl("/api/v1/integrations"));
     expect(logSpy).toHaveBeenCalledWith(JSON.stringify(data, null, 2));
+  });
+
+  test("prints resource list as agent output", async () => {
+    const data = [{ id: 1, name: "test" }];
+    mockFetch.mockResolvedValueOnce(jsonResponse(data));
+
+    await list("integrations", "agent");
+
+    expect(logSpy).toHaveBeenCalledWith(
+      "[1]{id,name,type,hasCredentials}:\n  1,test,undefined,null",
+    );
+  });
+
+  test("uses compact agent rows unless full output is requested", async () => {
+    const data = [
+      {
+        id: "conn_1",
+        name: "notionBrain",
+        type: 1,
+        scopes: ["production"],
+        hasCredentials: true,
+        createdAt: "2026-01-01",
+      },
+    ];
+    mockFetch.mockResolvedValueOnce(jsonResponse(data));
+    mockFetch.mockResolvedValueOnce(jsonResponse(data));
+
+    await list("integrations", "agent");
+    await list("integrations", "agent", true);
+
+    expect(logSpy.mock.calls[0][0]).toContain("type: web");
+    expect(logSpy.mock.calls[0][0]).toContain("scopes[1]: production");
+    expect(logSpy.mock.calls[0][0]).not.toContain("createdAt");
+    expect(logSpy.mock.calls[1][0]).toContain("createdAt");
   });
 
   test("lists integrations with stable and display name columns", async () => {
@@ -81,7 +142,7 @@ describe("list", () => {
     ];
     mockFetch.mockResolvedValueOnce(jsonResponse(data));
 
-    await list("integrations", "table");
+    await list("integrations", "default");
 
     const calls: string[] = logSpy.mock.calls.map((c: unknown[]) => c[0] as string);
     expect(calls[0]).toContain("ID");
@@ -98,10 +159,10 @@ describe("list", () => {
     const data = [{ id: 5, name: "posts", displayName: "Posts", integrationId: 1 }];
     mockFetch.mockResolvedValueOnce(jsonResponse(data));
 
-    await list("collections", "table");
+    await list("collections", "default");
 
     const url = (mockFetch.mock.calls[0] as unknown[])[0] as string;
-    expect(url).toBe("https://contfu.com/api/v1/collections");
+    expect(url).toBe(expectedApiUrl("/api/v1/collections"));
     const calls: string[] = logSpy.mock.calls.map((c: unknown[]) => c[0] as string);
     expect(calls.some((c) => c.includes("Display Name"))).toBe(true);
     expect(calls.some((c) => c.includes("Posts"))).toBe(true);
@@ -115,7 +176,7 @@ describe("list", () => {
     ];
     mockFetch.mockResolvedValueOnce(jsonResponse(data));
 
-    await list("collections", "table");
+    await list("collections", "default");
 
     const calls: string[] = logSpy.mock.calls.map((c: unknown[]) => c[0] as string);
     const emojiRow = calls.find((c) => c.includes("with_emoji"))!;
@@ -166,7 +227,7 @@ describe("get", () => {
     await get("integrations", "1");
 
     const url = (mockFetch.mock.calls[1] as unknown[])[0] as string;
-    expect(url).toBe("https://contfu.com/api/v1/integrations/1");
+    expect(url).toBe(expectedApiUrl("/api/v1/integrations/1"));
     expect(logSpy).toHaveBeenCalledWith(JSON.stringify(data, null, 2));
   });
 
@@ -178,7 +239,44 @@ describe("get", () => {
     await get("integrations", "Brain");
 
     const url = (mockFetch.mock.calls[1] as unknown[])[0] as string;
-    expect(url).toBe("https://contfu.com/api/v1/integrations/conn_1");
+    expect(url).toBe(expectedApiUrl("/api/v1/integrations/conn_1"));
+  });
+
+  test("uses the explicitly selected workspace for resource retrieval", async () => {
+    process.env.CONTFU_WORKSPACE = "workspace-b";
+    const data = { id: "conn_1", name: "Brain" };
+    mockFetch.mockResolvedValueOnce(jsonResponse([data]));
+    mockFetch.mockResolvedValueOnce(jsonResponse(data));
+
+    await get("integrations", "Brain");
+
+    expect((mockFetch.mock.calls[0] as unknown[])[0]).toBe(
+      "https://contfu.com/api/v1/integrations?workspace=workspace-b",
+    );
+    expect((mockFetch.mock.calls[1] as unknown[])[0]).toBe(
+      "https://contfu.com/api/v1/integrations/conn_1?workspace=workspace-b",
+    );
+  });
+
+  test("uses the stored workspace when no explicit option is supplied", async () => {
+    process.env.CONTFU_CONFIG_DIR = testConfigDir;
+    await writeFile(
+      join(testConfigDir, "config.json"),
+      JSON.stringify({ workspaceId: "workspace-a" }),
+      "utf-8",
+    );
+    const data = { id: "conn_1", name: "Brain" };
+    mockFetch.mockResolvedValueOnce(jsonResponse([data]));
+    mockFetch.mockResolvedValueOnce(jsonResponse(data));
+
+    await get("integrations", "Brain");
+
+    expect((mockFetch.mock.calls[0] as unknown[])[0]).toBe(
+      "https://contfu.com/api/v1/integrations?workspace=workspace-a",
+    );
+    expect((mockFetch.mock.calls[1] as unknown[])[0]).toBe(
+      "https://contfu.com/api/v1/integrations/conn_1?workspace=workspace-a",
+    );
   });
 
   test("fetches collection by id", async () => {
@@ -189,7 +287,7 @@ describe("get", () => {
     await get("collections", "5");
 
     const url = (mockFetch.mock.calls[1] as unknown[])[0] as string;
-    expect(url).toBe("https://contfu.com/api/v1/collections/5");
+    expect(url).toBe(expectedApiUrl("/api/v1/collections/5"));
   });
 
   test("fetches collection by display name", async () => {
@@ -200,7 +298,7 @@ describe("get", () => {
     await get("collections", "Posts");
 
     const url = (mockFetch.mock.calls[1] as unknown[])[0] as string;
-    expect(url).toBe("https://contfu.com/api/v1/collections/col_1");
+    expect(url).toBe(expectedApiUrl("/api/v1/collections/col_1"));
   });
 
   test("fetches flow by id", async () => {
@@ -210,7 +308,154 @@ describe("get", () => {
     await get("flows", "7");
 
     const url = (mockFetch.mock.calls[0] as unknown[])[0] as string;
-    expect(url).toBe("https://contfu.com/api/v1/flows/7");
+    expect(url).toBe(expectedApiUrl("/api/v1/flows/7"));
+  });
+
+  test("presents flow enums in JSON and TOON detail output", async () => {
+    const data = {
+      id: "flow_1",
+      sourceId: "src_1",
+      targetId: "dst_1",
+      state: 1,
+      schema: null,
+      mappings: null,
+      filters: null,
+      sourceIntegrationType: 20,
+      targetIntegrationType: null,
+    };
+    mockFetch.mockResolvedValueOnce(jsonResponse(data));
+
+    await get("flows", "flow_1", "json");
+    expect(JSON.parse(logSpy.mock.calls[0][0] as string)).toMatchObject({
+      state: "frozen",
+      sourceIntegrationType: "notion",
+      targetIntegrationType: null,
+    });
+
+    logSpy.mockClear();
+    mockFetch.mockResolvedValueOnce(jsonResponse(data));
+    await get("flows", "flow_1", "agent", true);
+    expect(decode(logSpy.mock.calls[0][0] as string)).toMatchObject({
+      state: "frozen",
+      sourceIntegrationType: "notion",
+      targetIntegrationType: null,
+    });
+  });
+
+  test("prints integration details as symbolic compact agent output", async () => {
+    const data = {
+      id: "conn_1",
+      name: "Notion",
+      type: 20,
+      mode: 3,
+      roles: [1, 2],
+      capabilities: {
+        supported: [1],
+        granted: [1],
+        enabled: [1, 4],
+        disabledReasons: { 5: "not granted" },
+      },
+      scopes: ["production"],
+      hasCredentials: true,
+      createdAt: "2026-01-01",
+    };
+    mockFetch.mockResolvedValueOnce(jsonResponse([data]));
+    mockFetch.mockResolvedValueOnce(jsonResponse(data));
+
+    await get("integrations", "conn_1", "agent");
+
+    const output = logSpy.mock.calls[0][0] as string;
+    expect(output).toContain("type: notion");
+    expect(output).toContain("mode[2]: poll,webhook");
+    expect(output).toContain("roles[2]: source,target");
+    expect(output).toContain("capabilities[2]: component-discovery,content-provide");
+    expect(output).not.toContain("supported");
+    expect(output).not.toContain("granted");
+    expect(output).not.toContain("createdAt");
+  });
+
+  test("prints integration detail labels in JSON", async () => {
+    const data = {
+      id: "conn_1",
+      name: "Notion",
+      type: 20,
+      mode: 3,
+      roles: [1, 2],
+      capabilities: { enabled: [1, 4] },
+    };
+    mockFetch.mockResolvedValueOnce(jsonResponse([data]));
+    mockFetch.mockResolvedValueOnce(jsonResponse(data));
+
+    await get("integrations", "conn_1", "json");
+
+    expect(JSON.parse(logSpy.mock.calls[0][0] as string)).toMatchObject({
+      type: "notion",
+      mode: ["poll", "webhook"],
+      roles: ["source", "target"],
+      capabilities: ["component-discovery", "content-provide"],
+    });
+  });
+
+  test("keeps readable collection schema in default detail output", async () => {
+    const data = {
+      id: "col_1",
+      name: "posts",
+      displayName: "Posts",
+      schema: { title: PropertyType.STRING },
+    };
+    mockFetch.mockResolvedValueOnce(jsonResponse([data]));
+    mockFetch.mockResolvedValueOnce(jsonResponse(data));
+
+    await get("collections", "col_1");
+
+    expect(JSON.parse(logSpy.mock.calls[0][0] as string).schema).toEqual({ title: "string" });
+  });
+
+  test("prints collection details as symbolic full agent output", async () => {
+    const data = {
+      id: "col_1",
+      name: "posts",
+      displayName: "Posts",
+      integrationId: "conn_1",
+      integrationType: 20,
+      sourceSyncStatus: 3,
+      stale: true,
+      staleReason: 1,
+      schema: { title: PropertyType.STRING },
+      createdAt: "2026-01-01",
+    };
+    mockFetch.mockResolvedValueOnce(jsonResponse([data]));
+    mockFetch.mockResolvedValueOnce(jsonResponse(data));
+
+    await get("collections", "col_1", "agent", true);
+
+    const output = logSpy.mock.calls[0][0] as string;
+    expect(output).toContain("integrationType: notion");
+    expect(output).toContain("sourceSyncStatus: needs-full-pull");
+    expect(output).toContain("staleReason: quota-blocked");
+    expect(output).toContain("createdAt");
+    expect(output).toContain("schema:");
+  });
+
+  test("uses a stable fallback for unknown agent enum values", async () => {
+    const data = {
+      id: "conn_unknown",
+      name: "Unknown",
+      type: 999,
+      mode: 4,
+      roles: [999],
+      capabilities: { enabled: [999] },
+    };
+    mockFetch.mockResolvedValueOnce(jsonResponse([data]));
+    mockFetch.mockResolvedValueOnce(jsonResponse(data));
+
+    await get("integrations", "conn_unknown", "agent", true);
+
+    const output = logSpy.mock.calls[0][0] as string;
+    expect(output).toContain("type: unknown(999)");
+    expect(output).toContain("mode[1]: unknown(4)");
+    expect(output).toContain("roles[1]: unknown(999)");
+    expect(output).toContain("capabilities[1]: unknown(999)");
   });
 });
 
@@ -222,7 +467,7 @@ describe("create", () => {
     await create("integrations", '{"label":"new"}', {});
 
     const [url, opts] = mockFetch.mock.calls[0] as unknown[] as [string, RequestInit];
-    expect(url).toBe("https://contfu.com/api/v1/integrations");
+    expect(url).toBe(expectedApiUrl("/api/v1/integrations"));
     expect(opts.method).toBe("POST");
     expect(logSpy).toHaveBeenCalledWith(JSON.stringify(data, null, 2));
   });
@@ -234,12 +479,12 @@ describe("create", () => {
     await create("integrations", undefined, { name: "flagged" });
 
     const [url, opts] = mockFetch.mock.calls[0] as unknown[] as [string, RequestInit];
-    expect(url).toBe("https://contfu.com/api/v1/integrations");
+    expect(url).toBe(expectedApiUrl("/api/v1/integrations"));
     expect(opts.method).toBe("POST");
     expect(JSON.parse(opts.body as string)).toEqual({ name: "flagged", type: 20 });
   });
 
-  test("posts integration scopes from scope flags for any provider", async () => {
+  test("posts integration scopes from scope flags for any service", async () => {
     const data = { id: 2, label: "flagged" };
     mockFetch.mockResolvedValueOnce(jsonResponse(data));
 
@@ -371,6 +616,21 @@ describe("create", () => {
     exitSpy.mockRestore();
   });
 
+  test.each(["storyblok", "prismic"])("rejects unavailable integration type %s", async (type) => {
+    const exitSpy = spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("exit");
+    });
+
+    // oxlint-disable-next-line typescript/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
+    await expect(create("integrations", undefined, { name: "Unavailable", type })).rejects.toThrow(
+      "exit",
+    );
+
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("not currently available"));
+    expect(mockFetch).not.toHaveBeenCalled();
+    exitSpy.mockRestore();
+  });
+
   test("rejects unknown integration types", async () => {
     const exitSpy = spyOn(process, "exit").mockImplementation(() => {
       throw new Error("exit");
@@ -403,7 +663,7 @@ describe("create", () => {
     await create("collections", undefined, { "display-name": "My Col" });
 
     const [url, opts] = mockFetch.mock.calls[0] as unknown[] as [string, RequestInit];
-    expect(url).toBe("https://contfu.com/api/v1/collections");
+    expect(url).toBe(expectedApiUrl("/api/v1/collections"));
     expect(JSON.parse(opts.body as string)).toMatchObject({ displayName: "My Col" });
   });
 
@@ -449,7 +709,7 @@ describe("create", () => {
     });
 
     const [url, opts] = mockFetch.mock.calls[1] as unknown[] as [string, RequestInit];
-    expect(url).toBe("https://contfu.com/api/v1/collections");
+    expect(url).toBe(expectedApiUrl("/api/v1/collections"));
     expect(JSON.parse(opts.body as string)).toMatchObject({
       displayName: "My Col",
       integrationId: "conn_1",
@@ -542,7 +802,7 @@ describe("update", () => {
     await update("collections", "5", undefined, { "display-name": "Renamed" });
 
     const [url, opts] = mockFetch.mock.calls[1] as unknown[] as [string, RequestInit];
-    expect(url).toBe("https://contfu.com/api/v1/collections/5");
+    expect(url).toBe(expectedApiUrl("/api/v1/collections/5"));
     expect(JSON.parse(opts.body as string)).toMatchObject({ displayName: "Renamed" });
   });
 
@@ -564,7 +824,7 @@ describe("update", () => {
     await update("integrations", "1", '{"label":"updated"}', {});
 
     const [url, opts] = mockFetch.mock.calls[1] as unknown[] as [string, RequestInit];
-    expect(url).toBe("https://contfu.com/api/v1/integrations/1");
+    expect(url).toBe(expectedApiUrl("/api/v1/integrations/1"));
     expect(opts.method).toBe("PATCH");
     expect(logSpy).toHaveBeenCalledWith(JSON.stringify(data, null, 2));
   });
@@ -577,7 +837,7 @@ describe("update", () => {
     await update("integrations", "1", undefined, { name: "renamed", scope: "staging" });
 
     const [url, opts] = mockFetch.mock.calls[1] as unknown[] as [string, RequestInit];
-    expect(url).toBe("https://contfu.com/api/v1/integrations/1");
+    expect(url).toBe(expectedApiUrl("/api/v1/integrations/1"));
     expect(opts.method).toBe("PATCH");
     expect(JSON.parse(opts.body as string)).toEqual({ name: "renamed", scopes: ["staging"] });
   });
@@ -592,7 +852,7 @@ describe("update", () => {
     });
 
     const [url, opts] = mockFetch.mock.calls[1] as unknown[] as [string, RequestInit];
-    expect(url).toBe("https://contfu.com/api/v1/integrations/conn_1");
+    expect(url).toBe(expectedApiUrl("/api/v1/integrations/conn_1"));
     expect(opts.method).toBe("PATCH");
     expect(JSON.parse(opts.body as string)).toEqual({
       credentials: "new-token",
@@ -600,7 +860,7 @@ describe("update", () => {
     });
   });
 
-  test("updates integration draft mode without clearing other provider options", async () => {
+  test("updates integration draft mode without clearing other service options", async () => {
     mockFetch.mockResolvedValueOnce(jsonResponse([{ id: "wp_1", name: "Site" }]));
     mockFetch.mockResolvedValueOnce(
       jsonResponse({ id: "wp_1", opts: { graphqlAvailable: true, includeDrafts: true } }),
@@ -610,7 +870,7 @@ describe("update", () => {
     await update("integrations", "Site", undefined, { "no-include-drafts": true });
 
     const [url, opts] = mockFetch.mock.calls[2] as unknown[] as [string, RequestInit];
-    expect(url).toBe("https://contfu.com/api/v1/integrations/wp_1");
+    expect(url).toBe(expectedApiUrl("/api/v1/integrations/wp_1"));
     expect(opts.method).toBe("PATCH");
     expect(JSON.parse(opts.body as string)).toEqual({
       opts: { graphqlAvailable: true, includeDrafts: false },
@@ -630,7 +890,7 @@ describe("update", () => {
     });
 
     const [url, opts] = mockFetch.mock.calls[2] as unknown[] as [string, RequestInit];
-    expect(url).toBe("https://contfu.com/api/v1/integrations/cf_1");
+    expect(url).toBe(expectedApiUrl("/api/v1/integrations/cf_1"));
     expect(opts.method).toBe("PATCH");
     expect(JSON.parse(opts.body as string)).toEqual({
       credentials: JSON.stringify({ previewToken: "preview-token" }),
@@ -805,7 +1065,7 @@ describe("del", () => {
     await del("integrations", "42");
 
     const [url, opts] = mockFetch.mock.calls[1] as unknown[] as [string, RequestInit];
-    expect(url).toBe("https://contfu.com/api/v1/integrations/42");
+    expect(url).toBe(expectedApiUrl("/api/v1/integrations/42"));
     expect(opts.method).toBe("DELETE");
     expect(logSpy).toHaveBeenCalledWith("Deleted integration 42");
   });
@@ -884,6 +1144,8 @@ describe("listIntegrationTypes", () => {
     expect(written).toContain("app");
     expect(written).toContain("notion");
     expect(written).toContain("strapi");
+    expect(written).not.toContain("storyblok");
+    expect(written).not.toContain("prismic");
     // blank line separator between groups
     expect(written).toContain("\n\n");
   });

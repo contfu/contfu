@@ -34,7 +34,7 @@ describe("loadFile", () => {
     createFile(createTestFile());
   });
 
-  test("loads, converts, and streams a Local Runtime File", async () => {
+  test("loads, converts, and streams a Contfu runtime File", async () => {
     const fileStore: FileStore = {
       write: mock(() => Promise.resolve()),
       read: mock(() => Promise.resolve(sourceData)),

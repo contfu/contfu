@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.6] - 2026-08-05
+
+### Added
+
+- Added plain-date and object property support.
+
+### Fixed
+
+- Correctly mapped direct Sanity object aliases to JSON.
+
 ## [0.1.5] - 2026-07-25
 
 ### Changed

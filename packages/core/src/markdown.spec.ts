@@ -38,6 +38,21 @@ describe("renderInlineMarkdown", () => {
     expect(renderInlineMarkdown(a)).toBe("[click me](https://example.com)");
   });
 
+  test("rejects destinations that can escape Markdown link syntax", () => {
+    const a: Anchor = [
+      "a",
+      "click me",
+      'https://example.com)\n<a href="javascript:alert(1)">evil</a>\n(',
+    ];
+    expect(renderInlineMarkdown(a)).toBe("click me");
+  });
+
+  test("preserves approved URL schemes in Markdown destinations", () => {
+    for (const href of ["//cdn.example.com/file", "mailto:user@example.com", "tel:+15551212"]) {
+      expect(renderInlineMarkdown(["a", "link", href])).toBe(`[link](${href})`);
+    }
+  });
+
   test("inline code (not escaped)", () => {
     const c: Code = ["c", "x = 1"];
     expect(renderInlineMarkdown(c)).toBe("`x = 1`");

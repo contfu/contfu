@@ -1,3 +1,4 @@
+import { isSafeRichContentUrl } from "./url-policy";
 import {
   isP,
   isH1,
@@ -97,6 +98,7 @@ export function renderInlineMarkdown(inline: Inline, opts?: MarkdownOptions): st
   if (isAnchor(inline)) {
     if (opts?.inlines?.a) return opts.inlines.a(inline);
     const [, text, href] = inline;
+    if (!isSafeRichContentUrl(href)) return escapeMarkdown(text);
     return `[${escapeMarkdown(text)}](${href})`;
   }
   if (isMonospace(inline)) {

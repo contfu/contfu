@@ -8,10 +8,10 @@ you can switch between the two without rewriting query code.
 
 | Package          | Use when                                                                               | Create with                           |
 | ---------------- | -------------------------------------------------------------------------------------- | ------------------------------------- |
-| `@contfu/contfu` | Your app process runs the Local Runtime and reads the Local Store directly.            | `contfu()` → `{ query }`              |
+| `@contfu/contfu` | Your app process runs the Contfu runtime and reads the Local Store directly.           | `contfu()` → `{ query }`              |
 | `@contfu/client` | Your app queries a [self-hosted Server](./deployment.md#self-hosted-server) over HTTP. | `contfuClient(url, token?, options?)` |
 
-### Embedded (Local Runtime)
+### Embedded runtime (`@contfu/contfu`)
 
 ```ts
 import { contfu } from "@contfu/contfu";
@@ -22,7 +22,7 @@ const posts = await query("blogPost", { limit: 10 });
 ```
 
 `contfu()` returns the query callable, the live `events` stream, the `fileStore`, and a
-`handleFileRequest` helper. See [Deployment](./deployment.md#embedded-local-runtime) for
+`handleFileRequest` helper. See [Deployment](./deployment.md#embedded-runtime) for
 the runtime options.
 
 ### HTTP (Client)
@@ -201,7 +201,7 @@ Framework placement:
 - **Next.js** — Server Components, `getServerSideProps`, or `getStaticProps`.
 - **Astro** — `.astro` frontmatter or API routes.
 - **Plain Node/Bun** — anywhere on the server; use
-  [`@contfu/connect`](./deployment.md#embedded-local-runtime) for live updates.
+  [`@contfu/connect`](./deployment.md#embedded-runtime) for live updates.
 
 ## Localized queries
 

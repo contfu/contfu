@@ -29,8 +29,9 @@ for attempt in $(seq 1 "$RETRIES"); do
   echo "Attempt $attempt/$RETRIES (timeout: ${TIMEOUT}s): $*"
   if timeout "$TIMEOUT" "$@"; then
     exit 0
+  else
+    code=$?
   fi
-  code=$?
   if [[ $code -eq 124 ]]; then
     echo "Timed out after ${TIMEOUT}s"
   else

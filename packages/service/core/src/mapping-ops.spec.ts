@@ -173,6 +173,25 @@ describe("applyMappings", () => {
     expect(applyMappings(props, mappings)).toEqual({ count: 7 });
   });
 
+  test("converts plain-date and timestamp mapping units instead of forwarding raw numbers", () => {
+    expect(
+      applyMappings({ due: 20_635 }, [{ source: "due", target: "dueAt", cast: "plainDateToDate" }]),
+    ).toEqual({ dueAt: Date.UTC(2026, 6, 1) });
+    expect(
+      applyMappings({ dueAt: Date.UTC(2026, 6, 1, 12) }, [
+        { source: "dueAt", target: "due", cast: "dateToPlainDate" },
+      ]),
+    ).toEqual({ due: 20_635 });
+    expect(
+      applyMappings({ due: 20_635 }, [
+        { source: "due", target: "dueText", cast: "plainDateToString" },
+      ]),
+    ).toEqual({ dueText: "2026-07-01" });
+    expect(
+      applyMappings({ due: null }, [{ source: "due", target: "dueAt", cast: "plainDateToDate" }]),
+    ).toEqual({ dueAt: null });
+  });
+
   test("applies boolean cast", () => {
     const props = { flag: 1 };
     const mappings: MappingRule[] = [{ source: "flag", target: "flag", cast: "boolean" }];
@@ -339,6 +358,14 @@ describe("validateSourceItem", () => {
   test("null or empty mappings return no errors", () => {
     expect(validateSourceItem({ x: 1 }, null)).toEqual([]);
     expect(validateSourceItem({ x: 1 }, [])).toEqual([]);
+  });
+
+  test("validates invalid plain-date casts", () => {
+    expect(
+      validateSourceItem({ due: "not-a-day" }, [
+        { source: "due", target: "dueAt", cast: "plainDateToDate" },
+      ]),
+    ).toEqual([{ property: "dueAt", sourceProperty: "due", cast: "plainDateToDate" }]);
   });
 
   test("validates default value when source prop is missing", () => {

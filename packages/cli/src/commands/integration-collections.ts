@@ -7,21 +7,51 @@ import { getApiClient, handleCliError } from "../http";
 import { resolveIntegrationRef } from "./resources";
 import { multiSelect } from "./select";
 import { printDryRun, type DryRunOption } from "./dry-run";
+import { isStructuredOutputFormat, printStructured, type StructuredOutputFormat } from "../output";
 
 export interface ScanOptions extends DryRunOption {
   format: string;
+  full?: boolean;
   select?: boolean;
 }
 
 export interface AddOptions extends DryRunOption {
   format: string;
+  full?: boolean;
   refs?: string[];
   all?: boolean;
   select?: boolean;
 }
 
-function printJson(data: unknown) {
-  console.log(JSON.stringify(data, null, 2));
+function compactScannedCollections(collections: ScannedCollection[]) {
+  return collections.map(({ ref, displayName, scope, alreadyAdded }) => ({
+    ref,
+    displayName,
+    ...(scope ? { scope } : {}),
+    alreadyAdded,
+  }));
+}
+
+function compactAddSummary(summary: AddScannedCollectionsResult) {
+  return {
+    scanned: summary.scanned,
+    added: summary.added.map(({ ref, id, displayName, scope }) => ({
+      ref,
+      id,
+      displayName,
+      ...(scope ? { scope } : {}),
+    })),
+    alreadyAdded: compactScannedCollections(summary.alreadyAdded),
+  };
+}
+
+function printJson(
+  data: unknown,
+  format: StructuredOutputFormat = "json",
+  full = false,
+  compact: unknown = data,
+) {
+  printStructured(data, format, { full, compact });
 }
 
 type Column<T> = { header: string; value: (row: T) => string };
@@ -105,7 +135,8 @@ export async function scanIntegrationCollections(
     const scanned = await client.scanCollections(resolvedIntegrationId);
 
     if (!options.select) {
-      if (options.format === "json") printJson(scanned);
+      if (isStructuredOutputFormat(options.format))
+        printJson(scanned, options.format, options.full, compactScannedCollections(scanned));
       else printScannedCollections(scanned);
       return;
     }
@@ -121,7 +152,8 @@ export async function scanIntegrationCollections(
     }
 
     const summary = await client.addScannedCollections(resolvedIntegrationId, { refs });
-    if (options.format === "json") printJson(summary);
+    if (isStructuredOutputFormat(options.format))
+      printJson(summary, options.format, options.full, compactAddSummary(summary));
     else printAddSummary(summary);
   } catch (err) {
     handleCliError(err);
@@ -155,7 +187,8 @@ export async function addIntegrationCollections(
         return;
       }
       const summary = await client.addScannedCollections(resolvedIntegrationId, { refs });
-      if (options.format === "json") printJson(summary);
+      if (isStructuredOutputFormat(options.format))
+        printJson(summary, options.format, options.full, compactAddSummary(summary));
       else printAddSummary(summary);
       return;
     }
@@ -169,7 +202,8 @@ export async function addIntegrationCollections(
       return;
     }
     const summary = await client.addScannedCollections(resolvedIntegrationId, body);
-    if (options.format === "json") printJson(summary);
+    if (isStructuredOutputFormat(options.format))
+      printJson(summary, options.format, options.full, compactAddSummary(summary));
     else printAddSummary(summary);
   } catch (err) {
     handleCliError(err);

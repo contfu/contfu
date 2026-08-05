@@ -114,7 +114,7 @@ describe("tokenize", () => {
     expect(() => tokenize("$bogus = 1")).toThrow("Unknown system field");
   });
 
-  test("rejects provider integration type as a local query system field", () => {
+  test("rejects service integration type as a local query system field", () => {
     expect(() => tokenize('$integrationType = "notion"')).toThrow("Unknown system field");
   });
 

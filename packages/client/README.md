@@ -4,7 +4,7 @@ HTTP client for querying content from a Contfu Server.
 
 ## When to use
 
-Use `@contfu/client` when your application talks to a user-hosted Contfu Server over HTTP. A Client only queries a Server; it does not synchronize with the Cloud Service or with the Server.
+Use `@contfu/client` when your application talks to a user-hosted Contfu Server over HTTP. A Client only queries a Server; it does not synchronize with Contfu or with the Server.
 
 For local access, use `@contfu/contfu` directly beside the Local Store.
 

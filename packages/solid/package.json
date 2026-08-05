@@ -1,6 +1,6 @@
 {
   "name": "@contfu/solid",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -36,7 +36,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@contfu/core": "workspace:^0.2.2"
+    "@contfu/core": "workspace:^0.3.0"
   },
   "devDependencies": {
     "solid-js": "^1.9.13",

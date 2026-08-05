@@ -8,10 +8,10 @@ export type UnorderedListBlock = [type: "u", ...items: (Inline | Block)[][]];
 export type OrderedListBlock = [type: "o", ...items: (Inline | Block)[][]];
 export type TableBlock = [type: "t", hasHeader: boolean, cells: (Block | Inline)[][][]];
 /**
- * Provider-neutral rich-text image: normalized URL and alternative text only.
+ * Service-neutral rich-text image: normalized URL and alternative text only.
  *
- * Media metadata such as dimensions, formats, captions, MIME data, and provider
- * identifiers belongs to provider media-field contracts, not embedded image blocks.
+ * Media metadata such as dimensions, formats, captions, MIME data, and service
+ * identifiers belongs to service media-field contracts, not embedded image blocks.
  */
 export type ImageBlock = [type: "i", canonical: string, alt: string];
 export type Component = [type: "x", name: string, props: Record<string, any>, children: Block[]];

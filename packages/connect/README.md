@@ -1,8 +1,8 @@
 # @contfu/connect
 
-Connector package for Contfu Local Runtimes.
+Connector package for Contfu runtimes.
 
-Connects to the Contfu Cloud Service and yields typed Sync Messages as an async generator. Handles reconnection automatically by default.
+Connects to Contfu and yields typed Sync Messages as an async generator. Handles reconnection automatically by default.
 
 ## Usage
 

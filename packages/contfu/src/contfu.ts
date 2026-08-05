@@ -32,7 +32,7 @@ import type {
 import type { QueryLocale, TypedContfuClient } from "./domain/query-types";
 import { findItems } from "./features/items/findItems";
 import { connect } from "./connect";
-import { db } from "./infra/db/db";
+import { db, withDatabase } from "./infra/db/db";
 import { handleFileRequest as handleFileRequestImpl } from "./infra/http";
 import { fileStore as defaultFileStore } from "./infra/media/media-defaults";
 
@@ -57,6 +57,8 @@ export type ContfuOptions<CMap = unknown> = {
   mediaQueueConcurrency?: number;
   /** Optional app-level i18n overrides. DB config remains the source of truth. */
   i18n?: ClientI18nConfig<QueryLocale<CMap>>;
+  /** Database used by this instance's background sync worker. */
+  database?: Parameters<typeof withDatabase>[0];
 };
 
 export type SyncEvent = ItemEvent | StreamEvent;
@@ -104,7 +106,7 @@ function createHotEventStream<CMap>(
     }
   };
 
-  void (async () => {
+  const run = async () => {
     let restartDelay = HOT_STREAM_INITIAL_RESTART_DELAY_MS;
 
     while (true) {
@@ -145,7 +147,9 @@ function createHotEventStream<CMap>(
       await sleep(restartDelay);
       restartDelay = Math.min(restartDelay * 2, HOT_STREAM_MAX_RESTART_DELAY_MS);
     }
-  })().catch((error) => {
+  };
+
+  void (options.database ? withDatabase(options.database, run) : run()).catch((error) => {
     publish({
       type: EventType.STREAM_DISCONNECTED,
       reason: error instanceof Error ? error.message : "Unknown sync stream error",

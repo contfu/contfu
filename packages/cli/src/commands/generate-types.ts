@@ -22,18 +22,13 @@ export async function integrationTypes(id: string) {
 
 export async function collectionTypes(id: string) {
   const client = getApiClient();
-  let collections: TypeGenerationInput[];
+  let types: string;
   try {
     const resolvedId = await resolveCollectionRef(id, client);
-    collections = await client.getCollectionTypes(resolvedId);
+    types = await client.getCollectionTypes(resolvedId);
   } catch (err) {
     handleCliError(err);
   }
 
-  if (collections.length === 0) {
-    console.error("No types found for this collection");
-    process.exit(1);
-  }
-
-  process.stdout.write(generateApplicationIntegrationTypes(collections));
+  process.stdout.write(types);
 }

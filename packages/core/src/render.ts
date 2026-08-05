@@ -1,3 +1,4 @@
+import { isSafeRichContentUrl } from "./url-policy";
 import {
   isP,
   isH1,
@@ -137,6 +138,7 @@ export function renderInline(inline: Inline, opts?: RenderOptions): string {
   if (isAnchor(inline)) {
     if (opts?.inlines?.a) return opts.inlines.a(inline);
     const [, text, href] = inline;
+    if (!isSafeRichContentUrl(href)) return escapeHtml(text);
     return `<a href="${escapeHtml(href)}">${escapeHtml(text)}</a>`;
   }
   if (isMonospace(inline)) {

@@ -30,9 +30,26 @@
     file,
   }: { block: BlockType; components?: BlockComponents; file?: FileUrlOptions } = $props();
 
-  if (file) setContext(FILE_URL_CONTEXT_KEY, file);
-  const ctxFile = getContext<FileUrlOptions | undefined>(FILE_URL_CONTEXT_KEY);
-  const resolvedFile = file ?? ctxFile;
+  const inheritedContext = getContext<FileUrlOptions | undefined>(FILE_URL_CONTEXT_KEY);
+  const resolvedFile = $derived(file ?? inheritedContext);
+  const fileContext: FileUrlOptions = {
+    get baseUrl() {
+      return resolvedFile?.baseUrl;
+    },
+    get imgExt() {
+      return resolvedFile?.imgExt;
+    },
+    get videoExt() {
+      return resolvedFile?.videoExt;
+    },
+    get audioExt() {
+      return resolvedFile?.audioExt;
+    },
+    get fileUrl() {
+      return resolvedFile?.fileUrl;
+    },
+  };
+  setContext(FILE_URL_CONTEXT_KEY, fileContext);
 
   type ComponentBlockRenderer = NonNullable<BlockComponents["component"]>;
 
@@ -152,27 +169,49 @@
 {:else if isTable(block)}
   {#if components.table}
     <svelte:component this={components.table} {block}>
-      {#each block[2] as row, ri}
-        <tr>
-          {#each row as cell}
-            {#if block[1] && ri === 0}<th>{#each cell as c}{#if isInline(c)}<Inline inline={c} />{:else}<Block block={c} {components} />{/if}{/each}</th>
-            {:else}<td>{#each cell as c}{#if isInline(c)}<Inline inline={c} />{:else}<Block block={c} {components} />{/if}{/each}</td>
-            {/if}
+      {#if block[1] && block[2].length > 0}
+        <thead>
+          {#each block[2].slice(0, 1) as row}
+            <tr>
+              {#each row as cell}
+                <th>{#each cell as c}{#if isInline(c)}<Inline inline={c} />{:else}<Block block={c} {components} />{/if}{/each}</th>
+              {/each}
+            </tr>
           {/each}
-        </tr>
-      {/each}
+        </thead>
+      {/if}
+      <tbody>
+        {#each block[2].slice(block[1] ? 1 : 0) as row}
+          <tr>
+            {#each row as cell}
+              <td>{#each cell as c}{#if isInline(c)}<Inline inline={c} />{:else}<Block block={c} {components} />{/if}{/each}</td>
+            {/each}
+          </tr>
+        {/each}
+      </tbody>
     </svelte:component>
   {:else}
     <table>
-      {#each block[2] as row, ri}
-        <tr>
-          {#each row as cell}
-            {#if block[1] && ri === 0}<th>{#each cell as c}{#if isInline(c)}<Inline inline={c} />{:else}<Block block={c} {components} />{/if}{/each}</th>
-            {:else}<td>{#each cell as c}{#if isInline(c)}<Inline inline={c} />{:else}<Block block={c} {components} />{/if}{/each}</td>
-            {/if}
+      {#if block[1] && block[2].length > 0}
+        <thead>
+          {#each block[2].slice(0, 1) as row}
+            <tr>
+              {#each row as cell}
+                <th>{#each cell as c}{#if isInline(c)}<Inline inline={c} />{:else}<Block block={c} {components} />{/if}{/each}</th>
+              {/each}
+            </tr>
           {/each}
-        </tr>
-      {/each}
+        </thead>
+      {/if}
+      <tbody>
+        {#each block[2].slice(block[1] ? 1 : 0) as row}
+          <tr>
+            {#each row as cell}
+              <td>{#each cell as c}{#if isInline(c)}<Inline inline={c} />{:else}<Block block={c} {components} />{/if}{/each}</td>
+            {/each}
+          </tr>
+        {/each}
+      </tbody>
     </table>
   {/if}
 {:else if isImg(block)}

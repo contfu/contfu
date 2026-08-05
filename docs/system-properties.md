@@ -1,15 +1,15 @@
 # System properties
 
-Contfu normalizes a small set of cross-provider metadata into reserved, `$`-prefixed **system properties**. They give applications a stable contract for things like identity, publishing state, and timestamps without having to know whether the content came from Contentful, Notion, Sanity, Strapi, or WordPress.
+Contfu normalizes a small set of cross-Service metadata into reserved, `$`-prefixed **system properties**. They give applications a stable contract for things like identity, publishing state, and timestamps without having to know whether the content came from Contentful, Notion, Sanity, Strapi, or WordPress.
 
 System properties are distinct from your content fields:
 
-- They always start with `$`, so they never collide with provider field names.
-- They are normalized: the same property means the same thing across every provider.
-- They are additive and hidden — they do not replace the original provider data, and a provider only contributes the ones it actually exposes.
+- They always start with `$`, so they never collide with Service field names.
+- They are normalized: the same property means the same thing across every Service.
+- They are additive and hidden — they do not replace the original Service data, and a Service only contributes the ones it actually exposes.
 
-Provider traceability such as the upstream ref is not emitted unless you model it deliberately
-as a collection property. Provider integration type remains service-side context and is not a
+Service traceability such as the upstream ref is not emitted unless you model it deliberately
+as a collection property. Service Integration type remains Contfu context and is not a
 built-in application system property.
 
 ## Reference
@@ -28,7 +28,7 @@ All timestamp values (`$changedAt`, `$createdAt`, `$publishedAt`) are **epoch mi
 
 ## System timestamps
 
-Contfu exposes provider timestamps under three normalized properties. They answer different questions, so applications can build publishing feeds, audits, and incremental jobs without special-casing each provider:
+Contfu exposes Service timestamps under three normalized properties. They answer different questions, so applications can build publishing feeds, audits, and incremental jobs without special-casing each Service:
 
 - **`$createdAt`** — when the item was created in the source.
 - **`$publishedAt`** — when the item was published in the source. It is `null` (or absent) for drafts and for items the source has never published.
@@ -36,11 +36,11 @@ Contfu exposes provider timestamps under three normalized properties. They answe
 
 There is deliberately no separate `$updatedAt`: `$changedAt` already carries the upstream update/version time, so a dedicated "updated" property would just duplicate it.
 
-### Availability by provider
+### Availability by Service
 
-Each provider contributes only the timestamps it actually reports:
+Each Service contributes only the timestamps it actually reports:
 
-| Provider   | `$createdAt`                  | `$publishedAt`      | `$changedAt`             |
+| Service    | `$createdAt`                  | `$publishedAt`      | `$changedAt`             |
 | ---------- | ----------------------------- | ------------------- | ------------------------ |
 | Contentful | yes                           | yes                 | yes (`sys.updatedAt`)    |
 | Notion     | yes (`created_time`)          | — (no publish time) | yes (`last_edited_time`) |
@@ -50,7 +50,7 @@ Each provider contributes only the timestamps it actually reports:
 
 Sanity models publishing structurally rather than with a timestamp, so it has no `$publishedAt`. WordPress has no creation timestamp separate from its publish date, so it has no `$createdAt`. In both cases the missing property is simply absent — Contfu does not synthesize a value, because the source is the system of record.
 
-Providers that expose their own raw timestamp fields (for example WordPress `dateGmt` and `modifiedGmt`) still deliver those as ordinary content properties. Prefer the normalized `$`-properties for portable application code, and reach for the raw fields only when you need the exact provider representation.
+Services that expose their own raw timestamp fields (for example WordPress `dateGmt` and `modifiedGmt`) still deliver those as ordinary content properties. Prefer the normalized `$`-properties for portable application code, and reach for the raw fields only when you need the exact Service representation.
 
 ### Notion migration
 
@@ -97,4 +97,4 @@ type BlogPost = {
 };
 ```
 
-`$changedAt` is available on every item regardless of provider. Regenerate types after changing a collection's source so newly available system properties are reflected in your application contract.
+`$changedAt` is available on every item regardless of Service. Regenerate types after changing a collection's source so newly available system properties are reflected in your application contract.

@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.3.0] - 2026-08-05
+
+### Added
+
+- Added plain-date property support.
+- Added integration capability validation and safe URL handling for rich-content renderers.
+
+### Changed
+
+- **Breaking:** Renamed the `json` property type to `object`.
+
+### Fixed
+
+- Rejected unsafe Directus numeric identities.
+- Aligned DATE type generation with epoch-millisecond runtime values.
+
 ## [0.2.2] - 2026-07-25
 
 ### Added

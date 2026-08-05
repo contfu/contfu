@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.7] - 2026-08-05
+
+### Added
+
+- Added TOON resource output and an agent-oriented output format.
+- Added validation for unavailable integration types during setup.
+- Added consistent detail output across CLI resources.
+- Added agent-oriented output for integration and collection details.
+
+### Fixed
+
+- Honored the workspace parameter on v1 route requests.
+- Ensured explicit workspace selections override stored context.
+
 ## [0.1.6] - 2026-07-25
 
 ### Added

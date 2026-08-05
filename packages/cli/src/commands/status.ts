@@ -4,6 +4,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { BASE_URL, getApiKey } from "../http";
 import { getAppKey } from "../env";
+import { isStructuredOutputFormat, printStructured } from "../output";
 
 function resolveTypeLabel(type: number): string {
   const meta = IntegrationTypeMeta[type as keyof typeof IntegrationTypeMeta];
@@ -16,6 +17,42 @@ export interface StatusResult {
   collections: ServiceCollection[];
   flows: ServiceFlow[];
   appKey?: { present: boolean; source: "env" | "dotenv" };
+}
+
+function compactStatus(result: StatusResult) {
+  return {
+    authenticated: result.authenticated,
+    integrations: result.integrations.map(({ id, name, typeLabel, scopes, hasCredentials }) => ({
+      id,
+      name,
+      type: typeLabel,
+      ...(scopes?.length > 0 ? { scopes } : {}),
+      hasCredentials,
+    })),
+    collections: result.collections.map(
+      ({
+        id,
+        name,
+        displayName,
+        integrationId,
+        itemsCount,
+        flowSourceCount,
+        flowTargetCount,
+        stale,
+      }) => ({
+        id,
+        name,
+        displayName,
+        integrationId,
+        itemsCount,
+        flowSourceCount,
+        flowTargetCount,
+        stale,
+      }),
+    ),
+    flows: result.flows.map(({ id, sourceId, targetId }) => ({ id, sourceId, targetId })),
+    ...(result.appKey ? { appKey: result.appKey } : {}),
+  };
 }
 
 function printTable(result: StatusResult) {
@@ -77,12 +114,12 @@ function printTable(result: StatusResult) {
   }
 }
 
-export async function status(format = "table"): Promise<void> {
+export async function status(format = "default", full = false): Promise<void> {
   const apiKey = getApiKey();
 
   if (!apiKey) {
-    if (format === "json") {
-      console.log(JSON.stringify({ authenticated: false }, null, 2));
+    if (isStructuredOutputFormat(format)) {
+      printStructured({ authenticated: false }, format, { full });
     } else {
       console.log("Not authenticated. Run `contfu login` or set CONTFU_API_KEY.");
     }
@@ -123,15 +160,15 @@ export async function status(format = "table"): Promise<void> {
       ...(appKeyInfo !== undefined ? { appKey: appKeyInfo } : {}),
     };
 
-    if (format === "json") {
-      console.log(JSON.stringify(result, null, 2));
+    if (isStructuredOutputFormat(format)) {
+      printStructured(result, format, { full, compact: compactStatus(result) });
     } else {
       printTable(result);
     }
   } catch (err) {
     if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
-      if (format === "json") {
-        console.log(JSON.stringify({ authenticated: false }, null, 2));
+      if (isStructuredOutputFormat(format)) {
+        printStructured({ authenticated: false }, format, { full });
       } else {
         console.log("Not authenticated. Run `contfu login` or set CONTFU_API_KEY.");
       }

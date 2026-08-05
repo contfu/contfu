@@ -1,4 +1,4 @@
-import { PropertyType } from "@contfu/core";
+import { generateTypeScript, PROPERTY_TYPE_MASK, PropertyType } from "@contfu/core";
 import { describe, expect, it } from "bun:test";
 import { generateTypes } from "./generateTypes";
 
@@ -42,10 +42,69 @@ describe("generateTypes", () => {
         file: PropertyType.FILE,
         files: PropertyType.FILES,
         date: PropertyType.DATE,
+        plainDate: PropertyType.PLAINDATE,
         location: PropertyType.GEOPOINT,
       },
     });
     expect(result).toMatchSnapshot();
+  });
+
+  it("preserves enum literal unions for nullable enum properties", () => {
+    const enumValues = ["Vorverkauf", "Buchen"];
+    const result = generateTypes({
+      callsToAction: {
+        requiredEnum: [PropertyType.ENUM, enumValues],
+        nullableEnum: [PropertyType.ENUM | PropertyType.NULL, enumValues],
+        requiredEnums: [PropertyType.ENUMS, enumValues],
+        nullableEnums: [PropertyType.ENUMS | PropertyType.NULL, enumValues],
+      },
+    });
+
+    expect(result).toContain('requiredEnum: "Vorverkauf" | "Buchen";');
+    expect(result).toContain('nullableEnum: "Vorverkauf" | "Buchen";');
+    expect(result).toContain('requiredEnums: ("Vorverkauf" | "Buchen")[];');
+    expect(result).toContain('nullableEnums: ("Vorverkauf" | "Buchen")[];');
+  });
+
+  it("retains non-enum members in mixed enum masks", () => {
+    const result = generateTypes({
+      assets: {
+        icon: [PropertyType.ENUM | PropertyType.FILE, ["a", "b"]],
+      },
+    });
+
+    expect(result).toContain('import type { FileMetadata } from "@contfu/core";');
+    expect(result).toContain('icon: FileMetadata | "a" | "b";');
+  });
+
+  it("matches core type generation for every renderable property type", () => {
+    const renderableTypes = Object.entries(PropertyType).filter(
+      ([, type]) => type !== PropertyType.NULL && (type & PROPERTY_TYPE_MASK) === type,
+    );
+    const extractPropertyType = (output: string, property: string): string => {
+      const rendered = output.match(new RegExp(`^\\s+${property}: (.+);$`, "m"))?.[1];
+      if (!rendered) throw new Error(`Missing generated type for ${property}`);
+      return rendered;
+    };
+
+    const coreTypes = Object.fromEntries(
+      renderableTypes.map(([name, type]) => {
+        const property = name.toLowerCase();
+        const output = generateTypeScript([
+          { name: "parity", displayName: "Parity", schema: { [property]: type } },
+        ]);
+        return [name, extractPropertyType(output, property)];
+      }),
+    );
+    const clientTypes = Object.fromEntries(
+      renderableTypes.map(([name, type]) => {
+        const property = name.toLowerCase();
+        const output = generateTypes({ parity: { [property]: type } });
+        return [name, extractPropertyType(output, property)];
+      }),
+    );
+
+    expect(clientTypes).toEqual(coreTypes);
   });
 
   it("imports Color for color fields", () => {

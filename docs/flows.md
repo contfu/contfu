@@ -6,7 +6,7 @@ target — applying any **mappings** and **filters** along the way.
 
 ```
 source collection ──flow──▶ target collection
-       (provider)          (your app reads this)
+       (Service)           (your app reads this)
 ```
 
 - An **inflow** is a flow entering a collection.
@@ -27,7 +27,7 @@ contfu flows create --source-id <source-collection-id> --target-id <target-colle
 
 Options:
 
-- `-d <json>` — raw JSON body for advanced configuration (mappings and filters). You can
+- `-d, --data <json>` — raw JSON body for advanced configuration (mappings and filters). You can
   combine this with `--source-id`/`--target-id`, or include `sourceId` and `targetId` in the JSON.
 
 Inspect and remove:
@@ -44,7 +44,7 @@ A **mapping** translates item properties from the source collection's shape into
 target collection's shape. A flow with **no** mappings has an **identity** derived schema —
 it carries the source schema through unchanged.
 
-> The Cloud Service records the source collection's schema when the flow is created, so the
+> Contfu records the source collection's schema when the flow is created, so the
 > UI mapping editor can populate source-property dropdowns automatically. You do not need to
 > pass a `schema` field in CLI/API flow create requests.
 
@@ -58,7 +58,7 @@ application's type contract.
 
 ### One source → one collection
 
-The simplest setup — one provider database into one Contfu collection:
+The simplest setup — one Service database into one Contfu collection:
 
 ```bash
 contfu collections create --display-name "Blog Posts" --integration-id <app-id>
@@ -77,7 +77,7 @@ Then query the new collection from your shared client module.
 
 ### Many sources → one collection
 
-Merge several provider databases into one collection by creating multiple flows with the
+Merge several Service databases into one collection by creating multiple flows with the
 **same target**:
 
 ```bash
@@ -98,11 +98,11 @@ different source collections or [filter at query time](./querying.md).
 When synchronization hits a problem it cannot safely resolve, Contfu raises a
 user-visible **incident** rather than silently delivering bad data.
 
-| Incident                   | What happened                                                | Effect                                        |
-| -------------------------- | ------------------------------------------------------------ | --------------------------------------------- |
-| **External Schema Change** | An ingress integration changed a source schema incompatibly. | The affected outflow **freezes**.             |
-| **Mapping Failure**        | An item cannot be transformed by the flow's mappings.        | The item is **held**; the flow keeps running. |
-| **Validation Failure**     | A parsed/mapped item does not satisfy the target schema.     | The item is **held**; the flow keeps running. |
+| Incident                   | What happened                                                   | Effect                                        |
+| -------------------------- | --------------------------------------------------------------- | --------------------------------------------- |
+| **External Schema Change** | A Source Role integration changed a source schema incompatibly. | The affected outflow **freezes**.             |
+| **Mapping Failure**        | An item cannot be transformed by the flow's mappings.           | The item is **held**; the flow keeps running. |
+| **Validation Failure**     | A parsed/mapped item does not satisfy the target schema.        | The item is **held**; the flow keeps running. |
 
 The distinction matters:
 
@@ -112,9 +112,8 @@ The distinction matters:
 - A **Held Item** is a single item withheld from delivery until the incident is resolved.
   The rest of the flow continues.
 
-[Stale collections](./concepts.md#collection-roles) and
-[quota-blocked](./integrations.md#lifecycle-states) states do **not** automatically create
-incidents — they are expected conditions, not failures.
+Paused and quota-blocked states do **not** automatically create incidents — they are
+expected conditions, not failures.
 
 ### Deliberate schema changes
 
@@ -124,7 +123,7 @@ freezing automatically.
 
 ## Refs and traceability
 
-A **Ref** is a transient, service-side trace from an item back to its upstream provider
+A **Ref** is a transient, service-side trace from an item back to its upstream Service
 entry, used for incident investigation. It is **not** synchronized to your application by
-default. If your app should receive provider traceability, model `$ref` as a normal
+default. If your app should receive Service traceability, model `$ref` as a normal
 collection property.

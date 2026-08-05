@@ -1,4 +1,4 @@
-import { defineEnum, type EnumValue } from "@contfu/core";
+import { defineEnum, toEpochDay, type CollectionSchema, type EnumValue } from "@contfu/core";
 import { PropertyType, propertyTypeBase } from "./schemas";
 
 /**
@@ -48,7 +48,8 @@ const STRING_OPERATORS: readonly FilterOperator[] = [
 
 const STRING_OPERATOR_TYPES =
   PropertyType.STRING | PropertyType.STRINGS | PropertyType.ENUM | PropertyType.ENUMS;
-const COMPARISON_OPERATOR_TYPES = PropertyType.NUMBER | PropertyType.NUMBERS | PropertyType.DATE;
+const COMPARISON_OPERATOR_TYPES =
+  PropertyType.NUMBER | PropertyType.NUMBERS | PropertyType.DATE | PropertyType.PLAINDATE;
 const ARRAY_OPERATOR_TYPES =
   PropertyType.STRINGS |
   PropertyType.NUMBERS |
@@ -94,10 +95,16 @@ export function getOperatorsForType(propertyType: number): FilterOperator[] {
         ...ARRAY_OPERATORS,
         ...NULL_CHECK_OPERATORS,
       ];
+    // Exact numeric values are serialized strings; comparisons require an
+    // arbitrary-precision storage/query contract that is not available yet.
+    case PropertyType.BIGINT:
+    case PropertyType.DECIMAL:
+      return [...EQUALITY_OPERATORS, ...NULL_CHECK_OPERATORS];
     case PropertyType.COLOR:
     case PropertyType.BOOLEAN:
       return [...EQUALITY_OPERATORS, ...NULL_CHECK_OPERATORS];
     case PropertyType.DATE:
+    case PropertyType.PLAINDATE:
       return [...EQUALITY_OPERATORS, ...COMPARISON_OPERATORS, ...NULL_CHECK_OPERATORS];
     case PropertyType.REF:
     case PropertyType.REFS:
@@ -109,6 +116,33 @@ export function getOperatorsForType(propertyType: number): FilterOperator[] {
     default:
       return getOperatorsForTypeMask(baseType);
   }
+}
+
+/** Coerce a filter operand to the storage units required by a property type. */
+export function coerceFilterOperand(value: unknown, propertyType: number): unknown {
+  const baseType = propertyTypeBase(propertyType) & ~PropertyType.NULL;
+  if ((baseType & PropertyType.PLAINDATE) === 0 || value == null) return value;
+  if (Array.isArray(value)) return value.map((entry) => toEpochDay(entry));
+  return toEpochDay(value);
+}
+
+/** Normalize all filter operands against their source collection schema. */
+export function normalizeFilters(filters: Filter[], schema: CollectionSchema): Filter[] {
+  return filters.map((filter) => {
+    const schemaValue = schema[filter.property];
+    if (schemaValue === undefined || filter.value === undefined) return filter;
+    try {
+      return {
+        ...filter,
+        value: coerceFilterOperand(
+          filter.value,
+          Array.isArray(schemaValue) ? schemaValue[0] : schemaValue,
+        ),
+      };
+    } catch {
+      return filter;
+    }
+  });
 }
 
 function getOperatorsForTypeMask(baseType: number): FilterOperator[] {

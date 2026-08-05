@@ -98,7 +98,7 @@ export function createRuntimeEventMonitor(events: AsyncIterable<SyncEvent>): Run
     } else if (event.type === EventType.SNAPSHOT_END) {
       setStatus({ state: "connected", reason: null });
     } else if (event.type === EventType.STREAM_DISCONNECTED) {
-      setStatus({ state: "error", reason: event.reason ?? "Disconnected from Cloud Service" });
+      setStatus({ state: "error", reason: event.reason ?? "Disconnected from Contfu" });
     } else if (event.type === EventType.COLLECTION_SCHEMA) {
       bufferDataChanged("schema");
     } else if (event.type === EventType.ITEM_CHANGED || event.type === EventType.ITEM_DELETED) {

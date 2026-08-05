@@ -3,6 +3,11 @@ import {
   IntegrationCapability,
   IntegrationRole,
   IntegrationType,
+  IntegrationAvailability,
+  IntegrationTypeAvailability,
+  creatableIntegrationTypes,
+  isCreatableIntegrationType,
+  isIntegrationType,
   integrationHasCapability,
   TargetSchemaDeliveryMode,
   integrationHasRole,
@@ -70,12 +75,12 @@ describe("integration capabilities", () => {
         IntegrationCapability.ContentProvide,
       ],
     ],
-    [IntegrationType.STORYBLOK, [IntegrationCapability.ContentProvide]],
+    [IntegrationType.STORYBLOK, []],
     [
       IntegrationType.DIRECTUS,
       [IntegrationCapability.CollectionDiscovery, IntegrationCapability.ContentProvide],
     ],
-    [IntegrationType.PRISMIC, [IntegrationCapability.ContentProvide]],
+    [IntegrationType.PRISMIC, []],
     [
       IntegrationType.WEB,
       [IntegrationCapability.ManualLocalizationLayer, IntegrationCapability.ContentProvide],
@@ -91,6 +96,27 @@ describe("integration capabilities", () => {
         expectedCapabilities.includes(capability),
       );
     }
+  });
+
+  it("distinguishes persisted identifiers from creatable integration types", () => {
+    expect(IntegrationTypeAvailability[IntegrationType.NOTION]).toBe(
+      IntegrationAvailability.IMPLEMENTED,
+    );
+    expect(IntegrationTypeAvailability[IntegrationType.DIRECTUS]).toBe(
+      IntegrationAvailability.UNRELEASED,
+    );
+    expect(IntegrationTypeAvailability[IntegrationType.STORYBLOK]).toBe(
+      IntegrationAvailability.PLANNED,
+    );
+    expect(isIntegrationType(IntegrationType.PRISMIC)).toBe(true);
+    expect(isIntegrationType(999)).toBe(false);
+    expect(isCreatableIntegrationType(IntegrationType.NOTION)).toBe(true);
+    expect(isCreatableIntegrationType(IntegrationType.DIRECTUS)).toBe(true);
+    expect(isCreatableIntegrationType(IntegrationType.STORYBLOK)).toBe(false);
+    expect(isCreatableIntegrationType(IntegrationType.PRISMIC)).toBe(false);
+    expect(isCreatableIntegrationType(999)).toBe(false);
+    expect(creatableIntegrationTypes).not.toContain(IntegrationType.STORYBLOK);
+    expect(creatableIntegrationTypes).not.toContain(IntegrationType.PRISMIC);
   });
 
   it("models target role, content receive, and schema delivery separately from app assumptions", () => {

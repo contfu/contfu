@@ -74,7 +74,7 @@ describe("processFiles", () => {
     mock.restore();
   });
 
-  test("downloads Files and records media metadata in the Local Runtime", async () => {
+  test("downloads Files and records media metadata in the Contfu runtime", async () => {
     const fileStore = makeFileStore();
     const mediaOptimizer = makeMediaOptimizer();
     const content: Block[] = [["p", ["Hello"]], makeImageBlock("https://example.com/photo.png")];
@@ -94,14 +94,14 @@ describe("processFiles", () => {
     expect(imgBlock[1]).not.toBe("https://example.com/photo.png");
     expect(imgBlock[1]).toMatch(/^[a-f0-9]{16}\.[a-z0-9]+$/);
 
-    // Local Runtime File record should exist in DB
+    // Contfu runtime File record should exist in DB
     const files = db.select().from(fileTable).all();
     expect(files).toHaveLength(1);
     expect(files[0].data?.toString("utf8")).toBe("https://example.com/photo.png");
     expect(files[0].meta.ext).toBe("png");
     expect(files[0].mediaType).toBe("image");
 
-    // Local Runtime file link should exist
+    // Contfu runtime file link should exist
     const junctions = db.select().from(itemFileTable).all();
     expect(junctions).toHaveLength(1);
   });
@@ -111,13 +111,13 @@ describe("processFiles", () => {
     const mediaOptimizer = makeMediaOptimizer();
     const content: Block[] = [makeImageBlock("https://example.com/photo.png")];
 
-    // First Local Runtime call creates the File
+    // First Contfu runtime call creates the File
     await processFiles({ itemId, content: [...content], fileStore, mediaOptimizer });
 
     // Reset mocks
     (mediaOptimizer.optimize as ReturnType<typeof mock>).mockClear();
 
-    // Second Local Runtime call with same URL should skip download but still link
+    // Second Contfu runtime call with same URL should skip download but still link
     const content2: Block[] = [makeImageBlock("https://example.com/photo.png")];
     await processFiles({ itemId, content: content2, fileStore, mediaOptimizer });
 
@@ -311,6 +311,30 @@ describe("processFiles", () => {
     // Same pathname → same id, so second call should skip download
     expect(id1).toBe(id2);
     expect(mediaOptimizer.optimize).not.toHaveBeenCalled();
+  });
+
+  test("same path on different origins produces distinct file ids", async () => {
+    const fileStore = makeFileStore();
+    const first: Block[] = [makeImageBlock("https://tenant-a.example/logo.png?token=old")];
+    const second: Block[] = [makeImageBlock("https://tenant-b.example/logo.png?token=new")];
+
+    await processFiles({ itemId, content: first, fileStore });
+    await processFiles({ itemId, content: second, fileStore });
+
+    expect((first[0] as ImageBlock)[1]).not.toBe((second[0] as ImageBlock)[1]);
+    expect(db.select().from(fileTable).all()).toHaveLength(2);
+  });
+
+  test("preserves legacy stored file references until the next remote sync", async () => {
+    const legacyRef = "d4d2f8a02a5a16b9.png";
+    const content: Block[] = [makeImageBlock(legacyRef)];
+    const linked = new Set<string>();
+
+    await processFiles({ itemId, content, fileStore: makeFileStore(), linked });
+
+    expect((content[0] as ImageBlock)[1]).toBe(legacyRef);
+    expect(linked).toEqual(new Set(["d4d2f8a02a5a16b9"]));
+    expect(db.select().from(fileTable).all()).toHaveLength(0);
   });
 
   test("downloads multiple images in parallel", async () => {

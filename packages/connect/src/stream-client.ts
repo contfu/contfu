@@ -79,10 +79,10 @@ export type StreamDisconnectedEvent = {
   reason?: string;
 };
 
-/** Emitted when the Cloud Service begins sending snapshot Sync Messages. */
+/** Emitted when Contfu begins sending snapshot Sync Messages. */
 export type StreamSnapshotStartEvent = { type: typeof EventType.SNAPSHOT_START };
 
-/** Emitted when the Cloud Service finishes sending snapshot Sync Messages. */
+/** Emitted when Contfu finishes sending snapshot Sync Messages. */
 export type StreamSnapshotEndEvent = { type: typeof EventType.SNAPSHOT_END };
 
 /** Connection lifecycle events. */
@@ -141,14 +141,18 @@ export function connectToStream(
   opts: BaseOpts & { connectionEvents?: boolean } = {},
 ): StreamClient<SyncEvent | StreamEvent> {
   let currentConnection: TransportConnection | null = null;
+  let cancelStream: (() => void) | null = null;
   let nextCommandId = 1;
-  const pendingCommands = new Map<number, (event: CommandResultEvent) => void>();
+  const pendingCommands = new Map<
+    number,
+    { resolve: (event: CommandResultEvent) => void; reject: (error: Error) => void }
+  >();
 
   const sendCommand = async (command: WireCommand): Promise<CommandResultEvent> => {
     const commandId = command[1];
     if (!currentConnection) throw new Error("Sync command failed: no active stream connection");
-    const resultPromise = new Promise<CommandResultEvent>((resolve) => {
-      pendingCommands.set(commandId, resolve);
+    const resultPromise = new Promise<CommandResultEvent>((resolve, reject) => {
+      pendingCommands.set(commandId, { resolve, reject });
     });
     let result: WireCommandResult | void;
     try {
@@ -172,8 +176,21 @@ export function connectToStream(
     setCurrentConnection: (connection) => {
       currentConnection = connection;
     },
+    setCancelStream: (cancel) => {
+      cancelStream = cancel;
+    },
     pendingCommands,
   }) as StreamClient<SyncEvent | StreamEvent>;
+
+  const returnGenerator = generator.return.bind(generator);
+  generator.return = (value?: SyncEvent | StreamEvent) => {
+    const connection = currentConnection;
+    currentConnection = null;
+    cancelStream?.();
+    connection?.close("Stream consumer stopped");
+    rejectPendingCommands(pendingCommands, "Stream consumer stopped");
+    return returnGenerator(value);
+  };
 
   generator.refresh = (collection, itemIds, source) => {
     const commandId = nextCommandId++;
@@ -200,7 +217,11 @@ async function* streamEvents(
   state: {
     getCurrentConnection: () => TransportConnection | null;
     setCurrentConnection: (connection: TransportConnection | null) => void;
-    pendingCommands: Map<number, (event: CommandResultEvent) => void>;
+    setCancelStream: (cancel: (() => void) | null) => void;
+    pendingCommands: Map<
+      number,
+      { resolve: (event: CommandResultEvent) => void; reject: (error: Error) => void }
+    >;
   },
 ): AsyncGenerator<SyncEvent | StreamEvent> {
   const {
@@ -221,6 +242,9 @@ async function* streamEvents(
 
   let reconnectDelay = initialReconnectDelay;
   let shouldReconnect = true;
+  state.setCancelStream(() => {
+    shouldReconnect = false;
+  });
   let lastStreamActivityAt = 0;
   let activeTransport: StreamTransport = SYNC_TRANSPORT;
   const materializedItems = new Map<string, WireItem>();
@@ -276,7 +300,7 @@ async function* streamEvents(
 
             const commandResult = fromWireCommandResult(wireEvent);
             if (commandResult) {
-              state.pendingCommands.get(commandResult.commandId)?.(commandResult);
+              state.pendingCommands.get(commandResult.commandId)?.resolve(commandResult);
               state.pendingCommands.delete(commandResult.commandId);
               if (commandResults) yield commandResult;
               continue;
@@ -290,6 +314,13 @@ async function* streamEvents(
         }
 
         stopStallTimer();
+        if (state.getCurrentConnection() === connection) {
+          state.setCurrentConnection(null);
+        }
+        rejectPendingCommands(
+          state.pendingCommands,
+          connection.getDisconnectReason() ?? "Stream ended",
+        );
         if (connectionEvents) {
           yield {
             type: EventType.STREAM_DISCONNECTED,
@@ -298,6 +329,13 @@ async function* streamEvents(
         }
       } catch (err) {
         stopStallTimer();
+        if (state.getCurrentConnection() === connection) {
+          state.setCurrentConnection(null);
+        }
+        rejectPendingCommands(
+          state.pendingCommands,
+          err instanceof Error ? err.message : "Stream error",
+        );
         connection?.close("Stream error");
         if (connectionEvents) {
           yield {
@@ -327,7 +365,21 @@ async function* streamEvents(
     state.setCurrentConnection(null);
     stopStallTimer();
     connection?.close("Stream consumer stopped");
+    rejectPendingCommands(state.pendingCommands, "Stream consumer stopped");
+    state.setCancelStream(null);
   }
+}
+
+function rejectPendingCommands(
+  pendingCommands: Map<
+    number,
+    { resolve: (event: CommandResultEvent) => void; reject: (error: Error) => void }
+  >,
+  reason: string,
+): void {
+  const error = new Error(`Sync command failed: ${reason}`);
+  for (const { reject } of pendingCommands.values()) reject(error);
+  pendingCommands.clear();
 }
 
 async function openDefaultTransportConnection(

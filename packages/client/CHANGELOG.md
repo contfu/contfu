@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.3.1] - 2026-08-05
+
+### Added
+
+- Added plain-date property support to generated client types.
+
 ## [0.3.0] - 2026-07-25
 
 ### Changed

@@ -41,6 +41,20 @@ export function isExtensionAllowed(ext: string, rule: TransformMediaRule): boole
   return true;
 }
 
+/** File ids are 16 url-safe chars, stored in props and content as `<id>.<ext>`. */
+const PROCESSED_REF = /^([A-Za-z0-9_-]{16})\.[A-Za-z0-9]{1,5}$/;
+
+/**
+ * Record an already-processed `<id>.<ext>` reference as still in use. Values that
+ * went through a previous sync no longer carry their remote URL, so without this
+ * they would look unreferenced to the caller pruning stale links.
+ */
+function collectProcessedId(value: unknown, linked?: Set<string>): void {
+  if (!linked || typeof value !== "string") return;
+  const match = PROCESSED_REF.exec(value);
+  if (match) linked.add(match[1]);
+}
+
 /**
  * Create a pending file row. Returns the file id and expected stored extension.
  * Skips creation if a file with the same id already exists.
@@ -115,9 +129,19 @@ export async function processFiles(opts: {
   transformMedia?: TransformMediaRule[];
   collection?: string;
   pregenerate?: MediaConvertOpts[];
+  /** Collects every file id the item references, so callers can prune the rest. */
+  linked?: Set<string>;
 }): Promise<Block[]> {
-  const { itemId, content, fileStore, mediaOptimizer, transformMedia, collection, pregenerate } =
-    opts;
+  const {
+    itemId,
+    content,
+    fileStore,
+    mediaOptimizer,
+    transformMedia,
+    collection,
+    pregenerate,
+    linked,
+  } = opts;
 
   const imageBlocks = content.filter(isImg);
   if (imageBlocks.length === 0) return content;
@@ -128,7 +152,14 @@ export async function processFiles(opts: {
 
   for (const block of imageBlocks) {
     const originalUrl = block[1];
+    // Content that already went through a sync carries `<id>.<ext>`, which must not
+    // be hashed again — it only needs to count as referenced.
+    if (PROCESSED_REF.test(originalUrl)) {
+      collectProcessedId(originalUrl, linked);
+      continue;
+    }
     const fileId = idFromUrl(originalUrl);
+    linked?.add(fileId);
 
     if (!seen.has(fileId)) {
       seen.set(
@@ -173,6 +204,8 @@ export async function processPropertyFiles(opts: {
   transformMedia?: TransformMediaRule[];
   collection?: string;
   pregenerate?: MediaConvertOpts[];
+  /** Collects every file id the item references, so callers can prune the rest. */
+  linked?: Set<string>;
 }): Promise<Record<string, unknown>> {
   const {
     itemId,
@@ -183,6 +216,7 @@ export async function processPropertyFiles(opts: {
     transformMedia,
     collection,
     pregenerate,
+    linked,
   } = opts;
   const result = { ...props };
 
@@ -213,9 +247,13 @@ export async function processPropertyFiles(opts: {
                 pregenerate,
                 collection,
               ),
-            ).then(({ id, ext }) => `${id}.${ext}`),
+            ).then(({ id, ext }) => {
+              linked?.add(id);
+              return `${id}.${ext}`;
+            }),
           );
         } else {
+          collectProcessedId(url, linked);
           processed.push(Promise.resolve(url as string));
         }
       }
@@ -237,9 +275,12 @@ export async function processPropertyFiles(opts: {
             collection,
           ),
         ).then(({ id, ext }) => {
+          linked?.add(id);
           result[propName] = `${id}.${ext}`;
         }),
       );
+    } else if (isFile) {
+      collectProcessedId(value, linked);
     }
   }
 
@@ -249,13 +290,16 @@ export async function processPropertyFiles(opts: {
 }
 
 export function idFromUrl(url: string): string {
-  let pathname: string;
+  let identity: string;
   try {
-    pathname = new URL(url).pathname;
+    const parsed = new URL(url);
+    // Origin prevents separate remote tenants with identical paths from sharing a file.
+    // Queries are deliberately excluded so refreshed signed URLs retain their identity.
+    identity = `${parsed.origin}${parsed.pathname}`;
   } catch {
-    pathname = url;
+    identity = url;
   }
-  return createHash("sha256").update(pathname).digest("hex").slice(0, 16);
+  return createHash("sha256").update(identity).digest("hex").slice(0, 16);
 }
 
 export function extFromUrl(url: string): string | undefined {

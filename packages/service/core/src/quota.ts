@@ -86,5 +86,7 @@ export type WorkspaceQuotaSummary = {
   organizationId: string;
   organizationRole: number;
   canManage: boolean;
+  /** Organization-wide item-change usage, distinct from the selected workspace budget. */
+  organizationItemChangesQuota?: QuotaResourceStatus;
   resources: Record<WorkspaceQuotaResourceName, WorkspaceQuotaResource>;
 };

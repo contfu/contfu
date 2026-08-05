@@ -1,4 +1,5 @@
 import { afterAll, afterEach, beforeEach, describe, expect, mock, spyOn, test } from "bun:test";
+import { decode } from "@toon-format/toon";
 import { mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -11,7 +12,7 @@ const originalFetch = globalThis.fetch;
 const mockFetch = mock<typeof fetch>();
 globalThis.fetch = mockFetch as any;
 
-const { inviteWorkspace, listWorkspaces, revokeWorkspaceMember, switchWorkspace } =
+const { getWorkspace, inviteWorkspace, listWorkspaces, revokeWorkspaceMember, switchWorkspace } =
   await import("./workspaces");
 
 function jsonResponse(data: unknown, status = 200): Response {
@@ -61,7 +62,7 @@ describe("listWorkspaces", () => {
       ]),
     );
 
-    await listWorkspaces("table");
+    await listWorkspaces("default");
 
     const calls: string[] = logSpy.mock.calls.map((call: unknown[]) => String(call[0]));
     expect(calls[0]).toContain("ID");
@@ -72,6 +73,76 @@ describe("listWorkspaces", () => {
     expect(
       calls.some((call) => call.includes("\u001b]8;;https://contfu.com/workspaces/ws_1")),
     ).toBe(true);
+  });
+
+  test("prints compact agent rows by default", async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse([
+        {
+          id: "ws_1",
+          displayName: "Default workspace",
+          name: "defaultWorkspace",
+          isDefault: true,
+          isJoined: true,
+          canManage: false,
+          createdAt: "2026-01-01",
+        },
+      ]),
+    );
+
+    await listWorkspaces("agent");
+
+    expect(logSpy.mock.calls[0][0]).toContain("id,name,displayName,isJoined,canManage,isDefault");
+    expect(logSpy.mock.calls[0][0]).not.toContain("createdAt");
+  });
+});
+
+describe("getWorkspace", () => {
+  const workspace = {
+    id: "ws_1",
+    organizationId: "org_1",
+    displayName: "Shared Space",
+    name: "sharedSpace",
+    organizationRole: 1,
+    isDefault: false,
+    isJoined: true,
+    canManage: true,
+    maxIntegrations: 10,
+    createdAt: "2026-01-01",
+    updatedAt: null,
+  };
+
+  test("presents organization roles in JSON", async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse([workspace]));
+
+    await getWorkspace("ws_1", "json");
+
+    expect(JSON.parse(logSpy.mock.calls[0][0] as string)).toMatchObject({
+      id: "ws_1",
+      organizationRole: "admin",
+    });
+  });
+
+  test("uses compact agent detail output by default and expands with full", async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse([workspace]));
+    await getWorkspace("ws_1", "agent");
+    expect(decode(logSpy.mock.calls[0][0] as string)).toEqual({
+      id: "ws_1",
+      name: "sharedSpace",
+      displayName: "Shared Space",
+      organizationRole: "admin",
+      isJoined: true,
+      canManage: true,
+      isDefault: false,
+    });
+
+    logSpy.mockClear();
+    mockFetch.mockResolvedValueOnce(jsonResponse([workspace]));
+    await getWorkspace("ws_1", "agent", true);
+    expect(decode(logSpy.mock.calls[0][0] as string)).toMatchObject({
+      maxIntegrations: 10,
+      organizationRole: "admin",
+    });
   });
 });
 

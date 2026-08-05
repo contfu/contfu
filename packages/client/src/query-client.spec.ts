@@ -72,6 +72,12 @@ describe("serializeQueryParams", () => {
     expect(serializeQueryParams({ flat: false }).has("flat")).toBe(false);
   });
 
+  test("serializes plain-date output mode", () => {
+    expect(serializeQueryParams({ plainDatesAs: "milliseconds" }).get("plainDatesAs")).toBe(
+      "milliseconds",
+    );
+  });
+
   test("serializes i18n boolean preferences", () => {
     const params = serializeQueryParams({ locale: false, fallback: true });
     expect(params.get("locale")).toBe("false");

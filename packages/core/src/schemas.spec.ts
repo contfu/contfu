@@ -4,6 +4,7 @@ import { join } from "node:path";
 import {
   generateTypeScript,
   generateApplicationIntegrationTypes,
+  PROPERTY_TYPE_MASK,
   PropertyType,
   propertyTypeBase,
   propertyTypeMetadata,
@@ -51,6 +52,21 @@ async function assertDoesNotCompile(code: string): Promise<void> {
 }
 
 describe("PropertyType flags", () => {
+  it("exposes OBJECT at the persisted JSON bit without a JSON alias", () => {
+    expect(PropertyType.OBJECT as number).toBe(16384);
+    expect(Object.hasOwn(PropertyType, "JSON")).toBe(false);
+  });
+
+  it("allocates exact numeric types after PLAINDATE", () => {
+    expect(PropertyType.PLAINDATE as number).toBe(1 << 17);
+    expect(PropertyType.BIGINT as number).toBe(1 << 18);
+    expect(PropertyType.DECIMAL as number).toBe(1 << 19);
+    expect(PROPERTY_TYPE_MASK).toBe((1 << 20) - 1);
+    expect(propertyTypeBase(PropertyType.PLAINDATE | PropertyType.IDENTITY)).toBe(
+      PropertyType.PLAINDATE,
+    );
+  });
+
   it("keeps metadata outside base types", () => {
     expect(propertyTypeBase(PropertyType.LOCALE)).toBe(0);
     const type =
@@ -63,6 +79,33 @@ describe("PropertyType flags", () => {
 });
 
 describe("generateTypeScript", () => {
+  it("renders plain dates as public ISO strings in singleton and union schemas", () => {
+    const ts = generateTypeScript([
+      {
+        name: "posts",
+        displayName: "Posts",
+        schema: {
+          publishDate: PropertyType.PLAINDATE,
+          flexible: PropertyType.PLAINDATE | PropertyType.NUMBER,
+        },
+      },
+    ]);
+    expect(ts).toContain("publishDate: string;");
+    expect(ts).toContain("flexible: number | string;");
+  });
+
+  it("renders exact numeric values as JSON-safe strings", () => {
+    const ts = generateTypeScript([
+      {
+        name: "ledger",
+        displayName: "Ledger",
+        schema: { id: PropertyType.BIGINT, price: PropertyType.DECIMAL },
+      },
+    ]);
+    expect(ts).toContain("id: string;");
+    expect(ts).toContain("price: string;");
+  });
+
   it("renders locale properties as strings", () => {
     const ts = generateTypeScript([
       {
@@ -256,9 +299,9 @@ describe("generateTypeScript", () => {
     expect(ts).toContain("icon: string | FileMetadata;");
   });
 
-  it("generates any for JSON", () => {
+  it("generates any for OBJECT", () => {
     const ts = generateTypeScript([
-      { name: "assets", displayName: "Assets", schema: { metadata: PropertyType.JSON } },
+      { name: "assets", displayName: "Assets", schema: { metadata: PropertyType.OBJECT } },
     ]);
     expect(ts).toContain("metadata: any;");
   });
