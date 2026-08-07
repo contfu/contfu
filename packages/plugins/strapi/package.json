@@ -1,6 +1,6 @@
 {
   "name": "@contfu/strapi",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -34,6 +34,7 @@
   "strapi": {
     "kind": "plugin",
     "name": "contfu",
-    "displayName": "Contfu"
+    "displayName": "Contfu",
+    "description": "Send signed Strapi webhooks to Contfu."
   }
 }

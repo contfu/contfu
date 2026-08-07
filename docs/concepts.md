@@ -17,14 +17,18 @@ your application.
 
 ## Application runtime
 
-| Term                                       | Meaning                                                                                        |
-| ------------------------------------------ | ---------------------------------------------------------------------------------------------- |
-| **Contfu runtime and local store library** | `@contfu/contfu`, the package that keeps a local copy of your synchronized content up to date. |
-| **Local Store**                            | The local content store maintained by the runtime. It uses SQLite by default.                  |
-| **Server**                                 | An optional HTTP API that you run over a Local Store.                                          |
-| **Client**                                 | The `@contfu/client` package an application uses to query a Server over HTTP.                  |
-| **Connector**                              | The runtime component that maintains your application's connection to Contfu.                  |
-| **Files and media**                        | Content assets downloaded and stored within your own infrastructure.                           |
+| Term                                       | Meaning                                                                                                                                               |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Contfu runtime and local store library** | `@contfu/contfu`, the package that keeps a local copy of your synchronized content up to date.                                                        |
+| **Local Store**                            | The local content store maintained by the runtime. It uses SQLite by default.                                                                         |
+| **Server**                                 | An optional HTTP API that you run over a Local Store.                                                                                                 |
+| **Client**                                 | The `@contfu/client` package an application uses to query a Server over HTTP.                                                                         |
+| **Connector**                              | The runtime component that maintains your application's connection to Contfu.                                                                         |
+| **File**                                   | A content asset referenced by an item and materialized inside a target boundary when needed.                                                          |
+| **File ID**                                | The canonical identity of one file revision. It changes when the bytes change, but not when a temporary download URL rotates.                         |
+| **File Access Lease**                      | A Service URL that grants temporary access to a File's bytes. It is delivery state, not item content.                                                 |
+| **Media Master**                           | The runtime's durable local source for deriving media transformations and variants without downloading the Service file again.                        |
+| **Target ACK**                             | Confirmation that a target accepted a semantic item version. An Application ACK queues file work but does not mean the file or Media Master is ready. |
 
 ## Content model
 
