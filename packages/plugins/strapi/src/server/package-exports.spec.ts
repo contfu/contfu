@@ -23,6 +23,16 @@ async function createInstalledPackage(): Promise<string> {
 }
 
 describe("package exports", () => {
+  test("publishes a human-readable Strapi plugin description", async () => {
+    const packageJson = JSON.parse(await readFile(packageJsonPath, "utf8")) as {
+      strapi?: { description?: unknown };
+    };
+    const description = packageJson.strapi?.description;
+
+    expect(description).toBe("Send signed Strapi webhooks to Contfu.");
+    expect(description).not.toContain("global.plugins.contfu.description");
+  });
+
   test("exposes the Strapi plugin at the package root", async () => {
     const tempDir = await createInstalledPackage();
 
