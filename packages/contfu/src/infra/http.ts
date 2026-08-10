@@ -207,26 +207,30 @@ export async function handleFileRequest<CMap = unknown>(
   options: FileRequestOptions<CMap>,
 ): Promise<Response> {
   const url = new URL(request.url);
-  const parsed = parseFilePath(filePath);
+  let parsed = parseFilePath(filePath);
   const fileStore = await getFileStore(options);
 
+  // Extensionless references are used while a managed download is pending. Once
+  // ready, resolve them through the File row so their MIME type and media handling
+  // use the authoritative final extension.
   if (!parsed) {
     const file = getFile(filePath, undefined, { includeData: false });
     if (!file) return text("Not found", 404);
-
     if (file.status !== "ready") {
       const row = getFile(file.id, undefined, { includeData: true });
       return pendingFileRedirect(row?.data?.toString("utf8")) ?? text("Not found", 404);
     }
-    const data = file.data ?? (await fileStore.read(`${file.id}.${file.ext}`));
-    if (!data) return text("Not found", 404);
+    parsed = { id: file.id, ext: file.ext };
+    filePath = `${file.id}.${file.ext}`;
+  }
 
-    return new Response(new Uint8Array(data), {
-      headers: {
-        "Content-Type": mimeTypes[file.ext] ?? "application/octet-stream",
-        "Cache-Control": "public, max-age=31536000, immutable",
-      },
-    });
+  // The path extension is only a reference hint: files can be optimized or have
+  // their extension discovered after item content was persisted. Resolve ready
+  // files through their metadata rather than serving stale `.bin` references.
+  const referencedFile = getFile(parsed.id, undefined, { includeData: false });
+  if (referencedFile?.status === "ready" && referencedFile.ext !== parsed.ext) {
+    parsed = { id: referencedFile.id, ext: referencedFile.ext };
+    filePath = `${referencedFile.id}.${referencedFile.ext}`;
   }
 
   const contentType = mimeTypes[parsed.ext] ?? "application/octet-stream";
@@ -239,7 +243,7 @@ export async function handleFileRequest<CMap = unknown>(
   const opts = rawOpts ?? (variant ? ({} as MediaConvertOpts) : null);
 
   if (!opts || mediaType === null) {
-    const file = getFile(parsed.id, undefined, { includeData: false });
+    const file = getFile(parsed.id, undefined, { includeData: true });
     if (!file) return text("Not found", 404);
     if (file.status !== "ready") {
       return (

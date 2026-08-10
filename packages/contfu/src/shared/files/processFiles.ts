@@ -44,6 +44,22 @@ export function isExtensionAllowed(ext: string, rule: TransformMediaRule): boole
 /** File ids are 16 url-safe chars, stored in props and content as `<id>.<ext>`. */
 const PROCESSED_REF = /^([A-Za-z0-9_-]{16})\.[A-Za-z0-9]{1,5}$/;
 
+export type FileLinkParts = { stableUrl: string; leaseUrl?: string; expiresAt?: number };
+export function fileLinkParts(value: unknown): FileLinkParts | null {
+  if (typeof value === "string") return { stableUrl: value };
+  if (
+    Array.isArray(value) &&
+    value.length >= 2 &&
+    value.length <= 3 &&
+    typeof value[0] === "string" &&
+    typeof value[1] === "string" &&
+    (value.length < 3 || (typeof value[2] === "number" && Number.isFinite(value[2])))
+  ) {
+    return { stableUrl: value[0], leaseUrl: value[1], expiresAt: value[2] as number | undefined };
+  }
+  return null;
+}
+
 /**
  * Record an already-processed `<id>.<ext>` reference as still in use. Values that
  * went through a previous sync no longer carry their remote URL, so without this
@@ -67,6 +83,7 @@ function createPendingFile(
   _transformMedia?: TransformMediaRule[],
   _pregenerate?: MediaConvertOpts[],
   _collection?: string,
+  lease?: { url: string; expiresAt: number },
 ): { id: string; ext: string } {
   const fileId = idFromUrl(originalUrl);
   const ext = extFromUrl(originalUrl) ?? "bin";
@@ -89,6 +106,19 @@ function createPendingFile(
         .where(eq(fileTable.id, decodeId(fileId)))
         .run();
     }
+    if (lease) {
+      const existingMeta = db
+        .select({ meta: fileTable.meta })
+        .from(fileTable)
+        .where(eq(fileTable.id, decodeId(fileId)))
+        .get()?.meta;
+      db.update(fileTable)
+        .set({
+          meta: { ...existingMeta, leaseUrl: lease.url, leaseExpiresAt: lease.expiresAt },
+        })
+        .where(eq(fileTable.id, decodeId(fileId)))
+        .run();
+    }
     linkFileToItem(itemId, existing.id);
     return { id: fileId, ext: existing.ext };
   }
@@ -105,6 +135,7 @@ function createPendingFile(
         transformMedia: _transformMedia,
         pregenerate: _pregenerate,
         collection: _collection,
+        ...(lease ? { leaseUrl: lease.url, leaseExpiresAt: lease.expiresAt } : {}),
       },
       data: Buffer.from(originalUrl, "utf8"),
       createdAt: Math.floor(Date.now() / 1000),
@@ -151,7 +182,9 @@ export async function processFiles(opts: {
   const blockPromises: Promise<void>[] = [];
 
   for (const block of imageBlocks) {
-    const originalUrl = block[1];
+    const link = fileLinkParts(block[1]);
+    if (!link) continue;
+    const originalUrl = link.stableUrl;
     // Content that already went through a sync carries `<id>.<ext>`, which must not
     // be hashed again — it only needs to count as referenced.
     if (PROCESSED_REF.test(originalUrl)) {
@@ -173,6 +206,9 @@ export async function processFiles(opts: {
             transformMedia,
             pregenerate,
             collection,
+            link.leaseUrl && link.expiresAt
+              ? { url: link.leaseUrl, expiresAt: link.expiresAt }
+              : undefined,
           ),
         ),
       );
@@ -235,17 +271,21 @@ export async function processPropertyFiles(opts: {
     if (isFiles && Array.isArray(value)) {
       const processed: Promise<string>[] = [];
       for (const url of value) {
-        if (typeof url === "string" && url.startsWith("http")) {
+        const link = fileLinkParts(url);
+        if (link && link.stableUrl.startsWith("http")) {
           processed.push(
             Promise.resolve(
               createPendingFile(
                 itemId,
-                url,
+                link.stableUrl,
                 fileStore,
                 mediaOptimizer,
                 transformMedia,
                 pregenerate,
                 collection,
+                link.leaseUrl && link.expiresAt
+                  ? { url: link.leaseUrl, expiresAt: link.expiresAt }
+                  : undefined,
               ),
             ).then(({ id, ext }) => {
               linked?.add(id);
@@ -262,17 +302,21 @@ export async function processPropertyFiles(opts: {
           result[propName] = resolved;
         }),
       );
-    } else if (isFile && typeof value === "string" && value.startsWith("http")) {
+    } else if (isFile && fileLinkParts(value)?.stableUrl.startsWith("http")) {
+      const link = fileLinkParts(value)!;
       promises.push(
         Promise.resolve(
           createPendingFile(
             itemId,
-            value,
+            link.stableUrl,
             fileStore,
             mediaOptimizer,
             transformMedia,
             pregenerate,
             collection,
+            link.leaseUrl && link.expiresAt
+              ? { url: link.leaseUrl, expiresAt: link.expiresAt }
+              : undefined,
           ),
         ).then(({ id, ext }) => {
           linked?.add(id);

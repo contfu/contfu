@@ -1,6 +1,6 @@
 {
   "name": "@contfu/contfu",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Contfu runtime and local store library for Contfu-powered applications",
   "license": "MIT",
   "repository": {
@@ -60,7 +60,7 @@
   },
   "dependencies": {
     "@contfu/connect": "workspace:^0.1.5",
-    "@contfu/core": "workspace:^0.3.0",
+    "@contfu/core": "workspace:^0.4.0",
     "drizzle-orm": "1.0.0-rc.3"
   },
   "devDependencies": {

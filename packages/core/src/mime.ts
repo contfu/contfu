@@ -46,4 +46,18 @@ export const mimeTypes: Record<string, string> = {
   opus: "audio/opus",
   aiff: "audio/aiff",
   alac: "audio/alac",
+  // Common document and archive formats
+  pdf: "application/pdf",
+  txt: "text/plain",
+  csv: "text/csv",
+  json: "application/json",
+  xml: "application/xml",
+  zip: "application/zip",
+  gz: "application/gzip",
+  doc: "application/msword",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  xls: "application/vnd.ms-excel",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ppt: "application/vnd.ms-powerpoint",
+  pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
 };

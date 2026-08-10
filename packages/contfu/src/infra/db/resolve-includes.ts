@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
 import { db as defaultDb } from "./db";
 import {
   collectionsTable,
@@ -23,6 +23,22 @@ import type { ItemWithRelations } from "../../domain/query-types";
 
 type ResolveIncludesOptions = FileMetadataOptions;
 
+function contentLinkIds(content: unknown): number[] {
+  const result: number[] = [];
+
+  function walk(value: unknown): void {
+    if (!Array.isArray(value)) return;
+    if (value[0] === "a" && typeof value[2] === "number") {
+      result.push(value[2]);
+      return;
+    }
+    for (const child of value) walk(child);
+  }
+
+  walk(content);
+  return result;
+}
+
 function isFileType(type: number): boolean {
   return (type & PropertyType.FILE) !== 0;
 }
@@ -38,23 +54,30 @@ function hydrateFileRefs(
   options: ResolveIncludesOptions,
 ): void {
   const byRef = new Map(files.map((file) => [`${file.id}.${file.ext}`, file]));
+  const byId = new Map(files.map((file) => [file.id, file]));
+  const fileForRef = (value: string): FileMetadata | undefined => {
+    const exact = byRef.get(value);
+    if (exact) return exact;
+    const dot = value.lastIndexOf(".");
+    return dot > 0 ? byId.get(value.slice(0, dot)) : undefined;
+  };
   for (const [key, value] of Object.entries(item)) {
     const type = schema?.[key] == null ? undefined : schemaType(schema[key]);
     if (typeof value === "string") {
       const file =
-        byRef.get(value) ??
+        fileForRef(value) ??
         (type != null && isFileType(type) ? normalizeFileMetadata(value, options) : undefined);
       if (file) item[key] = file;
     } else if (Array.isArray(value) && type != null && isFilesType(type)) {
       const hydrated = value.map((entry) =>
         typeof entry === "string"
-          ? (byRef.get(entry) ?? normalizeFileMetadata(entry, options) ?? entry)
+          ? (fileForRef(entry) ?? normalizeFileMetadata(entry, options) ?? entry)
           : entry,
       );
       if (hydrated.some((entry, index) => entry !== value[index])) item[key] = hydrated;
     } else if (Array.isArray(value)) {
       const hydrated = value.map((entry) =>
-        typeof entry === "string" ? (byRef.get(entry) ?? entry) : entry,
+        typeof entry === "string" ? (fileForRef(entry) ?? entry) : entry,
       );
       if (hydrated.some((entry, index) => entry !== value[index])) item[key] = hydrated;
     }
@@ -123,11 +146,13 @@ export function resolveIncludes(
       .select()
       .from(internalLinkTable)
       .where(and(inArray(internalLinkTable.from, ids), isNull(internalLinkTable.prop)))
+      .orderBy(asc(internalLinkTable.id))
       .all();
     const externalRows = ctx
       .select()
       .from(externalLinkTable)
       .where(inArray(externalLinkTable.from, ids))
+      .orderBy(desc(externalLinkTable.id))
       .all();
 
     const internalTargetIds = new Set<number>();
@@ -156,20 +181,40 @@ export function resolveIncludes(
       }
     }
 
-    const linksByItem = new Map<number, ResolvedLink[]>();
+    const contentRows = ctx
+      .select({ id: itemsTable.id, content: itemsTable.content })
+      .from(itemsTable)
+      .where(inArray(itemsTable.id, ids))
+      .all();
+    const contentByItem = new Map(contentRows.map((row) => [row.id, row.content]));
+
+    const linkById = new Map<number, { from: number; value: ResolvedLink }>();
+    const fallbackLinkIdsByItem = new Map<number, number[]>();
+    const addLink = (id: number, from: number, value: ResolvedLink): void => {
+      linkById.set(id, { from, value });
+      if (!fallbackLinkIdsByItem.has(from)) fallbackLinkIdsByItem.set(from, []);
+      fallbackLinkIdsByItem.get(from)!.push(id);
+    };
+
     for (const row of internalRows) {
-      const fromId = row.from;
-      if (!linksByItem.has(fromId)) linksByItem.set(fromId, []);
-      linksByItem.get(fromId)!.push((targetItemMap.get(row.to) as ResolvedLink) ?? null);
+      addLink(row.id, row.from, (targetItemMap.get(row.to) as ResolvedLink) ?? null);
     }
-    for (const row of externalRows) {
-      const fromId = row.from;
-      if (!linksByItem.has(fromId)) linksByItem.set(fromId, []);
-      linksByItem.get(fromId)!.push(row.url);
-    }
+    for (const row of externalRows) addLink(row.id, row.from, row.url);
 
     for (const item of items) {
-      item.links = linksByItem.get(item.$id) ?? [];
+      const orderedIds = contentLinkIds(contentByItem.get(item.$id));
+      const representedIds = new Set<number>();
+      const links: ResolvedLink[] = [];
+      for (const id of orderedIds) {
+        const link = linkById.get(id);
+        if (link?.from !== item.$id) continue;
+        links.push(link.value);
+        representedIds.add(id);
+      }
+      for (const id of fallbackLinkIdsByItem.get(item.$id) ?? []) {
+        if (!representedIds.has(id)) links.push(linkById.get(id)!.value);
+      }
+      item.links = links;
     }
   }
 }

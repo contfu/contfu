@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import { PropertyType } from "@contfu/core";
+import { PropertyType, type Block } from "@contfu/core";
+import { eq } from "drizzle-orm";
 import { truncateAllTables } from "../../../test/setup";
 import type { ItemWithRelations } from "../../domain/query-types";
 import { setCollection } from "../../features/collections/setCollection";
@@ -8,7 +9,7 @@ import { linkFileToItem } from "../../features/files/linkFileToItem";
 import { createItem } from "../../features/items/createItem";
 import { createItemLink } from "../../features/items/createItemLink";
 import { db } from "./db";
-import { externalLinkTable } from "./schema";
+import { externalLinkTable, itemsTable } from "./schema";
 import { resolveIncludes } from "./resolve-includes";
 
 function makeItem(seed: number, collection = "articles"): ItemWithRelations {
@@ -96,8 +97,10 @@ describe("resolveIncludes", () => {
     const items = [
       {
         ...makeItem(1),
-        cover: `${fileId}.png`,
-        gallery: [`${fileId}.png`, externalUrl],
+        // A managed download may have persisted its pending `.bin` reference
+        // before response metadata revealed the final PNG extension.
+        cover: `${fileId}.bin`,
+        gallery: [`${fileId}.bin`, externalUrl],
       },
     ];
     resolveIncludes(items, ["files"], db, { filesBasePath: "/custom-files" });
@@ -141,6 +144,33 @@ describe("resolveIncludes", () => {
 
     expect(items[0].links).toHaveLength(1);
     expect(items[0].links[0]).toBe(url);
+  });
+
+  test("preserves mixed internal and external content link order", () => {
+    createItem({ id: 1, ref: "a", collection: "c", props: {}, changedAt: 100 });
+    createItem({ id: 2, ref: "b", collection: "c", props: {}, changedAt: 200 });
+    createItem({ id: 3, ref: "c", collection: "c", props: {}, changedAt: 300 });
+
+    const firstInternalId = createItemLink({ prop: null, from: 1, to: 2 });
+    const url = "https://example.com/between-components";
+    const externalId = -1;
+    db.insert(externalLinkTable).values({ id: externalId, from: 1, url }).run();
+    const secondInternalId = createItemLink({ prop: null, from: 1, to: 3 });
+    const content: Block[] = [
+      ["p", [["a", "first", firstInternalId]]],
+      ["p", [["a", "external", externalId]]],
+      ["p", [["a", "second", secondInternalId]]],
+    ] as unknown as Block[];
+    db.update(itemsTable).set({ content }).where(eq(itemsTable.id, 1)).run();
+
+    const items = [makeItem(1)];
+    resolveIncludes(items, ["links"]);
+
+    expect(items[0].links).toEqual([
+      expect.objectContaining({ $id: 2 }),
+      url,
+      expect.objectContaining({ $id: 3 }),
+    ]);
   });
 
   test("skips when no items", () => {

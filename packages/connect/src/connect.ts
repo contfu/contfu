@@ -4,7 +4,6 @@ import {
   type StreamEvent,
   type SyncEvent,
 } from "./stream-client";
-
 type BaseOpts = {
   /** Authentication key. If not provided, CONTFU_KEY env var (base64url) is used. */
   key?: Buffer;

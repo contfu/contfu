@@ -60,6 +60,34 @@ describe("handleFileRequest", () => {
     );
   });
 
+  test("serves a stale extension reference using ready file metadata", async () => {
+    const file = createFile({
+      id: "0123456789abcdef",
+      status: "ready",
+      ext: "pdf",
+      size: 3,
+      mediaType: "file",
+      data: Buffer.from("pdf"),
+      createdAt: 1,
+    });
+
+    const response = await handleFileRequest(
+      new Request(`http://localhost/files/${file.id}.bin`),
+      `${file.id}.bin`,
+      {
+        fileStore: {
+          read: () => Promise.resolve(null),
+          write: () => Promise.resolve(),
+          exists: () => Promise.resolve(false),
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("application/pdf");
+    expect(await response.text()).toBe("pdf");
+  });
+
   test("does not redirect a pending file to an unsafe or malformed source URL", async () => {
     for (const [id, source] of [
       ["fedcba9876543210", "file:///private/logo.png"],

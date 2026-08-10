@@ -144,6 +144,34 @@ describe("media masters", () => {
     expect(onCloudRepair).toHaveBeenCalledWith({ collection: "test", itemIds: [1], source: true });
   });
 
+  test("retries a managed file failure without requesting source repair", async () => {
+    const onCloudRepair = mock(() => {});
+    const fileStore = makeFileStore();
+    globalThis.fetch = mock(() =>
+      Promise.resolve(new Response(null, { status: 403 })),
+    ) as unknown as typeof fetch;
+
+    await processPropertyFiles({
+      itemId: 1,
+      props: { asset: "https://cloud.example/api/files/handle" },
+      schema: { asset: PropertyType.FILE },
+      fileStore,
+      collection: "test",
+    });
+    configureMediaQueue({
+      fileStore,
+      mediaMaster: undefined,
+      concurrency: 1,
+      applicationKey: Buffer.alloc(32, 1),
+      contfuOrigin: "https://cloud.example",
+      onCloudRepair,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(db.select().from(fileTable).get()?.status).toBe(FileStatus.Pending);
+    expect(onCloudRepair).not.toHaveBeenCalled();
+  });
+
   test("rederives changed fingerprints from master without fetching and only pregenerates configured variants", async () => {
     const fileStore = makeFileStore();
     const mediaOptimizer = optimizer();

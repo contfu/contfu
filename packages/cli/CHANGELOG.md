@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.1.8] - 2026-08-07
+
+### Added
+
+- Added normalized detail output across CLI resources.
+- Added agent-oriented output for integration and collection details.
+
+### Fixed
+
+- Fixed explicit workspace selection taking precedence over stored context.
+
 ## [0.1.7] - 2026-08-05
 
 ### Added

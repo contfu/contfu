@@ -1,6 +1,8 @@
 /* oxlint-disable typescript/unbound-method -- mock method references in expect() assertions are intentionally unbound */
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { PropertyType, type Block, type ImageBlock } from "@contfu/core";
+import { eq } from "drizzle-orm";
+import { encodeId } from "../../infra/ids";
 import { FileStatus } from "../../domain/file-status";
 import { db } from "../../infra/db/db";
 import { fileTable, itemFileTable, itemsTable } from "../../infra/db/schema";
@@ -288,6 +290,162 @@ describe("processFiles", () => {
     expect(files).toHaveLength(1);
     expect(files[0]).toMatchObject({ width: 1, height: 1 });
     expect(files[0]).not.toHaveProperty("data");
+  });
+
+  test("downloads an extensionless managed file with response metadata", async () => {
+    const fileStore = makeFileStore();
+    const key = Buffer.alloc(32, 9);
+    const requests: Array<{ url: string; authorization: string | null }> = [];
+    globalThis.fetch = mock((url: string, init?: RequestInit) => {
+      requests.push({ url, authorization: new Headers(init?.headers).get("authorization") });
+      if (url === "https://cloud.example/api/files/handle") {
+        return Promise.resolve(
+          new Response(null, {
+            status: 302,
+            headers: { Location: "https://provider.example/download" },
+          }),
+        );
+      }
+      return Promise.resolve(
+        new Response(png1x1, {
+          headers: {
+            // Providers may use a generic content type while the filename still
+            // identifies the media format.
+            "Content-Type": "application/octet-stream",
+            "Content-Disposition": 'attachment; filename="photo.png"',
+          },
+        }),
+      );
+    }) as unknown as typeof fetch;
+
+    const content = await processFiles({
+      itemId,
+      content: [makeImageBlock("https://cloud.example/api/files/handle")],
+      fileStore,
+    });
+    expect((content[0] as ImageBlock)[1]).toMatch(/^[a-f0-9]{16}\.bin$/);
+    db.update(itemsTable).set({ content }).where(eq(itemsTable.id, itemId)).run();
+    configureMediaQueue({
+      fileStore,
+      concurrency: 1,
+      applicationKey: key,
+      contfuOrigin: "https://cloud.example",
+    });
+    await waitUntilReady();
+
+    const file = db.select().from(fileTable).get()!;
+    expect(file.meta.ext).toBe("png");
+    expect(file.meta.mimeType).toBe("application/octet-stream");
+    expect(file.mediaType).toBe("image");
+    expect(
+      (
+        db.select({ content: itemsTable.content }).from(itemsTable).get()!.content![0] as ImageBlock
+      )[1],
+    ).toBe(`${encodeId(file.id)}.png`);
+    expect(requests).toEqual([
+      {
+        url: "https://cloud.example/api/files/handle",
+        authorization: `Bearer ${key.toString("base64url")}`,
+      },
+      { url: "https://provider.example/download", authorization: null },
+    ]);
+  });
+
+  test("prefers a recognized Content-Type over a conflicting filename", async () => {
+    const fileStore = makeFileStore();
+    globalThis.fetch = mock(() =>
+      Promise.resolve(
+        new Response(png1x1, {
+          headers: {
+            "Content-Type": "image/png",
+            "Content-Disposition": 'attachment; filename="photo.jpg"',
+          },
+        }),
+      ),
+    ) as unknown as typeof fetch;
+
+    const content = await processFiles({
+      itemId,
+      content: [makeImageBlock("https://example.com/download")],
+      fileStore,
+    });
+    expect((content[0] as ImageBlock)[1]).toMatch(/^[a-f0-9]{16}\.bin$/);
+    db.update(itemsTable).set({ content }).where(eq(itemsTable.id, itemId)).run();
+    configureMediaQueue({ fileStore, concurrency: 1 });
+    await waitUntilReady();
+
+    const file = db.select().from(fileTable).get()!;
+    expect(file.meta.ext).toBe("png");
+    expect(file.mediaType).toBe("image");
+  });
+
+  test("preserves a direct external source extension when response metadata is generic", async () => {
+    const fileStore = makeFileStore();
+    const mediaOptimizer = makeMediaOptimizer();
+    globalThis.fetch = mock(() =>
+      Promise.resolve(
+        new Response(png1x1, {
+          headers: {
+            "Content-Type": "application/octet-stream",
+            "Content-Disposition": 'attachment; filename="download.bin"',
+          },
+        }),
+      ),
+    ) as unknown as typeof fetch;
+
+    const content = await processFiles({
+      itemId,
+      content: [makeImageBlock("https://example.com/photo.jpg")],
+      fileStore,
+      mediaOptimizer,
+    });
+    db.update(itemsTable).set({ content }).where(eq(itemsTable.id, itemId)).run();
+    configureMediaQueue({ fileStore, mediaOptimizer, concurrency: 1 });
+    await waitUntilReady();
+
+    const file = db.select().from(fileTable).get()!;
+    expect(file.mediaType).toBe("image");
+    expect(mediaOptimizer.optimize).toHaveBeenCalled();
+  });
+
+  test("derives non-image managed file metadata from the final response", async () => {
+    const fileStore = makeFileStore();
+    globalThis.fetch = mock(() =>
+      Promise.resolve(
+        new Response("pdf", {
+          headers: { "Content-Type": "application/pdf" },
+        }),
+      ),
+    ) as unknown as typeof fetch;
+
+    const props = await processPropertyFiles({
+      itemId,
+      props: {
+        asset: "https://cloud.example/api/files/document",
+        assets: ["https://cloud.example/api/files/document"],
+      },
+      schema: { asset: PropertyType.FILE, assets: PropertyType.FILES },
+      fileStore,
+    });
+    expect(props.asset).toMatch(/^[a-f0-9]{16}\.bin$/);
+    db.update(itemsTable).set({ props }).where(eq(itemsTable.id, itemId)).run();
+    configureMediaQueue({
+      fileStore,
+      concurrency: 1,
+      applicationKey: Buffer.alloc(32, 5),
+      contfuOrigin: "https://cloud.example",
+    });
+    await waitUntilReady();
+
+    const file = db.select().from(fileTable).get()!;
+    expect(file.meta.ext).toBe("pdf");
+    expect(file.meta.mimeType).toBe("application/pdf");
+    expect(file.mediaType).toBe("file");
+    const persistedProps = db.select({ props: itemsTable.props }).from(itemsTable).get()!.props!;
+    expect(persistedProps).toEqual({
+      asset: `${encodeId(file.id)}.pdf`,
+      assets: [`${encodeId(file.id)}.pdf`],
+    });
   });
 
   test("same pathname with different query params produces same id", async () => {

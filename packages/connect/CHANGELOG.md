@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.7] - 2026-08-10
+
+### Added
+
+- Added managed-file lease delivery over WebSocket.
+- Added Notion file lease prewarming and stable file URLs.
+- Added authenticated managed file downloads.
+
 ## [0.1.6] - 2026-08-05
 
 ### Fixed

@@ -1,6 +1,6 @@
 {
   "name": "@contfu/sanity",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -37,7 +37,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@contfu/core": "workspace:^0.3.0"
+    "@contfu/core": "workspace:^0.4.0"
   },
   "devDependencies": {
     "typescript": "^7.0.2"

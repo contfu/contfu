@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
-import { EventType, type ImageBlock } from "@contfu/core";
+import { EventType, type Block, type ImageBlock } from "@contfu/core";
 import { eq } from "drizzle-orm";
 import { db } from "./infra/db/db";
 import { fileTable, itemFileTable, itemsTable, syncTable } from "./infra/db/schema";
@@ -7,6 +7,7 @@ import { truncateAllTables } from "../test/setup";
 import { listCollections } from "./features/collections/listCollections";
 import { setCollection } from "./features/collections/setCollection";
 import { createItem } from "./features/items/createItem";
+import { findItems } from "./features/items/findItems";
 import { queryItems } from "./features/items/queryItems";
 import type { FileStore } from "./domain/files";
 import type { MediaOptimizer } from "./domain/media";
@@ -217,6 +218,136 @@ describe("contfu connect", () => {
     const rows = db.select().from(syncTable).all();
     expect(rows).toHaveLength(1);
     expect(rows[0].index).toBe(77);
+  });
+
+  test("preserves ordered cross-collection content links and explicit missing targets", async () => {
+    setCollection("heroes", "Heroes", {});
+    setCollection("callsToAction", "Calls to action", {});
+
+    await mock.module("@contfu/connect", () => ({
+      // eslint-disable-next-line typescript/require-await -- async generator required by AsyncGenerator return type
+      connectToStream: async function* () {
+        yield {
+          type: EventType.ITEM_CHANGED,
+          item: {
+            id: 101,
+            collection: "heroes",
+            changedAt: 1700000000,
+            props: { title: "Hero component" },
+          },
+          index: 201,
+        };
+        yield {
+          type: EventType.ITEM_CHANGED,
+          item: {
+            id: 202,
+            collection: "callsToAction",
+            changedAt: 1700000001,
+            props: { title: "CTA component" },
+          },
+          index: 202,
+        };
+        yield {
+          type: EventType.ITEM_CHANGED,
+          item: {
+            id: 1,
+            collection: "article",
+            changedAt: 1700000002,
+            props: { title: "Page with components" },
+            content: [
+              ["p", [["a", "", "202"]]],
+              ["p", [["a", "external", "https://example.com"]]],
+              ["p", [["a", "", "101"]]],
+              ["p", [["a", "", "303"]]],
+            ] as Block[],
+          },
+          index: 203,
+        };
+      },
+    }));
+
+    const { connect } = await import("./connect");
+    for await (const _ of connect({ key, reconnect: false })) {
+      // consume
+    }
+
+    const [page] = findItems({
+      filter: '$collection = "article"',
+      include: ["content", "links"],
+    });
+
+    expect(page.content as unknown).toEqual([
+      ["p", [["a", "", 1]]],
+      ["p", [["a", "external", -1]]],
+      ["p", [["a", "", 2]]],
+      ["p", [["a", "", 3]]],
+    ]);
+    expect(page.links).toEqual([
+      expect.objectContaining({
+        $id: 202,
+        $collection: "callsToAction",
+        title: "CTA component",
+      }),
+      "https://example.com",
+      expect.objectContaining({ $id: 101, $collection: "heroes", title: "Hero component" }),
+      null,
+    ]);
+  });
+
+  test("hydrates a missing content link when its stable registry item arrives later", async () => {
+    setCollection("components", "Components", {});
+    const targetRegistryId = 404;
+
+    await mock.module("@contfu/connect", () => ({
+      // eslint-disable-next-line typescript/require-await -- async generator required by AsyncGenerator return type
+      connectToStream: async function* () {
+        yield {
+          type: EventType.ITEM_CHANGED,
+          item: {
+            id: 1,
+            collection: "article",
+            changedAt: 1700000010,
+            props: { title: "Page awaiting component" },
+            content: [["p", [["a", "component", String(targetRegistryId)]]]] as Block[],
+          },
+          index: 204,
+        };
+        yield {
+          type: EventType.ITEM_CHANGED,
+          item: {
+            id: targetRegistryId,
+            collection: "components",
+            changedAt: 1700000011,
+            props: { title: "Synced component" },
+          },
+          index: 205,
+        };
+      },
+    }));
+
+    const { connect } = await import("./connect");
+    const stream = connect({ key, reconnect: false })[Symbol.asyncIterator]();
+
+    expect((await stream.next()).done).toBe(false);
+    let [page] = findItems({
+      filter: '$collection = "article"',
+      include: ["content", "links"],
+    });
+    expect(page.links).toEqual([null]);
+
+    expect((await stream.next()).done).toBe(false);
+    [page] = findItems({
+      filter: '$collection = "article"',
+      include: ["content", "links"],
+    });
+    expect(page.links).toEqual([
+      expect.objectContaining({
+        $id: targetRegistryId,
+        $collection: "components",
+        title: "Synced component",
+      }),
+    ]);
+    expect((await stream.next()).done).toBe(true);
   });
 
   test("the Contfu runtime downloads and processes Files when configured", async () => {
