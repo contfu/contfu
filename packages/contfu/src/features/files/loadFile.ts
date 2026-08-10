@@ -156,7 +156,8 @@ function parseFilePath(path: string): { id: string; ext: string } {
   const id = fileName.slice(0, dotIdx);
   const ext = fileName.slice(dotIdx + 1).toLowerCase();
 
-  if (!mimeTypes[ext]) {
+  const mime = mimeTypes[ext];
+  if (!mime?.startsWith("image/") && !mime?.startsWith("video/") && !mime?.startsWith("audio/")) {
     throw new FileLoadError(`Unsupported media extension: ${ext}`, 400);
   }
 

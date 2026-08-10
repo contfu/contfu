@@ -8,6 +8,8 @@ export const EventType = defineEnum({
   SNAPSHOT_END: 2,
   STREAM_CONNECTED: 3,
   STREAM_DISCONNECTED: 4,
+  /** Correlated managed-file lease response (WebSocket only). */
+  FILE_LEASE_RESPONSE: 5,
   // Collection events (10-29)
   COLLECTION_SCHEMA: 10,
   COLLECTION_RENAMED: 11,
@@ -21,6 +23,7 @@ export type EventType = EnumValue<typeof EventType>;
 
 export const ClientEventType = defineEnum({
   ACK: 0,
+  FILE_LEASE_REQUEST: 1,
 });
 
 export type ClientEventType = EnumValue<typeof ClientEventType>;

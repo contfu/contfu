@@ -56,6 +56,7 @@ export async function* connect<CMap = unknown>(opts?: {
   commandResults?: boolean;
 }): AsyncGenerator<ItemEvent | StreamEvent | CommandResultEvent> {
   const {
+    key: suppliedKey,
     connectionEvents: _connectionEvents,
     fileStore: userFileStore,
     mediaOptimizer,
@@ -67,6 +68,15 @@ export async function* connect<CMap = unknown>(opts?: {
     ...restOpts
   } = opts ?? {};
   const resolvedFileStore = userFileStore ?? defaultFileStore;
+  const applicationKey = suppliedKey ?? resolveApplicationKey();
+  let activeStream: {
+    resolveFileLease: (
+      integrationType: number,
+      sourceCollectionId: string,
+      itemId: string | number,
+      handle: string,
+    ) => Promise<{ url: string; expiresAt: number } | null>;
+  } | null = null;
   const mediaRepair = createMediaRepairCoordinator();
   if (localFiles) {
     configureMediaQueue({
@@ -76,15 +86,43 @@ export async function* connect<CMap = unknown>(opts?: {
       transformMedia: transformMedia as TransformMediaRule[],
       mediaVariants: mediaVariants as MediaVariants,
       concurrency: mediaQueueConcurrency,
+      applicationKey,
+      contfuOrigin: resolveContfuOrigin(),
       onCloudRepair: (request) =>
         mediaRepair.repair(request.collection, request.itemIds, request.source),
+      resolveFileLease: async (stableUrl) => {
+        if (!activeStream) return null;
+        try {
+          const parsed = new URL(stableUrl);
+          const parts = parsed.pathname.split("/").filter(Boolean);
+          if (parts.length !== 6 || parts[0] !== "api" || parts[1] !== "files") return null;
+          const integrationType = Number(parts[2]);
+          const sourceCollectionId = parts[3];
+          const itemId = parts[4];
+          if (!Number.isSafeInteger(integrationType) || !sourceCollectionId || !itemId) return null;
+          return await activeStream.resolveFileLease(
+            integrationType,
+            sourceCollectionId,
+            itemId,
+            parts[5],
+          );
+        } catch {
+          return null;
+        }
+      },
     });
     await reconcileConfiguredMediaMasters();
   }
-  const baseOpts = restOpts;
+  const baseOpts = {
+    ...restOpts,
+    ...(applicationKey ? { key: applicationKey } : {}),
+  };
 
   if (opts?.connectionEvents) {
     const stream = connectToStream({ ...baseOpts, connectionEvents: true });
+    activeStream = {
+      resolveFileLease: (...args) => stream.resolveFileLease!(...args),
+    };
     for await (const event of stream) {
       if (event.type === EventType.STREAM_CONNECTED) mediaRepair.connected(stream);
       if (event.type === EventType.STREAM_DISCONNECTED) mediaRepair.disconnected();
@@ -115,6 +153,9 @@ export async function* connect<CMap = unknown>(opts?: {
   }
 
   const stream = connectToStream({ ...baseOpts, connectionEvents: true });
+  activeStream = {
+    resolveFileLease: (...args) => stream.resolveFileLease!(...args),
+  };
   for await (const event of stream) {
     if (event.type === EventType.STREAM_CONNECTED) {
       mediaRepair.connected(stream);
@@ -139,6 +180,15 @@ export async function* connect<CMap = unknown>(opts?: {
     );
     yield event;
   }
+}
+
+function resolveApplicationKey(): Buffer | undefined {
+  const key = process.env.CONTFU_KEY;
+  return key ? Buffer.from(key, "base64url") : undefined;
+}
+
+function resolveContfuOrigin(): string {
+  return new URL(process.env.CONTFU_INTERNAL_CLOUD_URL ?? "https://contfu.com").origin;
 }
 
 function resolvePregenerate<CMap>(

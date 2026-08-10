@@ -779,8 +779,7 @@ describe("stream-client", () => {
         // consume
       }
 
-      expect(getUrl()).toContain("https://contfu.com/api/sync");
-      expect(getUrl()).toContain("key=");
+      expect(getUrl()).toBe(`https://contfu.com/api/sync?key=${testKey.toString("base64url")}`);
     });
 
     test("encodes key as base64url in query parameter", async () => {

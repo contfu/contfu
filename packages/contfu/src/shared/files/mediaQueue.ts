@@ -23,7 +23,9 @@ import { createOrUpdateMediaMaster } from "../../features/files/createOrUpdateMe
 import { rederiveFileFromMediaMaster } from "../../features/files/rederiveFileFromMediaMaster";
 import { decodeId, encodeId } from "../../infra/ids";
 import { fileStore as defaultFileStore } from "../../infra/media/media-defaults";
+import { mimeTypes } from "@contfu/core";
 import { extFromUrl, isExtensionAllowed } from "./processFiles";
+import { downloadFile } from "./managedFileDownload";
 
 type QueueOptions = {
   fileStore?: FileStore;
@@ -32,7 +34,11 @@ type QueueOptions = {
   transformMedia?: TransformMediaRule[];
   mediaVariants?: MediaVariants;
   concurrency?: number;
+  applicationKey?: Buffer;
+  contfuOrigin?: string;
   onCloudRepair?: (request: { collection: string; itemIds: number[]; source: true }) => void;
+  resolveFileLease?: (stableUrl: string) => Promise<{ url: string; expiresAt: number } | null>;
+  fileLeaseSafetyMarginMs?: number;
 };
 
 type QueuedFile = { due: number; id: Buffer };
@@ -154,8 +160,27 @@ function isPermanent(error: unknown): boolean {
   return false;
 }
 
+function fileLeaseSafetyMarginMs(): number {
+  const configured =
+    options.fileLeaseSafetyMarginMs ?? Number(process.env.FILE_LEASE_SAFETY_MARGIN_MS);
+  return Number.isSafeInteger(configured) && configured >= 0 ? configured : 60_000;
+}
+
 function isCloudRepairable(error: unknown): boolean {
   return error instanceof Response && [401, 403, 404].includes(error.status);
+}
+
+function isManagedFileUrl(url: string | undefined): boolean {
+  if (!url || !options.contfuOrigin) return false;
+  try {
+    const candidate = new URL(url);
+    return (
+      candidate.origin === new URL(options.contfuOrigin).origin &&
+      candidate.pathname.startsWith("/api/files/")
+    );
+  } catch {
+    return false;
+  }
 }
 
 function requestCloudRepair(file: typeof fileTable.$inferSelect): void {
@@ -359,6 +384,128 @@ export async function optimizeFile(
   return { data: input, ext: originalExt, variants: [] };
 }
 
+function extensionFromContentDisposition(value: string | null): string | undefined {
+  if (!value) return undefined;
+  const encoded = /filename\*=UTF-8''([^;]+)/i.exec(value)?.[1];
+  const plain = /filename\s*=\s*(?:"([^"]+)"|([^;\s]+))/i.exec(value);
+  let name = plain?.[1] ?? plain?.[2];
+  if (encoded) {
+    try {
+      name = decodeURIComponent(encoded);
+    } catch {
+      // Ignore malformed extended parameters and use a plain filename if present.
+    }
+  }
+  if (!name) return undefined;
+  name = name.split(/[\\/]/).pop() ?? name;
+  const dot = name.lastIndexOf(".");
+  const ext = dot >= 0 ? name.slice(dot + 1).toLowerCase() : "";
+  return /^[a-z0-9]{1,5}$/.test(ext) ? ext : undefined;
+}
+
+function normalizedContentType(value: string | null): string | undefined {
+  const contentType = value?.split(";", 1)[0]?.trim().toLowerCase();
+  return contentType || undefined;
+}
+
+function extensionFromContentType(value: string | null): string | undefined {
+  const contentType = normalizedContentType(value);
+  if (!contentType) return undefined;
+  return Object.entries(mimeTypes).find(([, mime]) => mime.toLowerCase() === contentType)?.[0];
+}
+
+function isGenericContentType(value: string | null): boolean {
+  const contentType = normalizedContentType(value);
+  return (
+    !contentType ||
+    contentType === "application/octet-stream" ||
+    contentType === "binary/octet-stream" ||
+    contentType === "application/x-download" ||
+    contentType === "application/force-download"
+  );
+}
+
+function usableExtension(value: string | undefined): string | undefined {
+  if (!value || value.toLowerCase() === "bin") return undefined;
+  return /^[a-z0-9]{1,5}$/i.test(value) ? value.toLowerCase() : undefined;
+}
+
+function mediaTypeFromContentType(value: string | null, ext: string, fallback: string): string {
+  const contentType = value?.split(";", 1)[0]?.trim().toLowerCase();
+  if (contentType?.startsWith("image/")) return "image";
+  if (contentType?.startsWith("video/")) return "video";
+  if (contentType?.startsWith("audio/")) return "audio";
+
+  // Providers commonly use application/octet-stream for downloads while still
+  // supplying the actual filename in Content-Disposition. Keep that useful
+  // extension instead of classifying an image/video/audio as a generic file.
+  const extensionMime = mimeTypes[ext];
+  if (extensionMime?.startsWith("image/")) return "image";
+  if (extensionMime?.startsWith("video/")) return "video";
+  if (extensionMime?.startsWith("audio/")) return "audio";
+
+  return contentType ? "file" : fallback;
+}
+
+function replaceFileReference(value: unknown, from: string, to: string): unknown {
+  if (typeof value === "string") return value === from ? to : value;
+  if (Array.isArray(value)) {
+    let changed = false;
+    const next = value.map((entry) => {
+      const replaced = replaceFileReference(entry, from, to);
+      changed ||= replaced !== entry;
+      return replaced;
+    });
+    return changed ? next : value;
+  }
+  if (!value || typeof value !== "object") return value;
+
+  let changed = false;
+  const next: Record<string, unknown> = {};
+  for (const [key, entry] of Object.entries(value)) {
+    const replaced = replaceFileReference(entry, from, to);
+    changed ||= replaced !== entry;
+    next[key] = replaced;
+  }
+  return changed ? next : value;
+}
+
+/** Update item content and FILE/FILES property references after the final extension is known. */
+function updateItemFileReferences(
+  file: typeof fileTable.$inferSelect,
+  previousExt: string,
+  nextExt: string,
+): void {
+  if (previousExt === nextExt) return;
+  const id = encodeId(file.id);
+  const from = `${id}.${previousExt}`;
+  const to = `${id}.${nextExt}`;
+  const items = db
+    .select({
+      id: itemsTable.id,
+      content: itemsTable.content,
+      props: itemsTable.props,
+    })
+    .from(itemFileTable)
+    .innerJoin(itemsTable, eq(itemsTable.id, itemFileTable.itemId))
+    .where(eq(itemFileTable.fileId, file.id))
+    .all();
+
+  for (const item of items) {
+    const content = replaceFileReference(item.content, from, to);
+    const props = replaceFileReference(item.props, from, to);
+    if (content !== item.content || props !== item.props) {
+      db.update(itemsTable)
+        .set({
+          ...(content !== item.content ? { content: content as typeof item.content } : {}),
+          ...(props !== item.props ? { props: props as typeof item.props } : {}),
+        })
+        .where(eq(itemsTable.id, item.id))
+        .run();
+    }
+  }
+}
+
 async function processOne(file: typeof fileTable.$inferSelect): Promise<void> {
   const meta = file.meta ?? {};
   const attempts = typeof meta.attempts === "number" ? meta.attempts + 1 : 1;
@@ -370,16 +517,58 @@ async function processOne(file: typeof fileTable.$inferSelect): Promise<void> {
   }
 
   try {
-    const response = await fetch(sourceUrl);
+    let downloadUrl = sourceUrl;
+    const leaseUrl = typeof meta.leaseUrl === "string" ? meta.leaseUrl : undefined;
+    const leaseExpiresAt =
+      typeof meta.leaseExpiresAt === "number" ? meta.leaseExpiresAt : undefined;
+    if (leaseUrl && leaseExpiresAt && leaseExpiresAt > Date.now() + fileLeaseSafetyMarginMs()) {
+      downloadUrl = leaseUrl;
+    } else if (options.resolveFileLease) {
+      const refreshed = await options.resolveFileLease(sourceUrl);
+      if (refreshed && refreshed.expiresAt > Date.now() + fileLeaseSafetyMarginMs()) {
+        downloadUrl = refreshed.url;
+      }
+    }
+    let response = await downloadFile(downloadUrl, {
+      applicationKey: options.applicationKey,
+      contfuOrigin: options.contfuOrigin,
+    });
+    // Provider capabilities can be revoked before their advertised expiry. Never
+    // keep retrying a rejected capability: use the authenticated stable URL now.
+    if (!response.ok && downloadUrl !== sourceUrl && [401, 403, 404].includes(response.status)) {
+      response = await downloadFile(sourceUrl, {
+        applicationKey: options.applicationKey,
+        contfuOrigin: options.contfuOrigin,
+      });
+      if (response.ok) {
+        const { leaseUrl: _leaseUrl, leaseExpiresAt: _leaseExpiresAt, ...withoutLease } = meta;
+        db.update(fileTable).set({ meta: withoutLease }).where(eq(fileTable.id, file.id)).run();
+      }
+    }
     if (!response.ok) throw response;
     const input = Buffer.from(await response.arrayBuffer());
-    const originalExt = typeof meta.ext === "string" ? meta.ext : (extFromUrl(sourceUrl) ?? "bin");
+    const contentType = response.headers.get("content-type");
+    const contentTypeExt = extensionFromContentType(contentType);
+    const dispositionExt = extensionFromContentDisposition(
+      response.headers.get("content-disposition"),
+    );
+    const originalExt =
+      (!isGenericContentType(contentType) && contentTypeExt) ||
+      usableExtension(dispositionExt) ||
+      usableExtension(typeof meta.ext === "string" ? meta.ext : undefined) ||
+      usableExtension(extFromUrl(sourceUrl)) ||
+      "bin";
+    const mediaType = mediaTypeFromContentType(
+      response.headers.get("content-type"),
+      originalExt,
+      file.mediaType,
+    );
     const id = encodeId(file.id);
     const storeKey = `${id}.${originalExt}`;
     const master = await createOrUpdateMediaMaster({
       fileId: file.id,
       input,
-      mediaType: file.mediaType,
+      mediaType,
       originalExt,
       meta,
       mediaOptimizer: options.mediaOptimizer,
@@ -390,46 +579,56 @@ async function processOne(file: typeof fileTable.$inferSelect): Promise<void> {
     const processed = await optimizeFile(
       storeKeyForOutput,
       sourceForOutput,
-      file.mediaType,
+      mediaType,
       originalExt,
       meta,
     );
     await writeProcessedOutputs(id, processed);
-    const metadata = await sourceMetadata(file.mediaType, input);
+    const metadata = await sourceMetadata(mediaType, input);
     const {
       sourceUrl: _sourceUrl,
       transformMedia: _transformMedia,
       pregenerate: _pregenerate,
       collection: _collection,
+      leaseUrl: _leaseUrl,
+      leaseExpiresAt: _leaseExpiresAt,
       error: _error,
       ...readyMeta
     } = meta;
     db.update(fileTable)
       .set({
         status: FileStatus.Ready,
+        mediaType,
         data: processed.data,
         meta: {
           ...readyMeta,
           ext: processed.ext,
           size: input.byteLength,
+          mimeType: response.headers.get("content-type")?.split(";", 1)[0]?.trim().toLowerCase(),
           ...metadata,
           attempts,
           mediaMaster: master
-            ? { ext: master.ext, configFingerprint: master.fingerprint, metadata: master.metadata }
+            ? {
+                ext: master.ext,
+                configFingerprint: master.fingerprint,
+                metadata: master.metadata,
+              }
             : undefined,
         },
       })
       .where(eq(fileTable.id, file.id))
       .run();
+    updateItemFileReferences(file, typeof meta.ext === "string" ? meta.ext : "bin", processed.ext);
   } catch (error) {
+    const managedFile = isManagedFileUrl(sourceUrl);
     const cloudRepairable = isCloudRepairable(error);
     fail(
       file,
       attempts,
       error instanceof Response ? `HTTP ${error.status}` : String(error),
-      isPermanent(error) || attempts >= 100,
+      (!managedFile && isPermanent(error)) || attempts >= 100,
     );
-    if (cloudRepairable) requestCloudRepair(file);
+    if (cloudRepairable && !managedFile) requestCloudRepair(file);
   }
 }
 

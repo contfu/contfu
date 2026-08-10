@@ -14,6 +14,10 @@ import {
   type ClientWireEvent,
   type WireCommand,
   type WireCommandResult,
+  type WireLeaseRequest,
+  type WireLeaseResponse,
+  FileLeaseResultStatus,
+  isWireLeaseResponse,
   materializeWireItemPatch,
   type WireItem,
   MINUTES,
@@ -30,8 +34,16 @@ export type Item<T extends PageProps = Record<never, never>> = Omit<
   collection: string;
 };
 
-export type ItemChangedEvent = { type: typeof EventType.ITEM_CHANGED; item: Item; index: number };
-export type ItemDeletedEvent = { type: typeof EventType.ITEM_DELETED; item: number; index: number };
+export type ItemChangedEvent = {
+  type: typeof EventType.ITEM_CHANGED;
+  item: Item;
+  index: number;
+};
+export type ItemDeletedEvent = {
+  type: typeof EventType.ITEM_DELETED;
+  item: number;
+  index: number;
+};
 export type SchemaEvent = {
   type: typeof EventType.COLLECTION_SCHEMA;
   collection: string;
@@ -80,7 +92,9 @@ export type StreamDisconnectedEvent = {
 };
 
 /** Emitted when Contfu begins sending snapshot Sync Messages. */
-export type StreamSnapshotStartEvent = { type: typeof EventType.SNAPSHOT_START };
+export type StreamSnapshotStartEvent = {
+  type: typeof EventType.SNAPSHOT_START;
+};
 
 /** Emitted when Contfu finishes sending snapshot Sync Messages. */
 export type StreamSnapshotEndEvent = { type: typeof EventType.SNAPSHOT_END };
@@ -95,7 +109,9 @@ export type StreamEvent =
 type StreamTransport = "http" | "websocket";
 
 function getEnv(name: string): string | undefined {
-  const g = globalThis as { process?: { env?: Record<string, string | undefined> } };
+  const g = globalThis as {
+    process?: { env?: Record<string, string | undefined> };
+  };
   return g.process?.env?.[name];
 }
 
@@ -115,9 +131,17 @@ type BaseOpts = {
   commandResults?: boolean;
 };
 
+export type FileLease = { url: string; expiresAt: number };
+const FILE_LEASE_REQUEST_TIMEOUT_MS = 5_000;
 export type StreamCommandSender = {
   refresh(collection: string, itemIds: number[], source?: boolean): Promise<CommandResultEvent>;
   refreshAll(collection: string, source?: boolean): Promise<CommandResultEvent>;
+  resolveFileLease?(
+    integrationType: number,
+    sourceCollectionId: string,
+    itemId: string | number,
+    handle: string,
+  ): Promise<FileLease | null>;
 };
 
 export type StreamClient<T> = AsyncGenerator<T> & StreamCommandSender;
@@ -129,6 +153,7 @@ type TransportConnection = {
   events(): AsyncGenerator<WireStreamPayload>;
   sendAck(): Promise<void>;
   sendCommand(command: WireCommand): Promise<WireCommandResult | void>;
+  requestFileLease(request: WireLeaseRequest): Promise<void>;
   close(reason: string): void;
   getDisconnectReason(): string | undefined;
 };
@@ -145,8 +170,20 @@ export function connectToStream(
   let nextCommandId = 1;
   const pendingCommands = new Map<
     number,
-    { resolve: (event: CommandResultEvent) => void; reject: (error: Error) => void }
+    {
+      resolve: (event: CommandResultEvent) => void;
+      reject: (error: Error) => void;
+    }
   >();
+  const pendingLeases = new Map<
+    number,
+    {
+      resolve: (lease: FileLease | null) => void;
+      reject: (error: Error) => void;
+      timer?: Timer;
+    }
+  >();
+  let nextLeaseRequestId = 1;
 
   const sendCommand = async (command: WireCommand): Promise<CommandResultEvent> => {
     const commandId = command[1];
@@ -180,6 +217,7 @@ export function connectToStream(
       cancelStream = cancel;
     },
     pendingCommands,
+    pendingLeases,
   }) as StreamClient<SyncEvent | StreamEvent>;
 
   const returnGenerator = generator.return.bind(generator);
@@ -189,6 +227,7 @@ export function connectToStream(
     cancelStream?.();
     connection?.close("Stream consumer stopped");
     rejectPendingCommands(pendingCommands, "Stream consumer stopped");
+    rejectPendingLeases(pendingLeases, "Stream consumer stopped");
     return returnGenerator(value);
   };
 
@@ -208,6 +247,33 @@ export function connectToStream(
         : [ApplicationCommand.REFRESH_ALL, commandId, collection, source],
     );
   };
+  generator.resolveFileLease = async (integrationType, sourceCollectionId, itemId, handle) => {
+    const connection = currentConnection;
+    if (!connection?.requestFileLease) return null;
+    const requestId = nextLeaseRequestId++;
+    const result = new Promise<FileLease | null>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        if (!pendingLeases.has(requestId)) return;
+        pendingLeases.delete(requestId);
+        resolve(null);
+      }, FILE_LEASE_REQUEST_TIMEOUT_MS);
+      pendingLeases.set(requestId, { resolve, reject, timer });
+    });
+    try {
+      await connection.requestFileLease([
+        ClientEventType.FILE_LEASE_REQUEST,
+        requestId,
+        integrationType,
+        sourceCollectionId,
+        itemId,
+        handle,
+      ]);
+    } catch (error) {
+      pendingLeases.delete(requestId);
+      throw error;
+    }
+    return result;
+  };
 
   return generator;
 }
@@ -220,7 +286,18 @@ async function* streamEvents(
     setCancelStream: (cancel: (() => void) | null) => void;
     pendingCommands: Map<
       number,
-      { resolve: (event: CommandResultEvent) => void; reject: (error: Error) => void }
+      {
+        resolve: (event: CommandResultEvent) => void;
+        reject: (error: Error) => void;
+      }
+    >;
+    pendingLeases: Map<
+      number,
+      {
+        resolve: (lease: FileLease | null) => void;
+        reject: (error: Error) => void;
+        timer?: Timer;
+      }
     >;
   },
 ): AsyncGenerator<SyncEvent | StreamEvent> {
@@ -288,9 +365,26 @@ async function* streamEvents(
           const wireEvents = isWireEventBatch(payload) ? payload : [payload];
           const shouldAckBatch =
             isWireEventBatch(payload) ||
-            (!isPingEvent(payload) && !isCommandResultPayload(payload));
+            (!isPingEvent(payload) &&
+              !isCommandResultPayload(payload) &&
+              !isLeaseResponsePayload(payload));
 
           for (const wireEvent of wireEvents) {
+            const leaseResponse = fromWireLeaseResponse(wireEvent);
+            if (leaseResponse) {
+              const [_, requestId, status, leaseUrl, expiresAt] = leaseResponse;
+              const pending = state.pendingLeases.get(requestId);
+              if (pending) {
+                state.pendingLeases.delete(requestId);
+                if (pending.timer) clearTimeout(pending.timer);
+                pending.resolve(
+                  status === FileLeaseResultStatus.REDIRECT && leaseUrl && expiresAt
+                    ? { url: leaseUrl, expiresAt }
+                    : null,
+                );
+              }
+              continue;
+            }
             const streamEvent = fromWireStreamEvent(wireEvent);
             if (streamEvent) {
               if (streamEvent.type === EventType.SNAPSHOT_START) materializedItems.clear();
@@ -321,6 +415,10 @@ async function* streamEvents(
           state.pendingCommands,
           connection.getDisconnectReason() ?? "Stream ended",
         );
+        rejectPendingLeases(
+          state.pendingLeases,
+          connection.getDisconnectReason() ?? "Stream ended",
+        );
         if (connectionEvents) {
           yield {
             type: EventType.STREAM_DISCONNECTED,
@@ -334,6 +432,10 @@ async function* streamEvents(
         }
         rejectPendingCommands(
           state.pendingCommands,
+          err instanceof Error ? err.message : "Stream error",
+        );
+        rejectPendingLeases(
+          state.pendingLeases,
           err instanceof Error ? err.message : "Stream error",
         );
         connection?.close("Stream error");
@@ -366,6 +468,7 @@ async function* streamEvents(
     stopStallTimer();
     connection?.close("Stream consumer stopped");
     rejectPendingCommands(state.pendingCommands, "Stream consumer stopped");
+    rejectPendingLeases(state.pendingLeases, "Stream consumer stopped");
     state.setCancelStream(null);
   }
 }
@@ -373,7 +476,10 @@ async function* streamEvents(
 function rejectPendingCommands(
   pendingCommands: Map<
     number,
-    { resolve: (event: CommandResultEvent) => void; reject: (error: Error) => void }
+    {
+      resolve: (event: CommandResultEvent) => void;
+      reject: (error: Error) => void;
+    }
   >,
   reason: string,
 ): void {
@@ -382,19 +488,47 @@ function rejectPendingCommands(
   pendingCommands.clear();
 }
 
+function rejectPendingLeases(
+  pendingLeases: Map<
+    number,
+    {
+      resolve: (lease: FileLease | null) => void;
+      reject: (error: Error) => void;
+      timer?: Timer;
+    }
+  >,
+  reason: string,
+): void {
+  const error = new Error(`File lease request failed: ${reason}`);
+  for (const { reject, timer } of pendingLeases.values()) {
+    if (timer) clearTimeout(timer);
+    reject(error);
+  }
+  pendingLeases.clear();
+}
+
 async function openDefaultTransportConnection(
   syncEndpoint: string,
   key: Buffer,
   transport: StreamTransport,
 ): Promise<{ transport: StreamTransport; connection: TransportConnection }> {
   if (transport === "http") {
-    return { transport: "http", connection: await openHttpConnection(syncEndpoint, key) };
+    return {
+      transport: "http",
+      connection: await openHttpConnection(syncEndpoint, key),
+    };
   }
 
   try {
-    return { transport: "websocket", connection: await openWebSocketConnection(syncEndpoint, key) };
+    return {
+      transport: "websocket",
+      connection: await openWebSocketConnection(syncEndpoint, key),
+    };
   } catch {
-    return { transport: "http", connection: await openHttpConnection(syncEndpoint, key) };
+    return {
+      transport: "http",
+      connection: await openHttpConnection(syncEndpoint, key),
+    };
   }
 }
 
@@ -458,10 +592,16 @@ async function openHttpConnection(syncEndpoint: string, key: Buffer): Promise<Tr
     sendAck() {
       return sendAck(ackEndpoint);
     },
+    requestFileLease() {
+      return Promise.reject(new Error("File lease requests require a WebSocket sync connection"));
+    },
     async sendCommand(command) {
       const response = await fetch(commandEndpoint, {
         method: "POST",
-        headers: { "Content-Type": "application/octet-stream", Accept: "application/octet-stream" },
+        headers: {
+          "Content-Type": "application/octet-stream",
+          Accept: "application/octet-stream",
+        },
         body: new Uint8Array(pack(command)),
       });
       if (!response.ok)
@@ -535,6 +675,13 @@ async function openWebSocketConnection(
       socket.send(pack(command));
       return Promise.resolve();
     },
+    requestFileLease(request) {
+      if (socket.readyState !== WebSocket.OPEN) {
+        return Promise.reject(new Error("WebSocket is not connected"));
+      }
+      socket.send(pack(request));
+      return Promise.resolve();
+    },
     close(reason: string) {
       disconnectReason = reason;
       socket.close(1000, reason);
@@ -592,6 +739,11 @@ function fromWireStreamEvent(
 
 function itemStateKey(collection: string, id: number): string {
   return `${collection}:${id}`;
+}
+
+function fromWireLeaseResponse(wireEvent: unknown): WireLeaseResponse | null {
+  if (!isWireLeaseResponse(wireEvent)) return null;
+  return wireEvent;
 }
 
 function fromWireCommandResult(wireEvent: unknown): CommandResultEvent | null {
@@ -788,4 +940,8 @@ function isPingEvent(payload: WireStreamPayload): boolean {
 
 function isCommandResultPayload(payload: WireStreamPayload): boolean {
   return payload[0] === CommandResult.REFRESH || payload[0] === CommandResult.REFRESH_ALL;
+}
+
+function isLeaseResponsePayload(payload: WireStreamPayload): boolean {
+  return isWireLeaseResponse(payload);
 }
