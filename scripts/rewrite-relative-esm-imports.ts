@@ -30,7 +30,7 @@ function needsJsExtension(specifier: string) {
   return !allowedSpecifierExtensions.some((extension) => specifier.endsWith(extension));
 }
 
-export async function rewriteRelativeEsmImports(targetDir: string): Promise<RewrittenFile[]> {
+async function rewriteRelativeEsmImports(targetDir: string): Promise<RewrittenFile[]> {
   const rewrittenFiles: RewrittenFile[] = [];
   const remainingViolations: string[] = [];
 

@@ -163,68 +163,81 @@ export function renderInlines(inlines: Inline[], opts?: RenderOptions): string {
   return inlines.map((i) => renderInline(i, opts)).join("");
 }
 
-export function renderBlock(block: Block, opts?: RenderOptions): string {
-  const ctx = makeContext(opts);
+/**
+ * One entry per block kind: the type guard that claims a block, the
+ * `opts.blocks` key that can override it, and the built-in rendering.
+ */
+interface HtmlBlockRule {
+  match: (block: Block) => boolean;
+  override: keyof BlockRenderers;
+  render: (block: never, opts: RenderOptions | undefined) => string;
+}
 
-  if (isP(block)) {
-    if (opts?.blocks?.p) return opts.blocks.p(block, ctx);
-    return `<p>${renderInlines(block[1], opts)}</p>`;
-  }
-  if (isH1(block)) {
-    if (opts?.blocks?.h1) return opts.blocks.h1(block, ctx);
-    return `<h1>${renderInlines(block[1], opts)}</h1>`;
-  }
-  if (isH2(block)) {
-    if (opts?.blocks?.h2) return opts.blocks.h2(block, ctx);
-    return `<h2>${renderInlines(block[1], opts)}</h2>`;
-  }
-  if (isH3(block)) {
-    if (opts?.blocks?.h3) return opts.blocks.h3(block, ctx);
-    return `<h3>${renderInlines(block[1], opts)}</h3>`;
-  }
-  if (isQuote(block)) {
-    if (opts?.blocks?.blockquote) return opts.blocks.blockquote(block, ctx);
-    return `<blockquote>${renderChildren(block[1], opts)}</blockquote>`;
-  }
-  if (isCode(block)) {
-    if (opts?.blocks?.pre) return opts.blocks.pre(block, ctx);
+const rule = <T extends Block>(
+  match: (block: Block) => block is T,
+  override: keyof BlockRenderers,
+  render: (block: T, opts: RenderOptions | undefined) => string,
+): HtmlBlockRule => ({ match, override, render: render as HtmlBlockRule["render"] });
+
+const heading =
+  (tag: "h1" | "h2" | "h3") => (block: { 1: Inline[] }, opts: RenderOptions | undefined) =>
+    `<${tag}>${renderInlines(block[1], opts)}</${tag}>`;
+
+const listItems = (block: Block, opts: RenderOptions | undefined) =>
+  (block.slice(1) as (Inline | Block)[][])
+    .map((item) => `<li>${renderChildren(item, opts)}</li>`)
+    .join("");
+
+const HTML_BLOCK_RULES: readonly HtmlBlockRule[] = [
+  rule(isP, "p", (block, opts) => `<p>${renderInlines(block[1], opts)}</p>`),
+  rule(isH1, "h1", heading("h1")),
+  rule(isH2, "h2", heading("h2")),
+  rule(isH3, "h3", heading("h3")),
+
+  rule(
+    isQuote,
+    "blockquote",
+    (block, opts) => `<blockquote>${renderChildren(block[1], opts)}</blockquote>`,
+  ),
+
+  rule(isCode, "pre", (block) => {
     const [, lang, text] = block;
     const langAttr = lang ? ` class="language-${escapeHtml(lang)}"` : "";
     return `<pre><code${langAttr}>${escapeHtml(text)}</code></pre>`;
-  }
-  if (isUl(block)) {
-    if (opts?.blocks?.ul) return opts.blocks.ul(block, ctx);
-    const items = block.slice(1) as (Inline | Block)[][];
-    const lis = items.map((item) => `<li>${renderChildren(item, opts)}</li>`);
-    return `<ul>${lis.join("")}</ul>`;
-  }
-  if (isOl(block)) {
-    if (opts?.blocks?.ol) return opts.blocks.ol(block, ctx);
-    const items = block.slice(1) as (Inline | Block)[][];
-    const lis = items.map((item) => `<li>${renderChildren(item, opts)}</li>`);
-    return `<ol>${lis.join("")}</ol>`;
-  }
-  if (isTable(block)) {
-    if (opts?.blocks?.table) return opts.blocks.table(block, ctx);
+  }),
+
+  rule(isUl, "ul", (block, opts) => `<ul>${listItems(block, opts)}</ul>`),
+  rule(isOl, "ol", (block, opts) => `<ol>${listItems(block, opts)}</ol>`),
+
+  rule(isTable, "table", (block, opts) => {
     const [, hasHeader, rows] = block;
-    const rendered = rows.map((row, ri) => {
-      const cells = row.map((cell) => {
-        const tag = hasHeader && ri === 0 ? "th" : "td";
-        return `<${tag}>${renderChildren(cell, opts)}</${tag}>`;
-      });
+    const rendered = rows.map((row, rowIndex) => {
+      const tag = hasHeader && rowIndex === 0 ? "th" : "td";
+      const cells = row.map((cell) => `<${tag}>${renderChildren(cell, opts)}</${tag}>`);
       return `<tr>${cells.join("")}</tr>`;
     });
     return `<table>${rendered.join("")}</table>`;
-  }
-  if (isImg(block)) {
-    if (opts?.blocks?.img) return opts.blocks.img(block, ctx);
+  }),
+
+  rule(isImg, "img", (block, opts) => {
     const [, canonical, alt] = block;
-    return `<img src="${escapeHtml(buildFileUrl(canonical, opts?.file, "image"))}" alt="${escapeHtml(alt)}">`;
-  }
-  if (isComponent(block)) {
-    if (opts?.blocks?.component) return opts.blocks.component(block, ctx);
-    const children = block[3] as Block[];
-    return children.map((c) => renderBlock(c, opts)).join("");
+    const src = escapeHtml(buildFileUrl(canonical, opts?.file, "image"));
+    return `<img src="${src}" alt="${escapeHtml(alt)}">`;
+  }),
+
+  // A component contributes only its children; the wrapper itself emits no HTML.
+  rule(isComponent, "component", (block, opts) =>
+    (block[3] as Block[]).map((child) => renderBlock(child, opts)).join(""),
+  ),
+];
+
+export function renderBlock(block: Block, opts?: RenderOptions): string {
+  for (const { match, override, render } of HTML_BLOCK_RULES) {
+    if (!match(block)) continue;
+    const custom = opts?.blocks?.[override];
+    return custom
+      ? (custom as (b: Block, ctx: RenderContext) => string)(block, makeContext(opts))
+      : render(block as never, opts);
   }
   return "";
 }

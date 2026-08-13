@@ -45,7 +45,7 @@ export function isExtensionAllowed(ext: string, rule: TransformMediaRule): boole
 const PROCESSED_REF = /^([A-Za-z0-9_-]{16})\.[A-Za-z0-9]{1,5}$/;
 
 export type FileLinkParts = { stableUrl: string; leaseUrl?: string; expiresAt?: number };
-export function fileLinkParts(value: unknown): FileLinkParts | null {
+function fileLinkParts(value: unknown): FileLinkParts | null {
   if (typeof value === "string") return { stableUrl: value };
   if (
     Array.isArray(value) &&
@@ -333,7 +333,7 @@ export async function processPropertyFiles(opts: {
   return result;
 }
 
-export function idFromUrl(url: string): string {
+function idFromUrl(url: string): string {
   let identity: string;
   try {
     const parsed = new URL(url);

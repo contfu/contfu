@@ -1,13 +1,10 @@
 import {
-  buildBasicAuthHeader,
   checkBasicAuth as checkBasicAuthRequest,
   isBasicAuthConfig,
-  unauthorizedBasicAuthResponse,
   type BasicAuthConfig,
 } from "@contfu/core";
 
 export type { BasicAuthConfig };
-export { buildBasicAuthHeader, unauthorizedBasicAuthResponse };
 
 export const basicAuth = isBasicAuthConfig(process.env.CONTFU_BASIC_AUTH)
   ? process.env.CONTFU_BASIC_AUTH

@@ -27,6 +27,9 @@ export type QuotaState = {
   /** Total tenant item inventory. */
   items: number;
   maxItems: number;
+  /** Per-collection item inventory limit. */
+  collectionItems?: number;
+  maxItemsPerCollection?: number;
   /** Period-based item change volume. */
   itemChanges: number;
   maxItemChanges: number;
@@ -46,6 +49,7 @@ export type QuotaState = {
     collections: QuotaResourceStatus;
     flows: QuotaResourceStatus;
     items: QuotaResourceStatus;
+    collectionItems: QuotaResourceStatus;
     itemChanges: QuotaResourceStatus;
   };
 };

@@ -1,6 +1,6 @@
 const SECRET_KEYS = /(?:key|token|secret|credential|password)/i;
 
-export function redactDryRunValue(value: unknown): unknown {
+function redactDryRunValue(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(redactDryRunValue);
   if (value && typeof value === "object") {
     return Object.fromEntries(

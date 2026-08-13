@@ -12,7 +12,7 @@ import * as schema from "./schema";
 
 export type Database = NodeSQLiteDatabase<typeof schema, EmptyRelations>;
 
-export async function createNodeDatabaseClient(url: string): Promise<Database> {
+async function createNodeDatabaseClient(url: string): Promise<Database> {
   await ensureDbDir(url);
 
   const { DatabaseSync } = await import("node:sqlite");

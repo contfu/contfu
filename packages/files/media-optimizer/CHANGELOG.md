@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.9] - 2026-08-12
+
+### Changed
+
+- Removed dead code and reduced complexity in media optimization logic.
+
 ## [0.1.8] - 2026-08-05
 
 ### Changed

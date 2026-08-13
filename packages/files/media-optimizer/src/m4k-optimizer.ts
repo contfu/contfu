@@ -113,7 +113,7 @@ async function processWithBunImage(
 /**
  * Collect all chunks from a ProcessedFile's async stream into a Buffer.
  */
-export async function collectProcessedFile(file: ProcessedFile): Promise<Buffer> {
+async function collectProcessedFile(file: ProcessedFile): Promise<Buffer> {
   const chunks: Uint8Array[] = [];
   if (file.stream) {
     for await (const chunk of file.stream) {
@@ -146,30 +146,55 @@ export function toM4kImageOptions(
   return imageOpt;
 }
 
+/**
+ * Copy the option keys that are set, so an unset option never lands in the
+ * payload. `truthyKeys` drop empty strings and zeroes as "not configured";
+ * `nullableKeys` keep those values and only drop null/undefined.
+ */
+function copyDefinedOptions<S extends object, T extends object>(
+  source: S | undefined,
+  target: T,
+  truthyKeys: readonly (keyof S & keyof T)[],
+  nullableKeys: readonly (keyof S & keyof T)[],
+): T {
+  if (!source) return target;
+  for (const key of truthyKeys) {
+    if (source[key]) target[key] = source[key] as never;
+  }
+  for (const key of nullableKeys) {
+    if (source[key] != null) target[key] = source[key] as never;
+  }
+  return target;
+}
+
+/** Options copied when truthy; empty strings and zeroes mean "not configured". */
+const VIDEO_TRUTHY_KEYS = [
+  "format",
+  "ext",
+  "videoCodec",
+  "videoBitrate",
+  "videoFilters",
+  "size",
+  "fps",
+  "audioCodec",
+  "audioBitrate",
+  "audioFilters",
+  "inputFormat",
+  "pad",
+  "complexFilters",
+  "args",
+] as const;
+
+/** Options where 0 is meaningful, so only null/undefined are dropped. */
+const VIDEO_NULLABLE_KEYS = ["aspect", "frames", "duration", "seek"] as const;
+
 export function toM4kVideoOptions(
   video: OptimizeVideoOpts | Extract<MediaConvertOpts, { mediaType?: "video" }> | undefined,
 ): VideoOptions {
   const videoOpt: VideoOptions = {};
-  if (video?.format) videoOpt.format = video.format;
-  if (video?.ext) videoOpt.ext = video.ext;
-  if (video?.videoCodec) videoOpt.videoCodec = video.videoCodec;
-  if (video?.videoBitrate) videoOpt.videoBitrate = video.videoBitrate;
-  if (video?.videoFilters) videoOpt.videoFilters = video.videoFilters;
+  // `size` derived from width/height first, so an explicit `size` still wins.
   if (video?.width || video?.height) videoOpt.size = formatSize(video?.width, video?.height);
-  if (video?.size) videoOpt.size = video.size;
-  if (video?.fps) videoOpt.fps = video.fps;
-  if (video?.audioCodec) videoOpt.audioCodec = video.audioCodec;
-  if (video?.audioBitrate) videoOpt.audioBitrate = video.audioBitrate;
-  if (video?.audioFilters) videoOpt.audioFilters = video.audioFilters;
-  if (video?.aspect != null) videoOpt.aspect = video.aspect;
-  if (video?.frames != null) videoOpt.frames = video.frames;
-  if (video?.duration != null) videoOpt.duration = video.duration;
-  if (video?.seek != null) videoOpt.seek = video.seek;
-  if (video?.inputFormat) videoOpt.inputFormat = video.inputFormat;
-  if (video?.pad) videoOpt.pad = video.pad;
-  if (video?.complexFilters) videoOpt.complexFilters = video.complexFilters;
-  if (video?.args) videoOpt.args = video.args;
-  return videoOpt;
+  return copyDefinedOptions(video, videoOpt, VIDEO_TRUTHY_KEYS, VIDEO_NULLABLE_KEYS);
 }
 
 export function toM4kAudioOptions(
@@ -426,12 +451,12 @@ export function createTransform(): MediaTransform {
 
 /** Convert a Buffer to an AsyncIterable<Uint8Array> for m4k input */
 // eslint-disable-next-line typescript/require-await -- async generator required by AsyncIterable return type
-export async function* toAsyncIterable(buf: Buffer): AsyncIterable<Uint8Array> {
+async function* toAsyncIterable(buf: Buffer): AsyncIterable<Uint8Array> {
   yield new Uint8Array(buf);
 }
 
 /** Convert a ReadableStream to a Buffer */
-export async function streamToBuffer(stream: ReadableStream): Promise<Buffer> {
+async function streamToBuffer(stream: ReadableStream): Promise<Buffer> {
   const reader = stream.getReader();
   const chunks: Uint8Array[] = [];
   while (true) {
@@ -443,7 +468,7 @@ export async function streamToBuffer(stream: ReadableStream): Promise<Buffer> {
 }
 
 /** Format width/height as ffmpeg size string (e.g. "1920x1080") */
-export function formatSize(width?: number, height?: number): string {
+function formatSize(width?: number, height?: number): string {
   if (width && height) return `${width}x${height}`;
   if (width) return `${width}x-1`;
   if (height) return `-1x${height}`;

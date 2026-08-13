@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.9] - 2026-08-12
+
+### Added
+
+- Added consent and PKCE protection to CLI login.
+
+### Changed
+
+- Removed dead code and reduced CLI dispatch complexity.
+
 ## [0.1.8] - 2026-08-07
 
 ### Added

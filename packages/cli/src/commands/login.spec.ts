@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { describe, test, expect, mock, beforeEach } from "bun:test";
 
 // We test the config read/write logic by directly importing the helpers
@@ -17,12 +18,24 @@ void mock.module("node:fs", () => ({
 }));
 
 // Import after mocking
-const { readConfig, writeConfig, logout } = await import("./login");
+const { createPkce, readConfig, writeConfig, logout } = await import("./login");
 
 beforeEach(() => {
   mockReadFile.mockReset();
   mockWriteFile.mockReset();
   mockMkdir.mockReset();
+});
+
+describe("createPkce", () => {
+  test("creates a high-entropy S256 verifier and challenge", () => {
+    const first = createPkce();
+    const second = createPkce();
+
+    expect(first.verifier).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(first.challenge).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(first.challenge).toBe(createHash("sha256").update(first.verifier).digest("base64url"));
+    expect(second.verifier).not.toBe(first.verifier);
+  });
 });
 
 describe("readConfig", () => {

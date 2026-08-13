@@ -1,6 +1,102 @@
 import { SYSTEM_FIELD_SET } from "@contfu/core";
 import { TokenType, type Token } from "./types";
 
+/** A scanned token together with the index to resume lexing from. */
+interface Scan {
+  token: Token;
+  nextIndex: number;
+}
+
+const WHITESPACE = new Set([" ", "\t", "\n", "\r"]);
+
+/** Matched before single-character operators so `>=` never lexes as `>` `=`. */
+const TWO_CHAR_OPERATORS: Record<string, TokenType> = {
+  "!=": TokenType.Neq,
+  ">=": TokenType.Gte,
+  "<=": TokenType.Lte,
+  "!~": TokenType.NotLike,
+  "?=": TokenType.ArrayContains,
+  "&&": TokenType.And,
+  "||": TokenType.Or,
+};
+
+const ONE_CHAR_OPERATORS: Record<string, TokenType> = {
+  "=": TokenType.Eq,
+  ">": TokenType.Gt,
+  "<": TokenType.Lt,
+  "~": TokenType.Like,
+  "(": TokenType.LParen,
+  ")": TokenType.RParen,
+  ",": TokenType.Comma,
+};
+
+/** Identifiers that are reserved literals rather than field names. */
+const KEYWORD_TOKENS: Record<string, TokenType> = {
+  true: TokenType.Boolean,
+  false: TokenType.Boolean,
+  null: TokenType.Null,
+};
+
+/** Read a quoted string, honouring backslash escapes. */
+function readString(input: string, start: number): Scan {
+  const quote = input[start];
+  let i = start + 1;
+  let value = "";
+
+  while (i < input.length && input[i] !== quote) {
+    if (input[i] === "\\") {
+      i++;
+      if (i < input.length) value += input[i];
+    } else {
+      value += input[i];
+    }
+    i++;
+  }
+
+  // An unterminated string ends at input end rather than failing.
+  return { token: { type: TokenType.String, value }, nextIndex: i < input.length ? i + 1 : i };
+}
+
+const isDigit = (ch: string | undefined): boolean => ch !== undefined && ch >= "0" && ch <= "9";
+
+/** Read an optionally negative decimal number. */
+function readNumber(input: string, start: number): Scan {
+  let i = start + 1;
+  let value = input[start];
+  let hasDot = false;
+
+  while (i < input.length) {
+    const ch = input[i];
+    if (isDigit(ch)) {
+      value += ch;
+    } else if (ch === "." && !hasDot) {
+      hasDot = true;
+      value += ch;
+    } else {
+      break;
+    }
+    i++;
+  }
+
+  // A bare `-` is a stray operator, not a number.
+  if (value === "-") throw new Error(`Unexpected character: - at position ${start}`);
+
+  return { token: { type: TokenType.Number, value }, nextIndex: i };
+}
+
+/** Read an identifier, promoting reserved words to literal tokens. */
+function readIdentifier(input: string, start: number): Scan {
+  let i = start + 1;
+  let value = input[start];
+
+  while (i < input.length && isIdentPart(input[i])) {
+    value += input[i];
+    i++;
+  }
+
+  return { token: { type: KEYWORD_TOKENS[value] ?? TokenType.Identifier, value }, nextIndex: i };
+}
+
 export function tokenize(input: string): Token[] {
   const tokens: Token[] = [];
   let i = 0;
@@ -8,125 +104,36 @@ export function tokenize(input: string): Token[] {
   while (i < input.length) {
     const ch = input[i];
 
-    if (ch === " " || ch === "\t" || ch === "\n" || ch === "\r") {
+    if (WHITESPACE.has(ch)) {
       i++;
       continue;
     }
 
     if (ch === '"' || ch === "'") {
-      const quote = ch;
-      i++;
-      let value = "";
-      while (i < input.length && input[i] !== quote) {
-        if (input[i] === "\\") {
-          i++;
-          if (i < input.length) value += input[i];
-        } else {
-          value += input[i];
-        }
-        i++;
-      }
-      if (i < input.length) i++;
-      tokens.push({ type: TokenType.String, value });
+      const { token, nextIndex } = readString(input, i);
+      tokens.push(token);
+      i = nextIndex;
       continue;
     }
 
-    if (i + 1 < input.length) {
-      const two = input[i] + input[i + 1];
-      if (two === "!=") {
-        tokens.push({ type: TokenType.Neq, value: two });
-        i += 2;
-        continue;
-      }
-      if (two === ">=") {
-        tokens.push({ type: TokenType.Gte, value: two });
-        i += 2;
-        continue;
-      }
-      if (two === "<=") {
-        tokens.push({ type: TokenType.Lte, value: two });
-        i += 2;
-        continue;
-      }
-      if (two === "!~") {
-        tokens.push({ type: TokenType.NotLike, value: two });
-        i += 2;
-        continue;
-      }
-      if (two === "?=") {
-        tokens.push({ type: TokenType.ArrayContains, value: two });
-        i += 2;
-        continue;
-      }
-      if (two === "&&") {
-        tokens.push({ type: TokenType.And, value: two });
-        i += 2;
-        continue;
-      }
-      if (two === "||") {
-        tokens.push({ type: TokenType.Or, value: two });
-        i += 2;
-        continue;
-      }
+    const twoCharType = TWO_CHAR_OPERATORS[input.slice(i, i + 2)];
+    if (twoCharType !== undefined) {
+      tokens.push({ type: twoCharType, value: input.slice(i, i + 2) });
+      i += 2;
+      continue;
     }
 
-    if (ch === "=") {
-      tokens.push({ type: TokenType.Eq, value: ch });
-      i++;
-      continue;
-    }
-    if (ch === ">") {
-      tokens.push({ type: TokenType.Gt, value: ch });
-      i++;
-      continue;
-    }
-    if (ch === "<") {
-      tokens.push({ type: TokenType.Lt, value: ch });
-      i++;
-      continue;
-    }
-    if (ch === "~") {
-      tokens.push({ type: TokenType.Like, value: ch });
-      i++;
-      continue;
-    }
-    if (ch === "(") {
-      tokens.push({ type: TokenType.LParen, value: ch });
-      i++;
-      continue;
-    }
-    if (ch === ")") {
-      tokens.push({ type: TokenType.RParen, value: ch });
-      i++;
-      continue;
-    }
-    if (ch === ",") {
-      tokens.push({ type: TokenType.Comma, value: ch });
+    const oneCharType = ONE_CHAR_OPERATORS[ch];
+    if (oneCharType !== undefined) {
+      tokens.push({ type: oneCharType, value: ch });
       i++;
       continue;
     }
 
-    if (ch === "-" || (ch >= "0" && ch <= "9")) {
-      let num = ch;
-      i++;
-      let hasDot = false;
-      while (i < input.length) {
-        const c = input[i];
-        if (c >= "0" && c <= "9") {
-          num += c;
-          i++;
-        } else if (c === "." && !hasDot) {
-          hasDot = true;
-          num += c;
-          i++;
-        } else {
-          break;
-        }
-      }
-      if (num === "-") {
-        throw new Error(`Unexpected character: ${ch} at position ${i - 1}`);
-      }
-      tokens.push({ type: TokenType.Number, value: num });
+    if (ch === "-" || isDigit(ch)) {
+      const { token, nextIndex } = readNumber(input, i);
+      tokens.push(token);
+      i = nextIndex;
       continue;
     }
 
@@ -140,20 +147,9 @@ export function tokenize(input: string): Token[] {
     }
 
     if (isIdentStart(ch)) {
-      let ident = ch;
-      i++;
-      while (i < input.length && isIdentPart(input[i])) {
-        ident += input[i];
-        i++;
-      }
-
-      if (ident === "true" || ident === "false") {
-        tokens.push({ type: TokenType.Boolean, value: ident });
-      } else if (ident === "null") {
-        tokens.push({ type: TokenType.Null, value: ident });
-      } else {
-        tokens.push({ type: TokenType.Identifier, value: ident });
-      }
+      const { token, nextIndex } = readIdentifier(input, i);
+      tokens.push(token);
+      i = nextIndex;
       continue;
     }
 
