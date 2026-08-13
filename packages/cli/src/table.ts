@@ -31,58 +31,83 @@ function graphemes(value: string): string[] {
   return segmenter ? [...segmenter.segment(value)].map((part) => part.segment) : Array.from(value);
 }
 
-function isFullWidthCodePoint(codePoint: number): boolean {
-  return (
-    codePoint >= 0x1100 &&
-    (codePoint <= 0x115f ||
-      codePoint === 0x2329 ||
-      codePoint === 0x232a ||
-      (codePoint >= 0x2e80 && codePoint <= 0xa4cf && codePoint !== 0x303f) ||
-      (codePoint >= 0xac00 && codePoint <= 0xd7a3) ||
-      (codePoint >= 0xf900 && codePoint <= 0xfaff) ||
-      (codePoint >= 0xfe10 && codePoint <= 0xfe19) ||
-      (codePoint >= 0xfe30 && codePoint <= 0xfe6f) ||
-      (codePoint >= 0xff00 && codePoint <= 0xff60) ||
-      (codePoint >= 0xffe0 && codePoint <= 0xffe6))
-  );
+/** Inclusive `[start, end]` code point ranges, sorted and non-overlapping. */
+type CodePointRange = readonly [number, number];
+
+/** Binary search over sorted ranges, so widening a table costs no complexity. */
+function inRanges(ranges: readonly CodePointRange[], codePoint: number): boolean {
+  let low = 0;
+  let high = ranges.length - 1;
+  while (low <= high) {
+    const mid = (low + high) >> 1;
+    const [start, end] = ranges[mid];
+    if (codePoint < start) high = mid - 1;
+    else if (codePoint > end) low = mid + 1;
+    else return true;
+  }
+  return false;
 }
 
+/** East Asian Wide and Fullwidth code points, which occupy two terminal cells. */
+const FULL_WIDTH_RANGES: readonly CodePointRange[] = [
+  [0x1100, 0x115f],
+  [0x2329, 0x232a],
+  [0x2e80, 0x303e],
+  [0x3040, 0xa4cf],
+  [0xac00, 0xd7a3],
+  [0xf900, 0xfaff],
+  [0xfe10, 0xfe19],
+  [0xfe30, 0xfe6f],
+  [0xff00, 0xff60],
+  [0xffe0, 0xffe6],
+];
+
+function isFullWidthCodePoint(codePoint: number): boolean {
+  return inRanges(FULL_WIDTH_RANGES, codePoint);
+}
+
+/**
+ * Combining marks, variation selectors, and the zero-width joiner: code points
+ * that render on top of a neighbour rather than in a cell of their own.
+ */
+const ZERO_WIDTH_RANGES: readonly CodePointRange[] = [
+  [0x0300, 0x036f],
+  [0x0483, 0x0489],
+  [0x0591, 0x05bd],
+  [0x05bf, 0x05bf],
+  [0x05c1, 0x05c2],
+  [0x05c4, 0x05c5],
+  [0x05c7, 0x05c7],
+  [0x0610, 0x061a],
+  [0x064b, 0x065f],
+  [0x0670, 0x0670],
+  [0x06d6, 0x06dc],
+  [0x06df, 0x06e4],
+  [0x06e7, 0x06e8],
+  [0x06ea, 0x06ed],
+  [0x0711, 0x0711],
+  [0x0730, 0x074a],
+  [0x07a6, 0x07b0],
+  [0x07eb, 0x07f3],
+  [0x0816, 0x0819],
+  [0x081b, 0x0823],
+  [0x0825, 0x0827],
+  [0x0829, 0x082d],
+  [0x0859, 0x085b],
+  [0x08d3, 0x08e1],
+  [0x08e3, 0x0903],
+  [0x093a, 0x093a],
+  [0x093c, 0x093c],
+  [0x0941, 0x0948],
+  [0x094d, 0x094d],
+  [0x0951, 0x0957],
+  [0x0962, 0x0963],
+  [0x200d, 0x200d],
+  [0xfe00, 0xfe0f],
+];
+
 function isZeroWidthCodePoint(codePoint: number): boolean {
-  return (
-    (codePoint >= 0x0300 && codePoint <= 0x036f) ||
-    (codePoint >= 0x0483 && codePoint <= 0x0489) ||
-    (codePoint >= 0x0591 && codePoint <= 0x05bd) ||
-    codePoint === 0x05bf ||
-    (codePoint >= 0x05c1 && codePoint <= 0x05c2) ||
-    (codePoint >= 0x05c4 && codePoint <= 0x05c5) ||
-    codePoint === 0x05c7 ||
-    (codePoint >= 0x0610 && codePoint <= 0x061a) ||
-    (codePoint >= 0x064b && codePoint <= 0x065f) ||
-    codePoint === 0x0670 ||
-    (codePoint >= 0x06d6 && codePoint <= 0x06dc) ||
-    (codePoint >= 0x06df && codePoint <= 0x06e4) ||
-    (codePoint >= 0x06e7 && codePoint <= 0x06e8) ||
-    (codePoint >= 0x06ea && codePoint <= 0x06ed) ||
-    codePoint === 0x0711 ||
-    (codePoint >= 0x0730 && codePoint <= 0x074a) ||
-    (codePoint >= 0x07a6 && codePoint <= 0x07b0) ||
-    (codePoint >= 0x07eb && codePoint <= 0x07f3) ||
-    (codePoint >= 0x0816 && codePoint <= 0x0819) ||
-    (codePoint >= 0x081b && codePoint <= 0x0823) ||
-    (codePoint >= 0x0825 && codePoint <= 0x0827) ||
-    (codePoint >= 0x0829 && codePoint <= 0x082d) ||
-    (codePoint >= 0x0859 && codePoint <= 0x085b) ||
-    (codePoint >= 0x08d3 && codePoint <= 0x08e1) ||
-    (codePoint >= 0x08e3 && codePoint <= 0x0903) ||
-    codePoint === 0x093a ||
-    codePoint === 0x093c ||
-    (codePoint >= 0x0941 && codePoint <= 0x0948) ||
-    codePoint === 0x094d ||
-    (codePoint >= 0x0951 && codePoint <= 0x0957) ||
-    (codePoint >= 0x0962 && codePoint <= 0x0963) ||
-    (codePoint >= 0xfe00 && codePoint <= 0xfe0f) ||
-    codePoint === 0x200d
-  );
+  return inRanges(ZERO_WIDTH_RANGES, codePoint);
 }
 
 function stripZeroWidth(value: string): string {

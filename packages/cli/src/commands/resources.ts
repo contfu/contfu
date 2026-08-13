@@ -33,7 +33,7 @@ import { printDryRun, type DryRunOption } from "./dry-run";
 import { enumFallback, translateEnum } from "./presentation";
 
 const RESOURCES = ["integrations", "collections", "flows"] as const;
-type Resource = (typeof RESOURCES)[number];
+export type Resource = (typeof RESOURCES)[number];
 
 export function isResource(name: string): name is Resource {
   return RESOURCES.includes(name as Resource);

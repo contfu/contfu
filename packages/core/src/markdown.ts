@@ -123,76 +123,91 @@ export function renderInlinesMarkdown(inlines: Inline[], opts?: MarkdownOptions)
   return inlines.map((i) => renderInlineMarkdown(i, opts)).join("");
 }
 
-export function renderBlockMarkdown(block: Block, opts?: MarkdownOptions): string {
-  const ctx = makeMdContext(opts);
+/**
+ * One entry per block kind: the type guard that claims a block, the
+ * `opts.blocks` key that can override it, and the built-in rendering.
+ */
+interface MarkdownBlockRule {
+  match: (block: Block) => boolean;
+  override: keyof MarkdownBlockRenderers;
+  render: (block: never, opts: MarkdownOptions | undefined) => string;
+}
 
-  if (isP(block)) {
-    if (opts?.blocks?.p) return opts.blocks.p(block, ctx);
-    return `${renderInlinesMarkdown(block[1], opts)}\n\n`;
-  }
-  if (isH1(block)) {
-    if (opts?.blocks?.h1) return opts.blocks.h1(block, ctx);
-    return `# ${renderInlinesMarkdown(block[1], opts)}\n\n`;
-  }
-  if (isH2(block)) {
-    if (opts?.blocks?.h2) return opts.blocks.h2(block, ctx);
-    return `## ${renderInlinesMarkdown(block[1], opts)}\n\n`;
-  }
-  if (isH3(block)) {
-    if (opts?.blocks?.h3) return opts.blocks.h3(block, ctx);
-    return `### ${renderInlinesMarkdown(block[1], opts)}\n\n`;
-  }
-  if (isQuote(block)) {
-    if (opts?.blocks?.blockquote) return opts.blocks.blockquote(block, ctx);
-    const inner = renderChildrenMarkdown(block[1], opts);
-    return (
-      inner
+const rule = <T extends Block>(
+  match: (block: Block) => block is T,
+  override: keyof MarkdownBlockRenderers,
+  render: (block: T, opts: MarkdownOptions | undefined) => string,
+): MarkdownBlockRule => ({ match, override, render: render as MarkdownBlockRule["render"] });
+
+const heading =
+  (level: "#" | "##" | "###") => (block: { 1: Inline[] }, opts: MarkdownOptions | undefined) =>
+    `${level} ${renderInlinesMarkdown(block[1], opts)}\n\n`;
+
+const MARKDOWN_BLOCK_RULES: readonly MarkdownBlockRule[] = [
+  rule(isP, "p", (block, opts) => `${renderInlinesMarkdown(block[1], opts)}\n\n`),
+  rule(isH1, "h1", heading("#")),
+  rule(isH2, "h2", heading("##")),
+  rule(isH3, "h3", heading("###")),
+
+  rule(
+    isQuote,
+    "blockquote",
+    (block, opts) =>
+      renderChildrenMarkdown(block[1], opts)
         .split("\n")
         .map((line) => `> ${line}`)
-        .join("\n") + "\n\n"
-    );
-  }
-  if (isCode(block)) {
-    if (opts?.blocks?.pre) return opts.blocks.pre(block, ctx);
+        .join("\n") + "\n\n",
+  ),
+
+  rule(isCode, "pre", (block) => {
     const [, lang, text] = block;
     return `\`\`\`${lang}\n${text}\n\`\`\`\n\n`;
-  }
-  if (isUl(block)) {
-    if (opts?.blocks?.ul) return opts.blocks.ul(block, ctx);
+  }),
+
+  rule(isUl, "ul", (block, opts) => {
     const items = block.slice(1) as (Inline | Block)[][];
-    const lines = items.map((item) => `- ${renderChildrenMarkdown(item, opts)}`);
-    return lines.join("\n") + "\n\n";
-  }
-  if (isOl(block)) {
-    if (opts?.blocks?.ol) return opts.blocks.ol(block, ctx);
+    return items.map((item) => `- ${renderChildrenMarkdown(item, opts)}`).join("\n") + "\n\n";
+  }),
+
+  rule(isOl, "ol", (block, opts) => {
     const items = block.slice(1) as (Inline | Block)[][];
-    const lines = items.map((item, i) => `${i + 1}. ${renderChildrenMarkdown(item, opts)}`);
-    return lines.join("\n") + "\n\n";
-  }
-  if (isTable(block)) {
-    if (opts?.blocks?.table) return opts.blocks.table(block, ctx);
+    return (
+      items.map((item, i) => `${i + 1}. ${renderChildrenMarkdown(item, opts)}`).join("\n") + "\n\n"
+    );
+  }),
+
+  rule(isTable, "table", (block, opts) => {
     const [, hasHeader, rows] = block;
     if (rows.length === 0) return "";
     const rendered = rows.map(
       (row) => "| " + row.map((cell) => renderChildrenMarkdown(cell, opts)).join(" | ") + " |",
     );
-    if (hasHeader && rendered.length > 0) {
-      const colCount = rows[0].length;
-      const separator = "| " + Array(colCount).fill("---").join(" | ") + " |";
+    if (hasHeader) {
+      const separator = "| " + Array(rows[0].length).fill("---").join(" | ") + " |";
       rendered.splice(1, 0, separator);
     }
     return rendered.join("\n") + "\n\n";
-  }
-  if (isImg(block)) {
-    if (opts?.blocks?.img) return opts.blocks.img(block, ctx);
+  }),
+
+  rule(isImg, "img", (block, opts) => {
     const [, canonical, alt] = block;
-    const src = buildFileUrl(canonical, opts?.file, "image");
-    return `![${escapeMarkdown(alt)}](${src})\n\n`;
-  }
-  if (isComponent(block)) {
-    if (opts?.blocks?.component) return opts.blocks.component(block, ctx);
-    const children = block[3] as Block[];
-    return children.map((c) => renderBlockMarkdown(c, opts)).join("");
+    return `![${escapeMarkdown(alt)}](${buildFileUrl(canonical, opts?.file, "image")})\n\n`;
+  }),
+
+  // A component contributes only its children; the wrapper itself has no
+  // markdown representation.
+  rule(isComponent, "component", (block, opts) =>
+    (block[3] as Block[]).map((child) => renderBlockMarkdown(child, opts)).join(""),
+  ),
+];
+
+export function renderBlockMarkdown(block: Block, opts?: MarkdownOptions): string {
+  for (const { match, override, render } of MARKDOWN_BLOCK_RULES) {
+    if (!match(block)) continue;
+    const custom = opts?.blocks?.[override];
+    return custom
+      ? (custom as (b: Block, ctx: MarkdownRenderContext) => string)(block, makeMdContext(opts))
+      : render(block as never, opts);
   }
   return "";
 }

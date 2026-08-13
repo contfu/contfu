@@ -16,6 +16,7 @@ export * from "./objects";
 export * from "./query-types";
 export * from "./schemas";
 export * from "./time";
+export * from "./storage";
 export * from "./plain-dates";
 export * from "./wire";
 export * from "./url-policy";

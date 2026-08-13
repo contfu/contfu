@@ -311,7 +311,7 @@ function storeVariantRecords(fileId: string, results: VariantResult[]): void {
   }
 }
 
-export async function optimizeFile(
+async function optimizeFile(
   storeKey: string,
   input: Buffer,
   mediaType: string,
@@ -632,7 +632,7 @@ async function processOne(file: typeof fileTable.$inferSelect): Promise<void> {
   }
 }
 
-export async function writeProcessedOutputs(
+async function writeProcessedOutputs(
   id: string,
   processed: { data: Buffer; ext: string; variants: VariantResult[] },
 ): Promise<void> {

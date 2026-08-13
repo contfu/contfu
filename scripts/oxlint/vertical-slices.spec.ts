@@ -46,6 +46,12 @@ describe("vertical slice Oxlint rules", () => {
       'import { reserve } from "../../inventory/reserve";\nexport const createOrder = () => reserve();\n',
     );
     expect(nested.exitCode).toBe(1);
+
+    const reExport = lintFixture(
+      "packages/service/backend/src/features/orders/createOrder.ts",
+      'export { reserve } from "../inventory/reserve";\n',
+    );
+    expect(reExport.exitCode).toBe(1);
   });
 
   it("allows own-slice and architecture-layer imports", () => {

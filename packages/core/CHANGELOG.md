@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.4.1] - 2026-08-12
+
+### Added
+
+- Added revision-fenced KV obligations for tracking target delivery.
+
+### Changed
+
+- Removed dead code and reduced complexity in core dispatchers and optimizers.
+
 ## [0.4.0] - 2026-08-10
 
 ### Added

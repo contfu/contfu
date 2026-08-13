@@ -2,7 +2,7 @@ import { basicAuth, buildBasicAuthHeader } from "./basic-auth";
 
 const defaultServerUrl = "http://localhost:3001";
 
-export function resolveServerUrl(): string {
+function resolveServerUrl(): string {
   return (process.env.SERVER_URL ?? defaultServerUrl).replace(/\/$/, "");
 }
 
@@ -25,7 +25,7 @@ export function createServerRequestHeaders(
   return headers;
 }
 
-export function createServerRequestInit(
+function createServerRequestInit(
   init: RequestInit = {},
   opts: { stripIncomingAuthorization?: boolean } = {},
 ): RequestInit {

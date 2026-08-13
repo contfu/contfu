@@ -87,17 +87,24 @@ module.exports = {
     create(context) {
       const location = featureLocation(context.filename);
       if (!location || isSpecFile(location.normalized)) return {};
+      function reportCrossSliceImport(node, source) {
+        if (!source) return;
+        const importedSlice = importedFeatureSlice(location, source);
+        if (!importedSlice || importedSlice === location.slice) return;
+        context.report({
+          node,
+          messageId: "crossSlice",
+          data: { from: location.slice, to: importedSlice },
+        });
+      }
       return {
         ImportDeclaration(node) {
-          const source = importSource(node);
-          if (!source) return;
-          const importedSlice = importedFeatureSlice(location, source);
-          if (!importedSlice || importedSlice === location.slice) return;
-          context.report({
-            node,
-            messageId: "crossSlice",
-            data: { from: location.slice, to: importedSlice },
-          });
+          reportCrossSliceImport(node, importSource(node));
+        },
+        ExportNamedDeclaration(node) {
+          // Re-exports are dependencies too: allowing a feature to re-export a
+          // sibling would bypass the import boundary enforced above.
+          reportCrossSliceImport(node, importSource(node));
         },
       };
     },

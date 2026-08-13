@@ -85,30 +85,55 @@ function toRemoteImageOptions(
   return imageOpt;
 }
 
+/**
+ * Copy the option keys that are set, so an unset option never lands in the
+ * payload. `truthyKeys` drop empty strings and zeroes as "not configured";
+ * `nullableKeys` keep those values and only drop null/undefined.
+ */
+function copyDefinedOptions<S extends object, T extends object>(
+  source: S | undefined,
+  target: T,
+  truthyKeys: readonly (keyof S & keyof T)[],
+  nullableKeys: readonly (keyof S & keyof T)[],
+): T {
+  if (!source) return target;
+  for (const key of truthyKeys) {
+    if (source[key]) target[key] = source[key] as never;
+  }
+  for (const key of nullableKeys) {
+    if (source[key] != null) target[key] = source[key] as never;
+  }
+  return target;
+}
+
+/** Options copied when truthy; empty strings and zeroes mean "not configured". */
+const VIDEO_TRUTHY_KEYS = [
+  "format",
+  "ext",
+  "videoCodec",
+  "videoBitrate",
+  "videoFilters",
+  "size",
+  "fps",
+  "audioCodec",
+  "audioBitrate",
+  "audioFilters",
+  "inputFormat",
+  "pad",
+  "complexFilters",
+  "args",
+] as const;
+
+/** Options where 0 is meaningful, so only null/undefined are dropped. */
+const VIDEO_NULLABLE_KEYS = ["aspect", "frames", "duration", "seek"] as const;
+
 function toRemoteVideoOptions(
   video: OptimizeVideoOpts | Extract<MediaConvertOpts, { mediaType?: "video" }> | undefined,
 ): RemoteVideoOptions {
   const videoOpt: RemoteVideoOptions = {};
-  if (video?.format) videoOpt.format = video.format;
-  if (video?.ext) videoOpt.ext = video.ext;
-  if (video?.videoCodec) videoOpt.videoCodec = video.videoCodec;
-  if (video?.videoBitrate) videoOpt.videoBitrate = video.videoBitrate;
-  if (video?.videoFilters) videoOpt.videoFilters = video.videoFilters;
+  // `size` derived from width/height first, so an explicit `size` still wins.
   if (video?.width || video?.height) videoOpt.size = formatSize(video?.width, video?.height);
-  if (video?.size) videoOpt.size = video.size;
-  if (video?.fps) videoOpt.fps = video.fps;
-  if (video?.audioCodec) videoOpt.audioCodec = video.audioCodec;
-  if (video?.audioBitrate) videoOpt.audioBitrate = video.audioBitrate;
-  if (video?.audioFilters) videoOpt.audioFilters = video.audioFilters;
-  if (video?.aspect != null) videoOpt.aspect = video.aspect;
-  if (video?.frames != null) videoOpt.frames = video.frames;
-  if (video?.duration != null) videoOpt.duration = video.duration;
-  if (video?.seek != null) videoOpt.seek = video.seek;
-  if (video?.inputFormat) videoOpt.inputFormat = video.inputFormat;
-  if (video?.pad) videoOpt.pad = video.pad;
-  if (video?.complexFilters) videoOpt.complexFilters = video.complexFilters;
-  if (video?.args) videoOpt.args = video.args;
-  return videoOpt;
+  return copyDefinedOptions(video, videoOpt, VIDEO_TRUTHY_KEYS, VIDEO_NULLABLE_KEYS);
 }
 
 function toRemoteAudioOptions(

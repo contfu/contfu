@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.8] - 2026-08-12
+
+### Added
+
+- Enforced per-collection item quotas.
+
+### Fixed
+
+- Compared array-valued filter properties by sequence.
+
 ## [0.1.7] - 2026-08-10
 
 ### Changed

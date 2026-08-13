@@ -2,7 +2,7 @@ export function enumFallback(value: unknown): string {
   return `unknown(${String(value)})`;
 }
 
-export function enumKeyLabel(key: string): string {
+function enumKeyLabel(key: string): string {
   return key
     .replace(/([a-z])([A-Z])/g, "$1-$2")
     .replace(/_/g, "-")

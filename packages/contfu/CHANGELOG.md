@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.3.3] - 2026-08-12
+
+### Changed
+
+- Removed dead code and reduced complexity in the Contfu runtime.
+
 ## [0.3.2] - 2026-08-10
 
 ### Added

@@ -32,6 +32,8 @@ const NULL_CHECK_OPERATORS: readonly FilterOperator[] = [
   FilterOperator.IS_NULL,
   FilterOperator.IS_NOT_NULL,
 ];
+// For array-valued properties, equality compares an exact sequence: element
+// order and duplicates are significant. Scalar values use strict equality.
 const EQUALITY_OPERATORS: readonly FilterOperator[] = [FilterOperator.EQ, FilterOperator.NE];
 const COMPARISON_OPERATORS: readonly FilterOperator[] = [
   FilterOperator.LT,

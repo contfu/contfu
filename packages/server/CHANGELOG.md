@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.10] - 2026-08-12
+
+### Changed
+
+- Removed dead code and reduced complexity in server dispatchers.
+
 ## [0.1.9] - 2026-08-10
 
 ### Changed

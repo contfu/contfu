@@ -15,7 +15,9 @@ shape of its items.
 
 In practice you work with two roles: **source collections** (imported from a Service, see
 [Integrations](./integrations.md#discover-and-import-source-collections)) and **target
-collections** (the buckets your app reads). A [flow](./flows.md) connects the two.
+collections** (the buckets your app reads). These are directional roles, not mutually
+exclusive kinds: a connected collection may have either role or both when its integration
+supports both. A [flow](./flows.md) connects a source role to a target role.
 
 ## Items
 
