@@ -223,5 +223,11 @@ export async function readConfig(): Promise<Record<string, string>> {
 
 export async function writeConfig(config: Record<string, string>): Promise<void> {
   await fs.mkdir(configDir(), { recursive: true });
-  await fs.writeFile(configPath(), JSON.stringify(config, null, 2) + "\n", "utf-8");
+  await fs.writeFile(configPath(), JSON.stringify(config, null, 2) + "\n", {
+    encoding: "utf-8",
+    mode: 0o600,
+  });
+  if (process.platform !== "win32") {
+    await fs.chmod(configPath(), 0o600);
+  }
 }

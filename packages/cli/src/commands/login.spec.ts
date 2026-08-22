@@ -7,6 +7,7 @@ import { describe, test, expect, mock, beforeEach } from "bun:test";
 const mockReadFile = mock((_path: string, _enc: string) => Promise.resolve("{}"));
 const mockWriteFile = mock(() => Promise.resolve());
 const mockMkdir = mock(() => Promise.resolve());
+const mockChmod = mock(() => Promise.resolve());
 
 void mock.module("node:fs", () => ({
   ...require("node:fs"),
@@ -14,6 +15,7 @@ void mock.module("node:fs", () => ({
     readFile: mockReadFile,
     writeFile: mockWriteFile,
     mkdir: mockMkdir,
+    chmod: mockChmod,
   },
 }));
 
@@ -24,6 +26,7 @@ beforeEach(() => {
   mockReadFile.mockReset();
   mockWriteFile.mockReset();
   mockMkdir.mockReset();
+  mockChmod.mockReset();
 });
 
 describe("createPkce", () => {
@@ -63,6 +66,14 @@ describe("writeConfig", () => {
     await writeConfig({ apiKey: "my-key", baseUrl: "https://contfu.com" });
 
     expect(mockWriteFile).toHaveBeenCalledTimes(1);
+    expect((mockWriteFile.mock.calls[0] as unknown[])[2]).toEqual({
+      encoding: "utf-8",
+      mode: 0o600,
+    });
+    if (process.platform !== "win32") {
+      expect(mockChmod).toHaveBeenCalledTimes(1);
+      expect((mockChmod.mock.calls[0] as unknown[])[1]).toBe(0o600);
+    }
     const written = (mockWriteFile.mock.calls[0] as unknown[])[1] as string;
     const parsed = JSON.parse(written);
     expect(parsed.apiKey).toBe("my-key");
@@ -81,6 +92,10 @@ describe("logout", () => {
     await logout();
 
     expect(mockWriteFile).toHaveBeenCalledTimes(1);
+    if (process.platform !== "win32") {
+      expect(mockChmod).toHaveBeenCalledTimes(1);
+      expect((mockChmod.mock.calls[0] as unknown[])[1]).toBe(0o600);
+    }
     const written = (mockWriteFile.mock.calls[0] as unknown[])[1] as string;
     const parsed = JSON.parse(written);
     expect(parsed.apiKey).toBeUndefined();

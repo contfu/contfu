@@ -14,8 +14,8 @@ import type { CollectionSchema } from "./schemas";
  * - SNAPSHOT_START: [1]
  * - SNAPSHOT_END: [2]
  * - COLLECTION_SCHEMA: [10, collectionName, displayName, schema, i18n?, schemaHash?, index?] (EventType.COLLECTION_SCHEMA)
- * - COLLECTION_RENAMED: [11, oldName, newName, newDisplayName] (EventType.COLLECTION_RENAMED)
- * - COLLECTION_REMOVED: [12, collectionName] (EventType.COLLECTION_REMOVED)
+ * - COLLECTION_RENAMED: [11, oldName, newName, newDisplayName, index] (EventType.COLLECTION_RENAMED)
+ * - COLLECTION_REMOVED: [12, collectionName, index] (EventType.COLLECTION_REMOVED)
  * - ITEM_CHANGED: [30, wireItem, index] (EventType.ITEM_CHANGED)
  * - ITEM_DELETED: [31, itemId, index] (EventType.ITEM_DELETED)
  * - COMMAND_RESULT_REFRESH: [50, commandId, status, ignoredItemIds?] (CommandResult.REFRESH)
@@ -29,34 +29,41 @@ export type WireItemEvent =
 
 /** Schema event: sends collection schema to consumers. */
 export type WireSchemaEvent =
+  | [typeof EventType.COLLECTION_SCHEMA, string, string, CollectionSchema]
   | [
       typeof EventType.COLLECTION_SCHEMA,
-      string, // collectionName
-      string, // displayName
-      CollectionSchema, // schema
-      EffectiveCollectionI18nConfig?, // effective app i18n
-      number?, // sync sequence when sent in an ACK-gated batch
+      string,
+      string,
+      CollectionSchema,
+      EffectiveCollectionI18nConfig,
     ]
   | [
       typeof EventType.COLLECTION_SCHEMA,
-      string, // collectionName
-      string, // displayName
-      CollectionSchema, // schema
-      EffectiveCollectionI18nConfig | undefined, // effective app i18n
-      Buffer, // schema hash used for ACK state
-      number, // sync sequence when sent in an ACK-gated batch
+      string,
+      string,
+      CollectionSchema,
+      EffectiveCollectionI18nConfig | undefined,
+      number,
+    ]
+  | [
+      typeof EventType.COLLECTION_SCHEMA,
+      string,
+      string,
+      CollectionSchema,
+      EffectiveCollectionI18nConfig | undefined,
+      Buffer,
+      number,
     ];
 
 /** Collection renamed event: notifies consumers of a collection name change. */
-export type WireCollectionRenamedEvent = [
-  typeof EventType.COLLECTION_RENAMED,
-  string,
-  string,
-  string,
-];
+export type WireCollectionRenamedEvent =
+  | [typeof EventType.COLLECTION_RENAMED, string, string, string]
+  | [typeof EventType.COLLECTION_RENAMED, string, string, string, number];
 
 /** Collection removed event: notifies consumers that a collection was removed. */
-export type WireCollectionRemovedEvent = [typeof EventType.COLLECTION_REMOVED, string];
+export type WireCollectionRemovedEvent =
+  | [typeof EventType.COLLECTION_REMOVED, string]
+  | [typeof EventType.COLLECTION_REMOVED, string, number];
 
 /** Combined wire event type for client integrations. */
 export type WireCommandResult =

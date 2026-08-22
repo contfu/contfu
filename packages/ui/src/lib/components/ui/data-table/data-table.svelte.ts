@@ -1,79 +1,31 @@
+import { createTable } from "@tanstack/svelte-table";
 import {
+  createFilteredRowModel,
+  createPaginatedRowModel,
+  createSortedRowModel,
+  stockFeatures,
+  tableFeatures,
   type RowData,
   type TableOptions,
-  type TableOptionsResolved,
-  type TableState,
-  createTable,
 } from "@tanstack/table-core";
 
+const features = tableFeatures({
+  ...stockFeatures,
+  filteredRowModel: createFilteredRowModel(),
+  paginatedRowModel: createPaginatedRowModel(),
+  sortedRowModel: createSortedRowModel(),
+});
+
 /**
- * Creates a reactive TanStack table object for Svelte.
- * @param options Table options to create the table with.
- * @returns A reactive table object.
- * @example
- * ```svelte
- * <script>
- *   const table = createSvelteTable({ ... })
- * </script>
+ * Creates a reactive TanStack Table v9 instance with all built-in features.
  *
- * <table>
- *   <thead>
- *     {#each table.getHeaderGroups() as headerGroup}
- *       <tr>
- *         {#each headerGroup.headers as header}
- *           <th colspan={header.colSpan}>
- *         	   <FlexRender content={header.column.columnDef.header} context={header.getContext()} />
- *         	 </th>
- *         {/each}
- *       </tr>
- *     {/each}
- *   </thead>
- * 	 <!-- ... -->
- * </table>
- * ```
+ * The wrapper keeps the existing local API while centralising the v9 feature
+ * registration required by TanStack Table.
  */
-export function createSvelteTable<TData extends RowData>(options: TableOptions<TData>) {
-  const resolvedOptions: TableOptionsResolved<TData> = mergeObjects(
-    {
-      state: {},
-      onStateChange() {},
-      renderFallbackValue: null,
-      mergeOptions: (
-        defaultOptions: TableOptions<TData>,
-        options: Partial<TableOptions<TData>>,
-      ) => {
-        return mergeObjects(defaultOptions, options);
-      },
-    },
-    options,
-  );
-
-  const table = createTable(resolvedOptions);
-  let state = $state<Partial<TableState>>(table.initialState);
-
-  function updateOptions() {
-    table.setOptions((prev) => {
-      return mergeObjects(prev, options, {
-        state: mergeObjects(state, options.state || {}),
-
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        onStateChange: (updater: any) => {
-          if (updater instanceof Function) state = updater(state);
-          else state = mergeObjects(state, updater);
-
-          options.onStateChange?.(updater);
-        },
-      });
-    });
-  }
-
-  updateOptions();
-
-  $effect.pre(() => {
-    updateOptions();
-  });
-
-  return table;
+export function createSvelteTable<TData extends RowData>(
+  options: Omit<TableOptions<any, TData>, "features">,
+) {
+  return createTable(mergeObjects(options, { features }) as TableOptions<any, TData>);
 }
 
 type MaybeThunk<T extends object> = T | (() => T | null | undefined);
@@ -82,12 +34,9 @@ type Intersection<T extends readonly unknown[]> = (T extends [infer H, ...infer 
   : unknown) & {};
 
 /**
- * Lazily merges several objects (or thunks) while preserving
- * getter semantics from every source.
- *
- * Proxy-based to avoid known WebKit recursion issue.
+ * Lazily merges objects while preserving getter semantics for reactive table
+ * options such as `data`, `columns`, and `state`.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mergeObjects<Sources extends readonly MaybeThunk<any>[]>(
   ...sources: Sources
 ): Intersection<{ [K in keyof Sources]: Sources[K] }> {
@@ -105,37 +54,23 @@ function mergeObjects<Sources extends readonly MaybeThunk<any>[]>(
   return new Proxy(Object.create(null), {
     get(_, key) {
       const src = findSourceWithKey(key);
-
       return src?.[key as never];
     },
-
     has(_, key) {
       return !!findSourceWithKey(key);
     },
-
     ownKeys(): (string | symbol)[] {
-      // eslint-disable-next-line svelte/prefer-svelte-reactivity
       const all = new Set<string | symbol>();
-      for (const s of sources) {
-        const obj = resolve(s);
-        if (obj) {
-          for (const k of Reflect.ownKeys(obj)) {
-            all.add(k);
-          }
-        }
+      for (const source of sources) {
+        const obj = resolve(source);
+        if (obj) for (const key of Reflect.ownKeys(obj)) all.add(key);
       }
       return [...all];
     },
-
     getOwnPropertyDescriptor(_, key) {
       const src = findSourceWithKey(key);
       if (!src) return undefined;
-      return {
-        configurable: true,
-        enumerable: true,
-        value: src?.[key as never],
-        writable: true,
-      };
+      return { configurable: true, enumerable: true, value: src[key as never], writable: true };
     },
   }) as Intersection<{ [K in keyof Sources]: Sources[K] }>;
 }

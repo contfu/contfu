@@ -146,9 +146,7 @@ query:
 ```ts
 const posts = await query("blogPost", {
   contentAs: "markdown",
-  markdownOptions: {
-    /* … */
-  },
+  markdownOptions: {/* … */},
 });
 // posts[0].content is now a Markdown string
 ```

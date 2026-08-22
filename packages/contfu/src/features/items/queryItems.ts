@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, isNotNull, isNull, lte, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, isNotNull, isNull, lte, sql, type SQL } from "drizzle-orm";
 import { db } from "../../infra/db/db";
 import { propsWithLocale } from "../../infra/db/mappers";
 import { itemsTable } from "../../infra/db/schema";
@@ -73,53 +73,166 @@ function normalizeSortDirection(input: SortDirection | undefined): SortDirection
   return input;
 }
 
-function coerceFilterValue(value: unknown): string {
-  if (typeof value === "string") return value;
-  if (typeof value === "number") return String(value);
-  if (typeof value === "boolean") return value ? "true" : "false";
-  return "";
+/**
+ * Use a quoted JSON path segment so property names are treated as literal keys
+ * (rather than as paths), matching the direct `props[key]` lookup this API used
+ * before filters moved into SQLite.
+ */
+function jsonPropertyPath(key: string): string {
+  return `$."${key.replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`;
 }
 
-function matchesPropFilters(
-  props: Record<string, unknown>,
-  filters: ItemPropFilter[] | undefined,
-): boolean {
-  if (!filters || filters.length === 0) return true;
-
-  return filters.every((filter) => {
-    const propValue = props[filter.key];
-
-    if (filter.op === "eq") {
-      return JSON.stringify(propValue) === JSON.stringify(filter.value);
-    }
-
-    if (typeof propValue !== "string") {
-      return false;
-    }
-
-    return propValue.toLowerCase().includes(coerceFilterValue(filter.value).toLowerCase());
-  });
+function propertyExpression(key: string): SQL {
+  // $locale is a synthetic property supplied from the separate locale column.
+  if (key === "$locale") return sql`${itemsTable.locale}`;
+  return sql`json_extract(${itemsTable.props}, ${jsonPropertyPath(key)})`;
 }
 
-function compareItems(
-  a: ItemData,
-  b: ItemData,
-  sortField: ItemSortField,
-  sortDirection: SortDirection,
-): number {
-  let primary = 0;
+function escapedLikeValue(value: string): string {
+  return value.replaceAll("\\", "\\\\").replaceAll("%", "\\%").replaceAll("_", "\\_");
+}
 
-  if (sortField === "changedAt") {
-    primary = a.changedAt - b.changedAt;
-  } else {
-    primary = a.collection.localeCompare(b.collection);
+// SQLite's built-in lower() only folds ASCII. Keep this compatible with
+// JavaScript toLowerCase() behavior for non-ASCII Latin characters by
+// explicitly folding their uppercase forms.
+const LATIN_CASE_PAIRS: readonly [string, string][] = [
+  ["À", "à"],
+  ["Á", "á"],
+  ["Â", "â"],
+  ["Ã", "ã"],
+  ["Ä", "ä"],
+  ["Å", "å"],
+  ["Æ", "æ"],
+  ["Ç", "ç"],
+  ["È", "è"],
+  ["É", "é"],
+  ["Ê", "ê"],
+  ["Ë", "ë"],
+  ["Ì", "ì"],
+  ["Í", "í"],
+  ["Î", "î"],
+  ["Ï", "ï"],
+  ["Ð", "ð"],
+  ["Ñ", "ñ"],
+  ["Ò", "ò"],
+  ["Ó", "ó"],
+  ["Ô", "ô"],
+  ["Õ", "õ"],
+  ["Ö", "ö"],
+  ["Ø", "ø"],
+  ["Ù", "ù"],
+  ["Ú", "ú"],
+  ["Û", "û"],
+  ["Ü", "ü"],
+  ["Ý", "ý"],
+  ["Þ", "þ"],
+];
+const LATIN_ACCENT_PAIRS: readonly [string, string][] = [
+  ["à", "a"],
+  ["á", "a"],
+  ["â", "a"],
+  ["ã", "a"],
+  ["ä", "a"],
+  ["å", "a"],
+  ["æ", "ae"],
+  ["ç", "c"],
+  ["è", "e"],
+  ["é", "e"],
+  ["ê", "e"],
+  ["ë", "e"],
+  ["ì", "i"],
+  ["í", "i"],
+  ["î", "i"],
+  ["ï", "i"],
+  ["ð", "d"],
+  ["ñ", "n"],
+  ["ò", "o"],
+  ["ó", "o"],
+  ["ô", "o"],
+  ["õ", "o"],
+  ["ö", "o"],
+  ["ø", "o"],
+  ["ù", "u"],
+  ["ú", "u"],
+  ["û", "u"],
+  ["ü", "u"],
+  ["ý", "y"],
+  ["þ", "th"],
+];
+
+function foldedTextExpression(value: SQL): SQL {
+  let expression: SQL = sql`lower(${value})`;
+  for (const [upper, lower] of LATIN_CASE_PAIRS) {
+    expression = sql`replace(${expression}, ${upper}, ${lower})`;
+  }
+  return expression;
+}
+
+function collectionSortExpression(): SQL {
+  let expression: SQL = foldedTextExpression(sql`${itemsTable.collection}`);
+  // Strip accents for the primary comparison, matching the primary ordering
+  // used by String.localeCompare() rather than SQLite's binary collation.
+  for (const [accented, plain] of LATIN_ACCENT_PAIRS) {
+    expression = sql`replace(${expression}, ${accented}, ${plain})`;
+  }
+  return expression;
+}
+
+function collectionCaseExpression(): SQL {
+  // Intl/localeCompare places lowercase before uppercase when otherwise equal.
+  return sql`CASE WHEN ${itemsTable.collection} GLOB '*[A-Z]*' THEN 1 ELSE 0 END`;
+}
+
+function collectionRawExpression(): SQL {
+  return foldedTextExpression(sql`${itemsTable.collection}`);
+}
+
+function propertyTypeExpression(key: string): SQL {
+  return key === "$locale"
+    ? sql`typeof(${itemsTable.locale})`
+    : sql`json_type(${itemsTable.props}, ${jsonPropertyPath(key)})`;
+}
+
+function isValidPropFilter(value: unknown): value is ItemPropFilter {
+  if (value === null || typeof value !== "object") return false;
+  const filter = value as Partial<ItemPropFilter>;
+  return (
+    typeof filter.key === "string" &&
+    (filter.op === "eq" || filter.op === "contains") &&
+    (typeof filter.value === "string" ||
+      typeof filter.value === "boolean" ||
+      (typeof filter.value === "number" && Number.isFinite(filter.value)))
+  );
+}
+
+function buildPropFilter(filter: ItemPropFilter): SQL {
+  const expression = propertyExpression(filter.key);
+  const type = propertyTypeExpression(filter.key);
+
+  if (filter.op === "eq") {
+    // SQLite compares JSON booleans as 0/1, so retain the source JSON type to
+    // avoid making true equal to 1 (the old JSON.stringify contract did not).
+    const value = typeof filter.value === "boolean" ? (filter.value ? 1 : 0) : filter.value;
+    const expectedType =
+      typeof filter.value === "boolean"
+        ? filter.value
+          ? "true"
+          : "false"
+        : typeof filter.value === "number"
+          ? "number"
+          : "text";
+    const typeMatches =
+      expectedType === "number"
+        ? sql`${type} IN ('integer', 'real')`
+        : sql`${type} = ${expectedType}`;
+    return and(typeMatches, eq(expression, sql`${value}`))!;
   }
 
-  if (primary === 0) {
-    return a.id - b.id;
-  }
-
-  return sortDirection === "asc" ? primary : -primary;
+  // LIKE is escaped because contains() treats wildcard characters literally.
+  // Check the source JSON type rather than json_type(expression): the latter
+  // attempts to parse an extracted string as JSON and rejects plain text.
+  const pattern = `%${escapedLikeValue(String(filter.value).toLowerCase())}%`;
+  return sql`${type} = 'text' AND ${foldedTextExpression(expression)} LIKE ${pattern} ESCAPE '\\'`;
 }
 
 export function queryItems(input: QueryItemsInput = {}, ctx = db): QueryItemsResult {
@@ -149,18 +262,42 @@ export function queryItems(input: QueryItemsInput = {}, ctx = db): QueryItemsRes
     whereConditions.push(lte(itemsTable.changedAt, input.changedAtTo));
   }
 
+  if (input.propFilters) {
+    if (!Array.isArray(input.propFilters)) {
+      whereConditions.push(sql`0`);
+    } else {
+      for (const filter of input.propFilters) {
+        // Query inputs can originate at the HTTP boundary despite the static
+        // type. Invalid filters must not reach string/path operations.
+        whereConditions.push(isValidPropFilter(filter) ? buildPropFilter(filter) : sql`0`);
+      }
+    }
+  }
+
+  const where = whereConditions.length > 0 ? and(...whereConditions) : undefined;
   const orderBy = [
     sortField === "changedAt"
       ? sortDirection === "asc"
         ? asc(itemsTable.changedAt)
         : desc(itemsTable.changedAt)
       : sortDirection === "asc"
-        ? asc(itemsTable.collection)
-        : desc(itemsTable.collection),
+        ? sql`${collectionSortExpression()} ASC, ${collectionCaseExpression()} ASC, ${collectionRawExpression()} ASC`
+        : sql`${collectionSortExpression()} DESC, ${collectionCaseExpression()} DESC, ${collectionRawExpression()} DESC`,
     asc(itemsTable.id),
   ];
 
-  const baseQuery = ctx
+  // Keep the count and page queries on the exact same predicate. The count
+  // query only reads the aggregate, while the page query applies the bounds
+  // before any rows are decoded into ItemData.
+  const totalRow = ctx
+    .select({ total: count(itemsTable.id) })
+    .from(itemsTable)
+    .where(where)
+    .get();
+  const total = totalRow?.total ?? 0;
+  const start = (page - 1) * pageSize;
+
+  const pageQuery = ctx
     .select({
       id: itemsTable.id,
       collectionName: itemsTable.collection,
@@ -170,38 +307,28 @@ export function queryItems(input: QueryItemsInput = {}, ctx = db): QueryItemsRes
       changedAt: itemsTable.changedAt,
       deletedAt: itemsTable.deletedAt,
     })
-    .from(itemsTable);
+    .from(itemsTable)
+    .where(where)
+    .orderBy(...orderBy)
+    .limit(pageSize)
+    .offset(start);
 
-  const rawRows =
-    whereConditions.length > 0
-      ? baseQuery
-          .where(and(...whereConditions))
-          .orderBy(...orderBy)
-          .all()
-      : baseQuery.orderBy(...orderBy).all();
+  const items = pageQuery.all().map((row): ItemData => {
+    const props = row.props;
+    const content = row.content;
 
-  const filtered = rawRows
-    .map((row): ItemData => {
-      const props = row.props;
-      const content = row.content;
+    return {
+      id: row.id,
+      collection: row.collectionName,
+      props: propsWithLocale(props && typeof props === "object" ? props : {}, row.locale),
+      content: Array.isArray(content) ? content : undefined,
+      changedAt: row.changedAt,
+      deletedAt: row.deletedAt ?? undefined,
+      links: [],
+    };
+  });
 
-      return {
-        id: row.id,
-        collection: row.collectionName,
-        props: propsWithLocale(props && typeof props === "object" ? props : {}, row.locale),
-        content: Array.isArray(content) ? content : undefined,
-        changedAt: row.changedAt,
-        deletedAt: row.deletedAt ?? undefined,
-        links: [],
-      };
-    })
-    .filter((item) => matchesPropFilters(item.props, input.propFilters))
-    .sort((a, b) => compareItems(a, b, sortField, sortDirection));
-
-  const total = filtered.length;
   const totalPages = total === 0 ? 0 : Math.ceil(total / pageSize);
-  const start = (page - 1) * pageSize;
-  const items = filtered.slice(start, start + pageSize);
 
   return {
     items,

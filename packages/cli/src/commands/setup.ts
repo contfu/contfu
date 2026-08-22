@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { execSync } from "node:child_process";
 import { getApiKey } from "../http";
-import { getAppKey, writeEnvKey, ensureGitignore } from "../env";
+import { getAppKey, writeEnvKey, ensureGitignore, getRepositoryRelativeEnvPath } from "../env";
 import { prompt, select, type SelectOption } from "./select";
 import { printDryRun } from "./dry-run";
 
@@ -132,7 +132,14 @@ async function setupAppIntegration(opts: SetupOptions): Promise<void> {
     const appName = opts.appName ?? "<prompted app name>";
     printDryRun("create or regenerate app integration key", { appName });
     printDryRun("write CONTFU_KEY to env file", { envFile: opts.envFile ?? ".env" });
-    printDryRun("ensure .gitignore contains .env");
+    const envPath = opts.envFile ?? ".env";
+    const repositoryPath = getRepositoryRelativeEnvPath(envPath);
+    printDryRun(
+      repositoryPath
+        ? "ensure .gitignore contains selected env file"
+        : "skip .gitignore update for env file outside repository",
+      { envFile: envPath },
+    );
     console.log("\n✓ Dry run complete. No changes were made.");
     return;
   }
@@ -226,10 +233,10 @@ async function setupAppIntegration(opts: SetupOptions): Promise<void> {
     contfuKey = await createNewApp(client, opts);
   }
 
-  // Always write key to .env file
+  // Always write key to the selected env file
   const envPath = opts.envFile ?? ".env";
   writeEnvKey(envPath, contfuKey);
-  ensureGitignore();
+  ensureGitignore(envPath);
 
   console.log("\n✓ Setup complete. Run `contfu status` to verify your configuration.");
 }

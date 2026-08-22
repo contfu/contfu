@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.1.9] - 2026-08-22
+
+### Added
+
+- Applied mapping defaults to null values.
+
+### Changed
+
+- Updated compatible dependencies and remediated security vulnerabilities.
+
+### Fixed
+
+- Made delivery incidents actionable.
+- Consolidated delivery incidents.
+- Aligned mapping schemas with primitive casts.
+- Rejected non-finite number mapping results.
+- Validated multi-value enum mappings element by element.
+
 ## [0.1.8] - 2026-08-12
 
 ### Added

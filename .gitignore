@@ -184,6 +184,7 @@ build/
 !.claude/skills/build/
 !.claude/skills/build
 playwright-report
+webview-test-results/
 .pglite-e2e
 .svelte-kit
 test-results/

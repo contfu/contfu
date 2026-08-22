@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { parseCliArgs, resolveOutputFormat } from "./cli-args";
+import { CliParseError, parseCliArgs, resolveOutputFormat } from "./cli-args";
 import { bool, fail, str, type CommandContext } from "./command-context";
 import { countItems, queryItems } from "./commands/items";
 import { login, logout } from "./commands/login";
@@ -17,8 +17,9 @@ import { printUsage } from "./usage";
  * the item commands accept flags that the top-level parser does not declare.
  */
 async function runItemsCommand(ctx: CommandContext): Promise<void> {
-  const action = ctx.positionals[1];
-  const rest = process.argv.slice(process.argv.indexOf("items") + 2);
+  const itemArgs = ctx.itemsArgs ?? [];
+  const action = itemArgs[0] && !itemArgs[0].startsWith("-") ? itemArgs[0] : undefined;
+  const rest = action ? itemArgs.slice(1) : itemArgs;
   if (action === "query" || action === undefined) return queryItems(rest);
   if (action === "count") return countItems(rest);
   fail(`Unknown items action: ${action}. Use query or count`);
@@ -44,7 +45,7 @@ const commands: Record<string, (ctx: CommandContext) => Promise<void> | void> = 
 };
 
 async function main() {
-  const { values, positionals } = parseCliArgs(process.argv.slice(2));
+  const { values, positionals, itemsArgs } = parseCliArgs(process.argv.slice(2));
   const cmd = positionals[0];
 
   const workspace = str(values, "workspace");
@@ -63,6 +64,7 @@ async function main() {
   const ctx: CommandContext = {
     values,
     positionals,
+    itemsArgs,
     outputFormat: resolveOutputFormat(values),
     full: bool(values, "full"),
     dryRun: bool(values, "dry-run") ?? false,
@@ -78,4 +80,11 @@ async function main() {
   process.exit(1);
 }
 
-void main();
+void main().catch((error: unknown) => {
+  if (error instanceof CliParseError) {
+    console.error(`${error.message}. Run \`contfu --help\` for usage.`);
+    process.exitCode = 1;
+    return;
+  }
+  throw error;
+});

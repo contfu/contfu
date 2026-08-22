@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.1.10] - 2026-08-22
+
+### Changed
+
+- Updated compatible dependencies and remediated security vulnerabilities.
+
+### Fixed
+
+- Rejected unknown CLI options with concise errors.
+- Safely ignored the selected environment file.
+- Protected CLI credentials with owner-only permissions.
+- Replaced regenerated environment keys atomically.
+
 ## [0.1.9] - 2026-08-12
 
 ### Added

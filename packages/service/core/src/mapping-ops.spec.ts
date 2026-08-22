@@ -161,6 +161,44 @@ describe("applyMappings", () => {
     expect(applyMappings(props, mappings)).toEqual({ filled: "fallback" });
   });
 
+  test("uses the default for null source values, including selected array nulls", () => {
+    const mappings: MappingRule[] = [
+      { source: "title", target: "title", default: "fallback" },
+      { source: "values", target: "value", arrayIndex: 0, default: "fallback" },
+    ];
+    expect(applyMappings({ title: null, values: [null] }, mappings)).toEqual({
+      title: "fallback",
+      value: "fallback",
+    });
+  });
+
+  test("preserves null when no default is configured, rather than casting it", () => {
+    expect(
+      applyMappings({ text: null, count: null, flag: null }, [
+        { source: "text", cast: "string" },
+        { source: "count", cast: "number" },
+        { source: "flag", cast: "boolean" },
+      ]),
+    ).toEqual({ text: null, count: null, flag: null });
+  });
+
+  test("casts resolved null defaults only when they are non-null", () => {
+    expect(
+      applyMappings({ title: null, count: null, flag: null }, [
+        { source: "title", cast: "string", default: "fallback" },
+        { source: "count", cast: "number", default: "7" },
+        { source: "flag", cast: "boolean", default: false },
+      ]),
+    ).toEqual({ title: "fallback", count: 7, flag: false });
+  });
+
+  test("preserves an explicitly configured null default", () => {
+    expect(applyMappings({ title: "present" }, [{ source: "title", default: null }])).toEqual({
+      title: "present",
+    });
+    expect(applyMappings({}, [{ source: "title", default: null }])).toEqual({ title: null });
+  });
+
   test("applies string cast", () => {
     const props = { views: 42 };
     const mappings: MappingRule[] = [{ source: "views", target: "score", cast: "string" }];
@@ -196,6 +234,118 @@ describe("applyMappings", () => {
     const props = { flag: 1 };
     const mappings: MappingRule[] = [{ source: "flag", target: "flag", cast: "boolean" }];
     expect(applyMappings(props, mappings)).toEqual({ flag: true });
+  });
+
+  test("date casts preserve source nullability in derived schemas", () => {
+    const schema = { due: T.NUMBER | T.NULL, dueAt: T.DATE | T.NULL };
+
+    expect(
+      applyMappingsToSchema(schema, [{ source: "due", target: "dueAt", cast: "plainDateToDate" }]),
+    ).toEqual({ dueAt: T.DATE | T.NULL });
+    expect(
+      applyMappingsToSchema(schema, [{ source: "dueAt", target: "due", cast: "dateToPlainDate" }]),
+    ).toEqual({ due: T.PLAINDATE | T.NULL });
+    expect(
+      applyMappingsToSchema(schema, [
+        { source: "due", target: "dueText", cast: "plainDateToString" },
+      ]),
+    ).toEqual({ dueText: T.STRING | T.NULL });
+  });
+
+  test("primitive casts emit the target primitive for source-backed values", () => {
+    const cases: Array<{
+      cast: "string" | "number" | "boolean";
+      sourceValue: unknown;
+      sourceSchema: number;
+      output: unknown;
+      targetType: number;
+    }> = [
+      {
+        cast: "string",
+        sourceValue: 42,
+        sourceSchema: T.NUMBER,
+        output: "42",
+        targetType: T.STRING,
+      },
+      {
+        cast: "number",
+        sourceValue: "42",
+        sourceSchema: T.STRING,
+        output: 42,
+        targetType: T.NUMBER,
+      },
+      {
+        cast: "boolean",
+        sourceValue: 1,
+        sourceSchema: T.NUMBER,
+        output: true,
+        targetType: T.BOOLEAN,
+      },
+    ];
+
+    for (const testCase of cases) {
+      const rule: MappingRule[] = [{ source: "source", target: "target", cast: testCase.cast }];
+      expect(applyMappings({ source: testCase.sourceValue }, rule)).toEqual({
+        target: testCase.output,
+      });
+      expect(applyMappingsToSchema({ source: testCase.sourceSchema }, rule)).toEqual({
+        target: testCase.targetType,
+      });
+    }
+  });
+
+  test("primitive casts emit the target primitive for default-backed values", () => {
+    const cases: Array<{
+      cast: "string" | "number" | "boolean";
+      defaultValue: unknown;
+      output: unknown;
+      targetType: number;
+    }> = [
+      { cast: "string", defaultValue: 42, output: "42", targetType: T.STRING },
+      { cast: "number", defaultValue: "42", output: 42, targetType: T.NUMBER },
+      { cast: "boolean", defaultValue: 1, output: true, targetType: T.BOOLEAN },
+    ];
+
+    for (const testCase of cases) {
+      const rule: MappingRule[] = [
+        {
+          source: "missing",
+          target: "target",
+          cast: testCase.cast,
+          default: testCase.defaultValue,
+        },
+      ];
+      expect(applyMappings({}, rule)).toEqual({ target: testCase.output });
+      expect(applyMappingsToSchema({}, rule)).toEqual({ target: testCase.targetType });
+    }
+  });
+
+  test("primitive casts preserve source nullability because runtime preserves null", () => {
+    const cases: Array<{
+      cast: "string" | "number" | "boolean";
+      output: unknown;
+      targetType: number;
+    }> = [
+      { cast: "string", output: null, targetType: T.STRING | T.NULL },
+      { cast: "number", output: null, targetType: T.NUMBER | T.NULL },
+      { cast: "boolean", output: null, targetType: T.BOOLEAN | T.NULL },
+    ];
+
+    for (const testCase of cases) {
+      const sourceRule: MappingRule[] = [
+        { source: "source", target: "target", cast: testCase.cast },
+      ];
+      expect(applyMappings({ source: null }, sourceRule)).toEqual({ target: testCase.output });
+      expect(applyMappingsToSchema({ source: T.STRING | T.NULL }, sourceRule)).toEqual({
+        target: testCase.targetType,
+      });
+
+      const defaultRule: MappingRule[] = [
+        { source: "missing", target: "target", cast: testCase.cast, default: null },
+      ];
+      expect(applyMappings({}, defaultRule)).toEqual({ target: testCase.output });
+      expect(applyMappingsToSchema({}, defaultRule)).toEqual({ target: T.NULL });
+    }
   });
 
   test("ignores unknown cast", () => {
@@ -337,6 +487,25 @@ describe("validateSourceItem", () => {
     expect(errors).toEqual([]);
   });
 
+  test("rejects non-finite number cast results", () => {
+    const invalidValues = [Infinity, -Infinity, NaN, "Infinity", "-Infinity", "NaN", "1e309"];
+    for (const value of invalidValues) {
+      expect(
+        validateSourceItem({ views: value }, [
+          { source: "views", target: "score", cast: "number" },
+        ]),
+      ).toEqual([{ property: "score", sourceProperty: "views", cast: "number" }]);
+    }
+  });
+
+  test("maps a finite boundary number and preserves it through JSON serialization", () => {
+    const mapped = applyMappings({ views: "1.7976931348623157e308" }, [
+      { source: "views", target: "score", cast: "number" },
+    ]);
+    expect(mapped).toEqual({ score: Number.MAX_VALUE });
+    expect(JSON.parse(JSON.stringify(mapped))).toEqual({ score: Number.MAX_VALUE });
+  });
+
   test("multiple failing properties return multiple errors", () => {
     const errors = validateSourceItem({ a: "bad", b: "worse" }, [
       { source: "a", target: "x", cast: "number" },
@@ -373,6 +542,18 @@ describe("validateSourceItem", () => {
       { source: "missing", target: "score", cast: "number", default: "not-a-number" },
     ]);
     expect(errors).toEqual([{ property: "score", sourceProperty: "missing", cast: "number" }]);
+  });
+
+  test("validates the fallback selected for a null source", () => {
+    const errors = validateSourceItem({ score: null }, [
+      { source: "score", target: "score", cast: "number", default: "not-a-number" },
+    ]);
+    expect(errors).toEqual([{ property: "score", sourceProperty: "score", cast: "number" }]);
+    expect(
+      validateSourceItem({ score: null }, [
+        { source: "score", target: "score", cast: "number", default: "7" },
+      ]),
+    ).toEqual([]);
   });
 
   test("validates the selected array item before casting", () => {
@@ -428,6 +609,37 @@ describe("validateSourceItem with enum cast", () => {
       { source: "status", cast: "enum", enumValues: ["active", "inactive"] },
     ]);
     expect(errors).toEqual([{ property: "status", sourceProperty: "status", cast: "enum" }]);
+  });
+
+  test("passes when every value in a multi-value enum is allowed", () => {
+    const errors = validateSourceItem({ status: ["active", "inactive"] }, [
+      { source: "status", cast: "enum", enumValues: ["active", "inactive"] },
+    ]);
+    expect(errors).toEqual([]);
+  });
+
+  test("fails when one value in a multi-value enum is not allowed", () => {
+    const errors = validateSourceItem({ status: ["active", "unknown"] }, [
+      { source: "status", cast: "enum", enumValues: ["active", "inactive"] },
+    ]);
+    expect(errors).toEqual([{ property: "status", sourceProperty: "status", cast: "enum" }]);
+  });
+
+  test("accepts empty arrays for enum casts", () => {
+    const errors = validateSourceItem({ status: [] }, [
+      { source: "status", cast: "enum", enumValues: ["active", "inactive"] },
+    ]);
+    expect(errors).toEqual([]);
+  });
+
+  test("validates the selected scalar for first and last array indexes", () => {
+    const rule = { source: "status", cast: "enum" as const, enumValues: ["active", "inactive"] };
+    expect(
+      validateSourceItem({ status: ["active", "unknown"] }, [{ ...rule, arrayIndex: 0 }]),
+    ).toEqual([]);
+    expect(
+      validateSourceItem({ status: ["active", "unknown"] }, [{ ...rule, arrayIndex: -1 }]),
+    ).toEqual([{ property: "status", sourceProperty: "status", cast: "enum" }]);
   });
 
   test("skips null values for enum cast", () => {
@@ -549,6 +761,55 @@ describe("applyMappingsToSchema", () => {
     expect(result).toEqual({
       articleStatus: [T.ENUM | T.NULL, ["draft", "published"]],
     });
+  });
+
+  test("removes source nullability for non-null defaults but preserves explicit null defaults", () => {
+    const schema = { title: T.STRING | T.NULL, count: T.NUMBER | T.NULL };
+    expect(
+      applyMappingsToSchema(schema, [
+        { source: "title", target: "title", default: "fallback" },
+        { source: "count", target: "count", cast: "number", default: 0 },
+      ]),
+    ).toEqual({ title: T.STRING, count: T.NUMBER });
+    expect(
+      applyMappingsToSchema(schema, [
+        { source: "title", target: "title", default: null },
+        { source: "count", target: "count", default: null },
+      ]),
+    ).toEqual({ title: T.STRING | T.NULL, count: T.NUMBER | T.NULL });
+  });
+
+  test("infers cast-compatible schema for a default on an absent source", () => {
+    expect(
+      applyMappingsToSchema({}, [
+        { source: "missing", target: "due", cast: "plainDateToDate", default: 20_635 },
+      ]),
+    ).toEqual({ due: T.DATE });
+  });
+
+  test("merges mixed fallback types for nullable sources without a normalizing cast", () => {
+    expect(
+      applyMappingsToSchema({ value: T.NUMBER | T.NULL }, [
+        { source: "value", target: "value", default: "fallback" },
+      ]),
+    ).toEqual({ value: [T.NUMBER | T.ENUM, ["fallback"]] });
+  });
+
+  test("includes a fallback literal in nullable enum inference", () => {
+    expect(
+      applyMappingsToSchema(
+        { status: [T.ENUM | T.NULL, ["draft", "published"]] as [number, string[]] },
+        [{ source: "status", target: "status", default: "archived" }],
+      ),
+    ).toEqual({ status: [T.ENUM, ["draft", "published", "archived"]] });
+  });
+
+  test("retains a single output type when a cast normalizes a mixed fallback", () => {
+    expect(
+      applyMappingsToSchema({ value: T.NUMBER | T.NULL }, [
+        { source: "value", target: "value", cast: "string", default: false },
+      ]),
+    ).toEqual({ value: T.STRING });
   });
 
   test("converts STRING to ENUM schema value when cast is 'enum'", () => {

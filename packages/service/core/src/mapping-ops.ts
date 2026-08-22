@@ -77,11 +77,14 @@ function selectArrayValue(value: unknown, arrayIndex: number | undefined): Mappi
 }
 
 function mappingValue(props: Record<string, unknown>, rule: MappingRule): MappingValue {
-  if (rule.source in props) {
-    const selected = selectArrayValue(props[rule.source], rule.arrayIndex);
-    if (selected.found) return selected;
-  }
+  const selected =
+    rule.source in props ? selectArrayValue(props[rule.source], rule.arrayIndex) : null;
+  // A selected null is equivalent to a missing value for default resolution.
+  if (selected?.found && selected.value !== null) return selected;
   if ("default" in rule) return { found: true, value: rule.default };
+  // Preserve a selected null when there is no default; it is still a present
+  // value and should be emitted (and remain nullable after casting).
+  if (selected?.found) return selected;
   return { found: false };
 }
 
@@ -89,7 +92,8 @@ function mappingValue(props: Record<string, unknown>, rule: MappingRule): Mappin
  * Apply mapping rules to an item's properties.
  * - If mappings is null/empty → pass through unchanged.
  * - Unmapped source props are dropped.
- * - If a source key is missing, `rule.default` is used (if set), else the key is skipped.
+ * - If a source key is null or missing, `rule.default` is used when the property
+ *   is present on the rule, else the key is skipped.
  */
 export function applyMappings(
   props: Record<string, unknown>,
@@ -106,7 +110,9 @@ export function applyMappings(
     if (!sourceValue.found) continue;
 
     const cast = rule.cast ? CAST_FNS[rule.cast] : undefined;
-    const value = cast ? cast(sourceValue.value) : sourceValue.value;
+    // Null remains null (including with primitive casts). A configured non-null
+    // default is selected by mappingValue before this point.
+    const value = cast && sourceValue.value != null ? cast(sourceValue.value) : sourceValue.value;
 
     result[target] = value;
   }
@@ -158,21 +164,63 @@ function selectArraySchemaValue(sourceValue: SchemaValue, rule: MappingRule): Sc
 
 function castSchemaValue(sourceValue: SchemaValue, rule: MappingRule): SchemaValue {
   const selectedValue = selectArraySchemaValue(sourceValue, rule);
-  const srcType = schemaType(selectedValue);
-  const nullable = srcType & PropertyType.NULL;
+  const selectedType = schemaType(selectedValue);
+  const hasDefault = "default" in rule;
+  const defaultIsNull = hasDefault && rule.default === null;
+  // A non-null default replaces a nullable source value at runtime. An
+  // explicit null default does the opposite and makes null an output even
+  // when the source schema was non-null.
+  const nullable =
+    defaultIsNull || (!hasDefault && !!(selectedType & PropertyType.NULL)) ? PropertyType.NULL : 0;
+
+  // These casts normalize both the source and the fallback to one output
+  // type, so the fallback's original type must not widen the result.
+  if (rule.cast === "string") return PropertyType.STRING | nullable;
+  if (rule.cast === "number") return PropertyType.NUMBER | nullable;
+  if (rule.cast === "boolean") return PropertyType.BOOLEAN | nullable;
   if (rule.cast === "plainDateToDate") return PropertyType.DATE | nullable;
   if (rule.cast === "dateToPlainDate") return PropertyType.PLAINDATE | nullable;
   if (rule.cast === "plainDateToString") return PropertyType.STRING | nullable;
-  if (rule.cast !== "enum") return selectedValue;
+  if (rule.cast === "enum") {
+    const isMulti =
+      !!(selectedType & PropertyType.STRINGS) || !!(selectedType & PropertyType.ENUMS);
+    const baseType = isMulti ? PropertyType.ENUMS : PropertyType.ENUM;
+    const enumVals = [...(rule.enumValues ?? schemaEnumValues(selectedValue) ?? [])];
+    if (hasDefault && !defaultIsNull) {
+      const fallback = String(rule.default);
+      if (!enumVals.includes(fallback)) enumVals.push(fallback);
+    }
+    return [baseType | nullable, enumVals];
+  }
 
-  const isNullable = !!nullable;
-  const isMulti = !!(srcType & PropertyType.STRINGS) || !!(srcType & PropertyType.ENUMS);
-  const baseType = isMulti ? PropertyType.ENUMS : PropertyType.ENUM;
-  const enumType = isNullable ? baseType | PropertyType.NULL : baseType;
+  if (!hasDefault) return selectedValue;
+  // Without a normalizing cast, runtime output can be either the source value
+  // or the resolved default. Keep both in the inferred schema (including a
+  // fallback literal for enum defaults), while removing source NULL when a
+  // non-null default handles it.
+  const sourceWithoutNull =
+    hasDefault && !defaultIsNull
+      ? Array.isArray(selectedValue)
+        ? ([selectedType & ~PropertyType.NULL, selectedValue[1]] as [number, string[]])
+        : selectedType & ~PropertyType.NULL
+      : selectedValue;
+  const fallback = defaultSchemaValue(rule);
+  if (fallback === undefined) return sourceWithoutNull;
 
-  // Prefer explicit rule.enumValues, then values already in the source tuple
-  const enumVals = rule.enumValues ?? schemaEnumValues(selectedValue) ?? [];
-  return [enumType, enumVals];
+  const sourceType = schemaType(sourceWithoutNull);
+  const fallbackType = schemaType(fallback);
+  // A literal string is represented as ENUM for precise constant injection,
+  // but it is already covered by a STRING source. Likewise, primitive
+  // defaults already covered by the corresponding source bit need no union.
+  const fallbackCoveredBySource =
+    ((fallbackType & ~sourceType) === 0 &&
+      (!(fallbackType & PropertyType.ENUM) || !(sourceType & PropertyType.ENUM))) ||
+    (!!(fallbackType & PropertyType.ENUM) &&
+      !!(sourceType & PropertyType.STRING) &&
+      !(sourceType & PropertyType.ENUM));
+  return fallbackCoveredBySource
+    ? sourceWithoutNull
+    : mergeSchemaValues(sourceWithoutNull, fallback);
 }
 
 /**
@@ -186,9 +234,19 @@ function castSchemaValue(sourceValue: SchemaValue, rule: MappingRule): SchemaVal
  * constant values for the same property.
  */
 function defaultSchemaValue(rule: MappingRule): SchemaValue | undefined {
-  if (!("default" in rule) || rule.default == null) return undefined;
-  if (rule.cast === "number" || typeof rule.default === "number") return PropertyType.NUMBER;
-  if (rule.cast === "boolean" || typeof rule.default === "boolean") return PropertyType.BOOLEAN;
+  if (!("default" in rule)) return undefined;
+  // Mapping application intentionally preserves null values, including null
+  // defaults, rather than passing them through a primitive cast.
+  if (rule.default === null) return PropertyType.NULL;
+  // Primitive casts normalize the runtime fallback to their target type.
+  if (rule.cast === "string") return PropertyType.STRING;
+  if (rule.cast === "number") return PropertyType.NUMBER;
+  if (rule.cast === "boolean") return PropertyType.BOOLEAN;
+  if (rule.cast === "plainDateToDate") return PropertyType.DATE;
+  if (rule.cast === "dateToPlainDate") return PropertyType.PLAINDATE;
+  if (rule.cast === "plainDateToString") return PropertyType.STRING;
+  if (typeof rule.default === "number") return PropertyType.NUMBER;
+  if (typeof rule.default === "boolean") return PropertyType.BOOLEAN;
   // String/enum defaults: represent as a single-value enum literal for precise typing
   return [PropertyType.ENUM, [String(rule.default)]];
 }
@@ -263,7 +321,7 @@ export function validateSourceItem(
 
     if (rule.cast === "number") {
       const n = Number(sourceValue.value);
-      if (Number.isNaN(n)) {
+      if (!Number.isFinite(n)) {
         errors.push({
           property: rule.target ?? rule.source,
           sourceProperty: rule.source,
@@ -288,7 +346,8 @@ export function validateSourceItem(
       const targetKey = rule.target ?? rule.source;
       const enumValues =
         rule.enumValues ?? (targetSchema ? schemaEnumValues(targetSchema[targetKey]) : undefined);
-      if (enumValues && !enumValues.includes(String(sourceValue.value))) {
+      const values = Array.isArray(sourceValue.value) ? sourceValue.value : [sourceValue.value];
+      if (enumValues && !values.every((value) => enumValues.includes(String(value)))) {
         errors.push({
           property: targetKey,
           sourceProperty: rule.source,

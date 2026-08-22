@@ -50,16 +50,19 @@ export type SchemaEvent = {
   displayName: string;
   schema: CollectionSchema;
   i18n?: EffectiveCollectionI18nConfig;
+  index: number;
 };
 export type CollectionRenamedEvent = {
   type: typeof EventType.COLLECTION_RENAMED;
   oldName: string;
   newName: string;
   newDisplayName: string;
+  index: number;
 };
 export type CollectionRemovedEvent = {
   type: typeof EventType.COLLECTION_REMOVED;
   collection: string;
+  index: number;
 };
 export type RefreshCommandResultEvent = {
   type: typeof CommandResult.REFRESH;
@@ -269,8 +272,13 @@ export function connectToStream(
         handle,
       ]);
     } catch (error) {
-      pendingLeases.delete(requestId);
-      throw error;
+      const pending = pendingLeases.get(requestId);
+      if (pending) {
+        pendingLeases.delete(requestId);
+        if (pending.timer !== undefined) clearTimeout(pending.timer);
+        pending.reject(error as Error);
+      }
+      return result;
     }
     return result;
   };
@@ -376,7 +384,7 @@ async function* streamEvents(
               const pending = state.pendingLeases.get(requestId);
               if (pending) {
                 state.pendingLeases.delete(requestId);
-                if (pending.timer) clearTimeout(pending.timer);
+                if (pending.timer !== undefined) clearTimeout(pending.timer);
                 pending.resolve(
                   status === FileLeaseResultStatus.REDIRECT && leaseUrl && expiresAt
                     ? { url: leaseUrl, expiresAt }
@@ -501,7 +509,7 @@ function rejectPendingLeases(
 ): void {
   const error = new Error(`File lease request failed: ${reason}`);
   for (const { reject, timer } of pendingLeases.values()) {
-    if (timer) clearTimeout(timer);
+    if (timer !== undefined) clearTimeout(timer);
     reject(error);
   }
   pendingLeases.clear();
@@ -599,6 +607,7 @@ async function openHttpConnection(syncEndpoint: string, key: Buffer): Promise<Tr
       const response = await fetch(commandEndpoint, {
         method: "POST",
         headers: {
+          Origin: new URL(commandEndpoint).origin,
           "Content-Type": "application/octet-stream",
           Accept: "application/octet-stream",
         },
@@ -665,21 +674,21 @@ async function openWebSocketConnection(
         return Promise.resolve();
       }
       const message: ClientWireEvent = [ClientEventType.ACK];
-      socket.send(pack(message));
+      socket.send(new Uint8Array(pack(message)));
       return Promise.resolve();
     },
     sendCommand(command) {
       if (socket.readyState !== WebSocket.OPEN) {
         return Promise.resolve();
       }
-      socket.send(pack(command));
+      socket.send(new Uint8Array(pack(command)));
       return Promise.resolve();
     },
     requestFileLease(request) {
       if (socket.readyState !== WebSocket.OPEN) {
         return Promise.reject(new Error("WebSocket is not connected"));
       }
-      socket.send(pack(request));
+      socket.send(new Uint8Array(pack(request)));
       return Promise.resolve();
     },
     close(reason: string) {
@@ -708,7 +717,10 @@ function buildCommandUrl(syncEndpoint: string, key: Buffer): string {
 
 async function sendAck(url: string): Promise<void> {
   try {
-    await fetch(url, { method: "POST" });
+    await fetch(url, {
+      method: "POST",
+      headers: { Origin: new URL(url).origin },
+    });
   } catch {
     // ignore ack transport failures; stream reconnection handles hard failures
   }
@@ -814,32 +826,31 @@ function fromWireEvent(
     }
 
     case EventType.COLLECTION_SCHEMA: {
-      const [, collection, displayName, schema, i18n] = wireEvent;
-      return {
-        type: EventType.COLLECTION_SCHEMA,
-        collection: collection,
-        displayName: displayName,
-        schema: schema,
-        i18n: i18n,
-      };
+      const [, collection, displayName, schema, i18n, maybeHashOrIndex, maybeIndex] = wireEvent;
+      const index = typeof maybeHashOrIndex === "number" ? maybeHashOrIndex : maybeIndex;
+      if (typeof index !== "number") {
+        console.warn("Ignoring COLLECTION_SCHEMA event without sync index");
+        return null;
+      }
+      return { type: EventType.COLLECTION_SCHEMA, collection, displayName, schema, i18n, index };
     }
 
     case EventType.COLLECTION_RENAMED: {
-      const [, oldName, newName, newDisplayName] = wireEvent;
-      return {
-        type: EventType.COLLECTION_RENAMED,
-        oldName: oldName,
-        newName: newName,
-        newDisplayName: newDisplayName,
-      };
+      const [, oldName, newName, newDisplayName, index] = wireEvent;
+      if (typeof index !== "number") {
+        console.warn("Ignoring COLLECTION_RENAMED event without sync index");
+        return null;
+      }
+      return { type: EventType.COLLECTION_RENAMED, oldName, newName, newDisplayName, index };
     }
 
     case EventType.COLLECTION_REMOVED: {
-      const [, collection] = wireEvent;
-      return {
-        type: EventType.COLLECTION_REMOVED,
-        collection: collection,
-      };
+      const [, collection, index] = wireEvent;
+      if (typeof index !== "number") {
+        console.warn("Ignoring COLLECTION_REMOVED event without sync index");
+        return null;
+      }
+      return { type: EventType.COLLECTION_REMOVED, collection, index };
     }
 
     case EventType.PING:

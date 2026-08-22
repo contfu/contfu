@@ -878,8 +878,9 @@ export async function create(
         }
         const result = await client.createAppIntegration(name);
         printJson(result);
-        writeEnvKey(envFile ?? ".env", result.apiKey);
-        ensureGitignore();
+        const selectedEnvFile = envFile ?? ".env";
+        writeEnvKey(selectedEnvFile, result.apiKey);
+        ensureGitignore(selectedEnvFile);
         return;
       }
       const body = jsonData
@@ -1038,8 +1039,9 @@ export async function regenerateAppKey(id: string, envFile?: string, options: Dr
       return;
     }
     const result = await client.regenerateAppKey(resolvedId);
-    writeEnvKey(envFile ?? ".env", result.apiKey);
-    ensureGitignore();
+    const selectedEnvFile = envFile ?? ".env";
+    writeEnvKey(selectedEnvFile, result.apiKey);
+    ensureGitignore(selectedEnvFile);
   } catch (err) {
     handleCliError(err);
   }

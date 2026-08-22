@@ -1,6 +1,6 @@
 import type { OutputFormat } from "./output";
 
-/** Raw `parseArgs` values. `strict: false` means every value is loosely typed. */
+/** Raw `parseArgs` values. */
 export type ParsedValues = Record<string, string | boolean | undefined>;
 
 /**
@@ -10,6 +10,8 @@ export type ParsedValues = Record<string, string | boolean | undefined>;
 export interface CommandContext {
   values: ParsedValues;
   positionals: string[];
+  /** Arguments after the `items` command, parsed by its dedicated surface. */
+  itemsArgs?: string[];
   outputFormat: OutputFormat;
   full: boolean | undefined;
   dryRun: boolean;

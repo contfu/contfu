@@ -375,6 +375,49 @@ describe("stream-client", () => {
       ]);
     });
 
+    test("clears the file lease timeout when sending fails", async () => {
+      const sockets: MockWebSocket[] = [];
+      const sendError = new Error("send failed");
+      globalThis.WebSocket = createMockWebSocketClass(
+        sockets,
+        sendError,
+      ) as unknown as typeof WebSocket;
+      const originalSetTimeout = globalThis.setTimeout;
+      const originalClearTimeout = globalThis.clearTimeout;
+      const createdTimers: Timer[] = [];
+      const clearedTimers: Timer[] = [];
+      globalThis.setTimeout = ((
+        handler: (...args: unknown[]) => void,
+        timeout?: number,
+        ...args: unknown[]
+      ) => {
+        const timer = originalSetTimeout(handler, timeout, ...args);
+        createdTimers.push(timer);
+        return timer;
+      }) as typeof setTimeout;
+      globalThis.clearTimeout = ((timer: Timer | number | undefined) => {
+        if (timer !== undefined) clearedTimers.push(timer as Timer);
+        return originalClearTimeout(timer);
+      }) as typeof clearTimeout;
+
+      const client = connectToStream({ key: testKey, reconnect: false });
+      const next = client.next();
+      try {
+        await waitFor(() => sockets.length === 1 && sockets[0].ready());
+        await expect(client.resolveFileLease!(1, "source", 1, "handle")).rejects.toBe(sendError);
+        expect(createdTimers).toHaveLength(1);
+        expect(clearedTimers).toEqual([createdTimers[0]]);
+      } finally {
+        try {
+          await client.return(undefined);
+          await next;
+        } finally {
+          globalThis.setTimeout = originalSetTimeout;
+          globalThis.clearTimeout = originalClearTimeout;
+        }
+      }
+    });
+
     test("rejects a pending refresh when the WebSocket disconnects", async () => {
       const sockets: MockWebSocket[] = [];
       globalThis.WebSocket = createMockWebSocketClass(sockets) as unknown as typeof WebSocket;
@@ -909,7 +952,7 @@ function createFailingWebSocketClass() {
   };
 }
 
-function createMockWebSocketClass(sockets: MockWebSocket[]) {
+function createMockWebSocketClass(sockets: MockWebSocket[], sendError?: Error) {
   return class {
     static readonly CONNECTING = 0;
     static readonly OPEN = 1;
@@ -943,6 +986,7 @@ function createMockWebSocketClass(sockets: MockWebSocket[]) {
     }
 
     send(data: string | ArrayBufferLike | Blob | ArrayBufferView) {
+      if (sendError) throw sendError;
       if (typeof data === "string" || data instanceof Blob) return;
       const bytes = ArrayBuffer.isView(data)
         ? new Uint8Array(data.buffer, data.byteOffset, data.byteLength)

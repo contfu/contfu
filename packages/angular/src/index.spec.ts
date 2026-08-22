@@ -1,6 +1,7 @@
+await import("@angular/compiler");
 import { describe, expect, test } from "bun:test";
 import type { Block as BlockType, Heading1Block, ImageBlock, ParagraphBlock } from "@contfu/core";
-import { Block, BlockComponent, Blocks, BlocksComponent } from "./index";
+const { Block, BlockComponent, Blocks, BlocksComponent } = await import("./index");
 
 describe("@contfu/angular exports", () => {
   test("provides Block/Blocks aliases for docs parity", () => {

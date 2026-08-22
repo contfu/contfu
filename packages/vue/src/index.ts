@@ -9,6 +9,7 @@ import {
 } from "vue";
 import {
   buildFileUrl,
+  isSafeRichContentUrl,
   isP,
   isH1,
   isH2,
@@ -52,7 +53,10 @@ export const FILE_URL_INJECTION_KEY: InjectionKey<FileUrlOptions> = Symbol("@con
 
 function renderInlineNode(inline: Inline): VNode | string {
   if (isString(inline)) return inline;
-  if (isAnchor(inline)) return h("a", { href: inline[2] }, inline[1]);
+  if (isAnchor(inline)) {
+    const [, text, href] = inline;
+    return isSafeRichContentUrl(href) ? h("a", { href }, text) : text;
+  }
   if (isMonospace(inline)) return h("code", inline[1]);
   if (isBold(inline)) return h("strong", inline[1]);
   if (isItalic(inline)) return h("em", inline[1]);

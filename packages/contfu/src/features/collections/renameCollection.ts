@@ -8,14 +8,14 @@ export function renameCollection(
   newDisplayName: string,
   ctx = db,
 ): void {
-  ctx.transaction((tx) => {
-    tx.update(collectionsTable)
-      .set({ name: newName, displayName: newDisplayName })
-      .where(eq(collectionsTable.name, oldName))
-      .run();
-    tx.update(itemsTable)
-      .set({ collection: newName })
-      .where(eq(itemsTable.collection, oldName))
-      .run();
-  });
+  ctx
+    .update(collectionsTable)
+    .set({ name: newName, displayName: newDisplayName })
+    .where(eq(collectionsTable.name, oldName))
+    .run();
+  ctx
+    .update(itemsTable)
+    .set({ collection: newName })
+    .where(eq(itemsTable.collection, oldName))
+    .run();
 }

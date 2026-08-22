@@ -1,6 +1,7 @@
 <script lang="ts">
   import {
     isAnchor,
+    isSafeRichContentUrl,
     isMonospace,
     isBold,
     isItalic,
@@ -14,7 +15,11 @@
 {#if isString(inline)}
   {inline}
 {:else if isAnchor(inline)}
-  <a href={inline[2]}>{inline[1]}</a>
+  {#if isSafeRichContentUrl(inline[2])}
+    <a href={inline[2]}>{inline[1]}</a>
+  {:else}
+    {inline[1]}
+  {/if}
 {:else if isMonospace(inline)}
   <code>{inline[1]}</code>
 {:else if isBold(inline)}

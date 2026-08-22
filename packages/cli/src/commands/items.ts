@@ -1,4 +1,5 @@
 import { parseArgs } from "node:util";
+import { CliParseError } from "../cli-args";
 
 async function serverFetch(serverUrl: string, path: string): Promise<Response> {
   const url = `${serverUrl}${path}`;
@@ -22,24 +23,29 @@ function buildQueryString(params: Record<string, string | undefined>): string {
 }
 
 export async function queryItems(args: string[]) {
-  const { values } = parseArgs({
-    args,
-    options: {
-      "client-url": { type: "string", short: "u" },
-      collection: { type: "string" },
-      filter: { type: "string" },
-      search: { type: "string" },
-      sort: { type: "string" },
-      limit: { type: "string", default: "20" },
-      offset: { type: "string", default: "0" },
-      include: { type: "string" },
-      fields: { type: "string" },
-      locale: { type: "string" },
-      fallback: { type: "string" },
-      flat: { type: "boolean", default: false },
-    },
-    allowPositionals: true,
-  });
+  let values;
+  try {
+    ({ values } = parseArgs({
+      args,
+      options: {
+        "client-url": { type: "string", short: "u" },
+        collection: { type: "string" },
+        filter: { type: "string" },
+        search: { type: "string" },
+        sort: { type: "string" },
+        limit: { type: "string", default: "20" },
+        offset: { type: "string", default: "0" },
+        include: { type: "string" },
+        fields: { type: "string" },
+        locale: { type: "string" },
+        fallback: { type: "string" },
+        flat: { type: "boolean", default: false },
+      },
+      allowPositionals: true,
+    }));
+  } catch {
+    throw new CliParseError();
+  }
 
   const serverUrl = values["client-url"] ?? process.env.CONTFU_SERVER_URL;
   if (!serverUrl) {
@@ -68,18 +74,23 @@ export async function queryItems(args: string[]) {
 }
 
 export async function countItems(args: string[]) {
-  const { values } = parseArgs({
-    args,
-    options: {
-      "client-url": { type: "string", short: "u" },
-      collection: { type: "string" },
-      filter: { type: "string" },
-      search: { type: "string" },
-      locale: { type: "string" },
-      fallback: { type: "string" },
-    },
-    allowPositionals: true,
-  });
+  let values;
+  try {
+    ({ values } = parseArgs({
+      args,
+      options: {
+        "client-url": { type: "string", short: "u" },
+        collection: { type: "string" },
+        filter: { type: "string" },
+        search: { type: "string" },
+        locale: { type: "string" },
+        fallback: { type: "string" },
+      },
+      allowPositionals: true,
+    }));
+  } catch {
+    throw new CliParseError();
+  }
 
   const serverUrl = values["client-url"] ?? process.env.CONTFU_SERVER_URL;
   if (!serverUrl) {

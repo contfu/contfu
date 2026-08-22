@@ -12,7 +12,7 @@
   import { buildItemQuerySearchParams } from "$lib/query/item-query";
   import {
     createColumnHelper,
-    getCoreRowModel,
+    type ColumnDef,
     type Row,
   } from "@tanstack/table-core";
   import type {
@@ -96,8 +96,8 @@
     return "";
   }
 
-  const columnHelper = createColumnHelper<ItemData>();
-  const columns = [
+  const columnHelper = createColumnHelper<any, ItemData>();
+  const columns: ColumnDef<any, ItemData, any>[] = [
     columnHelper.display({
       id: "icon",
       header: "",
@@ -124,31 +124,30 @@
       return result.items;
     },
     columns,
-    getCoreRowModel: getCoreRowModel(),
   });
 </script>
 
-{#snippet iconCell({ row }: { row: Row<ItemData> })}
+{#snippet iconCell({ row }: { row: Row<any, ItemData> })}
   {@const url = getIconUrl(row.original)}
   {#if url}
     <img src={url} alt="" class="h-8 w-8 rounded object-cover" loading="lazy" />
   {/if}
 {/snippet}
 
-{#snippet idCell({ row }: { row: Row<ItemData> })}
+{#snippet idCell({ row }: { row: Row<any, ItemData> })}
   <Button class="h-auto p-0 font-mono text-xs" variant="link" href={`/items/${row.original.id}`}>
     {row.original.id}
   </Button>
 {/snippet}
 
-{#snippet titleCell({ row }: { row: Row<ItemData> })}
+{#snippet titleCell({ row }: { row: Row<any, ItemData> })}
   {@const title = getTitle(row.original)}
   {#if title}
     <span class="text-sm">{title}</span>
   {/if}
 {/snippet}
 
-{#snippet changedAtCell({ row }: { row: Row<ItemData> })}
+{#snippet changedAtCell({ row }: { row: Row<any, ItemData> })}
   <time datetime={new Date(row.original.changedAt).toISOString()}>
     {new Date(row.original.changedAt).toLocaleString()}
   </time>

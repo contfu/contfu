@@ -66,6 +66,11 @@ async function request<T>(
   const headers: Record<string, string> = {
     Authorization: `Bearer ${apiKey}`,
   };
+  try {
+    headers.Origin = new URL(baseUrl).origin;
+  } catch {
+    // Relative base URLs are valid for browser-relative fetchers but have no origin header.
+  }
   if (body !== undefined) {
     headers["Content-Type"] = "application/json";
   }
