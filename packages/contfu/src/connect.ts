@@ -15,8 +15,7 @@ import { setSyncIndex } from "./features/sync/setSyncIndex";
 import { configureMediaQueue } from "./features/files/mediaQueue";
 import { reconcileConfiguredMediaMasters } from "./features/files/reconcileConfiguredMediaMasters";
 import { resumeMediaQueue } from "./features/files/resumeMediaQueue";
-import { processFiles } from "./features/files/processFiles";
-import { processPropertyFiles } from "./features/files/processPropertyFiles";
+import { processFilesSync, processPropertyFilesSync } from "./shared/files/processFiles";
 import { deleteFilesByItem } from "./features/files/deleteFilesByItem";
 import { pruneItemFiles } from "./features/files/pruneItemFiles";
 import { setCollection } from "./features/collections/setCollection";
@@ -139,7 +138,7 @@ export async function* connect<CMap = unknown>(opts?: {
         yield event;
         continue;
       }
-      await persistSyncEvent(
+      persistSyncEvent(
         event,
         resolvedFileStore,
         mediaOptimizer,
@@ -170,7 +169,7 @@ export async function* connect<CMap = unknown>(opts?: {
       yield event;
       continue;
     }
-    await persistSyncEvent(
+    persistSyncEvent(
       event,
       resolvedFileStore,
       mediaOptimizer,
@@ -207,155 +206,110 @@ function resolvePregenerate<CMap>(
   return resolved.length > 0 ? resolved : undefined;
 }
 
-function insertLinkRecord(record: LinkRecord): number {
+function insertLinkRecord(record: LinkRecord, ctx = db): number {
   if (record.kind === "internal") {
-    return db
+    return ctx
       .insert(internalLinkTable)
       .values({ prop: record.prop, from: record.from, to: record.to })
       .returning({ id: internalLinkTable.id })
       .get().id;
   }
 
-  const next = db
+  const next = ctx
     .select({ id: sql<number>`coalesce(min(${externalLinkTable.id}), 0) - 1` })
     .from(externalLinkTable)
     .get()!.id;
-  return db
+  return ctx
     .insert(externalLinkTable)
     .values({ id: next, from: record.from, url: record.url })
     .returning({ id: externalLinkTable.id })
     .get().id;
 }
 
-async function persistSyncEvent<CMap>(
+function persistSyncEvent<CMap>(
   event: ItemEvent,
   fileStore?: FileStore,
   mediaOptimizer?: MediaOptimizer,
   transformMedia?: TransformMediaRule<CMap>[],
   mediaVariants?: MediaVariants<CMap>,
   localFiles = true,
-): Promise<void> {
-  if (event.type === EventType.COLLECTION_SCHEMA) {
-    setCollection(event.collection, event.displayName, event.schema, event.i18n);
-    return;
-  }
-
-  if (event.type === EventType.COLLECTION_RENAMED) {
-    renameCollection(event.oldName, event.newName, event.newDisplayName);
-    return;
-  }
-
-  if (event.type === EventType.COLLECTION_REMOVED) {
-    removeCollectionByName(event.collection);
-    return;
-  }
-
-  if (event.type === EventType.ITEM_CHANGED) {
-    const itemId = event.item.id;
-    let content = event.item.content;
-    let props = event.item.props;
-    const collection = event.item.collection;
-    const pregenerate = resolvePregenerate(collection, mediaVariants);
-
-    const schema = getCollectionSchemaByName(collection);
-    if (!schema) {
-      throw new Error(`Received ITEM_CHANGED for unknown collection "${collection}" before schema`);
-    }
-
-    // Delete existing outgoing links (will be re-created from current data)
-    deleteOutgoingItemLinks(itemId);
-
-    // Extract links from props (REF/REFS) and content (anchors)
-    const extracted = extractLinks(event.item.id, props, content, schema);
-
-    // Create/update item before inserting links (link rows reference items.id)
-    createOrUpdateItem({
-      id: itemId,
-      collection,
-      changedAt: event.item.changedAt,
-      props,
-      content,
-    });
-
-    // Insert link records and get auto-increment IDs
-    let linkIds: number[] = [];
-    if (extracted.records.length > 0) {
-      linkIds = extracted.records.map(insertLinkRecord);
-    }
-
-    // Replace placeholder indices with actual link IDs
-    const resolved = replacePlaceholders(extracted.props, extracted.content, schema, linkIds);
-    props = resolved.props;
-    content = resolved.content ?? undefined;
-
-    // Update item with resolved props/content (link IDs substituted in)
-    if (extracted.records.length > 0) {
-      createOrUpdateItem({
-        id: itemId,
-        collection,
-        changedAt: event.item.changedAt,
-        props,
-        content,
-      });
-    }
-
-    if (fileStore && localFiles) {
-      let needsUpdate = false;
-      // Every file the item still references; anything else linked to it is stale.
-      const linked = new Set<string>();
-
-      if (content && content.length > 0) {
-        content = await processFiles({
-          itemId,
-          content,
-          fileStore,
-          mediaOptimizer,
-          transformMedia,
-          collection,
-          pregenerate,
-          linked,
-        });
-        needsUpdate = true;
+): void {
+  let resumeQueue = false;
+  db.transaction((tx) => {
+    if (event.type === EventType.COLLECTION_SCHEMA) {
+      setCollection(event.collection, event.displayName, event.schema, event.i18n, tx);
+    } else if (event.type === EventType.COLLECTION_RENAMED) {
+      renameCollection(event.oldName, event.newName, event.newDisplayName, tx);
+    } else if (event.type === EventType.COLLECTION_REMOVED) {
+      removeCollectionByName(event.collection, tx);
+    } else if (event.type === EventType.ITEM_CHANGED) {
+      const itemId = event.item.id;
+      let content = event.item.content;
+      let props = event.item.props;
+      const collection = event.item.collection;
+      const pregenerate = resolvePregenerate(collection, mediaVariants);
+      const schema = getCollectionSchemaByName(collection, tx);
+      if (!schema)
+        throw new Error(
+          `Received ITEM_CHANGED for unknown collection "${collection}" before schema`,
+        );
+      deleteOutgoingItemLinks(itemId, tx);
+      const extracted = extractLinks(event.item.id, props, content, schema);
+      createOrUpdateItem(
+        { id: itemId, collection, changedAt: event.item.changedAt, props, content },
+        tx,
+      );
+      const linkIds = extracted.records.map((record) => insertLinkRecord(record, tx));
+      const resolved = replacePlaceholders(extracted.props, extracted.content, schema, linkIds);
+      props = resolved.props;
+      content = resolved.content ?? undefined;
+      if (extracted.records.length > 0) {
+        createOrUpdateItem(
+          { id: itemId, collection, changedAt: event.item.changedAt, props, content },
+          tx,
+        );
       }
-
-      // Process property files (cover, icon, files, etc.)
-      if (schema && props) {
-        props = await processPropertyFiles({
-          itemId,
-          props,
-          schema,
-          fileStore,
-          mediaOptimizer,
-          transformMedia,
-          collection,
-          pregenerate,
-          linked,
-        });
-        needsUpdate = true;
+      if (fileStore && localFiles) {
+        const linked = new Set<string>();
+        if (content && content.length > 0) {
+          content = processFilesSync({
+            itemId,
+            content,
+            fileStore,
+            mediaOptimizer,
+            transformMedia,
+            collection,
+            pregenerate,
+            linked,
+            ctx: tx,
+          });
+        }
+        if (props) {
+          props = processPropertyFilesSync({
+            itemId,
+            props,
+            schema,
+            fileStore,
+            mediaOptimizer,
+            transformMedia,
+            collection,
+            pregenerate,
+            linked,
+            ctx: tx,
+          });
+        }
+        pruneItemFiles(itemId, linked, tx);
+        createOrUpdateItem(
+          { id: itemId, collection, changedAt: event.item.changedAt, props, content },
+          tx,
+        );
+        resumeQueue = true;
       }
-
-      // The event carries the item's full current state, so files that disappeared
-      // upstream (a replaced image, for instance) have to lose their link here.
-      pruneItemFiles(itemId, linked);
-
-      if (needsUpdate) {
-        createOrUpdateItem({
-          id: itemId,
-          collection,
-          changedAt: event.item.changedAt,
-          props,
-          content,
-        });
-        resumeMediaQueue();
-      }
+    } else if (event.type === EventType.ITEM_DELETED) {
+      if (fileStore && localFiles) deleteFilesByItem(event.item, tx);
+      deleteItem(event.item, tx);
     }
-  } else if (event.type === EventType.ITEM_DELETED) {
-    const itemId = event.item;
-    if (fileStore && localFiles) {
-      deleteFilesByItem(itemId);
-    }
-    deleteItem(itemId);
-  }
-
-  setSyncIndex(event.index);
+    setSyncIndex(event.index, tx);
+  });
+  if (resumeQueue) resumeMediaQueue();
 }

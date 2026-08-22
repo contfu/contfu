@@ -162,9 +162,7 @@ If you generate a type map via `contfu<CMap>()`, Contfu will enforce collection 
 
 ```ts
 import type { CMap } from "./generated/contfu-types";
-const app = contfu<CMap>({
-  /* … */
-});
+const app = contfu<CMap>({/* … */});
 ```
 
 ## Recipes

@@ -27,6 +27,27 @@ describe("Block (React)", () => {
     expect(render(<Block block={p} />)).toBe("<p>hello</p>");
   });
 
+  test("applies the core rich-content URL policy to anchors", () => {
+    const rejected = ["javascript:alert", "JaVaScRiPt:alert", "gopher://example.com"];
+    for (const href of rejected) {
+      expect(render(<Block block={["p", [["a", "link", href]]] as ParagraphBlock} />)).toBe(
+        "<p>link</p>",
+      );
+    }
+
+    for (const href of [
+      "https://example.com/docs",
+      "http://example.com",
+      "/docs",
+      "mailto:user@example.com",
+      "tel:+15551212",
+    ]) {
+      expect(render(<Block block={["p", [["a", "link", href]]] as ParagraphBlock} />)).toBe(
+        `<p><a href="${href}">link</a></p>`,
+      );
+    }
+  });
+
   test("h1", () => {
     const h: Heading1Block = ["1", ["Title"]];
     expect(render(<Block block={h} />)).toBe("<h1>Title</h1>");

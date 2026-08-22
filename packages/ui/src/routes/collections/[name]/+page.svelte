@@ -11,7 +11,7 @@
   import * as Card from "$lib/components/ui/card";
   import { onMount } from "svelte";
 
-  const query = $derived(parseItemQueryFromUrl(page.url, { lockedCollection: page.params.name }));
+  const query = $derived(parseItemQueryFromUrl(new URL(page.url.href), { lockedCollection: page.params.name }));
   const [collections, detail] = $derived(
     await Promise.all([
       getCollectionsQuery(),

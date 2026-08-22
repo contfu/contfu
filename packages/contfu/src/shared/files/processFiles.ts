@@ -11,7 +11,7 @@ import { eq } from "drizzle-orm";
 import { FileStatus } from "../../domain/file-status";
 import { getFile } from "../../features/files/getFile";
 import { linkFileToItem } from "../../features/files/linkFileToItem";
-import { db } from "../../infra/db/db";
+import { db, type DbCtx } from "../../infra/db/db";
 import { decodeId } from "../../infra/ids";
 import { fileTable } from "../../infra/db/schema";
 import type { MediaConvertOpts, MediaOptimizer, TransformMediaRule } from "../../domain/media";
@@ -84,20 +84,22 @@ function createPendingFile(
   _pregenerate?: MediaConvertOpts[],
   _collection?: string,
   lease?: { url: string; expiresAt: number },
+  ctx = db,
 ): { id: string; ext: string } {
   const fileId = idFromUrl(originalUrl);
   const ext = extFromUrl(originalUrl) ?? "bin";
 
-  const existing = getFile(fileId, db, { includeData: true });
+  const existing = getFile(fileId, ctx, { includeData: true });
   if (existing) {
     if (existing.status === "failed") {
-      const existingRow = db
+      const existingRow = ctx
         .select({ meta: fileTable.meta })
         .from(fileTable)
         .where(eq(fileTable.id, decodeId(fileId)))
         .get()!;
       const { error: _error, attempts: _attempts, ...meta } = existingRow.meta;
-      db.update(fileTable)
+      ctx
+        .update(fileTable)
         .set({
           status: FileStatus.Pending,
           data: Buffer.from(originalUrl, "utf8"),
@@ -107,23 +109,25 @@ function createPendingFile(
         .run();
     }
     if (lease) {
-      const existingMeta = db
+      const existingMeta = ctx
         .select({ meta: fileTable.meta })
         .from(fileTable)
         .where(eq(fileTable.id, decodeId(fileId)))
         .get()?.meta;
-      db.update(fileTable)
+      ctx
+        .update(fileTable)
         .set({
           meta: { ...existingMeta, leaseUrl: lease.url, leaseExpiresAt: lease.expiresAt },
         })
         .where(eq(fileTable.id, decodeId(fileId)))
         .run();
     }
-    linkFileToItem(itemId, existing.id);
+    linkFileToItem(itemId, existing.id, ctx);
     return { id: fileId, ext: existing.ext };
   }
 
-  db.insert(fileTable)
+  ctx
+    .insert(fileTable)
     .values({
       id: decodeId(fileId),
       status: FileStatus.Pending,
@@ -143,7 +147,7 @@ function createPendingFile(
     .onConflictDoNothing()
     .run();
 
-  linkFileToItem(itemId, fileId);
+  linkFileToItem(itemId, fileId, ctx);
   return { id: fileId, ext };
 }
 
@@ -152,7 +156,7 @@ function createPendingFile(
  * download/processing work.
  * Returns the content array with ImageBlock URLs replaced by file ids.
  */
-export async function processFiles(opts: {
+export function processFilesSync(opts: {
   itemId: number;
   content: Block[];
   fileStore: FileStore;
@@ -162,7 +166,8 @@ export async function processFiles(opts: {
   pregenerate?: MediaConvertOpts[];
   /** Collects every file id the item references, so callers can prune the rest. */
   linked?: Set<string>;
-}): Promise<Block[]> {
+  ctx?: DbCtx;
+}): Block[] {
   const {
     itemId,
     content,
@@ -172,14 +177,14 @@ export async function processFiles(opts: {
     collection,
     pregenerate,
     linked,
+    ctx = db,
   } = opts;
 
   const imageBlocks = content.filter(isImg);
   if (imageBlocks.length === 0) return content;
 
-  // Dedup by file id, then download in parallel
-  const seen = new Map<string, Promise<{ id: string; ext: string }>>();
-  const blockPromises: Promise<void>[] = [];
+  // Database preparation is synchronous so it can run inside an event transaction.
+  const seen = new Map<string, { id: string; ext: string }>();
 
   for (const block of imageBlocks) {
     const link = fileLinkParts(block[1]);
@@ -197,31 +202,25 @@ export async function processFiles(opts: {
     if (!seen.has(fileId)) {
       seen.set(
         fileId,
-        Promise.resolve(
-          createPendingFile(
-            itemId,
-            originalUrl,
-            fileStore,
-            mediaOptimizer,
-            transformMedia,
-            pregenerate,
-            collection,
-            link.leaseUrl && link.expiresAt
-              ? { url: link.leaseUrl, expiresAt: link.expiresAt }
-              : undefined,
-          ),
+        createPendingFile(
+          itemId,
+          originalUrl,
+          fileStore,
+          mediaOptimizer,
+          transformMedia,
+          pregenerate,
+          collection,
+          link.leaseUrl && link.expiresAt
+            ? { url: link.leaseUrl, expiresAt: link.expiresAt }
+            : undefined,
+          ctx,
         ),
       );
     }
 
-    blockPromises.push(
-      seen.get(fileId)!.then(({ id, ext }) => {
-        block[1] = `${id}.${ext}`;
-      }),
-    );
+    const resolved = seen.get(fileId)!;
+    block[1] = `${resolved.id}.${resolved.ext}`;
   }
-
-  await Promise.all(blockPromises);
 
   return content;
 }
@@ -231,7 +230,7 @@ export async function processFiles(opts: {
  * Creates pending file rows and replaces URLs with file ids.
  * Returns a shallow clone of props with processed values.
  */
-export async function processPropertyFiles(opts: {
+export function processPropertyFilesSync(opts: {
   itemId: number;
   props: Record<string, unknown>;
   schema: CollectionSchema;
@@ -242,7 +241,8 @@ export async function processPropertyFiles(opts: {
   pregenerate?: MediaConvertOpts[];
   /** Collects every file id the item references, so callers can prune the rest. */
   linked?: Set<string>;
-}): Promise<Record<string, unknown>> {
+  ctx?: DbCtx;
+}): Record<string, unknown> {
   const {
     itemId,
     props,
@@ -253,10 +253,9 @@ export async function processPropertyFiles(opts: {
     collection,
     pregenerate,
     linked,
+    ctx = db,
   } = opts;
   const result = { ...props };
-
-  const promises: Promise<void>[] = [];
 
   for (const [propName, propValue] of Object.entries(schema)) {
     const propType = schemaType(propValue);
@@ -269,44 +268,11 @@ export async function processPropertyFiles(opts: {
     if (value == null) continue;
 
     if (isFiles && Array.isArray(value)) {
-      const processed: Promise<string>[] = [];
+      const processed: string[] = [];
       for (const url of value) {
         const link = fileLinkParts(url);
         if (link && link.stableUrl.startsWith("http")) {
-          processed.push(
-            Promise.resolve(
-              createPendingFile(
-                itemId,
-                link.stableUrl,
-                fileStore,
-                mediaOptimizer,
-                transformMedia,
-                pregenerate,
-                collection,
-                link.leaseUrl && link.expiresAt
-                  ? { url: link.leaseUrl, expiresAt: link.expiresAt }
-                  : undefined,
-              ),
-            ).then(({ id, ext }) => {
-              linked?.add(id);
-              return `${id}.${ext}`;
-            }),
-          );
-        } else {
-          collectProcessedId(url, linked);
-          processed.push(Promise.resolve(url as string));
-        }
-      }
-      promises.push(
-        Promise.all(processed).then((resolved) => {
-          result[propName] = resolved;
-        }),
-      );
-    } else if (isFile && fileLinkParts(value)?.stableUrl.startsWith("http")) {
-      const link = fileLinkParts(value)!;
-      promises.push(
-        Promise.resolve(
-          createPendingFile(
+          const { id, ext } = createPendingFile(
             itemId,
             link.stableUrl,
             fileStore,
@@ -317,20 +283,55 @@ export async function processPropertyFiles(opts: {
             link.leaseUrl && link.expiresAt
               ? { url: link.leaseUrl, expiresAt: link.expiresAt }
               : undefined,
-          ),
-        ).then(({ id, ext }) => {
+            ctx,
+          );
           linked?.add(id);
-          result[propName] = `${id}.${ext}`;
-        }),
+          processed.push(`${id}.${ext}`);
+        } else {
+          collectProcessedId(url, linked);
+          processed.push(url as string);
+        }
+      }
+      result[propName] = processed;
+    } else if (isFile && fileLinkParts(value)?.stableUrl.startsWith("http")) {
+      const link = fileLinkParts(value)!;
+      const { id, ext } = createPendingFile(
+        itemId,
+        link.stableUrl,
+        fileStore,
+        mediaOptimizer,
+        transformMedia,
+        pregenerate,
+        collection,
+        link.leaseUrl && link.expiresAt
+          ? { url: link.leaseUrl, expiresAt: link.expiresAt }
+          : undefined,
+        ctx,
       );
+      linked?.add(id);
+      result[propName] = `${id}.${ext}`;
     } else if (isFile) {
       collectProcessedId(value, linked);
     }
   }
 
-  await Promise.all(promises);
-
   return result;
+}
+
+/**
+ * Async compatibility wrapper for callers that process files outside a database
+ * transaction. Database preparation itself remains synchronous so it can be
+ * composed into the atomic sync-event transaction.
+ */
+export function processFiles(opts: Parameters<typeof processFilesSync>[0]): Promise<Block[]> {
+  return Promise.resolve(processFilesSync(opts));
+}
+
+/** Async compatibility wrapper for property-file processing callers. */
+export function processPropertyFiles(
+  opts: Parameters<typeof processPropertyFilesSync>[0],
+): Promise<Record<string, unknown>> {
+  return Promise.resolve(processPropertyFilesSync(opts));
 }
 
 function idFromUrl(url: string): string {

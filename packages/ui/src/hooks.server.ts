@@ -1,4 +1,4 @@
-import type { Handle } from "@sveltejs/kit";
+import type { Handle } from "@sveltejs/kit/hooks";
 import { basicAuth, checkBasicAuth } from "./lib/server/basic-auth";
 import { proxyToServer } from "./lib/server/proxy";
 

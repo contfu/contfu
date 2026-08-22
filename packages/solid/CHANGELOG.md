@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.8] - 2026-08-22
+
+### Added
+
+- Applied the core URL policy to rich-content links.
+
+### Changed
+
+- Updated compatible dependencies and remediated security vulnerabilities.
+
 ## [0.1.7] - 2026-08-10
 
 ### Changed

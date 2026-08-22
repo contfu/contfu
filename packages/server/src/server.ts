@@ -168,7 +168,17 @@ function parseQueryItemsInput(params: URLSearchParams): QueryItemsInput {
     try {
       const parsed = JSON.parse(propFiltersParam);
       if (Array.isArray(parsed)) {
-        propFilters = parsed;
+        const validFilters = parsed.filter(
+          (filter): filter is NonNullable<QueryItemsInput["propFilters"]>[number] =>
+            filter !== null &&
+            typeof filter === "object" &&
+            typeof filter.key === "string" &&
+            (filter.op === "eq" || filter.op === "contains") &&
+            (typeof filter.value === "string" ||
+              typeof filter.value === "boolean" ||
+              (typeof filter.value === "number" && Number.isFinite(filter.value))),
+        );
+        propFilters = validFilters;
       }
     } catch {
       // ignore invalid filters and fall back to undefined
@@ -509,7 +519,7 @@ export function createServeOptions(opts: ServerOptions = {}) {
     runtimeEvents.start();
   }
 
-  // Bun.serve routes (runtime-supported, types not yet in @types/bun@1.3.14)
+  // Bun.serve routes (runtime-supported, types not yet in @types/bun@1.4.0)
   return {
     port,
     idleTimeout: SERVER_IDLE_TIMEOUT_SECONDS,

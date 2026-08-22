@@ -98,6 +98,33 @@ describe("Block (Svelte)", () => {
     expect(html(Block, { block: p })).toBe("<p>hello</p>");
   });
 
+  test("applies the core rich-content URL policy to anchors", () => {
+    for (const href of ["javascript:alert", "JaVaScRiPt:alert", "gopher://example.com"]) {
+      expect(html(Block, { block: ["p", [["a", "link", href]]] })).toBe("<p>link</p>");
+    }
+    for (const href of [
+      "https://example.com/docs",
+      "http://example.com",
+      "/docs",
+      "mailto:user@example.com",
+      "tel:+15551212",
+    ]) {
+      expect(html(Block, { block: ["p", [["a", "link", href]]] })).toBe(
+        `<p><a href="${href}">link</a></p>`,
+      );
+    }
+  });
+
+  test("does not activate rejected anchors when parsed by the browser", () => {
+    const body = html(Block, {
+      block: ["p", [["a", "Run", "JaVaScRiPt:alert"]]],
+    });
+    const target = document.createElement("div");
+    target.innerHTML = body;
+    expect(target.querySelector("a")).toBeNull();
+    expect(target.textContent).toBe("Run");
+  });
+
   test("h1", () => {
     const h: Heading1Block = ["1", ["Title"]];
     expect(html(Block, { block: h })).toBe("<h1>Title</h1>");

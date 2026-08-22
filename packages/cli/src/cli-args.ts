@@ -94,14 +94,47 @@ function optionSpec() {
   return options;
 }
 
-export function parseCliArgs(argv: string[]) {
-  const { values, positionals } = parseArgs({
+export class CliParseError extends Error {
+  constructor() {
+    super("Invalid command-line options");
+    this.name = "CliParseError";
+  }
+}
+
+/**
+ * Find the `items` command from parseArgs' token stream so option values such
+ * as `--name items` are not mistaken for commands.
+ */
+function findItemsCommandIndex(argv: string[]): number | undefined {
+  const { tokens } = parseArgs({
     args: argv,
     options: optionSpec(),
     allowPositionals: true,
     strict: false,
+    tokens: true,
   });
-  return { values: values as ParsedValues, positionals };
+  return tokens.find((token) => token.kind === "positional" && token.value === "items")?.index;
+}
+
+export function parseCliArgs(argv: string[]) {
+  try {
+    const commandIndex = findItemsCommandIndex(argv);
+    const isItemsCommand = commandIndex !== undefined;
+    const topLevelArgs = isItemsCommand ? argv.slice(0, commandIndex) : argv;
+    const { values, positionals } = parseArgs({
+      args: topLevelArgs,
+      options: optionSpec(),
+      allowPositionals: true,
+      strict: true,
+    });
+    return {
+      values: values as ParsedValues,
+      positionals: isItemsCommand ? ["items"] : positionals,
+      itemsArgs: isItemsCommand ? argv.slice(commandIndex + 1) : undefined,
+    };
+  } catch {
+    throw new CliParseError();
+  }
 }
 
 /**

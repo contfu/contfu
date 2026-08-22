@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.2] - 2026-08-22
+
+### Added
+
+- Applied the core URL policy to framework rich-content links.
+- Made local sync event persistence atomic.
+
 ## [0.4.1] - 2026-08-12
 
 ### Added

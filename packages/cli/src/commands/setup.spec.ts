@@ -38,9 +38,26 @@ describe("setup dry run", () => {
     expect(output).toContain("Dry run: would install package @contfu/client");
     expect(output).toContain("Dry run: would create or regenerate app integration key");
     expect(output).toContain("Dry run: would write CONTFU_KEY to env file");
-    expect(output).toContain("Dry run: would ensure .gitignore contains .env");
+    expect(output).toContain("Dry run: would ensure .gitignore contains selected env file");
+    expect(output).toContain('"envFile": ".env.local"');
     expect(existsSync(join(cwd, ".env.local"))).toBe(false);
     expect(existsSync(join(cwd, ".gitignore"))).toBe(false);
+  });
+
+  test("reports outside-repository env behavior during dry run", async () => {
+    await setup({
+      package: "@contfu/client",
+      appName: "Website",
+      envFile: "../.env.local",
+      nonInteractive: true,
+      dryRun: true,
+    });
+
+    const output = logSpy.mock.calls.map((c: unknown[]) => String(c[0])).join("\n");
+    expect(output).toContain(
+      "Dry run: would skip .gitignore update for env file outside repository",
+    );
+    expect(output).toContain('"envFile": "../.env.local"');
   });
 
   test("rejects unsupported package names before dry-run install output", () => {

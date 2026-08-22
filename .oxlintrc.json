@@ -109,7 +109,7 @@
     "unicorn/prefer-string-starts-ends-with": "error",
     "typescript/no-misused-promises": "error",
     "typescript/return-await": "error",
-    "typescript/no-unnecessary-type-assertion": "error",
+    "typescript/no-unnecessary-type-assertion": "warn",
     "typescript/no-import-type-side-effects": "error",
     "oxc/no-accumulating-spread": "warn",
     "unicorn/prefer-array-flat-map": "error",

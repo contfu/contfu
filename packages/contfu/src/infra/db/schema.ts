@@ -1,5 +1,14 @@
 import type { Block, CollectionSchema, EffectiveCollectionI18nConfig } from "@contfu/core";
-import { blob, index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
+import {
+  blob,
+  check,
+  index,
+  integer,
+  primaryKey,
+  sqliteTable,
+  text,
+} from "drizzle-orm/sqlite-core";
 
 export const collectionsTable = sqliteTable("collections", {
   name: text().primaryKey(),
@@ -67,9 +76,15 @@ export const externalLinkTable = sqliteTable(
 export type DbExternalItemLink = typeof externalLinkTable.$inferSelect;
 export type NewExternalItemLink = typeof externalLinkTable.$inferInsert;
 
-export const syncTable = sqliteTable("sync", {
-  index: integer().notNull(),
-});
+export const syncTable = sqliteTable(
+  "sync",
+  {
+    // SQLite enforces this fixed key so the checkpoint can only ever be a singleton.
+    key: integer().primaryKey().notNull().default(1),
+    index: integer().notNull(),
+  },
+  (table) => [check("sync_singleton_key", sql`${table.key} = 1`)],
+);
 
 export const fileTable = sqliteTable("files", {
   id: blob({ mode: "buffer" }).primaryKey(),

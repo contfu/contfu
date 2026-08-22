@@ -10,6 +10,18 @@ import {
 
 let optimizer: M4kOptimizer;
 
+async function withFileStream<T>(
+  path: string,
+  callback: (stream: ReadableStream) => Promise<T>,
+): Promise<T> {
+  const file = await open(path);
+  try {
+    return await callback(file.readableWebStream() as ReadableStream);
+  } finally {
+    await file.close();
+  }
+}
+
 beforeEach(() => {
   optimizer = new M4kOptimizer();
 });
@@ -165,13 +177,8 @@ describe("optimize() — images", () => {
   });
 
   it("should work with input stream", async () => {
-    const results = await optimizer.optimize(
-      "test.png",
-      (
-        await open(`${__dirname}/__fixtures__/test-image.png`)
-      ).readableWebStream() as ReadableStream,
-      "image",
-      { avif: [[]], webp: [[]] },
+    const results = await withFileStream(`${__dirname}/__fixtures__/test-image.png`, (stream) =>
+      optimizer.optimize("test.png", stream, "image", { avif: [[]], webp: [[]] }),
     );
 
     expect(results).toHaveLength(2);
@@ -195,13 +202,8 @@ describe("optimize() — images", () => {
   });
 
   it("should accept AVIF stream input", async () => {
-    const results = await optimizer.optimize(
-      "test.avif",
-      (
-        await open(`${__dirname}/__fixtures__/test-image.avif`)
-      ).readableWebStream() as ReadableStream,
-      "image",
-      { avif: [[]], webp: [[]] },
+    const results = await withFileStream(`${__dirname}/__fixtures__/test-image.avif`, (stream) =>
+      optimizer.optimize("test.avif", stream, "image", { avif: [[]], webp: [[]] }),
     );
 
     expect(results).toHaveLength(2);
@@ -219,13 +221,9 @@ describe("optimize() — images", () => {
   });
 
   it("should accept 10-bit AVIF stream input (no-op passthrough)", async () => {
-    const results = await optimizer.optimize(
-      "test.avif",
-      (
-        await open(`${__dirname}/__fixtures__/test-image-10bit.avif`)
-      ).readableWebStream() as ReadableStream,
-      "image",
-      { avif: [[]] },
+    const results = await withFileStream(
+      `${__dirname}/__fixtures__/test-image-10bit.avif`,
+      (stream) => optimizer.optimize("test.avif", stream, "image", { avif: [[]] }),
     );
 
     expect(results).toHaveLength(1);
@@ -285,13 +283,11 @@ describe("optimize() — images", () => {
   });
 
   it("should output files via returned buffers", async () => {
-    const results = await optimizer.optimize(
-      "test.png",
-      (
-        await open(`${__dirname}/__fixtures__/test-image.png`)
-      ).readableWebStream() as ReadableStream,
-      "image",
-      { avif: [[200, undefined, 5], [400, 100], 600], webp: [200, 400, 600] },
+    const results = await withFileStream(`${__dirname}/__fixtures__/test-image.png`, (stream) =>
+      optimizer.optimize("test.png", stream, "image", {
+        avif: [[200, undefined, 5], [400, 100], 600],
+        webp: [200, 400, 600],
+      }),
     );
 
     expect(results).toHaveLength(6);

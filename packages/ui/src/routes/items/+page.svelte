@@ -8,7 +8,7 @@
   import { getItemsQuery } from "$lib/remote/items.remote";
   import { onMount } from "svelte";
 
-  const query = $derived(parseItemQueryFromUrl(page.url));
+  const query = $derived(parseItemQueryFromUrl(new URL(page.url.href)));
   const [collections, result] = $derived(
     await Promise.all([getCollectionsQuery(), getItemsQuery(query)]),
   );

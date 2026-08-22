@@ -127,4 +127,23 @@ describe("cli main", () => {
     expect(result.stderr).toContain("Unsupported output format: table");
     expect(result.stderr).toContain("Use default, agent, or json");
   });
+
+  test.each([
+    ["a typo before a command", ["--jsson", "status"]],
+    ["a typo after a read command", ["status", "--fulll"]],
+    ["a typo after a mutating command", ["integrations", "create", "--nam", "Site", "--dry-run"]],
+    ["a missing top-level value", ["status", "--format"]],
+    ["an unknown items option", ["items", "query", "--limti", "10"]],
+    ["a missing items value", ["items", "query", "--limit"]],
+  ])("reports %s without a parser stack trace", async (_label, args) => {
+    const result = await runCli(args);
+
+    expect(result.exitCode).not.toBe(0);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toContain("Invalid command-line options");
+    expect(result.stderr).toBe("Invalid command-line options. Run `contfu --help` for usage.\n");
+    expect(result.stderr.split("\n")).toHaveLength(2);
+    expect(result.stderr).not.toMatch(/\n\s+at /);
+    expect(result.stderr).not.toContain("Bun v");
+  });
 });

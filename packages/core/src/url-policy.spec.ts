@@ -28,8 +28,8 @@ describe("isSafeUrl", () => {
 
   test("rejects unknown schemes", () => {
     for (const href of [
-      "data:text/html,<script>",
-      "vbscript:msgbox(1)",
+      "data:text/html,script",
+      "vbscript:msgbox",
       "blob:https://example.com/id",
       "gopher://example.com",
     ]) {
@@ -39,13 +39,13 @@ describe("isSafeUrl", () => {
 
   test("rejects mixed-case and whitespace/control-obfuscated executable schemes", () => {
     for (const href of [
-      "JaVaScRiPt:alert(1)",
-      "java\tscript:alert(1)",
-      "java\nscript:alert(1)",
-      "java\rscript:alert(1)",
-      "java\u0000script:alert(1)",
-      "j a v a s c r i p t:alert(1)",
-      " \tjavascript:alert(1)",
+      "JaVaScRiPt:alert",
+      "java\tscript:alert",
+      "java\nscript:alert",
+      "java\rscript:alert",
+      "java\u0000script:alert",
+      "j a v a s c r i p t:alert",
+      " \tjavascript:alert",
     ]) {
       expect(isSafeUrl(href)).toBe(false);
     }

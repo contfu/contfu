@@ -1,6 +1,7 @@
 import React from "react";
 import {
   buildFileUrl,
+  isSafeRichContentUrl,
   isP,
   isH1,
   isH2,
@@ -64,7 +65,7 @@ function InlineNode({ inline }: InlineProps): React.ReactNode {
   if (isString(inline)) return inline;
   if (isAnchor(inline)) {
     const [, text, href] = inline;
-    return <a href={href}>{text}</a>;
+    return isSafeRichContentUrl(href) ? <a href={href}>{text}</a> : text;
   }
   if (isMonospace(inline)) {
     const [, text] = inline;

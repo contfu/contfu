@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.3.4] - 2026-08-22
+
+### Added
+
+- Added SQL pagination bounds to `queryItems`.
+- Cleaned collection resources and links when removing collections.
+- Made local sync event persistence atomic.
+
+### Changed
+
+- Updated dependencies and remediated security vulnerabilities.
+
+### Fixed
+
+- Used stable IDs for collection reference keys.
+
 ## [0.3.3] - 2026-08-12
 
 ### Changed

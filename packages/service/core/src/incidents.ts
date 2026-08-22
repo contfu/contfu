@@ -14,6 +14,7 @@ export const IncidentType = defineEnum({
   SyncError: 3,
   ItemValidationError: 4,
   SourceRepairFailure: 5,
+  SourceUnavailable: 6,
 });
 
 export type IncidentType = EnumValue<typeof IncidentType>;
@@ -25,6 +26,17 @@ export const IncidentResolutionMode = defineEnum({
 });
 
 export type IncidentResolutionMode = EnumValue<typeof IncidentResolutionMode>;
+
+/** Specific reason a target delivery could not resolve its source item. */
+export const SourceUnavailableReason = defineEnum({
+  SourceMembershipMissing: 1,
+  SourceCacheEntryMissing: 2,
+  SourceCacheEntryExpired: 3,
+  TargetFlowPathMissing: 4,
+  TargetFlowPathRejectedItem: 5,
+});
+
+export type SourceUnavailableReason = EnumValue<typeof SourceUnavailableReason>;
 
 export const getIncidentResolutionMode = (
   type: IncidentType,
@@ -75,6 +87,17 @@ export interface SchemaIncompatibleDetails {
  * Details for item validation error incidents.
  * `sampleRefs` is a msgpackr-packed `[number, string][]` (timestamp + ref ID pairs).
  */
+export interface SourceUnavailableDetails {
+  /** Managed item ID for the failed target delivery. */
+  itemId: number;
+  /** Stable key used to deduplicate retries for one delivery. */
+  deliveryKey: string;
+  /** Exact local source-resolution failure category, when recorded by a newer worker. */
+  reason?: SourceUnavailableReason;
+  /** Source-system item reference, when membership was available. */
+  sourceRef?: string;
+}
+
 export interface ItemValidationErrorDetails {
   property: string;
   cast: string;
@@ -92,6 +115,8 @@ export interface ServiceIncidentWithDetails {
   flowId: string;
   sourceCollectionId: string;
   sourceCollectionName: string;
+  sourceIntegrationId: string | null;
+  sourceIntegrationName: string | null;
   targetCollectionId: string;
   targetCollectionName: string;
   type: IncidentType;

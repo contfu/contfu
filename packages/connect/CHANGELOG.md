@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.1.8] - 2026-08-22
+
+### Changed
+
+- Updated compatible dependencies and remediated security vulnerabilities.
+
+### Fixed
+
+- Cleared failed file-lease timers.
+- Made local sync event persistence atomic.
+
 ## [0.1.7] - 2026-08-10
 
 ### Added

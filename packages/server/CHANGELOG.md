@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.11] - 2026-08-22
+
+### Added
+
+- Added SQL pagination bounds to `queryItems`.
+
+### Changed
+
+- Updated dependencies and remediated security vulnerabilities.
+
 ## [0.1.10] - 2026-08-12
 
 ### Changed

@@ -47,6 +47,13 @@ it carries the source schema through unchanged.
 > Contfu records the source collection's schema when the flow is created, so the
 > UI mapping editor can populate source-property dropdowns automatically. You do not need to
 > pass a `schema` field in CLI/API flow create requests.
+>
+> A mapping `default` is used when the selected source value is null or missing (including an
+> out-of-range array selection). The default is resolved before `cast` is applied. For example,
+> `{ "source": "summary", "target": "description", "default": "No summary", "cast": "string" }`
+> maps both a missing and a null `summary` to `"No summary"`, then applies the string cast. An
+> omitted default preserves a null source; an explicit `"default": null` preserves null as the
+> configured fallback.
 
 ## Filters
 
