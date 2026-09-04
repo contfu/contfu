@@ -720,7 +720,7 @@ describe("processPropertyFiles", () => {
   test("mixed FILE and STRING props process URLs but preserve emoji strings", async () => {
     const fileStore = makeFileStore();
     const mediaOptimizer = makeMediaOptimizer();
-    const schema = { icon: PropertyType.FILE | PropertyType.STRING | PropertyType.NULL };
+    const schema = { icon: PropertyType.FILE | PropertyType.STRING | PropertyType.OPTIONAL };
 
     const image = await processPropertyFiles({
       itemId,

@@ -6,8 +6,10 @@ import { isObjectEqual } from "./objects";
 import type { CollectionSchema } from "./schemas";
 
 /**
- * Wire format for binary stream events.
- * Uses tuples for minimal MessagePack encoding size.
+ * Wire format for stream events.
+ * Events use tuples for compact JSON encoding. JSON's `null` value is the
+ * delete marker for sparse property patches; omitted tuple slots remain
+ * unchanged. Binary values are represented as unpadded base64url strings.
  *
  * Format: [type, ...payload] where:
  * - PING: [0] (keep-alive)
@@ -35,14 +37,14 @@ export type WireSchemaEvent =
       string,
       string,
       CollectionSchema,
-      EffectiveCollectionI18nConfig,
+      EffectiveCollectionI18nConfig | null | undefined,
     ]
   | [
       typeof EventType.COLLECTION_SCHEMA,
       string,
       string,
       CollectionSchema,
-      EffectiveCollectionI18nConfig | undefined,
+      EffectiveCollectionI18nConfig | null | undefined,
       number,
     ]
   | [
@@ -50,8 +52,8 @@ export type WireSchemaEvent =
       string,
       string,
       CollectionSchema,
-      EffectiveCollectionI18nConfig | undefined,
-      Buffer,
+      EffectiveCollectionI18nConfig | null | undefined,
+      string,
       number,
     ];
 
@@ -205,20 +207,20 @@ export type WireItem = [
  * [id, collection, changedAt, props?, content?]
  *
  * Identity fields are always present. Omitted props/content mean unchanged.
- * Props patch shallowly by key; a prop value of `undefined` deletes/unsets that prop.
+ * Props patch shallowly by key; a prop value of `null` deletes/unsets that prop.
  * Content patches as a whole field; omitted content is unchanged and [] means no content.
  * A full WireItem remains a valid full patch.
  */
-export type WireItemPatch = [number, string, number, Record<string, unknown>?, unknown[]?];
+export type WireItemPatch = [number, string, number, (Record<string, unknown> | null)?, unknown[]?];
 
 export function patchWireItemProps(
   previous: Record<string, unknown>,
-  patch?: Record<string, unknown>,
+  patch?: Record<string, unknown> | null,
 ): Record<string, unknown> {
-  if (patch === undefined) return { ...previous };
+  if (patch === undefined || patch === null) return { ...previous };
   const next = { ...previous };
   for (const [key, value] of Object.entries(patch)) {
-    if (value === undefined) {
+    if (value === null) {
       delete next[key];
     } else {
       next[key] = value;
@@ -253,7 +255,7 @@ export function diffWireItemPatch(previous: WireItem | undefined, next: WireItem
   }
   for (const key of Object.keys(previousProps)) {
     if (!(key in nextProps)) {
-      propPatch[key] = undefined;
+      propPatch[key] = null;
       hasPropPatch = true;
     }
   }
@@ -261,7 +263,7 @@ export function diffWireItemPatch(previous: WireItem | undefined, next: WireItem
   const contentChanged =
     next.length > 4 ? !isObjectEqual(previous[4], next[4]) : previous.length > 4;
   const patch: WireItemPatch = [next[0], next[1], next[2]];
-  if (hasPropPatch || contentChanged) patch.push(hasPropPatch ? propPatch : undefined);
+  if (hasPropPatch || contentChanged) patch.push(hasPropPatch ? propPatch : null);
   if (contentChanged) patch.push(next.length > 4 ? next[4] : []);
   return patch;
 }

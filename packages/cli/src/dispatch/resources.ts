@@ -1,4 +1,8 @@
 import {
+  runCollectionOperation,
+  type CollectionOperationAction,
+} from "../commands/collection-operations";
+import {
   addIntegrationCollections,
   parseAddRefs,
   scanIntegrationCollections,
@@ -71,6 +75,24 @@ const integrationActions: Record<string, ActionHandler> = {
   ),
 };
 
+/** Actions that only exist on `contfu collections`. */
+const collectionActions: Record<string, ActionHandler> = Object.fromEntries(
+  (["sync-now", "full-refresh", "full-resync", "pause", "resume", "operations"] as const).map(
+    (action: CollectionOperationAction) => [
+      action,
+      withId(`Usage: contfu collections ${action} <collection-id-or-name>`, (ctx) =>
+        runCollectionOperation(action, ctx.positionals[2], {
+          format: ctx.outputFormat,
+          full: ctx.full,
+          dryRun: ctx.dryRun,
+          wait: bool(ctx.values, "wait"),
+          refreshSourceFirst: bool(ctx.values, "refresh-source-first"),
+        }),
+      ),
+    ],
+  ),
+);
+
 /** `types` generates client typings and means something different per resource. */
 async function generateTypes(resource: Resource, ctx: CommandContext): Promise<void> {
   const id = ctx.positionals[2];
@@ -126,10 +148,20 @@ export async function runResourceCommand(resource: Resource, ctx: CommandContext
     const special = integrationActions[action];
     if (special) return special(ctx);
   }
+  if (resource === "collections") {
+    const special = collectionActions[action];
+    if (special) return special(ctx);
+  }
   if (action === "regenerate-key") fail("'regenerate-key' is only available for integrations");
   if (action === "types") return generateTypes(resource, ctx);
 
   const crud = crudActions[action];
-  if (!crud) fail(`Unknown action: ${action}. Use list, get, create, update, or delete`);
+  if (!crud) {
+    const available =
+      resource === "collections"
+        ? "list, get, create, update, delete, sync-now, full-refresh, full-resync, pause, resume, or operations"
+        : "list, get, create, update, or delete";
+    fail(`Unknown action: ${action}. Use ${available}`);
+  }
   await crud(resource, ctx);
 }

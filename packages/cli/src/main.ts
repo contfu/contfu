@@ -7,6 +7,7 @@ import { isResource } from "./commands/resources";
 import { setup } from "./commands/setup";
 import { status } from "./commands/status";
 import { runComponentsCommand } from "./dispatch/components";
+import { runIncidentsCommand } from "./dispatch/incidents";
 import { runOrganizationsCommand } from "./dispatch/organizations";
 import { runResourceCommand } from "./dispatch/resources";
 import { runWorkspacesCommand } from "./dispatch/workspaces";
@@ -42,6 +43,7 @@ const commands: Record<string, (ctx: CommandContext) => Promise<void> | void> = 
   orgs: runOrganizationsCommand,
   organizations: runOrganizationsCommand,
   components: runComponentsCommand,
+  incidents: runIncidentsCommand,
 };
 
 async function main() {

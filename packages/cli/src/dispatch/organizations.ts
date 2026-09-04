@@ -2,6 +2,7 @@ import {
   acceptOrganizationInvite,
   createOrganization,
   getOrganization,
+  getOrganizationUsage,
   inviteOrganization,
   listOrganizationMembers,
   listOrganizations,
@@ -33,6 +34,9 @@ const handlers: Record<string, ActionHandler> = {
 
   get: (ctx) =>
     getOrganization(requireRef(ctx.positionals[2], usage("get")), ctx.outputFormat, ctx.full),
+
+  usage: (ctx) =>
+    getOrganizationUsage(requireRef(ctx.positionals[2], usage("usage")), ctx.outputFormat),
 
   create: (ctx) =>
     createOrganization({

@@ -50,8 +50,8 @@ const SAFE_CASTS: [number, number, string][] = [
  * Returns the cast string if sourceType can be safely cast to targetType, or null otherwise.
  */
 export function safeCast(sourceType: number, targetType: number): string | null {
-  sourceType = propertyTypeBase(sourceType) & ~PropertyType.NULL;
-  targetType = propertyTypeBase(targetType) & ~PropertyType.NULL;
+  sourceType = propertyTypeBase(sourceType) & ~PropertyType.OPTIONAL;
+  targetType = propertyTypeBase(targetType) & ~PropertyType.OPTIONAL;
   // Every possible source value already fits the target — no cast needed.
   if ((sourceType & ~targetType) === 0) return null;
   for (const [from, to, cast] of SAFE_CASTS) {
@@ -69,10 +69,10 @@ export function typeCompatibility(
 ): { compatible: true; cast: string | null } | { compatible: false } {
   const sourceBase = propertyTypeBase(sourceType);
   const targetBase = propertyTypeBase(targetType);
-  if ((sourceBase & PropertyType.NULL) !== 0 && (targetBase & PropertyType.NULL) === 0)
+  if ((sourceBase & PropertyType.OPTIONAL) !== 0 && (targetBase & PropertyType.OPTIONAL) === 0)
     return { compatible: false };
-  const sourceValues = sourceBase & ~PropertyType.NULL;
-  const targetValues = targetBase & ~PropertyType.NULL;
+  const sourceValues = sourceBase & ~PropertyType.OPTIONAL;
+  const targetValues = targetBase & ~PropertyType.OPTIONAL;
   if ((sourceValues & ~targetValues) === 0) return { compatible: true, cast: null };
   const cast = safeCast(sourceValues, targetValues);
   if (cast) return { compatible: true, cast };

@@ -1,6 +1,7 @@
 import type { Block, Inline } from "@contfu/core";
 import { isAnchor } from "@contfu/core";
 import { PropertyType, propertyTypeBase, schemaType, type CollectionSchema } from "@contfu/core";
+import { UnknownSchemaPropertyError } from "./unknownSchemaPropertyError";
 
 const PLACEHOLDER_BASE = -1;
 
@@ -117,6 +118,21 @@ export function extractLinks(
 ): ExtractedLinks {
   const records: LinkRecord[] = [];
   const newProps = props ? { ...props } : {};
+
+  if (schema && props) {
+    // Unknown scalar metadata is retained for forward compatibility, but a
+    // numeric item reference is never retained raw: without its schema type it
+    // cannot safely be persisted and must trigger the connector's resync path.
+    const unknownReferenceProperties = Object.entries(props)
+      .filter(([name]) => !(name in schema) && name !== "$deletedAt")
+      .filter(([, value]) => {
+        if (tryDecodeItemId(value) !== null) return true;
+        return Array.isArray(value) && value.some((entry) => tryDecodeItemId(entry) !== null);
+      })
+      .map(([name]) => name);
+    if (unknownReferenceProperties.length > 0)
+      throw new UnknownSchemaPropertyError(unknownReferenceProperties);
+  }
 
   if (schema && props) {
     for (const [propName, propValue] of Object.entries(schema)) {

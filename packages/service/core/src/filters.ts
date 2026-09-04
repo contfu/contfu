@@ -76,7 +76,7 @@ export interface Filter {
  */
 export function getOperatorsForType(propertyType: number): FilterOperator[] {
   // Strip nullable flag to get the base type
-  const baseType = propertyTypeBase(propertyType) & ~PropertyType.NULL;
+  const baseType = propertyTypeBase(propertyType) & ~PropertyType.OPTIONAL;
 
   switch (baseType) {
     case PropertyType.STRING:
@@ -122,7 +122,7 @@ export function getOperatorsForType(propertyType: number): FilterOperator[] {
 
 /** Coerce a filter operand to the storage units required by a property type. */
 export function coerceFilterOperand(value: unknown, propertyType: number): unknown {
-  const baseType = propertyTypeBase(propertyType) & ~PropertyType.NULL;
+  const baseType = propertyTypeBase(propertyType) & ~PropertyType.OPTIONAL;
   if ((baseType & PropertyType.PLAINDATE) === 0 || value == null) return value;
   if (Array.isArray(value)) return value.map((entry) => toEpochDay(entry));
   return toEpochDay(value);

@@ -49,21 +49,21 @@ describe("generateTypes", () => {
     expect(result).toMatchSnapshot();
   });
 
-  it("preserves enum literal unions for nullable enum properties", () => {
+  it("preserves enum literal unions for optional enum properties", () => {
     const enumValues = ["Vorverkauf", "Buchen"];
     const result = generateTypes({
       callsToAction: {
         requiredEnum: [PropertyType.ENUM, enumValues],
-        nullableEnum: [PropertyType.ENUM | PropertyType.NULL, enumValues],
+        optionalEnum: [PropertyType.ENUM | PropertyType.OPTIONAL, enumValues],
         requiredEnums: [PropertyType.ENUMS, enumValues],
-        nullableEnums: [PropertyType.ENUMS | PropertyType.NULL, enumValues],
+        optionalEnums: [PropertyType.ENUMS | PropertyType.OPTIONAL, enumValues],
       },
     });
 
     expect(result).toContain('requiredEnum: "Vorverkauf" | "Buchen";');
-    expect(result).toContain('nullableEnum: "Vorverkauf" | "Buchen";');
+    expect(result).toContain('optionalEnum?: "Vorverkauf" | "Buchen";');
     expect(result).toContain('requiredEnums: ("Vorverkauf" | "Buchen")[];');
-    expect(result).toContain('nullableEnums: ("Vorverkauf" | "Buchen")[];');
+    expect(result).toContain('optionalEnums?: ("Vorverkauf" | "Buchen")[];');
   });
 
   it("retains non-enum members in mixed enum masks", () => {
@@ -79,7 +79,7 @@ describe("generateTypes", () => {
 
   it("matches core type generation for every renderable property type", () => {
     const renderableTypes = Object.entries(PropertyType).filter(
-      ([, type]) => type !== PropertyType.NULL && (type & PROPERTY_TYPE_MASK) === type,
+      ([, type]) => type !== PropertyType.OPTIONAL && (type & PROPERTY_TYPE_MASK) === type,
     );
     const extractPropertyType = (output: string, property: string): string => {
       const rendered = output.match(new RegExp(`^\\s+${property}: (.+);$`, "m"))?.[1];
@@ -116,11 +116,11 @@ describe("generateTypes", () => {
 
   it("generates a string and FileMetadata union for mixed icon values", () => {
     const result = generateTypes({
-      pages: { icon: PropertyType.FILE | PropertyType.STRING | PropertyType.NULL },
+      pages: { icon: PropertyType.FILE | PropertyType.STRING | PropertyType.OPTIONAL },
     });
 
     expect(result).toContain('import type { FileMetadata } from "@contfu/core";');
-    expect(result).toContain("icon: string | FileMetadata;");
+    expect(result).toContain("icon?: string | FileMetadata;");
   });
 
   it("does not generate CollectionMap", () => {

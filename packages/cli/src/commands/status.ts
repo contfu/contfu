@@ -1,8 +1,8 @@
-import { createApiClient, ApiError, IntegrationType, IntegrationTypeMeta } from "@contfu/svc-api";
+import { ApiError, IntegrationType, IntegrationTypeMeta } from "@contfu/svc-api";
 import type { ApiIntegration, ServiceCollection, ServiceFlow } from "@contfu/svc-api";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { BASE_URL, getApiKey } from "../http";
+import { getApiClient, getApiKey } from "../http";
 import { getAppKey } from "../env";
 import { isStructuredOutputFormat, printStructured } from "../output";
 
@@ -126,7 +126,7 @@ export async function status(format = "default", full = false): Promise<void> {
     return;
   }
 
-  const apiClient = createApiClient(BASE_URL, apiKey);
+  const apiClient = getApiClient();
 
   // Detect app project context
   let appKeyInfo: StatusResult["appKey"];

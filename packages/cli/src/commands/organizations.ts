@@ -1,4 +1,4 @@
-import type { ApiOrganization } from "@contfu/svc-api";
+import type { ApiOrganization, ApiOrganizationUsage } from "@contfu/svc-api";
 import { BASE_URL, getApiClient, handleCliError } from "../http";
 import { isStructuredOutputFormat, printStructured } from "../output";
 import { printTable, terminalLink, type TableColumn } from "../table";
@@ -95,6 +95,45 @@ export async function getOrganization(
         compact: compactOrganization(organization),
       });
     } else console.log(JSON.stringify(organization, null, 2));
+  } catch (err) {
+    handleCliError(err);
+  }
+}
+
+const USAGE_BAR_WIDTH = 20;
+const USAGE_METRICS: Array<{
+  key: keyof ApiOrganizationUsage["metrics"];
+  label: string;
+}> = [
+  { key: "integrations", label: "Integrations" },
+  { key: "collections", label: "Collections" },
+  { key: "flows", label: "Flows" },
+  { key: "items", label: "Items" },
+  { key: "itemChanges", label: "Item changes" },
+];
+
+function usageBar(used: number, limit: number | null): string {
+  const ratio = limit == null ? 0 : limit <= 0 ? (used > 0 ? 1 : 0) : used / limit;
+  const filled = Math.max(0, Math.min(USAGE_BAR_WIDTH, Math.round(ratio * USAGE_BAR_WIDTH)));
+  return `${"#".repeat(filled)}${"-".repeat(USAGE_BAR_WIDTH - filled)}`;
+}
+
+function printOrganizationUsage(usage: ApiOrganizationUsage): void {
+  console.log(`Organization: ${usage.organization.displayName} (${usage.organization.id})`);
+  for (const { key, label } of USAGE_METRICS) {
+    const value = usage.metrics[key];
+    console.log(
+      `${label.padEnd(14)} [${usageBar(value.used, value.limit)}] ${value.used} / ${value.limit == null ? "unlimited" : value.limit}`,
+    );
+  }
+}
+
+export async function getOrganizationUsage(ref: string, format = "default"): Promise<void> {
+  try {
+    const organization = await resolveOrganization(ref);
+    const usage = await getApiClient(null).getOrganizationUsage(organization.id);
+    if (isStructuredOutputFormat(format)) printStructured(usage, format);
+    else printOrganizationUsage(usage);
   } catch (err) {
     handleCliError(err);
   }

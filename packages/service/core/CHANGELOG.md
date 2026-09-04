@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.10] - 2026-09-04
+
+### Added
+
+- Stream live operational status to the UI.
+- Replace sync wire MessagePack with JSON.
+- Expose source operations through the CLI and API.
+- Add organization usage statistics to the CLI.
+- Add CLI and REST access to incidents.
+
 ## [0.1.9] - 2026-08-22
 
 ### Added

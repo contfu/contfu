@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.12] - 2026-09-04
+
+### Added
+
+- Replace sync wire MessagePack with JSON.
+- Support `$draft` query filters.
+
 ## [0.1.11] - 2026-08-22
 
 ### Added

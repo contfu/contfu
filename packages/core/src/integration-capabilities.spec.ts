@@ -56,6 +56,8 @@ describe("integration capabilities", () => {
         IntegrationCapability.ComponentDiscovery,
         IntegrationCapability.ManualLocalizationLayer,
         IntegrationCapability.ContentProvide,
+        IntegrationCapability.ContentReceive,
+        IntegrationCapability.TargetDeliveryCapability,
       ],
     ],
     [
@@ -73,12 +75,19 @@ describe("integration capabilities", () => {
         IntegrationCapability.ComponentDiscovery,
         IntegrationCapability.ManualLocalizationLayer,
         IntegrationCapability.ContentProvide,
+        IntegrationCapability.ContentReceive,
+        IntegrationCapability.TargetDeliveryCapability,
       ],
     ],
     [IntegrationType.STORYBLOK, []],
     [
       IntegrationType.DIRECTUS,
-      [IntegrationCapability.CollectionDiscovery, IntegrationCapability.ContentProvide],
+      [
+        IntegrationCapability.CollectionDiscovery,
+        IntegrationCapability.ContentProvide,
+        IntegrationCapability.ContentReceive,
+        IntegrationCapability.TargetDeliveryCapability,
+      ],
     ],
     [IntegrationType.PRISMIC, []],
     [
@@ -124,10 +133,17 @@ describe("integration capabilities", () => {
     expect(integrationHasRole(IntegrationType.NOTION, IntegrationRole.SourceRole)).toBe(true);
     expect(integrationHasRole(IntegrationType.NOTION, IntegrationRole.TargetRole)).toBe(true);
     expect(integrationHasRole(IntegrationType.STRAPI, IntegrationRole.TargetRole)).toBe(true);
+    expect(integrationHasRole(IntegrationType.CONTENTFUL, IntegrationRole.TargetRole)).toBe(true);
+    expect(integrationHasRole(IntegrationType.SANITY, IntegrationRole.TargetRole)).toBe(true);
+    expect(integrationHasRole(IntegrationType.DIRECTUS, IntegrationRole.SourceRole)).toBe(true);
+    expect(integrationHasRole(IntegrationType.DIRECTUS, IntegrationRole.TargetRole)).toBe(true);
     expect(integrationHasRole(IntegrationType.WEBHOOK, IntegrationRole.TargetRole)).toBe(true);
     expect(integrationSupportsContentReceive(IntegrationType.APP)).toBe(true);
     expect(integrationSupportsContentReceive(IntegrationType.STRAPI)).toBe(true);
     expect(integrationSupportsContentReceive(IntegrationType.NOTION)).toBe(true);
+    expect(integrationSupportsContentReceive(IntegrationType.CONTENTFUL)).toBe(true);
+    expect(integrationSupportsContentReceive(IntegrationType.SANITY)).toBe(true);
+    expect(integrationSupportsContentReceive(IntegrationType.DIRECTUS)).toBe(true);
     expect(integrationSupportsTargetSchemaDelivery(IntegrationType.APP)).toBe(true);
     expect(integrationSupportsTargetSchemaDelivery(IntegrationType.NOTION)).toBe(false);
   });

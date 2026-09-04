@@ -3,9 +3,11 @@ import type { Heading1Block, ImageBlock } from "@contfu/core";
 import { contfuClient, serializeQueryParams } from "./query-client";
 
 describe("serializeQueryParams", () => {
-  test("serializes filter", () => {
-    const params = serializeQueryParams({ filter: '$collection = "articles"' });
-    expect(params.get("filter")).toBe('$collection = "articles"');
+  test("serializes filters including normalized draft state", () => {
+    for (const filter of ["$draft = true", "$draft = false"]) {
+      const params = serializeQueryParams({ filter });
+      expect(params.get("filter")).toBe(filter);
+    }
   });
 
   test("serializes sort as string", () => {
@@ -130,6 +132,45 @@ describe("contfuClient auth", () => {
       basicAuth: { username: "admin", password: "secret" },
     })("articles");
     expect(lastHeaders.get("authorization")).toBe("Basic YWRtaW46c2VjcmV0");
+  });
+});
+
+describe("contfuClient query filters", () => {
+  const originalFetch = globalThis.fetch;
+  let seenFilters: string[];
+
+  beforeEach(() => {
+    seenFilters = [];
+    globalThis.fetch = ((url: string) => {
+      const filter = new URL(url).searchParams.get("filter")!;
+      seenFilters.push(filter);
+      const data =
+        filter === "$draft = true"
+          ? [{ $id: 20, $draft: true, title: "Draft" }]
+          : [
+              { $id: 21, $draft: false, title: "Published" },
+              { $id: 22, title: "Legacy" },
+            ];
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ data, meta: { total: data.length, limit: 20, offset: 0 } }),
+      } as Response);
+    }) as unknown as typeof fetch;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  test("matches draft filters through the public client query", async () => {
+    const client = contfuClient("http://x");
+
+    const drafts = await client("articles", { filter: "$draft = true" });
+    expect(drafts.map((item: { $id: number }) => item.$id)).toEqual([20]);
+
+    const published = await client("articles", { filter: "$draft = false" });
+    expect(published.map((item: { $id: number }) => item.$id)).toEqual([21, 22]);
+    expect(seenFilters).toEqual(["$draft = true", "$draft = false"]);
   });
 });
 

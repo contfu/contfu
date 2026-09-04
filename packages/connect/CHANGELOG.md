@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.9] - 2026-09-04
+
+### Added
+
+- Replace sync wire MessagePack with JSON.
+
 ## [0.1.8] - 2026-08-22
 
 ### Changed

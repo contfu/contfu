@@ -50,7 +50,7 @@
     },
     "packages/cli": {
       "name": "@contfu/cli",
-      "version": "0.1.10",
+      "version": "0.1.11",
       "bin": {
         "contfu": "dist/main.js",
       },
@@ -59,13 +59,13 @@
         "@toon-format/toon": "^4.1.1",
       },
       "devDependencies": {
-        "@types/bun": "^1.4.0",
+        "@types/bun": "^1.4.1",
         "typescript": "^7.0.2",
       },
     },
     "packages/client": {
       "name": "@contfu/client",
-      "version": "0.3.2",
+      "version": "0.3.3",
       "dependencies": {
         "@contfu/core": "workspace:^0.2.2",
       },
@@ -78,13 +78,12 @@
     },
     "packages/connect": {
       "name": "@contfu/connect",
-      "version": "0.1.8",
+      "version": "0.1.9",
       "dependencies": {
         "@contfu/core": "workspace:^0.4.0",
-        "msgpackr": "^2.0.5",
       },
       "devDependencies": {
-        "@types/bun": "^1.4.0",
+        "@types/bun": "^1.4.1",
         "ts-essentials": "^10.2.1",
       },
       "optionalDependencies": {
@@ -96,7 +95,7 @@
     },
     "packages/contfu": {
       "name": "@contfu/contfu",
-      "version": "0.3.4",
+      "version": "0.3.5",
       "dependencies": {
         "@contfu/connect": "workspace:^0.1.5",
         "@contfu/core": "workspace:^0.4.0",
@@ -104,7 +103,7 @@
       },
       "devDependencies": {
         "@m4k/common": "^0.2.8",
-        "@types/bun": "^1.4.0",
+        "@types/bun": "^1.4.1",
         "drizzle-kit": "1.0.0-rc.3",
         "ts-essentials": "^10.2.1",
       },
@@ -119,7 +118,7 @@
     },
     "packages/core": {
       "name": "@contfu/core",
-      "version": "0.4.2",
+      "version": "0.4.3",
       "devDependencies": {
         "typescript": "^7.0.2",
       },
@@ -132,7 +131,7 @@
       },
       "devDependencies": {
         "@contfu/contfu": "workspace:^0.3.0",
-        "@types/bun": "^1.4.0",
+        "@types/bun": "^1.4.1",
       },
       "peerDependencies": {
         "typescript": "^7.0.2",
@@ -151,7 +150,7 @@
       "devDependencies": {
         "@contfu/bun-file-store": "workspace:^0.1.7",
         "@contfu/contfu": "workspace:^0.3.0",
-        "@types/bun": "^1.4.0",
+        "@types/bun": "^1.4.1",
       },
       "peerDependencies": {
         "typescript": "^7.0.2",
@@ -166,7 +165,7 @@
       },
       "devDependencies": {
         "@contfu/contfu": "workspace:^0.3.0",
-        "@types/bun": "^1.4.0",
+        "@types/bun": "^1.4.1",
       },
       "peerDependencies": {
         "typescript": "^7.0.2",
@@ -174,7 +173,7 @@
     },
     "packages/plugins/sanity": {
       "name": "@contfu/sanity",
-      "version": "0.1.7",
+      "version": "0.1.8",
       "dependencies": {
         "@contfu/core": "workspace:^0.2.2",
       },
@@ -187,7 +186,10 @@
     },
     "packages/plugins/strapi": {
       "name": "@contfu/strapi",
-      "version": "0.1.2",
+      "version": "0.2.1",
+      "dependencies": {
+        "@contfu/webhook": "workspace:^0.2.0",
+      },
     },
     "packages/react": {
       "name": "@contfu/react",
@@ -209,7 +211,7 @@
     },
     "packages/server": {
       "name": "@contfu/server",
-      "version": "0.1.11",
+      "version": "0.1.12",
       "bin": {
         "contfu-server": "./src/bin.ts",
       },
@@ -218,8 +220,7 @@
         "@contfu/core": "workspace:^0.4.0",
       },
       "devDependencies": {
-        "@types/bun": "^1.4.0",
-        "msgpackr": "^2.0.5",
+        "@types/bun": "^1.4.1",
         "typescript": "^7.0.2",
       },
       "optionalDependencies": {
@@ -233,14 +234,14 @@
     },
     "packages/service/api": {
       "name": "@contfu/svc-api",
-      "version": "0.1.7",
+      "version": "0.1.8",
       "dependencies": {
         "@contfu/svc-core": "workspace:^0.1.5",
       },
     },
     "packages/service/core": {
       "name": "@contfu/svc-core",
-      "version": "0.1.9",
+      "version": "0.1.10",
       "dependencies": {
         "@contfu/core": "workspace:^0.4.0",
       },
@@ -280,7 +281,7 @@
     },
     "packages/ui": {
       "name": "@contfu/ui",
-      "version": "0.1.12",
+      "version": "0.1.13",
       "devDependencies": {
         "@contfu/contfu": "workspace:^0.3.0",
         "@contfu/core": "workspace:^0.4.0",
@@ -293,7 +294,7 @@
         "@tailwindcss/vite": "^4.3.3",
         "@tanstack/svelte-table": "9.1.2",
         "@tanstack/table-core": "^9.1.2",
-        "@types/bun": "^1.4.0",
+        "@types/bun": "^1.4.1",
         "@types/node": "^26.2.0",
         "autoprefixer": "^10.5.4",
         "bits-ui": "^2.18.1",
@@ -331,6 +332,13 @@
       },
       "peerDependencies": {
         "vue": ">=3",
+      },
+    },
+    "packages/webhook": {
+      "name": "@contfu/webhook",
+      "version": "0.2.1",
+      "devDependencies": {
+        "typescript": "^7.0.2",
       },
     },
   },
@@ -396,6 +404,8 @@
     "@contfu/ui": ["@contfu/ui@workspace:packages/ui"],
 
     "@contfu/vue": ["@contfu/vue@workspace:packages/vue"],
+
+    "@contfu/webhook": ["@contfu/webhook@workspace:packages/webhook"],
 
     "@drizzle-team/brocli": ["@drizzle-team/brocli@0.11.0", "", {}, "sha512-hD3pekGiPg0WPCCGAZmusBBJsDqGUR66Y452YgQsZOnkdQ7ViEPKuyP4huUGEZQefp8g34RRodXYmJ2TbCH+tg=="],
 
@@ -556,18 +566,6 @@
     "@m4k/client": ["@m4k/client@0.2.10", "", { "dependencies": { "@m4k/common": "^0.2.8", "@sv2dev/multipart-stream": "^0.2.0" } }, "sha512-DwM/Rv1H6p80TkBQVHxSx9Pz9ca2aW0QfgSXMDhNd1wDTFP1CuwKbLGEUXkxk3JBh9kBUsig25bDzNzfswpYsw=="],
 
     "@m4k/common": ["@m4k/common@0.2.8", "", {}, "sha512-DecI+A0aPC02BAtaGL52nKvpXon12L636yg5ww2++l6t8j6xvVT09B+KU1Dqxp8Gmjp3059q7aD+pWySaItBkw=="],
-
-    "@msgpackr-extract/msgpackr-extract-darwin-arm64": ["@msgpackr-extract/msgpackr-extract-darwin-arm64@3.0.4", "", { "os": "darwin", "cpu": "arm64" }, "sha512-LCkGo6JDfaBhgST7UpPWgNgLINpcpabaHfyz5OBx75nUYxBsaEPxjnyNjWpeb/xBup/682QnBfRBy2/LvPutZQ=="],
-
-    "@msgpackr-extract/msgpackr-extract-darwin-x64": ["@msgpackr-extract/msgpackr-extract-darwin-x64@3.0.4", "", { "os": "darwin", "cpu": "x64" }, "sha512-zExlW9zUJKZH/tOtVMttwjKa4Xm/3KcNjnE3dPN92uCktwavMxpgCA3MoJK/DOnTWsQgo224OaST27/mPNAf+w=="],
-
-    "@msgpackr-extract/msgpackr-extract-linux-arm": ["@msgpackr-extract/msgpackr-extract-linux-arm@3.0.4", "", { "os": "linux", "cpu": "arm" }, "sha512-Tg3yX65f5GbtXLkrYEHE5oibZG9epyYWas7FogTTEJeDEF9JlXJzKgXaNhT3UXlTOeA+AfZpYZYZ0uPj7Cfquw=="],
-
-    "@msgpackr-extract/msgpackr-extract-linux-arm64": ["@msgpackr-extract/msgpackr-extract-linux-arm64@3.0.4", "", { "os": "linux", "cpu": "arm64" }, "sha512-dgX0P/9wGPJeHFBG+ZmhgE6bmtMt7NP5CRBGyyktpopdk/mW4POnrpQsSLtKI1dwpc+pPLuXHDh6vvskyQE/sw=="],
-
-    "@msgpackr-extract/msgpackr-extract-linux-x64": ["@msgpackr-extract/msgpackr-extract-linux-x64@3.0.4", "", { "os": "linux", "cpu": "x64" }, "sha512-8TNXMEjJc3QEy7R/x1INhgiU+XakDAFUzBhaz7+Rbrs8NH5UQeHQxxmzsSBJGyV6I1jW79undiQm8tOI+D+8FQ=="],
-
-    "@msgpackr-extract/msgpackr-extract-win32-x64": ["@msgpackr-extract/msgpackr-extract-win32-x64@3.0.4", "", { "os": "win32", "cpu": "x64" }, "sha512-CmCXPQrkbwExx3j946/PtHWHbYJiCRBRDl4BlkRQcJB/YOwQxJRTpoo7aTsortjgoJ1x7opzTSxn7C+ASSLVjQ=="],
 
     "@napi-rs/wasm-runtime": ["@napi-rs/wasm-runtime@1.1.3", "", { "dependencies": { "@tybys/wasm-util": "^0.10.1" }, "peerDependencies": { "@emnapi/core": "^1.7.1", "@emnapi/runtime": "^1.7.1" } }, "sha512-xK9sGVbJWYb08+mTJt3/YV24WxvxpXcXtP6B172paPZ+Ts69Re9dAr7lKwJoeIx8OoeuimEiRZ7umkiUVClmmQ=="],
 
@@ -757,7 +755,7 @@
 
     "@tybys/wasm-util": ["@tybys/wasm-util@0.10.1", "", { "dependencies": { "tslib": "^2.4.0" } }, "sha512-9tTaPJLSiejZKx+Bmog4uSubteqTvFrVrURwkmHixBo0G4seD0zUxp98E1DzUBJxLQ3NPwXrGKDiVjwx/DpPsg=="],
 
-    "@types/bun": ["@types/bun@1.4.0", "", { "dependencies": { "bun-types": "1.4.0" } }, "sha512-K+lZULY23vRgK/CfTjFIV+tyifaNdSMlPh9j+6mQ/cLfpOznLyAuzgV/JQysyECpkBQLVMSyvjlr2fBUSA9wFQ=="],
+    "@types/bun": ["@types/bun@1.4.1", "", { "dependencies": { "bun-types": "1.4.1" } }, "sha512-0AVGiTXGajf1rgKom3N+c5L7CBxuoyyv1i44M0nX4UDK0G/fnRAMiri93nHuVPIb429KKtAgj7HatVmmOjeQLA=="],
 
     "@types/cookie": ["@types/cookie@0.6.0", "", {}, "sha512-4Kh9a6B2bQciAhf7FSuMRRkUWecJgJu9nPnx3yzpsfXX/c50REIqpHY4C82bXP90qrLtXtkDxTZosYO3UpOwlA=="],
 
@@ -849,7 +847,7 @@
 
     "buffer-image-size": ["buffer-image-size@0.6.4", "", { "dependencies": { "@types/node": "*" } }, "sha512-nEh+kZOPY1w+gcCMobZ6ETUp9WfibndnosbpwB1iJk/8Gt5ZF2bhS6+B6bPYz424KtwsR6Rflc3tCz1/ghX2dQ=="],
 
-    "bun-types": ["bun-types@1.4.0", "", { "dependencies": { "@types/node": "*" } }, "sha512-iIKw23BspnQQYd3prITOBxeUsxBHnwzX6YJfGMuNOZzeNcMmVqzIIVGRm1l69ogaPQmb4wB6BN8mA5bE9YuC5Q=="],
+    "bun-types": ["bun-types@1.4.1", "", { "dependencies": { "@types/node": "*" } }, "sha512-loKuVrAFZKfEv+JvWkHRS9GW5IqLuLRjVXN9p+vZvBN86O5hf/pBZQ5hSoyipsrMmWObZBDvWnlmKvjKTM0PdA=="],
 
     "caniuse-lite": ["caniuse-lite@1.0.30001809", "", {}, "sha512-xxWVywk6a6Arlk+hymeycyn/VgqEfLDxupvhH/xiY5SJ/18kmi9o6MiO320DCUzypORHLtvh0I4i04tUhCNHNQ=="],
 
@@ -953,13 +951,7 @@
 
     "mrmime": ["mrmime@2.0.1", "", {}, "sha512-Y3wQdFg2Va6etvQ5I82yUhGdsKrcYox6p7FfL1LbK2J4V01F9TGlepTIhnK24t7koZibmg82KGglhA1XK5IsLQ=="],
 
-    "msgpackr": ["msgpackr@2.0.5", "", { "optionalDependencies": { "msgpackr-extract": "^3.0.4" } }, "sha512-cef05H/dSYpLpqp3sj/qyZh5vhUYCalnaLO7j1yOmpsR0y/XwLVtK7r5gn+U/F7CTEfMowcGhlUQJDLcLf7jcA=="],
-
-    "msgpackr-extract": ["msgpackr-extract@3.0.4", "", { "dependencies": { "node-gyp-build-optional-packages": "5.2.2" }, "optionalDependencies": { "@msgpackr-extract/msgpackr-extract-darwin-arm64": "3.0.4", "@msgpackr-extract/msgpackr-extract-darwin-x64": "3.0.4", "@msgpackr-extract/msgpackr-extract-linux-arm": "3.0.4", "@msgpackr-extract/msgpackr-extract-linux-arm64": "3.0.4", "@msgpackr-extract/msgpackr-extract-linux-x64": "3.0.4", "@msgpackr-extract/msgpackr-extract-win32-x64": "3.0.4" }, "bin": { "download-msgpackr-prebuilds": "bin/download-prebuilds.js" } }, "sha512-4kmO/MdyUIkLIvTPr8VHLil4AtoKIoniWPIEk5+CDy0xnWC84azhSFmuJ7PxZdsYtiP5kEeQsORAVIeMgxT+Hw=="],
-
     "nanoid": ["nanoid@3.3.18", "", { "bin": { "nanoid": "bin/nanoid.cjs" } }, "sha512-DTg4MJbGMWkfi6VZFdNt2/caMbQy4Ou+Op/hJQvGEWcnVfoA1QA+xzRKAzw9jD6+GVOOeYr/mIcuDSdug6F6+w=="],
-
-    "node-gyp-build-optional-packages": ["node-gyp-build-optional-packages@5.2.2", "", { "dependencies": { "detect-libc": "^2.0.1" }, "bin": { "node-gyp-build-optional-packages": "bin.js", "node-gyp-build-optional-packages-optional": "optional.js", "node-gyp-build-optional-packages-test": "build-test.js" } }, "sha512-s+w+rBWnpTMwSFbaE0UXsRlg7hU4FjekKU4eyAih5T8nJuNZT1nNsskXpxmeqSK9UzkBl6UgRlnKc8hz8IEqOw=="],
 
     "node-releases": ["node-releases@2.0.53", "", {}, "sha512-D9UOmYG3UH1V+ENW56t5QXBwJw1YEY18ruVeus89Rw+SyIgjPkCO84bRzO3uNIYosJbNwiabWVn48o3uJLjxFQ=="],
 

@@ -208,6 +208,17 @@ describe("generateTypeScript", () => {
     expect(ts).toContain("status: string;");
   });
 
+  it("renders optional properties with question marks and void when no value type is set", () => {
+    const ts = generateTypeScript([
+      {
+        name: "posts",
+        displayName: "Posts",
+        schema: { missing: PropertyType.OPTIONAL },
+      },
+    ]);
+    expect(ts).toContain("missing?: void;");
+  });
+
   it("generates enum array for ENUMS with values", () => {
     const ts = generateTypeScript([
       {
@@ -234,16 +245,16 @@ describe("generateTypeScript", () => {
     expect(ts).toContain("body: Block[];");
   });
 
-  it("imports Block for nullable BLOCK bitmasks", () => {
+  it("imports Block for optional BLOCK bitmasks", () => {
     const ts = generateTypeScript([
       {
         name: "posts",
         displayName: "Posts",
-        schema: { body: PropertyType.BLOCK | PropertyType.NULL },
+        schema: { body: PropertyType.BLOCK | PropertyType.OPTIONAL },
       },
     ]);
     expect(ts).toContain('import type { Block } from "@contfu/core";');
-    expect(ts).toContain("body: Block[];");
+    expect(ts).toContain("body?: Block[];");
   });
 
   it("generates Color imports for COLOR fields and bitmasks", () => {
@@ -291,12 +302,12 @@ describe("generateTypeScript", () => {
       {
         name: "pages",
         displayName: "Pages",
-        schema: { icon: PropertyType.FILE | PropertyType.STRING | PropertyType.NULL },
+        schema: { icon: PropertyType.FILE | PropertyType.STRING | PropertyType.OPTIONAL },
       },
     ]);
 
     expect(ts).toContain('import type { FileMetadata } from "@contfu/core";');
-    expect(ts).toContain("icon: string | FileMetadata;");
+    expect(ts).toContain("icon?: string | FileMetadata;");
   });
 
   it("generates any for OBJECT", () => {
@@ -331,18 +342,18 @@ describe("generateTypeScript", () => {
     expect(ts).toContain("body: (SharedSeoComponent | SharedHeroComponent)[];");
   });
 
-  it("generates typed component blocks from nullable BLOCK schema metadata", () => {
+  it("generates typed component blocks from optional BLOCK schema metadata", () => {
     const ts = generateTypeScript([
       {
         name: "posts",
         displayName: "Posts",
-        schema: { body: [PropertyType.BLOCK | PropertyType.NULL, ["shared.hero"]] },
+        schema: { body: [PropertyType.BLOCK | PropertyType.OPTIONAL, ["shared.hero"]] },
       },
     ]);
     expect(ts).toContain(
       'export type SharedHeroComponent = ["x", "shared.hero", Record<string, any>, Block[]];',
     );
-    expect(ts).toContain("body: (SharedHeroComponent)[];");
+    expect(ts).toContain("body?: (SharedHeroComponent)[];");
   });
 
   it("generates different component block unions per dynamic-zone field", () => {
@@ -471,21 +482,21 @@ describe("generateApplicationIntegrationTypes", () => {
     expect(ts).not.toContain("file: string[];");
   });
 
-  it("generates FileMetadata for nullable file bitmasks in integration types", () => {
+  it("generates FileMetadata for optional file bitmasks in integration types", () => {
     const ts = generateApplicationIntegrationTypes([
       {
         name: "assets",
         displayName: "Assets",
         schema: {
-          cover: PropertyType.FILE | PropertyType.NULL,
-          gallery: PropertyType.FILES | PropertyType.NULL,
+          cover: PropertyType.FILE | PropertyType.OPTIONAL,
+          gallery: PropertyType.FILES | PropertyType.OPTIONAL,
         },
       },
     ]);
 
     expect(ts).toContain('import type { FileMetadata } from "@contfu/core";');
-    expect(ts).toContain("cover: FileMetadata;");
-    expect(ts).toContain("gallery: FileMetadata[];");
+    expect(ts).toContain("cover?: FileMetadata;");
+    expect(ts).toContain("gallery?: FileMetadata[];");
   });
 });
 
@@ -901,19 +912,19 @@ describe("$content system schema key", () => {
         displayName: "Posts",
         schema: {
           title: PropertyType.STRING,
-          $content: PropertyType.NULL,
+          $content: PropertyType.OPTIONAL,
           $locale: [PropertyType.ENUM, ["en", "de"]],
         },
         inflowSchemas: [
           {
             title: PropertyType.STRING,
-            $content: PropertyType.NULL,
+            $content: PropertyType.OPTIONAL,
             $locale: [PropertyType.ENUM, ["en", "de"]],
           },
           {
             title: PropertyType.STRING,
             category: PropertyType.STRING,
-            $content: PropertyType.NULL,
+            $content: PropertyType.OPTIONAL,
             $locale: [PropertyType.ENUM, ["en", "de"]],
           },
         ],
@@ -921,7 +932,7 @@ describe("$content system schema key", () => {
       },
     ]);
 
-    expect(ts).toContain("content: Block[];");
+    expect(ts).toContain("content?: Block[];");
     expect(ts.match(/\$locale: Locale;/g)).toHaveLength(2);
     expect(ts).not.toContain('$locale: "en" | "de";');
   });
@@ -933,19 +944,19 @@ describe("$content system schema key", () => {
         displayName: "Posts",
         schema: {
           title: PropertyType.STRING,
-          $content: PropertyType.NULL,
+          $content: PropertyType.OPTIONAL,
           $locale: [PropertyType.ENUM, ["en", "de"]],
         },
         inflowSchemas: [
           {
             title: PropertyType.STRING,
-            $content: PropertyType.NULL,
+            $content: PropertyType.OPTIONAL,
             $locale: [PropertyType.ENUM, ["en", "de"]],
           },
           {
             title: PropertyType.STRING,
             category: PropertyType.STRING,
-            $content: PropertyType.NULL,
+            $content: PropertyType.OPTIONAL,
             $locale: [PropertyType.ENUM, ["en", "de"]],
           },
         ],
@@ -962,10 +973,10 @@ describe("$content system schema key", () => {
 describe("generateTypeScript with merged enum schemas", () => {
   it("emits union of all values when two ENUM schemas are merged before generation", () => {
     const schemaA: CollectionSchema = {
-      status: [PropertyType.ENUM | PropertyType.NULL, ["draft", "published"]],
+      status: [PropertyType.ENUM | PropertyType.OPTIONAL, ["draft", "published"]],
     };
     const schemaB: CollectionSchema = {
-      status: [PropertyType.ENUM | PropertyType.NULL, ["active", "inactive"]],
+      status: [PropertyType.ENUM | PropertyType.OPTIONAL, ["active", "inactive"]],
     };
 
     // Simulate what broadcastSchemaChanges does: merge per-property
@@ -978,7 +989,7 @@ describe("generateTypeScript with merged enum schemas", () => {
     }
 
     const ts = generateTypeScript([{ name: "posts", displayName: "Posts", schema: merged }]);
-    expect(ts).toContain(`status: "draft" | "published" | "active" | "inactive"`);
+    expect(ts).toContain(`status?: "draft" | "published" | "active" | "inactive"`);
   });
 });
 
@@ -1005,8 +1016,8 @@ describe("schemaEnumValues", () => {
 
 describe("mergeSchemaValues", () => {
   it("ORs two plain numbers", () => {
-    expect(mergeSchemaValues(PropertyType.ENUM, PropertyType.NULL)).toBe(
-      PropertyType.ENUM | PropertyType.NULL,
+    expect(mergeSchemaValues(PropertyType.ENUM, PropertyType.OPTIONAL)).toBe(
+      PropertyType.ENUM | PropertyType.OPTIONAL,
     );
   });
 
@@ -1027,7 +1038,7 @@ describe("mergeSchemaValues", () => {
   });
 
   it("ORs types when merging tuples", () => {
-    const result = mergeSchemaValues([PropertyType.ENUM, ["a"]], [PropertyType.NULL, []]);
-    expect(schemaType(result)).toBe(PropertyType.ENUM | PropertyType.NULL);
+    const result = mergeSchemaValues([PropertyType.ENUM, ["a"]], [PropertyType.OPTIONAL, []]);
+    expect(schemaType(result)).toBe(PropertyType.ENUM | PropertyType.OPTIONAL);
   });
 });

@@ -8,7 +8,6 @@ import {
   itemTable as itemsTable,
   withDatabase,
 } from "@contfu/contfu";
-import { pack } from "msgpackr";
 import { createServeOptions } from "./server";
 
 type RouteRequest = Request & { params: Record<string, string> };
@@ -35,21 +34,22 @@ describe("configured Server databases", () => {
       static readonly OPEN = 1;
       static current: MockSyncWebSocket | undefined;
       readyState = MockSyncWebSocket.OPEN;
-      binaryType = "arraybuffer";
       onopen: (() => void) | null = null;
       onerror: (() => void) | null = null;
       onclose: ((event: { code: number; reason: string }) => void) | null = null;
-      private messageHandler: ((event: { data: Uint8Array }) => void) | null = null;
+      private messageHandler: ((event: { data: string }) => void) | null = null;
 
       constructor() {
         MockSyncWebSocket.current = this;
         queueMicrotask(() => this.onopen?.());
       }
 
-      set onmessage(handler: ((event: { data: Uint8Array }) => void) | null) {
+      set onmessage(handler: ((event: { data: string }) => void) | null) {
         this.messageHandler = handler;
         if (handler)
-          queueMicrotask(() => handler({ data: pack([EventType.ITEM_DELETED, 1, 987_654]) }));
+          queueMicrotask(() =>
+            handler({ data: JSON.stringify([EventType.ITEM_DELETED, 1, 987_654]) }),
+          );
       }
 
       get onmessage() {

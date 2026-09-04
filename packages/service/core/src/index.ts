@@ -1,4 +1,5 @@
 export * from "./api";
+export * from "./source-operations";
 export {
   asColor,
   colorFromHex,

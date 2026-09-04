@@ -8,9 +8,9 @@ import {
 import { ClientEventType, EventType } from "./events";
 
 describe("wire item sparse patches", () => {
-  test("patches props shallowly and deletes undefined props", () => {
+  test("patches props shallowly and deletes null props", () => {
     const previous: WireItem = [1, "posts", 1, { a: 1, b: 2 }];
-    const next = materializeWireItemPatch([1, "posts", 2, { a: 3, b: undefined }], previous);
+    const next = materializeWireItemPatch([1, "posts", 2, { a: 3, b: null }], previous);
 
     expect(next[3]).toEqual({ a: 3 });
   });
@@ -21,14 +21,14 @@ describe("wire item sparse patches", () => {
     expect(materializeWireItemPatch([1, "posts", 2, { a: 2 }], previous)[4]).toEqual([
       ["p", ["x"]],
     ]);
-    expect(materializeWireItemPatch([1, "posts", 3, undefined, []], previous)[4]).toEqual([]);
+    expect(materializeWireItemPatch([1, "posts", 3, null, []], previous)[4]).toEqual([]);
   });
 
   test("diff emits a sparse patch when previous full item is known", () => {
     const previous: WireItem = [1, "posts", 1, { a: 1, b: 2 }, [["p", ["x"]]]];
     const next: WireItem = [1, "posts", 2, { a: 2 }];
 
-    expect(diffWireItemPatch(previous, next)).toEqual([1, "posts", 2, { a: 2, b: undefined }, []]);
+    expect(diffWireItemPatch(previous, next)).toEqual([1, "posts", 2, { a: 2, b: null }, []]);
   });
 
   test("diff ignores structurally equal props and content", () => {
@@ -36,6 +36,30 @@ describe("wire item sparse patches", () => {
     const next: WireItem = [1, "posts", 2, { data: { a: 1, b: 2 } }, [["p", ["x"]]]];
 
     expect(diffWireItemPatch(previous, next)).toEqual([1, "posts", 2]);
+  });
+
+  test("plain JSON preserves null patch semantics and positional holes", () => {
+    const previous: WireItem = [1, "posts", 1, { keep: true, remove: true }, [["p", ["old"]]]];
+    const patch = diffWireItemPatch(previous, [1, "posts", 2, { keep: true }, [["p", ["new"]]]]);
+    const decoded = JSON.parse(JSON.stringify(patch)) as WireItem;
+
+    expect(decoded[3]).toEqual({ remove: null });
+    expect(materializeWireItemPatch(decoded, previous)).toEqual([
+      1,
+      "posts",
+      2,
+      { keep: true },
+      [["p", ["new"]]],
+    ]);
+
+    const contentOnly = JSON.parse(
+      JSON.stringify([1, "posts", 3, undefined, [["p", ["newer"]]]]),
+    ) as WireItem;
+    expect(contentOnly[3]).toBeNull();
+    expect(materializeWireItemPatch(contentOnly, previous)[3]).toEqual({
+      keep: true,
+      remove: true,
+    });
   });
 });
 

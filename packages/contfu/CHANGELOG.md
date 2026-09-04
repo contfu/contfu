@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.3.5] - 2026-09-04
+
+### Added
+
+- Replace sync wire MessagePack with JSON.
+- Support `$draft` query filters.
+
+### Changed
+
+- Remove obsolete internal re-export shims.
+
+### Fixed
+
+- Order live schema delivery before item events.
+
 ## [0.3.4] - 2026-08-22
 
 ### Added

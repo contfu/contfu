@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.8] - 2026-09-04
+
+### Added
+
+- Replace sync wire MessagePack with JSON.
+- Model Sanity schemas as pushed with item-derived fallback.
+
 ## [0.1.7] - 2026-08-10
 
 ### Changed

@@ -1,6 +1,6 @@
 {
   "name": "@contfu/strapi",
-  "version": "0.1.2",
+  "version": "0.2.1",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -30,6 +30,9 @@
     "test": "bun test src/",
     "pack": "bun ../../../scripts/pack-package.ts .",
     "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@contfu/webhook": "workspace:^0.2.0"
   },
   "strapi": {
     "kind": "plugin",

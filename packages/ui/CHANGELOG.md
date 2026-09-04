@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.13] - 2026-09-04
+
+### Changed
+
+- Preload navigation data on tap instead of hover.
+
 ## [0.1.12] - 2026-08-22
 
 ### Changed

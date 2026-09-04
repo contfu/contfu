@@ -87,7 +87,7 @@ function normalizeFieldType(
 }
 
 function applyNullability(type: number, field: SanityFieldDefinition): number {
-  return isRequiredField(field) ? type : type | PropertyType.NULL;
+  return isRequiredField(field) ? type : type | PropertyType.OPTIONAL;
 }
 
 function isRequiredField(field: SanityFieldDefinition): boolean {
@@ -117,7 +117,7 @@ function isRequiredField(field: SanityFieldDefinition): boolean {
 
 function normalizeArrayType(of: unknown, objectTypeNames: ReadonlySet<string>): number {
   const items = Array.isArray(of) ? (of as SanityFieldDefinition[]) : [];
-  let result = PropertyType.NULL;
+  let result = PropertyType.OPTIONAL;
   for (const item of items) {
     const type = normalizeFieldType(item, objectTypeNames);
     if (type === null) continue;
@@ -132,7 +132,7 @@ function normalizeArrayType(of: unknown, objectTypeNames: ReadonlySet<string>): 
     if (type & PropertyType.NUMBER) result |= PropertyType.NUMBERS;
     else result |= PropertyType.STRINGS;
   }
-  return result === PropertyType.NULL ? PropertyType.STRINGS : result;
+  return result === PropertyType.OPTIONAL ? PropertyType.STRINGS : result;
 }
 
 function getSchemaSyncEndpoint(): string {
