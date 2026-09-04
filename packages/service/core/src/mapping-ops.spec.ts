@@ -86,15 +86,15 @@ describe("autoWireMappings", () => {
 
 describe("autoWireMappings with ENUM schema values", () => {
   test("ENUM source matches ENUM target directly", () => {
-    const source = { status: [T.ENUM | T.NULL, ["draft", "published"]] as [number, string[]] };
-    const target = { status: [T.ENUM | T.NULL, ["draft", "published"]] as [number, string[]] };
+    const source = { status: [T.ENUM | T.OPTIONAL, ["draft", "published"]] as [number, string[]] };
+    const target = { status: [T.ENUM | T.OPTIONAL, ["draft", "published"]] as [number, string[]] };
     const rules = autoWireMappings(target, source);
     expect(rules).toEqual([{ source: "status", target: "status" }]);
   });
 
   test("ENUM source matches STRING target via 'string' cast", () => {
-    const source = { status: [T.ENUM | T.NULL, ["a", "b"]] as [number, string[]] };
-    const target = { status: T.STRING | T.NULL };
+    const source = { status: [T.ENUM | T.OPTIONAL, ["a", "b"]] as [number, string[]] };
+    const target = { status: T.STRING | T.OPTIONAL };
     const rules = autoWireMappings(target, source);
     expect(rules).toEqual([{ source: "status", target: "status", cast: "string", guessed: true }]);
   });
@@ -237,19 +237,19 @@ describe("applyMappings", () => {
   });
 
   test("date casts preserve source nullability in derived schemas", () => {
-    const schema = { due: T.NUMBER | T.NULL, dueAt: T.DATE | T.NULL };
+    const schema = { due: T.NUMBER | T.OPTIONAL, dueAt: T.DATE | T.OPTIONAL };
 
     expect(
       applyMappingsToSchema(schema, [{ source: "due", target: "dueAt", cast: "plainDateToDate" }]),
-    ).toEqual({ dueAt: T.DATE | T.NULL });
+    ).toEqual({ dueAt: T.DATE | T.OPTIONAL });
     expect(
       applyMappingsToSchema(schema, [{ source: "dueAt", target: "due", cast: "dateToPlainDate" }]),
-    ).toEqual({ due: T.PLAINDATE | T.NULL });
+    ).toEqual({ due: T.PLAINDATE | T.OPTIONAL });
     expect(
       applyMappingsToSchema(schema, [
         { source: "due", target: "dueText", cast: "plainDateToString" },
       ]),
-    ).toEqual({ dueText: T.STRING | T.NULL });
+    ).toEqual({ dueText: T.STRING | T.OPTIONAL });
   });
 
   test("primitive casts emit the target primitive for source-backed values", () => {
@@ -326,9 +326,9 @@ describe("applyMappings", () => {
       output: unknown;
       targetType: number;
     }> = [
-      { cast: "string", output: null, targetType: T.STRING | T.NULL },
-      { cast: "number", output: null, targetType: T.NUMBER | T.NULL },
-      { cast: "boolean", output: null, targetType: T.BOOLEAN | T.NULL },
+      { cast: "string", output: null, targetType: T.STRING | T.OPTIONAL },
+      { cast: "number", output: null, targetType: T.NUMBER | T.OPTIONAL },
+      { cast: "boolean", output: null, targetType: T.BOOLEAN | T.OPTIONAL },
     ];
 
     for (const testCase of cases) {
@@ -336,7 +336,7 @@ describe("applyMappings", () => {
         { source: "source", target: "target", cast: testCase.cast },
       ];
       expect(applyMappings({ source: null }, sourceRule)).toEqual({ target: testCase.output });
-      expect(applyMappingsToSchema({ source: T.STRING | T.NULL }, sourceRule)).toEqual({
+      expect(applyMappingsToSchema({ source: T.STRING | T.OPTIONAL }, sourceRule)).toEqual({
         target: testCase.targetType,
       });
 
@@ -344,7 +344,7 @@ describe("applyMappings", () => {
         { source: "missing", target: "target", cast: testCase.cast, default: null },
       ];
       expect(applyMappings({}, defaultRule)).toEqual({ target: testCase.output });
-      expect(applyMappingsToSchema({}, defaultRule)).toEqual({ target: T.NULL });
+      expect(applyMappingsToSchema({}, defaultRule)).toEqual({ target: T.OPTIONAL });
     }
   });
 
@@ -755,16 +755,16 @@ describe("applyMappingsToSchema", () => {
   });
 
   test("preserves enum tuple when remapping schema keys", () => {
-    const schema = { status: [T.ENUM | T.NULL, ["draft", "published"]] as [number, string[]] };
+    const schema = { status: [T.ENUM | T.OPTIONAL, ["draft", "published"]] as [number, string[]] };
     const mappings: MappingRule[] = [{ source: "status", target: "articleStatus" }];
     const result = applyMappingsToSchema(schema, mappings);
     expect(result).toEqual({
-      articleStatus: [T.ENUM | T.NULL, ["draft", "published"]],
+      articleStatus: [T.ENUM | T.OPTIONAL, ["draft", "published"]],
     });
   });
 
   test("removes source nullability for non-null defaults but preserves explicit null defaults", () => {
-    const schema = { title: T.STRING | T.NULL, count: T.NUMBER | T.NULL };
+    const schema = { title: T.STRING | T.OPTIONAL, count: T.NUMBER | T.OPTIONAL };
     expect(
       applyMappingsToSchema(schema, [
         { source: "title", target: "title", default: "fallback" },
@@ -776,7 +776,7 @@ describe("applyMappingsToSchema", () => {
         { source: "title", target: "title", default: null },
         { source: "count", target: "count", default: null },
       ]),
-    ).toEqual({ title: T.STRING | T.NULL, count: T.NUMBER | T.NULL });
+    ).toEqual({ title: T.STRING | T.OPTIONAL, count: T.NUMBER | T.OPTIONAL });
   });
 
   test("infers cast-compatible schema for a default on an absent source", () => {
@@ -789,7 +789,7 @@ describe("applyMappingsToSchema", () => {
 
   test("merges mixed fallback types for nullable sources without a normalizing cast", () => {
     expect(
-      applyMappingsToSchema({ value: T.NUMBER | T.NULL }, [
+      applyMappingsToSchema({ value: T.NUMBER | T.OPTIONAL }, [
         { source: "value", target: "value", default: "fallback" },
       ]),
     ).toEqual({ value: [T.NUMBER | T.ENUM, ["fallback"]] });
@@ -798,7 +798,7 @@ describe("applyMappingsToSchema", () => {
   test("includes a fallback literal in nullable enum inference", () => {
     expect(
       applyMappingsToSchema(
-        { status: [T.ENUM | T.NULL, ["draft", "published"]] as [number, string[]] },
+        { status: [T.ENUM | T.OPTIONAL, ["draft", "published"]] as [number, string[]] },
         [{ source: "status", target: "status", default: "archived" }],
       ),
     ).toEqual({ status: [T.ENUM, ["draft", "published", "archived"]] });
@@ -806,27 +806,27 @@ describe("applyMappingsToSchema", () => {
 
   test("retains a single output type when a cast normalizes a mixed fallback", () => {
     expect(
-      applyMappingsToSchema({ value: T.NUMBER | T.NULL }, [
+      applyMappingsToSchema({ value: T.NUMBER | T.OPTIONAL }, [
         { source: "value", target: "value", cast: "string", default: false },
       ]),
     ).toEqual({ value: T.STRING });
   });
 
   test("converts STRING to ENUM schema value when cast is 'enum'", () => {
-    const schema = { type: T.STRING | T.NULL };
+    const schema = { type: T.STRING | T.OPTIONAL };
     const mappings: MappingRule[] = [
       { source: "type", target: "type", cast: "enum", enumValues: ["blog", "page"] },
     ];
     const result = applyMappingsToSchema(schema, mappings);
     expect(Array.isArray(result.type)).toBe(true);
-    expect((result.type as [number, string[]])[0]).toBe(T.ENUM | T.NULL);
+    expect((result.type as [number, string[]])[0]).toBe(T.ENUM | T.OPTIONAL);
     expect((result.type as [number, string[]])[1]).toEqual(["blog", "page"]);
   });
 
   test("merges enum values when two source properties map to the same target", () => {
     const schema = {
-      statusA: [T.ENUM | T.NULL, ["draft", "published"]] as [number, string[]],
-      statusB: [T.ENUM | T.NULL, ["active", "inactive"]] as [number, string[]],
+      statusA: [T.ENUM | T.OPTIONAL, ["draft", "published"]] as [number, string[]],
+      statusB: [T.ENUM | T.OPTIONAL, ["active", "inactive"]] as [number, string[]],
     };
     const mappings: MappingRule[] = [
       { source: "statusA", target: "status" },
@@ -850,11 +850,11 @@ describe("applyMappingsToSchema", () => {
 
   test("demotes selected array schema values to singleton values", () => {
     const schema = {
-      titles: T.STRINGS | T.NULL,
+      titles: T.STRINGS | T.OPTIONAL,
       scores: T.NUMBERS,
       refs: T.REFS,
       files: T.FILES,
-      status: [T.ENUMS | T.NULL, ["draft", "published"]] as [number, string[]],
+      status: [T.ENUMS | T.OPTIONAL, ["draft", "published"]] as [number, string[]],
     };
     const result = applyMappingsToSchema(schema, [
       { source: "titles", target: "title", arrayIndex: 0 },
@@ -864,11 +864,11 @@ describe("applyMappingsToSchema", () => {
       { source: "status", target: "status", arrayIndex: 0 },
     ]);
     expect(result).toEqual({
-      title: T.STRING | T.NULL,
+      title: T.STRING | T.OPTIONAL,
       score: T.NUMBER,
       ref: T.REF,
       file: T.FILE,
-      status: [T.ENUM | T.NULL, ["draft", "published"]],
+      status: [T.ENUM | T.OPTIONAL, ["draft", "published"]],
     });
   });
 });

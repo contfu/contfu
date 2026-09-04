@@ -1,4 +1,7 @@
-import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from "bun:test";
+import { afterAll, afterEach, beforeEach, describe, expect, mock, spyOn, test } from "bun:test";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 import { status } from "./status";
 
 const mockFetch = mock<typeof fetch>();
@@ -65,17 +68,36 @@ const FLOWS = [
 
 let logSpy: ReturnType<typeof spyOn>;
 let errorSpy: ReturnType<typeof spyOn>;
+const originalApiKey = process.env.CONTFU_API_KEY;
+const originalWorkspace = process.env.CONTFU_WORKSPACE;
+const originalConfigDir = process.env.CONTFU_CONFIG_DIR;
+const testConfigDir = await mkdtemp(join(tmpdir(), "contfu-cli-status-"));
+process.env.CONTFU_CONFIG_DIR = testConfigDir;
 
-beforeEach(() => {
+beforeEach(async () => {
   mockFetch.mockReset();
   process.env.CONTFU_API_KEY = "test-key";
+  delete process.env.CONTFU_WORKSPACE;
+  await rm(join(testConfigDir, "config.json"), { force: true });
   logSpy = spyOn(console, "log").mockImplementation(() => {});
   errorSpy = spyOn(console, "error").mockImplementation(() => {});
 });
 
-afterEach(() => {
+afterEach(async () => {
   logSpy.mockRestore();
   errorSpy.mockRestore();
+  if (originalApiKey === undefined) delete process.env.CONTFU_API_KEY;
+  else process.env.CONTFU_API_KEY = originalApiKey;
+  if (originalWorkspace === undefined) delete process.env.CONTFU_WORKSPACE;
+  else process.env.CONTFU_WORKSPACE = originalWorkspace;
+  process.env.CONTFU_CONFIG_DIR = testConfigDir;
+  await rm(join(testConfigDir, "config.json"), { force: true });
+});
+
+afterAll(async () => {
+  if (originalConfigDir === undefined) delete process.env.CONTFU_CONFIG_DIR;
+  else process.env.CONTFU_CONFIG_DIR = originalConfigDir;
+  await rm(testConfigDir, { recursive: true, force: true });
 });
 
 function mockApiResponses() {
@@ -87,7 +109,46 @@ function mockApiResponses() {
   }) as typeof fetch);
 }
 
+function requestUrls(): string[] {
+  return mockFetch.mock.calls.map((call) => String((call as unknown[])[0]));
+}
+
 describe("status", () => {
+  test("uses the stored workspace for every request", async () => {
+    await writeFile(
+      join(testConfigDir, "config.json"),
+      JSON.stringify({ workspaceId: "workspace-a" }),
+      "utf-8",
+    );
+    mockApiResponses();
+
+    await status();
+
+    expect(requestUrls()).toEqual([
+      "https://contfu.com/api/v1/integrations?workspace=workspace-a",
+      "https://contfu.com/api/v1/collections?workspace=workspace-a",
+      "https://contfu.com/api/v1/flows?workspace=workspace-a",
+    ]);
+  });
+
+  test("uses the explicit workspace over the stored workspace for every request", async () => {
+    await writeFile(
+      join(testConfigDir, "config.json"),
+      JSON.stringify({ workspaceId: "workspace-a" }),
+      "utf-8",
+    );
+    process.env.CONTFU_WORKSPACE = "workspace-b";
+    mockApiResponses();
+
+    await status();
+
+    expect(requestUrls()).toEqual([
+      "https://contfu.com/api/v1/integrations?workspace=workspace-b",
+      "https://contfu.com/api/v1/collections?workspace=workspace-b",
+      "https://contfu.com/api/v1/flows?workspace=workspace-b",
+    ]);
+  });
+
   test("fetches and prints table summary", async () => {
     mockApiResponses();
     await status();

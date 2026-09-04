@@ -34,6 +34,7 @@ export type QuerySystemFields = {
   $changedAt: number;
   $deletedAt?: number;
   $locale?: string;
+  $draft?: boolean;
 };
 
 type CollectionLocale<Props> = Props extends { $locale?: infer L }

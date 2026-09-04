@@ -53,6 +53,29 @@ contfu collections update <id> --name new-slug
 contfu collections delete <id>
 ```
 
+## Source operations
+
+Source collections can be operated without opening the UI. **Sync now** performs an ordinary
+source pull; **Full refresh** resets source state and performs a complete source pull; and
+**Full resync** rebuilds a target collection from its incoming flows. The CLI waits for source
+operations when requested:
+
+```bash
+contfu collections sync-now <id-or-name> --wait
+contfu collections full-refresh <id-or-name> --wait
+contfu collections full-resync <target-id-or-name> --refresh-source-first
+contfu collections operations <id-or-name> -f json
+```
+
+`--wait` exits non-zero when a source operation is failed or blocked. Operation history is scoped
+to the selected workspace. Full resync is a target repair and is distinct from a source Full
+refresh; `--refresh-source-first` opts into refreshing its incoming sources first.
+
+The same operations are available to workspace-scoped API-key clients under
+`/api/v1/collections/{id}/sync-now`, `/full-refresh`, `/full-resync`, `/pause`, `/resume`, and
+`/operations`. Poll a source operation with `GET /api/v1/source-operations/{id}`. A Full resync can be
+polled with `GET /api/v1/collections/{collection-id}/full-resync/{repair-job-id}`.
+
 ### Associating collections with an app
 
 A collection is only visible to an application when it is associated with that app's

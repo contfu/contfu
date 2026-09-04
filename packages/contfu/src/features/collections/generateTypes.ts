@@ -40,9 +40,9 @@ function schemaValueToType(value: SchemaValue): string {
   const numType = propertyTypeBase(schemaType(value));
   const enumVals = schemaEnumValues(value);
   const enumType = numType & (PropertyType.ENUM | PropertyType.ENUMS);
-  const nonEnumType = numType & ~(PropertyType.ENUM | PropertyType.ENUMS | PropertyType.NULL);
+  const nonEnumType = numType & ~(PropertyType.ENUM | PropertyType.ENUMS | PropertyType.OPTIONAL);
 
-  // NULL is intentionally ignored for generated property types, but enum
+  // OPTIONAL is represented by an optional property, not a null union, but enum
   // tuples retain their literal values when they are otherwise standalone.
   if (nonEnumType === 0 && enumType === PropertyType.ENUM) {
     return enumVals && enumVals.length > 0
@@ -60,7 +60,7 @@ function schemaValueToType(value: SchemaValue): string {
   for (const propertyType of Object.values(PropertyType)) {
     if (
       (propertyType & PROPERTY_METADATA_MASK) !== 0 ||
-      propertyType === PropertyType.NULL ||
+      propertyType === PropertyType.OPTIONAL ||
       (numType & propertyType) === 0
     )
       continue;
@@ -72,7 +72,7 @@ function schemaValueToType(value: SchemaValue): string {
         : TYPE_MAP[propertyType];
     if (rendered && !members.includes(rendered)) members.push(rendered);
   }
-  return members.length > 0 ? members.join(" | ") : "unknown";
+  return members.length > 0 ? members.join(" | ") : "void";
 }
 
 function collectionNameToTypeName(name: string): string {
@@ -90,7 +90,10 @@ export function generateTypes(
 
   const interfaces = entries.map(([name, schema]) => {
     const props = Object.entries(schema)
-      .map(([key, value]) => `  ${key}: ${schemaValueToType(value)};`)
+      .map(
+        ([key, value]) =>
+          `  ${key}${schemaType(value) & PropertyType.OPTIONAL ? "?" : ""}: ${schemaValueToType(value)};`,
+      )
       .join("\n");
     return `export type ${typeNames[name]} = {\n${props}\n};`;
   });

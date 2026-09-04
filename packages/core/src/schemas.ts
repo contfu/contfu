@@ -6,8 +6,8 @@ import type { EffectiveCollectionI18nConfig } from "./i18n";
  * metadata modifiers which may be combined with a value type.
  */
 export const PropertyType = defineEnum({
-  // Value types (bits 0–17).
-  NULL: 1, // 1 << 0
+  // Value types (bits 0–19).
+  OPTIONAL: 1, // 1 << 0
   BLOCK: 2, // 1 << 1
   STRING: 4, // 1 << 2
   STRINGS: 8, // 1 << 3
@@ -96,7 +96,7 @@ const SYSTEM_SCHEMA_KEYS: Record<string, { name: string; type: string; importFro
   $content: { name: "content", type: "Block[]", importFrom: "@contfu/core" },
   $draft: { name: "$draft", type: "boolean" },
   $createdAt: { name: "$createdAt", type: "number" },
-  $publishedAt: { name: "$publishedAt", type: "number | null" },
+  $publishedAt: { name: "$publishedAt", type: "number" },
   $locale: { name: "locale", type: "string" },
 };
 
@@ -174,6 +174,10 @@ function toInterfaceName(name: string): string {
 
 function renderPropertyKey(key: string): string {
   return /^[$A-Z_a-z][$\w]*$/.test(key) ? key : JSON.stringify(key);
+}
+
+function isOptional(value: SchemaValue): boolean {
+  return (schemaType(value) & PropertyType.OPTIONAL) !== 0;
 }
 
 type RefFormat = "interface" | "lookup";
@@ -267,7 +271,7 @@ function propertyTypeMaskToTs(
   for (const propertyType of Object.values(PropertyType)) {
     if (
       (propertyType & PROPERTY_METADATA_MASK) !== 0 ||
-      propertyType === PropertyType.NULL ||
+      propertyType === PropertyType.OPTIONAL ||
       (type & propertyType) === 0
     )
       continue;
@@ -276,7 +280,7 @@ function propertyTypeMaskToTs(
     add(rendered);
   }
 
-  return members.length > 0 ? members.join(" | ") : "unknown";
+  return members.length > 0 ? members.join(" | ") : "void";
 }
 
 export interface TypeGenerationInput {
@@ -346,7 +350,9 @@ function renderUnionMember(
     const renderedType = sys
       ? sys.type
       : propertyTypeToTs(schemaType(value), refTargets?.[key], refFormat, schemaEnumValues(value));
-    lines.push(`${baseIndent}    ${renderPropertyKey(renderedKey)}: ${renderedType};`);
+    lines.push(
+      `${baseIndent}    ${renderPropertyKey(renderedKey)}${isOptional(value) ? "?" : ""}: ${renderedType};`,
+    );
   }
   if (i18n?.localized) {
     lines.push(`${baseIndent}    $locale: Locale;`);
@@ -368,7 +374,7 @@ function collectLocales(collections: TypeGenerationInput[]): string[] {
 function renderInlineProps(schema: CollectionSchema, refFormat: RefFormat): string {
   const entries = Object.entries(schema);
   if (entries.length === 0) return "Record<string, any>";
-  return `{ ${entries.map(([key, value]) => `${renderPropertyKey(key)}: ${propertyTypeToTs(schemaType(value), undefined, refFormat, schemaEnumValues(value))}`).join("; ")} }`;
+  return `{ ${entries.map(([key, value]) => `${renderPropertyKey(key)}${isOptional(value) ? "?" : ""}: ${propertyTypeToTs(schemaType(value), undefined, refFormat, schemaEnumValues(value))}`).join("; ")} }`;
 }
 
 function renderBlockPropsType(
@@ -468,7 +474,9 @@ export function generateTypeScript(collections: TypeGenerationInput[]): string {
               "interface",
               schemaEnumValues(value),
             );
-        lines.push(`  ${renderPropertyKey(renderedKey)}: ${renderedType};`);
+        lines.push(
+          `  ${renderPropertyKey(renderedKey)}${isOptional(value) ? "?" : ""}: ${renderedType};`,
+        );
       }
       if (col.i18n?.localized) {
         lines.push(`  $locale: Locale;`);
@@ -520,7 +528,9 @@ export function generateApplicationIntegrationTypes(collections: TypeGenerationI
               "lookup",
               schemaEnumValues(value),
             );
-        lines.push(`    ${renderPropertyKey(renderedKey)}: ${renderedType};`);
+        lines.push(
+          `    ${renderPropertyKey(renderedKey)}${isOptional(value) ? "?" : ""}: ${renderedType};`,
+        );
       }
       if (col.i18n?.localized) {
         lines.push(`    $locale: Locale;`);

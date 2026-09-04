@@ -35,6 +35,8 @@ integrations components <id>       List components for an integration
 integrations regenerate-key <id>   Rotate an app integration key and write CONTFU_KEY
 components create|get|update|delete
                                   Manage integration-scoped components
+incidents list                     List unresolved delivery incidents
+incidents dismiss <id>             Dismiss a dismissible condition
 integrations types                 List valid integration types
 collections types                 Generate TypeScript types for a collection
 items query  --collection <id>    Query items
@@ -49,9 +51,15 @@ Contfu commands target `https://contfu.com` implicitly. Use `contfu workspaces s
 
 Use `contfu integrations regenerate-key <app-integration-id-or-name>` to rotate an app integration API key and write it as `CONTFU_KEY` to `.env`. Pass `--env-file <path>` to write a different env file, or `--dry-run` to preview the change.
 
+## Incidents
+
+Use `contfu incidents list` to inspect unresolved incident conditions in the selected workspace. Each entry includes its source and target collection, specific problem, suggested action, affected count, and age. Pass `--collection <id>` to match either endpoint, `--flow <id>` to match one flow, or `--include-resolved` for incident history. Use `-j` for stable JSON output or `-a` for agent-oriented output.
+
+Dismissible incidents advertise a dismiss command. Run `contfu incidents dismiss <incident-id>` after fixing the delivery problem. Dismissing also removes unresolved duplicate notifications for the same flow, type, and message; incidents that auto-resolve or require a corrective action cannot be dismissed.
+
 ## Creating and updating integrations
 
-Use `contfu integrations create --name "Marketing CMS" --type <service>` with a service ID from `contfu integrations types`. Pass `--url <url-or-id>` for services that need a base URL or service-specific identifier such as a Contentful space ID or WordPress site URL. For Sanity, pass `--project-id <project-id>` and use `--scope`/`--scopes` for datasets. For Contentful, `--scope`/`--scopes` restrict exposed environments; Delivery API mode is the default, and `--contentful-api-mode preview --contentful-preview-token <token>` creates a Preview API integration. For WordPress, pass `--username <user> --application-password <password>` when preview/draft access needs authenticated REST requests. Unknown service IDs fail before any request is sent; omit `--type` to use `notion`.
+Use `contfu integrations create --name "Marketing CMS" --type <service>` with a service ID from `contfu integrations types`. Pass `--url <url-or-id>` for services that need a base URL or service-specific identifier such as a Contentful space ID or WordPress site URL. For Sanity, pass `--project-id <project-id>` and use `--scope`/`--scopes` for datasets. For Contentful, `--scope`/`--scopes` restrict exposed environments; Delivery API mode is the default, and `--contentful-api-mode preview --contentful-preview-token <token>` creates a Preview API integration. Preview full pulls are best-effort: deleted entries cannot be detected, and Preview push is unavailable; use Delivery API mode for authoritative deletion reconciliation. For WordPress, pass `--username <user> --application-password <password>` when preview/draft access needs authenticated REST requests. Unknown service IDs fail before any request is sent; omit `--type` to use `notion`.
 
 Use `contfu integrations update <id-or-name> --token <token>`, `--webhook-secret <secret>`, webhook target header/retry flags, WordPress credential flags, Contentful API-mode/token flags, or `--include-drafts` / `--no-include-drafts` to rotate service credentials and draft-mode settings without raw JSON.
 

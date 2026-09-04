@@ -54,6 +54,27 @@ export type QuotaState = {
   };
 };
 
+export type OrganizationUsageMetric = {
+  used: number;
+  /** Null means the resource is unlimited or its limit is unavailable. */
+  limit: number | null;
+};
+
+export type ApiOrganizationUsage = {
+  organization: {
+    id: string;
+    name: string;
+    displayName: string;
+  };
+  metrics: {
+    integrations: OrganizationUsageMetric;
+    collections: OrganizationUsageMetric;
+    flows: OrganizationUsageMetric;
+    items: OrganizationUsageMetric;
+    itemChanges: OrganizationUsageMetric;
+  };
+};
+
 export type WorkspaceQuotaResourceName =
   | "integrations"
   | "collections"

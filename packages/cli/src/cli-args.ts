@@ -48,6 +48,8 @@ const STRING_OPTIONS = [
   "flows",
   "items",
   "item-changes",
+  "collection",
+  "flow",
 ] as const;
 
 const BOOLEAN_OPTIONS = [
@@ -68,6 +70,9 @@ const BOOLEAN_OPTIONS = [
   "all",
   "select",
   "dry-run",
+  "include-resolved",
+  "wait",
+  "refresh-source-first",
 ] as const;
 
 const SHORT_FLAGS: Record<string, string> = {

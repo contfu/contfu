@@ -23,7 +23,6 @@ import {
   MINUTES,
   SECONDS,
 } from "@contfu/core";
-import { pack, unpack } from "msgpackr";
 
 /** Item as received by consumers — collection is the collection name. */
 export type Item<T extends PageProps = Record<never, never>> = Omit<
@@ -545,7 +544,7 @@ async function openHttpConnection(syncEndpoint: string, key: Buffer): Promise<Tr
   const ackEndpoint = buildAckUrl(syncEndpoint, key);
   const commandEndpoint = buildCommandUrl(syncEndpoint, key);
   const response = await fetch(syncUrl, {
-    headers: { Accept: "application/octet-stream" },
+    headers: { Accept: "text/event-stream" },
   });
 
   if (!response.ok) {
@@ -562,7 +561,31 @@ async function openHttpConnection(syncEndpoint: string, key: Buffer): Promise<Tr
 
   return {
     async *events() {
-      let buffer = new Uint8Array(0);
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let dataLines: string[] = [];
+
+      const parseAvailableEvents = (): WireStreamPayload[] => {
+        const events: WireStreamPayload[] = [];
+        while (true) {
+          const newline = buffer.indexOf("\n");
+          if (newline < 0) break;
+
+          let line = buffer.slice(0, newline);
+          buffer = buffer.slice(newline + 1);
+          if (line.endsWith("\r")) line = line.slice(0, -1);
+
+          if (line === "") {
+            if (dataLines.length > 0) {
+              events.push(JSON.parse(dataLines.join("\n")) as WireStreamPayload);
+              dataLines = [];
+            }
+          } else if (line.startsWith("data:")) {
+            dataLines.push(line.startsWith("data: ") ? line.slice(6) : line.slice(5));
+          }
+        }
+        return events;
+      };
 
       while (true) {
         let chunk: { value?: Uint8Array; done: boolean };
@@ -575,26 +598,15 @@ async function openHttpConnection(syncEndpoint: string, key: Buffer): Promise<Tr
 
         const { value, done } = chunk;
         if (done) {
+          buffer += decoder.decode();
+          for (const event of parseAvailableEvents()) yield event;
           disconnectReason ??= "Stream ended";
           return;
         }
         if (!value) continue;
 
-        const newBuffer = new Uint8Array(buffer.length + value.length);
-        newBuffer.set(buffer);
-        newBuffer.set(value, buffer.length);
-        buffer = newBuffer;
-
-        while (buffer.length >= 4) {
-          const view = new DataView(buffer.buffer, buffer.byteOffset, 4);
-          const messageLength = view.getUint32(0, false);
-
-          if (buffer.length < 4 + messageLength) break;
-
-          const messageData = buffer.slice(4, 4 + messageLength);
-          buffer = buffer.slice(4 + messageLength);
-          yield unpack(messageData) as WireStreamPayload;
-        }
+        buffer += decoder.decode(value, { stream: true });
+        for (const event of parseAvailableEvents()) yield event;
       }
     },
     sendAck() {
@@ -608,14 +620,14 @@ async function openHttpConnection(syncEndpoint: string, key: Buffer): Promise<Tr
         method: "POST",
         headers: {
           Origin: new URL(commandEndpoint).origin,
-          "Content-Type": "application/octet-stream",
-          Accept: "application/octet-stream",
+          "Content-Type": "application/json",
+          Accept: "application/json",
         },
-        body: new Uint8Array(pack(command)),
+        body: JSON.stringify(command),
       });
       if (!response.ok)
         throw new Error(`Sync command failed: ${response.status} ${await response.text()}`);
-      return unpack(Buffer.from(await response.arrayBuffer())) as WireCommandResult;
+      return JSON.parse(await response.text()) as WireCommandResult;
     },
     close(reason: string) {
       disconnectReason = reason;
@@ -644,9 +656,12 @@ async function openWebSocketConnection(
     async *events() {
       const queue = createAsyncQueue<WireStreamPayload>();
 
-      socket.binaryType = "arraybuffer";
       socket.onmessage = (message) => {
         try {
+          if (typeof message.data === "string") {
+            queue.push(JSON.parse(message.data) as WireStreamPayload);
+            return;
+          }
           const payload =
             message.data instanceof ArrayBuffer
               ? new Uint8Array(message.data)
@@ -654,7 +669,7 @@ async function openWebSocketConnection(
                 ? null
                 : new Uint8Array(message.data as ArrayBufferLike);
           if (!payload) return;
-          queue.push(unpack(payload) as WireStreamPayload);
+          queue.push(JSON.parse(new TextDecoder().decode(payload)) as WireStreamPayload);
         } catch (error) {
           queue.fail(error instanceof Error ? error : new Error("Invalid WebSocket message"));
         }
@@ -674,21 +689,21 @@ async function openWebSocketConnection(
         return Promise.resolve();
       }
       const message: ClientWireEvent = [ClientEventType.ACK];
-      socket.send(new Uint8Array(pack(message)));
+      socket.send(JSON.stringify(message));
       return Promise.resolve();
     },
     sendCommand(command) {
       if (socket.readyState !== WebSocket.OPEN) {
         return Promise.resolve();
       }
-      socket.send(new Uint8Array(pack(command)));
+      socket.send(JSON.stringify(command));
       return Promise.resolve();
     },
     requestFileLease(request) {
       if (socket.readyState !== WebSocket.OPEN) {
         return Promise.reject(new Error("WebSocket is not connected"));
       }
-      socket.send(new Uint8Array(pack(request)));
+      socket.send(JSON.stringify(request));
       return Promise.resolve();
     },
     close(reason: string) {
@@ -799,7 +814,7 @@ function fromWireEvent(
         id,
         collection,
         changedAt,
-        props: deserializeProps(props),
+        props,
       };
       if (wireItem.length > 4) {
         item.content = content as Block[];
@@ -832,7 +847,14 @@ function fromWireEvent(
         console.warn("Ignoring COLLECTION_SCHEMA event without sync index");
         return null;
       }
-      return { type: EventType.COLLECTION_SCHEMA, collection, displayName, schema, i18n, index };
+      return {
+        type: EventType.COLLECTION_SCHEMA,
+        collection,
+        displayName,
+        schema,
+        i18n: i18n ?? undefined,
+        index,
+      };
     }
 
     case EventType.COLLECTION_RENAMED: {
@@ -862,22 +884,9 @@ function fromWireEvent(
   }
 }
 
-function deserializeProps(props: Record<string, unknown>): Record<string, unknown> {
-  const result: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(props)) {
-    if (Array.isArray(value) && value.length > 0 && value[0] instanceof Uint8Array) {
-      result[key] = (value as Uint8Array[]).map((buf) => Buffer.from(buf));
-    } else {
-      result[key] = value;
-    }
-  }
-  return result;
-}
-
 function createWebSocket(url: string): Promise<WebSocket> {
   return new Promise((resolve, reject) => {
     const socket = new WebSocket(url);
-    socket.binaryType = "arraybuffer";
     socket.onopen = () => resolve(socket);
     socket.onerror = () => reject(new Error("WebSocket connection failed"));
   });

@@ -31,11 +31,27 @@ Commands:
                                     Edit component name/display/schema/mapping
   components delete <id> [--dry-run]
                                     Delete a component
+  incidents list [--collection <id>] [--flow <id>] [--include-resolved]
+                                    List unresolved incidents
+  incidents dismiss <incident-id>
+                                    Dismiss a dismissible incident condition
   integrations types                 List valid integration types
   integrations types <id-or-name>    Print TypeScript types for an integration's collections
   integrations regenerate-key <id-or-name> [--dry-run]
                                     Regenerate API key and write to .env
   collections types <id-or-name>    Print TypeScript types for a collection
+  collections sync-now <id-or-name> [--wait] [--dry-run]
+                                    Trigger Sync now for a source collection
+  collections full-refresh <id-or-name> [--wait] [--dry-run]
+                                    Trigger Full refresh for a source collection
+  collections full-resync <id-or-name> [--refresh-source-first] [--wait] [--dry-run]
+                                    Trigger target Full resync
+  collections pause <id-or-name> [--dry-run]
+                                    Pause source synchronization
+  collections resume <id-or-name> [--dry-run]
+                                    Resume source synchronization
+  collections operations <id-or-name> [-f json]
+                                    Show source operation history
   items query [options]             Query items from a Server
   items count [options]             Count items in a Server
   workspaces list [--format default|agent|json] [--full]
@@ -58,6 +74,8 @@ Commands:
                                     List organizations
   orgs get <id-or-name> [--format default|agent|json] [--full]
                                     Show organization details
+  orgs usage <id-or-name> [--format default|agent|json]
+                                    Show organization quota usage
   orgs create [--dry-run] [options]
                                     Create organization
   orgs update <id-or-name>          Update organization
@@ -165,8 +183,13 @@ items options:
                                     Fallback locale override
       --flat                        Flatten nested props (query only)
 
+incident options:
+      --collection <id>             Match source or target collection
+      --flow <id>                   Match flow
+      --include-resolved            Include resolved incidents
+
 resource options:
-  -w, --workspace <id-or-name>      Scope integrations, collections, or flows to a workspace
+  -w, --workspace <id-or-name>      Scope integrations, collections, flows, or incidents to a workspace
 
 output options:
   -f, --format <fmt>                Output format: default (default) | agent | json

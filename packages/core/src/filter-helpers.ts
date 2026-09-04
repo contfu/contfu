@@ -6,6 +6,7 @@ export const SYSTEM_FIELD_NAMES = [
   "$createdAt",
   "$publishedAt",
   "$locale",
+  "$draft",
 ] as const;
 
 export type SystemFieldName = (typeof SYSTEM_FIELD_NAMES)[number];
@@ -29,6 +30,7 @@ type SystemFieldRefs = {
   $createdAt: FieldRef<number>;
   $publishedAt: FieldRef<number | null>;
   $locale: FieldRef<string>;
+  $draft: FieldRef<boolean>;
 };
 
 export type ItemRef<Props> = SystemFieldRefs & {

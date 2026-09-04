@@ -4,8 +4,13 @@ import { decode } from "@toon-format/toon";
 const mockFetch = mock<typeof fetch>();
 globalThis.fetch = mockFetch as any;
 
-const { getOrganization, listOrganizationMembers, listOrganizations, setOrganizationRole } =
-  await import("./organizations");
+const {
+  getOrganization,
+  getOrganizationUsage,
+  listOrganizationMembers,
+  listOrganizations,
+  setOrganizationRole,
+} = await import("./organizations");
 
 function jsonResponse(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
@@ -95,6 +100,66 @@ describe("getOrganization", () => {
       createdAt: "2026-01-01",
       role: "owner",
     });
+  });
+});
+
+describe("getOrganizationUsage", () => {
+  const organization = { id: "org_1", displayName: "Acme", name: "acme", role: 0 };
+  const usage = {
+    organization: { id: "org_1", displayName: "Acme", name: "acme" },
+    metrics: {
+      integrations: { used: 2, limit: 10 },
+      collections: { used: 8, limit: null },
+      flows: { used: 3, limit: 10 },
+      items: { used: 120, limit: 100 },
+      itemChanges: { used: 0, limit: 100 },
+    },
+  };
+
+  test("resolves by name and prints every metric with deterministic bars", async () => {
+    mockFetch
+      .mockResolvedValueOnce(jsonResponse([organization]))
+      .mockResolvedValueOnce(jsonResponse(usage));
+
+    await getOrganizationUsage("acme");
+
+    expect(logSpy.mock.calls.map((call: unknown[]) => String(call[0]))).toEqual([
+      "Organization: Acme (org_1)",
+      "Integrations   [####----------------] 2 / 10",
+      "Collections    [--------------------] 8 / unlimited",
+      "Flows          [######--------------] 3 / 10",
+      "Items          [####################] 120 / 100",
+      "Item changes   [--------------------] 0 / 100",
+    ]);
+  });
+
+  test("reports propagated API failures", async () => {
+    const exit = spyOn(process, "exit").mockImplementation((code?: number) => {
+      throw new Error(`exit:${code}`);
+    });
+    mockFetch
+      .mockResolvedValueOnce(jsonResponse([organization]))
+      .mockResolvedValueOnce(jsonResponse({ message: "Quota service unavailable" }, 503));
+
+    // oxlint-disable-next-line typescript/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
+    await expect(getOrganizationUsage("acme")).rejects.toThrow("exit:1");
+    expect(errorSpy).toHaveBeenCalledWith("Error 503: Quota service unavailable");
+    exit.mockRestore();
+  });
+
+  test("keeps JSON and agent output numeric and stable", async () => {
+    mockFetch
+      .mockResolvedValueOnce(jsonResponse([organization]))
+      .mockResolvedValueOnce(jsonResponse(usage));
+    await getOrganizationUsage("org_1", "json");
+    expect(JSON.parse(logSpy.mock.calls[0][0] as string)).toEqual(usage);
+
+    logSpy.mockClear();
+    mockFetch
+      .mockResolvedValueOnce(jsonResponse([organization]))
+      .mockResolvedValueOnce(jsonResponse(usage));
+    await getOrganizationUsage("org_1", "agent");
+    expect(decode(logSpy.mock.calls[0][0] as string)).toEqual(usage);
   });
 });
 

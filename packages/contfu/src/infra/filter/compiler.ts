@@ -24,6 +24,7 @@ function jsonExtract(field: string): SQL {
 
 function getColumn(field: string): SQL {
   if (field in DIRECT_COLUMNS) return DIRECT_COLUMNS[field];
+  if (field === "$draft") return sql`coalesce(${jsonExtract(field)}, 0)`;
   return jsonExtract(field);
 }
 

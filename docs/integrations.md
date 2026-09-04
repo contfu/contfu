@@ -67,7 +67,59 @@ expose (for example, `master` or `staging`). Delivery API mode is the default; u
 `--contentful-api-mode preview` with `--contentful-preview-token` to create a Preview API
 integration, and pass `--contentful-delivery-token` as well when you want both tokens stored.
 For Web sources, `--url` is the base URL and `--token` is sent as a Bearer token; omit the
-token for public pages. For WordPress, credentials are optional for published-only sync and
+token for public pages. A Web collection may also set the collection option `schemaUrl` to an
+explicit JSON Schema or OpenAPI 3 document URL (relative URLs are resolved against `--url`):
+`{"options":{"schemaUrl":"/schemas/article.json"}}`.
+The schema URL must be HTTP(S) and same-origin; Contfu does not probe well-known paths. The
+supported subset maps object properties, required/nullable fields, primitive formats, arrays,
+and string enums. For OpenAPI, Contfu uses the GET response for the path matching the first
+configured ref URL (including `{parameter}` paths), with paths sorted for deterministic ties;
+there is no fallback to an unrelated path. Missing, unreachable, malformed, oversized,
+unsupported, or non-matching documents silently retain the generic Web schema. Web schema
+integrations are pullable, so a later document change is picked up by the existing schema-sync
+workflow and follows its normal schema-change handling.
+
+### Web source pushes
+
+A Web source can also receive full-item changes immediately through the generic push endpoint. Configure a
+push UID and webhook secret for the source integration, then give the web app the endpoint
+`https://contfu.com/webhooks/contfu/<push-uid>` and the secret. Keep the secret server-side; it must not be
+included in browser bundles. The app must persist one monotonic `sequence` across restarts and instances for
+the integration (it is not a per-collection counter).
+
+Install the shared TypeScript client:
+
+```bash
+bun add @contfu/webhook
+```
+
+```ts
+import { createWebhookClient } from "@contfu/webhook";
+
+const webhook = createWebhookClient({
+  endpoint: process.env.CONTFU_WEBHOOK_URL!,
+  secret: process.env.CONTFU_WEBHOOK_SECRET!,
+});
+
+await webhook.push({
+  operation: "update",
+  collectionRef: "articles",
+  itemRef: "https://example.com/articles/article-42",
+  sequence: nextDurableSequence(),
+  occurredAt: new Date().toISOString(),
+  properties: { title: "Hello" },
+});
+```
+
+`collectionRef` must exactly match the source collection ref configured in Contfu, and `itemRef` must be the
+absolute HTTP(S) URL produced by the Web pull. The client sends the exact JSON body with an
+`X-Contfu-Signature: sha256=<hex>` HMAC-SHA256 signature.
+Contfu rejects an invalid signature with `401`; duplicate delivery of the same sequence and body is
+idempotent, while stale or conflicting sequences return `409`. Skipped sequences are accepted but recorded
+and schedule `GAP_REPAIR` using the existing authoritative Web pull. Scheduled Web pulls remain the
+reconciliation path for changes that were never pushed, so enabling pushes does not change pull behavior.
+
+For WordPress, credentials are optional for published-only sync and
 required for authenticated preview/draft reads. Use `--include-drafts` or `--no-include-drafts`
 to change draft-mode settings for Services that support them.
 
@@ -113,6 +165,52 @@ produce redundant tombstones, while downstream targets receive delete delivery a
 hard-delete them. Strapi and Sanity integrations default to including drafts unless you disable that
 setting. Changing draft mode or source credentials resets accepted source state for connected
 collections and schedules a repair full pull so draft/published schemas and cursors do not mix.
+For Sanity, the repair does not rewrite an existing Studio-pushed schema; re-run the
+Studio schema push after changing `includeDrafts` so a published-only collection no
+longer retains `$draft`.
+
+### WordPress push plugin
+
+The optional **Contfu Push for WordPress** plugin sends post, media, and taxonomy
+changes immediately to the source integration's generic push URL. Pulls remain
+the reconciliation path when the plugin is absent. Download the repository zip
+artifact (`contfu-wordpress-<version>.zip`) and install it from **Plugins → Add
+New → Upload Plugin**; this plugin currently has an independent zip release
+workflow and is not published through the Bun/npm workspace publisher.
+
+In **Settings → Contfu Push**, enter the complete `/webhooks/contfu/{push-id}`
+URL, the integration push ID, and the webhook secret shown by Contfu. Requests
+are signed over their exact JSON bytes using `X-Contfu-Signature:
+sha256=<hmac>`. Only administrators can edit settings, and the secret is never
+shown again or logged. Rotate the secret in Contfu and the plugin together.
+
+Each lifecycle event has a durable, per-integration sequence. Transient delivery
+failures retry the same signed body and sequence (up to three attempts); a
+skipped sequence is recorded by Contfu and schedules a full-pull gap repair.
+If a database backup is restored to another live site, configure a separate
+Contfu source integration rather than sharing its sequence stream.
+
+The Contfu integration’s draft setting is authoritative; omitted or explicitly
+disabled settings use the published-only view. Draft-only changes are ignored,
+and a published item moved to draft, unpublished, or trash sends an immediate
+delete signal because it is no longer in that view. With **Push drafts and
+trashed records** enabled, post/media payloads include `$draft: true` for unpublished states and
+trash is represented as a soft-deleted source item until WordPress permanently
+removes it. Taxonomies never synthesize draft state. Verify delivery in the
+integration push diagnostics; scheduled full pulls continue to reconcile missed
+or permanently deleted records.
+
+### Sanity Studio schemas
+
+Install `@contfu/sanity` in a Sanity Studio and call `updateContfuSchema` from
+`sanity.cli.ts` to push the Studio schema. A pushed schema is authoritative for
+that collection; until the first push, Contfu falls back to item-derived schema
+sampling during the initial full pull. Schema pushes use the dedicated
+`/webhooks/sanity/schema` endpoint and are separate from item webhook payloads.
+When `includeDrafts: false` is enabled, the push path removes `$draft` from the
+schema before storing it. This applies to future schema pushes; it does not
+rewrite an already stored schema, so re-run the Studio schema push after
+changing draft mode to repair an existing collection schema.
 
 ### Deletions from polling sources
 
@@ -128,10 +226,16 @@ soft-deleted source state until WordPress stops returning it or it is restored.
 For Services with signed webhooks, store the signing secret on the integration with
 `--webhook-secret` or the equivalent UI field. Contfu verifies the raw webhook body before
 parsing when a secret is configured. Supported source webhook schemes include Contentful's
-`x-contentful-signature` plus `x-contentful-timestamp`, Sanity webhook signatures, and Strapi
-`x-strapi-signature` / `x-webhook-signature` HMAC signatures. The `@contfu/strapi`
-package root is a loadable Strapi plugin entry; `@contfu/strapi/strapi-server` remains
-available for setups that need an explicit server entry path.
+`x-contentful-signature` plus `x-contentful-timestamp` and Sanity webhook signatures.
+
+The first-party item-push senders, including `@contfu/strapi`, use the canonical JSON contract
+and signature described in the sections above.
+
+### Generic webhook ingress
+
+Contfu-controlled senders, including `@contfu/strapi`, WordPress Push, and Web
+apps, use `/webhooks/contfu/{uid}` with the canonical JSON item-push contract,
+`X-Contfu-Signature`, and the integration push secret.
 
 Webhook payloads remain Service-owned dirty signals. Contfu stores service metadata such as
 event names, scopes, Contentful revisions/versions, and Sanity transaction, document, dataset,
@@ -150,7 +254,23 @@ contfu integrations scan <integration-id>
 ```
 
 This returns the available source collections — Notion databases, Strapi content types,
-etc. — each with `ref`, `displayName`, and `alreadyAdded`. Sanity scans are conservative:
+etc. — each with `ref`, `displayName`, and `alreadyAdded`. If a Strapi read credential cannot access
+Content-Type Builder, setup offers two supported paths:
+
+1. **Schema credential:** provide an optional setup-only credential with Content-Type Builder access.
+   It is stored separately from the read credential and is used only for schema discovery.
+2. **OpenAPI:** opt in to Strapi 5's public OpenAPI document in `config/server`:
+
+   ```js
+   openapi: { "content-api": { access: "public" } }
+   ```
+
+   Contfu probes `GET /api/openapi.json` with the read credential. Collections are offered only
+   when the document explicitly identifies their UID and localization behavior; unsupported or
+   ambiguous fields are skipped rather than inferred from content. Explicit route mappings and
+   sampled-content schema inference are not supported.
+
+Sanity scans are conservative:
 Sanity system and asset document types are omitted by default unless an explicit type allowlist
 includes them. For Strapi, Contfu stores the REST route name from the content-type metadata
 (for example `people` instead of a naive `persons` plural) so later pulls and pushes use the
@@ -169,8 +289,8 @@ Imported source collections then appear in `contfu collections list -f json` wit
 
 Notion date properties are scalar by default. For native Notion date properties that use ranges,
 enable **Treat as range** in the collection's Properties section. Contfu keeps the start under the
-original property and adds a configurable paired end property; both are ordinary `DATE | NULL`
-properties (or `PLAINDATE | NULL` when plain-date storage is also enabled). Changing this setting
+original property and adds a configurable paired end property; both are ordinary `DATE | OPTIONAL`
+properties (or `PLAINDATE | OPTIONAL` when plain-date storage is also enabled). Changing this setting
 updates the schema and requires a full resync. Previously discarded ends can only be recovered by a
 fresh pull from Notion.
 

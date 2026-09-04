@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.11] - 2026-09-04
+
+### Added
+
+- Reconcile authoritative source presence.
+- Replace sync wire MessagePack with JSON.
+- Expose source operations through the CLI and API.
+- Add organization usage statistics to the CLI.
+- Add CLI and REST access to incidents.
+
+### Fixed
+
+- Honor the selected workspace in status.
+
 ## [0.1.10] - 2026-08-22
 
 ### Changed

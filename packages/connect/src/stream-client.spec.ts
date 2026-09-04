@@ -7,18 +7,10 @@ import {
   RefreshStatus,
   type Block,
 } from "@contfu/core";
-import { pack, unpack } from "msgpackr";
 import { connectToStream } from "./stream-client";
 
 function createBinaryMessage(wireEvent: unknown): Uint8Array {
-  const encoded = pack(wireEvent);
-  const lengthPrefix = new Uint8Array(4);
-  const view = new DataView(lengthPrefix.buffer);
-  view.setUint32(0, encoded.length, false);
-  const result = new Uint8Array(lengthPrefix.length + encoded.length);
-  result.set(lengthPrefix);
-  result.set(encoded, lengthPrefix.length);
-  return result;
+  return new TextEncoder().encode(`data: ${JSON.stringify(wireEvent)}\n\n`);
 }
 
 function createMockStream(messages: Uint8Array[]): ReadableStream<Uint8Array> {
@@ -185,13 +177,45 @@ describe("stream-client", () => {
       });
     });
 
+    test("parses schema events with base64url hashes and normalizes null i18n", async () => {
+      mockFetch(
+        createMockStream([
+          createBinaryMessage([
+            EventType.COLLECTION_SCHEMA,
+            "posts",
+            "Posts",
+            {},
+            null,
+            "aGFzaA",
+            7,
+          ]),
+        ]),
+      );
+
+      const events: unknown[] = [];
+      for await (const event of connectToStream({ key: testKey, reconnect: false })) {
+        events.push(event);
+      }
+
+      expect(events).toEqual([
+        {
+          type: EventType.COLLECTION_SCHEMA,
+          collection: "posts",
+          displayName: "Posts",
+          schema: {},
+          i18n: undefined,
+          index: 7,
+        },
+      ]);
+    });
+
     test("parses indexed CHANGED event with full item", async () => {
       const id = 34;
       const content: Block[] = [["p", ["Hello"]]];
 
       const props = {
         title: "Test",
-        tags: [1, new Uint8Array([2])],
+        tags: [1, "Ag"],
         publishedAt: 1700000000,
         createdAt: 1699000000,
       };
@@ -226,7 +250,7 @@ describe("stream-client", () => {
 
     test("materializes sparse item patches", async () => {
       const base = [34, "article", 1700500000, { title: "Old", slug: "old" }, [["p", ["Old"]]]];
-      const patch = [34, "article", 1700500001, { title: "New", slug: undefined }, []];
+      const patch = [34, "article", 1700500001, { title: "New", slug: null }, []];
       mockFetch(
         createMockStream([
           createBinaryMessage([EventType.ITEM_CHANGED, base, 42]),
@@ -349,8 +373,8 @@ describe("stream-client", () => {
         [ApplicationCommand.REFRESH_ALL, 2, "posts"],
       ]);
 
-      sockets[0].emit(pack([CommandResult.REFRESH, 1, RefreshStatus.ACCEPTED, [2]]));
-      sockets[0].emit(pack([CommandResult.REFRESH_ALL, 2, RefreshStatus.ACCEPTED]));
+      sockets[0].emit(JSON.stringify([CommandResult.REFRESH, 1, RefreshStatus.ACCEPTED, [2]]));
+      sockets[0].emit(JSON.stringify([CommandResult.REFRESH_ALL, 2, RefreshStatus.ACCEPTED]));
       expect(await first).toEqual({
         type: CommandResult.REFRESH,
         commandId: 1,
@@ -488,7 +512,7 @@ describe("stream-client", () => {
 
       await waitFor(() => sockets.length === 1 && sockets[0].ready());
       const result = client.refresh("posts", [1]);
-      sockets[0].emit(pack([CommandResult.REFRESH, 1, RefreshStatus.ACCEPTED]));
+      sockets[0].emit(JSON.stringify([CommandResult.REFRESH, 1, RefreshStatus.ACCEPTED]));
       expect(await result).toEqual({
         type: CommandResult.REFRESH,
         commandId: 1,
@@ -499,7 +523,7 @@ describe("stream-client", () => {
       expect(await eventsPromise).toEqual([]);
     });
 
-    test("parses binary websocket messages", async () => {
+    test("parses text websocket messages", async () => {
       const sockets: MockWebSocket[] = [];
       globalThis.WebSocket = createMockWebSocketClass(sockets) as unknown as typeof WebSocket;
 
@@ -516,7 +540,7 @@ describe("stream-client", () => {
       });
 
       await waitFor(() => sockets.length === 1 && sockets[0].ready());
-      sockets[0].emit(pack([EventType.ITEM_DELETED, 98, 12]));
+      sockets[0].emit(JSON.stringify([EventType.ITEM_DELETED, 98, 12]));
       sockets[0].close(1000, "done");
 
       const events = await eventsPromise;
@@ -897,7 +921,7 @@ describe("stream-client", () => {
       });
 
       await waitFor(() => sockets.length === 1 && sockets[0].ready());
-      sockets[0].emit(pack([EventType.ITEM_DELETED, 98, 12]));
+      sockets[0].emit(JSON.stringify([EventType.ITEM_DELETED, 98, 12]));
       sockets[0].close(1000, "done");
 
       expect(await eventsPromise).toEqual([{ type: EventType.ITEM_DELETED, item: 98, index: 12 }]);
@@ -924,7 +948,7 @@ describe("stream-client", () => {
 type MockWebSocket = {
   url: string;
   ready: () => boolean;
-  emit: (data: Uint8Array) => void;
+  emit: (data: string | Uint8Array) => void;
   sent: () => unknown[];
   close: (code?: number, reason?: string) => void;
 };
@@ -973,7 +997,7 @@ function createMockWebSocketClass(sockets: MockWebSocket[], sendError?: Error) {
         ready: () => this.onmessage != null && this.onclose != null,
         emit: (data) => {
           this.onmessage?.({
-            data: data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength),
+            data: typeof data === "string" ? data : new TextDecoder().decode(data),
           } as MessageEvent);
         },
         sent: () => [...this.sentMessages],
@@ -987,11 +1011,15 @@ function createMockWebSocketClass(sockets: MockWebSocket[], sendError?: Error) {
 
     send(data: string | ArrayBufferLike | Blob | ArrayBufferView) {
       if (sendError) throw sendError;
-      if (typeof data === "string" || data instanceof Blob) return;
+      if (typeof data === "string") {
+        this.sentMessages.push(JSON.parse(data));
+        return;
+      }
+      if (data instanceof Blob) return;
       const bytes = ArrayBuffer.isView(data)
         ? new Uint8Array(data.buffer, data.byteOffset, data.byteLength)
         : new Uint8Array(data);
-      this.sentMessages.push(unpack(bytes));
+      this.sentMessages.push(JSON.parse(new TextDecoder().decode(bytes)));
     }
 
     close(code = 1000, reason = "") {

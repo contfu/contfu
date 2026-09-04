@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.3] - 2026-09-04
+
+### Added
+
+- Support Directus, Sanity, and Contentful target delivery.
+- Replace sync wire MessagePack with JSON.
+- Support `$draft` query filters.
+
 ## [0.4.2] - 2026-08-22
 
 ### Added

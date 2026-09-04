@@ -3,6 +3,8 @@ import type { Filter } from "./filters";
 import type { MappingRule } from "./mappings";
 import type { CollectionI18nConfig, IntegrationI18nConfig } from "./i18n";
 import type { IntegrationCapability, IntegrationRole } from "@contfu/core";
+import type { IncidentResolutionMode, IncidentType } from "./incidents";
+import type { SourceOperationStatus, SourceOperationType } from "./source-operations";
 
 /** Status summary returned by GET /api/v1/status */
 export interface ApiStatus {
@@ -179,6 +181,73 @@ export interface ApiTargetFailedDelivery {
   attempts: number;
   lastError: string | null;
   lastAttemptAt: string | null;
+}
+
+/** Durable source-side synchronization operation returned by the API. */
+export interface ApiSourceOperation {
+  id: string;
+  workspaceId: string;
+  collectionId: string;
+  bulkSyncId: string | null;
+  requesterUserId: string;
+  operation: SourceOperationType;
+  status: SourceOperationStatus;
+  syncJobId: number | null;
+  repairGeneration: number | null;
+  failureCategory: string | null;
+  diagnostics: unknown;
+  createdAt: string;
+  updatedAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
+}
+
+export interface PauseSourceSyncResult {
+  success: boolean;
+}
+
+export interface ResumeSourceSyncResult {
+  enqueued: number;
+}
+
+export interface FullResyncResult {
+  jobId: string;
+  status: string;
+}
+
+/** Stable, JSON-safe incident record returned by GET /api/v1/incidents. */
+export interface ApiIncident {
+  id: string;
+  flowId: string;
+  sourceCollectionId: string;
+  sourceCollectionName: string;
+  sourceIntegrationId: string | null;
+  sourceIntegrationName: string | null;
+  targetCollectionId: string;
+  targetCollectionName: string;
+  type: IncidentType;
+  typeName: string;
+  resolutionMode: IncidentResolutionMode;
+  message: string;
+  problem: string;
+  suggestedAction: string | null;
+  affectedCount: number;
+  resolved: boolean;
+  createdAt: string;
+  resolvedAt: string | null;
+}
+
+export interface ListIncidentsInput {
+  /** Match incidents whose source or target is this encoded collection ID. */
+  collectionId?: string;
+  flowId?: string;
+  /** Defaults to unresolved. Use "all" to include resolved incidents. */
+  resolved?: "unresolved" | "resolved" | "all";
+}
+
+export interface DismissIncidentResult {
+  /** Number of unresolved duplicate rows dismissed for the same condition. */
+  dismissed: number;
 }
 
 export interface ApiIntegration {

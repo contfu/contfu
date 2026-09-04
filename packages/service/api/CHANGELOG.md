@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.8] - 2026-09-04
+
+### Added
+
+- Expose source operations through the CLI and API.
+- Add organization usage statistics to the CLI.
+- Add CLI and REST access to incidents.
+
 ## [0.1.7] - 2026-08-22
 
 ### Changed

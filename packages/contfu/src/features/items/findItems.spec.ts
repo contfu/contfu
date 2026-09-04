@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import { PropertyType } from "@contfu/core";
+import { PropertyType, eq, resolveQueryFilter, type ItemRef } from "@contfu/core";
 import { truncateAllTables } from "../../../test/setup";
 import { createFile } from "../files/createFile";
 import { linkFileToItem } from "../files/linkFileToItem";
@@ -99,6 +99,49 @@ describe("findItems", () => {
     const result = findItems({ filter: 'category = "news"' });
     expect(result).toHaveLength(1);
     expect(result[0].$id).toBe(1);
+  });
+
+  test("filters draft-inclusive items and treats absent draft as published", () => {
+    createItem({
+      id: 20,
+      ref: "draft/draft",
+      collection: "articles",
+      props: { title: "Draft", $draft: true },
+      changedAt: 300,
+    });
+    createItem({
+      id: 21,
+      ref: "draft/published",
+      collection: "articles",
+      props: { title: "Published", $draft: false },
+      changedAt: 301,
+    });
+    createItem({
+      id: 22,
+      ref: "draft/legacy",
+      collection: "articles",
+      props: { title: "Legacy" },
+      changedAt: 302,
+    });
+
+    expect(findItems({ filter: "$draft = true", sort: "$id" }).map((item) => item.$id)).toEqual([
+      20,
+    ]);
+    expect(findItems({ filter: "$draft = false", sort: "$id" }).map((item) => item.$id)).toEqual([
+      1, 2, 3, 21, 22,
+    ]);
+    expect(
+      findItems({
+        filter: resolveQueryFilter((p: ItemRef<{}>) => eq(p.$draft, true)),
+        sort: "$id",
+      }).map((item) => item.$id),
+    ).toEqual([20]);
+    expect(
+      findItems({
+        filter: resolveQueryFilter((p: ItemRef<{}>) => eq(p.$draft, false)),
+        sort: "$id",
+      }).map((item) => item.$id),
+    ).toEqual([1, 2, 3, 21, 22]);
   });
 
   test("filters with AND", () => {

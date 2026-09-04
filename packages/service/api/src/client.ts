@@ -30,6 +30,14 @@ import type {
   MappingRule,
   CreateComponentBody,
   ApiTargetFailedDelivery,
+  ApiSourceOperation,
+  PauseSourceSyncResult,
+  ResumeSourceSyncResult,
+  FullResyncResult,
+  ApiIncident,
+  ListIncidentsInput,
+  DismissIncidentResult,
+  ApiOrganizationUsage,
 } from "@contfu/svc-core";
 import { ApiError } from "@contfu/svc-core";
 
@@ -142,12 +150,26 @@ export interface ContfuApiClient {
   redeliverTargetFailedDelivery(id: string): Promise<{ accepted: number }>;
   clearTargetFailedDelivery(id: string): Promise<void>;
 
+  listIncidents(input?: ListIncidentsInput): Promise<ApiIncident[]>;
+  dismissIncident(id: string): Promise<DismissIncidentResult>;
+
   listCollections(): Promise<ServiceCollection[]>;
   getCollection(id: string): Promise<ServiceCollection>;
   createCollection(body: CreateCollectionBody): Promise<ServiceCollection>;
   updateCollection(id: string, body: UpdateCollectionBody): Promise<ServiceCollection>;
   deleteCollection(id: string): Promise<void>;
   getCollectionTypes(id: string): Promise<string>;
+  syncCollectionNow(id: string): Promise<ApiSourceOperation>;
+  fullRefreshCollection(id: string): Promise<ApiSourceOperation>;
+  fullResyncCollection(
+    id: string,
+    input?: { refreshSourceFirst?: boolean },
+  ): Promise<FullResyncResult>;
+  getFullResyncStatus(collectionId: string, jobId: string): Promise<FullResyncResult>;
+  pauseCollection(id: string): Promise<PauseSourceSyncResult>;
+  resumeCollection(id: string): Promise<ResumeSourceSyncResult>;
+  listCollectionOperations(id: string): Promise<ApiSourceOperation[]>;
+  getSourceOperation(id: string): Promise<ApiSourceOperation>;
 
   listFlows(): Promise<ServiceFlow[]>;
   getFlow(id: string): Promise<ServiceFlowWithDetails>;
@@ -157,6 +179,7 @@ export interface ContfuApiClient {
 
   listWorkspaces(): Promise<ApiWorkspace[]>;
   listOrganizations(): Promise<ApiOrganization[]>;
+  getOrganizationUsage(id: string): Promise<ApiOrganizationUsage>;
   createOrganization(body: CreateOrganizationBody): Promise<ApiOrganization>;
   updateOrganization(id: string, body: UpdateOrganizationBody): Promise<ApiOrganization>;
   listOrganizationMembers(id: string): Promise<ApiOrganizationMember[]>;
@@ -233,6 +256,16 @@ export function createApiClient(
     clearTargetFailedDelivery: (id) =>
       req<void>("DELETE", `/api/v1/target-deliveries/failed/${id}`),
 
+    listIncidents: (input = {}) => {
+      const query = new URLSearchParams();
+      if (input.collectionId) query.set("collection", input.collectionId);
+      if (input.flowId) query.set("flow", input.flowId);
+      if (input.resolved) query.set("resolved", input.resolved);
+      const suffix = query.size > 0 ? `?${query.toString()}` : "";
+      return req<ApiIncident[]>("GET", `/api/v1/incidents${suffix}`);
+    },
+    dismissIncident: (id) => req<DismissIncidentResult>("POST", `/api/v1/incidents/${id}/dismiss`),
+
     listCollections: () => req<ServiceCollection[]>("GET", "/api/v1/collections"),
     getCollection: (id) => req<ServiceCollection>("GET", `/api/v1/collections/${id}`),
     createCollection: (body) => req<ServiceCollection>("POST", "/api/v1/collections", body),
@@ -240,6 +273,22 @@ export function createApiClient(
       req<ServiceCollection>("PATCH", `/api/v1/collections/${id}`, body),
     deleteCollection: (id) => req<void>("DELETE", `/api/v1/collections/${id}`),
     getCollectionTypes: (id) => req<string>("GET", `/api/v1/collections/${id}/types`),
+    syncCollectionNow: (id) =>
+      req<ApiSourceOperation>("POST", `/api/v1/collections/${id}/sync-now`),
+    fullRefreshCollection: (id) =>
+      req<ApiSourceOperation>("POST", `/api/v1/collections/${id}/full-refresh`),
+    fullResyncCollection: (id, input = {}) =>
+      req<FullResyncResult>("POST", `/api/v1/collections/${id}/full-resync`, {
+        refreshSourceDataFirst: input.refreshSourceFirst,
+      }),
+    getFullResyncStatus: (collectionId, jobId) =>
+      req<FullResyncResult>("GET", `/api/v1/collections/${collectionId}/full-resync/${jobId}`),
+    pauseCollection: (id) => req<PauseSourceSyncResult>("POST", `/api/v1/collections/${id}/pause`),
+    resumeCollection: (id) =>
+      req<ResumeSourceSyncResult>("POST", `/api/v1/collections/${id}/resume`),
+    listCollectionOperations: (id) =>
+      req<ApiSourceOperation[]>("GET", `/api/v1/collections/${id}/operations`),
+    getSourceOperation: (id) => req<ApiSourceOperation>("GET", `/api/v1/source-operations/${id}`),
 
     listFlows: () => req<ServiceFlow[]>("GET", "/api/v1/flows"),
     getFlow: (id) => req<ServiceFlowWithDetails>("GET", `/api/v1/flows/${id}`),
@@ -248,6 +297,8 @@ export function createApiClient(
     deleteFlow: (id) => req<void>("DELETE", `/api/v1/flows/${id}`),
 
     listOrganizations: () => unscopedReq<ApiOrganization[]>("GET", "/api/v1/organizations"),
+    getOrganizationUsage: (id) =>
+      unscopedReq<ApiOrganizationUsage>("GET", `/api/v1/organizations/${id}/usage`),
     createOrganization: (body) =>
       unscopedReq<ApiOrganization>("POST", "/api/v1/organizations", body),
     updateOrganization: (id, body) =>

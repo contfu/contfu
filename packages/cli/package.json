@@ -1,6 +1,6 @@
 {
   "name": "@contfu/cli",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -24,7 +24,7 @@
     "@toon-format/toon": "^4.1.1"
   },
   "devDependencies": {
-    "@types/bun": "^1.4.0",
+    "@types/bun": "^1.4.1",
     "typescript": "^7.0.2"
   }
 }

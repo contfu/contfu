@@ -96,11 +96,11 @@ export const IntegrationRoles = {
   [IntegrationType.WEBHOOK]: [IntegrationRole.TargetRole],
   [IntegrationType.NOTION]: [IntegrationRole.SourceRole, IntegrationRole.TargetRole],
   [IntegrationType.STRAPI]: [IntegrationRole.SourceRole, IntegrationRole.TargetRole],
-  [IntegrationType.CONTENTFUL]: [IntegrationRole.SourceRole],
+  [IntegrationType.CONTENTFUL]: [IntegrationRole.SourceRole, IntegrationRole.TargetRole],
   [IntegrationType.WORDPRESS]: [IntegrationRole.SourceRole],
-  [IntegrationType.SANITY]: [IntegrationRole.SourceRole],
+  [IntegrationType.SANITY]: [IntegrationRole.SourceRole, IntegrationRole.TargetRole],
   [IntegrationType.STORYBLOK]: [IntegrationRole.SourceRole],
-  [IntegrationType.DIRECTUS]: [IntegrationRole.SourceRole],
+  [IntegrationType.DIRECTUS]: [IntegrationRole.SourceRole, IntegrationRole.TargetRole],
   [IntegrationType.PRISMIC]: [IntegrationRole.SourceRole],
 } as const satisfies Record<IntegrationType, readonly IntegrationRole[]>;
 
@@ -140,6 +140,8 @@ export const IntegrationCapabilities = {
     IntegrationCapability.ComponentDiscovery,
     IntegrationCapability.ManualLocalizationLayer,
     IntegrationCapability.ContentProvide,
+    IntegrationCapability.ContentReceive,
+    IntegrationCapability.TargetDeliveryCapability,
   ],
   [IntegrationType.WORDPRESS]: [
     IntegrationCapability.CollectionDiscovery,
@@ -151,11 +153,15 @@ export const IntegrationCapabilities = {
     IntegrationCapability.ComponentDiscovery,
     IntegrationCapability.ManualLocalizationLayer,
     IntegrationCapability.ContentProvide,
+    IntegrationCapability.ContentReceive,
+    IntegrationCapability.TargetDeliveryCapability,
   ],
   [IntegrationType.STORYBLOK]: [],
   [IntegrationType.DIRECTUS]: [
     IntegrationCapability.CollectionDiscovery,
     IntegrationCapability.ContentProvide,
+    IntegrationCapability.ContentReceive,
+    IntegrationCapability.TargetDeliveryCapability,
   ],
   [IntegrationType.PRISMIC]: [],
 } as const satisfies Record<IntegrationType, readonly IntegrationCapability[]>;

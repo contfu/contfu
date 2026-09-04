@@ -83,9 +83,9 @@ describe("filters", () => {
       expect(ops).not.toContain(FilterOperator.CONTAINS);
     });
 
-    test("nullable type strips NULL and metadata flags and returns base type operators", () => {
+    test("optional type strips OPTIONAL and metadata flags and returns base type operators", () => {
       const ops = getOperatorsForType(
-        PropertyType.STRING | PropertyType.NULL | PropertyType.IDENTITY,
+        PropertyType.STRING | PropertyType.OPTIONAL | PropertyType.IDENTITY,
       );
       expect(ops).toContain(FilterOperator.CONTAINS);
       expect(ops).toContain(FilterOperator.STARTS_WITH);

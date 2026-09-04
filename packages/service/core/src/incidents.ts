@@ -127,3 +127,139 @@ export interface ServiceIncidentWithDetails {
   createdAt: Date;
   resolvedAt: Date | null;
 }
+
+export const IncidentTypeName: Record<IncidentType, string> = {
+  [IncidentType.SchemaIncompatible]: "schema_incompatible",
+  [IncidentType.FilterInvalid]: "filter_invalid",
+  [IncidentType.SyncError]: "sync_error",
+  [IncidentType.ItemValidationError]: "item_validation_error",
+  [IncidentType.SourceRepairFailure]: "source_repair_failure",
+  [IncidentType.SourceUnavailable]: "source_unavailable",
+};
+
+export interface IncidentPresentationInput {
+  type: IncidentType;
+  message: string;
+  details: Record<string, unknown> | null;
+}
+
+export interface IncidentPresentation {
+  /** Stable textual incident type for public and terminal output. */
+  typeName: string;
+  problem: string;
+  suggestedAction: string | null;
+  affectedCount: number;
+}
+
+function nonEmptyText(value: unknown): string | null {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+}
+
+export function getIncidentResolutionItemProblem(value: unknown): string {
+  if (!value || typeof value !== "object") return "Needs review.";
+  const item = value as Record<string, unknown>;
+  const problem = nonEmptyText(item.problem);
+  if (problem) return problem;
+  const source = nonEmptyText(item.source);
+  const target = nonEmptyText(item.target);
+  const property = nonEmptyText(item.property);
+  if (source && target) return `Mapping from "${source}" to "${target}" needs review.`;
+  if (source) return `Mapping source "${source}" needs review.`;
+  if (property) return `Property "${property}" needs review.`;
+  return "Needs review.";
+}
+
+function nestedResolutionItems(details: Record<string, unknown>): Record<string, unknown>[] {
+  return [details.invalidMappings, details.invalidFilters, details.conflicts].flatMap((value) =>
+    Array.isArray(value)
+      ? value.filter((item): item is Record<string, unknown> => !!item && typeof item === "object")
+      : [],
+  );
+}
+
+/** Recognize current and legacy source-unavailable delivery incidents. */
+export function isSourceUnavailableIncident(
+  incident: Pick<IncidentPresentationInput, "type" | "message">,
+): boolean {
+  return (
+    incident.type === IncidentType.SourceUnavailable ||
+    incident.message === "Source item could not be resolved for target delivery" ||
+    incident.message === "Source data is unavailable for target delivery"
+  );
+}
+
+/** Parse the stable portion of source-unavailable details without trusting MessagePack contents. */
+export function parseSourceUnavailableDetails(details: unknown): SourceUnavailableDetails | null {
+  if (!details || typeof details !== "object") return null;
+  const value = details as Partial<SourceUnavailableDetails>;
+  if (typeof value.itemId !== "number" || !Number.isFinite(value.itemId)) return null;
+  return {
+    ...value,
+    itemId: value.itemId,
+    deliveryKey: value.deliveryKey ?? `target-delivery:${value.itemId}`,
+  } as SourceUnavailableDetails;
+}
+
+export function sourceUnavailableProblem(details: SourceUnavailableDetails | null): string {
+  switch (details?.reason) {
+    case SourceUnavailableReason.SourceMembershipMissing:
+      return "The source collection no longer has this item's membership.";
+    case SourceUnavailableReason.SourceCacheEntryMissing:
+      return "The source item is missing from Contfu's synced cache.";
+    case SourceUnavailableReason.SourceCacheEntryExpired:
+      return "The source item's cached data has expired.";
+    case SourceUnavailableReason.TargetFlowPathMissing:
+      return "This source collection no longer has a path to the target collection.";
+    case SourceUnavailableReason.TargetFlowPathRejectedItem:
+      return "The current flow no longer produces this target item.";
+    default:
+      return "Contfu could not resolve the source item needed for delivery.";
+  }
+}
+
+/**
+ * Turn type-dependent incident details into stable, data-oriented presentation fields.
+ * Malformed and legacy details fall back to the incident's specific stored message.
+ */
+export function getIncidentPresentation(input: IncidentPresentationInput): IncidentPresentation {
+  const details = input.details ?? {};
+  const totalFailed = details.totalFailed;
+  const affectedCount =
+    typeof totalFailed === "number" && Number.isInteger(totalFailed) && totalFailed > 0
+      ? totalFailed
+      : 1;
+
+  if (isSourceUnavailableIncident(input)) {
+    return {
+      typeName: IncidentTypeName[IncidentType.SourceUnavailable],
+      problem: sourceUnavailableProblem(parseSourceUnavailableDetails(details)),
+      suggestedAction:
+        "Resync the source collection, then redeliver the affected item. This incident clears when that delivery succeeds.",
+      affectedCount,
+    };
+  }
+
+  const resolutionItems = nestedResolutionItems(details);
+  const nestedProblems = resolutionItems.map(getIncidentResolutionItemProblem);
+  const problem = nonEmptyText(details.problem) ?? (nestedProblems.join(" ") || input.message);
+  const detailAction =
+    nonEmptyText(details.suggestedAction) ??
+    resolutionItems.map((item) => nonEmptyText(item.suggestedAction)).find(Boolean) ??
+    null;
+  const fallbackAction =
+    input.type === IncidentType.SourceRepairFailure
+      ? "Reset the source collection state and retry the sync."
+      : input.type === IncidentType.ItemValidationError || input.type === IncidentType.SyncError
+        ? "Fix the reported delivery problem, then dismiss this incident."
+        : input.type === IncidentType.SchemaIncompatible ||
+            input.type === IncidentType.FilterInvalid
+          ? "Review the flow configuration and fix the reported incompatibility."
+          : null;
+
+  return {
+    typeName: IncidentTypeName[input.type] ?? `unknown_${input.type}`,
+    problem,
+    suggestedAction: detailAction ?? fallbackAction,
+    affectedCount,
+  };
+}

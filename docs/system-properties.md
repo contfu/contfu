@@ -14,15 +14,15 @@ built-in application system property.
 
 ## Reference
 
-| Property       | Type           | Meaning                                                                                                                 | Filterable |
-| -------------- | -------------- | ----------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `$id`          | number         | Stable item identifier within its collection.                                                                           | yes        |
-| `$collection`  | string         | The collection the item belongs to.                                                                                     | yes        |
-| `$changedAt`   | number         | Upstream version timestamp — when the item last changed in the source. Drives incremental sync and is the default sort. | yes        |
-| `$createdAt`   | number         | When the source created the item.                                                                                       | yes        |
-| `$publishedAt` | number \| null | When the source published the item. `null`/absent for unpublished items.                                                | yes        |
-| `$locale`      | string         | Normalized BCP 47 locale of a localized item variant. See [Localization](./i18n.md).                                    | yes        |
-| `$draft`       | boolean        | Present on draft-capable item collections; `true` when the item is a draft.                                             | no         |
+| Property       | Type           | Meaning                                                                                                                           | Filterable |
+| -------------- | -------------- | --------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `$id`          | number         | Stable item identifier within its collection.                                                                                     | yes        |
+| `$collection`  | string         | The collection the item belongs to.                                                                                               | yes        |
+| `$changedAt`   | number         | Upstream version timestamp — when the item last changed in the source. Drives incremental sync and is the default sort.           | yes        |
+| `$createdAt`   | number         | When the source created the item.                                                                                                 | yes        |
+| `$publishedAt` | number \| null | When the source published the item. `null`/absent for unpublished items.                                                          | yes        |
+| `$locale`      | string         | Normalized BCP 47 locale of a localized item variant. See [Localization](./i18n.md).                                              | yes        |
+| `$draft`       | boolean        | Present on draft-capable item collections; `true` when the item is a draft. Missing values are treated as `false` when filtering. | yes        |
 
 All timestamp values (`$changedAt`, `$createdAt`, `$publishedAt`) are **epoch milliseconds** (the same units as `Date.now()`), so they compare and sort numerically.
 
@@ -77,6 +77,12 @@ const cutoff = Date.parse("2026-01-01T00:00:00Z");
 const older = await query("blogPost", {
   filter: (p) => query.lt(p.$createdAt, cutoff),
 });
+
+// In a draft-inclusive collection, select drafts or published items.
+const drafts = await query("blogPost", { filter: (p) => query.eq(p.$draft, true) });
+const published = await query("blogPost", { filter: (p) => query.eq(p.$draft, false) });
+const publishedFromString = await query("blogPost", { filter: "$draft = false" });
+// An item without `$draft` is included by both the typed and string false filters.
 
 // Sort by creation time ascending.
 const byCreated = await query("blogPost", { sort: "$createdAt" });

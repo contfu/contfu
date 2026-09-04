@@ -67,6 +67,7 @@ clear an override. Mutating workspace membership and invite commands support `--
 ```bash
 contfu orgs list [-f default|agent|json] [--full]
 contfu orgs get <id-or-name> [-f default|agent|json] [--full]
+contfu orgs usage <id-or-name> [-f default|agent|json]
 contfu orgs create --display-name "Acme" [--name acme]
 contfu orgs update <id-or-name> [--display-name "New name"] [--name newName]
 contfu orgs invite <id-or-name> --email <email> [--role member|admin]
@@ -80,6 +81,38 @@ contfu orgs demote <id-or-name> <email>
 CLI are `member` and `admin`; owner assignment is managed by the service. Mutating organization
 membership and invite commands support `--dry-run`. Detail commands accept `-f default|agent|json`,
 `-a`, `-j`, and `--full`; agent output is compact unless `--full` is supplied.
+
+`orgs usage` resolves an organization by ID first, then exact name or display name. It reports
+`integrations`, `collections`, `flows`, `items`, and period-based `itemChanges` from the service's
+authoritative quota state. Structured output has this stable shape (the organization ID is the
+encoded public ID):
+
+```json
+{
+  "organization": { "id": "org_1", "name": "acme", "displayName": "Acme" },
+  "metrics": {
+    "integrations": { "used": 2, "limit": 10 },
+    "collections": { "used": 8, "limit": null },
+    "flows": { "used": 3, "limit": 10 },
+    "items": { "used": 120, "limit": 1000 },
+    "itemChanges": { "used": 17, "limit": 100 }
+  }
+}
+```
+
+JSON prints this object as formatted JSON; `--format agent` prints the same fields and numeric
+values as compact TOON. A `null` limit consistently means unlimited or unavailable. The default
+format renders each metric as a deterministic 20-character ASCII bar followed by `used / limit`,
+using `unlimited` for a null limit:
+
+```text
+Organization: Acme (org_1)
+Integrations   [####----------------] 2 / 10
+Collections    [--------------------] 8 / unlimited
+Flows          [######--------------] 3 / 10
+Items          [##------------------] 120 / 1000
+Item changes   [###-----------------] 17 / 100
+```
 
 ## Setup wizard
 
@@ -134,8 +167,9 @@ Service base URLs or service-specific identifiers such as a Contentful space ID,
 `-d, --data <json>`. For Sanity, `--project-id` is required and `--scope`/`--scopes`
 restrict exposed datasets. For Contentful, `--url` is the space ID, `--scope`/`--scopes` restrict
 exposed environments, Delivery API mode is the default, and Preview API mode requires a preview
-token on create. For Web sources, `--url` is the base URL and `--token` is sent as a
-Bearer token. For webhook target integrations, `--url` is the HTTPS endpoint template
+token on create. Preview full pulls are best-effort: deleted entries cannot be detected and
+Preview push is unavailable; use Delivery API mode for authoritative deletion reconciliation. For
+Web sources, `--url` is the base URL and `--token` is sent as a Bearer token. For webhook target integrations, `--url` is the HTTPS endpoint template
 and may use `{collection}`, `{collectionName}`, or `{itemId}`. Use `--webhook-header
 Name=Value[,Name=Value]` for static outbound headers; Contfu-managed content type, version,
 timestamp, and signature headers take precedence. Unknown `--type` values fail before
@@ -190,6 +224,12 @@ contfu collections get <id-or-name> [-f default|agent|json] [--full]
 contfu collections create --display-name "<name>" [flags]
 contfu collections update <id-or-name> [flags]
 contfu collections delete <id-or-name>
+contfu collections sync-now <id-or-name> [--wait] [--dry-run]
+contfu collections full-refresh <id-or-name> [--wait] [--dry-run]
+contfu collections full-resync <id-or-name> [--refresh-source-first] [--wait] [--dry-run]
+contfu collections pause <id-or-name> [--dry-run]
+contfu collections resume <id-or-name> [--dry-run]
+contfu collections operations <id-or-name> [-f json]
 ```
 
 | Flag                            | Description                                                                                        |
@@ -206,6 +246,14 @@ contfu collections delete <id-or-name>
 | `--i18n-grouping-key <field>`   | Normal scalar property used to group translated variants for fallback. System fields are rejected. |
 | `--reset-i18n`                  | Reset user i18n overrides and keep detected i18n.                                                  |
 | `-d, --data <json>`             | Raw JSON body.                                                                                     |
+
+`sync-now` starts an ordinary source pull and `full-refresh` rebuilds source state before pulling. Add
+`--wait` to either command to poll its source operation until `COMPLETED`, `FAILED`, or `BLOCKED`;
+failed or blocked operations exit non-zero. `operations` lists the collection's durable operation
+history and is useful for scripts (for example, `contfu collections operations <id> -f json`).
+`full-resync` is a target repair operation; `--refresh-source-first` performs a Full refresh of
+incoming sources before rebuilding the target. `--dry-run` previews all mutations without calling
+mutation endpoints.
 
 See [Collections](./collections.md).
 

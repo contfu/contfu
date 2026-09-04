@@ -167,20 +167,22 @@ function castSchemaValue(sourceValue: SchemaValue, rule: MappingRule): SchemaVal
   const selectedType = schemaType(selectedValue);
   const hasDefault = "default" in rule;
   const defaultIsNull = hasDefault && rule.default === null;
-  // A non-null default replaces a nullable source value at runtime. An
+  // A non-null default replaces an optional source value at runtime. An
   // explicit null default does the opposite and makes null an output even
   // when the source schema was non-null.
-  const nullable =
-    defaultIsNull || (!hasDefault && !!(selectedType & PropertyType.NULL)) ? PropertyType.NULL : 0;
+  const optional =
+    defaultIsNull || (!hasDefault && !!(selectedType & PropertyType.OPTIONAL))
+      ? PropertyType.OPTIONAL
+      : 0;
 
   // These casts normalize both the source and the fallback to one output
   // type, so the fallback's original type must not widen the result.
-  if (rule.cast === "string") return PropertyType.STRING | nullable;
-  if (rule.cast === "number") return PropertyType.NUMBER | nullable;
-  if (rule.cast === "boolean") return PropertyType.BOOLEAN | nullable;
-  if (rule.cast === "plainDateToDate") return PropertyType.DATE | nullable;
-  if (rule.cast === "dateToPlainDate") return PropertyType.PLAINDATE | nullable;
-  if (rule.cast === "plainDateToString") return PropertyType.STRING | nullable;
+  if (rule.cast === "string") return PropertyType.STRING | optional;
+  if (rule.cast === "number") return PropertyType.NUMBER | optional;
+  if (rule.cast === "boolean") return PropertyType.BOOLEAN | optional;
+  if (rule.cast === "plainDateToDate") return PropertyType.DATE | optional;
+  if (rule.cast === "dateToPlainDate") return PropertyType.PLAINDATE | optional;
+  if (rule.cast === "plainDateToString") return PropertyType.STRING | optional;
   if (rule.cast === "enum") {
     const isMulti =
       !!(selectedType & PropertyType.STRINGS) || !!(selectedType & PropertyType.ENUMS);
@@ -190,24 +192,24 @@ function castSchemaValue(sourceValue: SchemaValue, rule: MappingRule): SchemaVal
       const fallback = String(rule.default);
       if (!enumVals.includes(fallback)) enumVals.push(fallback);
     }
-    return [baseType | nullable, enumVals];
+    return [baseType | optional, enumVals];
   }
 
   if (!hasDefault) return selectedValue;
   // Without a normalizing cast, runtime output can be either the source value
   // or the resolved default. Keep both in the inferred schema (including a
-  // fallback literal for enum defaults), while removing source NULL when a
+  // fallback literal for enum defaults), while removing the source OPTIONAL flag when a
   // non-null default handles it.
-  const sourceWithoutNull =
+  const sourceWithoutOptional =
     hasDefault && !defaultIsNull
       ? Array.isArray(selectedValue)
-        ? ([selectedType & ~PropertyType.NULL, selectedValue[1]] as [number, string[]])
-        : selectedType & ~PropertyType.NULL
+        ? ([selectedType & ~PropertyType.OPTIONAL, selectedValue[1]] as [number, string[]])
+        : selectedType & ~PropertyType.OPTIONAL
       : selectedValue;
   const fallback = defaultSchemaValue(rule);
-  if (fallback === undefined) return sourceWithoutNull;
+  if (fallback === undefined) return sourceWithoutOptional;
 
-  const sourceType = schemaType(sourceWithoutNull);
+  const sourceType = schemaType(sourceWithoutOptional);
   const fallbackType = schemaType(fallback);
   // A literal string is represented as ENUM for precise constant injection,
   // but it is already covered by a STRING source. Likewise, primitive
@@ -219,8 +221,8 @@ function castSchemaValue(sourceValue: SchemaValue, rule: MappingRule): SchemaVal
       !!(sourceType & PropertyType.STRING) &&
       !(sourceType & PropertyType.ENUM));
   return fallbackCoveredBySource
-    ? sourceWithoutNull
-    : mergeSchemaValues(sourceWithoutNull, fallback);
+    ? sourceWithoutOptional
+    : mergeSchemaValues(sourceWithoutOptional, fallback);
 }
 
 /**
@@ -237,7 +239,7 @@ function defaultSchemaValue(rule: MappingRule): SchemaValue | undefined {
   if (!("default" in rule)) return undefined;
   // Mapping application intentionally preserves null values, including null
   // defaults, rather than passing them through a primitive cast.
-  if (rule.default === null) return PropertyType.NULL;
+  if (rule.default === null) return PropertyType.OPTIONAL;
   // Primitive casts normalize the runtime fallback to their target type.
   if (rule.cast === "string") return PropertyType.STRING;
   if (rule.cast === "number") return PropertyType.NUMBER;

@@ -182,7 +182,7 @@ describe("@contfu/server routes", () => {
     const { routes } = createServeOptions();
     const url = new URL("http://localhost/api/items");
     url.search = new URLSearchParams({
-      filter: 'title ~ "Post"',
+      filter: "$draft = true",
       search: "alpha",
       sort: "$changedAt,-title",
       limit: "5",
@@ -201,7 +201,7 @@ describe("@contfu/server routes", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
       data: {
-        filter: 'title ~ "Post"',
+        filter: "$draft = true",
         search: "alpha",
         sort: ["$changedAt", "-title"],
         limit: 5,
@@ -216,7 +216,7 @@ describe("@contfu/server routes", () => {
       },
     });
     expect(findItems).toHaveBeenCalledWith({
-      filter: 'title ~ "Post"',
+      filter: "$draft = true",
       search: "alpha",
       sort: ["$changedAt", "-title"],
       limit: 5,
@@ -229,6 +229,50 @@ describe("@contfu/server routes", () => {
       onlyDeleted: true,
       with: { relation: true },
     });
+  });
+
+  test("matches draft filters through the HTTP items query", async () => {
+    const items = [
+      { $id: 20, $draft: true, title: "Draft" },
+      { $id: 21, $draft: false, title: "Published" },
+      { $id: 22, title: "Legacy" },
+    ];
+    const findItems = mock((options: Record<string, unknown>) => {
+      const data = options.filter === "$draft = true" ? [items[0]] : items.slice(1);
+      return { data, meta: { total: data.length, limit: 20, offset: 0 } };
+    });
+
+    await mock.module("@contfu/contfu", () => ({
+      contfu: mock(() => ({
+        events: (async function* () {})(),
+        handleFileRequest: mock(() => new Response("")),
+      })),
+      getFileStore: mock(() => ({})),
+      getMediaOptimizer: mock(() => ({})),
+      findItems,
+      generateTypes: mock(() => ""),
+      getAllCollectionSchemas: mock(() => []),
+      getItemById: mock(() => null),
+    }));
+
+    const { routes } = createServeOptions();
+    const request = (filter: string) =>
+      new Request(`http://localhost/api/items?filter=${encodeURIComponent(filter)}`);
+
+    const draftResponse = await callRoute(getRoute(routes, "/api/items"), request("$draft = true"));
+    expect(draftResponse.status).toBe(200);
+    const draftBody = (await draftResponse.json()) as { data: Array<{ $id: number }> };
+    expect(draftBody.data.map((item) => item.$id)).toEqual([20]);
+    expect(findItems).toHaveBeenNthCalledWith(1, { filter: "$draft = true" });
+
+    const publishedResponse = await callRoute(
+      getRoute(routes, "/api/items"),
+      request("$draft = false"),
+    );
+    expect(publishedResponse.status).toBe(200);
+    const publishedBody = (await publishedResponse.json()) as { data: Array<{ $id: number }> };
+    expect(publishedBody.data.map((item) => item.$id)).toEqual([21, 22]);
+    expect(findItems).toHaveBeenNthCalledWith(2, { filter: "$draft = false" });
   });
 
   test("rejects invalid item limit values", async () => {

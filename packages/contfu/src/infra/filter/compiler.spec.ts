@@ -87,6 +87,36 @@ describe("compileFilter", () => {
     expect(ids).toEqual([1]);
   });
 
+  test("filters draft props and treats absent values as published", () => {
+    createItem({
+      id: 20,
+      ref: "draft/draft",
+      collection: "articles",
+      props: { title: "Draft", $draft: true },
+      changedAt: 500,
+    });
+    createItem({
+      id: 21,
+      ref: "draft/published",
+      collection: "articles",
+      props: { title: "Published", $draft: false },
+      changedAt: 501,
+    });
+    createItem({
+      id: 22,
+      ref: "draft/legacy",
+      collection: "articles",
+      props: { title: "Legacy" },
+      changedAt: 502,
+    });
+
+    expect(queryWithFilter("$draft = true")).toEqual([20]);
+    expect(queryWithFilter("$draft = false")).toEqual([1, 2, 3, 21, 22]);
+    expect(queryWithFilter("$draft != true")).toEqual([1, 2, 3, 21, 22]);
+    expect(queryWithFilter("$draft = null")).toEqual([]);
+    expect(queryWithFilter("$draft != null")).toEqual([1, 2, 3, 20, 21, 22]);
+  });
+
   test("filters by normalized system timestamp props ($-prefixed json keys)", () => {
     createItem({
       id: 10,

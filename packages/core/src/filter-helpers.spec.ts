@@ -217,6 +217,11 @@ describe("filter-helpers operator type safety", () => {
     expect(typeof result).toBe("string");
   });
 
+  it("eq with $draft (boolean system field)", () => {
+    const result = eq(self.$draft, false);
+    expect(typeof result).toBe("string");
+  });
+
   // Untyped field refs (fallback overload path)
   it("eq with untyped FieldRef still works", () => {
     const untypedRef: FieldRef = { path: "someField" } as any;

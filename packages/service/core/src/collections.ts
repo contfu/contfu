@@ -21,6 +21,9 @@ export interface ServiceCollection extends Collection {
   fullPullRequired: boolean;
   sourceRepairGeneration: number | null;
   sourceRepairStartedAt: Date | null;
+  /** Runtime state is projected across pods and is refreshed with the collection query. */
+  isSnapshotting?: boolean;
+  isConnected?: boolean;
   flowSourceCount: number;
   flowTargetCount: number;
   createdAt: Date;

@@ -1,6 +1,6 @@
 # @contfu/sanity
 
-Post your Sanity Studio schema to Contfu so Contfu can use the Studio schema as the authoritative collection schema instead of sampling Content Lake documents.
+Post your Sanity Studio schema to Contfu so Contfu can use the Studio schema as the authoritative collection schema instead of sampling Content Lake documents. Collections without a pushed Studio schema use item-derived sampling until a push arrives.
 
 ## Install
 
