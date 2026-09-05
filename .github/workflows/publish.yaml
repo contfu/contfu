@@ -163,86 +163,86 @@ jobs:
           node-version: "24"
           registry-url: "https://registry.npmjs.org"
       - run: bun run build
-      - name: Publish @contfu/core
-        if: needs.check-version.outputs.core-npm-changed == 'true'
-        working-directory: ./packages/core
-        run: bun run pack && npm publish *.tgz --access public --provenance
-      - name: Publish @contfu/connect
-        if: needs.check-version.outputs.connect-npm-changed == 'true'
-        working-directory: ./packages/connect
-        run: bun run pack && npm publish *.tgz --access public --provenance
-      - name: Publish @contfu/contfu
-        if: needs.check-version.outputs.contfu-npm-changed == 'true'
-        working-directory: ./packages/contfu
-        run: bun run pack && npm publish *.tgz --access public --provenance
-      - name: Publish @contfu/client
-        if: needs.check-version.outputs.client-npm-changed == 'true'
-        working-directory: ./packages/client
-        run: bun run pack && npm publish *.tgz --access public --provenance
-      - name: Publish @contfu/server
-        if: needs.check-version.outputs.server-npm-changed == 'true'
-        working-directory: ./packages/server
-        run: bun run pack && npm publish *.tgz --access public --provenance
-      - name: Publish @contfu/bun-file-store
-        if: needs.check-version.outputs.bun-file-store-npm-changed == 'true'
-        working-directory: ./packages/files/bun-file-store
-        run: bun run pack && npm publish *.tgz --access public --provenance
-      - name: Publish @contfu/media-optimizer
-        if: needs.check-version.outputs.media-optimizer-npm-changed == 'true'
-        working-directory: ./packages/files/media-optimizer
-        run: bun run pack && npm publish *.tgz --access public --provenance
-      - name: Publish @contfu/media-optimizer-remote
-        if: needs.check-version.outputs.media-optimizer-remote-npm-changed == 'true'
-        working-directory: ./packages/files/media-optimizer-remote
-        run: bun run pack && npm publish *.tgz --access public --provenance
-      - name: Publish @contfu/svc-core
-        if: needs.check-version.outputs.svc-core-npm-changed == 'true'
-        working-directory: ./packages/service/core
-        run: bun run pack && npm publish *.tgz --access public --provenance
-      - name: Publish @contfu/svc-api
-        if: needs.check-version.outputs.svc-api-npm-changed == 'true'
-        working-directory: ./packages/service/api
-        run: bun run pack && npm publish *.tgz --access public --provenance
-      - name: Publish @contfu/cli
-        if: needs.check-version.outputs.cli-npm-changed == 'true'
-        working-directory: ./packages/cli
-        run: bun run pack && npm publish *.tgz --access public --provenance
-      - name: Publish @contfu/ui
-        if: needs.check-version.outputs.ui-npm-changed == 'true'
-        working-directory: ./packages/ui
-        run: bun run pack && npm publish *.tgz --access public --provenance
-      - name: Publish @contfu/react
-        if: needs.check-version.outputs.react-npm-changed == 'true'
-        working-directory: ./packages/react
-        run: bun run pack && npm publish *.tgz --access public --provenance
-      - name: Publish @contfu/vue
-        if: needs.check-version.outputs.vue-npm-changed == 'true'
-        working-directory: ./packages/vue
-        run: bun run pack && npm publish *.tgz --access public --provenance
-      - name: Publish @contfu/angular
-        if: needs.check-version.outputs.angular-npm-changed == 'true'
-        working-directory: ./packages/angular
-        run: bun run pack && npm publish *.tgz --access public --provenance
-      - name: Publish @contfu/solid
-        if: needs.check-version.outputs.solid-npm-changed == 'true'
-        working-directory: ./packages/solid
-        run: bun run pack && npm publish *.tgz --access public --provenance
-      - name: Publish @contfu/svelte
-        if: needs.check-version.outputs.svelte-npm-changed == 'true'
-        working-directory: ./packages/svelte
-        run: bun run pack && npm publish *.tgz --access public --provenance
-      - name: Publish @contfu/sanity
-        if: needs.check-version.outputs.sanity-npm-changed == 'true'
-        working-directory: ./packages/plugins/sanity
-        run: bun run pack && npm publish *.tgz --access public --provenance
-      - name: Publish @contfu/webhook
-        if: needs.check-version.outputs.webhook-npm-changed == 'true'
-        working-directory: ./packages/webhook
-        run: bun run pack && npm publish *.tgz --access public --provenance
-      - name: Publish @contfu/strapi
-        if: needs.check-version.outputs.strapi-npm-changed == 'true'
-        working-directory: ./packages/plugins/strapi
-        run: bun run pack && npm publish *.tgz --access public --provenance
+      - name: Publish changed npm packages
+        env:
+          CORE_CHANGED: ${{ needs.check-version.outputs.core-npm-changed }}
+          CONNECT_CHANGED: ${{ needs.check-version.outputs.connect-npm-changed }}
+          CONTFU_CHANGED: ${{ needs.check-version.outputs.contfu-npm-changed }}
+          CLIENT_CHANGED: ${{ needs.check-version.outputs.client-npm-changed }}
+          SERVER_CHANGED: ${{ needs.check-version.outputs.server-npm-changed }}
+          BUN_FILE_STORE_CHANGED: ${{ needs.check-version.outputs.bun-file-store-npm-changed }}
+          MEDIA_OPTIMIZER_CHANGED: ${{ needs.check-version.outputs.media-optimizer-npm-changed }}
+          MEDIA_OPTIMIZER_REMOTE_CHANGED: ${{ needs.check-version.outputs.media-optimizer-remote-npm-changed }}
+          SVC_CORE_CHANGED: ${{ needs.check-version.outputs.svc-core-npm-changed }}
+          SVC_API_CHANGED: ${{ needs.check-version.outputs.svc-api-npm-changed }}
+          CLI_CHANGED: ${{ needs.check-version.outputs.cli-npm-changed }}
+          UI_CHANGED: ${{ needs.check-version.outputs.ui-npm-changed }}
+          REACT_CHANGED: ${{ needs.check-version.outputs.react-npm-changed }}
+          VUE_CHANGED: ${{ needs.check-version.outputs.vue-npm-changed }}
+          ANGULAR_CHANGED: ${{ needs.check-version.outputs.angular-npm-changed }}
+          SOLID_CHANGED: ${{ needs.check-version.outputs.solid-npm-changed }}
+          SVELTE_CHANGED: ${{ needs.check-version.outputs.svelte-npm-changed }}
+          SANITY_CHANGED: ${{ needs.check-version.outputs.sanity-npm-changed }}
+          WEBHOOK_CHANGED: ${{ needs.check-version.outputs.webhook-npm-changed }}
+          STRAPI_CHANGED: ${{ needs.check-version.outputs.strapi-npm-changed }}
+        shell: bash
+        run: |
+          publish_package() {
+            local name=$1
+            local directory=$2
+            local changed=$3
+            local version
+            local error_file
+
+            [ "$changed" = "true" ] || return 0
+            version=$(jq -r .version "$directory/package.json")
+            error_file=$(mktemp)
+
+            if npm view "$name@$version" version > /dev/null 2>"$error_file"; then
+              echo "$name@$version is already published; skipping."
+              rm -f "$error_file"
+              return 0
+            fi
+
+            if ! grep -qE 'E404|404' "$error_file"; then
+              cat "$error_file" >&2
+              rm -f "$error_file"
+              return 1
+            fi
+            rm -f "$error_file"
+
+            echo "Publishing $name@$version."
+            if (cd "$directory" && bun run pack && npm publish *.tgz --access public --provenance); then
+              return 0
+            fi
+
+            if npm view "$name@$version" version > /dev/null 2>&1; then
+              echo "$name@$version was published concurrently; treating it as successful."
+              return 0
+            fi
+            return 1
+          }
+
+          publish_package '@contfu/core' './packages/core' "$CORE_CHANGED"
+          publish_package '@contfu/connect' './packages/connect' "$CONNECT_CHANGED"
+          publish_package '@contfu/contfu' './packages/contfu' "$CONTFU_CHANGED"
+          publish_package '@contfu/client' './packages/client' "$CLIENT_CHANGED"
+          publish_package '@contfu/server' './packages/server' "$SERVER_CHANGED"
+          publish_package '@contfu/bun-file-store' './packages/files/bun-file-store' "$BUN_FILE_STORE_CHANGED"
+          publish_package '@contfu/media-optimizer' './packages/files/media-optimizer' "$MEDIA_OPTIMIZER_CHANGED"
+          publish_package '@contfu/media-optimizer-remote' './packages/files/media-optimizer-remote' "$MEDIA_OPTIMIZER_REMOTE_CHANGED"
+          publish_package '@contfu/svc-core' './packages/service/core' "$SVC_CORE_CHANGED"
+          publish_package '@contfu/svc-api' './packages/service/api' "$SVC_API_CHANGED"
+          publish_package '@contfu/cli' './packages/cli' "$CLI_CHANGED"
+          publish_package '@contfu/ui' './packages/ui' "$UI_CHANGED"
+          publish_package '@contfu/react' './packages/react' "$REACT_CHANGED"
+          publish_package '@contfu/vue' './packages/vue' "$VUE_CHANGED"
+          publish_package '@contfu/angular' './packages/angular' "$ANGULAR_CHANGED"
+          publish_package '@contfu/solid' './packages/solid' "$SOLID_CHANGED"
+          publish_package '@contfu/svelte' './packages/svelte' "$SVELTE_CHANGED"
+          publish_package '@contfu/sanity' './packages/plugins/sanity' "$SANITY_CHANGED"
+          publish_package '@contfu/webhook' './packages/webhook' "$WEBHOOK_CHANGED"
+          publish_package '@contfu/strapi' './packages/plugins/strapi' "$STRAPI_CHANGED"
 
   publish-docker:
     needs: check-version
