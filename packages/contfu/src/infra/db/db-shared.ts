@@ -39,3 +39,11 @@ export async function ensureDbDir(url: string) {
     await mkdir(dirname(url), { recursive: true });
   }
 }
+
+/** Read replicas must never migrate or change SQLite journal mode on startup. */
+export const defaultDatabaseOptions = {
+  readonly: process.env.CONTFU_DATABASE_READONLY === "true",
+  journalMode: process.env.CONTFU_DATABASE_JOURNAL_MODE === "delete" ? "delete" : "wal",
+} as const;
+
+export type DatabaseOptions = { readonly?: boolean; journalMode?: "wal" | "delete" };

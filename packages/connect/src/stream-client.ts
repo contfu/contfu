@@ -24,6 +24,16 @@ import {
   SECONDS,
 } from "@contfu/core";
 
+/** Terminal configuration conflict: another runtime owns this application's sync session. */
+export class ConsumerAlreadyConnectedError extends Error {
+  constructor() {
+    super(
+      "Application already has an active consumer. Run additional replicas with offline: true.",
+    );
+    this.name = "ConsumerAlreadyConnectedError";
+  }
+}
+
 /** Item as received by consumers — collection is the collection name. */
 export type Item<T extends PageProps = Record<never, never>> = Omit<
   InternalItem<T>,
@@ -353,6 +363,7 @@ async function* streamEvents(
   try {
     while (shouldReconnect) {
       let connection: TransportConnection | null = null;
+      let connectedAt: number | undefined;
 
       try {
         const opened = await openDefaultTransportConnection(syncEndpoint, key, SYNC_TRANSPORT);
@@ -361,7 +372,7 @@ async function* streamEvents(
         state.setCurrentConnection(connection);
         materializedItems.clear();
 
-        reconnectDelay = initialReconnectDelay;
+        connectedAt = Date.now();
         startStallTimer();
         if (connectionEvents) {
           yield { type: EventType.STREAM_CONNECTED };
@@ -453,7 +464,7 @@ async function* streamEvents(
           };
         }
 
-        if (!shouldReconnect || !reconnect) {
+        if (err instanceof ConsumerAlreadyConnectedError || !shouldReconnect || !reconnect) {
           throw err;
         }
       }
@@ -465,6 +476,11 @@ async function* streamEvents(
       if (!reconnect) break;
       if (!shouldReconnect) break;
 
+      // An accepted transport may fail during snapshot recovery immediately. Only a stable
+      // session earns a fresh retry budget; otherwise repeated opens must keep backing off.
+      if (connectedAt !== undefined && Date.now() - connectedAt >= 30 * SECONDS) {
+        reconnectDelay = initialReconnectDelay;
+      }
       await new Promise((resolve) => setTimeout(resolve, reconnectDelay));
       reconnectDelay = Math.min(reconnectDelay * 2, maxReconnectDelay);
     }
@@ -548,6 +564,13 @@ async function openHttpConnection(syncEndpoint: string, key: Buffer): Promise<Tr
   });
 
   if (!response.ok) {
+    if (
+      response.status === 409 &&
+      response.headers.get("X-Contfu-Error") === "E_CONSUMER_CONNECTED"
+    ) {
+      await response.body?.cancel();
+      throw new ConsumerAlreadyConnectedError();
+    }
     const text = await response.text();
     throw new Error(`Sync connection failed: ${response.status} ${text}`);
   }
@@ -580,6 +603,9 @@ async function openHttpConnection(syncEndpoint: string, key: Buffer): Promise<Tr
               events.push(JSON.parse(dataLines.join("\n")) as WireStreamPayload);
               dataLines = [];
             }
+          } else if (line.startsWith(":")) {
+            // SSE comments are real transport activity, even without content changes.
+            events.push([EventType.PING]);
           } else if (line.startsWith("data:")) {
             dataLines.push(line.startsWith("data: ") ? line.slice(6) : line.slice(5));
           }

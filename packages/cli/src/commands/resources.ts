@@ -43,6 +43,7 @@ export interface CliValues {
   name?: string;
   type?: string;
   url?: string;
+  opts?: string;
   "display-name"?: string;
   "source-id"?: string;
   "target-id"?: string;
@@ -81,6 +82,20 @@ const REQUIRED_CREATE: Record<Resource, (keyof CliValues)[]> = {
   collections: ["display-name"],
   flows: ["source-id", "target-id"],
 };
+
+function parseIntegrationOpts(value: string | undefined): Record<string, unknown> | undefined {
+  if (value === undefined) return undefined;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    throw new Error(`--opts must be valid JSON`);
+  }
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error(`--opts must be a JSON object`);
+  }
+  return parsed as Record<string, unknown>;
+}
 
 function parseScopeFlags(values: CliValues): string[] | undefined {
   if (values.scopes !== undefined) {
@@ -370,6 +385,8 @@ function buildIntegrationCreateBody(values: CliValues): CreateIntegrationBody {
   }
   const body: CreateIntegrationBody = { name: values.name!, type };
   if (values.url !== undefined) body.url = values.url;
+  const integrationOpts = parseIntegrationOpts(values.opts);
+  if (integrationOpts !== undefined) body.opts = integrationOpts as CreateIntegrationBody["opts"];
   if (type === IntegrationType.CONTENTFUL) {
     applyContentfulIntegrationSettings(body, values, { creating: true });
   } else {
@@ -405,8 +422,17 @@ function buildIntegrationCreateBody(values: CliValues): CreateIntegrationBody {
 }
 
 function buildIntegrationUpdateBody(values: CliValues): UpdateIntegrationBody {
+  if (values.type !== undefined) {
+    throw new Error(`Integration type cannot be changed after creation; omit --type`);
+  }
   const body: UpdateIntegrationBody = {};
   if (values.name !== undefined) body.name = values.name;
+  if (values.url !== undefined) body.url = values.url;
+  const integrationOpts = parseIntegrationOpts(values.opts);
+  if (integrationOpts !== undefined) body.opts = integrationOpts as UpdateIntegrationBody["opts"];
+  if (values["project-id"] !== undefined) {
+    body.opts = { ...body.opts, projectId: values["project-id"] };
+  }
   if (hasContentfulSettings(values)) {
     applyContentfulIntegrationSettings(body, values);
   } else {
@@ -952,16 +978,64 @@ export async function update(
   const client = getApiClient();
   try {
     if (resource === "integrations") {
+      if (!jsonData && values.type !== undefined) {
+        throw new Error(`Integration type cannot be changed after creation; omit --type`);
+      }
       const resolvedId = await resolveIntegrationRef(id, client);
       const body = jsonData
         ? (untransformSchema(JSON.parse(jsonData)) as UpdateIntegrationBody)
         : buildIntegrationUpdateBody(values);
-      if (!jsonData && body.opts !== undefined) {
+      if (
+        !jsonData &&
+        (body.opts !== undefined ||
+          values.url !== undefined ||
+          hasContentfulSettings(values) ||
+          values["project-id"] !== undefined)
+      ) {
         const existing = await client.getIntegration(resolvedId);
         if (hasWebhookTargetOptions(values) && existing.type !== IntegrationType.WEBHOOK) {
           throw new Error(`Webhook target options can only update webhook integrations`);
         }
-        body.opts = { ...existing.opts, ...body.opts };
+        if (hasContentfulSettings(values) && existing.type !== IntegrationType.CONTENTFUL) {
+          throw new Error(`Contentful settings can only update Contentful integrations`);
+        }
+        if (
+          (values["include-drafts"] === true || values["no-include-drafts"] === true) &&
+          existing.type !== IntegrationType.WORDPRESS &&
+          existing.type !== IntegrationType.SANITY &&
+          existing.type !== IntegrationType.STRAPI
+        ) {
+          throw new Error(
+            `--include-drafts can only update WordPress, Sanity, or Strapi integrations`,
+          );
+        }
+        if (values.url !== undefined) {
+          if (existing.type === IntegrationType.CONTENTFUL) {
+            delete body.url;
+            body.opts = { ...body.opts, spaceId: values.url };
+          } else if (existing.type === IntegrationType.SANITY) {
+            if (values.url !== undefined) {
+              throw new Error(`Sanity integrations use --project-id instead of --url`);
+            }
+          } else if (
+            existing.type !== IntegrationType.WEB &&
+            existing.type !== IntegrationType.WEBHOOK &&
+            existing.type !== IntegrationType.STRAPI &&
+            existing.type !== IntegrationType.WORDPRESS &&
+            existing.type !== IntegrationType.DIRECTUS
+          ) {
+            throw new Error(`--url cannot be updated for this integration type`);
+          }
+        }
+        if (values["project-id"] !== undefined && existing.type !== IntegrationType.SANITY) {
+          throw new Error(`--project-id can only update Sanity integrations`);
+        }
+        if (existing.type === IntegrationType.SANITY && values["project-id"] !== undefined) {
+          body.url = `https://${values["project-id"]}.api.sanity.io`;
+        }
+        if (body.opts !== undefined || (existing.opts !== undefined && existing.opts !== null)) {
+          body.opts = { ...existing.opts, ...body.opts };
+        }
       }
       if (options.dryRun) {
         printDryRun("update integration", { id: resolvedId, body });
@@ -969,6 +1043,11 @@ export async function update(
       }
       printJson(await client.updateIntegration(resolvedId, body));
     } else if (resource === "collections") {
+      if (values["integration-id"] !== undefined) {
+        throw new Error(
+          'The --integration-id flag is only supported when creating a collection; integration reassignment is not supported. Create a collection for an application with: contfu collections create --display-name "Articles" --integration-id <app-id-or-name>',
+        );
+      }
       const resolvedId = await resolveCollectionRef(id, client);
       const body = jsonData
         ? (untransformSchema(JSON.parse(jsonData)) as UpdateCollectionBody)

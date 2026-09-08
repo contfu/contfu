@@ -35,6 +35,10 @@ Commands:
                                     List unresolved incidents
   incidents dismiss <incident-id>
                                     Dismiss a dismissible incident condition
+  incidents auto-resolve <incident-id> [--yes|-y]
+                                    Plan and resolve one incident
+  incidents auto-resolve-all [--collection <id>] [--flow <id>] [--yes|-y]
+                                    Plan and resolve all matching incidents
   integrations types                 List valid integration types
   integrations types <id-or-name>    Print TypeScript types for an integration's collections
   integrations regenerate-key <id-or-name> [--dry-run]
@@ -92,7 +96,7 @@ Resources: integrations, collections, flows
 collections options:
       --display-name <name>         Display name (required for create)
   -n, --name <name>                 camelCase name
-      --integration-id <id-or-name>  Associate with an app integration
+      --integration-id <id-or-name>  Associate with an app integration (create only)
       --content                     Include rich content blocks in synced items
       --no-content                  Exclude rich content blocks from synced items
       --i18n-locale-field <field>   i18n Locale property used for source locale extraction
@@ -127,6 +131,7 @@ integrations options:
       --contentful-preview-token <token>  Contentful Preview API token
       --contentful-management-token <token> Contentful Management API token
       --url <url-or-id>             Service base URL or service-specific space/site ID
+      --opts <json>                 Integration-specific options (forwarded to the API)
       --project-id <id>             Sanity project ID
       --scope <scope>               Service namespace restriction
       --scopes <scopes>             Comma-separated service namespace restrictions

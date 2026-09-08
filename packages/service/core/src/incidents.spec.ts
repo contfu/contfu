@@ -1,5 +1,81 @@
 import { describe, expect, test } from "bun:test";
-import { getIncidentPresentation, IncidentType, SourceUnavailableReason } from "./incidents";
+import {
+  getIncidentPresentation,
+  IncidentResolutionActionKind,
+  IncidentResolutionManualReason,
+  IncidentType,
+  planIncidentResolution,
+  SourceUnavailableReason,
+} from "./incidents";
+
+describe("incident resolution planning", () => {
+  test("keeps ambiguous incidents manual and deduplicates precise deliveries", () => {
+    const plan = planIncidentResolution([
+      {
+        id: "1",
+        type: IncidentType.SchemaIncompatible,
+        message: "schema conflict",
+        details: { invalidMappings: [{ source: "a", target: "b" }] },
+      },
+      {
+        id: "2",
+        type: IncidentType.SourceUnavailable,
+        message: "Source item could not be resolved for target delivery",
+        details: { itemId: 4, failedDeliveryId: 9 },
+      },
+      {
+        id: "3",
+        type: IncidentType.SourceUnavailable,
+        message: "Source item could not be resolved for target delivery",
+        details: { itemId: 5, failedDeliveryId: 9 },
+      },
+    ]);
+    expect(plan.actions).toHaveLength(1);
+    expect(plan.actions[0]).toMatchObject({
+      kind: IncidentResolutionActionKind.RedeliverTargetDelivery,
+      incidentIds: ["2", "3"],
+      operation: { failedDeliveryId: "9" },
+    });
+    expect(plan.manual[0].reason).toBe(IncidentResolutionManualReason.SchemaConflict);
+  });
+
+  test("binds the delivery revision and operation into executable actions", () => {
+    const plan = planIncidentResolution([
+      {
+        id: "1",
+        type: IncidentType.SourceUnavailable,
+        message: "Source data is unavailable for target delivery",
+        details: { itemId: 4, failedDeliveryId: 9 },
+        delivery: { id: "9", changedAt: 123, deleted: false },
+      },
+    ]);
+    expect(plan.actions[0]).toMatchObject({
+      operation: { failedDeliveryId: "9", changedAt: 123, deleted: false },
+    });
+  });
+
+  test("does not guess a delivery id from an item id or malformed detail", () => {
+    const plan = planIncidentResolution([
+      {
+        id: "1",
+        type: IncidentType.SourceUnavailable,
+        message: "Source data is unavailable for target delivery",
+        details: { itemId: 4 },
+      },
+      {
+        id: "2",
+        type: IncidentType.SourceUnavailable,
+        message: "Source data is unavailable for target delivery",
+        details: { itemId: 5, failedDeliveryId: "\\\\d+" },
+      },
+    ]);
+    expect(plan.actions).toHaveLength(0);
+    expect(plan.manual.map((item) => item.reason)).toEqual([
+      IncidentResolutionManualReason.MissingDetails,
+      IncidentResolutionManualReason.MissingDetails,
+    ]);
+  });
+});
 
 describe("incident presentation", () => {
   test("uses specific detail text and affected count", () => {

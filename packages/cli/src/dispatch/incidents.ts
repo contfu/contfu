@@ -1,5 +1,9 @@
 import { bool, dispatchAction, requireRef, str, type CommandContext } from "../command-context";
-import { dismissIncidentNotification, listIncidentNotifications } from "../commands/incidents";
+import {
+  autoResolveIncidents,
+  dismissIncidentNotification,
+  listIncidentNotifications,
+} from "../commands/incidents";
 
 export async function runIncidentsCommand(ctx: CommandContext): Promise<void> {
   const action = ctx.positionals[1] ?? "list";
@@ -19,6 +23,26 @@ export async function runIncidentsCommand(ctx: CommandContext): Promise<void> {
           requireRef(ctx.positionals[2], "Usage: contfu incidents dismiss <incident-id>"),
           ctx.outputFormat,
           ctx.full,
+        ),
+      "auto-resolve": () =>
+        autoResolveIncidents(
+          {
+            incidentId: requireRef(
+              ctx.positionals[2],
+              "Usage: contfu incidents auto-resolve <incident-id>",
+            ),
+          },
+          { format: ctx.outputFormat, full: ctx.full, yes: bool(ctx.values, "yes") },
+        ),
+      "auto-resolve-all": () =>
+        autoResolveIncidents(
+          {
+            ...(str(ctx.values, "collection")
+              ? { collectionId: str(ctx.values, "collection") }
+              : {}),
+            ...(str(ctx.values, "flow") ? { flowId: str(ctx.values, "flow") } : {}),
+          },
+          { format: ctx.outputFormat, full: ctx.full, yes: bool(ctx.values, "yes") },
         ),
     },
     action,

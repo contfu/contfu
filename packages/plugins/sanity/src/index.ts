@@ -16,9 +16,6 @@ export type UpdateContfuSchemaOptions = {
   signal?: AbortSignal;
 };
 
-/** @deprecated Use UpdateContfuSchemaOptions. */
-export type UpdateConftuSchemaOptions = UpdateContfuSchemaOptions;
-
 export function updateContfuSchema(options: UpdateContfuSchemaOptions): Promise<Response> {
   return fetch(getSchemaSyncEndpoint(), {
     method: "POST",
@@ -30,9 +27,6 @@ export function updateContfuSchema(options: UpdateContfuSchemaOptions): Promise<
     signal: options.signal,
   });
 }
-
-/** @deprecated Use updateContfuSchema. */
-export const updateConftuSchema = updateContfuSchema;
 
 export function buildSanitySchemaSyncPayload(
   dataset: string,

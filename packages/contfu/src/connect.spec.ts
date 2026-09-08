@@ -12,6 +12,8 @@ import { queryItems } from "./features/items/queryItems";
 import type { FileStore } from "./domain/files";
 import type { MediaOptimizer } from "./domain/media";
 
+const actualConnector = { ...(await import("@contfu/connect")) };
+
 const key = Buffer.alloc(32, 1);
 
 async function waitForReadyFile(): Promise<void> {
@@ -31,10 +33,12 @@ describe("contfu connect", () => {
 
   afterEach(() => {
     mock.restore();
+    void mock.module("@contfu/connect", () => actualConnector);
   });
 
   test("throws when an item arrives before its collection schema", async () => {
     await mock.module("@contfu/connect", () => ({
+      ...actualConnector,
       // eslint-disable-next-line typescript/require-await -- async generator required by AsyncGenerator return type
       connectToStream: async function* () {
         yield {
@@ -72,6 +76,7 @@ describe("contfu connect", () => {
     });
 
     await mock.module("@contfu/connect", () => ({
+      ...actualConnector,
       // eslint-disable-next-line typescript/require-await -- async generator required by AsyncGenerator return type
       connectToStream: async function* () {
         yield {
@@ -108,6 +113,7 @@ describe("contfu connect", () => {
     });
 
     await mock.module("@contfu/connect", () => ({
+      ...actualConnector,
       // eslint-disable-next-line typescript/require-await -- async generator required by AsyncGenerator return type
       connectToStream: async function* () {
         yield {
@@ -138,6 +144,7 @@ describe("contfu connect", () => {
     });
 
     await mock.module("@contfu/connect", () => ({
+      ...actualConnector,
       // eslint-disable-next-line typescript/require-await -- async generator required by AsyncGenerator return type
       connectToStream: async function* () {
         yield {
@@ -161,6 +168,7 @@ describe("contfu connect", () => {
 
   test("persists soft-deleted items from item change events", async () => {
     await mock.module("@contfu/connect", () => ({
+      ...actualConnector,
       // eslint-disable-next-line typescript/require-await -- async generator required by AsyncGenerator return type
       connectToStream: async function* () {
         yield {
@@ -191,6 +199,7 @@ describe("contfu connect", () => {
 
   test("persists sync index from events", async () => {
     await mock.module("@contfu/connect", () => ({
+      ...actualConnector,
       // eslint-disable-next-line typescript/require-await -- async generator required by AsyncGenerator return type
       connectToStream: async function* () {
         yield {
@@ -225,6 +234,7 @@ describe("contfu connect", () => {
     setCollection("callsToAction", "Calls to action", {});
 
     await mock.module("@contfu/connect", () => ({
+      ...actualConnector,
       // eslint-disable-next-line typescript/require-await -- async generator required by AsyncGenerator return type
       connectToStream: async function* () {
         yield {
@@ -299,6 +309,7 @@ describe("contfu connect", () => {
     const targetRegistryId = 404;
 
     await mock.module("@contfu/connect", () => ({
+      ...actualConnector,
       // eslint-disable-next-line typescript/require-await -- async generator required by AsyncGenerator return type
       connectToStream: async function* () {
         yield {
@@ -365,6 +376,7 @@ describe("contfu connect", () => {
     ) as unknown as typeof fetch;
 
     await mock.module("@contfu/connect", () => ({
+      ...actualConnector,
       // eslint-disable-next-line typescript/require-await -- async generator required by AsyncGenerator return type
       connectToStream: async function* () {
         yield {
@@ -402,6 +414,7 @@ describe("contfu connect", () => {
 
   test("stores files as-is without optimizer (default fileStore)", async () => {
     await mock.module("@contfu/connect", () => ({
+      ...actualConnector,
       // eslint-disable-next-line typescript/require-await -- async generator required by AsyncGenerator return type
       connectToStream: async function* () {
         yield {
@@ -438,6 +451,7 @@ describe("contfu connect", () => {
     };
 
     await mock.module("@contfu/connect", () => ({
+      ...actualConnector,
       // eslint-disable-next-line typescript/require-await -- async generator required by AsyncGenerator return type
       connectToStream: async function* () {
         yield {

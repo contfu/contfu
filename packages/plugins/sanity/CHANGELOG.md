@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.2.1] - 2026-09-09
+
+### Changed
+
+- Remove deprecated misspelled plugin aliases.
+
+## [0.2.0] - 2026-09-08
+
+### Changed
+
+- **Breaking:** Removed the deprecated `UpdateConftuSchemaOptions` and
+  `updateConftuSchema` typo aliases. Use `UpdateContfuSchemaOptions` and
+  `updateContfuSchema` instead.
+- Updated the bundled Sanity studio demo and tests to use the canonical
+  `updateContfuSchema` helper.
+
 ## [0.1.8] - 2026-09-04
 
 ### Added
@@ -38,13 +54,6 @@
 ### Changed
 
 - Updated dependencies.
-
-## Unreleased
-
-### Changed
-
-- Updated bundled Sanity studio demo and tests to use the canonical `updateContfuSchema` helper.
-- Kept the deprecated `UpdateConftuSchemaOptions` and `updateConftuSchema` typo aliases for external compatibility for one more release; they are scheduled for removal in a future breaking release.
 
 ## [0.1.3] - 2026-06-30
 

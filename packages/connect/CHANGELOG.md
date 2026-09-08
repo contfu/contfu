@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.10] - 2026-09-09
+
+### Fixed
+
+- Stop retrying duplicate-consumer conflicts, preserve reconnect backoff across short-lived sessions, and count HTTP comment heartbeats as connection activity.
+
 ## [0.1.9] - 2026-09-04
 
 ### Added

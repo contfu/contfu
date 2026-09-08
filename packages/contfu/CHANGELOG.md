@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.3.6] - 2026-09-09
+
+### Added
+
+- Offline runtime mode for querying replicated content without opening a sync connection. Read-only SQLite startup and configurable rollback journaling support consumer-managed database replication.
+
 ## [0.3.5] - 2026-09-04
 
 ### Added

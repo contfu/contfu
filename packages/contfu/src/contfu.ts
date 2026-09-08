@@ -20,7 +20,7 @@ import {
   oneOf,
   or,
 } from "@contfu/core";
-import type { ItemEvent, StreamEvent } from "@contfu/connect";
+import { ConsumerAlreadyConnectedError, type ItemEvent, type StreamEvent } from "@contfu/connect";
 import type { FileStore } from "./domain/files";
 import type { ClientI18nConfig, LocaleScope } from "./domain/i18n";
 import type {
@@ -37,6 +37,8 @@ import { handleFileRequest as handleFileRequestImpl } from "./infra/http";
 import { fileStore as defaultFileStore } from "./infra/media/media-defaults";
 
 export type ContfuOptions<CMap = unknown> = {
+  /** Read local content without opening a sync connection, even when a key is configured. */
+  offline?: boolean;
   fileStore?: FileStore;
   mediaOptimizer?: MediaOptimizer;
   /** Sync-time media conversion rules (format constraints, include/exclude filters). */
@@ -75,11 +77,21 @@ export function contfu<CMap = unknown>(options: ContfuOptions<CMap> = {}): Contf
   const key = options.key ?? process.env.CONTFU_KEY;
 
   return {
-    query: createLocalTypedClient(db, options.i18n, {}, options.filesBasePath),
+    query: createLocalTypedClient(options.database ?? db, options.i18n, {}, options.filesBasePath),
     fileStore,
-    events: key ? createHotEventStream(key, fileStore, options) : emptyAsyncIterable(),
-    handleFileRequest: (request, filePath) =>
-      handleFileRequestImpl<CMap>(request, filePath, { ...options, fileStore }),
+    events:
+      key && !options.offline
+        ? createHotEventStream(key, fileStore, options)
+        : emptyAsyncIterable(),
+    handleFileRequest: (request, filePath) => {
+      const handle = () =>
+        handleFileRequestImpl<CMap>(request, filePath, {
+          ...options,
+          fileStore,
+          cacheOptimizedFiles: options.offline ? false : options.cacheOptimizedFiles,
+        });
+      return options.database ? withDatabase(options.database, handle) : handle();
+    },
   };
 }
 
@@ -142,6 +154,7 @@ function createHotEventStream<CMap>(
           type: EventType.STREAM_DISCONNECTED,
           reason: error instanceof Error ? error.message : "Unknown sync stream error",
         });
+        if (error instanceof ConsumerAlreadyConnectedError) return;
       }
 
       await sleep(restartDelay);

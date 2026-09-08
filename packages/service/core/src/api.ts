@@ -2,8 +2,8 @@ import type { CollectionSchema, SchemaValue } from "./schemas";
 import type { Filter } from "./filters";
 import type { MappingRule } from "./mappings";
 import type { CollectionI18nConfig, IntegrationI18nConfig } from "./i18n";
-import type { IntegrationCapability, IntegrationRole } from "@contfu/core";
-import type { IncidentResolutionMode, IncidentType } from "./incidents";
+import { IntegrationType, type IntegrationCapability, type IntegrationRole } from "@contfu/core";
+import type { IncidentResolutionMode, IncidentResolutionPlan, IncidentType } from "./incidents";
 import type { SourceOperationStatus, SourceOperationType } from "./source-operations";
 
 /** Status summary returned by GET /api/v1/status */
@@ -160,6 +160,32 @@ export interface IntegrationOpts
     StrapiIntegrationOpts,
     WebhookTargetIntegrationOpts {}
 
+/**
+ * Integration-specific options keyed by the persisted numeric integration type.
+ *
+ * Keep this map in the service contract rather than in a client: API clients can
+ * forward options for integration types added by a newer server without having
+ * to ship a new service adapter or duplicate its configuration rules.
+ */
+export interface IntegrationOptsByType {
+  [IntegrationType.APP]: Record<string, unknown>;
+  [IntegrationType.WEB]: Record<string, unknown>;
+  [IntegrationType.WEBHOOK]: WebhookTargetIntegrationOpts;
+  [IntegrationType.NOTION]: Record<string, unknown>;
+  [IntegrationType.STRAPI]: StrapiIntegrationOpts;
+  [IntegrationType.CONTENTFUL]: ContentfulIntegrationOpts;
+  [IntegrationType.WORDPRESS]: WordPressIntegrationOpts;
+  [IntegrationType.SANITY]: SanityIntegrationOpts;
+  [IntegrationType.STORYBLOK]: Record<string, unknown>;
+  [IntegrationType.DIRECTUS]: Record<string, unknown>;
+  [IntegrationType.PRISMIC]: Record<string, unknown>;
+  [IntegrationType.GITHUB]: Record<string, unknown>;
+}
+
+export type IntegrationOptsForType<T extends number> = T extends keyof IntegrationOptsByType
+  ? IntegrationOptsByType[T]
+  : Record<string, unknown>;
+
 /** Integration record returned by the service API */
 export interface ServiceScope {
   value: string;
@@ -250,6 +276,23 @@ export interface DismissIncidentResult {
   dismissed: number;
 }
 
+/** Public two-phase contract for guarded incident resolution. */
+export interface ApiIncidentResolutionPlan extends IncidentResolutionPlan {
+  createdAt: string;
+}
+
+export interface PlanIncidentResolutionInput {
+  incidentId?: string;
+  collectionId?: string;
+  flowId?: string;
+  sourceCollectionId?: string;
+  targetCollectionId?: string;
+}
+
+export interface ExecuteIncidentResolutionInput {
+  plan: ApiIncidentResolutionPlan;
+}
+
 export interface ApiIntegration {
   id: string;
   name: string;
@@ -260,6 +303,7 @@ export interface ApiIntegration {
   url: string | null;
   opts: IntegrationOpts | null;
   hasCredentials: boolean;
+  hasWebhookSecret: boolean;
   roles?: IntegrationRole[];
   capabilities?: IntegrationCapabilityState;
   i18n?: IntegrationI18nConfig;
@@ -285,6 +329,7 @@ export interface CreateIntegrationBody {
 export interface UpdateIntegrationBody {
   name?: string;
   mode?: number;
+  url?: string | null;
   scopes?: string[];
   i18n?: IntegrationI18nConfig;
   opts?: IntegrationOpts | null;
@@ -358,6 +403,7 @@ export class ApiError extends Error {
   constructor(
     public readonly status: number,
     message: string,
+    public readonly retryAfterMs?: number,
   ) {
     super(message);
     this.name = "ApiError";

@@ -1,6 +1,7 @@
 export { connect } from "./connect";
 export {
   connectToStream,
+  ConsumerAlreadyConnectedError,
   type ItemChangedEvent,
   type CollectionRenamedEvent,
   type CollectionRemovedEvent,

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.11] - 2026-09-09
+
+### Added
+
+- Integration URL updates, Sanity ingress receipts, incident recovery workflows, and GitHub source capabilities.
+
 ## [0.1.10] - 2026-09-04
 
 ### Added
