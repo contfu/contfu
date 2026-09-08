@@ -1,4 +1,10 @@
-export type WebhookLogStatus = "success" | "error" | "unauthorized";
+export type WebhookLogStatus =
+  | "success"
+  | "error"
+  | "unauthorized"
+  | "ingress_accepted"
+  | "ingress_buffered"
+  | "ingress_rejected";
 
 export type WebhookLogEntry = {
   id: number;

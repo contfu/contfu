@@ -1,4 +1,4 @@
-import { defineEnum, type EnumValue } from "@contfu/core";
+import { defineEnum, defineStringEnum, type EnumValue } from "@contfu/core";
 import type { CollectionSchema } from "./schemas";
 import type { Filter } from "./filters";
 import type { MappingRule } from "./mappings";
@@ -18,6 +18,87 @@ export const IncidentType = defineEnum({
 });
 
 export type IncidentType = EnumValue<typeof IncidentType>;
+
+/** Executable operations understood by the incident resolution runner. */
+export const IncidentResolutionActionKind = defineStringEnum({
+  RedeliverTargetDelivery: "redeliver_target_delivery",
+});
+
+export type IncidentResolutionActionKind = EnumValue<typeof IncidentResolutionActionKind>;
+
+export const IncidentResolutionActionStatus = defineStringEnum({
+  Completed: "completed",
+  Pending: "pending",
+  Failed: "failed",
+  Manual: "manual",
+});
+
+export type IncidentResolutionActionStatus = EnumValue<typeof IncidentResolutionActionStatus>;
+
+export const IncidentResolutionManualReason = defineStringEnum({
+  AmbiguousMapping: "ambiguous_mapping",
+  InvalidFilter: "invalid_filter",
+  SchemaConflict: "schema_conflict",
+  ExternalCorrection: "external_correction",
+  MissingDetails: "missing_details",
+  UnsupportedIncidentType: "unsupported_incident_type",
+  VerificationRequired: "verification_required",
+});
+
+export type IncidentResolutionManualReason = EnumValue<typeof IncidentResolutionManualReason>;
+
+export interface IncidentResolutionAction {
+  /** Stable within a plan; execution uses it to report the action result. */
+  id: string;
+  kind: IncidentResolutionActionKind;
+  incidentIds: string[];
+  operation: {
+    collectionId?: string;
+    failedDeliveryId?: string;
+    /** Immutable delivery snapshot bound by the acknowledgement. */
+    changedAt?: number;
+    deleted?: boolean;
+  };
+  /** Human-readable scope is informational; operation is the executable contract. */
+  description: string;
+  dependsOn: string[];
+  preconditions: string[];
+}
+
+export interface IncidentResolutionManualItem {
+  id: string;
+  incidentIds: string[];
+  reason: IncidentResolutionManualReason;
+  description: string;
+}
+
+export interface IncidentResolutionPlan {
+  version: 1;
+  /** A server-generated opaque id, when returned by an API. */
+  id: string;
+  incidentIds: string[];
+  scope: {
+    collectionId?: string;
+    flowId?: string;
+    sourceCollectionId?: string;
+    targetCollectionId?: string;
+  };
+  actions: IncidentResolutionAction[];
+  manual: IncidentResolutionManualItem[];
+}
+
+export interface IncidentResolutionActionResult {
+  actionId: string;
+  incidentIds: string[];
+  status: IncidentResolutionActionStatus;
+  message?: string;
+}
+
+export interface IncidentResolutionResult {
+  planId: string;
+  results: IncidentResolutionActionResult[];
+  manual: IncidentResolutionManualItem[];
+}
 
 export const IncidentResolutionMode = defineEnum({
   Manual: 1,
@@ -221,6 +302,162 @@ export function sourceUnavailableProblem(details: SourceUnavailableDetails | nul
  * Turn type-dependent incident details into stable, data-oriented presentation fields.
  * Malformed and legacy details fall back to the incident's specific stored message.
  */
+export interface IncidentResolutionPlanningInput extends Pick<
+  IncidentPresentationInput,
+  "type" | "message" | "details"
+> {
+  id: string;
+  flowId?: string;
+  sourceCollectionId?: string;
+  targetCollectionId?: string;
+  /** Server-read state for an executable failed delivery. */
+  delivery?: {
+    id: string;
+    changedAt: number;
+    deleted: boolean;
+  };
+}
+
+export interface IncidentResolutionPlanningScope {
+  collectionId?: string;
+  flowId?: string;
+  sourceCollectionId?: string;
+  targetCollectionId?: string;
+}
+
+function stableResolutionId(value: string): string {
+  // FNV-1a keeps plan/action identifiers deterministic without making the
+  // planner depend on a crypto implementation in browser and CLI bundles.
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `resolution_${(hash >>> 0).toString(16).padStart(8, "0")}`;
+}
+
+function sourceUnavailableDeliveryId(details: unknown): string | null {
+  if (!details || typeof details !== "object") return null;
+  const value = details as Record<string, unknown>;
+  // Only a precise integer failed-delivery id is executable. An item id or an
+  // opaque/malformed detail must never be guessed or used as one.
+  for (const key of ["failedDeliveryId", "targetFailedDeliveryId", "deliveryId"]) {
+    const raw = value[key];
+    const text =
+      typeof raw === "number" && Number.isSafeInteger(raw) && raw > 0
+        ? String(raw)
+        : typeof raw === "string"
+          ? raw.trim()
+          : "";
+    if (/^\d+$/.test(text)) {
+      const id = Number(text);
+      if (Number.isSafeInteger(id) && id > 0) return String(id);
+    }
+  }
+  return null;
+}
+
+function manualReason(incident: IncidentResolutionPlanningInput): IncidentResolutionManualReason {
+  if (isSourceUnavailableIncident(incident)) {
+    return sourceUnavailableDeliveryId(incident.details)
+      ? IncidentResolutionManualReason.VerificationRequired
+      : IncidentResolutionManualReason.MissingDetails;
+  }
+  if (incident.type === IncidentType.SchemaIncompatible) {
+    return IncidentResolutionManualReason.SchemaConflict;
+  }
+  if (incident.type === IncidentType.FilterInvalid) {
+    return IncidentResolutionManualReason.InvalidFilter;
+  }
+  if (
+    incident.type === IncidentType.ItemValidationError ||
+    incident.type === IncidentType.SyncError
+  ) {
+    return IncidentResolutionManualReason.ExternalCorrection;
+  }
+  if (incident.type === IncidentType.SourceRepairFailure) {
+    return IncidentResolutionManualReason.VerificationRequired;
+  }
+  return IncidentResolutionManualReason.UnsupportedIncidentType;
+}
+
+/**
+ * Build the complete, executable contract for incidents. Presentation prose
+ * is deliberately not consulted when deciding eligibility.
+ */
+export function planIncidentResolution(
+  incidents: readonly IncidentResolutionPlanningInput[],
+  scope: IncidentResolutionPlanningScope = {},
+): IncidentResolutionPlan {
+  const unresolved = incidents.filter((incident) => incident.id.length > 0);
+  const actionsByKey = new Map<string, IncidentResolutionAction>();
+  const manual: IncidentResolutionManualItem[] = [];
+
+  for (const incident of unresolved) {
+    const deliveryId = isSourceUnavailableIncident(incident)
+      ? sourceUnavailableDeliveryId(incident.details)
+      : null;
+    if (deliveryId) {
+      const delivery = incident.delivery;
+      const key = `${IncidentResolutionActionKind.RedeliverTargetDelivery}:${deliveryId}:${delivery?.changedAt ?? ""}:${delivery?.deleted ?? ""}`;
+      const action = actionsByKey.get(key);
+      if (action) {
+        action.incidentIds.push(incident.id);
+      } else {
+        actionsByKey.set(key, {
+          id: stableResolutionId(key),
+          kind: IncidentResolutionActionKind.RedeliverTargetDelivery,
+          incidentIds: [incident.id],
+          operation: {
+            failedDeliveryId: deliveryId,
+            ...(delivery ? { changedAt: delivery.changedAt, deleted: delivery.deleted } : {}),
+          },
+          description: `Redeliver failed target delivery ${deliveryId}.`,
+          dependsOn: [],
+          preconditions: [
+            "The failed delivery belongs to this workspace.",
+            "The delivery is still unresolved.",
+          ],
+        });
+      }
+      continue;
+    }
+
+    const reason = manualReason(incident);
+    const problem = getIncidentResolutionItemProblem(incident.details) || incident.message;
+    const suggestedAction =
+      incident.details && typeof incident.details === "object"
+        ? (nonEmptyText((incident.details as Record<string, unknown>).suggestedAction) ??
+          nestedResolutionItems(incident.details as Record<string, unknown>)
+            .map((item) => nonEmptyText(item.suggestedAction))
+            .find(Boolean))
+        : null;
+    manual.push({
+      id: stableResolutionId(`manual:${incident.id}:${reason}`),
+      incidentIds: [incident.id],
+      reason,
+      description: suggestedAction ? `${problem} Suggested action: ${suggestedAction}` : problem,
+    });
+  }
+
+  const actions = [...actionsByKey.values()].sort((left, right) => left.id.localeCompare(right.id));
+  const incidentIds = unresolved.map((incident) => incident.id).sort();
+  return {
+    version: 1,
+    id: stableResolutionId(
+      JSON.stringify({
+        incidentIds,
+        scope,
+        actions: actions.map((action) => action.id),
+      }),
+    ),
+    incidentIds,
+    scope,
+    actions,
+    manual,
+  };
+}
+
 export function getIncidentPresentation(input: IncidentPresentationInput): IncidentPresentation {
   const details = input.details ?? {};
   const totalFailed = details.totalFailed;

@@ -91,6 +91,10 @@ describe("integration capabilities", () => {
     ],
     [IntegrationType.PRISMIC, []],
     [
+      IntegrationType.GITHUB,
+      [IntegrationCapability.CollectionDiscovery, IntegrationCapability.ContentProvide],
+    ],
+    [
       IntegrationType.WEB,
       [IntegrationCapability.ManualLocalizationLayer, IntegrationCapability.ContentProvide],
     ],
@@ -114,6 +118,9 @@ describe("integration capabilities", () => {
     expect(IntegrationTypeAvailability[IntegrationType.DIRECTUS]).toBe(
       IntegrationAvailability.UNRELEASED,
     );
+    expect(IntegrationTypeAvailability[IntegrationType.GITHUB]).toBe(
+      IntegrationAvailability.IMPLEMENTED,
+    );
     expect(IntegrationTypeAvailability[IntegrationType.STORYBLOK]).toBe(
       IntegrationAvailability.PLANNED,
     );
@@ -123,9 +130,11 @@ describe("integration capabilities", () => {
     expect(isCreatableIntegrationType(IntegrationType.DIRECTUS)).toBe(true);
     expect(isCreatableIntegrationType(IntegrationType.STORYBLOK)).toBe(false);
     expect(isCreatableIntegrationType(IntegrationType.PRISMIC)).toBe(false);
+    expect(isCreatableIntegrationType(IntegrationType.GITHUB)).toBe(true);
     expect(isCreatableIntegrationType(999)).toBe(false);
     expect(creatableIntegrationTypes).not.toContain(IntegrationType.STORYBLOK);
     expect(creatableIntegrationTypes).not.toContain(IntegrationType.PRISMIC);
+    expect(creatableIntegrationTypes).toContain(IntegrationType.GITHUB);
   });
 
   it("models target role, content receive, and schema delivery separately from app assumptions", () => {
@@ -137,6 +146,8 @@ describe("integration capabilities", () => {
     expect(integrationHasRole(IntegrationType.SANITY, IntegrationRole.TargetRole)).toBe(true);
     expect(integrationHasRole(IntegrationType.DIRECTUS, IntegrationRole.SourceRole)).toBe(true);
     expect(integrationHasRole(IntegrationType.DIRECTUS, IntegrationRole.TargetRole)).toBe(true);
+    expect(integrationHasRole(IntegrationType.GITHUB, IntegrationRole.SourceRole)).toBe(true);
+    expect(integrationHasRole(IntegrationType.GITHUB, IntegrationRole.TargetRole)).toBe(false);
     expect(integrationHasRole(IntegrationType.WEBHOOK, IntegrationRole.TargetRole)).toBe(true);
     expect(integrationSupportsContentReceive(IntegrationType.APP)).toBe(true);
     expect(integrationSupportsContentReceive(IntegrationType.STRAPI)).toBe(true);

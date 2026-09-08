@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.4.4] - 2026-09-09
+
+### Added
+
+- GitHub repository content source integration capabilities.
+
 ## [0.4.3] - 2026-09-04
 
 ### Added

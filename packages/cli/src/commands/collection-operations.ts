@@ -52,10 +52,18 @@ function statusName(status: number): string {
   );
 }
 
+function operationDiagnostic(operation: ApiSourceOperation): string | undefined {
+  if (!operation.diagnostics || typeof operation.diagnostics !== "object") return undefined;
+  const message = (operation.diagnostics as { message?: unknown }).message;
+  return typeof message === "string" && message.length > 0 ? message : undefined;
+}
+
 function printOperation(operation: ApiSourceOperation): void {
   console.log(`${operationName(operation.operation)}  ${statusName(operation.status)}`);
   console.log(`  id: ${operation.id}  collection: ${operation.collectionId}`);
   if (operation.failureCategory) console.log(`  failure: ${operation.failureCategory}`);
+  const diagnostic = operationDiagnostic(operation);
+  if (diagnostic) console.log(`  diagnostics: ${diagnostic}`);
 }
 
 function printOperationList(operations: ApiSourceOperation[]): void {
@@ -69,11 +77,24 @@ function printOperationList(operations: ApiSourceOperation[]): void {
   }
 }
 
-const POLL_INTERVAL_MS = 500;
+const POLL_INTERVAL_MS = 1_000;
+const MAX_POLL_INTERVAL_MS = 10_000;
 const POLL_TIMEOUT_MS = 5 * 60 * 1000;
 
 function isRetryablePollingError(error: unknown): boolean {
   return error instanceof ApiError && (error.status === 429 || error.status >= 500);
+}
+
+function pollingDelayMs(retryCount: number, error?: unknown): number {
+  if (error instanceof ApiError && error.retryAfterMs != null) {
+    // Retry-After is server guidance, not ordinary exponential backoff. The
+    // caller still clamps the sleep to its local deadline.
+    return Math.max(POLL_INTERVAL_MS, error.retryAfterMs);
+  }
+  const backoff = Math.min(MAX_POLL_INTERVAL_MS, POLL_INTERVAL_MS * 2 ** retryCount);
+  // Keep retries from synchronizing across CLI processes while bounding the
+  // additional delay to a small fraction of the poll budget.
+  return backoff + Math.floor(Math.random() * Math.min(250, backoff / 4));
 }
 
 async function waitForOperation(
@@ -81,6 +102,8 @@ async function waitForOperation(
   operation: ApiSourceOperation,
 ): Promise<ApiSourceOperation> {
   let current = operation;
+  let retryCount = 0;
+  let nextDelay = POLL_INTERVAL_MS;
   const deadline = Date.now() + POLL_TIMEOUT_MS;
   while (
     current.status !== OPERATION_STATUS.COMPLETED &&
@@ -90,11 +113,14 @@ async function waitForOperation(
     if (Date.now() >= deadline) {
       throw new Error(`Timed out waiting for source operation ${operation.id}`);
     }
-    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+    await new Promise((resolve) => setTimeout(resolve, Math.min(nextDelay, deadline - Date.now())));
     try {
       current = await client.getSourceOperation(current.id);
+      retryCount = 0;
+      nextDelay = POLL_INTERVAL_MS;
     } catch (error) {
       if (!isRetryablePollingError(error)) throw error;
+      nextDelay = pollingDelayMs(retryCount++, error);
     }
   }
   return current;
@@ -106,6 +132,8 @@ async function waitForFullResync(
   result: FullResyncResult,
 ): Promise<FullResyncResult> {
   let current = result;
+  let retryCount = 0;
+  let nextDelay = POLL_INTERVAL_MS;
   const deadline = Date.now() + POLL_TIMEOUT_MS;
   while (
     current.status !== "completed" &&
@@ -115,11 +143,14 @@ async function waitForFullResync(
     if (Date.now() >= deadline) {
       throw new Error(`Timed out waiting for full resync ${result.jobId}`);
     }
-    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+    await new Promise((resolve) => setTimeout(resolve, Math.min(nextDelay, deadline - Date.now())));
     try {
       current = await client.getFullResyncStatus(collectionId, result.jobId);
+      retryCount = 0;
+      nextDelay = POLL_INTERVAL_MS;
     } catch (error) {
       if (!isRetryablePollingError(error)) throw error;
+      nextDelay = pollingDelayMs(retryCount++, error);
     }
   }
   return current;

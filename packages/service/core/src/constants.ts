@@ -40,6 +40,9 @@ export const IntegrationTypeMeta: Record<IntegrationType, IntegrationTypeMetaEnt
   [IntegrationType.STORYBLOK]: integrationTypeMeta("storyblok", IntegrationType.STORYBLOK),
   [IntegrationType.DIRECTUS]: integrationTypeMeta("directus", IntegrationType.DIRECTUS),
   [IntegrationType.PRISMIC]: integrationTypeMeta("prismic", IntegrationType.PRISMIC),
+  // GitHub schemas are confirmed and maintained in Contfu, and repository
+  // selection settings remain editable after collection creation.
+  [IntegrationType.GITHUB]: integrationTypeMeta("github", IntegrationType.GITHUB, true),
 };
 
 /** Authentication types for web integrations. */

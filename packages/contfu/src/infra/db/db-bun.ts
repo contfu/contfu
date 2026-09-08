@@ -4,6 +4,8 @@ import type { SQLiteBunDatabase } from "drizzle-orm/bun-sqlite";
 import { migrations } from "./generated-migrations";
 import {
   dbUrl,
+  defaultDatabaseOptions,
+  type DatabaseOptions,
   ensureDbDir,
   runEmbeddedMigrations,
   type DrizzleMigrationExecutor,
@@ -13,20 +15,24 @@ import * as schema from "./schema";
 export type Database = SQLiteBunDatabase<typeof schema, EmptyRelations>;
 export type DbCtx = Parameters<Parameters<Database["transaction"]>[0]>[0] | Database;
 
-export async function createBunDatabaseClient(url: string): Promise<Database> {
-  await ensureDbDir(url);
+export async function createBunDatabaseClient(
+  url: string,
+  options: DatabaseOptions = defaultDatabaseOptions,
+): Promise<Database> {
+  if (!options.readonly) await ensureDbDir(url);
 
   const { Database } = await import("bun:sqlite");
   const { drizzle } = await import("drizzle-orm/bun-sqlite");
 
-  const client = new Database(url);
+  const client = new Database(url, options.readonly ? { readonly: true } : undefined);
   client.run("PRAGMA foreign_keys = ON");
-  if (url !== ":memory:") {
-    client.run("PRAGMA journal_mode = WAL");
+  if (url !== ":memory:" && !options.readonly) {
+    client.run(`PRAGMA journal_mode = ${options.journalMode === "delete" ? "DELETE" : "WAL"}`);
   }
 
   const db = drizzle({ client, schema });
-  runEmbeddedMigrations(db as unknown as DrizzleMigrationExecutor, migrations);
+  if (!options.readonly)
+    runEmbeddedMigrations(db as unknown as DrizzleMigrationExecutor, migrations);
   return db;
 }
 

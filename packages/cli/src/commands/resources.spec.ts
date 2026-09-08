@@ -816,6 +816,40 @@ describe("update", () => {
     expect(JSON.parse(opts.body as string)).toEqual({ includeContent: true });
   });
 
+  test("rejects collection integration association flags before any request", async () => {
+    const exitSpy = spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("exit");
+    });
+    const cases = [
+      { jsonData: undefined, values: { "integration-id": "app_1" }, options: undefined },
+      {
+        jsonData: undefined,
+        values: { "integration-id": "app_1", name: "renamed" },
+        options: undefined,
+      },
+      {
+        jsonData: '{"integrationId":"app_1","name":"renamed"}',
+        values: { "integration-id": "app_1" },
+        options: undefined,
+      },
+      { jsonData: undefined, values: { "integration-id": "app_1" }, options: { dryRun: true } },
+    ] as const;
+
+    for (const { jsonData, values, options } of cases) {
+      // oxlint-disable-next-line typescript/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
+      await expect(update("collections", "5", jsonData, values, options)).rejects.toThrow("exit");
+    }
+
+    expect(mockFetch).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalledTimes(cases.length);
+    for (const [message] of errorSpy.mock.calls) {
+      expect(message).toContain("--integration-id");
+      expect(message).toContain("contfu collections create");
+      expect(message).toContain("integration reassignment is not supported");
+    }
+    exitSpy.mockRestore();
+  });
+
   test("patches with raw json data", async () => {
     const data = { id: 1, name: "updated" };
     mockFetch.mockResolvedValueOnce(jsonResponse([{ id: 1, name: "test" }]));
@@ -842,6 +876,66 @@ describe("update", () => {
     expect(JSON.parse(opts.body as string)).toEqual({ name: "renamed", scopes: ["staging"] });
   });
 
+  test.each([
+    ["web", 1, "https://example.test/feed"],
+    ["webhook", 2, "https://receiver.example.test/{collection}/{itemId}"],
+    ["strapi", 21, "https://cms.example.test"],
+    ["wordpress", 23, "https://cms.example.test"],
+    ["directus", 26, "https://cms.example.test"],
+  ])("forwards --url for %s integrations", async (_label, type, url) => {
+    mockFetch.mockResolvedValueOnce(jsonResponse([{ id: "conn_1", name: "Integration" }]));
+    mockFetch.mockResolvedValueOnce(jsonResponse({ id: "conn_1", type, url }));
+    mockFetch.mockResolvedValueOnce(jsonResponse({ id: "conn_1", type, url }));
+
+    await update("integrations", "Integration", undefined, { url });
+
+    const [, opts] = mockFetch.mock.calls[2] as unknown[] as [string, RequestInit];
+    expect(JSON.parse(opts.body as string)).toEqual({ url });
+  });
+
+  test("maps Sanity --project-id to its URL and options on update", async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse([{ id: "san_1", name: "Sanity" }]));
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({ id: "san_1", type: 24, url: "https://old-project.api.sanity.io", opts: {} }),
+    );
+    mockFetch.mockResolvedValueOnce(jsonResponse({ id: "san_1" }));
+
+    await update("integrations", "Sanity", undefined, { "project-id": "new-project" });
+
+    const [, opts] = mockFetch.mock.calls[2] as unknown[] as [string, RequestInit];
+    expect(JSON.parse(opts.body as string)).toEqual({
+      url: "https://new-project.api.sanity.io",
+      opts: { projectId: "new-project" },
+    });
+  });
+
+  test("maps Contentful --url to its space option on update", async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse([{ id: "cf_1", name: "Contentful" }]));
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({ id: "cf_1", type: 22, url: null, opts: { spaceId: "old-space" } }),
+    );
+    mockFetch.mockResolvedValueOnce(jsonResponse({ id: "cf_1" }));
+
+    await update("integrations", "Contentful", undefined, { url: "new-space" });
+
+    const [, opts] = mockFetch.mock.calls[2] as unknown[] as [string, RequestInit];
+    expect(JSON.parse(opts.body as string)).toEqual({ opts: { spaceId: "new-space" } });
+  });
+
+  test("rejects immutable integration type changes without PATCH", async () => {
+    const exitSpy = spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("exit");
+    });
+
+    // oxlint-disable-next-line typescript/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
+    await expect(
+      update("integrations", "Integration", undefined, { type: "webhook" }),
+    ).rejects.toThrow("exit");
+    expect(mockFetch).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("cannot be changed"));
+    exitSpy.mockRestore();
+  });
+
   test("updates integration credentials from secret flags", async () => {
     mockFetch.mockResolvedValueOnce(jsonResponse([{ id: "conn_1", name: "Contentful" }]));
     mockFetch.mockResolvedValueOnce(jsonResponse({ id: "conn_1", hasCredentials: true }));
@@ -863,7 +957,11 @@ describe("update", () => {
   test("updates integration draft mode without clearing other service options", async () => {
     mockFetch.mockResolvedValueOnce(jsonResponse([{ id: "wp_1", name: "Site" }]));
     mockFetch.mockResolvedValueOnce(
-      jsonResponse({ id: "wp_1", opts: { graphqlAvailable: true, includeDrafts: true } }),
+      jsonResponse({
+        id: "wp_1",
+        type: 23,
+        opts: { graphqlAvailable: true, includeDrafts: true },
+      }),
     );
     mockFetch.mockResolvedValueOnce(jsonResponse({ id: "wp_1" }));
 
@@ -880,7 +978,11 @@ describe("update", () => {
   test("updates Contentful API mode without clearing persisted space options", async () => {
     mockFetch.mockResolvedValueOnce(jsonResponse([{ id: "cf_1", name: "Contentful" }]));
     mockFetch.mockResolvedValueOnce(
-      jsonResponse({ id: "cf_1", opts: { spaceId: "space_123", apiMode: "delivery" } }),
+      jsonResponse({
+        id: "cf_1",
+        type: 22,
+        opts: { spaceId: "space_123", apiMode: "delivery" },
+      }),
     );
     mockFetch.mockResolvedValueOnce(jsonResponse({ id: "cf_1" }));
 

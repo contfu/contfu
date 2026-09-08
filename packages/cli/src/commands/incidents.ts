@@ -1,4 +1,11 @@
-import { IncidentResolutionMode, type ApiIncident, type ListIncidentsInput } from "@contfu/svc-api";
+import {
+  IncidentResolutionMode,
+  type ApiIncident,
+  type ApiIncidentResolutionPlan,
+  type IncidentResolutionResult,
+  type ListIncidentsInput,
+  type PlanIncidentResolutionInput,
+} from "@contfu/svc-api";
 import { getApiClient, handleCliError } from "../http";
 import { isStructuredOutputFormat, printStructured, type OutputFormat } from "../output";
 
@@ -58,6 +65,84 @@ export async function listIncidentNotifications(options: ListIncidentOptions): P
     } else {
       printIncidentList(incidents);
     }
+  } catch (error) {
+    handleCliError(error);
+  }
+}
+
+function printResolutionPlan(plan: ApiIncidentResolutionPlan): void {
+  console.log(`Incident resolution plan ${plan.id}`);
+  if (plan.actions.length === 0 && plan.manual.length === 0) {
+    console.log("  (empty)");
+    return;
+  }
+  for (const action of plan.actions) {
+    console.log(`  action ${action.id}: ${action.description}`);
+    console.log(`    incidents: ${action.incidentIds.join(", ")}`);
+    console.log(`    operation: ${action.kind}`);
+    if (action.operation.collectionId)
+      console.log(`    collection: ${action.operation.collectionId}`);
+    if (action.operation.failedDeliveryId)
+      console.log(`    failed delivery: ${action.operation.failedDeliveryId}`);
+    if (action.dependsOn.length > 0) console.log(`    depends on: ${action.dependsOn.join(", ")}`);
+    if (action.preconditions.length > 0)
+      console.log(`    preconditions: ${action.preconditions.join("; ")}`);
+  }
+  for (const item of plan.manual) {
+    console.log(`  manual ${item.id}: ${item.reason}`);
+    console.log(`    incidents: ${item.incidentIds.join(", ")}`);
+    console.log(`    follow-up: ${item.description}`);
+  }
+}
+
+function printResolutionResult(result: IncidentResolutionResult): void {
+  for (const item of result.results) {
+    console.log(`  ${item.actionId}: ${item.status}${item.message ? ` — ${item.message}` : ""}`);
+  }
+  for (const item of result.manual) {
+    console.log(`  ${item.id}: manual follow-up (${item.reason})`);
+  }
+}
+
+async function confirmResolution(): Promise<boolean> {
+  if (!process.stdin.isTTY) return true;
+  process.stdout.write("Execute this exact plan? [y/N] ");
+  const readline = await import("node:readline");
+  const reader = readline.createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    const answer = await new Promise<string>((resolve) => reader.once("line", resolve));
+    return answer.trim().toLowerCase() === "y" || answer.trim().toLowerCase() === "yes";
+  } finally {
+    reader.close();
+  }
+}
+
+export interface AutoResolveIncidentOptions {
+  collectionId?: string;
+  flowId?: string;
+  format: OutputFormat;
+  full?: boolean;
+  yes?: boolean;
+}
+
+export async function autoResolveIncidents(
+  input: PlanIncidentResolutionInput,
+  options: AutoResolveIncidentOptions,
+): Promise<void> {
+  try {
+    const plan = await getApiClient().planIncidentResolution(input);
+    if (isStructuredOutputFormat(options.format))
+      printStructured(plan, options.format, { full: true });
+    else printResolutionPlan(plan);
+    if (!options.yes && !(await confirmResolution())) {
+      if (!isStructuredOutputFormat(options.format)) console.log("Cancelled.");
+      return;
+    }
+    const result = await getApiClient().executeIncidentResolution(plan);
+    if (isStructuredOutputFormat(options.format))
+      printStructured(result, options.format, { full: true });
+    else printResolutionResult(result);
+    if (result.results.some((item) => item.status === "failed")) process.exitCode = 1;
   } catch (error) {
     handleCliError(error);
   }

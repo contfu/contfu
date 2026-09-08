@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.13] - 2026-09-09
+
+### Changed
+
+- Update Bun runtime compatibility.
+
 ## [0.1.12] - 2026-09-04
 
 ### Added

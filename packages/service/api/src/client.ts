@@ -37,6 +37,9 @@ import type {
   ApiIncident,
   ListIncidentsInput,
   DismissIncidentResult,
+  ApiIncidentResolutionPlan,
+  IncidentResolutionResult,
+  PlanIncidentResolutionInput,
   ApiOrganizationUsage,
 } from "@contfu/svc-core";
 import { ApiError } from "@contfu/svc-core";
@@ -99,7 +102,18 @@ async function request<T>(
     } catch {
       // ignore parse errors
     }
-    throw new ApiError(res.status, message);
+    const retryAfter = res.headers.get("retry-after");
+    let retryAfterMs: number | undefined;
+    if (retryAfter) {
+      const seconds = Number(retryAfter);
+      const retryAt = Date.parse(retryAfter);
+      retryAfterMs = Number.isFinite(seconds)
+        ? Math.max(0, seconds * 1000)
+        : Number.isFinite(retryAt)
+          ? Math.max(0, retryAt - Date.now())
+          : undefined;
+    }
+    throw new ApiError(res.status, message, retryAfterMs);
   }
 
   const text = await res.text();
@@ -151,6 +165,8 @@ export interface ContfuApiClient {
   clearTargetFailedDelivery(id: string): Promise<void>;
 
   listIncidents(input?: ListIncidentsInput): Promise<ApiIncident[]>;
+  planIncidentResolution(input?: PlanIncidentResolutionInput): Promise<ApiIncidentResolutionPlan>;
+  executeIncidentResolution(plan: ApiIncidentResolutionPlan): Promise<IncidentResolutionResult>;
   dismissIncident(id: string): Promise<DismissIncidentResult>;
 
   listCollections(): Promise<ServiceCollection[]>;
@@ -264,6 +280,10 @@ export function createApiClient(
       const suffix = query.size > 0 ? `?${query.toString()}` : "";
       return req<ApiIncident[]>("GET", `/api/v1/incidents${suffix}`);
     },
+    planIncidentResolution: (input = {}) =>
+      req<ApiIncidentResolutionPlan>("POST", "/api/v1/incidents/auto-resolve", input),
+    executeIncidentResolution: (plan) =>
+      req<IncidentResolutionResult>("POST", "/api/v1/incidents/auto-resolve/execute", { plan }),
     dismissIncident: (id) => req<DismissIncidentResult>("POST", `/api/v1/incidents/${id}/dismiss`),
 
     listCollections: () => req<ServiceCollection[]>("GET", "/api/v1/collections"),

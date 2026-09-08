@@ -228,8 +228,8 @@ For Services with signed webhooks, store the signing secret on the integration w
 parsing when a secret is configured. Supported source webhook schemes include Contentful's
 `x-contentful-signature` plus `x-contentful-timestamp` and Sanity webhook signatures.
 
-The first-party item-push senders, including `@contfu/strapi`, use the canonical JSON contract
-and signature described in the sections above.
+Details for the first-party item-push senders, including `@contfu/strapi`, are in the
+[Contfu item push contract](./private/specs/contfu-item-push.md).
 
 ### Generic webhook ingress
 

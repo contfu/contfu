@@ -13,26 +13,6 @@ jobs:
     name: Check if version published
     runs-on: ubuntu-latest
     outputs:
-      core-npm-changed: ${{ steps.check.outputs.core-npm-changed }}
-      connect-npm-changed: ${{ steps.check.outputs.connect-npm-changed }}
-      contfu-npm-changed: ${{ steps.check.outputs.contfu-npm-changed }}
-      client-npm-changed: ${{ steps.check.outputs.client-npm-changed }}
-      server-npm-changed: ${{ steps.check.outputs.server-npm-changed }}
-      bun-file-store-npm-changed: ${{ steps.check.outputs.bun-file-store-npm-changed }}
-      media-optimizer-npm-changed: ${{ steps.check.outputs.media-optimizer-npm-changed }}
-      media-optimizer-remote-npm-changed: ${{ steps.check.outputs.media-optimizer-remote-npm-changed }}
-      svc-core-npm-changed: ${{ steps.check.outputs.svc-core-npm-changed }}
-      svc-api-npm-changed: ${{ steps.check.outputs.svc-api-npm-changed }}
-      cli-npm-changed: ${{ steps.check.outputs.cli-npm-changed }}
-      ui-npm-changed: ${{ steps.check.outputs.ui-npm-changed }}
-      react-npm-changed: ${{ steps.check.outputs.react-npm-changed }}
-      vue-npm-changed: ${{ steps.check.outputs.vue-npm-changed }}
-      angular-npm-changed: ${{ steps.check.outputs.angular-npm-changed }}
-      solid-npm-changed: ${{ steps.check.outputs.solid-npm-changed }}
-      svelte-npm-changed: ${{ steps.check.outputs.svelte-npm-changed }}
-      sanity-npm-changed: ${{ steps.check.outputs.sanity-npm-changed }}
-      strapi-npm-changed: ${{ steps.check.outputs.strapi-npm-changed }}
-      webhook-npm-changed: ${{ steps.check.outputs.webhook-npm-changed }}
       server-docker-changed: ${{ steps.check.outputs.server-docker-changed }}
       ui-docker-changed: ${{ steps.check.outputs.ui-docker-changed }}
       server-version: ${{ steps.check.outputs.server-version }}
@@ -65,7 +45,48 @@ jobs:
             [ "$status" = "200" ] && echo "$tag" || echo "0.0.0"
           }
 
-          function check_changed() {
+          CURRENT_SERVER_VERSION=$(get_version "packages/server/package.json")
+          CURRENT_UI_VERSION=$(get_version "packages/ui/package.json")
+
+          npm_changed=false
+          while IFS='|' read -r package_path package_name; do
+            current_version=$(get_version "$package_path")
+            published_version=$(get_npm_version "$package_name")
+            if [ "$current_version" != "$published_version" ]; then
+              npm_changed=true
+              break
+            fi
+          done <<'EOF'
+          packages/core/package.json|@contfu/core
+          packages/connect/package.json|@contfu/connect
+          packages/contfu/package.json|@contfu/contfu
+          packages/client/package.json|@contfu/client
+          packages/server/package.json|@contfu/server
+          packages/files/bun-file-store/package.json|@contfu/bun-file-store
+          packages/files/media-optimizer/package.json|@contfu/media-optimizer
+          packages/files/media-optimizer-remote/package.json|@contfu/media-optimizer-remote
+          packages/service/core/package.json|@contfu/svc-core
+          packages/service/api/package.json|@contfu/svc-api
+          packages/cli/package.json|@contfu/cli
+          packages/ui/package.json|@contfu/ui
+          packages/react/package.json|@contfu/react
+          packages/vue/package.json|@contfu/vue
+          packages/angular/package.json|@contfu/angular
+          packages/solid/package.json|@contfu/solid
+          packages/svelte/package.json|@contfu/svelte
+          packages/plugins/sanity/package.json|@contfu/sanity
+          packages/plugins/strapi/package.json|@contfu/strapi
+          packages/webhook/package.json|@contfu/webhook
+          EOF
+
+          if [ "$npm_changed" = "true" ]; then
+            echo "npm-changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+          PUBLISHED_SERVER_DOCKER=$(get_dockerhub_version "contfu/server" "$CURRENT_SERVER_VERSION")
+          PUBLISHED_UI_DOCKER=$(get_dockerhub_version "contfu/client" "$CURRENT_UI_VERSION")
+
+          check_changed() {
             local name=$1 current=$2 published=$3 aggregate=$4
             local changed=$([ "$current" != "$published" ] && echo "true" || echo "false")
             if [ "$changed" = "true" ]; then
@@ -74,73 +95,8 @@ jobs:
             echo "${name}-changed=$changed" >> "$GITHUB_OUTPUT"
           }
 
-          CURRENT_CORE_VERSION=$(get_version "packages/core/package.json")
-          CURRENT_CONNECT_VERSION=$(get_version "packages/connect/package.json")
-          CURRENT_CONTFU_VERSION=$(get_version "packages/contfu/package.json")
-          CURRENT_CLIENT_VERSION=$(get_version "packages/client/package.json")
-          CURRENT_SERVER_VERSION=$(get_version "packages/server/package.json")
-          CURRENT_BUN_FILE_STORE_VERSION=$(get_version "packages/files/bun-file-store/package.json")
-          CURRENT_MEDIA_OPTIMIZER_VERSION=$(get_version "packages/files/media-optimizer/package.json")
-          CURRENT_MEDIA_OPTIMIZER_REMOTE_VERSION=$(get_version "packages/files/media-optimizer-remote/package.json")
-          CURRENT_SVC_CORE_VERSION=$(get_version "packages/service/core/package.json")
-          CURRENT_SVC_API_VERSION=$(get_version "packages/service/api/package.json")
-          CURRENT_CLI_VERSION=$(get_version "packages/cli/package.json")
-          CURRENT_UI_VERSION=$(get_version "packages/ui/package.json")
-          CURRENT_REACT_VERSION=$(get_version "packages/react/package.json")
-          CURRENT_VUE_VERSION=$(get_version "packages/vue/package.json")
-          CURRENT_ANGULAR_VERSION=$(get_version "packages/angular/package.json")
-          CURRENT_SOLID_VERSION=$(get_version "packages/solid/package.json")
-          CURRENT_SVELTE_VERSION=$(get_version "packages/svelte/package.json")
-          CURRENT_SANITY_VERSION=$(get_version "packages/plugins/sanity/package.json")
-          CURRENT_STRAPI_VERSION=$(get_version "packages/plugins/strapi/package.json")
-          CURRENT_WEBHOOK_VERSION=$(get_version "packages/webhook/package.json")
-
-          PUBLISHED_CORE_NPM=$(get_npm_version "@contfu/core")
-          PUBLISHED_CONNECT_NPM=$(get_npm_version "@contfu/connect")
-          PUBLISHED_CONTFU_NPM=$(get_npm_version "@contfu/contfu")
-          PUBLISHED_CLIENT_NPM=$(get_npm_version "@contfu/client")
-          PUBLISHED_SERVER_NPM=$(get_npm_version "@contfu/server")
-          PUBLISHED_BUN_FILE_STORE_NPM=$(get_npm_version "@contfu/bun-file-store")
-          PUBLISHED_MEDIA_OPTIMIZER_NPM=$(get_npm_version "@contfu/media-optimizer")
-          PUBLISHED_MEDIA_OPTIMIZER_REMOTE_NPM=$(get_npm_version "@contfu/media-optimizer-remote")
-          PUBLISHED_SVC_CORE_NPM=$(get_npm_version "@contfu/svc-core")
-          PUBLISHED_SVC_API_NPM=$(get_npm_version "@contfu/svc-api")
-          PUBLISHED_CLI_NPM=$(get_npm_version "@contfu/cli")
-          PUBLISHED_UI_NPM=$(get_npm_version "@contfu/ui")
-          PUBLISHED_REACT_NPM=$(get_npm_version "@contfu/react")
-          PUBLISHED_VUE_NPM=$(get_npm_version "@contfu/vue")
-          PUBLISHED_ANGULAR_NPM=$(get_npm_version "@contfu/angular")
-          PUBLISHED_SOLID_NPM=$(get_npm_version "@contfu/solid")
-          PUBLISHED_SVELTE_NPM=$(get_npm_version "@contfu/svelte")
-          PUBLISHED_SANITY_NPM=$(get_npm_version "@contfu/sanity")
-          PUBLISHED_STRAPI_NPM=$(get_npm_version "@contfu/strapi")
-          PUBLISHED_WEBHOOK_NPM=$(get_npm_version "@contfu/webhook")
-
-          PUBLISHED_SERVER_DOCKER=$(get_dockerhub_version "contfu/server" "$CURRENT_SERVER_VERSION")
-          PUBLISHED_UI_DOCKER=$(get_dockerhub_version "contfu/client" "$CURRENT_UI_VERSION")
-
-          check_changed "core-npm"                   "$CURRENT_CORE_VERSION"                   "$PUBLISHED_CORE_NPM"                   "npm"
-          check_changed "connect-npm"                "$CURRENT_CONNECT_VERSION"                "$PUBLISHED_CONNECT_NPM"                "npm"
-          check_changed "contfu-npm"                 "$CURRENT_CONTFU_VERSION"                 "$PUBLISHED_CONTFU_NPM"                 "npm"
-          check_changed "client-npm"                 "$CURRENT_CLIENT_VERSION"                 "$PUBLISHED_CLIENT_NPM"                 "npm"
-          check_changed "server-npm"                 "$CURRENT_SERVER_VERSION"                 "$PUBLISHED_SERVER_NPM"                 "npm"
-          check_changed "bun-file-store-npm"         "$CURRENT_BUN_FILE_STORE_VERSION"         "$PUBLISHED_BUN_FILE_STORE_NPM"         "npm"
-          check_changed "media-optimizer-npm"        "$CURRENT_MEDIA_OPTIMIZER_VERSION"        "$PUBLISHED_MEDIA_OPTIMIZER_NPM"        "npm"
-          check_changed "media-optimizer-remote-npm" "$CURRENT_MEDIA_OPTIMIZER_REMOTE_VERSION" "$PUBLISHED_MEDIA_OPTIMIZER_REMOTE_NPM" "npm"
-          check_changed "svc-core-npm"               "$CURRENT_SVC_CORE_VERSION"               "$PUBLISHED_SVC_CORE_NPM"               "npm"
-          check_changed "svc-api-npm"                "$CURRENT_SVC_API_VERSION"                "$PUBLISHED_SVC_API_NPM"                "npm"
-          check_changed "cli-npm"                    "$CURRENT_CLI_VERSION"                    "$PUBLISHED_CLI_NPM"                    "npm"
-          check_changed "ui-npm"                     "$CURRENT_UI_VERSION"                     "$PUBLISHED_UI_NPM"                     "npm"
-          check_changed "react-npm"                  "$CURRENT_REACT_VERSION"                  "$PUBLISHED_REACT_NPM"                  "npm"
-          check_changed "vue-npm"                    "$CURRENT_VUE_VERSION"                    "$PUBLISHED_VUE_NPM"                    "npm"
-          check_changed "angular-npm"                "$CURRENT_ANGULAR_VERSION"                "$PUBLISHED_ANGULAR_NPM"                "npm"
-          check_changed "solid-npm"                  "$CURRENT_SOLID_VERSION"                  "$PUBLISHED_SOLID_NPM"                  "npm"
-          check_changed "svelte-npm"                 "$CURRENT_SVELTE_VERSION"                 "$PUBLISHED_SVELTE_NPM"                 "npm"
-          check_changed "sanity-npm"                 "$CURRENT_SANITY_VERSION"                 "$PUBLISHED_SANITY_NPM"                 "npm"
-          check_changed "strapi-npm"                 "$CURRENT_STRAPI_VERSION"                 "$PUBLISHED_STRAPI_NPM"                 "npm"
-          check_changed "webhook-npm"                "$CURRENT_WEBHOOK_VERSION"                "$PUBLISHED_WEBHOOK_NPM"                "npm"
-          check_changed "server-docker"              "$CURRENT_SERVER_VERSION"                 "$PUBLISHED_SERVER_DOCKER"              "docker"
-          check_changed "ui-docker"                  "$CURRENT_UI_VERSION"                     "$PUBLISHED_UI_DOCKER"                  "docker"
+          check_changed "server-docker" "$CURRENT_SERVER_VERSION" "$PUBLISHED_SERVER_DOCKER" "docker"
+          check_changed "ui-docker" "$CURRENT_UI_VERSION" "$PUBLISHED_UI_DOCKER" "docker"
 
           echo "server-version=$CURRENT_SERVER_VERSION" >> "$GITHUB_OUTPUT"
           echo "ui-version=$CURRENT_UI_VERSION" >> "$GITHUB_OUTPUT"
@@ -164,37 +120,14 @@ jobs:
           registry-url: "https://registry.npmjs.org"
       - run: bun run build
       - name: Publish changed npm packages
-        env:
-          CORE_CHANGED: ${{ needs.check-version.outputs.core-npm-changed }}
-          CONNECT_CHANGED: ${{ needs.check-version.outputs.connect-npm-changed }}
-          CONTFU_CHANGED: ${{ needs.check-version.outputs.contfu-npm-changed }}
-          CLIENT_CHANGED: ${{ needs.check-version.outputs.client-npm-changed }}
-          SERVER_CHANGED: ${{ needs.check-version.outputs.server-npm-changed }}
-          BUN_FILE_STORE_CHANGED: ${{ needs.check-version.outputs.bun-file-store-npm-changed }}
-          MEDIA_OPTIMIZER_CHANGED: ${{ needs.check-version.outputs.media-optimizer-npm-changed }}
-          MEDIA_OPTIMIZER_REMOTE_CHANGED: ${{ needs.check-version.outputs.media-optimizer-remote-npm-changed }}
-          SVC_CORE_CHANGED: ${{ needs.check-version.outputs.svc-core-npm-changed }}
-          SVC_API_CHANGED: ${{ needs.check-version.outputs.svc-api-npm-changed }}
-          CLI_CHANGED: ${{ needs.check-version.outputs.cli-npm-changed }}
-          UI_CHANGED: ${{ needs.check-version.outputs.ui-npm-changed }}
-          REACT_CHANGED: ${{ needs.check-version.outputs.react-npm-changed }}
-          VUE_CHANGED: ${{ needs.check-version.outputs.vue-npm-changed }}
-          ANGULAR_CHANGED: ${{ needs.check-version.outputs.angular-npm-changed }}
-          SOLID_CHANGED: ${{ needs.check-version.outputs.solid-npm-changed }}
-          SVELTE_CHANGED: ${{ needs.check-version.outputs.svelte-npm-changed }}
-          SANITY_CHANGED: ${{ needs.check-version.outputs.sanity-npm-changed }}
-          WEBHOOK_CHANGED: ${{ needs.check-version.outputs.webhook-npm-changed }}
-          STRAPI_CHANGED: ${{ needs.check-version.outputs.strapi-npm-changed }}
         shell: bash
         run: |
           publish_package() {
             local name=$1
             local directory=$2
-            local changed=$3
             local version
             local error_file
 
-            [ "$changed" = "true" ] || return 0
             version=$(jq -r .version "$directory/package.json")
             error_file=$(mktemp)
 
@@ -223,26 +156,26 @@ jobs:
             return 1
           }
 
-          publish_package '@contfu/core' './packages/core' "$CORE_CHANGED"
-          publish_package '@contfu/connect' './packages/connect' "$CONNECT_CHANGED"
-          publish_package '@contfu/contfu' './packages/contfu' "$CONTFU_CHANGED"
-          publish_package '@contfu/client' './packages/client' "$CLIENT_CHANGED"
-          publish_package '@contfu/server' './packages/server' "$SERVER_CHANGED"
-          publish_package '@contfu/bun-file-store' './packages/files/bun-file-store' "$BUN_FILE_STORE_CHANGED"
-          publish_package '@contfu/media-optimizer' './packages/files/media-optimizer' "$MEDIA_OPTIMIZER_CHANGED"
-          publish_package '@contfu/media-optimizer-remote' './packages/files/media-optimizer-remote' "$MEDIA_OPTIMIZER_REMOTE_CHANGED"
-          publish_package '@contfu/svc-core' './packages/service/core' "$SVC_CORE_CHANGED"
-          publish_package '@contfu/svc-api' './packages/service/api' "$SVC_API_CHANGED"
-          publish_package '@contfu/cli' './packages/cli' "$CLI_CHANGED"
-          publish_package '@contfu/ui' './packages/ui' "$UI_CHANGED"
-          publish_package '@contfu/react' './packages/react' "$REACT_CHANGED"
-          publish_package '@contfu/vue' './packages/vue' "$VUE_CHANGED"
-          publish_package '@contfu/angular' './packages/angular' "$ANGULAR_CHANGED"
-          publish_package '@contfu/solid' './packages/solid' "$SOLID_CHANGED"
-          publish_package '@contfu/svelte' './packages/svelte' "$SVELTE_CHANGED"
-          publish_package '@contfu/sanity' './packages/plugins/sanity' "$SANITY_CHANGED"
-          publish_package '@contfu/webhook' './packages/webhook' "$WEBHOOK_CHANGED"
-          publish_package '@contfu/strapi' './packages/plugins/strapi' "$STRAPI_CHANGED"
+          publish_package '@contfu/core' './packages/core'
+          publish_package '@contfu/connect' './packages/connect'
+          publish_package '@contfu/contfu' './packages/contfu'
+          publish_package '@contfu/client' './packages/client'
+          publish_package '@contfu/server' './packages/server'
+          publish_package '@contfu/bun-file-store' './packages/files/bun-file-store'
+          publish_package '@contfu/media-optimizer' './packages/files/media-optimizer'
+          publish_package '@contfu/media-optimizer-remote' './packages/files/media-optimizer-remote'
+          publish_package '@contfu/svc-core' './packages/service/core'
+          publish_package '@contfu/svc-api' './packages/service/api'
+          publish_package '@contfu/cli' './packages/cli'
+          publish_package '@contfu/ui' './packages/ui'
+          publish_package '@contfu/react' './packages/react'
+          publish_package '@contfu/vue' './packages/vue'
+          publish_package '@contfu/angular' './packages/angular'
+          publish_package '@contfu/solid' './packages/solid'
+          publish_package '@contfu/svelte' './packages/svelte'
+          publish_package '@contfu/sanity' './packages/plugins/sanity'
+          publish_package '@contfu/webhook' './packages/webhook'
+          publish_package '@contfu/strapi' './packages/plugins/strapi'
 
   publish-docker:
     needs: check-version

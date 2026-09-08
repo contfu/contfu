@@ -7,7 +7,7 @@ import {
   RefreshStatus,
   type Block,
 } from "@contfu/core";
-import { connectToStream } from "./stream-client";
+import { ConsumerAlreadyConnectedError, connectToStream } from "./stream-client";
 
 function createBinaryMessage(wireEvent: unknown): Uint8Array {
   return new TextEncoder().encode(`data: ${JSON.stringify(wireEvent)}\n\n`);
@@ -620,7 +620,7 @@ describe("stream-client", () => {
       });
     });
 
-    test("caps reconnect backoff and resets it after a successful connection", async () => {
+    test("keeps capped backoff when an accepted connection immediately closes", async () => {
       globalThis.WebSocket = createFailingWebSocketClass() as unknown as typeof WebSocket;
       await withImmediateReconnectDelays(async (delays) => {
         let callCount = 0;
@@ -656,8 +656,48 @@ describe("stream-client", () => {
         }
 
         expect(callCount).toBe(5);
-        expect(delays).toEqual([5, 10, 20, 5]);
+        expect(delays).toEqual([5, 10, 20, 20]);
       });
+    });
+
+    test("backs off repeated short sessions even after snapshot traffic", async () => {
+      mockFetchCapture([createBinaryMessage([EventType.SNAPSHOT_START])]);
+      let connections = 0;
+      await withImmediateReconnectDelays(async (delays) => {
+        for await (const event of connectToStream({
+          key: testKey,
+          connectionEvents: true,
+          initialReconnectDelay: 5,
+          maxReconnectDelay: 20,
+        })) {
+          if (event.type === EventType.STREAM_CONNECTED && ++connections === 5) break;
+        }
+        expect(delays).toEqual([5, 10, 20, 20]);
+      });
+    });
+
+    test("resets reconnect backoff after a session remains stable", async () => {
+      const originalNow = Date.now;
+      let now = 0;
+      Date.now = () => now;
+      try {
+        const fetches = mockFetchCapture([]);
+        await withImmediateReconnectDelays(async (delays) => {
+          for await (const event of connectToStream({
+            key: testKey,
+            connectionEvents: true,
+            initialReconnectDelay: 5,
+            maxReconnectDelay: 20,
+          })) {
+            if (event.type !== EventType.STREAM_CONNECTED) continue;
+            if (fetches.getCallCount() === 4) now += 30_000;
+            if (fetches.getCallCount() === 5) break;
+          }
+          expect(delays).toEqual([5, 10, 20, 5]);
+        });
+      } finally {
+        Date.now = originalNow;
+      }
     });
 
     test("reconnects after a mid-stream disconnect without sending a replay cursor", async () => {
@@ -1040,3 +1080,71 @@ async function waitFor(predicate: () => boolean): Promise<void> {
 async function collectEvents<T>(run: () => Promise<T>): Promise<T> {
   return run();
 }
+
+test("duplicate consumer rejection is terminal, including WebSocket fallback", async () => {
+  globalThis.WebSocket = createFailingWebSocketClass() as unknown as typeof WebSocket;
+  let requests = 0;
+  globalThis.fetch = (() => {
+    requests++;
+    return Promise.resolve(
+      new Response("Already connected", {
+        status: 409,
+        headers: { "X-Contfu-Error": "E_CONSUMER_CONNECTED" },
+      }),
+    );
+  }) as unknown as typeof fetch;
+  const stream = connectToStream({ key: Buffer.alloc(32), reconnect: true });
+  await expect(stream.next()).rejects.toBeInstanceOf(ConsumerAlreadyConnectedError);
+  expect(requests).toBe(1);
+});
+
+test("SSE heartbeats keep an idle connection alive without content or ACKs", async () => {
+  const originalNow = Date.now;
+  const originalSetInterval = globalThis.setInterval;
+  const originalClearInterval = globalThis.clearInterval;
+  let now = 0;
+  let checkStall: (() => void) | undefined;
+  let cancelled = 0;
+  let controller!: ReadableStreamDefaultController<Uint8Array>;
+  Date.now = () => now;
+  globalThis.setInterval = ((fn: () => void) => {
+    checkStall = fn;
+    return 1 as unknown as Timer;
+  }) as typeof setInterval;
+  globalThis.clearInterval = (() => {}) as typeof clearInterval;
+  mockFetch(
+    new ReadableStream({
+      start(c) {
+        controller = c;
+      },
+      cancel() {
+        cancelled++;
+      },
+    }),
+  );
+  const stream = connectToStream({
+    key: Buffer.alloc(32),
+    reconnect: false,
+    connectionEvents: true,
+  });
+  try {
+    expect((await stream.next()).value?.type).toBe(EventType.STREAM_CONNECTED);
+    const next = stream.next();
+    now = 40_000;
+    controller.enqueue(new TextEncoder().encode(": heartbeat\n\n"));
+    await Bun.sleep(0);
+    now = 60_000;
+    checkStall!();
+    expect(cancelled).toBe(0);
+    controller.close();
+    expect((await next).value).toEqual({
+      type: EventType.STREAM_DISCONNECTED,
+      reason: "Stream ended",
+    });
+  } finally {
+    await stream.return(undefined as never);
+    Date.now = originalNow;
+    globalThis.setInterval = originalSetInterval;
+    globalThis.clearInterval = originalClearInterval;
+  }
+});

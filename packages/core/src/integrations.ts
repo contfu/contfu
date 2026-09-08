@@ -18,6 +18,7 @@ export const IntegrationType = defineEnum({
   STORYBLOK: 25,
   DIRECTUS: 26,
   PRISMIC: 27,
+  GITHUB: 28,
 });
 
 export type IntegrationType = EnumValue<typeof IntegrationType>;
@@ -47,6 +48,7 @@ export const IntegrationTypeAvailability = {
   [IntegrationType.STORYBLOK]: IntegrationAvailability.PLANNED,
   [IntegrationType.DIRECTUS]: IntegrationAvailability.UNRELEASED,
   [IntegrationType.PRISMIC]: IntegrationAvailability.PLANNED,
+  [IntegrationType.GITHUB]: IntegrationAvailability.IMPLEMENTED,
 } as const satisfies Record<IntegrationType, IntegrationAvailability>;
 
 export const creatableIntegrationTypes = Object.entries(IntegrationTypeAvailability)
@@ -102,6 +104,7 @@ export const IntegrationRoles = {
   [IntegrationType.STORYBLOK]: [IntegrationRole.SourceRole],
   [IntegrationType.DIRECTUS]: [IntegrationRole.SourceRole, IntegrationRole.TargetRole],
   [IntegrationType.PRISMIC]: [IntegrationRole.SourceRole],
+  [IntegrationType.GITHUB]: [IntegrationRole.SourceRole],
 } as const satisfies Record<IntegrationType, readonly IntegrationRole[]>;
 
 export const IntegrationCapabilities = {
@@ -164,6 +167,10 @@ export const IntegrationCapabilities = {
     IntegrationCapability.TargetDeliveryCapability,
   ],
   [IntegrationType.PRISMIC]: [],
+  [IntegrationType.GITHUB]: [
+    IntegrationCapability.CollectionDiscovery,
+    IntegrationCapability.ContentProvide,
+  ],
 } as const satisfies Record<IntegrationType, readonly IntegrationCapability[]>;
 
 export function integrationHasCapability(

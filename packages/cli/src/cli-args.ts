@@ -8,6 +8,7 @@ const STRING_OPTIONS = [
   "name",
   "type",
   "url",
+  "opts",
   "display-name",
   "source-id",
   "target-id",
@@ -73,6 +74,7 @@ const BOOLEAN_OPTIONS = [
   "include-resolved",
   "wait",
   "refresh-source-first",
+  "yes",
 ] as const;
 
 const SHORT_FLAGS: Record<string, string> = {
@@ -86,6 +88,7 @@ const SHORT_FLAGS: Record<string, string> = {
   workspace: "w",
   organization: "o",
   name: "n",
+  yes: "y",
 };
 
 function optionSpec() {
@@ -166,6 +169,7 @@ const CLI_VALUE_STRING_KEYS = [
   "name",
   "type",
   "url",
+  "opts",
   "display-name",
   "source-id",
   "target-id",

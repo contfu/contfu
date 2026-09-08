@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { PropertyType } from "@contfu/core";
-import { buildSanitySchemaSyncPayload, updateContfuSchema, updateConftuSchema } from "./index";
+import { buildSanitySchemaSyncPayload, updateContfuSchema } from "./index";
 
 const originalFetch = globalThis.fetch;
 
@@ -45,10 +45,6 @@ describe("@contfu/sanity", () => {
         post: { $draft: PropertyType.BOOLEAN, title: PropertyType.STRING | PropertyType.OPTIONAL },
       },
     });
-  });
-
-  test("keeps the deprecated Conftu-typo export as an alias", () => {
-    expect(updateConftuSchema).toBe(updateContfuSchema);
   });
 
   test("supports overriding Contfu origin for development", async () => {

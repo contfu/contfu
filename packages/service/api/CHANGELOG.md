@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.9] - 2026-09-09
+
+### Added
+
+- Incident recovery workflow controls and reliable failed source-operation completion.
+
 ## [0.1.8] - 2026-09-04
 
 ### Added
