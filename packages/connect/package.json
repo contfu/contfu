@@ -1,6 +1,6 @@
 {
   "name": "@contfu/connect",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "description": "Connector for receiving Sync Messages from Contfu",
   "license": "MIT",
   "repository": {
@@ -30,7 +30,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@contfu/core": "workspace:^0.4.0"
+    "@contfu/core": "workspace:^0.5.0"
   },
   "devDependencies": {
     "@types/bun": "^1.4.1",

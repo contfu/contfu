@@ -25,6 +25,17 @@ type PersistentStore = {
 type OutboxRecord = { sequence: number; body: string };
 type SequenceState = { sequence: number; outbox: Record<string, OutboxRecord> };
 
+type StrapiAttribute = {
+  type?: string;
+  target?: unknown;
+  component?: string;
+  components?: string[];
+};
+
+type StrapiModel = {
+  attributes?: Record<string, StrapiAttribute>;
+};
+
 type StrapiLike = {
   log: {
     debug(message: string): void;
@@ -36,6 +47,17 @@ type StrapiLike = {
     get<T>(key: string, fallback: T): T;
   };
   store?: (options: { type: "plugin"; name: string }) => PersistentStore;
+  /** Strapi's model registry, used to qualify relation destination UIDs in webhook payloads. */
+  contentType?: (uid: string) => StrapiModel | null;
+  /** Strapi's database query API, used to re-read lifecycle entries with deep population. */
+  db?: {
+    query(uid: string): {
+      findOne(params: {
+        where: Record<string, unknown>;
+        populate: Record<string, unknown>;
+      }): Promise<unknown>;
+    };
+  };
   eventHub: {
     on(event: string, handler: (data: unknown) => void | Promise<void>): void;
   };
@@ -91,26 +113,27 @@ function getModel(data: unknown): string | null {
 }
 
 type CanonicalItem = {
-  ref: string;
+  ref: Buffer;
   props: Record<string, unknown>;
+  content?: unknown[];
 };
 
 const RESERVED_FIELDS = new Set(["id", "documentId", "createdAt", "updatedAt", "publishedAt"]);
+const STRAPI_REF_PREFIX = Buffer.from("strapi-ref:v1\0", "utf8");
 
-function camelCase(value: string): string {
-  return value.replace(/[-_ ]+([a-zA-Z0-9])/g, (_, character: string) => character.toUpperCase());
+function normalizeStrapiWebhookEntry(value: unknown): Record<string, unknown> | null {
+  const record = asRecord(value);
+  return record ? normalizeStrapiEntity(record) : null;
 }
 
-function normalizeEntry(value: unknown): Record<string, unknown> | null {
-  const record = asRecord(value);
-  if (!record) return null;
-  const attributes = asRecord(record.attributes);
+function normalizeStrapiEntity(record: Record<string, unknown>): Record<string, unknown> {
   const normalized: Record<string, unknown> = {};
-  for (const [key, field] of Object.entries(attributes ?? {})) {
-    normalized[key] = normalizeField(field);
+  const attributes = asRecord(record.attributes);
+  for (const [key, value] of Object.entries(attributes ?? {})) {
+    normalized[key] = normalizeStrapiField(value);
   }
-  for (const [key, field] of Object.entries(record)) {
-    if (key !== "attributes") normalized[key] = normalizeField(field);
+  for (const [key, value] of Object.entries(record)) {
+    if (key !== "attributes") normalized[key] = normalizeStrapiField(value);
   }
   if (normalized.documentId === undefined && normalized.id !== undefined) {
     normalized.documentId = String(normalized.id);
@@ -118,63 +141,201 @@ function normalizeEntry(value: unknown): Record<string, unknown> | null {
   return normalized;
 }
 
-function normalizeField(value: unknown): unknown {
-  if (value === null || typeof value !== "object") return value;
-  if (Array.isArray(value)) return value.map(normalizeField);
+function normalizeStrapiField(value: unknown): unknown {
+  if (value == null || typeof value !== "object") return value;
+  if (Array.isArray(value)) return value.map(normalizeStrapiField);
   const record = asRecord(value);
   if (!record) return value;
-  if ("data" in record && (Object.keys(record).length === 1 || "meta" in record)) {
-    return normalizeField(record.data);
+  if ("data" in record && Object.keys(record).every((key) => key === "data" || key === "meta")) {
+    const data = record.data;
+    if (Array.isArray(data)) return data.map((entry) => normalizeStrapiField(entry));
+    const entity = asRecord(data);
+    return entity ? normalizeStrapiEntity(entity) : normalizeStrapiField(data);
   }
-  const nestedAttributes = asRecord(record.attributes);
-  if (nestedAttributes) {
-    return normalizeEntry(record);
-  }
-  return Object.fromEntries(Object.entries(record).map(([key, field]) => [key, normalizeField(field)]));
+  return Object.fromEntries(
+    Object.entries(record).map(([key, entry]) => [key, normalizeStrapiField(entry)]),
+  );
 }
 
-function documentRef(value: Record<string, unknown>): string | null {
+function strapiDocumentRef(value: Record<string, unknown>): string | null {
   const ref = value.documentId ?? value.id;
   return typeof ref === "string" || typeof ref === "number" ? String(ref) : null;
 }
 
-function normalizeProperty(value: unknown, baseUrl: string): unknown {
-  if (Array.isArray(value)) return value.map((entry) => normalizeProperty(entry, baseUrl));
+function encodeStrapiScopedRef(contentTypeUid: string, ref: Buffer): Buffer {
+  const uid = Buffer.from(contentTypeUid.trim(), "utf8");
+  if (uid.length === 0) return ref;
+  const length = Buffer.alloc(4);
+  length.writeUInt32BE(uid.length, 0);
+  return Buffer.concat([STRAPI_REF_PREFIX, length, uid, ref]);
+}
+
+function normalizeStrapiProperty(
+  value: unknown,
+  baseUrl: string,
+  relationTargetUid?: string,
+): unknown {
+  if (Array.isArray(value)) {
+    return value.map((entry) => normalizeStrapiProperty(entry, baseUrl, relationTargetUid));
+  }
   const record = asRecord(value);
   if (!record) return value;
+
+  if (typeof record.__component === "string") {
+    const props: Record<string, unknown> = {};
+    for (const [key, entry] of Object.entries(record)) {
+      if (key !== "id" && key !== "__component") {
+        props[key] = normalizeStrapiProperty(entry, baseUrl);
+      }
+    }
+    return ["x", record.__component, props, []];
+  }
+
   if (typeof record.url === "string" && typeof record.mime === "string") {
     return {
       ...record,
-      url: record.url.startsWith("http") ? record.url : new URL(record.url, baseUrl).toString(),
+      url: record.url.startsWith("http")
+        ? record.url
+        : baseUrl
+          ? new URL(record.url, baseUrl).toString()
+          : record.url,
     };
   }
-  const ref = documentRef(record);
-  if (ref && !("url" in record)) return Buffer.from(ref, "utf8").toString("base64url");
+
+  const ref = strapiDocumentRef(record);
+  if (ref && !("url" in record)) {
+    const rawRef = Buffer.from(
+      typeof record.locale === "string" && record.locale ? `${ref}:${record.locale}` : ref,
+      "utf8",
+    );
+    return (relationTargetUid ? encodeStrapiScopedRef(relationTargetUid, rawRef) : rawRef).toString(
+      "base64url",
+    );
+  }
+
   return Object.fromEntries(
-    Object.entries(record).map(([key, entry]) => [key, normalizeProperty(entry, baseUrl)]),
+    Object.entries(record).map(([key, entry]) => [
+      key,
+      normalizeStrapiProperty(entry, baseUrl, relationTargetUid),
+    ]),
   );
 }
 
-function parseCanonicalItem(entry: unknown, baseUrl: string, localized: boolean): CanonicalItem | null {
-  const normalized = normalizeEntry(entry);
+function parseStrapiItemData(
+  entry: unknown,
+  options: { baseUrl: string; localized: boolean; relationTargets?: Record<string, string> },
+): CanonicalItem | null {
+  const normalized = normalizeStrapiWebhookEntry(entry);
   if (!normalized) return null;
-  const ref = documentRef(normalized);
+  const ref = strapiDocumentRef(normalized);
   const createdAt = normalized.createdAt;
   const updatedAt = normalized.updatedAt;
   if (!ref || typeof createdAt !== "string" || typeof updatedAt !== "string") return null;
   const locale = typeof normalized.locale === "string" ? normalized.locale.trim() : "";
-  const itemRef = localized && locale ? `${ref}:${locale}` : ref;
+  const itemRef = options.localized && locale ? `${ref}:${locale}` : ref;
   const props: Record<string, unknown> = {};
+  let content: unknown[] | undefined;
   for (const [key, value] of Object.entries(normalized)) {
     if (RESERVED_FIELDS.has(key) || value == null) continue;
-    props[camelCase(key)] = normalizeProperty(value, baseUrl);
+    const parsed = normalizeStrapiProperty(
+      value,
+      options.baseUrl,
+      options.relationTargets?.[key] ??
+        options.relationTargets?.[key.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`)],
+    );
+    props[key.replace(/[-_ ]+([a-zA-Z0-9])/g, (_, character: string) => character.toUpperCase())] =
+      parsed;
+    if (
+      Array.isArray(parsed) &&
+      parsed.every((block) => Array.isArray(block) && block[0] === "x")
+    ) {
+      content ??= parsed;
+    }
   }
   props.$createdAt = new Date(createdAt).getTime();
-  if (normalized.publishedAt) {
-    props.$publishedAt = new Date(String(normalized.publishedAt)).getTime();
-  }
   props.$draft = !normalized.publishedAt;
-  return { ref: itemRef, props };
+  if (normalized.publishedAt)
+    props.$publishedAt = new Date(String(normalized.publishedAt)).getTime();
+  return { ref: Buffer.from(itemRef, "utf8"), props, content };
+}
+
+function getRelationTargets(
+  strapi: StrapiLike,
+  collection: string,
+): Record<string, string> | undefined {
+  const attributes = strapi.contentType?.(collection)?.attributes;
+  if (!attributes) return undefined;
+  const targets: Record<string, string> = {};
+  for (const [field, attribute] of Object.entries(attributes)) {
+    const target = typeof attribute.target === "string" ? attribute.target.trim() : "";
+    if (attribute.type === "relation" && target) targets[field] = target;
+  }
+  return Object.keys(targets).length > 0 ? targets : undefined;
+}
+
+/**
+ * Mirror Strapi's deep-populate shape for lifecycle re-reads. In particular,
+ * dynamic zones need `on` fragments or Strapi returns only component IDs.
+ */
+function deepPopulate(
+  strapi: StrapiLike,
+  uid: string,
+  visited: ReadonlySet<string> = new Set(),
+): Record<string, unknown> {
+  if (visited.has(uid)) return {};
+  const attributes = strapi.contentType?.(uid)?.attributes;
+  if (!attributes) return {};
+  const nextVisited = new Set(visited);
+  nextVisited.add(uid);
+  const populate: Record<string, unknown> = {};
+
+  for (const [name, attribute] of Object.entries(attributes)) {
+    if (attribute.type === "relation") {
+      populate[name] = {};
+    } else if (attribute.type === "media") {
+      populate[name] = { select: ["*"] };
+    } else if (attribute.type === "component" && attribute.component) {
+      populate[name] = {
+        populate: deepPopulate(strapi, attribute.component, nextVisited),
+      };
+    } else if (attribute.type === "dynamiczone") {
+      const components: Record<string, unknown> = {};
+      for (const componentUid of attribute.components ?? []) {
+        components[componentUid] = {
+          populate: deepPopulate(strapi, componentUid, nextVisited),
+        };
+      }
+      populate[name] = { on: components };
+    }
+  }
+
+  return populate;
+}
+
+async function hydrateEntry(
+  strapi: StrapiLike,
+  collection: string,
+  entry: unknown,
+): Promise<unknown> {
+  if (!strapi.db) return entry;
+  const record = asRecord(entry);
+  const rawId = record?.id;
+  const id =
+    typeof rawId === "number"
+      ? rawId
+      : typeof rawId === "string" && /^\d+$/.test(rawId)
+        ? Number(rawId)
+        : NaN;
+  if (!Number.isSafeInteger(id)) return entry;
+
+  const hydrated = await strapi.db.query(collection).findOne({
+    where: { id },
+    populate: deepPopulate(strapi, collection),
+  });
+  if (hydrated == null) {
+    throw new Error(`Could not re-read Strapi entry ${collection}:${id} for webhook delivery`);
+  }
+  return hydrated;
 }
 
 function deliveryKey(event: string, collection: string, item: string): string {
@@ -228,8 +389,12 @@ async function sendContfuWebhook(
   data: unknown,
   client: ContfuWebhookClient,
 ): Promise<void> {
-  const entry = getEntry(data);
+  const rawEntry = getEntry(data);
   const collection = getModel(data);
+  const entry =
+    collection && operationFor(event) !== "delete"
+      ? await hydrateEntry(strapi, collection, rawEntry)
+      : rawEntry;
   const item = getItemRef(entry);
   if (!collection || !item) {
     strapi.log.warn(
@@ -240,16 +405,26 @@ async function sendContfuWebhook(
   }
 
   const entryRecord = asRecord(entry) ?? {};
+  const relationTargets = getRelationTargets(strapi, collection);
   const occurredAt =
     typeof entryRecord.updatedAt === "string" ? entryRecord.updatedAt : new Date().toISOString();
-  let canonicalItem: CanonicalItem | null = null;
+  let canonicalItem: ReturnType<typeof parseStrapiItemData> | null = null;
   if (operationFor(event) !== "delete") {
-    const normalizedEntry = normalizeEntry(entry);
-    canonicalItem = parseCanonicalItem(
-      normalizedEntry,
-      strapi.config.get<string>("server.url", ""),
-      typeof normalizedEntry?.locale === "string" && normalizedEntry.locale.length > 0,
-    );
+    const normalizedEntry = normalizeStrapiWebhookEntry(entry);
+    if (
+      normalizedEntry &&
+      (typeof normalizedEntry.id === "number" || typeof normalizedEntry.id === "string") &&
+      typeof normalizedEntry.createdAt === "string" &&
+      typeof normalizedEntry.updatedAt === "string"
+    ) {
+      canonicalItem = parseStrapiItemData(normalizedEntry as never, {
+        collection: 0,
+        baseUrl: strapi.config.get<string>("server.url", ""),
+        localized: typeof normalizedEntry.locale === "string" && normalizedEntry.locale.length > 0,
+        includeDrafts: true,
+        relationTargets,
+      });
+    }
   }
   if (!strapi.store) throw new Error("Strapi persistent store is unavailable");
   const store = strapi.store({ type: "plugin", name: SEQUENCE_STORE_NAME });
@@ -291,7 +466,7 @@ async function sendContfuWebhook(
     operation: operationFor(event),
     sourceEvent: event,
     collectionRef: collection,
-    itemRef: canonicalItem?.ref ?? item,
+    itemRef: canonicalItem?.ref.toString("utf8") ?? item,
     occurredAt,
     sequence,
     ...(operationFor(event) === "delete"

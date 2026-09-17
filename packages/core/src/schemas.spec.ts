@@ -1042,3 +1042,19 @@ describe("mergeSchemaValues", () => {
     expect(schemaType(result)).toBe(PropertyType.ENUM | PropertyType.OPTIONAL);
   });
 });
+
+describe("$scheduledAt system schema key", () => {
+  it("emits optional numeric scheduled publication metadata", () => {
+    const collections = [
+      {
+        name: "posts",
+        displayName: "Posts",
+        schema: {
+          $scheduledAt: PropertyType.NUMBER | PropertyType.OPTIONAL,
+        },
+      },
+    ];
+    expect(generateTypeScript(collections)).toContain("$scheduledAt?: number;");
+    expect(generateApplicationIntegrationTypes(collections)).toContain("$scheduledAt?: number;");
+  });
+});

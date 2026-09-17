@@ -23,3 +23,5 @@ The database must already exist and have the schema migrated by the writer. Read
 Alternatively, open a database explicitly with `createDatabaseClient(path, { readonly: true })` and pass it as `database` to `contfu`.
 
 The writer can select rollback journaling using `CONTFU_DATABASE_JOURNAL_MODE=delete`; the default is WAL. Use the journal mode required by your replication setup. Keep exactly one writer, and arrange for the replicas to wait for the initialized database before starting. Database replication and writer failover are the deploying application's responsibility.
+
+When deploying Contfu behind a reverse proxy, allow long-lived responses on `/api/sync` and `/api/live`. Disable total request and backend response deadlines for those routes; otherwise the proxy can terminate a healthy stream despite its heartbeats.

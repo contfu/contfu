@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.3.8] - 2026-09-16
+
+### Added
+
+- Normalize WordPress scheduled publication metadata.
+- Guarantee schema-before-item delivery across replicas.
+
+## [0.3.7] - 2026-09-11
+
+### Changed
+
+- Updated dependencies.
+
 ## [0.3.6] - 2026-09-09
 
 ### Added

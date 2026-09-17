@@ -143,6 +143,8 @@ export interface ContentfulIntegrationOpts {
 
 export interface StrapiIntegrationOpts {
   includeDrafts?: boolean;
+  /** Opt in to using the schema credential for ongoing Content Releases reads. */
+  includeSchedules?: boolean;
   lastPush?: string;
 }
 
@@ -204,9 +206,18 @@ export interface ApiTargetFailedDelivery {
   workspaceId: string;
   collectionId: string;
   itemId: number;
+  changedAt: number;
+  deleted: boolean;
   attempts: number;
   lastError: string | null;
   lastAttemptAt: string | null;
+}
+
+export type ApiTargetFailedDeliveryRecoveryOutcome = "accepted" | "reconciled" | "rejected";
+
+export interface ApiTargetFailedDeliveryRecoveryResult {
+  accepted: number;
+  outcome?: ApiTargetFailedDeliveryRecoveryOutcome;
 }
 
 /** Durable source-side synchronization operation returned by the API. */
@@ -368,6 +379,8 @@ export interface UpdateFlowBody {
 
 /** A collection available to scan from a CMS integration. */
 export interface ScannedCollection {
+  /** Sanitized discovery limitations for display to scan callers. */
+  diagnostics?: Array<{ path: string; reason: string }>;
   ref: string;
   displayName: string;
   scope?: string | null;

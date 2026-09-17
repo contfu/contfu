@@ -47,7 +47,7 @@ items count  --collection <id>    Count items
 
 Credentials are stored locally after `contfu login`. The `CONTFU_API_KEY` environment variable can be used as an alternative to interactive login.
 
-Contfu commands target `https://contfu.com` implicitly. Use `contfu workspaces switch <id-or-name>` to persist the default workspace for resource commands, or pass `--workspace <id-or-name>` per command. For `items` commands, pass `--client-url` or set `CONTFU_SERVER_URL` to the base URL of the user-hosted Contfu Server that holds the data. Query and count commands support `--filter`, title `--search`, `--locale`, and `--fallback`; queries also support pagination, includes, field selection, sorting, and `--flat`.
+Contfu commands target `https://contfu.com` implicitly. Use `contfu workspaces switch <id-or-name>` to persist the default workspace for resource commands, or pass `--workspace <id-or-name>` per command. For `items` commands, pass `--client-url` or set `CONTFU_SERVER_URL` to the base URL of the user-hosted Contfu Server that holds the data. Query and count commands support `--filter`, title `--search`, `--locale`, and `--fallback`. Both commands accept `--include-deleted` to return active and deleted items or `--only-deleted` to return deleted items only; `--only-deleted` takes precedence when both are supplied. Queries also support pagination, includes, field selection, sorting, and `--flat`.
 
 Use `contfu integrations regenerate-key <app-integration-id-or-name>` to rotate an app integration API key and write it as `CONTFU_KEY` to `.env`. Pass `--env-file <path>` to write a different env file, or `--dry-run` to preview the change.
 

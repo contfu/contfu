@@ -1,8 +1,10 @@
 import {
+  IntegrationAvailability,
   IntegrationCapability,
   IntegrationRole,
+  IntegrationTypeAvailability,
   SyncMode,
-  isCreatableIntegrationType,
+  isIntegrationType,
 } from "@contfu/core";
 import {
   IntegrationType,
@@ -364,6 +366,24 @@ function applyCollectionI18n(body: CreateCollectionBody | UpdateCollectionBody, 
   if (Object.keys(i18n).length > 0) body.i18n = i18n;
 }
 
+function isPublicIntegrationType(value: unknown): value is IntegrationType {
+  return (
+    isIntegrationType(value) &&
+    IntegrationTypeAvailability[value] === IntegrationAvailability.IMPLEMENTED
+  );
+}
+
+function assertPublicIntegrationType(
+  value: unknown,
+  displayValue: unknown = value,
+): asserts value is IntegrationType {
+  if (!isPublicIntegrationType(value)) {
+    throw new Error(
+      `Integration type ${String(displayValue)} is not currently available. Run \`contfu integrations types\` to list supported types.`,
+    );
+  }
+}
+
 function buildIntegrationCreateBody(values: CliValues): CreateIntegrationBody {
   const missing = REQUIRED_CREATE.integrations.filter((k) => values[k] === undefined);
   if (missing.length > 0) {
@@ -378,11 +398,7 @@ function buildIntegrationCreateBody(values: CliValues): CreateIntegrationBody {
     );
   }
   const type = typeEntry[1];
-  if (!isCreatableIntegrationType(type)) {
-    throw new Error(
-      `Integration type ${values.type} is not currently available. Run \`contfu integrations types\` to list supported types.`,
-    );
-  }
+  assertPublicIntegrationType(type, values.type ?? typeStr);
   const body: CreateIntegrationBody = { name: values.name!, type };
   if (values.url !== undefined) body.url = values.url;
   const integrationOpts = parseIntegrationOpts(values.opts);
@@ -912,6 +928,7 @@ export async function create(
       const body = jsonData
         ? (untransformSchema(JSON.parse(jsonData)) as CreateIntegrationBody)
         : buildIntegrationCreateBody(values);
+      if (jsonData) assertPublicIntegrationType(body.type);
       if (options.dryRun) {
         printDryRun("create integration", body);
         return;
@@ -1128,7 +1145,7 @@ export async function regenerateAppKey(id: string, envFile?: string, options: Dr
 
 export function listIntegrationTypes() {
   const entries = Object.entries(IntegrationType).filter(([, type]) =>
-    isCreatableIntegrationType(type),
+    isPublicIntegrationType(type),
   );
   const custom = entries
     .filter(([, type]) => type < 20)

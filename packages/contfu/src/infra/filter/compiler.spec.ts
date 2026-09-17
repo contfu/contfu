@@ -122,7 +122,7 @@ describe("compileFilter", () => {
       id: 10,
       ref: "ts/early",
       collection: "articles",
-      props: { title: "Early", $createdAt: 1000, $publishedAt: 1500 },
+      props: { title: "Early", $createdAt: 1000, $publishedAt: 1500, $scheduledAt: 2500 },
       changedAt: 300,
     });
     createItem({
@@ -135,6 +135,7 @@ describe("compileFilter", () => {
 
     expect(queryWithFilter("$createdAt > 2000")).toEqual([11]);
     expect(queryWithFilter("$publishedAt <= 1500")).toEqual([10]);
+    expect(queryWithFilter("$scheduledAt >= 2000")).toEqual([10]);
   });
 
   test("filters with like operator", () => {

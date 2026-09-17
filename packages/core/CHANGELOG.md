@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.5.1] - 2026-09-16
+
+### Added
+
+- Normalize WordPress scheduled publication metadata.
+
+## [0.5.0] - 2026-09-11
+
+### Changed
+
+- **Breaking:** Removed the deprecated `generateConsumerTypes` export. Replace imports and calls with `generateApplicationIntegrationTypes`; its signature and generated output are unchanged.
+
 ## [0.4.4] - 2026-09-09
 
 ### Added
