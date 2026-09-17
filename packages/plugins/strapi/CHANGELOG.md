@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.2.4] - 2026-09-16
+
+### Added
+
+- Guarantee schema-before-item delivery across replicas.
+
+## [0.2.3] - 2026-09-16
+
+### Fixed
+
+- Re-read lifecycle entries with deep population so dynamic-zone webhook payloads include their component data instead of only component IDs.
+
+## [0.2.2] - 2026-09-09
+
+### Fixed
+
+- Namespace content identities by content type to avoid collisions.
+
 ## [0.2.1] - 2026-09-04
 
 ### Added

@@ -5,6 +5,7 @@ export const SYSTEM_FIELD_NAMES = [
   "$changedAt",
   "$createdAt",
   "$publishedAt",
+  "$scheduledAt",
   "$locale",
   "$draft",
 ] as const;
@@ -29,6 +30,7 @@ type SystemFieldRefs = {
   $changedAt: FieldRef<number>;
   $createdAt: FieldRef<number>;
   $publishedAt: FieldRef<number | null>;
+  $scheduledAt: FieldRef<number | null>;
   $locale: FieldRef<string>;
   $draft: FieldRef<boolean>;
 };
@@ -94,25 +96,25 @@ export function ne(a: FilterOperand, b: FilterOperand): string {
   return _ne(a, b);
 }
 
-export function gt<T extends Comparable>(a: FieldRef<T>, b: T): string;
+export function gt<T extends Comparable>(a: FieldRef<T | null>, b: T): string;
 export function gt(a: Exclude<FilterOperand, FieldRef>, b: FilterOperand): string;
 export function gt(a: FilterOperand, b: FilterOperand): string {
   return _gt(a, b);
 }
 
-export function gte<T extends Comparable>(a: FieldRef<T>, b: T): string;
+export function gte<T extends Comparable>(a: FieldRef<T | null>, b: T): string;
 export function gte(a: Exclude<FilterOperand, FieldRef>, b: FilterOperand): string;
 export function gte(a: FilterOperand, b: FilterOperand): string {
   return _gte(a, b);
 }
 
-export function lt<T extends Comparable>(a: FieldRef<T>, b: T): string;
+export function lt<T extends Comparable>(a: FieldRef<T | null>, b: T): string;
 export function lt(a: Exclude<FilterOperand, FieldRef>, b: FilterOperand): string;
 export function lt(a: FilterOperand, b: FilterOperand): string {
   return _lt(a, b);
 }
 
-export function lte<T extends Comparable>(a: FieldRef<T>, b: T): string;
+export function lte<T extends Comparable>(a: FieldRef<T | null>, b: T): string;
 export function lte(a: Exclude<FilterOperand, FieldRef>, b: FilterOperand): string;
 export function lte(a: FilterOperand, b: FilterOperand): string {
   return _lte(a, b);

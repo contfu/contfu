@@ -322,7 +322,12 @@ CONTFU_SERVER_URL=http://localhost:5173 contfu items query
 | `--fields <fields>`                    | Comma-separated field selection.                       |
 | `--locale <locale-or-false>`           | Locale override for localized collections.             |
 | `--fallback <locale-or-true-or-false>` | Fallback locale override.                              |
+| `--include-deleted`                    | Include both active and deleted items.                 |
+| `--only-deleted`                       | Return only deleted items.                             |
 | `--flat`                               | Flatten nested object props into dot-separated keys.   |
+
+Both soft-delete flags work with `items query` and `items count`. If both are supplied,
+`--only-deleted` takes precedence.
 
 ## Output format
 

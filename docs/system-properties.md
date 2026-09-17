@@ -21,16 +21,18 @@ built-in application system property.
 | `$changedAt`   | number         | Upstream version timestamp — when the item last changed in the source. Drives incremental sync and is the default sort.           | yes        |
 | `$createdAt`   | number         | When the source created the item.                                                                                                 | yes        |
 | `$publishedAt` | number \| null | When the source published the item. `null`/absent for unpublished items.                                                          | yes        |
+| `$scheduledAt` | number \| null | Planned publication time, not evidence of publication; absent when no schedule is exposed.                                        | yes        |
 | `$locale`      | string         | Normalized BCP 47 locale of a localized item variant. See [Localization](./i18n.md).                                              | yes        |
 | `$draft`       | boolean        | Present on draft-capable item collections; `true` when the item is a draft. Missing values are treated as `false` when filtering. | yes        |
 
-All timestamp values (`$changedAt`, `$createdAt`, `$publishedAt`) are **epoch milliseconds** (the same units as `Date.now()`), so they compare and sort numerically.
+All timestamp values (`$changedAt`, `$createdAt`, `$publishedAt`, `$scheduledAt`) are **epoch milliseconds** (the same units as `Date.now()`), so they compare and sort numerically.
 
 ## System timestamps
 
-Contfu exposes Service timestamps under three normalized properties. They answer different questions, so applications can build publishing feeds, audits, and incremental jobs without special-casing each Service:
+Contfu exposes Service timestamps under four normalized properties. They answer different questions, so applications can build publishing feeds, audits, and incremental jobs without special-casing each Service:
 
 - **`$createdAt`** — when the item was created in the source.
+- **`$scheduledAt`** — the earliest pending publication of the synchronized version. Available for supported WordPress, Contentful, Sanity, and Strapi schedules with draft sync and the required access; see [Planned publication](./integrations.md#planned-publication). It is optional in generated types (`$scheduledAt?: number`) and supports filters such as `query.gte(p.$scheduledAt, Date.now())` or `$scheduledAt >= 1700000000000`. Reaching this time does not mean the item has been published.
 - **`$publishedAt`** — when the item was published in the source. It is `null` (or absent) for drafts and for items the source has never published.
 - **`$changedAt`** — when the item last changed in the source. This is the upstream "last updated" time. It is also the value Contfu uses as its sync cursor and as the default sort order.
 
@@ -40,13 +42,15 @@ There is deliberately no separate `$updatedAt`: `$changedAt` already carries the
 
 Each Service contributes only the timestamps it actually reports:
 
-| Service    | `$createdAt`                  | `$publishedAt`      | `$changedAt`             |
-| ---------- | ----------------------------- | ------------------- | ------------------------ |
-| Contentful | yes                           | yes                 | yes (`sys.updatedAt`)    |
-| Notion     | yes (`created_time`)          | — (no publish time) | yes (`last_edited_time`) |
-| Sanity     | yes                           | — (no publish time) | yes (`_updatedAt`)       |
-| Strapi     | yes                           | yes                 | yes (`updatedAt`)        |
-| WordPress  | — (no distinct creation time) | yes (`date_gmt`)    | yes (`modified_gmt`)     |
+| Service    | `$createdAt`                  | `$publishedAt`             | `$changedAt`                                  |
+| ---------- | ----------------------------- | -------------------------- | --------------------------------------------- |
+| Contentful | yes                           | yes                        | yes (`sys.updatedAt`)                         |
+| Notion     | yes (`created_time`)          | — (no publish time)        | yes (`last_edited_time`)                      |
+| Sanity     | yes                           | — (no publish time)        | yes (`_updatedAt`)                            |
+| Strapi     | yes                           | yes                        | yes (`updatedAt`)                             |
+| WordPress  | — (no distinct creation time) | yes (published `date_gmt`) | yes (effective modification/publication time) |
+
+A Service may offer scheduling in its editor without exposing the planned time through its Contfu integration. Contfu does not infer `$scheduledAt` from custom date fields or use it to publish content; publication remains controlled by the source.
 
 Sanity models publishing structurally rather than with a timestamp, so it has no `$publishedAt`. WordPress has no creation timestamp separate from its publish date, so it has no `$createdAt`. In both cases the missing property is simply absent — Contfu does not synthesize a value, because the source is the system of record.
 

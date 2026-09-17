@@ -186,6 +186,8 @@ items options:
       --locale <locale|false>       Locale override for localized collections
       --fallback <locale|true|false>
                                     Fallback locale override
+      --include-deleted             Include active and deleted items
+      --only-deleted                Return only deleted items (takes precedence)
       --flat                        Flatten nested props (query only)
 
 incident options:

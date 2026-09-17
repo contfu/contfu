@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.2.0] - 2026-09-11
+
+### Changed
+
+- **Breaking:** Removed the deprecated `generateConsumerTypes` export. Replace imports and calls with `generateApplicationIntegrationTypes`; its signature and generated output are unchanged.
+
 ## [0.1.9] - 2026-09-09
 
 ### Added

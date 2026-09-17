@@ -42,6 +42,8 @@ describe("queryItems", () => {
     expect(url).toContain("http://localhost:5173/api/items");
     expect(url).toContain("limit=20");
     expect(url).toContain("offset=0");
+    expect(url).not.toContain("includeDeleted");
+    expect(url).not.toContain("onlyDeleted");
     expect(logSpy).toHaveBeenCalledWith(JSON.stringify(response, null, 2));
   });
 
@@ -93,6 +95,26 @@ describe("queryItems", () => {
     expect(url).toContain("flat=true");
   });
 
+  test("passes include-deleted as includeDeleted", async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse({ data: [], meta: { total: 0 } }));
+
+    await queryItems(["--client-url", "http://localhost:5173", "--include-deleted"]);
+
+    const url = (mockFetch.mock.calls[0] as unknown[])[0] as string;
+    expect(url).toContain("includeDeleted=true");
+    expect(url).not.toContain("onlyDeleted");
+  });
+
+  test("passes only-deleted as onlyDeleted", async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse({ data: [], meta: { total: 0 } }));
+
+    await queryItems(["--client-url", "http://localhost:5173", "--only-deleted"]);
+
+    const url = (mockFetch.mock.calls[0] as unknown[])[0] as string;
+    expect(url).toContain("onlyDeleted=true");
+    expect(url).not.toContain("includeDeleted");
+  });
+
   test("uses CONTFU_SERVER_URL when --client-url is missing", async () => {
     process.env.CONTFU_SERVER_URL = "http://localhost:5173";
     mockFetch.mockResolvedValueOnce(jsonResponse({ data: [], meta: { total: 0 } }));
@@ -122,6 +144,8 @@ describe("countItems", () => {
 
     const url = (mockFetch.mock.calls[0] as unknown[])[0] as string;
     expect(url).toContain("limit=0");
+    expect(url).not.toContain("includeDeleted");
+    expect(url).not.toContain("onlyDeleted");
     expect(logSpy).toHaveBeenCalledWith(42);
   });
 
@@ -149,6 +173,26 @@ describe("countItems", () => {
     expect(url).toContain("search=release");
     expect(url).toContain("locale=false");
     expect(url).toContain("fallback=false");
+  });
+
+  test("passes include-deleted as includeDeleted", async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse({ data: [], meta: { total: 5 } }));
+
+    await countItems(["--client-url", "http://localhost:5173", "--include-deleted"]);
+
+    const url = (mockFetch.mock.calls[0] as unknown[])[0] as string;
+    expect(url).toContain("includeDeleted=true");
+    expect(url).not.toContain("onlyDeleted");
+  });
+
+  test("passes only-deleted as onlyDeleted", async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse({ data: [], meta: { total: 5 } }));
+
+    await countItems(["--client-url", "http://localhost:5173", "--only-deleted"]);
+
+    const url = (mockFetch.mock.calls[0] as unknown[])[0] as string;
+    expect(url).toContain("onlyDeleted=true");
+    expect(url).not.toContain("includeDeleted");
   });
 
   test("uses CONTFU_SERVER_URL when --client-url is missing", async () => {

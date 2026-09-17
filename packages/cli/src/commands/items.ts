@@ -39,6 +39,8 @@ export async function queryItems(args: string[]) {
         fields: { type: "string" },
         locale: { type: "string" },
         fallback: { type: "string" },
+        "include-deleted": { type: "boolean", default: false },
+        "only-deleted": { type: "boolean", default: false },
         flat: { type: "boolean", default: false },
       },
       allowPositionals: true,
@@ -65,6 +67,8 @@ export async function queryItems(args: string[]) {
     fields: values.fields,
     locale: values.locale,
     fallback: values.fallback,
+    includeDeleted: values["include-deleted"] ? "true" : undefined,
+    onlyDeleted: values["only-deleted"] ? "true" : undefined,
     flat: values.flat ? "true" : undefined,
   });
 
@@ -85,6 +89,8 @@ export async function countItems(args: string[]) {
         search: { type: "string" },
         locale: { type: "string" },
         fallback: { type: "string" },
+        "include-deleted": { type: "boolean", default: false },
+        "only-deleted": { type: "boolean", default: false },
       },
       allowPositionals: true,
     }));
@@ -105,6 +111,8 @@ export async function countItems(args: string[]) {
     search: values.search,
     locale: values.locale,
     fallback: values.fallback,
+    includeDeleted: values["include-deleted"] ? "true" : undefined,
+    onlyDeleted: values["only-deleted"] ? "true" : undefined,
     limit: "0",
   });
 

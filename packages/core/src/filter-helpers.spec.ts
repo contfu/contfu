@@ -1,5 +1,6 @@
 import { describe, it, expect } from "bun:test";
 import {
+  SYSTEM_FIELD_SET,
   all,
   createItemRef,
   eq,
@@ -242,4 +243,31 @@ describe("filter-helpers operator type safety", () => {
     const result = eq(self2.name, self2.description);
     expect(typeof result).toBe("string");
   });
+});
+
+it("recognizes scheduled publication as a numeric system filter field", () => {
+  const scheduled: FieldRef<number | null> = self.$scheduledAt;
+  expect(SYSTEM_FIELD_SET.has("$scheduledAt")).toBe(true);
+  expect(gt(scheduled, 123)).toBe("$scheduledAt > 123");
+  expect(gte(scheduled, 123)).toBe("$scheduledAt >= 123");
+  expect(lt(scheduled, 123)).toBe("$scheduledAt < 123");
+  expect(lte(scheduled, 123)).toBe("$scheduledAt <= 123");
+});
+
+it("preserves comparison type safety for nullable fields", () => {
+  const nullable = createItemRef<{ title: string | null; flag: boolean | null }>(0);
+  expect(gt(nullable.title, "a")).toBe('title > "a"');
+  expect(gte(self.$publishedAt, 123)).toBe("$publishedAt >= 123");
+  // @ts-expect-error nullable numeric fields still reject strings
+  gt(self.$scheduledAt, "invalid");
+  // @ts-expect-error nullable numeric fields still reject strings
+  gte(self.$scheduledAt, "invalid");
+  // @ts-expect-error nullable numeric fields still reject strings
+  lt(self.$scheduledAt, "invalid");
+  // @ts-expect-error nullable numeric fields still reject strings
+  lte(self.$scheduledAt, "invalid");
+  // @ts-expect-error boolean fields are not comparable even when nullable
+  gt(nullable.flag, true);
+  // @ts-expect-error ordered comparisons require a non-null value
+  gt(self.$scheduledAt, null);
 });

@@ -460,11 +460,11 @@ describe("get", () => {
 });
 
 describe("create", () => {
-  test("posts with raw json data", async () => {
+  test("posts with raw json data for an implemented integration type", async () => {
     const data = { id: 1, name: "new" };
     mockFetch.mockResolvedValueOnce(jsonResponse(data));
 
-    await create("integrations", '{"label":"new"}', {});
+    await create("integrations", '{"name":"new","type":20}', {});
 
     const [url, opts] = mockFetch.mock.calls[0] as unknown[] as [string, RequestInit];
     expect(url).toBe(expectedApiUrl("/api/v1/integrations"));
@@ -616,13 +616,43 @@ describe("create", () => {
     exitSpy.mockRestore();
   });
 
-  test.each(["storyblok", "prismic"])("rejects unavailable integration type %s", async (type) => {
+  test.each(["storyblok", "prismic"])("rejects planned integration type %s", async (type) => {
     const exitSpy = spyOn(process, "exit").mockImplementation(() => {
       throw new Error("exit");
     });
 
     // oxlint-disable-next-line typescript/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
     await expect(create("integrations", undefined, { name: "Unavailable", type })).rejects.toThrow(
+      "exit",
+    );
+
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("not currently available"));
+    expect(mockFetch).not.toHaveBeenCalled();
+    exitSpy.mockRestore();
+  });
+
+  test("rejects unreleased Directus through --type before any request", async () => {
+    const exitSpy = spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("exit");
+    });
+
+    // oxlint-disable-next-line typescript/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
+    await expect(
+      create("integrations", undefined, { name: "Directus", type: "directus" }),
+    ).rejects.toThrow("exit");
+
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("not currently available"));
+    expect(mockFetch).not.toHaveBeenCalled();
+    exitSpy.mockRestore();
+  });
+
+  test("rejects unreleased Directus through raw JSON before any request", async () => {
+    const exitSpy = spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("exit");
+    });
+
+    // oxlint-disable-next-line typescript/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
+    await expect(create("integrations", '{"name":"Directus","type":26}', {})).rejects.toThrow(
       "exit",
     );
 
@@ -1246,6 +1276,7 @@ describe("listIntegrationTypes", () => {
     expect(written).toContain("app");
     expect(written).toContain("notion");
     expect(written).toContain("strapi");
+    expect(written).not.toContain("directus");
     expect(written).not.toContain("storyblok");
     expect(written).not.toContain("prismic");
     // blank line separator between groups

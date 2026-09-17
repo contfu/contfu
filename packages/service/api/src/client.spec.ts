@@ -148,6 +148,8 @@ describe("createApiClient", () => {
         workspaceId: "ws_1",
         collectionId: "col_1",
         itemId: 42,
+        changedAt: 1_750_000_000_000,
+        deleted: false,
         attempts: 3,
         lastError: "HTTP 500",
         lastAttemptAt: "2026-06-20T00:00:00.000Z",
@@ -207,7 +209,7 @@ describe("createApiClient", () => {
   });
 
   test("redelivers target failed deliveries through the target-delivery endpoint", async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse({ accepted: 1 }));
+    fetchMock.mockResolvedValueOnce(jsonResponse({ accepted: 1, outcome: "accepted" }));
 
     const client = createApiClient(
       "http://test.local",
@@ -216,7 +218,7 @@ describe("createApiClient", () => {
     );
     const result = await client.redeliverTargetFailedDelivery("td_1");
 
-    expect(result).toEqual({ accepted: 1 });
+    expect(result).toEqual({ accepted: 1, outcome: "accepted" });
     expect(fetchMock).toHaveBeenCalledWith(
       "http://test.local/api/v1/target-deliveries/failed/td_1",
       expect.objectContaining({

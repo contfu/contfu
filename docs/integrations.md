@@ -23,10 +23,11 @@ List the Service Integrations your workspace can connect:
 contfu integrations types
 ```
 
-Currently available types: `notion`, `strapi`, `contentful`, `wordpress`, `sanity`, and `web`.
-Services fall into three authentication styles:
+Currently available types: `notion`, `strapi`, `contentful`, `wordpress`, `sanity`, `github`, and `web`.
+Services use these authentication styles:
 
 - **OAuth providers** (e.g. Notion) — authorization happens in a browser consent screen.
+- **GitHub App installations** — install the deployment-configured Contfu GitHub App with read-only Contents permission for selected repositories and enter its numeric installation ID.
 - **Token services** (e.g. Strapi, Contentful, Sanity, Web) — you paste an API token.
 - **Application-password services** (e.g. WordPress) — public content can be read anonymously, while preview/draft access uses a WordPress username and application password.
 
@@ -43,6 +44,7 @@ https://contfu.com/integrations/new?type=<type>
   screen, then grant Contfu access to the specific pages/databases.
 - `?type=strapi` (or `contentful`, `sanity`, `web`) — opens a pre-filled form; enter a name and API
   token.
+- `?type=github` — install the configured Contfu GitHub App with read-only Contents permission for the public and/or private repositories you select, then enter its numeric installation ID. Contfu stores the installation identity, not the short-lived access tokens it obtains from GitHub. GitHub Enterprise is not currently supported.
 - `?type=wordpress` — enter the public site URL; add a WordPress username and application password only when you enable non-published content.
 - `?type=app` — jumps to the application integration tab (see below).
 
@@ -78,6 +80,42 @@ there is no fallback to an unrelated path. Missing, unreachable, malformed, over
 unsupported, or non-matching documents silently retain the generic Web schema. Web schema
 integrations are pullable, so a later document change is picked up by the existing schema-sync
 workflow and follows its normal schema-change handling.
+
+### GitHub source
+
+Create a GitHub Service Integration in the web UI with `?type=github`. After creation, use the
+standard CLI workflow to discover and import repositories:
+
+```bash
+contfu integrations scan <integration-id>
+contfu integrations add <integration-id> --select
+# Or, in a non-interactive environment, import every authorized repository:
+contfu integrations add <integration-id> --all
+```
+
+Use `--select` rather than copying a scanned GitHub ref into `--refs`: GitHub repository refs are
+opaque JSON values that contain commas, while the CLI treats commas as separators between refs.
+Scanning exposes each repository authorized for the GitHub App installation as a source
+collection rooted at the repository root. The repository's default branch is selected initially.
+For an imported collection, **Branch or ref scope** is the Contfu **Scope**; **Repository
+directory** optionally moves the collection root below the repository root; and the case-sensitive
+**include glob**, relative to that directory, refines membership. The include glob defaults to
+`**/*`. Changing the directory, Scope, or include glob reconciles collection membership.
+
+One matching file becomes one item. Supported document extensions are `.md`, `.markdown`,
+`.html`, `.htm`, `.json`, `.yaml`, and `.yml`. Markdown YAML frontmatter becomes item properties
+and the Markdown body becomes Contfu rich content. HTML becomes rich content. JSON and YAML must
+each contain one object, whose fields become item properties; arrays of records do not become
+multiple items. Contfu infers a proposed schema from the selected documents for you to confirm.
+After confirmation, Contfu maintains the collection schema rather than silently adopting later
+repository shape changes.
+
+GitHub push events accelerate reconciliation of the affected repository and Scope, while periodic
+and full polling remains authoritative and repairs missed pushes or deletions. Each synchronization
+reads current content from one fixed commit; it does not replay every intermediate commit. GitHub
+currently supports **Content Provide** only, not Content Receive. It does not infer draft,
+publication, or locale semantics from property names or directory layout: those values remain
+ordinary properties, so use existing Flow filters and localization configuration where needed.
 
 ### Web source pushes
 
@@ -134,10 +172,11 @@ contfu integrations list -f json
 A **Scope** is a service-side namespace that limits which collections a Source Role
 integration exposes. Service-native concepts map onto scopes:
 
-| Service    | Scope is…      |
-| ---------- | -------------- |
-| Sanity     | a dataset      |
-| Contentful | an environment |
+| Service    | Scope is…       |
+| ---------- | --------------- |
+| Sanity     | a dataset       |
+| Contentful | an environment  |
+| GitHub     | a branch or ref |
 
 When no scopes are configured, the integration exposes the Service's default scopes, or
 all accessible scopes when the Service can enumerate them. Scopes also disambiguate two
@@ -168,6 +207,31 @@ collections and schedules a repair full pull so draft/published schemas and curs
 For Sanity, the repair does not rewrite an existing Studio-pushed schema; re-run the
 Studio schema push after changing `includeDrafts` so a published-only collection no
 longer retains `$draft`.
+
+### Planned publication
+
+With draft sync enabled, `$scheduledAt` reports the earliest pending publication
+of the version Contfu synchronizes. It is optional and does not mean the item has
+already been published. See [System properties](./system-properties.md).
+
+| Service    | Availability                                                                                                                                                                                                                                      |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| WordPress  | Scheduled posts, with permission to read non-published content.                                                                                                                                                                                   |
+| Contentful | Preview collections with a Management token that can read Scheduled Actions; includes Launch schedules for working entries.                                                                                                                       |
+| Sanity     | Scheduled Publishing, with an authenticated token that can read schedules.                                                                                                                                                                        |
+| Strapi     | Content Releases. In **edit Strapi**, enable **Include publication schedules** and draft sync, and provide a schema credential with admin Content Releases read permission. This explicitly allows that credential to read schedules during sync. |
+
+Schedules for separately staged release versions in Contentful or Sanity are not
+attached to the current preview item. Without scheduling access, `$scheduledAt`
+is absent. Custom date fields in other services remain ordinary content fields.
+
+The source controls publication, including postponements and cancellations.
+Contfu never publishes a cached item when its planned time arrives. Pushes report
+source changes, and polling reads the source again; full pulls reconcile missed
+changes. An overdue schedule remains a plan until the source publishes it, so
+changes are not guaranteed to appear at the exact scheduled time. WordPress
+scheduled posts remain drafts; after publication, `$publishedAt` replaces
+`$scheduledAt`.
 
 ### WordPress push plugin
 
@@ -257,7 +321,9 @@ This returns the available source collections — Notion databases, Strapi conte
 etc. — each with `ref`, `displayName`, and `alreadyAdded`. If a Strapi read credential cannot access
 Content-Type Builder, setup offers two supported paths:
 
-1. **Schema credential:** provide an optional setup-only credential with Content-Type Builder access.
+1. **Schema credential:** provide an optional credential with Content-Type Builder access.
+   It is not used to read content. Reading Content Releases with this credential requires
+   opting in to **Include publication schedules**.
    It is stored separately from the read credential and is used only for schema discovery.
 2. **OpenAPI:** opt in to Strapi 5's public OpenAPI document in `config/server`:
 

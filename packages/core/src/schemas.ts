@@ -97,6 +97,7 @@ const SYSTEM_SCHEMA_KEYS: Record<string, { name: string; type: string; importFro
   $draft: { name: "$draft", type: "boolean" },
   $createdAt: { name: "$createdAt", type: "number" },
   $publishedAt: { name: "$publishedAt", type: "number" },
+  $scheduledAt: { name: "$scheduledAt", type: "number" },
   $locale: { name: "locale", type: "string" },
 };
 
@@ -544,8 +545,3 @@ export function generateApplicationIntegrationTypes(collections: TypeGenerationI
 
   return lines.join("\n");
 }
-
-/**
- * @deprecated Use generateApplicationIntegrationTypes. Kept for public API compatibility.
- */
-export const generateConsumerTypes = generateApplicationIntegrationTypes;

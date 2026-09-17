@@ -111,13 +111,14 @@ describe("cli main", () => {
       "integrations",
       "create",
       "-d",
-      '{"name":"From data"}',
+      '{"name":"From data","type":20}',
       "--dry-run",
     ]);
 
     expect(result.exitCode).toBe(0);
     expect(result.stderr).toBe("");
     expect(result.stdout).toContain('"name": "From data"');
+    expect(result.stdout).toContain('"type": 20');
   });
 
   test("rejects the renamed table format before dispatch", async () => {

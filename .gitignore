@@ -188,6 +188,7 @@ webview-test-results/
 .pglite-e2e
 .svelte-kit
 test-results/
+artifacts/
 packages/service/app/data
 packages/service/backend/:memory:/
 

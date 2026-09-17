@@ -136,7 +136,7 @@ export function extractLinks(
 
   if (schema && props) {
     for (const [propName, propValue] of Object.entries(schema)) {
-      const propType = propertyTypeBase(schemaType(propValue));
+      const propType = propertyTypeBase(schemaType(propValue)) & ~PropertyType.OPTIONAL;
       if (propType === PropertyType.REF) {
         const value = props[propName];
         if (value != null) {
@@ -183,7 +183,7 @@ export function replacePlaceholders(
 
   if (schema) {
     for (const [propName, propValue] of Object.entries(schema)) {
-      const propType = propertyTypeBase(schemaType(propValue));
+      const propType = propertyTypeBase(schemaType(propValue)) & ~PropertyType.OPTIONAL;
       if (propType === PropertyType.REF) {
         const value = newProps[propName];
         if (typeof value === "number" && value <= PLACEHOLDER_BASE) {

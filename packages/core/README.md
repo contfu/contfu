@@ -26,7 +26,7 @@ import { PropertyType, IntegrationType, renderBlocksMarkdown } from "@contfu/cor
 - **`objects`** — structural object equality helper (`isObjectEqual`).
 - **`query-types`** — query option/result helper types plus `normalizeQueryArgs`, `resolveQueryFilter`, and `QueryResultArray`.
 - **`render`** — rich-content HTML renderers (`renderBlock`, `renderBlocks`, `renderInline`, `buildFileUrl`, custom renderer option types).
-- **`schemas`** — schema contracts and type generation (`PropertyType`, `CollectionSchema`, `ComponentSchema`, `RefTargets`, `schemaType`, `schemaEnumValues`, `generateTypeScript`, `generateApplicationIntegrationTypes`, `generateConsumerTypes`).
+- **`schemas`** — schema contracts and type generation (`PropertyType`, `CollectionSchema`, `ComponentSchema`, `RefTargets`, `schemaType`, `schemaEnumValues`, `generateTypeScript`, `generateApplicationIntegrationTypes`).
 - **`time`** — duration constants (`SECONDS`, `MINUTES`, `HOURS`, `DAYS`).
 - **`wire`** — compact sync wire protocol tuples and patch helpers (`WireEvent`, `WireItem`, `WireItemPatch`, `diffWireItemPatch`, `materializeWireItemPatch`, `BatchEffectType`).
 

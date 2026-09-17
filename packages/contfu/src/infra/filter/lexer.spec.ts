@@ -104,7 +104,7 @@ describe("tokenize", () => {
   });
 
   test("tokenizes normalized system fields", () => {
-    for (const field of ["$createdAt", "$publishedAt", "$draft"]) {
+    for (const field of ["$createdAt", "$publishedAt", "$scheduledAt", "$draft"]) {
       const tokens = tokenize(`${field} >= 100`);
       expect(tokens[0]).toEqual({ type: TokenType.SystemField, value: field });
     }

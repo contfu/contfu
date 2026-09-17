@@ -18,6 +18,20 @@ type Strapi = {
     get(options: { key: string }): Promise<unknown>;
     set(options: { key: string; value: unknown }): Promise<void>;
   };
+  contentType?: (uid: string) => {
+    attributes?: Record<
+      string,
+      { type?: string; target?: unknown; component?: string; components?: string[] }
+    >;
+  } | null;
+  db?: {
+    query(uid: string): {
+      findOne(params: {
+        where: Record<string, unknown>;
+        populate: Record<string, unknown>;
+      }): Promise<unknown>;
+    };
+  };
   eventHub: { on(event: string, handler: Handler): void };
 };
 
@@ -61,7 +75,7 @@ test("sends lifecycle events to the generic endpoint with increasing sequences",
   const values = new Map<string, unknown>();
   const strapi = createStrapi(handlers, values);
   plugin().bootstrap({ strapi });
-  await flush();
+  await waitForCalls(calls, 1);
 
   const events = [
     "entry.create",
@@ -104,6 +118,123 @@ test("sends lifecycle events to the generic endpoint with increasing sequences",
   }
 });
 
+test("qualifies webhook relations from Strapi content-type metadata", async () => {
+  const calls: { init?: RequestInit }[] = [];
+  globalThis.fetch = mock((_url: string | URL, init?: RequestInit) => {
+    calls.push({ init });
+    return new Response("OK", { status: 200 });
+  }) as typeof fetch;
+  const handlers = new Map<string, Handler>();
+  const strapi = createStrapi(handlers, new Map());
+  strapi.contentType = (uid) =>
+    uid === "api::article.article"
+      ? { attributes: { author: { type: "relation", target: "api::author.author" } } }
+      : null;
+  plugin().bootstrap({ strapi });
+  await waitForCalls(calls, 1);
+  await handlers.get("entry.update")?.({
+    uid: "api::article.article",
+    entry: {
+      id: 21,
+      createdAt: "2024-01-01T00:00:00.000Z",
+      updatedAt: "2024-01-01T00:00:00.000Z",
+      author: { id: 1, documentId: "author-1" },
+    },
+  });
+
+  const payload = JSON.parse(String(calls[1]?.init?.body)) as {
+    properties?: { author?: unknown };
+  };
+  expect(typeof payload.properties?.author).toBe("string");
+  expect(
+    Buffer.from(payload.properties?.author as string, "base64url")
+      .subarray(0, Buffer.from("strapi-ref:v1\0").length)
+      .equals(Buffer.from("strapi-ref:v1\0")),
+  ).toBe(true);
+});
+
+test("deep-populates dynamic-zone components before serializing lifecycle events", async () => {
+  const calls: { init?: RequestInit }[] = [];
+  globalThis.fetch = mock((_url: string | URL, init?: RequestInit) => {
+    calls.push({ init });
+    return new Response("OK", { status: 200 });
+  }) as typeof fetch;
+  const handlers = new Map<string, Handler>();
+  const strapi = createStrapi(handlers, new Map());
+  strapi.contentType = (uid) => {
+    if (uid === "api::page.page") {
+      return {
+        attributes: {
+          sections: { type: "dynamiczone", components: ["sections.hero"] },
+        },
+      };
+    }
+    if (uid === "sections.hero") {
+      return { attributes: { image: { type: "media" } } };
+    }
+    return null;
+  };
+  let queryUid = "";
+  let queryParams:
+    | { where: Record<string, unknown>; populate: Record<string, unknown> }
+    | undefined;
+  strapi.db = {
+    query(uid) {
+      queryUid = uid;
+      return {
+        async findOne(params) {
+          await Promise.resolve();
+          queryParams = params;
+          return {
+            id: 21,
+            createdAt: "2024-01-01T00:00:00.000Z",
+            updatedAt: "2024-01-01T00:00:01.000Z",
+            sections: [
+              {
+                id: 80,
+                __component: "sections.hero",
+                title: "Hydrated hero",
+                image: { id: 3, url: "/hero.jpg", name: "hero.jpg", mime: "image/jpeg" },
+              },
+            ],
+          };
+        },
+      };
+    },
+  };
+  plugin().bootstrap({ strapi });
+  await waitForCalls(calls, 1);
+  await handlers.get("entry.update")?.({
+    uid: "api::page.page",
+    entry: {
+      id: 21,
+      createdAt: "2024-01-01T00:00:00.000Z",
+      updatedAt: "2024-01-01T00:00:01.000Z",
+      sections: [{ id: 80 }],
+    },
+  });
+
+  expect(queryUid).toBe("api::page.page");
+  expect(queryParams?.where).toEqual({ id: 21 });
+  expect(queryParams?.populate.sections).toEqual({
+    on: { "sections.hero": { populate: { image: { select: ["*"] } } } },
+  });
+  const payload = JSON.parse(String(calls[1]?.init?.body)) as {
+    properties?: { sections?: unknown };
+  };
+  expect(payload.properties?.sections).toEqual([
+    [
+      "x",
+      "sections.hero",
+      {
+        title: "Hydrated hero",
+        image: { url: "/hero.jpg", id: 3, name: "hero.jpg", mime: "image/jpeg" },
+      },
+      [],
+    ],
+  ]);
+});
+
 test("serializes concurrent lifecycle deliveries", async () => {
   const calls: { init?: RequestInit }[] = [];
   let releaseFirst!: () => void;
@@ -122,7 +253,7 @@ test("serializes concurrent lifecycle deliveries", async () => {
   const handlers = new Map<string, Handler>();
   const strapi = createStrapi(handlers, new Map());
   plugin().bootstrap({ strapi });
-  await flush();
+  await waitForCalls(calls, 1);
   const first = handlers.get("entry.update")?.({
     uid: "api::article.article",
     entry: { id: 21, createdAt: "2024-01-01T00:00:00.000Z", updatedAt: "2024-01-01T00:00:00.000Z" },
@@ -149,7 +280,7 @@ test("resends the exact outbox body for a reconstructed retry", async () => {
   const handlers = new Map<string, Handler>();
   const strapi = createStrapi(handlers, new Map());
   plugin().bootstrap({ strapi });
-  await flush();
+  await waitForCalls(calls, 1);
   await handlers.get("entry.update")?.({
     uid: "api::article.article",
     entry: {
@@ -182,7 +313,7 @@ test("resends the same sequence when Strapi retries a delivery", async () => {
   const handlers = new Map<string, Handler>();
   const strapi = createStrapi(handlers, new Map());
   plugin().bootstrap({ strapi });
-  await flush();
+  await waitForCalls(calls, 1);
   const delivery = {
     uid: "api::article.article",
     entry: {
@@ -209,7 +340,7 @@ test("retains the sequence across plugin bootstrap and skips malformed events", 
   const values = new Map<string, unknown>();
   const strapi = createStrapi(handlers, values);
   plugin().bootstrap({ strapi });
-  await flush();
+  await waitForCalls(calls, 1);
   await handlers.get("entry.update")?.({
     uid: "api::article.article",
     entry: { title: "missing identity" },
@@ -218,7 +349,7 @@ test("retains the sequence across plugin bootstrap and skips malformed events", 
 
   const restartedHandlers = new Map<string, Handler>();
   plugin().bootstrap({ strapi: createStrapi(restartedHandlers, values) });
-  await flush();
+  await waitForCalls(calls, 2);
   await restartedHandlers.get("entry.update")?.({
     uid: "api::article.article",
     entry: {
@@ -262,8 +393,13 @@ function createStrapi(handlers: Map<string, Handler>, values: Map<string, unknow
   };
 }
 
-async function flush(): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, 0));
+async function waitForCalls(calls: readonly unknown[], count: number): Promise<void> {
+  for (let attempt = 0; calls.length < count && attempt < 100; attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+  if (calls.length < count) {
+    throw new Error(`Timed out waiting for ${count} webhook calls; received ${calls.length}`);
+  }
 }
 
 afterAll(async () => {

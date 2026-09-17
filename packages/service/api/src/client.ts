@@ -30,6 +30,7 @@ import type {
   MappingRule,
   CreateComponentBody,
   ApiTargetFailedDelivery,
+  ApiTargetFailedDeliveryRecoveryResult,
   ApiSourceOperation,
   PauseSourceSyncResult,
   ResumeSourceSyncResult,
@@ -161,7 +162,7 @@ export interface ContfuApiClient {
   listTargetFailedDeliveries(input?: {
     integrationId?: string;
   }): Promise<ApiTargetFailedDelivery[]>;
-  redeliverTargetFailedDelivery(id: string): Promise<{ accepted: number }>;
+  redeliverTargetFailedDelivery(id: string): Promise<ApiTargetFailedDeliveryRecoveryResult>;
   clearTargetFailedDelivery(id: string): Promise<void>;
 
   listIncidents(input?: ListIncidentsInput): Promise<ApiIncident[]>;
@@ -266,7 +267,7 @@ export function createApiClient(
       return req<ApiTargetFailedDelivery[]>("GET", `/api/v1/target-deliveries/failed${query}`);
     },
     redeliverTargetFailedDelivery: (id) =>
-      req<{ accepted: number }>("POST", `/api/v1/target-deliveries/failed/${id}`, {
+      req<ApiTargetFailedDeliveryRecoveryResult>("POST", `/api/v1/target-deliveries/failed/${id}`, {
         action: "redeliver",
       }),
     clearTargetFailedDelivery: (id) =>
