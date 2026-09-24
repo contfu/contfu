@@ -364,11 +364,14 @@ describe("@contfu/server routes", () => {
     }));
 
     const { routes } = createServeOptions();
-    const url = new URL("http://localhost/api/items/1?with=not-json");
+    const url = new URL("http://localhost/api/collections/articles/items/1?with=not-json");
     const request = Object.assign(new Request(url.href), {
-      params: { id: "1" },
+      params: { collection: "articles", id: "1" },
     });
-    const response = await callRoute(getRoute(routes, "/api/items/:id"), request);
+    const response = await callRoute(
+      getRoute(routes, "/api/collections/:collection/items/:id"),
+      request,
+    );
 
     expect(response.status).toBe(400);
     expect(await readText(response)).toBe("Invalid 'with' parameter");
@@ -376,7 +379,7 @@ describe("@contfu/server routes", () => {
   });
 
   test("returns an item by id with parsed include and with clauses", async () => {
-    const getItemById = mock((id: number, options: Record<string, unknown>) => ({
+    const getItemById = mock((id: [string, number], options: Record<string, unknown>) => ({
       id,
       options,
     }));
@@ -396,17 +399,20 @@ describe("@contfu/server routes", () => {
 
     const { routes } = createServeOptions();
     const url = new URL(
-      "http://localhost/api/items/1?include=files,author&with=%7B%22relation%22%3Atrue%7D&plainDatesAs=milliseconds",
+      "http://localhost/api/collections/articles/items/1?include=files,author&with=%7B%22relation%22%3Atrue%7D&plainDatesAs=milliseconds",
     );
     const request = Object.assign(new Request(url.href), {
-      params: { id: "1" },
+      params: { collection: "articles", id: "1" },
     });
-    const response = await callRoute(getRoute(routes, "/api/items/:id"), request);
+    const response = await callRoute(
+      getRoute(routes, "/api/collections/:collection/items/:id"),
+      request,
+    );
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
       data: {
-        id: 1,
+        id: ["articles", 1],
         options: {
           include: ["files", "author"],
           with: { relation: true },
@@ -414,7 +420,7 @@ describe("@contfu/server routes", () => {
         },
       },
     });
-    expect(getItemById).toHaveBeenCalledWith(1, {
+    expect(getItemById).toHaveBeenCalledWith(["articles", 1], {
       include: ["files", "author"],
       with: { relation: true },
       plainDatesAs: "milliseconds",
@@ -423,7 +429,10 @@ describe("@contfu/server routes", () => {
 
   test("applies i18n defaults only when omitted on query endpoints", async () => {
     const findItems = mock((options: Record<string, unknown>) => ({ data: options }));
-    const getItemById = mock((id: number, options: Record<string, unknown>) => ({ id, options }));
+    const getItemById = mock((id: [string, number], options: Record<string, unknown>) => ({
+      id,
+      options,
+    }));
 
     await mock.module("@contfu/contfu", () => ({
       contfu: mock(() => ({
@@ -457,11 +466,14 @@ describe("@contfu/server routes", () => {
       fallback: "fr",
     });
 
-    const itemRequest = Object.assign(new Request("http://localhost/api/items/1"), {
-      params: { id: "1" },
-    });
-    await callRoute(getRoute(routes, "/api/items/:id"), itemRequest);
-    expect(getItemById).toHaveBeenLastCalledWith(1, {});
+    const itemRequest = Object.assign(
+      new Request("http://localhost/api/collections/articles/items/1"),
+      {
+        params: { collection: "articles", id: "1" },
+      },
+    );
+    await callRoute(getRoute(routes, "/api/collections/:collection/items/:id"), itemRequest);
+    expect(getItemById).toHaveBeenLastCalledWith(["articles", 1], {});
   });
 
   test("uses env i18n defaults when code config is absent", async () => {

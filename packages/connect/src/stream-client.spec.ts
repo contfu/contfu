@@ -159,7 +159,9 @@ describe("stream-client", () => {
 
   describe("connectToStream basic event parsing", () => {
     test("parses indexed DELETED event", async () => {
-      mockFetch(createMockStream([createBinaryMessage([EventType.ITEM_DELETED, 1234, 11])]));
+      mockFetch(
+        createMockStream([createBinaryMessage([EventType.ITEM_DELETED, ["article", 1234], 11])]),
+      );
 
       const events: unknown[] = [];
       for await (const event of connectToStream({
@@ -172,7 +174,7 @@ describe("stream-client", () => {
       expect(events).toHaveLength(1);
       expect(events[0]).toEqual({
         type: EventType.ITEM_DELETED,
-        item: 1234,
+        item: ["article", 1234],
         index: 11,
       });
     });
@@ -188,6 +190,7 @@ describe("stream-client", () => {
             null,
             "aGFzaA",
             7,
+            { author: ["authors"] },
           ]),
         ]),
       );
@@ -205,6 +208,7 @@ describe("stream-client", () => {
           schema: {},
           i18n: undefined,
           index: 7,
+          refTargets: { author: ["authors"] },
         },
       ]);
     });
@@ -268,6 +272,56 @@ describe("stream-client", () => {
       expect(changed.item.content).toEqual([]);
     });
 
+    test("keeps sparse patch baselines separate for the same managed ID in different collections", async () => {
+      mockFetch(
+        createMockStream([
+          createBinaryMessage([
+            EventType.ITEM_CHANGED,
+            [34, "article", 1, { title: "Article", slug: "article" }, [["p", ["Article body"]]]],
+            1,
+          ]),
+          createBinaryMessage([
+            EventType.ITEM_CHANGED,
+            [34, "mirror", 1, { heading: "Mirror" }, [["p", ["Mirror body"]]]],
+            2,
+          ]),
+          createBinaryMessage([
+            EventType.ITEM_CHANGED,
+            [34, "article", 2, { title: "Native edit" }],
+            3,
+          ]),
+          createBinaryMessage([
+            EventType.ITEM_CHANGED,
+            [34, "mirror", 2, { heading: "Native edit" }],
+            4,
+          ]),
+          createBinaryMessage([EventType.ITEM_DELETED, ["article", 34], 5]),
+          createBinaryMessage([EventType.ITEM_CHANGED, [34, "mirror", 3], 6]),
+        ]),
+      );
+      const items: Array<{ collection: string; props: unknown; content?: Block[] }> = [];
+      for await (const event of connectToStream({ key: testKey, reconnect: false })) {
+        if (event.type === EventType.ITEM_CHANGED) items.push(event.item);
+      }
+      expect(items[2]).toMatchObject({
+        collection: "article",
+        props: { title: "Native edit", slug: "article" },
+        content: [["p", ["Article body"]]],
+      });
+      expect(items[3]).toMatchObject({
+        collection: "mirror",
+        props: { heading: "Native edit" },
+        content: [["p", ["Mirror body"]]],
+      });
+      expect(items[3]?.props).not.toHaveProperty("slug");
+      expect(items[2]?.props).not.toHaveProperty("heading");
+      expect(items[4]).toMatchObject({
+        collection: "mirror",
+        props: { heading: "Native edit" },
+        content: [["p", ["Mirror body"]]],
+      });
+    });
+
     test("preserves omitted sparse fields", async () => {
       const base = [34, "article", 1700500000, { title: "Old" }, [["p", ["Old"]]]];
       const patch = [34, "article", 1700500001, { title: "New" }];
@@ -288,10 +342,47 @@ describe("stream-client", () => {
       expect(changed.item.content).toEqual([["p", ["Old"]]]);
     });
 
+    test("rewrites nested identities in sparse baselines after collection rename", async () => {
+      mockFetch(
+        createMockStream([
+          createBinaryMessage([
+            EventType.ITEM_CHANGED,
+            [
+              34,
+              "article",
+              1,
+              { related: ["legacy", 7], nested: { related: ["legacy", 8] } },
+              [["a", "legacy", ["legacy", 9]]],
+            ],
+            1,
+          ]),
+          createBinaryMessage([EventType.COLLECTION_RENAMED, "legacy", "current", "Current", 2]),
+          createBinaryMessage([
+            EventType.ITEM_CHANGED,
+            [34, "article", 2, { title: "Updated" }],
+            3,
+          ]),
+        ]),
+      );
+
+      const events: unknown[] = [];
+      for await (const event of connectToStream({ key: testKey, reconnect: false })) {
+        events.push(event);
+      }
+
+      const changed = events[2] as { item: Record<string, unknown> };
+      expect(changed.item.props).toEqual({
+        related: ["current", 7],
+        nested: { related: ["current", 8] },
+        title: "Updated",
+      });
+      expect(changed.item.content).toEqual([["a", "legacy", ["current", 9]]]);
+    });
+
     test("ignores non-indexed item events", async () => {
       mockFetch(
         createMockStream([
-          createBinaryMessage([EventType.ITEM_DELETED, 1]),
+          createBinaryMessage([EventType.ITEM_DELETED, ["article", 1]]),
           createBinaryMessage([
             EventType.ITEM_CHANGED,
             [null, null, new Uint8Array([2]), "c", 1, {}],
@@ -316,7 +407,7 @@ describe("stream-client", () => {
           createBinaryMessage([EventType.PING]),
           createBinaryMessage([EventType.PING]),
           createBinaryMessage([EventType.PING]),
-          createBinaryMessage([EventType.ITEM_DELETED, 1, 7]),
+          createBinaryMessage([EventType.ITEM_DELETED, ["article", 1], 7]),
         ]),
       );
 
@@ -335,7 +426,9 @@ describe("stream-client", () => {
 
   describe("connection lifecycle events", () => {
     test("yields stream lifecycle events", async () => {
-      mockFetch(createMockStream([createBinaryMessage([EventType.ITEM_DELETED, 1, 2])]));
+      mockFetch(
+        createMockStream([createBinaryMessage([EventType.ITEM_DELETED, ["article", 1], 2])]),
+      );
 
       const events: unknown[] = [];
       for await (const event of connectToStream({
@@ -540,7 +633,7 @@ describe("stream-client", () => {
       });
 
       await waitFor(() => sockets.length === 1 && sockets[0].ready());
-      sockets[0].emit(JSON.stringify([EventType.ITEM_DELETED, 98, 12]));
+      sockets[0].emit(JSON.stringify([EventType.ITEM_DELETED, ["article", 98], 12]));
       sockets[0].close(1000, "done");
 
       const events = await eventsPromise;
@@ -548,7 +641,7 @@ describe("stream-client", () => {
       expect(events[0]).toEqual({ type: EventType.STREAM_CONNECTED });
       expect(events[1]).toEqual({
         type: EventType.ITEM_DELETED,
-        item: 98,
+        item: ["article", 98],
         index: 12,
       });
       expect(events[2]).toEqual({ type: EventType.STREAM_DISCONNECTED, reason: "done" });
@@ -594,7 +687,9 @@ describe("stream-client", () => {
             ok: true,
             status: 200,
             text: () => Promise.resolve(""),
-            body: createMockStream([createBinaryMessage([EventType.ITEM_DELETED, 1, 4])]),
+            body: createMockStream([
+              createBinaryMessage([EventType.ITEM_DELETED, ["article", 1], 4]),
+            ]),
           });
         }) as typeof fetch;
 
@@ -640,7 +735,9 @@ describe("stream-client", () => {
             status: 200,
             text: () => Promise.resolve(""),
             body: createMockStream(
-              callCount === 4 ? [] : [createBinaryMessage([EventType.ITEM_DELETED, 9, 9])],
+              callCount === 4
+                ? []
+                : [createBinaryMessage([EventType.ITEM_DELETED, ["article", 9], 9])],
             ),
           });
         }) as typeof fetch;
@@ -713,7 +810,11 @@ describe("stream-client", () => {
             status: 200,
             text: () => Promise.resolve(""),
             body: createMockStream([
-              createBinaryMessage([EventType.ITEM_DELETED, callCount, callCount === 1 ? 7 : 8]),
+              createBinaryMessage([
+                EventType.ITEM_DELETED,
+                ["article", callCount],
+                callCount === 1 ? 7 : 8,
+              ]),
             ]),
           });
         }) as typeof fetch;
@@ -773,7 +874,9 @@ describe("stream-client", () => {
           body:
             callCount === 1
               ? createStallingBody()
-              : createMockStream([createBinaryMessage([EventType.ITEM_DELETED, 1, 1])]),
+              : createMockStream([
+                  createBinaryMessage([EventType.ITEM_DELETED, ["article", 1], 1]),
+                ]),
         });
       }) as typeof fetch;
 
@@ -810,7 +913,7 @@ describe("stream-client", () => {
         expect(item.done).toBe(false);
         expect(item.value).toEqual({
           type: EventType.ITEM_DELETED,
-          item: 1,
+          item: ["article", 1],
           index: 1,
         });
         expect(callCount).toBe(2);
@@ -917,7 +1020,9 @@ describe("stream-client", () => {
           text: () => Promise.resolve(""),
           body: isAck
             ? null
-            : createMockStream([createBinaryMessage([[EventType.ITEM_DELETED, 1, 7]])]),
+            : createMockStream([
+                createBinaryMessage([[EventType.ITEM_DELETED, ["article", 1], 7]]),
+              ]),
         });
       }) as typeof fetch;
 
@@ -961,17 +1066,21 @@ describe("stream-client", () => {
       });
 
       await waitFor(() => sockets.length === 1 && sockets[0].ready());
-      sockets[0].emit(JSON.stringify([EventType.ITEM_DELETED, 98, 12]));
+      sockets[0].emit(JSON.stringify([EventType.ITEM_DELETED, ["article", 98], 12]));
       sockets[0].close(1000, "done");
 
-      expect(await eventsPromise).toEqual([{ type: EventType.ITEM_DELETED, item: 98, index: 12 }]);
+      expect(await eventsPromise).toEqual([
+        { type: EventType.ITEM_DELETED, item: ["article", 98], index: 12 },
+      ]);
       expect(sockets[0].url).toContain("wss://contfu.com/api/sync");
       expect(fetchCalls).toEqual([]);
     });
 
     test("falls back to HTTP when websocket setup fails", async () => {
       globalThis.WebSocket = createFailingWebSocketClass() as unknown as typeof WebSocket;
-      const { getUrls } = mockFetchCapture([createBinaryMessage([EventType.ITEM_DELETED, 7, 3])]);
+      const { getUrls } = mockFetchCapture([
+        createBinaryMessage([EventType.ITEM_DELETED, ["article", 7], 3]),
+      ]);
       globalThis.WebSocket = createFailingWebSocketClass() as unknown as typeof WebSocket;
 
       const events: unknown[] = [];
@@ -979,7 +1088,7 @@ describe("stream-client", () => {
         events.push(event);
       }
 
-      expect(events).toEqual([{ type: EventType.ITEM_DELETED, item: 7, index: 3 }]);
+      expect(events).toEqual([{ type: EventType.ITEM_DELETED, item: ["article", 7], index: 3 }]);
       expect(getUrls()[0]).toContain("https://contfu.com/api/sync");
     });
   });

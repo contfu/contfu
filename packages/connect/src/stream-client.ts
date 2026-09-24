@@ -1,3 +1,5 @@
+import type { RefTargets } from "@contfu/core";
+import { isItemIdentity, type ItemIdentity } from "@contfu/core";
 import {
   ClientEventType,
   ApplicationCommand,
@@ -19,6 +21,7 @@ import {
   FileLeaseResultStatus,
   isWireLeaseResponse,
   materializeWireItemPatch,
+  itemIdentityKey,
   type WireItem,
   MINUTES,
   SECONDS,
@@ -50,7 +53,7 @@ export type ItemChangedEvent = {
 };
 export type ItemDeletedEvent = {
   type: typeof EventType.ITEM_DELETED;
-  item: number;
+  item: ItemIdentity;
   index: number;
 };
 export type SchemaEvent = {
@@ -58,6 +61,7 @@ export type SchemaEvent = {
   collection: string;
   displayName: string;
   schema: CollectionSchema;
+  refTargets?: RefTargets;
   i18n?: EffectiveCollectionI18nConfig;
   index: number;
 };
@@ -791,7 +795,25 @@ function fromWireStreamEvent(
 }
 
 function itemStateKey(collection: string, id: number): string {
-  return `${collection}:${id}`;
+  return itemIdentityKey([collection, id]);
+}
+
+function rewriteCollectionIdentity(value: unknown, oldName: string, newName: string): unknown {
+  if (isItemIdentity(value)) {
+    return value[0] === oldName ? [newName, value[1]] : value;
+  }
+  if (Array.isArray(value)) {
+    return value.map((entry) => rewriteCollectionIdentity(entry, oldName, newName));
+  }
+  if (typeof value === "object" && value !== null) {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => [
+        key,
+        rewriteCollectionIdentity(entry, oldName, newName),
+      ]),
+    );
+  }
+  return value;
 }
 
 function fromWireLeaseResponse(wireEvent: unknown): WireLeaseResponse | null {
@@ -856,9 +878,9 @@ function fromWireEvent(
         return null;
       }
 
-      for (const key of materializedItems.keys()) {
-        if (key.endsWith(`:${wireEvent[1]}`)) materializedItems.delete(key);
-      }
+      if (!isItemIdentity(wireEvent[1]))
+        throw new TypeError("ITEM_DELETED requires a collection-scoped identity");
+      materializedItems.delete(itemIdentityKey(wireEvent[1]));
       return {
         type: EventType.ITEM_DELETED,
         item: wireEvent[1],
@@ -867,7 +889,8 @@ function fromWireEvent(
     }
 
     case EventType.COLLECTION_SCHEMA: {
-      const [, collection, displayName, schema, i18n, maybeHashOrIndex, maybeIndex] = wireEvent;
+      const [, collection, displayName, schema, i18n, maybeHashOrIndex, maybeIndex, refTargets] =
+        wireEvent;
       const index = typeof maybeHashOrIndex === "number" ? maybeHashOrIndex : maybeIndex;
       if (typeof index !== "number") {
         console.warn("Ignoring COLLECTION_SCHEMA event without sync index");
@@ -879,6 +902,7 @@ function fromWireEvent(
         displayName,
         schema,
         i18n: i18n ?? undefined,
+        refTargets,
         index,
       };
     }
@@ -889,6 +913,23 @@ function fromWireEvent(
         console.warn("Ignoring COLLECTION_RENAMED event without sync index");
         return null;
       }
+      if (oldName !== newName) {
+        const renamedItems: Array<[string, WireItem]> = [];
+        for (const [, item] of materializedItems) {
+          const renamed: WireItem = [...item];
+          if (renamed[1] === oldName) renamed[1] = newName;
+          renamed[3] = rewriteCollectionIdentity(renamed[3], oldName, newName) as Record<
+            string,
+            unknown
+          >;
+          if (renamed.length > 4) {
+            renamed[4] = rewriteCollectionIdentity(renamed[4], oldName, newName) as unknown[];
+          }
+          renamedItems.push([itemStateKey(renamed[1], item[0]), renamed]);
+        }
+        materializedItems.clear();
+        for (const [key, item] of renamedItems) materializedItems.set(key, item);
+      }
       return { type: EventType.COLLECTION_RENAMED, oldName, newName, newDisplayName, index };
     }
 
@@ -897,6 +938,9 @@ function fromWireEvent(
       if (typeof index !== "number") {
         console.warn("Ignoring COLLECTION_REMOVED event without sync index");
         return null;
+      }
+      for (const [key, item] of materializedItems) {
+        if (item[1] === collection) materializedItems.delete(key);
       }
       return { type: EventType.COLLECTION_REMOVED, collection, index };
     }

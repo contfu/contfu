@@ -135,11 +135,11 @@ describe("generateTypeScript", () => {
     expect(ts).toContain("summary: string | string[] | number | number[];");
   });
 
-  it("generates string for REF without refTargets", () => {
+  it("generates identity for REF without refTargets", () => {
     const ts = generateTypeScript([
       { name: "blogPosts", displayName: "Blog Posts", schema: { author: PropertyType.REF } },
     ]);
-    expect(ts).toContain("author: string;");
+    expect(ts).toContain("author: [collection: string, id: number];");
   });
 
   it("generates interface name for REF with single target", () => {
@@ -274,11 +274,11 @@ describe("generateTypeScript", () => {
     expect(ts).toContain("token: string | Color;");
   });
 
-  it("generates string[] for REFS without refTargets", () => {
+  it("generates identities for REFS without refTargets", () => {
     const ts = generateTypeScript([
       { name: "blogPosts", displayName: "Blog Posts", schema: { tags: PropertyType.REFS } },
     ]);
-    expect(ts).toContain("tags: string[];");
+    expect(ts).toContain("tags: [collection: string, id: number][];");
   });
 
   it("generates FileMetadata for FILE", () => {
@@ -608,7 +608,7 @@ describe("generated types compile-time checks", () => {
     );
   });
 
-  it("REF without target compiles: property is plain string", async () => {
+  it("REF without target compiles: property is scoped identity", async () => {
     const generated = generateTypeScript([
       {
         name: "blogPosts",
@@ -621,9 +621,9 @@ describe("generated types compile-time checks", () => {
       generated +
         `
         const post: BlogPosts = {} as BlogPosts;
-        const ref: string = post.externalRef;
+        const ref: [string, number] = post.externalRef;
       `,
-      "REF without target is string",
+      "REF without target is scoped identity",
     );
   });
 

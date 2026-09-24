@@ -189,7 +189,7 @@ function requestCloudRepair(file: typeof fileTable.$inferSelect): void {
   const rows = db
     .select({ itemId: itemsTable.id, collection: itemsTable.collection })
     .from(itemFileTable)
-    .innerJoin(itemsTable, eq(itemsTable.id, itemFileTable.itemId))
+    .innerJoin(itemsTable, eq(itemsTable.identity, itemFileTable.itemId))
     .where(eq(itemFileTable.fileId, file.id))
     .all();
   const byCollection = new Map<string, number[]>();
@@ -482,12 +482,12 @@ function updateItemFileReferences(
   const to = `${id}.${nextExt}`;
   const items = db
     .select({
-      id: itemsTable.id,
+      id: itemsTable.identity,
       content: itemsTable.content,
       props: itemsTable.props,
     })
     .from(itemFileTable)
-    .innerJoin(itemsTable, eq(itemsTable.id, itemFileTable.itemId))
+    .innerJoin(itemsTable, eq(itemsTable.identity, itemFileTable.itemId))
     .where(eq(itemFileTable.fileId, file.id))
     .all();
 
@@ -500,7 +500,7 @@ function updateItemFileReferences(
           ...(content !== item.content ? { content: content as typeof item.content } : {}),
           ...(props !== item.props ? { props: props as typeof item.props } : {}),
         })
-        .where(eq(itemsTable.id, item.id))
+        .where(eq(itemsTable.identity, item.id))
         .run();
     }
   }

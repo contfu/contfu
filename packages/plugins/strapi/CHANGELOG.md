@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.2.7] - 2026-09-24
+
+### Added
+
+- Support scheduled publication metadata and improve webhook hydration and relation identity handling.
+
+## [0.2.6] - 2026-09-20
+
+### Added
+
+- Add localized Strapi v5 target delivery.
+
+## [0.2.5] - 2026-09-18
+
+### Added
+
+- Authenticated Strapi v5 localized-target schema, document lookup and per-locale unpublish operations, with content-type-scoped token authorization.
+
 ## [0.2.4] - 2026-09-16
 
 ### Added

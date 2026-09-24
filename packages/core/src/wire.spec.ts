@@ -8,6 +8,25 @@ import {
 import { ClientEventType, EventType } from "./events";
 
 describe("wire item sparse patches", () => {
+  test("never inherits properties or content from another collection with the same managed ID", () => {
+    const previous: WireItem = [1, "source", 1, { original: "Before" }, [["p", ["source body"]]]];
+    const next: WireItem = [1, "target", 2, { title: "Native edit" }];
+    expect(diffWireItemPatch(previous, next)).toEqual(next);
+    expect(() =>
+      materializeWireItemPatch([1, "target", 2, { title: "Native edit" }], previous),
+    ).toThrow("different collection-scoped identity");
+    expect(previous).toEqual([1, "source", 1, { original: "Before" }, [["p", ["source body"]]]]);
+  });
+
+  test("never reuses a patch baseline for a different managed ID in the same collection", () => {
+    const previous: WireItem = [1, "posts", 1, { title: "One" }];
+    const next: WireItem = [2, "posts", 2, { title: "Two" }];
+    expect(diffWireItemPatch(previous, next)).toEqual(next);
+    expect(() => materializeWireItemPatch([2, "posts", 2], previous)).toThrow(
+      "different collection-scoped identity",
+    );
+  });
+
   test("patches props shallowly and deletes null props", () => {
     const previous: WireItem = [1, "posts", 1, { a: 1, b: 2 }];
     const next = materializeWireItemPatch([1, "posts", 2, { a: 3, b: null }], previous);

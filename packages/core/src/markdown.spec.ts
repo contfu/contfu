@@ -188,7 +188,7 @@ describe("renderBlockMarkdown", () => {
   test("anchor with custom inline renderer", () => {
     expect(
       renderInlineMarkdown(["a", "click", "/x"], {
-        inlines: { a: ([, text, href]) => `<<${text}->${href}>>` },
+        inlines: { a: ([, text, href]) => `<<${text}->${String(href)}>>` },
       }),
     ).toBe("<<click->/x>>");
   });

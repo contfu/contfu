@@ -1,3 +1,4 @@
+import { isItemIdentity, itemIdentityKey, type ItemIdentity } from "@contfu/core";
 import { and, eq, gt, gte, like, lt, lte, ne, not, or, sql, type SQL } from "drizzle-orm";
 import { internalLinkTable, itemsTable } from "../db/schema";
 import { basenameExpr, depthExpr, parentExpr } from "./path-helpers";
@@ -6,7 +7,7 @@ import type { FilterAST } from "./types";
 const DIRECT_COLUMNS: Record<string, SQL> = {
   $collection: sql`${itemsTable.collection}`,
   $changedAt: sql`${itemsTable.changedAt}`,
-  $id: sql`${itemsTable.id}`,
+  $id: sql`${itemsTable.identity}`,
   $locale: sql`${itemsTable.locale}`,
 };
 
@@ -28,9 +29,12 @@ function getColumn(field: string): SQL {
   return jsonExtract(field);
 }
 
-function compileValue(field: string, value: string | number | boolean | null): SQL {
+function compileValue(field: string, value: string | number | boolean | null | ItemIdentity): SQL {
   if (value === null) return sql`NULL`;
-  if (field === "$id") return sql`${value}`;
+  if (field === "$id" || isItemIdentity(value)) {
+    if (!isItemIdentity(value)) throw new Error("$id requires [collection, id]");
+    return sql`${itemIdentityKey(value)}`;
+  }
   if (typeof value === "boolean") return value ? sql`1` : sql`0`;
   return sql`${value}`;
 }
@@ -44,25 +48,25 @@ export function compileFilter(ast: FilterAST): SQL {
 
     case "function": {
       if (ast.name === "linksTo") {
-        if (typeof ast.value !== "string" && typeof ast.value !== "number") {
+        if (!isItemIdentity(ast.value)) {
           throw new Error("linksTo requires a target item ID");
         }
         const prop = ast.args[0];
         const propCondition = prop
           ? sql`${internalLinkTable.prop} = ${prop}`
           : sql`${internalLinkTable.prop} IS NULL`;
-        return sql`EXISTS (SELECT 1 FROM ${internalLinkTable} WHERE ${internalLinkTable.from} = ${itemsTable.id} AND ${propCondition} AND ${internalLinkTable.to} = ${Number(ast.value)})`;
+        return sql`EXISTS (SELECT 1 FROM ${internalLinkTable} WHERE ${internalLinkTable.from} = ${itemsTable.identity} AND ${propCondition} AND ${internalLinkTable.to} = ${itemIdentityKey(ast.value)})`;
       }
       if (ast.name === "linkedFrom") {
-        if (typeof ast.value !== "string" && typeof ast.value !== "number") {
+        if (!isItemIdentity(ast.value)) {
           throw new Error("linkedFrom requires a source item ID");
         }
         const prop = ast.args[0];
-        const sourceId = Number(ast.value);
+        const sourceId = itemIdentityKey(ast.value);
         const propCondition = prop
           ? sql`${internalLinkTable.prop} = ${prop}`
           : sql`${internalLinkTable.prop} IS NULL`;
-        return sql`EXISTS (SELECT 1 FROM ${internalLinkTable} WHERE ${internalLinkTable.to} = ${itemsTable.id} AND ${propCondition} AND ${internalLinkTable.from} = ${sourceId})`;
+        return sql`EXISTS (SELECT 1 FROM ${internalLinkTable} WHERE ${internalLinkTable.to} = ${itemsTable.identity} AND ${propCondition} AND ${internalLinkTable.from} = ${sourceId})`;
       }
       const fn = FUNCTION_MAP[ast.name];
       if (!fn) throw new Error(`Unknown function: ${ast.name}`);
@@ -89,7 +93,7 @@ function compileComparison(
   field: string,
   col: SQL,
   op: string,
-  value: string | number | boolean | null | SQL,
+  value: string | number | boolean | null | ItemIdentity | SQL,
 ): SQL {
   const val = isSql(value) ? value : compileValue(field, value);
 

@@ -69,7 +69,7 @@ describe("default rich-content URL policy", () => {
   test("custom HTML anchor renderers receive the original anchor", () => {
     expect(
       renderInline(hostile, {
-        inlines: { a: (inline) => `<custom>${inline[2]}</custom>` },
+        inlines: { a: (inline) => `<custom>${String(inline[2])}</custom>` },
       }),
     ).toBe("<custom>Ja\tvaScript:alert(1)</custom>");
   });
@@ -77,7 +77,7 @@ describe("default rich-content URL policy", () => {
   test("custom Markdown anchor renderers receive the original anchor", () => {
     expect(
       renderInlineMarkdown(hostile, {
-        inlines: { a: (inline) => `<custom>${inline[2]}</custom>` },
+        inlines: { a: (inline) => `<custom>${String(inline[2])}</custom>` },
       }),
     ).toBe("<custom>Ja\tvaScript:alert(1)</custom>");
   });

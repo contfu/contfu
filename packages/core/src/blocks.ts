@@ -1,3 +1,4 @@
+import type { ItemIdentity } from "./item-identity";
 export type QuoteBlock = [type: "q", text: (Inline | Block)[]];
 export type ParagraphBlock = [type: "p", text: Inline[]];
 export type CodeBlock = [type: "c", lang: string, text: string];
@@ -30,7 +31,7 @@ export type BuiltInBlock =
 
 export type Block = BuiltInBlock | Component;
 
-export type Anchor = [type: "a", text: string, href: string];
+export type Anchor = [type: "a", text: string, href: string | ItemIdentity];
 export type Code = [type: "c", text: string];
 export type Bold = [type: "b", text: string];
 export type Italic = [type: "i", text: string];

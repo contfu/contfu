@@ -30,8 +30,8 @@ export type EverythingProps = {
   nums: number[];
   color: Color;
   bool: boolean;
-  ref: string;
-  refs: string[];
+  ref: [collection: string, id: number];
+  refs: [collection: string, id: number][];
   file: FileMetadata;
   files: FileMetadata[];
   date: number;

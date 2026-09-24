@@ -1,4 +1,4 @@
-import { SYSTEM_FIELD_SET } from "@contfu/core";
+import { isItemIdentity, SYSTEM_FIELD_SET } from "@contfu/core";
 import { TokenType, type Token } from "./types";
 
 /** A scanned token together with the index to resume lexing from. */
@@ -106,6 +106,30 @@ export function tokenize(input: string): Token[] {
 
     if (WHITESPACE.has(ch)) {
       i++;
+      continue;
+    }
+
+    if (ch === "[") {
+      let end = i + 1;
+      let quoted = false;
+      let escaped = false;
+      for (; end < input.length; end++) {
+        const next = input[end];
+        if (escaped) {
+          escaped = false;
+          continue;
+        }
+        if (quoted && next === "\\") {
+          escaped = true;
+          continue;
+        }
+        if (next === '"') quoted = !quoted;
+        if (!quoted && next === "]") break;
+      }
+      const value = input.slice(i, end + 1);
+      if (!isItemIdentity(JSON.parse(value))) throw new Error("Expected [collection, id] identity");
+      tokens.push({ type: TokenType.Identity, value });
+      i = end + 1;
       continue;
     }
 

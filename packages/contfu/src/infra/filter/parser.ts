@@ -1,3 +1,4 @@
+import type { ItemIdentity } from "@contfu/core";
 import { TokenType, type ComparisonOp, type FilterAST, type Token } from "./types";
 
 const OP_TOKEN_MAP: Record<number, ComparisonOp> = {
@@ -122,10 +123,14 @@ export function parse(tokens: Token[]): FilterAST {
     throw new Error(`Unexpected token: ${t.value} at position ${pos}`);
   }
 
-  function parseValue(): string | number | boolean | null {
+  function parseValue(): string | number | boolean | null | ItemIdentity {
     const t = peek();
     if (!t) throw new Error("Unexpected end of input, expected value");
 
+    if (t.type === TokenType.Identity) {
+      advance();
+      return JSON.parse(t.value) as ItemIdentity;
+    }
     if (t.type === TokenType.String) {
       advance();
       return t.value;

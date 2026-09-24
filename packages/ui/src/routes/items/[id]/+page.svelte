@@ -7,7 +7,7 @@
   import * as Card from "$lib/components/ui/card";
   import * as HoverCard from "$lib/components/ui/hover-card";
   import { subscribeLiveEvent } from "$lib/live/event-source";
-  import type { Inline } from "@contfu/core";
+  import { isItemIdentity, itemIdentityKey, type Inline } from "@contfu/core";
   import type { FileData, ItemData } from "@contfu/contfu";
   import { onMount } from "svelte";
 
@@ -29,22 +29,31 @@
   const fileIdSet = $derived(new Set(typedFiles.map((a) => a.id)));
   const idsToCheck = $derived.by(() => {
     const candidateIds = new Set<string>();
+    const identityIds = new Set<string>();
+    const addCandidate = (candidate: unknown) => {
+      if (isItemIdentity(candidate)) {
+        const identity = itemIdentityKey(candidate);
+        candidateIds.add(identity);
+        identityIds.add(identity);
+      } else if (typeof candidate === "string") {
+        candidateIds.add(candidate);
+      }
+    };
     for (const val of Object.values(itemProps)) {
-      if (typeof val === "string") {
-        candidateIds.add(val);
-      } else if (Array.isArray(val)) {
-        for (const elem of val) {
-          if (typeof elem === "string") candidateIds.add(elem);
-        }
+      if (Array.isArray(val) && !isItemIdentity(val)) {
+        for (const elem of val) addCandidate(elem);
+      } else {
+        addCandidate(val);
       }
     }
 
     return [...candidateIds].filter(
       (v) =>
-        !v.startsWith("http://") &&
-        !v.startsWith("https://") &&
-        !fileIdSet.has(v) &&
-        CANDIDATE_ID_RE.test(v),
+        identityIds.has(v) ||
+        (!v.startsWith("http://") &&
+          !v.startsWith("https://") &&
+          !fileIdSet.has(v) &&
+          CANDIDATE_ID_RE.test(v)),
     );
   });
   const lookupResults = $derived(await Promise.all(
@@ -61,6 +70,20 @@
   );
   let fileMap = $derived(new Map(typedFiles.map((a) => [a.id, a])));
   let linkedItemMap = $derived(new Map(Object.entries(linkedItems) as [string, ItemData][]));
+
+  function linkedItemKey(value: unknown): string | null {
+    return isItemIdentity(value) ? itemIdentityKey(value) : typeof value === "string" ? value : null;
+  }
+
+  function linkedItem(value: unknown): ItemData | null {
+    const key = linkedItemKey(value);
+    return key === null ? null : (linkedItemMap.get(key) ?? null);
+  }
+
+  function linkedItemHref(value: unknown): string {
+    const key = linkedItemKey(value);
+    return `/items/${key === null ? "" : isItemIdentity(value) ? encodeURIComponent(key) : key}`;
+  }
 
   function linkedItemTitle(item: ItemData): string {
     const props = (item.props ?? {}) as Record<string, unknown>;
@@ -252,15 +275,15 @@
                               {element}
                             </p>
                           </div>
-                        {:else if typeof element === "string" && linkedItemMap.has(element)}
-                          {@const linked = linkedItemMap.get(element)!}
+                        {:else if linkedItem(element)}
+                          {@const linked = linkedItem(element)!}
                           <HoverCard.Root>
                             <HoverCard.Trigger>
                               <Button
                                 variant="link"
                                 size="sm"
                                 class="h-auto gap-1.5 p-0"
-                                href={`/items/${element}`}
+                                href={linkedItemHref(element)}
                               >
                                 {@const iconUrl = linkedItemIconUrl(linked)}
                                 {#if iconUrl}
@@ -325,15 +348,15 @@
                       {/if}
                       <p class="text-xs text-muted-foreground">{value}</p>
                     </div>
-                  {:else if typeof value === "string" && linkedItemMap.has(value)}
-                    {@const linked = linkedItemMap.get(value)!}
+                  {:else if linkedItem(value)}
+                    {@const linked = linkedItem(value)!}
                     <HoverCard.Root>
                       <HoverCard.Trigger>
                         <Button
                           variant="link"
                           size="sm"
                           class="h-auto gap-1.5 p-0"
-                          href={`/items/${value}`}
+                          href={linkedItemHref(value)}
                         >
                           {@const iconUrl = linkedItemIconUrl(linked)}
                           {#if iconUrl}
@@ -440,7 +463,7 @@
                     {:else if Array.isArray(part)}
                       {#if part[0] === "a"}
                         <a
-                          href={part[2]}
+                          href={typeof part[2] === "string" ? part[2] : undefined}
                           target="_blank"
                           rel="noopener noreferrer"
                           class="underline"

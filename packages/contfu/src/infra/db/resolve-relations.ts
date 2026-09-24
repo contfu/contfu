@@ -1,8 +1,9 @@
-import { eq, inArray } from "drizzle-orm";
+import { isItemIdentity, PropertyType, schemaType, type ItemIdentity } from "@contfu/core";
+import { and, eq, inArray } from "drizzle-orm";
 import type { IncludeOption, PlainDateOutput, WithClause } from "@contfu/core";
 import type { ItemWithRelations } from "../../domain/query-types";
 import { db, type DbCtx } from "./db";
-import { internalLinkTable } from "./schema";
+import { collectionsTable, internalLinkTable } from "./schema";
 
 const MAX_DEPTH = 3;
 
@@ -60,23 +61,45 @@ export function resolveRelations(
   }
 }
 
-function resolveLinkId(linkId: number, ctx: DbCtx): number | null {
+function resolveLinkId(
+  linkId: number,
+  owner: ItemIdentity,
+  prop: string,
+  ctx: DbCtx,
+): ItemIdentity | null {
   const row = ctx
     .select({ to: internalLinkTable.to })
     .from(internalLinkTable)
-    .where(eq(internalLinkTable.id, linkId))
+    .where(
+      and(
+        eq(internalLinkTable.id, linkId),
+        eq(internalLinkTable.from, owner),
+        eq(internalLinkTable.prop, prop),
+      ),
+    )
     .get();
   return row?.to ?? null;
 }
 
-function resolveLinkIds(linkIds: number[], ctx: DbCtx): number[] {
+function resolveLinkIds(
+  linkIds: number[],
+  owner: ItemIdentity,
+  prop: string,
+  ctx: DbCtx,
+): ItemIdentity[] {
   if (linkIds.length === 0) return [];
   const rows = ctx
     .select({ id: internalLinkTable.id, to: internalLinkTable.to })
     .from(internalLinkTable)
-    .where(inArray(internalLinkTable.id, linkIds))
+    .where(
+      and(
+        inArray(internalLinkTable.id, linkIds),
+        eq(internalLinkTable.from, owner),
+        eq(internalLinkTable.prop, prop),
+      ),
+    )
     .all();
-  const idMap = new Map<number, number>();
+  const idMap = new Map<number, ItemIdentity>();
   for (const row of rows) idMap.set(row.id, row.to);
   return linkIds.filter((id) => idMap.has(id)).map((id) => idMap.get(id)!);
 }
@@ -93,22 +116,39 @@ function substitutePlaceholders(
 
     const value = item[path];
 
-    if (path === "$id") return String(item.$id);
+    if (path === "$id") return JSON.stringify(item.$id);
     if (path === "$collection") return `"${item.$collection}"`;
     if (path === "$changedAt") return String(item.$changedAt);
     if (path === "$deletedAt") return item.$deletedAt == null ? "null" : String(item.$deletedAt);
 
     if (value === null || value === undefined) return "null";
 
+    const schema = ctx
+      .select({ schema: collectionsTable.schema })
+      .from(collectionsTable)
+      .where(eq(collectionsTable.name, item.$collection))
+      .get()?.schema;
+    const type = schema?.[path] == null ? undefined : schemaType(schema[path]);
+
     if (typeof value === "number") {
-      const resolved = resolveLinkId(value, ctx);
-      return resolved !== null ? String(resolved) : String(value);
+      // Link IDs are persisted in item props independently of the schema
+      // metadata. Resolve an exact owner/property match even for legacy
+      // collections whose schema omitted REF; ordinary numeric props remain
+      // numeric when no matching link exists.
+      const resolved = resolveLinkId(value, item.$id, path, ctx);
+      if (resolved !== null) return JSON.stringify(resolved);
+      if (type === PropertyType.REF) return "null";
     }
 
-    if (Array.isArray(value)) {
+    if (isItemIdentity(value)) return JSON.stringify(value);
+
+    if (
+      Array.isArray(value) &&
+      (type === PropertyType.REFS || value.some((v) => typeof v === "number"))
+    ) {
       const nums = value.filter((v): v is number => typeof v === "number");
-      const resolved = resolveLinkIds(nums, ctx);
-      return JSON.stringify(resolved);
+      const resolved = resolveLinkIds(nums, item.$id, path, ctx);
+      if (resolved.length > 0 || type === PropertyType.REFS) return JSON.stringify(resolved);
     }
 
     if (typeof value === "string") return JSON.stringify(value);

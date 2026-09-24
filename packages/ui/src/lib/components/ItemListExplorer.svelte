@@ -135,7 +135,7 @@
 {/snippet}
 
 {#snippet idCell({ row }: { row: Row<any, ItemData> })}
-  <Button class="h-auto p-0 font-mono text-xs" variant="link" href={`/items/${row.original.id}`}>
+  <Button class="h-auto p-0 font-mono text-xs" variant="link" href={`/items/${encodeURIComponent(JSON.stringify([row.original.collection, row.original.id]))}`}>
     {row.original.id}
   </Button>
 {/snippet}

@@ -83,6 +83,7 @@ describe("processFiles", () => {
 
     const result = await processFiles({
       itemId,
+      collection: "test",
       content,
       fileStore,
       mediaOptimizer,
@@ -114,14 +115,26 @@ describe("processFiles", () => {
     const content: Block[] = [makeImageBlock("https://example.com/photo.png")];
 
     // First Contfu runtime call creates the File
-    await processFiles({ itemId, content: [...content], fileStore, mediaOptimizer });
+    await processFiles({
+      itemId,
+      collection: "test",
+      content: [...content],
+      fileStore,
+      mediaOptimizer,
+    });
 
     // Reset mocks
     (mediaOptimizer.optimize as ReturnType<typeof mock>).mockClear();
 
     // Second Contfu runtime call with same URL should skip download but still link
     const content2: Block[] = [makeImageBlock("https://example.com/photo.png")];
-    await processFiles({ itemId, content: content2, fileStore, mediaOptimizer });
+    await processFiles({
+      itemId,
+      collection: "test",
+      content: content2,
+      fileStore,
+      mediaOptimizer,
+    });
 
     expect(mediaOptimizer.optimize).not.toHaveBeenCalled();
 
@@ -133,7 +146,12 @@ describe("processFiles", () => {
   test("requeues a failed file when refreshed content provides a new signed URL", async () => {
     const fileStore = makeFileStore();
     const firstUrl = "https://example.com/photo.png?token=expired";
-    await processFiles({ itemId, content: [makeImageBlock(firstUrl)], fileStore });
+    await processFiles({
+      itemId,
+      collection: "test",
+      content: [makeImageBlock(firstUrl)],
+      fileStore,
+    });
     const file = db.select().from(fileTable).get()!;
     db.update(fileTable)
       .set({ status: FileStatus.Failed, meta: { ...file.meta, attempts: 1, error: "HTTP 403" } })
@@ -141,6 +159,7 @@ describe("processFiles", () => {
 
     await processFiles({
       itemId,
+      collection: "test",
       content: [makeImageBlock("https://example.com/photo.png?token=fresh")],
       fileStore,
     });
@@ -168,6 +187,7 @@ describe("processFiles", () => {
     // Process same image for item 1
     await processFiles({
       itemId,
+      collection: "test",
       content: [makeImageBlock("https://example.com/shared.png")],
       fileStore,
       mediaOptimizer,
@@ -177,6 +197,7 @@ describe("processFiles", () => {
     (mediaOptimizer.optimize as ReturnType<typeof mock>).mockClear();
     await processFiles({
       itemId: itemId2,
+      collection: "test",
       content: [makeImageBlock("https://example.com/shared.png")],
       fileStore,
       mediaOptimizer,
@@ -201,7 +222,13 @@ describe("processFiles", () => {
       ["1", ["Heading"]],
     ];
 
-    const result = await processFiles({ itemId, content, fileStore, mediaOptimizer });
+    const result = await processFiles({
+      itemId,
+      collection: "test",
+      content,
+      fileStore,
+      mediaOptimizer,
+    });
 
     expect(result).toBe(content);
     expect(mediaOptimizer.optimize).not.toHaveBeenCalled();
@@ -216,7 +243,13 @@ describe("processFiles", () => {
     const mediaOptimizer = makeMediaOptimizer();
     const content: Block[] = [makeImageBlock("https://example.com/missing.png")];
 
-    const result = await processFiles({ itemId, content, fileStore, mediaOptimizer });
+    const result = await processFiles({
+      itemId,
+      collection: "test",
+      content,
+      fileStore,
+      mediaOptimizer,
+    });
 
     expect(result).toHaveLength(1);
     expect(mediaOptimizer.optimize).not.toHaveBeenCalled();
@@ -230,6 +263,7 @@ describe("processFiles", () => {
 
     const result = await processFiles({
       itemId,
+      collection: "test",
       content,
       fileStore,
     });
@@ -275,6 +309,7 @@ describe("processFiles", () => {
 
     await processFiles({
       itemId,
+      collection: "test",
       content: [makeImageBlock("https://example.com/photo.png")],
       fileStore,
       mediaOptimizer,
@@ -286,7 +321,7 @@ describe("processFiles", () => {
     expect(rows[0].meta.width).toBe(1);
     expect(rows[0].meta.height).toBe(1);
 
-    const files = getFilesByItem(itemId);
+    const files = getFilesByItem(["test", itemId]);
     expect(files).toHaveLength(1);
     expect(files[0]).toMatchObject({ width: 1, height: 1 });
     expect(files[0]).not.toHaveProperty("data");
@@ -320,6 +355,7 @@ describe("processFiles", () => {
 
     const content = await processFiles({
       itemId,
+      collection: "test",
       content: [makeImageBlock("https://cloud.example/api/files/handle")],
       fileStore,
     });
@@ -366,6 +402,7 @@ describe("processFiles", () => {
 
     const content = await processFiles({
       itemId,
+      collection: "test",
       content: [makeImageBlock("https://example.com/download")],
       fileStore,
     });
@@ -395,6 +432,7 @@ describe("processFiles", () => {
 
     const content = await processFiles({
       itemId,
+      collection: "test",
       content: [makeImageBlock("https://example.com/photo.jpg")],
       fileStore,
       mediaOptimizer,
@@ -420,6 +458,7 @@ describe("processFiles", () => {
 
     const props = await processPropertyFiles({
       itemId,
+      collection: "test",
       props: {
         asset: "https://cloud.example/api/files/document",
         assets: ["https://cloud.example/api/files/document"],
@@ -455,14 +494,26 @@ describe("processFiles", () => {
     const url2 = "https://s3.amazonaws.com/bucket/image.png?X-Amz-Signature=def456&expires=200";
 
     const content1: Block[] = [makeImageBlock(url1)];
-    await processFiles({ itemId, content: content1, fileStore, mediaOptimizer });
+    await processFiles({
+      itemId,
+      collection: "test",
+      content: content1,
+      fileStore,
+      mediaOptimizer,
+    });
 
     const id1 = (content1[0] as ImageBlock)[1];
 
     (mediaOptimizer.optimize as ReturnType<typeof mock>).mockClear();
 
     const content2: Block[] = [makeImageBlock(url2)];
-    await processFiles({ itemId, content: content2, fileStore, mediaOptimizer });
+    await processFiles({
+      itemId,
+      collection: "test",
+      content: content2,
+      fileStore,
+      mediaOptimizer,
+    });
 
     const id2 = (content2[0] as ImageBlock)[1];
 
@@ -476,8 +527,8 @@ describe("processFiles", () => {
     const first: Block[] = [makeImageBlock("https://tenant-a.example/logo.png?token=old")];
     const second: Block[] = [makeImageBlock("https://tenant-b.example/logo.png?token=new")];
 
-    await processFiles({ itemId, content: first, fileStore });
-    await processFiles({ itemId, content: second, fileStore });
+    await processFiles({ itemId, collection: "test", content: first, fileStore });
+    await processFiles({ itemId, collection: "test", content: second, fileStore });
 
     expect((first[0] as ImageBlock)[1]).not.toBe((second[0] as ImageBlock)[1]);
     expect(db.select().from(fileTable).all()).toHaveLength(2);
@@ -488,7 +539,7 @@ describe("processFiles", () => {
     const content: Block[] = [makeImageBlock(legacyRef)];
     const linked = new Set<string>();
 
-    await processFiles({ itemId, content, fileStore: makeFileStore(), linked });
+    await processFiles({ itemId, collection: "test", content, fileStore: makeFileStore(), linked });
 
     expect((content[0] as ImageBlock)[1]).toBe(legacyRef);
     expect(linked).toEqual(new Set(["d4d2f8a02a5a16b9"]));
@@ -520,7 +571,7 @@ describe("processFiles", () => {
       makeImageBlock("https://example.com/b.png"),
     ];
 
-    await processFiles({ itemId, content, fileStore });
+    await processFiles({ itemId, collection: "test", content, fileStore });
 
     // Both fetches should have started before either completed
     const firstEnd = callOrder.findIndex((e) => e.startsWith("end:"));
@@ -539,7 +590,7 @@ describe("processFiles", () => {
       makeImageBlock("https://example.com/same.png"),
     ];
 
-    await processFiles({ itemId, content, fileStore, mediaOptimizer });
+    await processFiles({ itemId, collection: "test", content, fileStore, mediaOptimizer });
 
     // Should only download once despite two blocks
     expect(globalThis.fetch).toHaveBeenCalledTimes(0);
@@ -555,7 +606,14 @@ describe("processFiles", () => {
     const transformMedia: TransformMediaRule[] = [{ mediaType: "image", include: ["jpg", "jpeg"] }];
     const content: Block[] = [makeImageBlock("https://example.com/photo.png")];
 
-    await processFiles({ itemId, content, fileStore, mediaOptimizer, transformMedia });
+    await processFiles({
+      itemId,
+      collection: "test",
+      content,
+      fileStore,
+      mediaOptimizer,
+      transformMedia,
+    });
 
     // PNG not in whitelist → optimizer should NOT be called
     expect(mediaOptimizer.optimize).not.toHaveBeenCalled();
@@ -574,7 +632,14 @@ describe("processFiles", () => {
     ];
     const content: Block[] = [makeImageBlock("https://example.com/photo.png")];
 
-    await processFiles({ itemId, content, fileStore, mediaOptimizer, transformMedia });
+    await processFiles({
+      itemId,
+      collection: "test",
+      content,
+      fileStore,
+      mediaOptimizer,
+      transformMedia,
+    });
 
     // PNG is in whitelist → optimizer should be called
     expect(mediaOptimizer.optimize).toHaveBeenCalledTimes(0);
@@ -586,7 +651,14 @@ describe("processFiles", () => {
     const transformMedia: TransformMediaRule[] = [{ mediaType: "image", exclude: ["png"] }];
     const content: Block[] = [makeImageBlock("https://example.com/photo.png")];
 
-    await processFiles({ itemId, content, fileStore, mediaOptimizer, transformMedia });
+    await processFiles({
+      itemId,
+      collection: "test",
+      content,
+      fileStore,
+      mediaOptimizer,
+      transformMedia,
+    });
 
     // PNG is blacklisted → optimizer should NOT be called
     expect(mediaOptimizer.optimize).not.toHaveBeenCalled();
@@ -602,7 +674,14 @@ describe("processFiles", () => {
     const transformMedia: TransformMediaRule[] = [{ mediaType: "image", exclude: ["gif"] }];
     const content: Block[] = [makeImageBlock("https://example.com/photo.png")];
 
-    await processFiles({ itemId, content, fileStore, mediaOptimizer, transformMedia });
+    await processFiles({
+      itemId,
+      collection: "test",
+      content,
+      fileStore,
+      mediaOptimizer,
+      transformMedia,
+    });
 
     // PNG is not blacklisted → optimizer should be called
     expect(mediaOptimizer.optimize).toHaveBeenCalledTimes(0);
@@ -684,6 +763,7 @@ describe("processPropertyFiles", () => {
 
     const result = await processPropertyFiles({
       itemId,
+      collection: "test",
       props: { cover: "https://example.com/cover.png", title: "Hello" },
       schema: { cover: PropertyType.FILE, title: PropertyType.STRING },
       fileStore,
@@ -702,6 +782,7 @@ describe("processPropertyFiles", () => {
 
     const result = await processPropertyFiles({
       itemId,
+      collection: "test",
       props: {
         images: ["https://example.com/a.png", "https://example.com/b.jpg"],
       },
@@ -724,6 +805,7 @@ describe("processPropertyFiles", () => {
 
     const image = await processPropertyFiles({
       itemId,
+      collection: "test",
       props: { icon: "https://example.com/icon.png" },
       schema,
       fileStore,
@@ -731,6 +813,7 @@ describe("processPropertyFiles", () => {
     });
     const emoji = await processPropertyFiles({
       itemId,
+      collection: "test",
       props: { icon: "🎉" },
       schema,
       fileStore,
@@ -747,6 +830,7 @@ describe("processPropertyFiles", () => {
 
     const result = await processPropertyFiles({
       itemId,
+      collection: "test",
       props: { title: "Hello", count: 42 },
       schema: { title: PropertyType.STRING, count: PropertyType.NUMBER },
       fileStore,
@@ -764,6 +848,7 @@ describe("processPropertyFiles", () => {
 
     const result = await processPropertyFiles({
       itemId,
+      collection: "test",
       props: { cover: null },
       schema: { cover: PropertyType.FILE },
       fileStore,

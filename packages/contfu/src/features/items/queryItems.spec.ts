@@ -137,7 +137,7 @@ describe("queryItems", () => {
   });
 
   test("filters soft-deleted items by default and can include or select them", () => {
-    deleteItem(2);
+    deleteItem(["articles", 2]);
 
     const active = queryItems({ sortDirection: "asc" });
     expect(active.items.map((item) => item.id)).toEqual([1, 3]);

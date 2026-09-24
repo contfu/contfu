@@ -268,14 +268,14 @@ function createCollectionItemsHandler(i18n: ServerI18nOptions) {
 
 function handleItemFiles(request: RouteRequest) {
   const id = Number(decodeURIComponent(request.params.id));
-  if (!Number.isInteger(id) || id <= 0) return text("Invalid item id", 400);
-  return json(getFilesByItem(id));
+  if (!Number.isSafeInteger(id) || id <= 0) return text("Invalid item id", 400);
+  return json(getFilesByItem([decodeURIComponent(request.params.collection), id]));
 }
 
 function handleItemById(request: RouteRequest) {
   const url = new URL(request.url);
   const id = Number(decodeURIComponent(request.params.id));
-  if (!Number.isInteger(id) || id <= 0) return text("Invalid item id", 400);
+  if (!Number.isSafeInteger(id) || id <= 0) return text("Invalid item id", 400);
   const query = deserializeQueryParams(url.searchParams);
   if ("error" in query) {
     return text(query.error, 400);
@@ -300,7 +300,7 @@ function handleItemById(request: RouteRequest) {
   if (onlyDeleted) options.onlyDeleted = true;
   if (plainDatesAs) options.plainDatesAs = plainDatesAs;
 
-  const item = getItemById(id, options);
+  const item = getItemById([decodeURIComponent(request.params.collection), id], options);
   if (!item) {
     return text("Item not found", 404);
   }
@@ -530,8 +530,8 @@ export function createServeOptions(opts: ServerOptions = {}) {
       "/api/query-items": route(handleQueryItems),
       "/api/items": route(createItemsHandler(i18n)),
       "/api/collections/:name/items": route(createCollectionItemsHandler(i18n)),
-      "/api/items/:id/files": route(handleItemFiles),
-      "/api/items/:id": route(handleItemById),
+      "/api/collections/:collection/items/:id/files": route(handleItemFiles),
+      "/api/collections/:collection/items/:id": route(handleItemById),
       "/api/live": route(() => handleLive(runtimeEvents)),
       "/api/types": route(handleTypes),
       "/files/:path": route(handleFileRequest as RouteHandler),

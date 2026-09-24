@@ -1,8 +1,15 @@
-import type { Block, CollectionSchema, EffectiveCollectionI18nConfig } from "@contfu/core";
+import { itemIdentityKey, isItemIdentity, type ItemIdentity } from "@contfu/core";
+import type {
+  RefTargets,
+  Block,
+  CollectionSchema,
+  EffectiveCollectionI18nConfig,
+} from "@contfu/core";
 import { sql } from "drizzle-orm";
 import {
   blob,
   check,
+  customType,
   index,
   integer,
   primaryKey,
@@ -10,17 +17,32 @@ import {
   text,
 } from "drizzle-orm/sqlite-core";
 
+const scopedItemId = customType<{ data: ItemIdentity; driverData: string }>({
+  dataType: () => "text",
+  toDriver: itemIdentityKey,
+  fromDriver(value) {
+    const identity: unknown = JSON.parse(value);
+    if (!isItemIdentity(identity)) throw new TypeError("Invalid stored item identity");
+    return identity;
+  },
+});
+
 export const collectionsTable = sqliteTable("collections", {
   name: text().primaryKey(),
   displayName: text().notNull(),
   schema: blob({ mode: "json" }).notNull().$type<CollectionSchema>(),
+  refTargets: blob({ mode: "json" }).$type<RefTargets>(),
   i18n: blob({ mode: "json" }).$type<EffectiveCollectionI18nConfig | null>(),
 });
 
 export const itemsTable = sqliteTable(
   "items",
   {
-    id: integer().primaryKey(),
+    id: integer().notNull(),
+    identity: scopedItemId()
+      .notNull()
+      .generatedAlwaysAs(sql`json_array(collection, id)`)
+      .unique(),
     collection: text()
       .notNull()
       .references(() => collectionsTable.name, { onUpdate: "cascade" }),
@@ -31,6 +53,7 @@ export const itemsTable = sqliteTable(
     deletedAt: integer(),
   },
   (table) => [
+    primaryKey({ columns: [table.collection, table.id] }),
     index("idx_items_collection").on(table.collection),
     index("idx_items_locale").on(table.locale),
     index("idx_items_changedAt").on(table.changedAt),
@@ -47,10 +70,10 @@ export const internalLinkTable = sqliteTable(
   {
     id: integer().primaryKey(),
     prop: text(),
-    from: integer()
+    from: scopedItemId()
       .notNull()
-      .references(() => itemsTable.id, { onDelete: "cascade" }),
-    to: integer().notNull(),
+      .references(() => itemsTable.identity, { onDelete: "cascade", onUpdate: "cascade" }),
+    to: scopedItemId().notNull(),
   },
   (table) => [
     index("idx_internal_links_from").on(table.from, table.to),
@@ -65,9 +88,9 @@ export const externalLinkTable = sqliteTable(
   "external_links",
   {
     id: integer().primaryKey(),
-    from: integer()
+    from: scopedItemId()
       .notNull()
-      .references(() => itemsTable.id, { onDelete: "cascade" }),
+      .references(() => itemsTable.identity, { onDelete: "cascade", onUpdate: "cascade" }),
     url: text().notNull(),
   },
   (table) => [index("idx_external_links_from").on(table.from)],
@@ -119,9 +142,9 @@ export type NewMediaMaster = typeof mediaMasterTable.$inferInsert;
 export const itemFileTable = sqliteTable(
   "item_files",
   {
-    itemId: integer()
+    itemId: scopedItemId()
       .notNull()
-      .references(() => itemsTable.id, { onDelete: "cascade" }),
+      .references(() => itemsTable.identity, { onDelete: "cascade", onUpdate: "cascade" }),
     fileId: blob({ mode: "buffer" })
       .notNull()
       .references(() => fileTable.id, { onDelete: "cascade" }),

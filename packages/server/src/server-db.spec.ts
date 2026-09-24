@@ -1,6 +1,6 @@
 import { rm } from "node:fs/promises";
 import { describe, expect, test } from "bun:test";
-import { EventType } from "@contfu/core";
+import { EventType, PropertyType } from "@contfu/core";
 import {
   collectionsTable,
   createDatabaseClient,
@@ -47,9 +47,21 @@ describe("configured Server databases", () => {
       set onmessage(handler: ((event: { data: string }) => void) | null) {
         this.messageHandler = handler;
         if (handler)
-          queueMicrotask(() =>
-            handler({ data: JSON.stringify([EventType.ITEM_DELETED, 1, 987_654]) }),
-          );
+          queueMicrotask(() => {
+            handler({
+              data: JSON.stringify([
+                EventType.COLLECTION_SCHEMA,
+                "articles",
+                "Articles",
+                { author: PropertyType.REF, related: PropertyType.REFS },
+                null,
+                "articles-schema",
+                987_653,
+                { author: ["authors"], related: ["articles", "authors"] },
+              ]),
+            });
+            handler({ data: JSON.stringify([EventType.ITEM_DELETED, ["articles", 1], 987_654]) });
+          });
       }
 
       get onmessage() {
@@ -66,12 +78,22 @@ describe("configured Server databases", () => {
     try {
       process.env.CONTFU_KEY = Buffer.alloc(32).toString("base64url");
       globalThis.WebSocket = MockSyncWebSocket as unknown as typeof WebSocket;
-      createServeOptions({ db: databasePath });
+      const options = createServeOptions({ db: databasePath });
 
       await waitFor(() => MockSyncWebSocket.current?.onmessage !== null);
       const configured = await createDatabaseClient(databasePath);
       await waitFor(() => withDatabase(configured, () => getSyncIndex()) === 987_654);
       expect(getSyncIndex()).not.toBe(987_654);
+      const response = await route(
+        options.routes!,
+        "/api/types",
+      )(Object.assign(new Request("http://localhost/api/types"), { params: {} }));
+      expect(response.status).toBe(200);
+      const types = await response.text();
+      expect(types).toContain('author: ContfuCollections["authors"];');
+      expect(types).toContain(
+        'related: (ContfuCollections["articles"] | ContfuCollections["authors"])[];',
+      );
     } finally {
       if (originalKey === undefined) delete process.env.CONTFU_KEY;
       else process.env.CONTFU_KEY = originalKey;

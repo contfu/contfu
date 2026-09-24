@@ -15,7 +15,7 @@
 {#if isString(inline)}
   {inline}
 {:else if isAnchor(inline)}
-  {#if isSafeRichContentUrl(inline[2])}
+  {#if typeof inline[2] === "string" && isSafeRichContentUrl(inline[2])}
     <a href={inline[2]}>{inline[1]}</a>
   {:else}
     {inline[1]}

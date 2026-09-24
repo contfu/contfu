@@ -1,3 +1,4 @@
+import { receiveController, receiveRoutes } from "./receive";
 import {
   CONTFU_PLUGIN_BOOTSTRAP_EVENT,
   ContfuWebhookError,
@@ -494,6 +495,8 @@ async function sendContfuWebhook(
 }
 
 export = () => ({
+  routes: receiveRoutes,
+  controllers: { receive: receiveController },
   register() {},
 
   bootstrap({ strapi }: { strapi: StrapiLike }) {

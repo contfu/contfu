@@ -3,7 +3,8 @@ import { ClientEventType, EventType } from "./events";
 import { defineEnum, type EnumValue } from "./enums";
 import type { EffectiveCollectionI18nConfig } from "./i18n";
 import { isObjectEqual } from "./objects";
-import type { CollectionSchema } from "./schemas";
+import type { CollectionSchema, RefTargets } from "./schemas";
+import { sameItemIdentity, type ItemIdentity } from "./item-identity";
 
 /**
  * Wire format for stream events.
@@ -15,11 +16,11 @@ import type { CollectionSchema } from "./schemas";
  * - PING: [0] (keep-alive)
  * - SNAPSHOT_START: [1]
  * - SNAPSHOT_END: [2]
- * - COLLECTION_SCHEMA: [10, collectionName, displayName, schema, i18n?, schemaHash?, index?] (EventType.COLLECTION_SCHEMA)
+ * - COLLECTION_SCHEMA: [10, collectionName, displayName, schema, i18n?, schemaHash?, index?, refTargets?] (EventType.COLLECTION_SCHEMA)
  * - COLLECTION_RENAMED: [11, oldName, newName, newDisplayName, index] (EventType.COLLECTION_RENAMED)
  * - COLLECTION_REMOVED: [12, collectionName, index] (EventType.COLLECTION_REMOVED)
  * - ITEM_CHANGED: [30, wireItem, index] (EventType.ITEM_CHANGED)
- * - ITEM_DELETED: [31, itemId, index] (EventType.ITEM_DELETED)
+ * - ITEM_DELETED: [31, [collection, itemId], index] (EventType.ITEM_DELETED)
  * - COMMAND_RESULT_REFRESH: [50, commandId, status, ignoredItemIds?] (CommandResult.REFRESH)
  * - COMMAND_RESULT_REFRESH_ALL: [51, commandId, status] (CommandResult.REFRESH_ALL)
  */
@@ -27,7 +28,7 @@ import type { CollectionSchema } from "./schemas";
 /** Item-related events sent to consumers via /api/sync. */
 export type WireItemEvent =
   | [typeof EventType.ITEM_CHANGED, WireItemPatch, number]
-  | [typeof EventType.ITEM_DELETED, number, number];
+  | [typeof EventType.ITEM_DELETED, ItemIdentity, number];
 
 /** Schema event: sends collection schema to consumers. */
 export type WireSchemaEvent =
@@ -55,6 +56,7 @@ export type WireSchemaEvent =
       EffectiveCollectionI18nConfig | null | undefined,
       string,
       number,
+      RefTargets?,
     ];
 
 /** Collection renamed event: notifies consumers of a collection name change. */
@@ -193,10 +195,11 @@ export function isWireLeaseResponse(value: unknown): value is WireLeaseResponse 
 /**
  * Full wire item tuple:
  * [id, collection, changedAt, props, content?]
+ * The first two compact slots encode ItemIdentity; neither slot is an identity alone.
  */
 export type WireItem = [
-  number, // user-scoped item registry id
-  string, // collection name
+  ItemIdentity[1], // managed item registry ID (only unique within the collection on the wire)
+  ItemIdentity[0], // destination collection name
   number, // changedAt
   Record<string, unknown>, // props
   unknown[]?, // content (optional)
@@ -211,7 +214,13 @@ export type WireItem = [
  * Content patches as a whole field; omitted content is unchanged and [] means no content.
  * A full WireItem remains a valid full patch.
  */
-export type WireItemPatch = [number, string, number, (Record<string, unknown> | null)?, unknown[]?];
+export type WireItemPatch = [
+  ItemIdentity[1],
+  ItemIdentity[0],
+  number,
+  (Record<string, unknown> | null)?,
+  unknown[]?,
+];
 
 export function patchWireItemProps(
   previous: Record<string, unknown>,
@@ -229,7 +238,16 @@ export function patchWireItemProps(
   return next;
 }
 
+export function wireItemIdentity(item: WireItem | WireItemPatch): ItemIdentity {
+  return [item[1], item[0]];
+}
+
 export function materializeWireItemPatch(patch: WireItemPatch, previous?: WireItem): WireItem {
+  if (previous && !sameItemIdentity(wireItemIdentity(previous), wireItemIdentity(patch))) {
+    throw new Error(
+      "Cannot materialize an item patch against a different collection-scoped identity",
+    );
+  }
   const [id, collection, changedAt, propsPatch, contentPatch] = patch;
   const props = patchWireItemProps(previous?.[3] ?? {}, propsPatch);
   const next: WireItem = [id, collection, changedAt, props];
@@ -242,7 +260,9 @@ export function materializeWireItemPatch(patch: WireItemPatch, previous?: WireIt
 }
 
 export function diffWireItemPatch(previous: WireItem | undefined, next: WireItem): WireItemPatch {
-  if (!previous) return next;
+  if (!previous || !sameItemIdentity(wireItemIdentity(previous), wireItemIdentity(next))) {
+    return next;
+  }
   const propPatch: Record<string, unknown> = {};
   let hasPropPatch = false;
   const previousProps = previous[3] ?? {};

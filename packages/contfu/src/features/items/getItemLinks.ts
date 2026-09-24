@@ -1,9 +1,10 @@
+import type { ItemIdentity } from "@contfu/core";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "../../infra/db/db";
 import { internalLinkTable, type DbInternalItemLink } from "../../infra/db/schema";
 
 export function getItemLinks(
-  opts: Partial<{ prop: string | null; from: number; to: number }>,
+  opts: Partial<{ prop: string | null; from: ItemIdentity; to: ItemIdentity }>,
   ctx = db,
 ): DbInternalItemLink[] {
   return ctx

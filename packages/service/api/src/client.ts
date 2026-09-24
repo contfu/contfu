@@ -162,6 +162,7 @@ export interface ContfuApiClient {
   listTargetFailedDeliveries(input?: {
     integrationId?: string;
   }): Promise<ApiTargetFailedDelivery[]>;
+  repairStrapiTargetBinding(id: string): Promise<{ repaired: boolean; message: string }>;
   redeliverTargetFailedDelivery(id: string): Promise<ApiTargetFailedDeliveryRecoveryResult>;
   clearTargetFailedDelivery(id: string): Promise<void>;
 
@@ -266,6 +267,12 @@ export function createApiClient(
         : "";
       return req<ApiTargetFailedDelivery[]>("GET", `/api/v1/target-deliveries/failed${query}`);
     },
+    repairStrapiTargetBinding: (id) =>
+      req<{ repaired: boolean; message: string }>(
+        "POST",
+        `/api/v1/target-deliveries/failed/${id}`,
+        { action: "repair-strapi-binding" },
+      ),
     redeliverTargetFailedDelivery: (id) =>
       req<ApiTargetFailedDeliveryRecoveryResult>("POST", `/api/v1/target-deliveries/failed/${id}`, {
         action: "redeliver",

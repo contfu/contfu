@@ -70,7 +70,7 @@ function InlineNode(props: { inline: Inline }): JSX.Element {
   if (isString(inline)) return inline as unknown as JSX.Element;
   if (isAnchor(inline)) {
     const [, text, href] = inline;
-    return isSafeRichContentUrl(href) ? (
+    return typeof href === "string" && isSafeRichContentUrl(href) ? (
       <a href={href}>{text}</a>
     ) : (
       (text as unknown as JSX.Element)

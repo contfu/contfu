@@ -49,9 +49,15 @@ describe("removeCollectionByName", () => {
   test("removes item links and orphan files while retaining shared files", () => {
     insertFile(orphanFileId);
     insertFile(sharedFileId);
-    db.insert(itemFileTable).values({ itemId: 1, fileId: orphanFileId }).run();
-    db.insert(itemFileTable).values({ itemId: 2, fileId: sharedFileId }).run();
-    db.insert(itemFileTable).values({ itemId: 3, fileId: sharedFileId }).run();
+    db.insert(itemFileTable)
+      .values({ itemId: ["remove-me", 1], fileId: orphanFileId })
+      .run();
+    db.insert(itemFileTable)
+      .values({ itemId: ["remove-me", 2], fileId: sharedFileId })
+      .run();
+    db.insert(itemFileTable)
+      .values({ itemId: ["keep-me", 3], fileId: sharedFileId })
+      .run();
     db.insert(mediaMasterTable)
       .values({
         fileId: orphanFileId,
@@ -77,8 +83,8 @@ describe("removeCollectionByName", () => {
       })
       .run();
 
-    createItemLink({ prop: null, from: 3, to: 1 });
-    createItemLink({ prop: null, from: 1, to: 2 });
+    createItemLink({ prop: null, from: ["keep-me", 3], to: ["remove-me", 1] });
+    createItemLink({ prop: null, from: ["remove-me", 1], to: ["remove-me", 2] });
 
     removeCollectionByName("remove-me");
 
@@ -104,14 +110,18 @@ describe("removeCollectionByName", () => {
         .all()
         .map((row) => row.id),
     ).toEqual([sharedFileId]);
-    expect(db.select().from(itemFileTable).all()).toEqual([{ itemId: 3, fileId: sharedFileId }]);
+    expect(db.select().from(itemFileTable).all()).toEqual([
+      { itemId: ["keep-me", 3], fileId: sharedFileId },
+    ]);
     expect(db.select().from(mediaMasterTable).all()).toEqual([]);
     expect(db.select().from(mediaVariantTable).all()).toEqual([]);
   });
 
   test("rolls back all cleanup when collection deletion fails", () => {
     insertFile(orphanFileId);
-    db.insert(itemFileTable).values({ itemId: 1, fileId: orphanFileId }).run();
+    db.insert(itemFileTable)
+      .values({ itemId: ["remove-me", 1], fileId: orphanFileId })
+      .run();
     db.insert(mediaMasterTable)
       .values({
         fileId: orphanFileId,
@@ -136,7 +146,7 @@ describe("removeCollectionByName", () => {
         createdAt: 1,
       })
       .run();
-    createItemLink({ prop: null, from: 3, to: 1 });
+    createItemLink({ prop: null, from: ["keep-me", 3], to: ["remove-me", 1] });
     db.run(
       sql.raw(
         "CREATE TRIGGER fail_remove_collection BEFORE DELETE ON collections WHEN OLD.name = 'remove-me' BEGIN SELECT RAISE(ABORT, 'remove failed'); END",
@@ -161,9 +171,13 @@ describe("removeCollectionByName", () => {
     expect(db.select().from(internalLinkTable).all()).toHaveLength(1);
     expect(db.select().from(fileTable).all()).toHaveLength(1);
     expect(db.select().from(itemFileTable).all()).toHaveLength(1);
-    expect(db.select().from(itemFileTable).where(eq(itemFileTable.itemId, 1)).all()).toHaveLength(
-      1,
-    );
+    expect(
+      db
+        .select()
+        .from(itemFileTable)
+        .where(eq(itemFileTable.itemId, ["remove-me", 1]))
+        .all(),
+    ).toHaveLength(1);
     expect(db.select().from(mediaMasterTable).all()).toHaveLength(1);
     expect(db.select().from(mediaVariantTable).all()).toHaveLength(1);
   });

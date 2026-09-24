@@ -218,13 +218,13 @@ function propertyTypeToTs(
       if (targets && targets.length > 0) {
         return formatRefTargets(targets, refFormat);
       }
-      return "string";
+      return "[collection: string, id: number]";
     case PropertyType.REFS:
       if (targets && targets.length > 0) {
         const union = formatRefTargets(targets, refFormat);
         return targets.length > 1 ? `(${union})[]` : `${union}[]`;
       }
-      return "string[]";
+      return "[collection: string, id: number][]";
     case PropertyType.FILE:
       return "FileMetadata";
     case PropertyType.FILES:
