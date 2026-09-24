@@ -1,3 +1,4 @@
+import { isItemIdentity, type ItemIdentity } from "@contfu/core";
 import type { Block, Inline } from "@contfu/core";
 import { isAnchor } from "@contfu/core";
 import { PropertyType, propertyTypeBase, schemaType, type CollectionSchema } from "@contfu/core";
@@ -6,8 +7,8 @@ import { UnknownSchemaPropertyError } from "./unknownSchemaPropertyError";
 const PLACEHOLDER_BASE = -1;
 
 export type LinkRecord =
-  | { kind: "internal"; prop: string | null; from: number; to: number }
-  | { kind: "external"; from: number; url: string };
+  | { kind: "internal"; prop: string | null; from: ItemIdentity; to: ItemIdentity }
+  | { kind: "external"; from: ItemIdentity; url: string };
 
 export interface ExtractedLinks {
   records: LinkRecord[];
@@ -15,45 +16,29 @@ export interface ExtractedLinks {
   content: Block[] | null | undefined;
 }
 
-function isExternalHref(href: string): boolean {
-  return (
-    href.includes("://") ||
-    href.startsWith("/") ||
-    href.startsWith("#") ||
-    href.startsWith("mailto:") ||
-    href.startsWith("tel:")
-  );
+function tryDecodeItemId(value: unknown): ItemIdentity | null {
+  return isItemIdentity(value) ? value : null;
 }
 
-function tryDecodeItemId(value: unknown): number | null {
-  if (typeof value === "number" && Number.isInteger(value) && value > 0) return value;
-  if (typeof value !== "string") return null;
-  const id = Number.parseInt(value, 10);
-  return Number.isInteger(id) && id > 0 && String(id) === value ? id : null;
-}
-
-function walkInlines(inlines: Inline[], records: LinkRecord[], from: number): Inline[] {
+function walkInlines(inlines: Inline[], records: LinkRecord[], from: ItemIdentity): Inline[] {
   return inlines.map((inline) => {
     if (!isAnchor(inline)) return inline;
-    const href = inline[2] as unknown as string; // wire data arrives as string
+    const href: unknown = inline[2];
     const placeholderIdx = records.length;
 
-    if (isExternalHref(href)) {
+    if (typeof href === "string") {
       records.push({ kind: "external", from, url: href });
     } else {
       const decoded = tryDecodeItemId(href);
-      records.push(
-        decoded
-          ? { kind: "internal", prop: null, from, to: decoded }
-          : { kind: "external", from, url: href },
-      );
+      if (!decoded) throw new TypeError("Internal anchors require [collection, id]");
+      records.push({ kind: "internal", prop: null, from, to: decoded });
     }
 
     return ["a", inline[1], PLACEHOLDER_BASE - placeholderIdx] as unknown as Inline;
   });
 }
 
-function walkBlocks(blocks: Block[], records: LinkRecord[], from: number): Block[] {
+function walkBlocks(blocks: Block[], records: LinkRecord[], from: ItemIdentity): Block[] {
   return blocks.map((block) => {
     const type = block[0];
     switch (type) {
@@ -111,7 +96,7 @@ function walkBlocks(blocks: Block[], records: LinkRecord[], from: number): Block
 }
 
 export function extractLinks(
-  from: number,
+  from: ItemIdentity,
   props: Record<string, unknown> | undefined,
   content: Block[] | null | undefined,
   schema: CollectionSchema | null,
@@ -141,6 +126,7 @@ export function extractLinks(
         const value = props[propName];
         if (value != null) {
           const itemId = tryDecodeItemId(value);
+          if (!itemId) throw new TypeError(`Reference ${propName} requires [collection, id]`);
           if (itemId) {
             const placeholderIdx = records.length;
             records.push({ kind: "internal", prop: propName, from, to: itemId });
@@ -153,6 +139,7 @@ export function extractLinks(
           const placeholders: number[] = [];
           for (const item of value) {
             const itemId = tryDecodeItemId(item);
+            if (!itemId) throw new TypeError(`Reference ${propName} requires [collection, id]`);
             if (itemId) {
               const placeholderIdx = records.length;
               records.push({ kind: "internal", prop: propName, from, to: itemId });

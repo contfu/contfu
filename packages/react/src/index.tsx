@@ -65,7 +65,11 @@ function InlineNode({ inline }: InlineProps): React.ReactNode {
   if (isString(inline)) return inline;
   if (isAnchor(inline)) {
     const [, text, href] = inline;
-    return isSafeRichContentUrl(href) ? <a href={href}>{text}</a> : text;
+    return typeof href === "string" && isSafeRichContentUrl(href) ? (
+      <a href={href}>{text}</a>
+    ) : (
+      text
+    );
   }
   if (isMonospace(inline)) {
     const [, text] = inline;

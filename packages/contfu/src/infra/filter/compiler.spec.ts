@@ -200,12 +200,12 @@ describe("compileFilter", () => {
   });
 
   test("filters by id (blob comparison)", () => {
-    const ids = queryWithFilter(`$id = "${1}"`);
+    const ids = queryWithFilter('$id = ["articles",1]');
     expect(ids).toEqual([1]);
   });
 
   test("filters by id excludes non-matching", () => {
-    const ids = queryWithFilter(`$id = "${99}"`);
+    const ids = queryWithFilter('$id = ["articles",99]');
     expect(ids).toEqual([]);
   });
 

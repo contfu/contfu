@@ -55,7 +55,7 @@ function renderInlineNode(inline: Inline): VNode | string {
   if (isString(inline)) return inline;
   if (isAnchor(inline)) {
     const [, text, href] = inline;
-    return isSafeRichContentUrl(href) ? h("a", { href }, text) : text;
+    return typeof href === "string" && isSafeRichContentUrl(href) ? h("a", { href }, text) : text;
   }
   if (isMonospace(inline)) return h("code", inline[1]);
   if (isBold(inline)) return h("strong", inline[1]);

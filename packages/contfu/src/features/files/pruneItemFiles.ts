@@ -1,3 +1,4 @@
+import type { ItemIdentity } from "@contfu/core";
 import { and, eq, notInArray, sql } from "drizzle-orm";
 import { db } from "../../infra/db/db";
 import { decodeId } from "../../infra/ids";
@@ -9,7 +10,11 @@ import { fileTable, itemFileTable } from "../../infra/db/schema";
  * ITEM_CHANGED, so a file that is missing from `keepFileIds` was removed
  * upstream — without this the old and the new file would both render.
  */
-export function pruneItemFiles(itemId: number, keepFileIds: Iterable<string>, ctx = db): void {
+export function pruneItemFiles(
+  itemId: ItemIdentity,
+  keepFileIds: Iterable<string>,
+  ctx = db,
+): void {
   const keep = [...new Set(keepFileIds)].map(decodeId);
 
   const stale = ctx

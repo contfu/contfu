@@ -220,7 +220,7 @@ describe("contfu typed ref targets", () => {
 // --- Link resolution tests ---
 
 type LinkCollections = {
-  posts: { title: string; author: number; tags: number[] };
+  posts: { title: string; author: [string, number]; tags: [string, number][] };
   persons: { name: string };
   tags: { label: string };
 };
@@ -267,29 +267,36 @@ function seedLinkData() {
     id: 1,
     ref: "posts/post1",
     collection: "posts",
-    props: { title: "Post One", author: 10, tags: [30, 31] },
+    props: {
+      title: "Post One",
+      author: ["persons", 10],
+      tags: [
+        ["tags", 30],
+        ["tags", 31],
+      ],
+    },
     changedAt: 300,
   });
   createItem({
     id: 2,
     ref: "posts/post2",
     collection: "posts",
-    props: { title: "Post Two", author: 11, tags: [30] },
+    props: { title: "Post Two", author: ["persons", 11], tags: [["tags", 30]] },
     changedAt: 301,
   });
 
   // REF links: post → author
-  createItemLink({ prop: "author", from: 1, to: 10 });
-  createItemLink({ prop: "author", from: 2, to: 11 });
+  createItemLink({ prop: "author", from: ["posts", 1], to: ["persons", 10] });
+  createItemLink({ prop: "author", from: ["posts", 2], to: ["persons", 11] });
 
   // REFS links: post → tags
-  createItemLink({ prop: "tags", from: 1, to: 30 });
-  createItemLink({ prop: "tags", from: 1, to: 31 });
-  createItemLink({ prop: "tags", from: 2, to: 30 });
+  createItemLink({ prop: "tags", from: ["posts", 1], to: ["tags", 30] });
+  createItemLink({ prop: "tags", from: ["posts", 1], to: ["tags", 31] });
+  createItemLink({ prop: "tags", from: ["posts", 2], to: ["tags", 30] });
 
   // Content links (prop=null): post1 → alice, post2 → bob
-  createItemLink({ prop: null, from: 1, to: 10 });
-  createItemLink({ prop: null, from: 2, to: 11 });
+  createItemLink({ prop: null, from: ["posts", 1], to: ["persons", 10] });
+  createItemLink({ prop: null, from: ["posts", 2], to: ["persons", 11] });
 }
 
 describe("contfu link resolution", () => {
@@ -314,14 +321,14 @@ describe("contfu link resolution", () => {
   });
 
   test("backlink REF: person → posts via linksTo('author')", async () => {
-    const aliceId = 10;
+    const aliceId: [string, number] = ["persons", 10];
     const result = await q("posts", linksTo("author", aliceId));
     expect(result).toHaveLength(1);
     expect(result[0].title).toBe("Post One");
   });
 
   test("forward REFS: post → tags via linkedFrom('tags')", async () => {
-    const post1Id = 1;
+    const post1Id: [string, number] = ["posts", 1];
     const result = await q("tags", linkedFrom("tags", post1Id));
     expect(result).toHaveLength(2);
     const labels = result.map((t) => t.label).sort();
@@ -329,7 +336,7 @@ describe("contfu link resolution", () => {
   });
 
   test("backlink REFS: tag → posts via linksTo('tags')", async () => {
-    const techId = 30;
+    const techId: [string, number] = ["tags", 30];
     const result = await q("posts", linksTo("tags", techId));
     expect(result).toHaveLength(2);
     const titles = result.map((p) => p.title).sort((a, b) => (a ?? "").localeCompare(b ?? ""));
@@ -337,14 +344,14 @@ describe("contfu link resolution", () => {
   });
 
   test("forward content links: post → linked items via linkedFrom(null)", async () => {
-    const post1Id = 1;
+    const post1Id: [string, number] = ["posts", 1];
     const result = await q("persons", linkedFrom(null, post1Id));
     expect(result).toHaveLength(1);
     expect(result[0].name).toBe("Alice");
   });
 
   test("backlink content links: person → posts via linksTo(null)", async () => {
-    const aliceId = 10;
+    const aliceId: [string, number] = ["persons", 10];
     const result = await q("posts", linksTo(null, aliceId));
     expect(result).toHaveLength(1);
     expect(result[0].title).toBe("Post One");

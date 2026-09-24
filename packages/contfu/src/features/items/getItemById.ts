@@ -1,3 +1,4 @@
+import type { ItemIdentity } from "@contfu/core";
 import { and, eq, isNotNull, isNull, type SQL } from "drizzle-orm";
 import { db as defaultDb } from "../../infra/db/db";
 import { propsWithLocale } from "../../infra/db/mappers";
@@ -15,7 +16,7 @@ import {
 import type { ItemWithRelations } from "../../domain/query-types";
 
 export function getItemById(
-  id: number,
+  id: ItemIdentity,
   options?: {
     include?: IncludeOption[];
     with?: WithClause;
@@ -25,7 +26,7 @@ export function getItemById(
   },
   ctx = defaultDb,
 ): ItemWithRelations | null {
-  const conditions: SQL[] = [eq(itemsTable.id, id)];
+  const conditions: SQL[] = [eq(itemsTable.identity, id)];
   if (options?.onlyDeleted) {
     conditions.push(isNotNull(itemsTable.deletedAt));
   } else if (!options?.includeDeleted) {
@@ -54,7 +55,7 @@ export function getItemById(
   );
 
   const item: ItemWithRelations = {
-    $id: row.id,
+    $id: [row.collectionName, row.id],
     $collection: row.collectionName,
     $changedAt: row.changedAt,
     ...(row.deletedAt != null ? { $deletedAt: row.deletedAt } : {}),

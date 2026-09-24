@@ -1,3 +1,4 @@
+import { itemIdentityKey, type ItemIdentity } from "@contfu/core";
 import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
 import { db as defaultDb } from "./db";
 import {
@@ -111,9 +112,9 @@ export function resolveIncludes(
       .where(inArray(itemFileTable.itemId, ids))
       .all();
 
-    const filesByItem = new Map<number, FileMetadata[]>();
+    const filesByItem = new Map<string, FileMetadata[]>();
     for (const row of rows) {
-      const itemId = row.itemId;
+      const itemId = itemIdentityKey(row.itemId);
       if (!filesByItem.has(itemId)) filesByItem.set(itemId, []);
       const file = normalizeFileMetadata(fileMetadataFromDb({ ...row.file, data: null }), options);
       if (file) filesByItem.get(itemId)!.push(file);
@@ -135,7 +136,7 @@ export function resolveIncludes(
     }
 
     for (const item of items) {
-      const files = filesByItem.get(item.$id) ?? [];
+      const files = filesByItem.get(itemIdentityKey(item.$id)) ?? [];
       item.files = files;
       hydrateFileRefs(item, files, collectionSchemas.get(item.$collection), options);
     }
@@ -155,20 +156,20 @@ export function resolveIncludes(
       .orderBy(desc(externalLinkTable.id))
       .all();
 
-    const internalTargetIds = new Set<number>();
-    for (const row of internalRows) internalTargetIds.add(row.to);
+    const internalTargetIds = new Map<string, ItemIdentity>();
+    for (const row of internalRows) internalTargetIds.set(itemIdentityKey(row.to), row.to);
 
-    const targetItemMap = new Map<number, Record<string, unknown>>();
+    const targetItemMap = new Map<string, Record<string, unknown>>();
     if (internalTargetIds.size > 0) {
       const targetRows = ctx
         .select()
         .from(itemsTable)
-        .where(inArray(itemsTable.id, [...internalTargetIds]))
+        .where(inArray(itemsTable.identity, [...internalTargetIds.values()]))
         .all();
       for (const row of targetRows) {
-        const id = row.id;
+        const id = itemIdentityKey(row.identity);
         targetItemMap.set(id, {
-          $id: id,
+          $id: row.identity,
           $collection: row.collection,
           $changedAt: row.changedAt,
           ...propsWithLocale(
@@ -182,36 +183,41 @@ export function resolveIncludes(
     }
 
     const contentRows = ctx
-      .select({ id: itemsTable.id, content: itemsTable.content })
+      .select({ id: itemsTable.identity, content: itemsTable.content })
       .from(itemsTable)
-      .where(inArray(itemsTable.id, ids))
+      .where(inArray(itemsTable.identity, ids))
       .all();
-    const contentByItem = new Map(contentRows.map((row) => [row.id, row.content]));
+    const contentByItem = new Map(contentRows.map((row) => [itemIdentityKey(row.id), row.content]));
 
-    const linkById = new Map<number, { from: number; value: ResolvedLink }>();
-    const fallbackLinkIdsByItem = new Map<number, number[]>();
-    const addLink = (id: number, from: number, value: ResolvedLink): void => {
+    const linkById = new Map<number, { from: string; value: ResolvedLink }>();
+    const fallbackLinkIdsByItem = new Map<string, number[]>();
+    const addLink = (id: number, identity: ItemIdentity, value: ResolvedLink): void => {
+      const from = itemIdentityKey(identity);
       linkById.set(id, { from, value });
       if (!fallbackLinkIdsByItem.has(from)) fallbackLinkIdsByItem.set(from, []);
       fallbackLinkIdsByItem.get(from)!.push(id);
     };
 
     for (const row of internalRows) {
-      addLink(row.id, row.from, (targetItemMap.get(row.to) as ResolvedLink) ?? null);
+      addLink(
+        row.id,
+        row.from,
+        (targetItemMap.get(itemIdentityKey(row.to)) as ResolvedLink) ?? null,
+      );
     }
     for (const row of externalRows) addLink(row.id, row.from, row.url);
 
     for (const item of items) {
-      const orderedIds = contentLinkIds(contentByItem.get(item.$id));
+      const orderedIds = contentLinkIds(contentByItem.get(itemIdentityKey(item.$id)));
       const representedIds = new Set<number>();
       const links: ResolvedLink[] = [];
       for (const id of orderedIds) {
         const link = linkById.get(id);
-        if (link?.from !== item.$id) continue;
+        if (link?.from !== itemIdentityKey(item.$id)) continue;
         links.push(link.value);
         representedIds.add(id);
       }
-      for (const id of fallbackLinkIdsByItem.get(item.$id) ?? []) {
+      for (const id of fallbackLinkIdsByItem.get(itemIdentityKey(item.$id)) ?? []) {
         if (!representedIds.has(id)) links.push(linkById.get(id)!.value);
       }
       item.links = links;

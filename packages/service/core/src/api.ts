@@ -2,7 +2,13 @@ import type { CollectionSchema, SchemaValue } from "./schemas";
 import type { Filter } from "./filters";
 import type { MappingRule } from "./mappings";
 import type { CollectionI18nConfig, IntegrationI18nConfig } from "./i18n";
-import { IntegrationType, type IntegrationCapability, type IntegrationRole } from "@contfu/core";
+import {
+  IntegrationType,
+  defineStringEnum,
+  type EnumValue,
+  type IntegrationCapability,
+  type IntegrationRole,
+} from "@contfu/core";
 import type { IncidentResolutionMode, IncidentResolutionPlan, IncidentType } from "./incidents";
 import type { SourceOperationStatus, SourceOperationType } from "./source-operations";
 
@@ -141,7 +147,13 @@ export interface ContentfulIntegrationOpts {
   webhookSecret?: string;
 }
 
+/** Deliberate public configuration contract matching Strapi API generations. */
+export const StrapiApiVersion = defineStringEnum({ V4: "v4", V5: "v5" });
+export type StrapiApiVersion = EnumValue<typeof StrapiApiVersion>;
+
 export interface StrapiIntegrationOpts {
+  /** Explicit remote API generation; missing values retain v4-compatible behavior. */
+  strapiApiVersion?: StrapiApiVersion;
   includeDrafts?: boolean;
   /** Opt in to using the schema credential for ongoing Content Releases reads. */
   includeSchedules?: boolean;

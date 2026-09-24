@@ -1,7 +1,10 @@
-import type { ImageBlock, Block } from "@contfu/core";
+import type { ImageBlock, Block, ItemIdentity } from "@contfu/core";
 
 /** A resolved content link: partial item (internal) or URL string (external) */
-export type ResolvedLink = (Partial<ItemData> & { id: number }) | string | null;
+export type ResolvedLink =
+  | { $id: ItemIdentity; $collection: string; [key: string]: unknown }
+  | string
+  | null;
 
 /** Content links on item.links: array of resolved links from content anchors */
 export type ContentLinks = ResolvedLink[];

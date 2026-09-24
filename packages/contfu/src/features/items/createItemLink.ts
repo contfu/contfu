@@ -1,8 +1,9 @@
+import type { ItemIdentity } from "@contfu/core";
 import { db } from "../../infra/db/db";
 import { internalLinkTable } from "../../infra/db/schema";
 
 export function createItemLink(
-  { prop, from, to }: { prop: string | null; from: number; to: number },
+  { prop, from, to }: { prop: string | null; from: ItemIdentity; to: ItemIdentity },
   ctx = db,
 ): number {
   const result = ctx

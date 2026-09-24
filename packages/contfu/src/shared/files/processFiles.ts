@@ -86,6 +86,7 @@ function createPendingFile(
   lease?: { url: string; expiresAt: number },
   ctx = db,
 ): { id: string; ext: string } {
+  if (!_collection) throw new TypeError("File processing requires the destination collection");
   const fileId = idFromUrl(originalUrl);
   const ext = extFromUrl(originalUrl) ?? "bin";
 
@@ -122,7 +123,7 @@ function createPendingFile(
         .where(eq(fileTable.id, decodeId(fileId)))
         .run();
     }
-    linkFileToItem(itemId, existing.id, ctx);
+    linkFileToItem([_collection, itemId], existing.id, ctx);
     return { id: fileId, ext: existing.ext };
   }
 
@@ -147,7 +148,7 @@ function createPendingFile(
     .onConflictDoNothing()
     .run();
 
-  linkFileToItem(itemId, fileId, ctx);
+  linkFileToItem([_collection, itemId], fileId, ctx);
   return { id: fileId, ext };
 }
 
@@ -162,7 +163,7 @@ export function processFilesSync(opts: {
   fileStore: FileStore;
   mediaOptimizer?: MediaOptimizer;
   transformMedia?: TransformMediaRule[];
-  collection?: string;
+  collection: string;
   pregenerate?: MediaConvertOpts[];
   /** Collects every file id the item references, so callers can prune the rest. */
   linked?: Set<string>;
@@ -196,6 +197,7 @@ export function processFilesSync(opts: {
       collectProcessedId(originalUrl, linked);
       continue;
     }
+    if (!collection) throw new TypeError("File processing requires the destination collection");
     const fileId = idFromUrl(originalUrl);
     linked?.add(fileId);
 
@@ -237,7 +239,7 @@ export function processPropertyFilesSync(opts: {
   fileStore: FileStore;
   mediaOptimizer?: MediaOptimizer;
   transformMedia?: TransformMediaRule[];
-  collection?: string;
+  collection: string;
   pregenerate?: MediaConvertOpts[];
   /** Collects every file id the item references, so callers can prune the rest. */
   linked?: Set<string>;

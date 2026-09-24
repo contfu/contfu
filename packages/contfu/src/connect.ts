@@ -237,7 +237,14 @@ function persistSyncEvent<CMap>(
   let resumeQueue = false;
   db.transaction((tx) => {
     if (event.type === EventType.COLLECTION_SCHEMA) {
-      setCollection(event.collection, event.displayName, event.schema, event.i18n, tx);
+      setCollection(
+        event.collection,
+        event.displayName,
+        event.schema,
+        event.i18n,
+        tx,
+        event.refTargets,
+      );
     } else if (event.type === EventType.COLLECTION_RENAMED) {
       renameCollection(event.oldName, event.newName, event.newDisplayName, tx);
     } else if (event.type === EventType.COLLECTION_REMOVED) {
@@ -253,8 +260,8 @@ function persistSyncEvent<CMap>(
         throw new Error(
           `Received ITEM_CHANGED for unknown collection "${collection}" before schema`,
         );
-      deleteOutgoingItemLinks(itemId, tx);
-      const extracted = extractLinks(event.item.id, props, content, schema);
+      deleteOutgoingItemLinks([collection, itemId], tx);
+      const extracted = extractLinks([collection, itemId], props, content, schema);
       createOrUpdateItem(
         { id: itemId, collection, changedAt: event.item.changedAt, props, content },
         tx,
@@ -298,7 +305,7 @@ function persistSyncEvent<CMap>(
             ctx: tx,
           });
         }
-        pruneItemFiles(itemId, linked, tx);
+        pruneItemFiles([collection, itemId], linked, tx);
         createOrUpdateItem(
           { id: itemId, collection, changedAt: event.item.changedAt, props, content },
           tx,

@@ -1,8 +1,9 @@
+import type { ItemIdentity } from "@contfu/core";
 import { eq, sql } from "drizzle-orm";
 import { db } from "../../infra/db/db";
 import { fileTable, itemFileTable } from "../../infra/db/schema";
 
-export function deleteFilesByItem(itemId: number, ctx = db): void {
+export function deleteFilesByItem(itemId: ItemIdentity, ctx = db): void {
   // Get file IDs linked to this item before removing the links
   const linkedFiles = ctx
     .select({ fileId: itemFileTable.fileId })

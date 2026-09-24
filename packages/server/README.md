@@ -41,19 +41,19 @@ Configure the Contfu runtime through environment variables:
 
 All routes are `GET` routes and are protected when Basic auth is configured.
 
-| Route                          | Purpose                                                                                                                        |
-| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
-| `/api/items`                   | Query items with `filter`, `search`, `sort`, `limit`, `offset`, `include`, `fields`, `flat`, `with`, `locale`, and `fallback`. |
-| `/api/collections/:name/items` | Query one collection with the same query parameters as `/api/items`.                                                           |
-| `/api/items/:id`               | Fetch one item by Contfu item id; supports `include` and `with`.                                                               |
-| `/api/items/:id/files`         | List files linked to one item.                                                                                                 |
-| `/api/collections`             | List collections.                                                                                                              |
-| `/api/collections/:name`       | Return collection metadata, admin query rows, schema, and generated types.                                                     |
-| `/api/query-items`             | UI/admin item listing endpoint with collection, change-window, prop-filter, sort, and page parameters.                         |
-| `/api/types`                   | Return generated application TypeScript types.                                                                                 |
-| `/api/status`                  | Return item, collection, file, and sync-status counts.                                                                         |
-| `/api/live`                    | Server-sent events for runtime status and data-change notifications.                                                           |
-| `/files/:path`                 | Serve stored files and on-demand media variants.                                                                               |
+| Route                                          | Purpose                                                                                                                        |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `/api/items`                                   | Query items with `filter`, `search`, `sort`, `limit`, `offset`, `include`, `fields`, `flat`, `with`, `locale`, and `fallback`. |
+| `/api/collections/:name/items`                 | Query one collection with the same query parameters as `/api/items`.                                                           |
+| `/api/collections/:collection/items/:id`       | Fetch one item by Contfu item id; supports `include` and `with`.                                                               |
+| `/api/collections/:collection/items/:id/files` | List files linked to one item.                                                                                                 |
+| `/api/collections`                             | List collections.                                                                                                              |
+| `/api/collections/:name`                       | Return collection metadata, admin query rows, schema, and generated types.                                                     |
+| `/api/query-items`                             | UI/admin item listing endpoint with collection, change-window, prop-filter, sort, and page parameters.                         |
+| `/api/types`                                   | Return generated application TypeScript types.                                                                                 |
+| `/api/status`                                  | Return item, collection, file, and sync-status counts.                                                                         |
+| `/api/live`                                    | Server-sent events for runtime status and data-change notifications.                                                           |
+| `/files/:path`                                 | Serve stored files and on-demand media variants.                                                                               |
 
 ## Basic auth
 
@@ -64,3 +64,7 @@ Set `CONTFU_BASIC_AUTH` to `user:password` to enable it.
 When set, requests must include the matching `Authorization: Basic ...` header or the Server responds with `401 Unauthorized` and `WWW-Authenticate: Basic realm="Contfu"`.
 
 If `CONTFU_BASIC_AUTH` is unset or malformed, basic auth is disabled and behavior stays unchanged.
+
+Item identities are collection-scoped tuples, for example `["articles", 30]`. Use `$id = ["articles",30]` in filters. Item resource paths include the destination collection; the previous bare-ID routes are removed.
+
+This breaking release resets synchronized SQLite cache tables and their checkpoint once on upgrade, then replays content. Deploy the backend, Connector, Contfu and Server together. Unrelated SQLite tables are not reset.

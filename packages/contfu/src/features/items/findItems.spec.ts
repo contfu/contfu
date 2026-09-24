@@ -87,7 +87,7 @@ describe("findItems", () => {
         plainDatesAs: "milliseconds",
       });
       expect(millisecondsResult.publishDate).toBe(Date.UTC(2026, 6, 1));
-      expect(getItemById(20, { plainDatesAs: "milliseconds" })?.publishDate).toBe(
+      expect(getItemById(["dated", 20], { plainDatesAs: "milliseconds" })?.publishDate).toBe(
         Date.UTC(2026, 6, 1),
       );
     } finally {
@@ -98,7 +98,7 @@ describe("findItems", () => {
   test("filters by props", () => {
     const result = findItems({ filter: 'category = "news"' });
     expect(result).toHaveLength(1);
-    expect(result[0].$id).toBe(1);
+    expect(result[0].$id[1]).toBe(1);
   });
 
   test("filters draft-inclusive items and treats absent draft as published", () => {
@@ -124,24 +124,24 @@ describe("findItems", () => {
       changedAt: 302,
     });
 
-    expect(findItems({ filter: "$draft = true", sort: "$id" }).map((item) => item.$id)).toEqual([
+    expect(findItems({ filter: "$draft = true", sort: "$id" }).map((item) => item.$id[1])).toEqual([
       20,
     ]);
-    expect(findItems({ filter: "$draft = false", sort: "$id" }).map((item) => item.$id)).toEqual([
-      1, 2, 3, 21, 22,
-    ]);
+    expect(findItems({ filter: "$draft = false", sort: "$id" }).map((item) => item.$id[1])).toEqual(
+      [1, 2, 21, 22, 3],
+    );
     expect(
       findItems({
         filter: resolveQueryFilter((p: ItemRef<{}>) => eq(p.$draft, true)),
         sort: "$id",
-      }).map((item) => item.$id),
+      }).map((item) => item.$id[1]),
     ).toEqual([20]);
     expect(
       findItems({
         filter: resolveQueryFilter((p: ItemRef<{}>) => eq(p.$draft, false)),
         sort: "$id",
-      }).map((item) => item.$id),
-    ).toEqual([1, 2, 3, 21, 22]);
+      }).map((item) => item.$id[1]),
+    ).toEqual([1, 2, 21, 22, 3]);
   });
 
   test("filters with AND", () => {
@@ -149,7 +149,7 @@ describe("findItems", () => {
       filter: '$collection = "articles" && featured = true',
     });
     expect(result).toHaveLength(1);
-    expect(result[0].$id).toBe(1);
+    expect(result[0].$id[1]).toBe(1);
   });
 
   test("filters with OR", () => {
@@ -173,21 +173,21 @@ describe("findItems", () => {
 
   test("sorts ascending by field", () => {
     const result = findItems({ sort: "$changedAt" });
-    expect(result[0].$id).toBe(1);
-    expect(result[2].$id).toBe(2);
+    expect(result[0].$id[1]).toBe(1);
+    expect(result[2].$id[1]).toBe(2);
   });
 
   test("sorts descending with - prefix", () => {
     const result = findItems({ sort: "-$changedAt" });
-    expect(result[0].$id).toBe(2);
-    expect(result[2].$id).toBe(1);
+    expect(result[0].$id[1]).toBe(2);
+    expect(result[2].$id[1]).toBe(1);
   });
 
   test("sorts with object notation", () => {
     const result = findItems({
       sort: { field: "$changedAt", direction: "asc" },
     });
-    expect(result[0].$id).toBe(1);
+    expect(result[0].$id[1]).toBe(1);
   });
 
   test("sorts by a normalized system timestamp prop ($-prefixed json key)", () => {
@@ -207,9 +207,9 @@ describe("findItems", () => {
     });
 
     const asc = findItems({ filter: '$collection = "articles"', sort: "$createdAt" }).filter((i) =>
-      [10, 11].includes(i.$id),
+      [10, 11].includes(i.$id[1]),
     );
-    expect(asc.map((i) => i.$id)).toEqual([11, 10]);
+    expect(asc.map((i) => i.$id[1])).toEqual([11, 10]);
   });
 
   test("respects limit", () => {
@@ -221,7 +221,7 @@ describe("findItems", () => {
   test("respects offset", () => {
     const result = findItems({ sort: "$changedAt", limit: 2, offset: 1 });
     expect(result).toHaveLength(2);
-    expect(result[0].$id).toBe(3);
+    expect(result[0].$id[1]).toBe(3);
   });
 
   test("allows large limit", () => {
@@ -264,32 +264,32 @@ describe("findItems", () => {
   });
 
   test("filters soft-deleted items by default and can include or select them", () => {
-    deleteItem(2);
+    deleteItem(["articles", 2]);
 
     const active = findItems({ sort: "$id" });
-    expect(active.map((item) => item.$id)).toEqual([1, 3]);
+    expect(active.map((item) => item.$id[1])).toEqual([1, 3]);
 
     const withDeleted = findItems({ includeDeleted: true, sort: "$id" });
-    expect(withDeleted.map((item) => item.$id)).toEqual([1, 2, 3]);
-    expect(withDeleted.find((item) => item.$id === 2)?.$deletedAt).toBeNumber();
+    expect(withDeleted.map((item) => item.$id[1])).toEqual([1, 2, 3]);
+    expect(withDeleted.find((item) => item.$id[1] === 2)?.$deletedAt).toBeNumber();
 
     const deleted = findItems({ onlyDeleted: true });
-    expect(deleted.map((item) => item.$id)).toEqual([2]);
+    expect(deleted.map((item) => item.$id[1])).toEqual([2]);
     expect(deleted[0].$deletedAt).toBeNumber();
   });
 
   test("gets soft-deleted items by id only when requested", () => {
-    deleteItem(2);
+    deleteItem(["articles", 2]);
 
-    expect(getItemById(2)).toBeNull();
-    expect(getItemById(2, { includeDeleted: true })?.$deletedAt).toBeNumber();
-    expect(getItemById(1, { onlyDeleted: true })).toBeNull();
+    expect(getItemById(["articles", 2])).toBeNull();
+    expect(getItemById(["articles", 2], { includeDeleted: true })?.$deletedAt).toBeNumber();
+    expect(getItemById(["articles", 1], { onlyDeleted: true })).toBeNull();
   });
 
   test("supports search", () => {
     const result = findItems({ search: "Alpha" });
     expect(result).toHaveLength(1);
-    expect(result[0].$id).toBe(1);
+    expect(result[0].$id[1]).toBe(1);
   });
 
   test("returns all selectable fields by default", () => {
@@ -351,31 +351,31 @@ describe("findItems", () => {
       size: 1000,
       createdAt: 100,
     });
-    linkFileToItem(1, fileId);
+    linkFileToItem(["articles", 1], fileId);
 
     const result = findItems({
       filter: '$collection = "articles"',
       include: ["files"],
     });
 
-    const item1 = result.find((i) => i.$id === 1)!;
-    const item2 = result.find((i) => i.$id === 2)!;
+    const item1 = result.find((i) => i.$id[1] === 1)!;
+    const item2 = result.find((i) => i.$id[1] === 2)!;
     expect(item1.files).toHaveLength(1);
     expect(item1.files![0].id).toBe(fileId);
     expect(item2.files).toEqual([]);
   });
 
   test("includes content links when requested", () => {
-    createItemLink({ prop: null, from: 1, to: 2 });
+    createItemLink({ prop: null, from: ["articles", 1], to: ["articles", 2] });
 
     const result = findItems({
       filter: '$collection = "articles"',
       include: ["links"],
     });
 
-    const item1 = result.find((i) => i.$id === 1)!;
+    const item1 = result.find((i) => i.$id[1] === 1)!;
     expect(item1.links).toHaveLength(1);
-    expect((item1.links[0] as any).$id).toBe(2);
+    expect((item1.links[0] as any).$id[1]).toBe(2);
   });
 
   test("resolves with relations", () => {
@@ -390,7 +390,7 @@ describe("findItems", () => {
 
     expect(result).toHaveLength(1);
     expect(result[0].sameColl as any[]).toHaveLength(1);
-    expect((result[0].sameColl as any[])[0].$id).toBe(2);
+    expect((result[0].sameColl as any[])[0].$id[1]).toBe(2);
   });
 
   test("relation values override projected raw fields", async () => {
@@ -405,8 +405,8 @@ describe("findItems", () => {
 
     const linkId = createItemLink({
       prop: "author",
-      from: 1,
-      to: 10,
+      from: ["articles", 1],
+      to: ["persons", 10],
     });
 
     const { createOrUpdateItem } = await import("./createOrUpdateItem");
@@ -419,7 +419,7 @@ describe("findItems", () => {
     });
 
     const result = findItems({
-      filter: `$id = "${1}"`,
+      filter: '$id = ["articles",1]',
       fields: ["author"],
       with: {
         author: {
@@ -446,8 +446,8 @@ describe("findItems", () => {
 
     const linkId = createItemLink({
       prop: "author",
-      from: 1,
-      to: 10,
+      from: ["articles", 1],
+      to: ["persons", 10],
     });
 
     // Update item 1 to include the author link
@@ -461,7 +461,7 @@ describe("findItems", () => {
     });
 
     const result = findItems({
-      filter: `$id = "${1}"`,
+      filter: '$id = ["articles",1]',
       with: {
         author: {
           collection: "persons",
@@ -473,7 +473,7 @@ describe("findItems", () => {
 
     expect(result).toHaveLength(1);
     expect(result[0].author).not.toBeNull();
-    expect((result[0].author as any).$id).toBe(10);
+    expect((result[0].author as any).$id[1]).toBe(10);
   });
 
   test("findItems with backlink relation", async () => {
@@ -489,14 +489,14 @@ describe("findItems", () => {
 
     const linkId1 = createItemLink({
       prop: "author",
-      from: 1,
-      to: 10,
+      from: ["articles", 1],
+      to: ["persons", 10],
     });
 
     const linkId2 = createItemLink({
       prop: "author",
-      from: 2,
-      to: 10,
+      from: ["articles", 2],
+      to: ["persons", 10],
     });
 
     // Update articles to include author links
@@ -523,7 +523,7 @@ describe("findItems", () => {
     });
 
     const result = findItems({
-      filter: `$id = "${10}"`,
+      filter: '$id = ["persons",10]',
       with: {
         posts: {
           collection: "articles",
@@ -534,7 +534,7 @@ describe("findItems", () => {
 
     expect(result).toHaveLength(1);
     expect(result[0].posts as any[]).toHaveLength(2);
-    const postIds = (result[0].posts as any[]).map((p: any) => p.$id);
+    const postIds = (result[0].posts as any[]).map((p: any) => p.$id[1]);
     expect(postIds).toContain(1);
     expect(postIds).toContain(2);
   });
@@ -547,19 +547,19 @@ describe("getItemById", () => {
   });
 
   test("returns item by id", () => {
-    const item = getItemById(1);
+    const item = getItemById(["articles", 1]);
     expect(item).not.toBeNull();
-    expect(item!.$id).toBe(1);
+    expect(item!.$id[1]).toBe(1);
     expect(item!.$collection).toBe("articles");
   });
 
   test("returns null for non-existent id", () => {
-    const item = getItemById(99);
+    const item = getItemById(["articles", 99]);
     expect(item).toBeNull();
   });
 
   test("includes content by default", () => {
-    const item = getItemById(1);
+    const item = getItemById(["articles", 1]);
     // content is queried (may be undefined if no content set)
     expect(item).not.toBeNull();
   });
@@ -573,14 +573,14 @@ describe("getItemById", () => {
       size: 1000,
       createdAt: 100,
     });
-    linkFileToItem(1, String(10));
+    linkFileToItem(["articles", 1], String(10));
 
-    const item = getItemById(1, { include: ["files"] });
+    const item = getItemById(["articles", 1], { include: ["files"] });
     expect(item!.files).toHaveLength(1);
   });
 
   test("resolves relations", () => {
-    const item = getItemById(1, {
+    const item = getItemById(["articles", 1], {
       with: {
         sameColl: {
           filter: "$collection = $1.$collection && $id != $1.$id",
@@ -589,6 +589,6 @@ describe("getItemById", () => {
     });
 
     expect(item!.sameColl as any[]).toHaveLength(1);
-    expect((item!.sameColl as any[])[0].$id).toBe(2);
+    expect((item!.sameColl as any[])[0].$id[1]).toBe(2);
   });
 });

@@ -1,6 +1,6 @@
 {
   "name": "@contfu/contfu",
-  "version": "0.3.8",
+  "version": "0.3.9",
   "description": "Contfu runtime and local store library for Contfu-powered applications",
   "license": "MIT",
   "repository": {

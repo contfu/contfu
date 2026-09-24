@@ -8,9 +8,14 @@ export function getTypeGenerationInputs(ctx = db): TypeGenerationInput[] {
       name: collectionsTable.name,
       displayName: collectionsTable.displayName,
       schema: collectionsTable.schema,
+      refTargets: collectionsTable.refTargets,
       i18n: collectionsTable.i18n,
     })
     .from(collectionsTable)
     .all()
-    .map((row) => ({ ...row, i18n: row.i18n ?? undefined }));
+    .map((row) => ({
+      ...row,
+      i18n: row.i18n ?? undefined,
+      refTargets: row.refTargets ?? undefined,
+    }));
 }

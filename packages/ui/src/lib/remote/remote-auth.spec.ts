@@ -22,12 +22,16 @@ const { getStats } = await import("./stats.remote");
 function makeFetchResponse(path: string) {
   if (path === "/api/collections") return Response.json([{ name: "posts" }]);
   if (path === "/api/types") return new Response("type Post = {};");
+  if (path === "/api/collections/posts/items/1") {
+    return Response.json({
+      data: { $id: ["posts", 1], $collection: "posts", $changedAt: 123, title: "Post" },
+    });
+  }
+  if (path === "/api/collections/posts/items/1/files") return Response.json([]);
   if (path.startsWith("/api/collections/posts")) {
     return Response.json({ collection: null, result: { data: [] }, typeString: null });
   }
   if (path.startsWith("/api/query-items")) return Response.json({ data: [] });
-  if (path === "/api/items/item-1") return Response.json({ data: { props: {} } });
-  if (path === "/api/items/item-1/files") return Response.json([]);
   if (path === "/api/status") {
     return Response.json({
       itemCount: 1,
@@ -88,9 +92,17 @@ describe("remote modules use authenticated upstream fetch helper", () => {
 
   test("item queries use authenticated server fetches", async () => {
     await getItemsQuery({ collection: "posts", page: 1, pageSize: 20 });
-    const getById = await getItemByIdQuery(["item-1"]);
-    await getById("item-1");
-    await getItemFilesQuery("item-1");
+    const identity = JSON.stringify(["posts", 1]);
+    const getById = await getItemByIdQuery([identity]);
+    expect(await getById(identity)).toEqual({
+      id: 1,
+      collection: "posts",
+      changedAt: 123,
+      props: { title: "Post" },
+      content: undefined,
+      links: [],
+    });
+    expect(await getItemFilesQuery(identity)).toEqual([]);
 
     expect(globalThis.fetch).toHaveBeenNthCalledWith(
       1,
@@ -99,12 +111,12 @@ describe("remote modules use authenticated upstream fetch helper", () => {
     );
     expect(globalThis.fetch).toHaveBeenNthCalledWith(
       2,
-      "http://server:3001/api/items/item-1",
+      "http://server:3001/api/collections/posts/items/1",
       expect.objectContaining({ headers: expect.any(Headers) }),
     );
     expect(globalThis.fetch).toHaveBeenNthCalledWith(
       3,
-      "http://server:3001/api/items/item-1/files",
+      "http://server:3001/api/collections/posts/items/1/files",
       expect.objectContaining({ headers: expect.any(Headers) }),
     );
   });

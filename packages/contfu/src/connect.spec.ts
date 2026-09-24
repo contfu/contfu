@@ -149,7 +149,7 @@ describe("contfu connect", () => {
       connectToStream: async function* () {
         yield {
           type: EventType.ITEM_DELETED,
-          item: 103,
+          item: ["article", 103],
           index: 90,
         };
       },
@@ -265,10 +265,10 @@ describe("contfu connect", () => {
             changedAt: 1700000002,
             props: { title: "Page with components" },
             content: [
-              ["p", [["a", "", "202"]]],
+              ["p", [["a", "", ["callsToAction", 202]]]],
               ["p", [["a", "external", "https://example.com"]]],
-              ["p", [["a", "", "101"]]],
-              ["p", [["a", "", "303"]]],
+              ["p", [["a", "", ["heroes", 101]]]],
+              ["p", [["a", "", ["heroes", 303]]]],
             ] as Block[],
           },
           index: 203,
@@ -294,12 +294,16 @@ describe("contfu connect", () => {
     ]);
     expect(page.links).toEqual([
       expect.objectContaining({
-        $id: 202,
+        $id: ["callsToAction", 202],
         $collection: "callsToAction",
         title: "CTA component",
       }),
       "https://example.com",
-      expect.objectContaining({ $id: 101, $collection: "heroes", title: "Hero component" }),
+      expect.objectContaining({
+        $id: ["heroes", 101],
+        $collection: "heroes",
+        title: "Hero component",
+      }),
       null,
     ]);
   });
@@ -319,7 +323,7 @@ describe("contfu connect", () => {
             collection: "article",
             changedAt: 1700000010,
             props: { title: "Page awaiting component" },
-            content: [["p", [["a", "component", String(targetRegistryId)]]]] as Block[],
+            content: [["p", [["a", "component", ["components", targetRegistryId]]]]] as Block[],
           },
           index: 204,
         };
@@ -353,7 +357,7 @@ describe("contfu connect", () => {
     });
     expect(page.links).toEqual([
       expect.objectContaining({
-        $id: targetRegistryId,
+        $id: ["components", targetRegistryId],
         $collection: "components",
         title: "Synced component",
       }),
@@ -456,7 +460,7 @@ describe("contfu connect", () => {
       connectToStream: async function* () {
         yield {
           type: EventType.ITEM_DELETED,
-          item: 1,
+          item: ["article", 1],
           index: 400,
         };
       },

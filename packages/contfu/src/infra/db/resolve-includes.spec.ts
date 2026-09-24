@@ -12,9 +12,9 @@ import { db } from "./db";
 import { externalLinkTable, itemsTable } from "./schema";
 import { resolveIncludes } from "./resolve-includes";
 
-function makeItem(seed: number, collection = "articles"): ItemWithRelations {
+function makeItem(seed: number, collection = "c"): ItemWithRelations {
   return {
-    $id: seed,
+    $id: [collection, seed],
     $collection: collection,
     title: `Item ${seed}`,
     $changedAt: seed * 100,
@@ -54,9 +54,9 @@ describe("resolveIncludes", () => {
 
     const file10 = Buffer.from([10]).toString("base64url");
     const file11 = Buffer.from([11]).toString("base64url");
-    linkFileToItem(1, file10);
-    linkFileToItem(1, file11);
-    linkFileToItem(2, file11);
+    linkFileToItem(["c", 1], file10);
+    linkFileToItem(["c", 1], file11);
+    linkFileToItem(["c", 2], file11);
 
     const items = [makeItem(1), makeItem(2)];
     resolveIncludes(items, ["files"]);
@@ -91,12 +91,12 @@ describe("resolveIncludes", () => {
       data: Buffer.from("binary"),
       createdAt: 100,
     });
-    linkFileToItem(1, fileId);
+    linkFileToItem(["articles", 1], fileId);
 
     const externalUrl = "https://cdn.example.com/external.jpg";
     const items = [
       {
-        ...makeItem(1),
+        ...makeItem(1, "articles"),
         // A managed download may have persisted its pending `.bin` reference
         // before response metadata revealed the final PNG extension.
         cover: `${fileId}.bin`,
@@ -117,18 +117,18 @@ describe("resolveIncludes", () => {
     createItem({ id: 3, ref: "c", collection: "c", props: {}, changedAt: 300 });
 
     // Content links (prop = null)
-    createItemLink({ prop: null, from: 1, to: 2 });
-    createItemLink({ prop: null, from: 1, to: 3 });
+    createItemLink({ prop: null, from: ["c", 1], to: ["c", 2] });
+    createItemLink({ prop: null, from: ["c", 1], to: ["c", 3] });
     // Prop link (should NOT appear on item.links)
-    createItemLink({ prop: "author", from: 1, to: 3 });
+    createItemLink({ prop: "author", from: ["c", 1], to: ["c", 3] });
 
     const items = [makeItem(1), makeItem(2)];
     resolveIncludes(items, ["links"]);
 
     // Only content links (prop IS NULL) should be resolved
     expect(items[0].links).toHaveLength(2);
-    expect((items[0].links[0] as any).$id).toBe(2);
-    expect((items[0].links[1] as any).$id).toBe(3);
+    expect((items[0].links[0] as any).$id[1]).toBe(2);
+    expect((items[0].links[1] as any).$id[1]).toBe(3);
     expect(items[1].links).toEqual([]);
   });
 
@@ -137,7 +137,9 @@ describe("resolveIncludes", () => {
 
     // External content link
     const url = "https://example.com/page";
-    db.insert(externalLinkTable).values({ id: -1, from: 1, url }).run();
+    db.insert(externalLinkTable)
+      .values({ id: -1, from: ["c", 1], url })
+      .run();
 
     const items = [makeItem(1)];
     resolveIncludes(items, ["links"]);
@@ -151,11 +153,13 @@ describe("resolveIncludes", () => {
     createItem({ id: 2, ref: "b", collection: "c", props: {}, changedAt: 200 });
     createItem({ id: 3, ref: "c", collection: "c", props: {}, changedAt: 300 });
 
-    const firstInternalId = createItemLink({ prop: null, from: 1, to: 2 });
+    const firstInternalId = createItemLink({ prop: null, from: ["c", 1], to: ["c", 2] });
     const url = "https://example.com/between-components";
     const externalId = -1;
-    db.insert(externalLinkTable).values({ id: externalId, from: 1, url }).run();
-    const secondInternalId = createItemLink({ prop: null, from: 1, to: 3 });
+    db.insert(externalLinkTable)
+      .values({ id: externalId, from: ["c", 1], url })
+      .run();
+    const secondInternalId = createItemLink({ prop: null, from: ["c", 1], to: ["c", 3] });
     const content: Block[] = [
       ["p", [["a", "first", firstInternalId]]],
       ["p", [["a", "external", externalId]]],
@@ -167,9 +171,9 @@ describe("resolveIncludes", () => {
     resolveIncludes(items, ["links"]);
 
     expect(items[0].links).toEqual([
-      expect.objectContaining({ $id: 2 }),
+      expect.objectContaining({ $id: ["c", 2] }),
       url,
-      expect.objectContaining({ $id: 3 }),
+      expect.objectContaining({ $id: ["c", 3] }),
     ]);
   });
 
@@ -197,7 +201,7 @@ describe("resolveIncludes", () => {
     createItem({ id: 1, ref: "a", collection: "c", props: {}, changedAt: 100 });
 
     // Internal content link to non-existent target
-    createItemLink({ prop: null, from: 1, to: 99 });
+    createItemLink({ prop: null, from: ["c", 1], to: ["c", 99] });
 
     const items = [makeItem(1)];
     resolveIncludes(items, ["links"]);

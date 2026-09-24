@@ -58,7 +58,7 @@ describe("renderInline", () => {
   test("custom anchor renderer", () => {
     const a: Anchor = ["a", "click", "https://example.com"];
     const result = renderInline(a, {
-      inlines: { a: ([, text, href]) => `<a class="custom" href="${href}">${text}</a>` },
+      inlines: { a: ([, text, href]) => `<a class="custom" href="${String(href)}">${text}</a>` },
     });
     expect(result).toBe('<a class="custom" href="https://example.com">click</a>');
   });

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.2.1] - 2026-09-20
+
+### Added
+
+- Add localized Strapi v5 target delivery.
+
 ## [0.2.0] - 2026-09-11
 
 ### Changed

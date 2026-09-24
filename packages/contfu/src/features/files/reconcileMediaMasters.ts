@@ -36,7 +36,7 @@ export async function reconcileMediaMasters(args: {
     .from(fileTable)
     .leftJoin(mediaMasterTable, eq(mediaMasterTable.fileId, fileTable.id))
     .leftJoin(itemFileTable, eq(itemFileTable.fileId, fileTable.id))
-    .leftJoin(itemsTable, eq(itemsTable.id, itemFileTable.itemId))
+    .leftJoin(itemsTable, eq(itemsTable.identity, itemFileTable.itemId))
     .where(eq(fileTable.status, FileStatus.Ready))
     .all();
 

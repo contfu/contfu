@@ -29,7 +29,7 @@ function linkedIds(itemId: number): string[] {
   return db
     .select({ fileId: itemFileTable.fileId })
     .from(itemFileTable)
-    .where(eq(itemFileTable.itemId, itemId))
+    .where(eq(itemFileTable.itemId, ["test", itemId]))
     .all()
     .map(({ fileId }) => encodeId(Buffer.from(fileId)))
     .sort();
@@ -46,30 +46,30 @@ describe("pruneItemFiles", () => {
   });
 
   test("drops the link and the file the item no longer references", () => {
-    linkFileToItem(1, oldFile);
-    linkFileToItem(1, newFile);
+    linkFileToItem(["test", 1], oldFile);
+    linkFileToItem(["test", 1], newFile);
 
-    pruneItemFiles(1, [newFile]);
+    pruneItemFiles(["test", 1], [newFile]);
 
     expect(linkedIds(1)).toEqual([newFile]);
     expect(db.select().from(fileTable).all()).toHaveLength(1);
   });
 
   test("keeps a file that another item still links", () => {
-    linkFileToItem(1, oldFile);
-    linkFileToItem(2, oldFile);
+    linkFileToItem(["test", 1], oldFile);
+    linkFileToItem(["test", 2], oldFile);
 
-    pruneItemFiles(1, []);
+    pruneItemFiles(["test", 1], []);
 
     expect(linkedIds(2)).toEqual([oldFile]);
     expect(db.select().from(fileTable).all()).toHaveLength(2);
   });
 
   test("leaves untouched an item whose files are all still referenced", () => {
-    linkFileToItem(1, oldFile);
-    linkFileToItem(1, newFile);
+    linkFileToItem(["test", 1], oldFile);
+    linkFileToItem(["test", 1], newFile);
 
-    pruneItemFiles(1, [oldFile, newFile]);
+    pruneItemFiles(["test", 1], [oldFile, newFile]);
 
     expect(linkedIds(1)).toEqual([newFile, oldFile].sort());
     expect(db.select().from(fileTable).all()).toHaveLength(2);

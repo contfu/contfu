@@ -39,3 +39,17 @@ Contfu supports Strapi v4 and v5 as source integrations.
 - Draft sync uses Strapi v4 `publicationState=preview/live` and Strapi v5 `status=draft/published`. Contfu exposes `$draft` when draft sync is enabled.
 - Plugin pushes use the generic Contfu endpoint and require `x-contfu-signature` in `sha256=<hex>` HMAC format.
 - Strapi v4 `populate=*` is shallow, so deeply nested relations/components may need custom Strapi API configuration before Contfu can see them.
+
+## Localized target delivery (Strapi v5)
+
+The plugin also provides authenticated per-locale unpublish, schema, and grouping-key
+lookup operations for Contfu localized targets. Enable the plugin on the receiver and
+select Strapi v5 in Contfu. Use a content API token with find/create/update/delete access
+to the target content type. The endpoints reject user-session/admin-token authentication
+and check the token's permissions for the requested content type. Read-only tokens cannot
+unpublish, and wildcard locales are never accepted. Signed source pushes remain optional
+and independent of target delivery.
+
+Configure a stable string/number grouping key and map `$locale` unchanged in Contfu.
+Legacy bindings are not upgraded automatically: a workspace owner/admin must confirm an
+audited repair in failed-delivery diagnostics. No manual editing of binding bytes is needed.

@@ -474,3 +474,17 @@ Any integration can be:
 
 Neither state automatically raises an [incident](./flows.md#incidents); they are expected,
 user-visible conditions.
+
+### Strapi localized target setup
+
+In setup or **edit Strapi**, explicitly select the remote **Strapi API version**.
+Existing integrations without a selection stay in v4-compatible/non-localized target
+mode. For localized targets select **v5** and install the updated `@contfu/strapi` plugin
+on the receiver. The content API token needs `find`, `create`, `update`, and `delete`
+permissions on the target content type; read-only tokens cannot unpublish. The plugin
+accepts only content API tokens and checks the requested content type's permissions.
+No admin or schema credential is used for localized writes or plugin lookups.
+
+Configure collection localization, a stable scalar grouping key, and an unchanged
+`$locale` mapping before activating the flow. See [localized Strapi delivery and repair](./i18n.md#localized-strapi-targets-v5-only)
+for versioned bindings, publication behavior, and quarantined-binding recovery.

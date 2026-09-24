@@ -65,3 +65,27 @@ The package barrel exports the Contfu runtime and local store library surface us
 Feature slices may use the architecture layers, but may not import sibling feature slices.
 The top-level `connect` module is the explicit composition root. Oxlint enforces both this
 path-aware boundary and the one-callable-export rule as errors without slice-specific exceptions.
+
+## Collection-scoped identities (breaking change)
+
+Query results expose `$id` as an `ItemIdentity` tuple: `[collection, numericId]`.
+The same managed numeric ID may appear in multiple collections with different
+properties. Keep both dimensions when caching, linking, looking up, or deleting items.
+
+```ts
+import { getItemById, findItems } from "@contfu/contfu";
+
+const article = getItemById(["articles", 30]);
+const references = findItems({ filter: 'linksTo() = ["articles",30]' });
+```
+
+REF values and internal rich-content anchor destinations use the same tuple; REFS
+values are arrays of tuples. Schema messages include `refTargets`, identifying the
+single delivered collection for each relation. Missing or ambiguous destinations
+are rejected rather than guessed. Use `eq(item.$id, ["articles", 30])` in typed filters.
+
+Upgrade the backend, core, Connector, Contfu, Server, and generated consumer types
+together. On the first writable open, legacy synchronized SQLite tables (including
+file metadata/media caches) and the sync checkpoint are automatically reset and
+rebuilt through replay. Unrelated tables/configuration are preserved. Allow time
+for replay and media processing; read-only replicas must receive an upgraded store.

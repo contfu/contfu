@@ -1,10 +1,11 @@
+import type { ItemIdentity } from "@contfu/core";
 import { eq } from "drizzle-orm";
 import { db } from "../../infra/db/db";
 import { fileMetadataFromDb } from "../../infra/db/mappers";
 import { fileTable, itemFileTable } from "../../infra/db/schema";
 import type { FileData } from "../../infra/types/content-types";
 
-export function getFilesByItem(itemId: number, ctx = db): FileData[] {
+export function getFilesByItem(itemId: ItemIdentity, ctx = db): FileData[] {
   const rows = ctx
     .select({
       file: {

@@ -11,7 +11,7 @@ import {
 export function removeCollectionByName(name: string, ctx = db): void {
   ctx.transaction((tx) => {
     const itemIds = tx
-      .select({ id: itemsTable.id })
+      .select({ id: itemsTable.identity })
       .from(itemsTable)
       .where(eq(itemsTable.collection, name))
       .all()
@@ -39,7 +39,7 @@ export function removeCollectionByName(name: string, ctx = db): void {
       tx.delete(internalLinkTable)
         .where(or(eq(internalLinkTable.from, itemId), eq(internalLinkTable.to, itemId)))
         .run();
-      tx.delete(itemsTable).where(eq(itemsTable.id, itemId)).run();
+      tx.delete(itemsTable).where(eq(itemsTable.identity, itemId)).run();
     }
     tx.delete(collectionsTable).where(eq(collectionsTable.name, name)).run();
   });

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.10] - 2026-09-20
+
+### Fixed
+
+- Preserve target bindings for native edits.
+
 ## [0.1.9] - 2026-09-11
 
 ### Changed

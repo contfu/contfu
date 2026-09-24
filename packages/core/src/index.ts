@@ -20,3 +20,4 @@ export * from "./storage";
 export * from "./plain-dates";
 export * from "./wire";
 export * from "./url-policy";
+export * from "./item-identity";

@@ -22,6 +22,30 @@ create target collections → wire flows → generate types → query
   npx  @contfu/cli <command>
   ```
 
+## Choose a runtime
+
+Your app reads synchronized content from a local store, in one of two modes:
+
+- **Embedded runtime** (`@contfu/contfu`) runs inside your app process. There is no extra
+  service to deploy. Use it for a single server-rendered or statically built app on Bun or Node.
+- **Server mode**: a self-hosted `@contfu/server` holds the store, and apps query it over
+  HTTP with `@contfu/client`. Use it for several apps, serverless or edge frontends, and
+  browser clients.
+
+See [Deployment](./deployment.md) for the trade-offs.
+
+## Use with a coding agent
+
+The `contfu` skill lets coding agents such as Claude Code, Codex or Cursor run this whole
+walkthrough for you. Install the CLI and log in (step 1), then add the skill to your project:
+
+```bash
+npx skills add contfu/contfu --skill contfu
+```
+
+Then ask your agent, for example: _"Use the contfu skill to set up Contfu in this project and
+connect it to my Notion content. Use the embedded runtime."_
+
 ## 1. Authenticate
 
 ```bash

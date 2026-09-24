@@ -1,3 +1,4 @@
+import type { ItemIdentity } from "@contfu/core";
 import { defineEnum, type EnumValue } from "@contfu/core";
 
 export const TokenType = defineEnum({
@@ -21,6 +22,7 @@ export const TokenType = defineEnum({
   LParen: 18,
   RParen: 19,
   Comma: 20,
+  Identity: 21,
 });
 
 export type TokenType = EnumValue<typeof TokenType>;
@@ -36,7 +38,7 @@ export type ComparisonNode = {
   kind: "comparison";
   field: string;
   op: ComparisonOp;
-  value: string | number | boolean | null;
+  value: string | number | boolean | null | ItemIdentity;
 };
 
 export type AndNode = {
@@ -61,7 +63,7 @@ export type FunctionCallNode = {
   name: string;
   args: string[];
   op: ComparisonOp;
-  value: string | number | boolean | null;
+  value: string | number | boolean | null | ItemIdentity;
 };
 
 export type FilterAST = ComparisonNode | AndNode | OrNode | GroupNode | FunctionCallNode;

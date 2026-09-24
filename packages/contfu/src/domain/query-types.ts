@@ -1,3 +1,4 @@
+import type { ItemIdentity } from "@contfu/core";
 import {
   QueryResultArray,
   type ContentFormat,
@@ -29,7 +30,7 @@ import type {
 import type { SystemFieldName } from "@contfu/core";
 
 export type QuerySystemFields = {
-  $id: number;
+  $id: ItemIdentity;
   $collection: string;
   $changedAt: number;
   $deletedAt?: number;

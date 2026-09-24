@@ -1,5 +1,6 @@
 import { defineEnum, type EnumValue } from "./enums";
 import type { Item } from "./items";
+import type { ItemIdentity } from "./item-identity";
 
 export const EventType = defineEnum({
   // Protocol messages (0-9)
@@ -40,11 +41,11 @@ export type ItemChangedEvent = EventBase<typeof EventType.ITEM_CHANGED> & {
 };
 
 /**
- * Provides a deleted item id.
+ * Provides the collection-scoped identity of a deleted item.
  * This is only sent, if the source supports web hooks.
  */
 export type ItemDeletedEvent = EventBase<typeof EventType.ITEM_DELETED> & {
-  item: number;
+  item: ItemIdentity;
 };
 
 export type ItemEvent = ItemChangedEvent | ItemDeletedEvent;

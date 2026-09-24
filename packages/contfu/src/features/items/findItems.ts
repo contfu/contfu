@@ -61,7 +61,7 @@ function toSelectableFields(row: DbRow, flat = false) {
   const props = propsWithLocale(isPlainObject(row.props) ? row.props : {}, row.locale);
 
   return {
-    $id: row.id,
+    $id: [row.collectionName, row.id] as [string, number],
     $collection: row.collectionName,
     $changedAt: row.changedAt,
     ...(row.deletedAt != null ? { $deletedAt: row.deletedAt } : {}),
@@ -159,7 +159,13 @@ function buildOrderBy(sort: SortOption | SortOption[] | undefined) {
   if (!sort) return [desc(itemsTable.changedAt), asc(itemsTable.id)];
 
   const sorts = Array.isArray(sort) ? sort : [sort];
-  const clauses = sorts.map((s) => {
+  const clauses = sorts.flatMap((s) => {
+    const field = typeof s === "string" ? s.replace(/^-/, "") : s.field;
+    const descending = typeof s === "string" ? s.startsWith("-") : s.direction === "desc";
+    if (field === "$id") {
+      const order = descending ? desc : asc;
+      return [order(itemsTable.collection), order(itemsTable.id)];
+    }
     if (typeof s === "string") {
       if (s.startsWith("-")) {
         return descColumn(s.slice(1));
@@ -184,7 +190,7 @@ function descColumn(field: string) {
 function resolveColumn(field: string) {
   if (field === "$collection") return itemsTable.collection;
   if (field === "$changedAt") return itemsTable.changedAt;
-  if (field === "$id") return itemsTable.id;
+  if (field === "$id") return itemsTable.identity;
   if (field === "$locale") return localeColumnExpr();
   return sql`json_extract(${itemsTable.props}, ${"$." + field})`;
 }

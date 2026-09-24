@@ -1,3 +1,4 @@
+import { isItemIdentity, itemIdentityKey, type ItemIdentity } from "./item-identity";
 export const SYSTEM_FIELD_NAMES = [
   "$id",
   "$ref",
@@ -24,7 +25,7 @@ export type FieldRef<T = unknown> = {
 };
 
 type SystemFieldRefs = {
-  $id: FieldRef<number>;
+  $id: FieldRef<ItemIdentity>;
   $ref: FieldRef<string>;
   $collection: FieldRef<string>;
   $changedAt: FieldRef<number>;
@@ -57,15 +58,16 @@ export function createItemRef<Props>(level: number): ItemRef<Props> {
   ) as ItemRef<Props>;
 }
 
-function formatValue(v: FieldRef | string | number | boolean | null): string {
+function formatValue(v: FieldRef | string | number | boolean | null | ItemIdentity): string {
   if (isFieldRef(v)) return v.path;
+  if (isItemIdentity(v)) return itemIdentityKey(v);
   if (v === null) return "null";
   if (typeof v === "string") return `"${v}"`;
   if (typeof v === "boolean") return v ? "true" : "false";
   return String(v);
 }
 
-type FilterOperand = FieldRef | string | number | boolean | null;
+type FilterOperand = FieldRef | string | number | boolean | null | ItemIdentity;
 type CollectionFilter = string | ((self: any) => string) | Record<string, unknown>;
 type Comparable = string | number;
 
@@ -138,12 +140,18 @@ export function contains(a: FilterOperand, b: FilterOperand): string {
   return _contains(a, b);
 }
 
-export function linksTo(prop: string | null, target: FilterOperand): string {
+export function linksTo(
+  prop: string | null,
+  target: ItemIdentity | FieldRef<ItemIdentity>,
+): string {
   const propArg = prop !== null ? `"${prop}"` : "";
   return `linksTo(${propArg}) = ${formatValue(target)}`;
 }
 
-export function linkedFrom(prop: string | null, source: FilterOperand): string {
+export function linkedFrom(
+  prop: string | null,
+  source: ItemIdentity | FieldRef<ItemIdentity>,
+): string {
   const propArg = prop !== null ? `"${prop}"` : "";
   return `linkedFrom(${propArg}) = ${formatValue(source)}`;
 }
