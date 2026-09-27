@@ -22,6 +22,8 @@ export type IncidentType = EnumValue<typeof IncidentType>;
 /** Executable operations understood by the incident resolution runner. */
 export const IncidentResolutionActionKind = defineStringEnum({
   RedeliverTargetDelivery: "redeliver_target_delivery",
+  /** Removes a source-unavailable incident whose item no longer exists. */
+  CloseObsoleteIncident: "close_obsolete_incident",
 });
 
 export type IncidentResolutionActionKind = EnumValue<typeof IncidentResolutionActionKind>;
@@ -316,6 +318,11 @@ export interface IncidentResolutionPlanningInput extends Pick<
     changedAt: number;
     deleted: boolean;
   };
+  /**
+   * Server-read state: the incident's item no longer exists and has no failed
+   * delivery, so no delivery can ever clear the incident.
+   */
+  obsolete?: boolean;
 }
 
 export interface IncidentResolutionPlanningScope {
@@ -394,6 +401,22 @@ export function planIncidentResolution(
   const manual: IncidentResolutionManualItem[] = [];
 
   for (const incident of unresolved) {
+    if (incident.obsolete && isSourceUnavailableIncident(incident)) {
+      const key = `${IncidentResolutionActionKind.CloseObsoleteIncident}:${incident.id}`;
+      actionsByKey.set(key, {
+        id: stableResolutionId(key),
+        kind: IncidentResolutionActionKind.CloseObsoleteIncident,
+        incidentIds: [incident.id],
+        operation: {},
+        description: "Close this incident; its item no longer exists in Contfu.",
+        dependsOn: [],
+        preconditions: [
+          "The item no longer exists in this workspace.",
+          "No failed delivery remains for the item.",
+        ],
+      });
+      continue;
+    }
     const deliveryId = isSourceUnavailableIncident(incident)
       ? sourceUnavailableDeliveryId(incident.details)
       : null;

@@ -87,6 +87,7 @@ export function contfu<CMap = unknown>(options: ContfuOptions<CMap> = {}): Contf
       const handle = () =>
         handleFileRequestImpl<CMap>(request, filePath, {
           ...options,
+          key,
           fileStore,
           cacheOptimizedFiles: options.offline ? false : options.cacheOptimizedFiles,
         });
