@@ -11,6 +11,7 @@ import type {
 import { FileLoadError, loadFile } from "../features/files/loadFile";
 import { getFile } from "../features/files/getFile";
 import { fileStore as defaultFileStore } from "./media/media-defaults";
+import { downloadFile } from "../shared/files/managedFileDownload";
 
 export type FileRequestOptions<CMap = unknown> = {
   fileStore?: FileStore;
@@ -18,6 +19,7 @@ export type FileRequestOptions<CMap = unknown> = {
   mediaVariants?: MediaVariants<CMap>;
   mediaMaster?: false | MediaMasterConfig;
   cacheOptimizedFiles?: boolean;
+  key?: string;
 };
 
 export async function getFileStore(
@@ -103,7 +105,7 @@ function parseFilePath(filePath: string): { id: string; ext: string } | null {
   return { id: filePath.slice(0, dotIdx), ext: filePath.slice(dotIdx + 1).toLowerCase() };
 }
 
-function pendingFileRedirect(source: string | undefined): Response | null {
+function parsePendingSource(source: string | undefined): URL | null {
   if (
     !source ||
     [...source].some((char) => {
@@ -116,9 +118,65 @@ function pendingFileRedirect(source: string | undefined): Response | null {
   try {
     const url = new URL(source);
     if (url.protocol !== "http:" && url.protocol !== "https:") return null;
-    return Response.redirect(url.toString(), 302);
+    return url;
   } catch {
     return null;
+  }
+}
+
+function isManagedFileUrl(url: URL, contfuOrigin: string): boolean {
+  try {
+    return url.origin === new URL(contfuOrigin).origin && url.pathname.startsWith("/api/files/");
+  } catch {
+    return false;
+  }
+}
+
+async function pendingFileResponse(
+  source: string | undefined,
+  ext: string,
+  options: Pick<FileRequestOptions, "key">,
+  requestSignal: AbortSignal,
+): Promise<Response> {
+  const url = parsePendingSource(source);
+  if (!url) return text("Pending file unavailable", 503);
+
+  let contfuOrigin: string;
+  try {
+    contfuOrigin = new URL(process.env.CONTFU_INTERNAL_CLOUD_URL ?? "https://contfu.com").origin;
+  } catch {
+    return text("Pending file temporarily unavailable", 503);
+  }
+  if (!isManagedFileUrl(url, contfuOrigin)) return Response.redirect(url.toString(), 302);
+
+  const key = options.key ?? process.env.CONTFU_KEY;
+  if (!key) return text("Pending file temporarily unavailable", 503);
+  const timeoutSignal = AbortSignal.timeout(15_000);
+  const signal = AbortSignal.any([requestSignal, timeoutSignal]);
+  try {
+    const response = await downloadFile(url.toString(), {
+      applicationKey: Buffer.from(key, "base64url"),
+      contfuOrigin,
+      signal,
+    });
+    if (!response.ok || !response.body) return text("Pending file temporarily unavailable", 503);
+    const metadataType = mimeTypes[ext] ?? "application/octet-stream";
+    const activeType =
+      metadataType === "image/svg+xml" ||
+      metadataType.startsWith("text/") ||
+      metadataType.includes("javascript") ||
+      metadataType.includes("xml");
+    return new Response(response.body, {
+      headers: {
+        "Content-Type": activeType ? "application/octet-stream" : metadataType,
+        "Cache-Control": "no-store",
+        "X-Content-Type-Options": "nosniff",
+        "Content-Security-Policy": "default-src 'none'; sandbox",
+        ...(activeType ? { "Content-Disposition": "attachment" } : {}),
+      },
+    });
+  } catch {
+    return text("Pending file temporarily unavailable", 503);
   }
 }
 
@@ -218,7 +276,7 @@ export async function handleFileRequest<CMap = unknown>(
     if (!file) return text("Not found", 404);
     if (file.status !== "ready") {
       const row = getFile(file.id, undefined, { includeData: true });
-      return pendingFileRedirect(row?.data?.toString("utf8")) ?? text("Not found", 404);
+      return pendingFileResponse(row?.data?.toString("utf8"), file.ext, options, request.signal);
     }
     parsed = { id: file.id, ext: file.ext };
     filePath = `${file.id}.${file.ext}`;
@@ -246,10 +304,11 @@ export async function handleFileRequest<CMap = unknown>(
     const file = getFile(parsed.id, undefined, { includeData: true });
     if (!file) return text("Not found", 404);
     if (file.status !== "ready") {
-      return (
-        pendingFileRedirect(
-          getFile(file.id, undefined, { includeData: true })?.data?.toString("utf8"),
-        ) ?? text("Not found", 404)
+      return pendingFileResponse(
+        getFile(file.id, undefined, { includeData: true })?.data?.toString("utf8"),
+        file.ext,
+        options,
+        request.signal,
       );
     }
     const data = file.data ?? (await fileStore.read(`${file.id}.${file.ext}`));

@@ -95,7 +95,7 @@
     },
     "packages/contfu": {
       "name": "@contfu/contfu",
-      "version": "0.3.9",
+      "version": "0.3.10",
       "dependencies": {
         "@contfu/connect": "workspace:^0.1.5",
         "@contfu/core": "workspace:^0.4.0",
@@ -241,7 +241,7 @@
     },
     "packages/service/core": {
       "name": "@contfu/svc-core",
-      "version": "0.2.2",
+      "version": "0.2.3",
       "dependencies": {
         "@contfu/core": "workspace:^0.4.0",
       },

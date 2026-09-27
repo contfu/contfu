@@ -54,6 +54,32 @@ describe("incident resolution planning", () => {
     });
   });
 
+  test("plans closing only server-verified obsolete source-unavailable incidents", () => {
+    const plan = planIncidentResolution([
+      {
+        id: "1",
+        type: IncidentType.SourceUnavailable,
+        message: "Source data is unavailable for target delivery",
+        details: { itemId: 98 },
+        obsolete: true,
+      },
+      {
+        id: "2",
+        type: IncidentType.SchemaIncompatible,
+        message: "schema conflict",
+        details: {},
+        obsolete: true,
+      },
+    ]);
+    expect(plan.actions).toHaveLength(1);
+    expect(plan.actions[0]).toMatchObject({
+      kind: IncidentResolutionActionKind.CloseObsoleteIncident,
+      incidentIds: ["1"],
+      operation: {},
+    });
+    expect(plan.manual.map((item) => item.incidentIds)).toEqual([["2"]]);
+  });
+
   test("does not guess a delivery id from an item id or malformed detail", () => {
     const plan = planIncidentResolution([
       {

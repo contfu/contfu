@@ -3,6 +3,7 @@ const MAX_REDIRECTS = 10;
 export type ManagedFileDownloadOptions = {
   applicationKey?: Buffer;
   contfuOrigin?: string;
+  signal?: AbortSignal;
 };
 
 function managedFileUrl(url: string, contfuOrigin?: string): boolean {
@@ -36,6 +37,7 @@ export async function downloadFile(
     const response = await fetch(url, {
       ...(headers.has("Authorization") ? { headers } : {}),
       redirect: "manual",
+      ...(options.signal ? { signal: options.signal } : {}),
     });
     if (response.status < 300 || response.status >= 400) return response;
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.3.10] - 2026-09-27
+
+### Fixed
+
+- Safely proxy managed files that are still pending.
+
 ## [0.3.9] - 2026-09-20
 
 ### Fixed

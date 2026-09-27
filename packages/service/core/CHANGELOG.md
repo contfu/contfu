@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.3] - 2026-09-27
+
+### Fixed
+
+- Resolve legacy source-unavailable incidents when their failed-delivery ID was not recorded.
+- Close obsolete source-unavailable incidents safely after re-verification.
+
 ## [0.2.2] - 2026-09-20
 
 ### Added
