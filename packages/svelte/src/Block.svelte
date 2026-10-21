@@ -65,50 +65,50 @@
       | undefined;
   }
 
-  let componentRenderer = $derived(
+  let ComponentRenderer = $derived(
     isComponent(block) ? getComponentBlockRenderer(block as ComponentBlock) : undefined,
   );
 </script>
 
 {#if isP(block)}
   {#if components.p}
-    <svelte:component this={components.p} {block}>
+    <components.p {block}>
       {#each block[1] as inline}<Inline {inline} />{/each}
-    </svelte:component>
+    </components.p>
   {:else}
     <p>{#each block[1] as inline}<Inline {inline} />{/each}</p>
   {/if}
 {:else if isH1(block)}
   {#if components.h1}
-    <svelte:component this={components.h1} {block}>
+    <components.h1 {block}>
       {#each block[1] as inline}<Inline {inline} />{/each}
-    </svelte:component>
+    </components.h1>
   {:else}
     <h1>{#each block[1] as inline}<Inline {inline} />{/each}</h1>
   {/if}
 {:else if isH2(block)}
   {#if components.h2}
-    <svelte:component this={components.h2} {block}>
+    <components.h2 {block}>
       {#each block[1] as inline}<Inline {inline} />{/each}
-    </svelte:component>
+    </components.h2>
   {:else}
     <h2>{#each block[1] as inline}<Inline {inline} />{/each}</h2>
   {/if}
 {:else if isH3(block)}
   {#if components.h3}
-    <svelte:component this={components.h3} {block}>
+    <components.h3 {block}>
       {#each block[1] as inline}<Inline {inline} />{/each}
-    </svelte:component>
+    </components.h3>
   {:else}
     <h3>{#each block[1] as inline}<Inline {inline} />{/each}</h3>
   {/if}
 {:else if isQuote(block)}
   {#if components.blockquote}
-    <svelte:component this={components.blockquote} {block}>
+    <components.blockquote {block}>
       {#each block[1] as child}
         {#if isInline(child)}<Inline inline={child} />{:else}<Block block={child} {components} />{/if}
       {/each}
-    </svelte:component>
+    </components.blockquote>
   {:else}
     <blockquote>
       {#each block[1] as child}
@@ -118,13 +118,13 @@
   {/if}
 {:else if isCode(block)}
   {#if components.pre}
-    <svelte:component this={components.pre} {block} />
+    <components.pre {block} />
   {:else}
     <pre><code class={block[1] ? `language-${block[1]}` : undefined}>{block[2]}</code></pre>
   {/if}
 {:else if isUl(block)}
   {#if components.ul}
-    <svelte:component this={components.ul} {block}>
+    <components.ul {block}>
       {#each inlineItems(block.slice(1) as (InlineType | BlockType)[][]) as item}
         <li>
           {#each item as child}
@@ -132,7 +132,7 @@
           {/each}
         </li>
       {/each}
-    </svelte:component>
+    </components.ul>
   {:else}
     <ul>
       {#each inlineItems(block.slice(1) as (InlineType | BlockType)[][]) as item}
@@ -146,7 +146,7 @@
   {/if}
 {:else if isOl(block)}
   {#if components.ol}
-    <svelte:component this={components.ol} {block}>
+    <components.ol {block}>
       {#each inlineItems(block.slice(1) as (InlineType | BlockType)[][]) as item}
         <li>
           {#each item as child}
@@ -154,7 +154,7 @@
           {/each}
         </li>
       {/each}
-    </svelte:component>
+    </components.ol>
   {:else}
     <ol>
       {#each inlineItems(block.slice(1) as (InlineType | BlockType)[][]) as item}
@@ -168,7 +168,7 @@
   {/if}
 {:else if isTable(block)}
   {#if components.table}
-    <svelte:component this={components.table} {block}>
+    <components.table {block}>
       {#if block[1] && block[2].length > 0}
         <thead>
           {#each block[2].slice(0, 1) as row}
@@ -189,7 +189,7 @@
           </tr>
         {/each}
       </tbody>
-    </svelte:component>
+    </components.table>
   {:else}
     <table>
       {#if block[1] && block[2].length > 0}
@@ -216,15 +216,15 @@
   {/if}
 {:else if isImg(block)}
   {#if components.img}
-    <svelte:component this={components.img} {block} />
+    <components.img {block} />
   {:else}
     <img src={buildFileUrl(block[1], resolvedFile, "image")} alt={block[2]} />
   {/if}
 {:else if isComponent(block)}
-  {#if componentRenderer}
-    <svelte:component this={componentRenderer} {block}>
+  {#if ComponentRenderer}
+    <ComponentRenderer {block}>
       {#each block[3] as child}<Block block={child} {components} />{/each}
-    </svelte:component>
+    </ComponentRenderer>
   {:else}
     {#each block[3] as child}<Block block={child} {components} />{/each}
   {/if}

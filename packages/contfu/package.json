@@ -1,6 +1,6 @@
 {
   "name": "@contfu/contfu",
-  "version": "0.3.10",
+  "version": "0.3.11",
   "description": "Contfu runtime and local store library for Contfu-powered applications",
   "license": "MIT",
   "repository": {
@@ -59,13 +59,13 @@
     "build": "bun run build:lib && bun run build:esm"
   },
   "dependencies": {
-    "@contfu/connect": "workspace:^0.1.10",
-    "@contfu/core": "workspace:^0.5.0",
+    "@contfu/connect": "workspace:^0.1.13",
+    "@contfu/core": "workspace:^0.5.3",
     "drizzle-orm": "1.0.0-rc.3"
   },
   "devDependencies": {
     "@m4k/common": "^0.2.8",
-    "@types/bun": "^1.4.1",
+    "@types/bun": "^1.4.2",
     "drizzle-kit": "1.0.0-rc.3",
     "ts-essentials": "^10.2.1"
   },

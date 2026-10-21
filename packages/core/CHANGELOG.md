@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.5.3] - 2026-10-21
+
+### Added
+
+- Resolve known service URLs as item references.
+- Support polymorphic relation fields across collection targets.
+- Resolve cross-scope relations with a shared reference codec.
+- Scope item identity by service connection and expose $scope.
+- Discover WordPress schemas from route metadata and bounded samples.
+
+### Fixed
+
+- Exclude unreleased Directus from integration creation UI.
+- Resolve CMS relation targets in generated types.
+
 ## [0.5.2] - 2026-09-20
 
 ### Fixed

@@ -5,6 +5,7 @@ import {
   IntegrationTypeAvailability,
   SyncMode,
   isIntegrationType,
+  wordPressSchemaDiscoveryNote,
 } from "@contfu/core";
 import {
   IntegrationType,
@@ -674,6 +675,9 @@ function compactIntegrations(integrations: ApiIntegration[]) {
 function presentCollection(collection: ServiceCollection) {
   return {
     ...collection,
+    ...(wordPressSchemaDiscoveryNote(collection.options)
+      ? { schemaDiscoveryNote: wordPressSchemaDiscoveryNote(collection.options) }
+      : {}),
     ...(collection.integrationType !== undefined
       ? { integrationType: translateIntegrationType(collection.integrationType) }
       : {}),
@@ -713,6 +717,9 @@ function compactCollection(collection: ServiceCollection) {
     stale: presented.stale,
     sourceSyncStatus: presented.sourceSyncStatus,
     staleReason: presented.staleReason,
+    ...(presented.schemaDiscoveryNote
+      ? { schemaDiscoveryNote: presented.schemaDiscoveryNote }
+      : {}),
   };
 }
 
@@ -823,6 +830,7 @@ const COLLECTION_COLUMNS: TableColumn<ServiceCollection>[] = [
   { header: "Display Name", value: (row) => row.displayName },
   { header: "Scope", value: (row) => row.scope ?? "" },
   { header: "Items", value: (row) => row.itemsCount },
+  { header: "Schema Note", value: (row) => wordPressSchemaDiscoveryNote(row.options) ?? "" },
   {
     header: "Integration",
     value: (row) =>
@@ -883,7 +891,14 @@ export async function get(resource: Resource, id: string, format = "default", fu
       const data = await client.getCollection(resolvedId);
       if (isStructuredOutputFormat(format))
         printData(presentCollection(data), format, full, compactCollection(data));
-      else printJson({ ...data, schema: data.schema ? transformSchema(data.schema) : null });
+      else
+        printJson({
+          ...data,
+          schema: data.schema ? transformSchema(data.schema) : null,
+          ...(wordPressSchemaDiscoveryNote(data.options)
+            ? { schemaDiscoveryNote: wordPressSchemaDiscoveryNote(data.options) }
+            : {}),
+        });
     } else {
       const data = await client.getFlow(id);
       if (isStructuredOutputFormat(format))

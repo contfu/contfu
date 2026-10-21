@@ -1,6 +1,6 @@
 {
   "name": "@contfu/solid",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -30,13 +30,13 @@
     }
   },
   "scripts": {
-    "test": "bun test src/",
+    "test": "bun test --tsconfig-override ./tsconfig.spec.json src/",
     "build": "tsc -b",
     "pack": "bun ../../scripts/pack-package.ts .",
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@contfu/core": "workspace:^0.5.0"
+    "@contfu/core": "workspace:^0.5.3"
   },
   "devDependencies": {
     "solid-js": "^1.9.15",

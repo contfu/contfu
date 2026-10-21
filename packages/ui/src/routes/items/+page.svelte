@@ -1,11 +1,11 @@
 <script lang="ts">
   import { invalidateAll } from "$app/navigation";
   import { page } from "$app/state";
-  import ItemListExplorer from "$lib/components/ItemListExplorer.svelte";
-  import { subscribeLiveEvent } from "$lib/live/event-source";
-  import { parseItemQueryFromUrl } from "$lib/query/item-query";
-  import { getCollectionsQuery } from "$lib/remote/collections.remote";
-  import { getItemsQuery } from "$lib/remote/items.remote";
+  import ItemListExplorer from "#lib/components/ItemListExplorer.svelte";
+  import { subscribeLiveEvent } from "#lib/live/event-source";
+  import { parseItemQueryFromUrl } from "#lib/query/item-query";
+  import { getCollectionsQuery } from "#lib/remote/collections.remote";
+  import { getItemsQuery } from "#lib/remote/items.remote";
   import { onMount } from "svelte";
 
   const query = $derived(parseItemQueryFromUrl(new URL(page.url.href)));

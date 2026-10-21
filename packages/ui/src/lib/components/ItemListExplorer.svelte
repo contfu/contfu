@@ -1,15 +1,15 @@
 <script lang="ts">
-  import { Button } from "$lib/components/ui/button";
+  import { Button } from "#lib/components/ui/button";
   import {
     createSvelteTable,
     FlexRender,
     renderSnippet,
-  } from "$lib/components/ui/data-table";
-  import { Input } from "$lib/components/ui/input";
-  import { Label } from "$lib/components/ui/label";
-  import { NativeSelect as Select } from "$lib/components/ui/native-select";
-  import * as Table from "$lib/components/ui/table";
-  import { buildItemQuerySearchParams } from "$lib/query/item-query";
+  } from "#lib/components/ui/data-table";
+  import { Input } from "#lib/components/ui/input";
+  import { Label } from "#lib/components/ui/label";
+  import { NativeSelect as Select } from "#lib/components/ui/native-select";
+  import * as Table from "#lib/components/ui/table";
+  import { buildItemQuerySearchParams } from "#lib/query/item-query";
   import {
     createColumnHelper,
     type ColumnDef,

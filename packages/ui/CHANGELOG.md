@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.1.16] - 2026-10-21
+
+### Changed
+
+- Migrate native UI elements and enforce shadcn components.
+
+### Fixed
+
+- Align Bun runtimes on 1.4.3.
+- Replace deprecated Svelte components and SvelteKit aliases.
+
 ## [0.1.15] - 2026-09-20
 
 ### Fixed

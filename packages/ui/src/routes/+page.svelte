@@ -1,11 +1,11 @@
 <script lang="ts">
   import { invalidateAll } from "$app/navigation";
-  import CopyTextButton from "$lib/components/CopyTextButton.svelte";
-  import * as Alert from "$lib/components/ui/alert";
-  import * as Card from "$lib/components/ui/card";
-  import { subscribeLiveEvent } from "$lib/live/event-source";
-  import { getCombinedCollectionTypesQuery } from "$lib/remote/collections.remote";
-  import { getStats } from "$lib/remote/stats.remote";
+  import CopyTextButton from "#lib/components/CopyTextButton.svelte";
+  import * as Alert from "#lib/components/ui/alert";
+  import * as Card from "#lib/components/ui/card";
+  import { subscribeLiveEvent } from "#lib/live/event-source";
+  import { getCombinedCollectionTypesQuery } from "#lib/remote/collections.remote";
+  import { getStats } from "#lib/remote/stats.remote";
   import { onMount } from "svelte";
 
   const [stats, combinedTypeString] = $derived(

@@ -519,7 +519,6 @@ export function createServeOptions(opts: ServerOptions = {}) {
     runtimeEvents.start();
   }
 
-  // Bun.serve routes (runtime-supported, types not yet in @types/bun@1.4.1)
   return {
     port,
     idleTimeout: SERVER_IDLE_TIMEOUT_SECONDS,

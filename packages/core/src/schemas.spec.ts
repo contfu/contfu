@@ -139,7 +139,7 @@ describe("generateTypeScript", () => {
     const ts = generateTypeScript([
       { name: "blogPosts", displayName: "Blog Posts", schema: { author: PropertyType.REF } },
     ]);
-    expect(ts).toContain("author: [collection: string, id: number];");
+    expect(ts).toContain("author: [collection: string, id: number] | string;");
   });
 
   it("generates interface name for REF with single target", () => {
@@ -151,7 +151,7 @@ describe("generateTypeScript", () => {
         refTargets: { author: ["authors"] },
       },
     ]);
-    expect(ts).toContain("author: Authors;");
+    expect(ts).toContain("author: [collection: string, id: number] | string;");
   });
 
   it("generates union for REF with multiple targets", () => {
@@ -162,8 +162,10 @@ describe("generateTypeScript", () => {
         schema: { author: PropertyType.REF },
         refTargets: { author: ["authors", "editors"] },
       },
+      { name: "authors", displayName: "Authors", schema: { name: PropertyType.STRING } },
+      { name: "editors", displayName: "Editors", schema: { department: PropertyType.STRING } },
     ]);
-    expect(ts).toContain("author: Authors | Editors;");
+    expect(ts).toContain("author: Authors | Editors | string;");
   });
 
   it("generates typed array for REFS with single target", () => {
@@ -175,7 +177,7 @@ describe("generateTypeScript", () => {
         refTargets: { tags: ["tags"] },
       },
     ]);
-    expect(ts).toContain("tags: Tags[];");
+    expect(ts).toContain("tags: ([collection: string, id: number] | string)[];");
   });
 
   it("generates union array for REFS with multiple targets", () => {
@@ -186,8 +188,10 @@ describe("generateTypeScript", () => {
         schema: { related: PropertyType.REFS },
         refTargets: { related: ["articles", "videos"] },
       },
+      { name: "articles", displayName: "Articles", schema: { title: PropertyType.STRING } },
+      { name: "videos", displayName: "Videos", schema: { duration: PropertyType.NUMBER } },
     ]);
-    expect(ts).toContain("related: (Articles | Videos)[];");
+    expect(ts).toContain("related: (Articles | Videos | string)[];");
   });
 
   it("generates enum union for ENUM with values", () => {
@@ -278,7 +282,7 @@ describe("generateTypeScript", () => {
     const ts = generateTypeScript([
       { name: "blogPosts", displayName: "Blog Posts", schema: { tags: PropertyType.REFS } },
     ]);
-    expect(ts).toContain("tags: [collection: string, id: number][];");
+    expect(ts).toContain("tags: ([collection: string, id: number] | string)[];");
   });
 
   it("generates FileMetadata for FILE", () => {
@@ -408,7 +412,7 @@ describe("generateApplicationIntegrationTypes", () => {
         refTargets: { author: ["authors"] },
       },
     ]);
-    expect(ts).toContain('author: ContfuCollections["authors"];');
+    expect(ts).toContain("author: [collection: string, id: number] | string;");
   });
 
   it("uses lookup union for multiple targets", () => {
@@ -416,11 +420,18 @@ describe("generateApplicationIntegrationTypes", () => {
       {
         name: "blogPosts",
         displayName: "Blog Posts",
-        schema: { creator: PropertyType.REF },
-        refTargets: { creator: ["authors", "editors"] },
+        schema: { creator: PropertyType.REF, related: PropertyType.REFS },
+        refTargets: { creator: ["authors", "editors"], related: ["authors", "editors"] },
       },
+      { name: "authors", displayName: "Authors", schema: { name: PropertyType.STRING } },
+      { name: "editors", displayName: "Editors", schema: { department: PropertyType.STRING } },
     ]);
-    expect(ts).toContain('creator: ContfuCollections["authors"] | ContfuCollections["editors"];');
+    expect(ts).toContain(
+      'creator: ContfuCollections["authors"] | ContfuCollections["editors"] | string;',
+    );
+    expect(ts).toContain(
+      'related: (ContfuCollections["authors"] | ContfuCollections["editors"] | string)[];',
+    );
   });
 
   it("uses lookup array for REFS", () => {
@@ -432,7 +443,7 @@ describe("generateApplicationIntegrationTypes", () => {
         refTargets: { tags: ["tags"] },
       },
     ]);
-    expect(ts).toContain('tags: ContfuCollections["tags"][];');
+    expect(ts).toContain("tags: ([collection: string, id: number] | string)[];");
   });
 
   it("imports GeoPoint for collection, inflow, and component block props", () => {
@@ -501,6 +512,46 @@ describe("generateApplicationIntegrationTypes", () => {
 });
 
 describe("generated types compile-time checks", () => {
+  it("keeps standalone output self-contained and resolves only emitted relation names", async () => {
+    const article = {
+      name: "article",
+      displayName: "Article",
+      schema: {
+        tags: PropertyType.REFS,
+        missing: PropertyType.REF,
+        mixed: PropertyType.REFS,
+      },
+      refTargets: {
+        tags: ["relationTag"],
+        missing: ["api::missing-tag.missing-tag"],
+        mixed: ["relationTag", "api::missing-tag.missing-tag"],
+      },
+    };
+    const tag = {
+      name: "relationTag",
+      displayName: "Relation tag",
+      schema: { label: PropertyType.STRING },
+    };
+    const standalone = generateTypeScript([article]);
+    expect(standalone).toContain("tags: ([collection: string, id: number] | string)[];");
+    expect(standalone).not.toContain("api::");
+    await assertCompiles(standalone, "standalone relation fallback");
+
+    const combined = generateTypeScript([article, tag]);
+    expect(combined).toContain("tags: (RelationTag | string)[];");
+    expect(combined).toContain(
+      "mixed: (RelationTag | [collection: string, id: number] | string)[];",
+    );
+    await assertCompiles(combined, "combined relation types");
+
+    const integration = generateApplicationIntegrationTypes([article, tag]);
+    expect(integration).toContain('tags: (ContfuCollections["relationTag"] | string)[];');
+    expect(integration).toContain(
+      'mixed: (ContfuCollections["relationTag"] | [collection: string, id: number] | string)[];',
+    );
+    expect(integration).not.toContain("api::");
+    await assertCompiles(integration, "integration relation types");
+  });
   it("REF with target compiles: property is typed as the target interface", async () => {
     const generated = generateTypeScript([
       {
@@ -520,8 +571,9 @@ describe("generated types compile-time checks", () => {
       generated +
         `
         const post: BlogPosts = {} as BlogPosts;
-        // author should be Authors, which has 'name'
-        const authorName: string = post.author.name;
+        // URI references must be narrowed before accessing the managed target.
+        const authorName: string = typeof post.author === "string" ? post.author : post.author.name;
+        post.author = "mailto:author@example.com";
       `,
       "REF property typed as target interface",
     );
@@ -546,7 +598,7 @@ describe("generated types compile-time checks", () => {
       generated +
         `
         const post: BlogPosts = {} as BlogPosts;
-        // 'email' does not exist on Authors
+        if (typeof post.author === "string") throw new Error("Expected managed target");
         const email: string = post.author.email;
       `,
     );
@@ -571,7 +623,9 @@ describe("generated types compile-time checks", () => {
       generated +
         `
         const post: BlogPosts = {} as BlogPosts;
-        const firstLabel: string = post.tags[0].label;
+        const first = post.tags[0];
+        const firstLabel: string = typeof first === "string" ? first : first.label;
+        post.tags.push("https://public.example/tag");
       `,
       "REFS property typed as target array",
     );
@@ -592,8 +646,8 @@ describe("generated types compile-time checks", () => {
       {
         name: "blogPosts",
         displayName: "Blog Posts",
-        schema: { creator: PropertyType.REF },
-        refTargets: { creator: ["authors", "editors"] },
+        schema: { creator: PropertyType.REF, related: PropertyType.REFS },
+        refTargets: { creator: ["authors", "editors"], related: ["authors", "editors"] },
       },
     ]);
 
@@ -601,8 +655,9 @@ describe("generated types compile-time checks", () => {
       generated +
         `
         const post: BlogPosts = {} as BlogPosts;
-        // creator is Authors | Editors — assignment to the union type works
-        const creator: Authors | Editors = post.creator;
+        // Managed targets and preserved URIs share the reference contract.
+        const creator: Authors | Editors | string = post.creator;
+        const related: (Authors | Editors | string)[] = post.related;
       `,
       "REF union type",
     );
@@ -621,7 +676,7 @@ describe("generated types compile-time checks", () => {
       generated +
         `
         const post: BlogPosts = {} as BlogPosts;
-        const ref: [string, number] = post.externalRef;
+        const ref: [string, number] | string = post.externalRef;
       `,
       "REF without target is scoped identity",
     );
@@ -724,15 +779,16 @@ describe("generated types compile-time checks", () => {
         // Simulate the query client pattern: CMap = ContfuCollections
         type CMap = ContfuCollections;
 
-        // blogPosts.author is Authors (has .name)
+        // References can also be preserved URIs.
         type AuthorType = CMap["blogPosts"]["author"];
         const a: AuthorType = {} as AuthorType;
-        const authorName: string = a.name;
+        const authorName: string = typeof a === "string" ? a : a.name;
 
-        // blogPosts.tags is Tags[] (each has .label)
+        // Narrow each mixed reference entry before reading managed properties.
         type TagsType = CMap["blogPosts"]["tags"];
         const tags: TagsType = [] as TagsType;
-        const firstLabel: string = tags[0].label;
+        const first = tags[0];
+        const firstLabel: string = typeof first === "string" ? first : first.label;
       `,
       "consumer types with query client pattern",
     );
@@ -1056,5 +1112,26 @@ describe("$scheduledAt system schema key", () => {
     ];
     expect(generateTypeScript(collections)).toContain("$scheduledAt?: number;");
     expect(generateApplicationIntegrationTypes(collections)).toContain("$scheduledAt?: number;");
+  });
+});
+
+describe("scope system types", () => {
+  it("emits optional source scope once for each single or multiple inflow member", () => {
+    const collections: import("./schemas").TypeGenerationInput[] = [
+      {
+        name: "posts",
+        displayName: "Posts",
+        schema: { title: PropertyType.STRING, $scope: PropertyType.STRING },
+      },
+      {
+        name: "mixed",
+        displayName: "Mixed",
+        schema: {},
+        inflowSchemas: [{ title: PropertyType.STRING }, { count: PropertyType.NUMBER }],
+      },
+    ];
+    const generated = generateApplicationIntegrationTypes(collections);
+    expect(generated.match(/\$scope\?: string;/g)).toHaveLength(3);
+    expect(generated).not.toContain("$scope: string;");
   });
 });

@@ -3,7 +3,7 @@ import type {
   LiveDataChangedBatchEvent,
   LiveReadyEvent,
   LiveSyncStatusEvent,
-} from "$lib/live/types";
+} from "#lib/live/types";
 
 type LiveEventMap = {
   ready: LiveReadyEvent;

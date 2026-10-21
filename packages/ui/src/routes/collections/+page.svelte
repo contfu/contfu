@@ -1,10 +1,10 @@
 <script lang="ts">
   import { invalidateAll } from "$app/navigation";
-  import { Button } from "$lib/components/ui/button";
-  import CopyTextButton from "$lib/components/CopyTextButton.svelte";
-  import { subscribeLiveEvent } from "$lib/live/event-source";
-  import { getCollectionsQuery, getCombinedCollectionTypesQuery } from "$lib/remote/collections.remote";
-  import * as Table from "$lib/components/ui/table";
+  import { Button } from "#lib/components/ui/button";
+  import CopyTextButton from "#lib/components/CopyTextButton.svelte";
+  import { subscribeLiveEvent } from "#lib/live/event-source";
+  import { getCollectionsQuery, getCombinedCollectionTypesQuery } from "#lib/remote/collections.remote";
+  import * as Table from "#lib/components/ui/table";
   import { onMount } from "svelte";
 
   const [collections, combinedTypeString] = $derived(

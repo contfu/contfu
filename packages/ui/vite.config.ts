@@ -7,9 +7,6 @@ import { defineConfig } from "vite";
 const svelteKitConfig = {
   preprocess: vitePreprocess(),
   adapter: adapter(),
-  alias: {
-    "$lib/*": "./src/lib/*",
-  },
   experimental: {
     remoteFunctions: true,
   },

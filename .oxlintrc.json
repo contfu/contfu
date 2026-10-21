@@ -138,9 +138,64 @@
     "contfu/prefer-enum-helper": "error",
     "contfu/no-backend-infra-db-import": "error",
     "contfu/no-cross-slice-imports": "error",
-    "contfu/one-feature-export-per-module": "error"
+    "contfu/one-feature-export-per-module": "error",
+    "no-restricted-properties": [
+      "error",
+      {
+        "object": "Effect",
+        "property": "runPromise",
+        "message": "Features describe effects; run them through effect/run.ts or the app runtime"
+      },
+      {
+        "object": "Effect",
+        "property": "runPromiseExit",
+        "message": "Features describe effects; run them through effect/run.ts or the app runtime"
+      },
+      {
+        "object": "Effect",
+        "property": "runSync",
+        "message": "Features describe effects; run them through effect/run.ts or the app runtime"
+      },
+      {
+        "object": "Effect",
+        "property": "runSyncExit",
+        "message": "Features describe effects; run them through effect/run.ts or the app runtime"
+      },
+      {
+        "object": "Effect",
+        "property": "runFork",
+        "message": "Features describe effects; run them through effect/run.ts or the app runtime"
+      }
+    ],
+    "no-restricted-imports": [
+      "error",
+      {
+        "patterns": [
+          {
+            "group": ["effect/unstable/*", "effect/internal/*"],
+            "message": "Effect 4 modules live under effect/*; never import internal modules."
+          }
+        ]
+      }
+    ]
   },
   "overrides": [
+    {
+      // The edges that run effects: bridges from Promise code, the app runtime and specs.
+      "files": [
+        "**/*.spec.ts",
+        "**/*.slow.spec.ts",
+        "tests/**",
+        "scripts/**",
+        "packages/service/backend/src/effect/run.ts",
+        "packages/service/backend/src/effect/services/Database.ts",
+        "packages/service/backend/src/features/target-delivery/deliverTargetItem.ts",
+        "packages/service/backend/src/features/target-delivery/repairStrapiTargetBinding.ts",
+        "packages/service/backend/src/shared/target-delivery/failedDeliveries.ts",
+        "packages/service/app/src/lib/server/**"
+      ],
+      "rules": { "no-restricted-properties": "off" }
+    },
     {
       "files": ["packages/service/backend/src/domain/**/*.ts"],
       "rules": {

@@ -1190,21 +1190,143 @@ async function collectEvents<T>(run: () => Promise<T>): Promise<T> {
   return run();
 }
 
-test("duplicate consumer rejection is terminal, including WebSocket fallback", async () => {
-  globalThis.WebSocket = createFailingWebSocketClass() as unknown as typeof WebSocket;
-  let requests = 0;
-  globalThis.fetch = (() => {
-    requests++;
-    return Promise.resolve(
-      new Response("Already connected", {
-        status: 409,
-        headers: { "X-Contfu-Error": "E_CONSUMER_CONNECTED" },
-      }),
-    );
-  }) as unknown as typeof fetch;
-  const stream = connectToStream({ key: Buffer.alloc(32), reconnect: true });
-  await expect(stream.next()).rejects.toBeInstanceOf(ConsumerAlreadyConnectedError);
-  expect(requests).toBe(1);
+describe("consumer ownership recovery", () => {
+  const originalFetch = globalThis.fetch;
+  const originalWebSocket = globalThis.WebSocket;
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    globalThis.WebSocket = originalWebSocket;
+  });
+
+  function rejectConsumer() {
+    return new Response("Already connected", {
+      status: 409,
+      headers: { "X-Contfu-Error": "E_CONSUMER_CONNECTED" },
+    });
+  }
+
+  test("retries stale ownership after a drop and delivers new content after recovery", async () => {
+    globalThis.WebSocket = createFailingWebSocketClass() as unknown as typeof WebSocket;
+    let attempts = 0;
+    globalThis.fetch = ((url: string) => {
+      if (url.includes("/ack")) return Promise.resolve(new Response(null, { status: 204 }));
+      attempts++;
+      if (attempts > 1 && attempts < 5) return Promise.resolve(rejectConsumer());
+      return Promise.resolve(
+        new Response(
+          createMockStream(
+            attempts === 1
+              ? []
+              : [
+                  createBinaryMessage([
+                    EventType.ITEM_CHANGED,
+                    [34, "article", 2, { title: "Recovered" }],
+                    2,
+                  ]),
+                ],
+          ),
+        ),
+      );
+    }) as unknown as typeof fetch;
+    await withImmediateReconnectDelays(async (delays) => {
+      const stream = connectToStream({
+        key: Buffer.alloc(32),
+        connectionEvents: true,
+        reconnect: true,
+        initialReconnectDelay: 5,
+        maxReconnectDelay: 20,
+      });
+      try {
+        expect((await stream.next()).value?.type).toBe(EventType.STREAM_CONNECTED);
+        expect((await stream.next()).value).toEqual({
+          type: EventType.STREAM_DISCONNECTED,
+          reason: "Stream ended",
+        });
+        for (let i = 0; i < 3; i++) {
+          expect((await stream.next()).value).toEqual({
+            type: EventType.STREAM_DISCONNECTED,
+            reason: new ConsumerAlreadyConnectedError().message,
+          });
+        }
+        expect((await stream.next()).value?.type).toBe(EventType.STREAM_CONNECTED);
+        expect((await stream.next()).value).toMatchObject({
+          type: EventType.ITEM_CHANGED,
+          item: { props: { title: "Recovered" } },
+        });
+        expect(attempts).toBe(5);
+        expect(delays).toEqual([5, 10, 20, 20]);
+      } finally {
+        await stream.return(undefined as never);
+      }
+    });
+  });
+
+  test("a genuine duplicate keeps reporting a clear reason with capped backoff", async () => {
+    globalThis.WebSocket = createFailingWebSocketClass() as unknown as typeof WebSocket;
+    let attempts = 0;
+    globalThis.fetch = (() => {
+      attempts++;
+      return Promise.resolve(rejectConsumer());
+    }) as unknown as typeof fetch;
+    await withImmediateReconnectDelays(async (delays) => {
+      const stream = connectToStream({
+        key: Buffer.alloc(32),
+        connectionEvents: true,
+        initialReconnectDelay: 5,
+        maxReconnectDelay: 20,
+      });
+      for (let i = 0; i < 6; i++) {
+        expect((await stream.next()).value).toEqual({
+          type: EventType.STREAM_DISCONNECTED,
+          reason: new ConsumerAlreadyConnectedError().message,
+        });
+      }
+      await stream.return(undefined as never);
+      expect((await stream.next()).done).toBe(true);
+      expect(attempts).toBe(6);
+      expect(delays).toEqual([5, 10, 20, 20, 20]);
+    });
+  });
+
+  test("cancellation interrupts a pending ownership retry delay", async () => {
+    globalThis.WebSocket = createFailingWebSocketClass() as unknown as typeof WebSocket;
+    let attempts = 0;
+    globalThis.fetch = (() => {
+      attempts++;
+      return Promise.resolve(rejectConsumer());
+    }) as unknown as typeof fetch;
+    const stream = connectToStream({
+      key: Buffer.alloc(32),
+      connectionEvents: true,
+      initialReconnectDelay: 30_000,
+    });
+    await stream.next();
+    const pending = stream.next();
+    await Bun.sleep(0);
+    await stream.return(undefined as never);
+    expect((await pending).done).toBe(true);
+    expect((await stream.next()).done).toBe(true);
+    expect(attempts).toBe(1);
+  });
+
+  test("reconnect:false emits the rejection then throws and completes", async () => {
+    globalThis.WebSocket = createFailingWebSocketClass() as unknown as typeof WebSocket;
+    globalThis.fetch = (() => Promise.resolve(rejectConsumer())) as unknown as typeof fetch;
+    const stream = connectToStream({
+      key: Buffer.alloc(32),
+      connectionEvents: true,
+      reconnect: false,
+    });
+    expect((await stream.next()).value).toEqual({
+      type: EventType.STREAM_DISCONNECTED,
+      reason: new ConsumerAlreadyConnectedError().message,
+    });
+    await expect(stream.next()).rejects.toBeInstanceOf(ConsumerAlreadyConnectedError);
+    expect((await stream.next()).done).toBe(true);
+    const withoutEvents = connectToStream({ key: Buffer.alloc(32), reconnect: false });
+    await expect(withoutEvents.next()).rejects.toBeInstanceOf(ConsumerAlreadyConnectedError);
+    expect((await withoutEvents.next()).done).toBe(true);
+  });
 });
 
 test("SSE heartbeats keep an idle connection alive without content or ACKs", async () => {

@@ -1,3 +1,4 @@
+import { wordPressSchemaDiscoveryNote } from "@contfu/core";
 import type {
   AddScannedCollectionsResult,
   AddedScannedCollection,
@@ -24,11 +25,15 @@ export interface AddOptions extends DryRunOption {
 }
 
 function compactScannedCollections(collections: ScannedCollection[]) {
-  return collections.map(({ ref, displayName, scope, alreadyAdded }) => ({
+  return collections.map(({ ref, displayName, scope, alreadyAdded, diagnostics, options }) => ({
     ref,
     displayName,
     ...(scope ? { scope } : {}),
     alreadyAdded,
+    ...(diagnostics?.length ? { diagnostics } : {}),
+    ...(wordPressSchemaDiscoveryNote(options)
+      ? { schemaDiscoveryNote: wordPressSchemaDiscoveryNote(options) }
+      : {}),
   }));
 }
 
@@ -79,6 +84,13 @@ function printScannedCollections(scanned: ScannedCollection[]) {
     { header: "Display Name", value: (row) => row.displayName },
     { header: "Scope", value: (row) => row.scope ?? "" },
     { header: "Status", value: (row) => (row.alreadyAdded ? "already added" : "available") },
+    {
+      header: "Schema Note",
+      value: (row) =>
+        row.diagnostics?.map((entry) => entry.reason).join("; ") ||
+        wordPressSchemaDiscoveryNote(row.options) ||
+        "",
+    },
   ]);
 }
 

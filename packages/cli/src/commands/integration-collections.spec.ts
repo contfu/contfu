@@ -51,6 +51,39 @@ describe("scanIntegrationCollections", () => {
     expect(logSpy).toHaveBeenCalledWith(JSON.stringify(collections, null, 2));
   });
 
+  for (const format of ["json", "agent", "default"]) {
+    test(`shows passive WordPress evidence in ${format} scan output`, async () => {
+      const options = {
+        wordPressSchemaDiscovery: {
+          sampleCapped: true,
+          sampleOnlyFieldCount: 2,
+          declaredFields: ["status"],
+        },
+      };
+      mockFetch.mockResolvedValueOnce(jsonResponse([{ id: "42", name: "WordPress" }]));
+      mockFetch.mockResolvedValueOnce(
+        jsonResponse([
+          {
+            ref: "posts",
+            displayName: "Posts",
+            alreadyAdded: false,
+            options,
+            diagnostics: [
+              {
+                path: "wordPressSchemaDiscovery",
+                reason: "WordPress schema sample capped at 100 records.",
+              },
+            ],
+          },
+        ]),
+      );
+      await scanIntegrationCollections("42", { format });
+      expect(logSpy.mock.calls.map((call: unknown[]) => String(call[0])).join("\n")).toContain(
+        "capped at 100 records",
+      );
+    });
+  }
+
   test("prints scanned collections as agent output", async () => {
     const collections = [{ ref: "db-1", displayName: "Blog Posts", alreadyAdded: false }];
     mockFetch.mockResolvedValueOnce(jsonResponse([{ id: "42", name: "Brain" }]));

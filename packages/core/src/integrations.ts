@@ -29,8 +29,11 @@ export type IntegrationType = EnumValue<typeof IntegrationType>;
  * their durable numeric values without being advertised as operational.
  */
 export const IntegrationAvailability = defineEnum({
+  /** Publicly discoverable; individual UI and CLI flows may support a subset. */
   IMPLEMENTED: 1,
+  /** Internal backend creation only, subject to authorization; not advertised in UI or CLI. */
   UNRELEASED: 2,
+  /** Reserved storage identity only; creation is not supported. */
   PLANNED: 3,
 });
 
@@ -51,6 +54,7 @@ export const IntegrationTypeAvailability = {
   [IntegrationType.GITHUB]: IntegrationAvailability.IMPLEMENTED,
 } as const satisfies Record<IntegrationType, IntegrationAvailability>;
 
+/** Backend creation candidates, not a public service list or an authorization grant. */
 export const creatableIntegrationTypes = Object.entries(IntegrationTypeAvailability)
   .filter(
     ([, availability]) =>

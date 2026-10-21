@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.1.16] - 2026-10-21
+
+### Added
+
+- Resolve known service URLs as item references.
+
+### Fixed
+
+- Align Bun runtimes on 1.4.3.
+- Resolve CMS relation targets in generated types.
+
 ## [0.1.15] - 2026-09-20
 
 ### Fixed

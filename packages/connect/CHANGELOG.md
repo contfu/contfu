@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.13] - 2026-10-21
+
+### Fixed
+
+- Align Bun runtimes on 1.4.3.
+- Recover consumer streams after dropped sessions.
+
 ## [0.1.12] - 2026-09-20
 
 ### Fixed

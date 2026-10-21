@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
-import { EventType, type Block, type ImageBlock } from "@contfu/core";
+import { EventType, PropertyType, type Block, type ImageBlock } from "@contfu/core";
 import { eq } from "drizzle-orm";
 import { db } from "./infra/db/db";
 import { fileTable, itemFileTable, itemsTable, syncTable } from "./infra/db/schema";
@@ -34,6 +34,59 @@ describe("contfu connect", () => {
   afterEach(() => {
     mock.restore();
     void mock.module("@contfu/connect", () => actualConnector);
+  });
+
+  test("ingests and replays scalar URIs and mixed managed/URI reference lists", async () => {
+    setCollection("article", "Article", {
+      author: PropertyType.REF,
+      related: PropertyType.REFS,
+    });
+    setCollection("people", "People", { name: PropertyType.STRING });
+    createItem({ id: 2, collection: "people", changedAt: 1, props: { name: "Alice" } });
+    const urls = [
+      "https://public.example/author",
+      "mailto:author@example.com",
+      "tel:+123",
+      "/other",
+      "#section",
+    ];
+    await mock.module("@contfu/connect", () => ({
+      ...actualConnector,
+      // eslint-disable-next-line typescript/require-await -- async generator is the stream contract
+      connectToStream: async function* () {
+        for (const [index, author] of urls.entries()) {
+          for (let replay = 0; replay < 2; replay++) {
+            yield {
+              type: EventType.ITEM_CHANGED,
+              item: {
+                id: index + 1,
+                collection: "article",
+                changedAt: replay + 1,
+                props: { author, related: [author, ["people", 2], "/relative"] },
+              },
+              index: index * 2 + replay + 1,
+            };
+          }
+        }
+      },
+    }));
+    const { connect } = await import("./connect");
+    for await (const _ of connect({ key, reconnect: false })) {
+      // Consume actual application ingestion, including replay.
+    }
+    const items = findItems({
+      filter: '$collection = "article"',
+      sort: "$id",
+      with: { managedRelated: { filter: 'linkedFrom("related") = $1.$id' } },
+    });
+    expect(items).toHaveLength(urls.length);
+    for (const [index, item] of items.entries()) {
+      expect(item.author).toBe(urls[index]);
+      expect(item.related).toEqual([urls[index], expect.any(Number), "/relative"]);
+      expect(item.managedRelated).toEqual([
+        expect.objectContaining({ $id: ["people", 2], name: "Alice" }),
+      ]);
+    }
   });
 
   test("throws when an item arrives before its collection schema", async () => {

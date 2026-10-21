@@ -169,8 +169,10 @@ contfu integrations list -f json
 
 ### Scopes
 
-A **Scope** is a service-side namespace that limits which collections a Source Role
-integration exposes. Service-native concepts map onto scopes:
+A **Scope** is an optional group of collections within one service connection.
+A collection has at most one scope; `collection.scope` is the single source of truth
+for fetching and identity, not a collection ref or an options override.
+Service-native concepts map onto scopes:
 
 | Service    | Scope is…       |
 | ---------- | --------------- |
@@ -185,6 +187,92 @@ service collections that share a native name within one integration.
 > In Contfu terminology and persisted state, always speak of **scopes** — the
 > service-native words (dataset, environment) are only useful for finding the setting
 > in that Service's own UI.
+
+Collection namespaces are not scopes: Strapi content-type UIDs, Directus collection names,
+and WordPress kind/restBase belong in the native key. Native keys exclude connection and
+scope and are unique within that pair.
+
+Managed identity is uniformly `hash(type, connection, scope, native key)`. Connection means
+Sanity projectId, Contentful spaceId, GitHub account/owner ID, or Notion workspace ID;
+Strapi, Directus, WordPress, and Web use the Contfu integration ID. A workspace permits
+at most one integration per native connection of the same service type. The same native
+document in two scopes has distinct managed IDs. Application collections remain name-based;
+optional, typed and filterable [`$scope`](./system-properties.md#source-scope) identifies
+an item's source scope.
+
+### Scoped references
+
+All adapters share a versioned reference envelope with `{connection?, scope?, collection?, key}`.
+A bare key means the same connection and scope with one target collection. The envelope is
+used when the destination differs or the field has multiple target collections; it replaces
+the former Strapi-specific `strapi-ref:v1` format. This is a reference contract, not raw
+OBJECT preservation of provider metadata.
+
+Sanity cross-dataset references and Contentful ResourceLinks are typed relations into the
+target scope's collections. Polymorphic fields retain each value's target collection and
+generate unions of the target item types. Contentful rich-text entry and resource hyperlinks
+use the same reference resolution; embedded entry blocks remain components.
+
+Unsynced targets retain stable pending identities, just like local references to unsynced
+collections, without an extra diagnostic. Synchronizing the target makes the relation
+available without refetching the referencing item. See [release notes](./release-notes.md)
+for the required coordinated full resync after the identity change.
+
+### Cross-connection references
+
+Sanity global and cross-project references and Contentful cross-space ResourceLinks
+retain the target's native project or space identity. Contfu matches only integrations
+of the same service in the same workspace. Target discovery uses the matched
+integration's credentials and options; source credentials are never sent to a foreign
+project or space.
+
+Target items retain connection/scope/key-based registry identities. An unavailable
+connection does not prevent delivery of the source content: native reference provenance
+is retained durably, and unavailable application relations are withheld until an active
+target flow supplies an unambiguous destination. Target sync and routing changes repair
+relations from cached source data without fetching the source provider again.
+
+Contentful keeps its existing localized native keys. An explicitly unlocalized target
+uses its bare entry ID; a localized target uses the selected locale. Missing target
+default-locale metadata remains unresolved rather than guessing a locale or changing
+an existing identity. Rescan collections when localization metadata changes.
+
+Apply the service migration and restart the backend and sync workers after deployment.
+Existing source items need a pull to capture foreign provenance previously discarded
+by adapters. No cross-connection service-URL recognition is added.
+
+### Service URLs as references
+
+GitHub, Sanity and Contentful recognize identity-verifiable HTTPS service links in
+rich content and in properties declared as `REF` or `REFS`. Ordinary string
+properties are not rewritten. Recognized links use the same item identity as
+native references, including a scope qualifier when the destination is in another
+scope.
+
+Supported forms:
+
+- GitHub: `https://github.com/<owner>/<repo>/blob/<ref>/<path>`. The repository
+  must belong to the connection's verified installation, and the path must have a
+  supported document extension. Branch and tag names are checked against repository
+  metadata, including names containing slashes; ambiguous ref/path splits remain
+  URLs. The equivalent `tree` route is recognized only when repository metadata
+  confirms that the path is a document file, not a directory.
+- Sanity: `https://<projectId>.api.sanity.io/<apiVersion>/data/doc/<dataset>/<documentId>`,
+  with a date-versioned API path, the configured project and exactly one document
+  ID. Draft IDs resolve to their published identity. Opaque Studio routes do not
+  prove project, scope and document identity and remain URLs.
+- Contentful: `https://app.contentful.com/spaces/<spaceId>/environments/<environmentId>/entries/<entryId>`,
+  requiring the configured space. The older `/spaces/<spaceId>/entries/<entryId>`
+  form means the `master` scope, not the source item's current scope. Destination
+  localization metadata determines whether the referenced key includes a locale.
+
+Public-site links, unsupported routes, malformed identities and links into other
+connections stay unchanged. No public URL patterns, slug lookup or cross-connection
+discovery are performed. A recognized identity still needs a configured destination
+flow to resolve to an item in an application.
+
+**Resync existing source items** to apply recognition to previously synchronized
+content; deployment does not retroactively rewrite stored items.
 
 ### Drafts
 
@@ -276,6 +364,18 @@ schema before storing it. This applies to future schema pushes; it does not
 rewrite an already stored schema, so re-run the Studio schema push after
 changing draft mode to repair an existing collection schema.
 
+The plugin resolves named type aliases and maps supported scalar/object types
+and compatible homogeneous arrays. Unresolved custom field types and ambiguous
+or unrepresentable arrays are omitted with plugin-side structured diagnostics;
+reference destination restrictions are reported but not encoded in generic
+Contfu `REF`/`REFS` types. Direct document-field `.required()` is the only
+validation rule mapped to Contfu optionality. Other validation rules, nested
+and member constraints, and editor-only `hidden`, `readOnly`, or custom input
+behavior are diagnosed or intentionally omitted. Diagnostics are logged by default by the helper or can
+be collected with its `onDiagnostic` option; they are not part of the posted
+schema contract. Because a push replaces the stored authoritative schema,
+omitted fields can remove properties from an existing collection.
+
 ### Deletions from polling sources
 
 WordPress source collections use authoritative scheduled full pulls for deletion reconciliation:
@@ -287,13 +387,67 @@ soft-deleted source state until WordPress stops returning it or it is restored.
 
 ### Webhook signing and Service diagnostics
 
-For Services with signed webhooks, store the signing secret on the integration with
-`--webhook-secret` or the equivalent UI field. Contfu verifies the raw webhook body before
-parsing when a secret is configured. Supported source webhook schemes include Contentful's
+For Contentful and Sanity source webhooks, store the signing secret on the integration with
+`--webhook-secret` or the equivalent UI field. These routes verify the raw webhook body before
+parsing when a secret is configured. Their supported schemes include Contentful's
 `x-contentful-signature` plus `x-contentful-timestamp` and Sanity webhook signatures.
+Notion instead uses deployment-global enrollment and signing credentials, as described below.
 
 Details for the first-party item-push senders, including `@contfu/strapi`, are in the
 [Contfu item push contract](./private/specs/contfu-item-push.md).
+
+#### Notion source webhooks
+
+Customers connect Notion through the browser OAuth consent flow, grant access to the desired
+pages/databases, and [discover and import source collections](#discover-and-import-source-collections).
+There is no per-integration webhook-secret or CLI enrollment step for Notion. Push delivery
+depends on the deployment operator enrolling the shared Notion OAuth webhook once for the
+deployment, not once per workspace.
+
+**Operator enrollment:**
+
+1. Configure the deployment's `NOTION_WEBHOOK_SECRET` with a private endpoint UID (`<uid>`).
+   This value selects the endpoint; it is not the signing key. Apply the deployment configuration
+   before enrollment.
+2. In Notion's OAuth integration webhook settings, register
+   `https://<contfu-host>/webhooks/notion/<uid>`.
+3. Let Notion send its `verification_token` to that endpoint. Contfu accepts this enrollment
+   request without an event signature and stores the token encrypted.
+4. As a Contfu administrator, open **Admin → Settings** (`/admin/settings`), copy
+   **Notion OAuth Verification Token**, and paste it into Notion's webhook verification UI.
+   This is shared deployment state: do not repeat enrollment for individual customer connections.
+
+Subsequent event requests must carry `X-Notion-Signature: sha256=<hex>`, an HMAC-SHA256
+over the exact request body bytes using the verification token as the signing key. The
+verification token, endpoint UID, and OAuth access token are distinct; keep them private.
+Unlike the Contentful and Sanity routes, the Notion route parses and validates the payload
+before checking event signatures.
+
+Contfu maps these notifications to source changes:
+
+- `page.created`, `page.content_updated`, `page.properties_updated`, `page.moved`,
+  `page.deleted`, and `page.undeleted`.
+- `database.schema_updated`, `database.moved`, `database.deleted`, and `database.undeleted`,
+  and the equivalent `data_source.*` events, plus `data_source.content_updated`.
+
+Page signals require a parent collection identity (a data-source ID or database ID) and route
+only to matching imported collections. `page.locked` and `page.unlocked` are ignored.
+Other `page.*` names fall back to a generic item-change signal; other unsupported event
+types have no mapping and are ignored.
+
+The endpoint returns `404` for an invalid or unconfigured UID, `400` for invalid JSON or
+payload shape, and `413` for bodies larger than 1 MiB. Outside enrollment, missing signing
+credentials or a missing/invalid signature returns `401`. Authenticated but unmapped or
+incomplete signals (including missing event type/entity or parentless page signals), and
+signals with no matching imported collection, receive `200` without synchronization.
+A successful acknowledgement is not proof that content was synchronized.
+
+Notion pushes are **best-effort change notifications**, not full content or a complete
+deletion stream. Recognized delete signals can trigger deletion handling, but missing parent
+information does not establish a delete. Workers fetch or reconcile current state rather
+than treating notification bodies as authoritative content. Keep scheduled polling and full
+pulls enabled to repair missed, incomplete, or out-of-order notifications. Operators can see
+the [integration sync strategy](./private/specs/integration-sync-strategy.md) for reconciliation details.
 
 ### Generic webhook ingress
 
@@ -362,6 +516,19 @@ fresh pull from Notion.
 
 Notion `time_zone` values are not retained. Date-valued formulas and rollups remain start-only and
 cannot be configured as ranges.
+
+### Notion locations
+
+Notion `place` (location) properties are discovered as optional geographic fields and normalized
+as `GeoPoint` values: `{ lat: number, lon: number }`. Empty locations are explicitly `null` in
+source items. Both coordinates must be finite numbers; malformed non-null locations fail the pull
+or single-page fetch with a non-retryable validation error identifying the property. Zero coordinates
+are preserved. Place names, addresses, and provider IDs (including AWS and Google place IDs) are
+intentionally omitted; use separate Notion properties if your application needs that metadata.
+
+Location fields support the existing null-check filters only, not geographic search. This support
+is read-only and does not add Notion place write-back. For existing collections, refresh the source
+schema and pull fresh items, then regenerate application types to expose the optional `GeoPoint` field.
 
 ### Ephemeral Notion file URLs
 

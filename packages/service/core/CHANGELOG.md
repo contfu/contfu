@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.4] - 2026-10-21
+
+### Fixed
+
+- Hydrate complete Notion relations before normalization.
+- Resolve CMS relation targets in generated types.
+
 ## [0.2.3] - 2026-09-27
 
 ### Fixed

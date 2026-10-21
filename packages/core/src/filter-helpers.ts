@@ -8,6 +8,7 @@ export const SYSTEM_FIELD_NAMES = [
   "$publishedAt",
   "$scheduledAt",
   "$locale",
+  "$scope",
   "$draft",
 ] as const;
 
@@ -33,6 +34,7 @@ type SystemFieldRefs = {
   $publishedAt: FieldRef<number | null>;
   $scheduledAt: FieldRef<number | null>;
   $locale: FieldRef<string>;
+  $scope: FieldRef<string | null>;
   $draft: FieldRef<boolean>;
 };
 
