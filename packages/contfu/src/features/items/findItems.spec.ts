@@ -378,6 +378,50 @@ describe("findItems", () => {
     expect((item1.links[0] as any).$id[1]).toBe(2);
   });
 
+  test("expands a delivered polymorphic field into items from different collections", async () => {
+    setCollection("pages", "Pages", { related: PropertyType.REFS, featured: PropertyType.REF });
+    setCollection("people", "People", { name: PropertyType.STRING });
+    createItem({
+      id: 1,
+      ref: "person/1",
+      collection: "people",
+      props: { name: "Alice" },
+      changedAt: 1,
+    });
+    createItem({ id: 1, ref: "page/1", collection: "pages", props: {}, changedAt: 1 });
+    // Materialize delivered identities using the same link representation as ingestion.
+    const wireRelated: [string, number][] = [
+      ["articles", 1],
+      ["people", 1],
+    ];
+    const related = wireRelated.map((to) =>
+      createItemLink({ prop: "related", from: ["pages", 1], to }),
+    );
+    const featured = createItemLink({ prop: "featured", from: ["pages", 1], to: ["people", 1] });
+    const { createOrUpdateItem } = await import("./createOrUpdateItem");
+    createOrUpdateItem({
+      id: 1,
+      ref: "page/1",
+      collection: "pages",
+      props: { related, featured },
+      changedAt: 1,
+    });
+    const result = findItems({
+      filter: '$collection = "pages"',
+      with: {
+        related: { filter: 'linkedFrom("related") = $1.$id' },
+        featured: { filter: "$id = $1.featured", single: true },
+      },
+    });
+    expect((result[0].related as any[]).map((item) => [item.$id, item.title ?? item.name])).toEqual(
+      expect.arrayContaining([
+        [["articles", 1], "Alpha Post"],
+        [["people", 1], "Alice"],
+      ]),
+    );
+    expect((result[0].featured as any).$id).toEqual(["people", 1]);
+  });
+
   test("resolves with relations", () => {
     const result = findItems({
       filter: '$collection = "articles" && featured = true',

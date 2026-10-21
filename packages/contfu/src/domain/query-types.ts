@@ -35,6 +35,7 @@ export type QuerySystemFields = {
   $changedAt: number;
   $deletedAt?: number;
   $locale?: string;
+  $scope?: string;
   $draft?: boolean;
 };
 

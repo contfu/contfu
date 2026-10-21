@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.11] - 2026-10-21
+
+### Fixed
+
+- Aligned the Bun runtime on stable 1.4.3.
+
 ## [0.1.10] - 2026-09-20
 
 ### Fixed

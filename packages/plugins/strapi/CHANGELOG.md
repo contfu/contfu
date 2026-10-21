@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.8] - 2026-10-21
+
+### Added
+
+- Support polymorphic relation fields across collection targets.
+- Resolve cross-scope relations with a shared reference codec.
+- Scope item identity by service connection and expose $scope.
+
 ## [0.2.7] - 2026-09-24
 
 ### Added

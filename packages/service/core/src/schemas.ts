@@ -1,5 +1,6 @@
 export {
   PropertyType,
+  REFERENCE_IDENTITY,
   PROPERTY_TYPE_MASK,
   PROPERTY_METADATA_MASK,
   propertyTypeBase,

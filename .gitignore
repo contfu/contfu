@@ -216,3 +216,6 @@ docker/wordpress-e2e/.env.generated
 .discuss/
 .pi-subagents
 packages/service/app/src/lib/server/docs.generated.ts
+
+# Read-only reference sources for agents, fetched by `bun run repos:sync`
+/repos

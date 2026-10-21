@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Button } from "$lib/components/ui/button";
+  import { Button } from "#lib/components/ui/button";
   import { ModeWatcher } from "mode-watcher";
   import { page } from "$app/state";
   import "../app.css";

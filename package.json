@@ -16,6 +16,7 @@
     "dev:client": "bun run --parallel -F '@contfu/server' -F '@contfu/ui' dev",
     "fmt": "oxfmt",
     "lint": "oxlint",
+    "lint:native-ui": "bun scripts/native-ui-elements.ts",
     "lint:types": "oxlint --type-aware",
     "typecheck": "tsc -b tsconfig.check.json",
     "check": "bun run fmt && bun run build && bun run lint && bun run lint:types && bun run typecheck && bun run test",

@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.15] - 2026-10-21
+
+### Added
+
+- Discover WordPress schemas from route metadata and bounded samples.
+
+### Fixed
+
+- Align Bun runtimes on 1.4.3.
+
 ## [0.1.14] - 2026-09-16
 
 ### Added

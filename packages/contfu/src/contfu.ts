@@ -20,7 +20,7 @@ import {
   oneOf,
   or,
 } from "@contfu/core";
-import { ConsumerAlreadyConnectedError, type ItemEvent, type StreamEvent } from "@contfu/connect";
+import type { ItemEvent, StreamEvent } from "@contfu/connect";
 import type { FileStore } from "./domain/files";
 import type { ClientI18nConfig, LocaleScope } from "./domain/i18n";
 import type {
@@ -98,7 +98,8 @@ export function contfu<CMap = unknown>(options: ContfuOptions<CMap> = {}): Contf
 
 type Subscriber = {
   queue: SyncEvent[];
-  resolve: ((result: IteratorResult<SyncEvent>) => void) | null;
+  reads: ((result: IteratorResult<SyncEvent>) => void)[];
+  closed: boolean;
 };
 
 const HOT_STREAM_INITIAL_RESTART_DELAY_MS = 1_000;
@@ -110,13 +111,23 @@ function createHotEventStream<CMap>(
   options: ContfuOptions<CMap>,
 ): AsyncIterable<SyncEvent> {
   const subscribers = new Set<Subscriber>();
+  let completed = false;
 
   const publish = (event: SyncEvent) => {
     for (const sub of subscribers) {
-      sub.queue.push(event);
-      sub.resolve?.({ value: sub.queue.shift()!, done: false });
-      sub.resolve = null;
+      const resolve = sub.reads.shift();
+      if (resolve) resolve({ value: event, done: false });
+      else sub.queue.push(event);
     }
+  };
+
+  const complete = () => {
+    completed = true;
+    for (const sub of subscribers) {
+      for (const resolve of sub.reads) resolve({ value: undefined, done: true });
+      sub.reads = [];
+    }
+    subscribers.clear();
   };
 
   const run = async () => {
@@ -155,7 +166,6 @@ function createHotEventStream<CMap>(
           type: EventType.STREAM_DISCONNECTED,
           reason: error instanceof Error ? error.message : "Unknown sync stream error",
         });
-        if (error instanceof ConsumerAlreadyConnectedError) return;
       }
 
       await sleep(restartDelay);
@@ -163,31 +173,39 @@ function createHotEventStream<CMap>(
     }
   };
 
-  void (options.database ? withDatabase(options.database, run) : run()).catch((error) => {
-    publish({
-      type: EventType.STREAM_DISCONNECTED,
-      reason: error instanceof Error ? error.message : "Unknown sync stream error",
-    });
-  });
+  void Promise.resolve()
+    .then(() => (options.database ? withDatabase(options.database, run) : run()))
+    .catch((error) => {
+      publish({
+        type: EventType.STREAM_DISCONNECTED,
+        reason: error instanceof Error ? error.message : "Unknown sync stream error",
+      });
+    })
+    .finally(complete);
 
   return {
     [Symbol.asyncIterator](): AsyncIterator<SyncEvent> {
-      const sub: Subscriber = { queue: [], resolve: null };
-      subscribers.add(sub);
+      const sub: Subscriber = { queue: [], reads: [], closed: false };
+      if (!completed) subscribers.add(sub);
 
       return {
         next() {
-          if (sub.queue.length > 0) {
+          if (!sub.closed && sub.queue.length > 0) {
             return Promise.resolve({ value: sub.queue.shift()!, done: false });
           }
+          if (sub.closed || completed) {
+            return Promise.resolve({ value: undefined, done: true });
+          }
           return new Promise<IteratorResult<SyncEvent>>((resolve) => {
-            sub.resolve = resolve;
+            sub.reads.push(resolve);
           });
         },
         return() {
+          sub.closed = true;
+          sub.queue = [];
           subscribers.delete(sub);
-          sub.resolve?.({ value: undefined, done: true });
-          sub.resolve = null;
+          for (const resolve of sub.reads) resolve({ value: undefined, done: true });
+          sub.reads = [];
           return Promise.resolve({ value: undefined, done: true });
         },
       };
@@ -203,7 +221,7 @@ function emptyAsyncIterable(): AsyncIterable<SyncEvent> {
   return {
     [Symbol.asyncIterator]() {
       return {
-        next: () => new Promise<IteratorResult<SyncEvent>>(() => {}),
+        next: () => Promise.resolve({ value: undefined, done: true }),
         return: () => Promise.resolve({ value: undefined, done: true }),
       };
     },

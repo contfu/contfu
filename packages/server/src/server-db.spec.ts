@@ -90,9 +90,9 @@ describe("configured Server databases", () => {
       )(Object.assign(new Request("http://localhost/api/types"), { params: {} }));
       expect(response.status).toBe(200);
       const types = await response.text();
-      expect(types).toContain('author: ContfuCollections["authors"];');
+      expect(types).toContain("author: [collection: string, id: number] | string;");
       expect(types).toContain(
-        'related: (ContfuCollections["articles"] | ContfuCollections["authors"])[];',
+        'related: (ContfuCollections["articles"] | [collection: string, id: number] | string)[];',
       );
     } finally {
       if (originalKey === undefined) delete process.env.CONTFU_KEY;

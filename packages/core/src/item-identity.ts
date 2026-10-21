@@ -22,3 +22,11 @@ export function itemIdentityKey(identity: ItemIdentity): string {
 export function sameItemIdentity(left: ItemIdentity, right: ItemIdentity): boolean {
   return left[0] === right[0] && left[1] === right[1];
 }
+
+/** URI references are retained verbatim, not interpreted as encoded managed identities. */
+export function isExternalHref(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    (/^[a-z][a-z\d+.-]*:/i.test(value) || /^(?:\/|#|\?|\.\.?\/)/.test(value))
+  );
+}

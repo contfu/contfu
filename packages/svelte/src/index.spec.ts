@@ -44,12 +44,21 @@ for (const name of ["Block", "Inline"]) {
     .replaceAll('from "svelte"', `from "${clientSvelte}"`);
   await writeFile(join(hydrationDir, `${name}.js`), code);
 }
-const hostSource = `<script>import Block from './Block.js'; let { block, file } = $props(); let currentFile = $state(file); export function updateFile(next) { currentFile = next; }</script><Block {block} file={currentFile} />`;
+const hostSource = `<script>import Block from './Block.js'; let { block, file, components = {} } = $props(); let currentComponents = $state(components); export function updateComponents(next) { currentComponents = next; } let currentFile = $state(file); export function updateFile(next) { currentFile = next; }</script><Block {block} file={currentFile} components={currentComponents} />`;
 const hostCode = compile(hostSource, {
   generate: "client",
   filename: "HydrationHost.svelte",
 }).js.code.replaceAll('from "svelte"', `from "${clientSvelte}"`);
 await writeFile(join(hydrationDir, "Host.js"), hostCode);
+const overrideSource = `<script>let { children } = $props();</script><section>{@render children?.()}</section>`;
+for (const generate of ["client", "server"] as const) {
+  await writeFile(
+    join(hydrationDir, `Override-${generate}.js`),
+    compile(overrideSource, { generate, filename: "Override.svelte" }).js.code,
+  );
+}
+const ServerOverride = (await import(`${hydrationDir}/Override-server.js`)).default;
+const ClientOverride = (await import(`${hydrationDir}/Override-client.js`)).default;
 await writeFile(
   join(hydrationDir, "context.js"),
   'export const FILE_URL_CONTEXT_KEY = Symbol("file");',
@@ -222,6 +231,75 @@ describe("Block (Svelte)", () => {
         components: { Callout: NamedComponentFixture },
       }),
     ).toBe('<section data-name="Callout" data-kind="info"><p>hello</p></section>');
+  });
+
+  test("all configurable renderers preserve children and props", () => {
+    const cases: [string, BlockType, string][] = [
+      ["p", ["p", ["text"]], "text"],
+      ["h1", ["1", ["text"]], "text"],
+      ["h2", ["2", ["text"]], "text"],
+      ["h3", ["3", ["text"]], "text"],
+      ["blockquote", ["q", [["p", ["nested"]]]], "<p>nested</p>"],
+      ["pre", ["c", "ts", "code"], ""],
+      ["ul", ["u", ["item"]], "<li>item</li>"],
+      ["ol", ["o", ["item"]], "<li>item</li>"],
+      ["table", ["t", false, [[["cell"]]]], " <tbody><tr><td>cell</td></tr></tbody>"],
+      ["img", ["i", "image.png", "alt"], ""],
+      ["component", ["x", "Widget", {}, [["p", ["nested"]]]], "<p>nested</p>"],
+    ];
+    for (const [key, block, children] of cases) {
+      const fixture = (renderer: SvelteServerRenderer, props: SvelteServerComponentProps) => {
+        expect(props.block as BlockType).toEqual(block);
+        renderer.push("<section>");
+        props.children?.(renderer);
+        renderer.push("</section>");
+      };
+      expect(html(Block, { block, components: { [key]: fixture } })).toBe(
+        `<section>${children}</section>`,
+      );
+    }
+  });
+
+  test("named renderers take precedence over the generic fallback", () => {
+    const block: Component = ["x", "Callout", { kind: "info" }, [["p", ["hello"]]]];
+    const generic = () => {
+      throw new Error("generic renderer selected");
+    };
+    expect(
+      html(Block, { block, components: { Callout: NamedComponentFixture, component: generic } }),
+    ).toBe('<section data-name="Callout" data-kind="info"><p>hello</p></section>');
+  });
+
+  test("hydrates overrides and reactively replaces named renderers with inherited file context", async () => {
+    const block: Component = ["x", "Widget", {}, [["i", "nested.png", "nested"]]];
+    const target = document.createElement("div");
+    target.innerHTML = render(Block, {
+      props: { block, components: { Widget: ServerOverride }, file: { baseUrl: "/one" } },
+    }).body;
+    document.body.append(target);
+    const warnings: string[] = [];
+    const originalWarn = console.warn;
+    console.warn = (...args: unknown[]) => warnings.push(args.join(" "));
+    try {
+      const instance = hydrate(BrowserHost, {
+        target,
+        props: { block, components: { Widget: ClientOverride }, file: { baseUrl: "/one" } },
+      });
+      await tick();
+      expect(target.querySelector("section img")?.getAttribute("src")).toBe("/one/nested.png");
+      instance.updateComponents({});
+      instance.updateFile({ baseUrl: "/two" });
+      await tick();
+      expect(target.querySelector("section")).toBeNull();
+      expect(target.querySelector("img")?.getAttribute("src")).toBe("/two/nested.png");
+      instance.updateComponents({ component: ClientOverride });
+      await tick();
+      expect(target.querySelector("section img")?.getAttribute("src")).toBe("/two/nested.png");
+      expect(warnings).toEqual([]);
+    } finally {
+      console.warn = originalWarn;
+      target.remove();
+    }
   });
 
   test("hydrates browser-parsed tables without warnings and updates nested image URLs", async () => {

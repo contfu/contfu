@@ -37,6 +37,9 @@ jobs:
       - name: Lint (type-aware)
         run: bun run lint:types
 
+      - name: Lint (native UI elements)
+        run: bun run lint:native-ui
+
       - name: Run unit tests
         run: bun run test
 

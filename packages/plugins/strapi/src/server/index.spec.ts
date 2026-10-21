@@ -18,10 +18,20 @@ type Strapi = {
     get(options: { key: string }): Promise<unknown>;
     set(options: { key: string; value: unknown }): Promise<void>;
   };
+  contentTypes?: Record<
+    string,
+    { attributes: Record<string, { target?: string; morphBy?: string }> }
+  >;
   contentType?: (uid: string) => {
     attributes?: Record<
       string,
-      { type?: string; target?: unknown; component?: string; components?: string[] }
+      {
+        type?: string;
+        target?: unknown;
+        relation?: string;
+        component?: string;
+        components?: string[];
+      }
     >;
   } | null;
   db?: {
@@ -118,7 +128,7 @@ test("sends lifecycle events to the generic endpoint with increasing sequences",
   }
 });
 
-test("qualifies webhook relations from Strapi content-type metadata", async () => {
+test("emits bare webhook relation keys for destinations declared by content-type metadata", async () => {
   const calls: { init?: RequestInit }[] = [];
   globalThis.fetch = mock((_url: string | URL, init?: RequestInit) => {
     calls.push({ init });
@@ -146,11 +156,9 @@ test("qualifies webhook relations from Strapi content-type metadata", async () =
     properties?: { author?: unknown };
   };
   expect(typeof payload.properties?.author).toBe("string");
-  expect(
-    Buffer.from(payload.properties?.author as string, "base64url")
-      .subarray(0, Buffer.from("strapi-ref:v1\0").length)
-      .equals(Buffer.from("strapi-ref:v1\0")),
-  ).toBe(true);
+  expect(Buffer.from(payload.properties?.author as string, "base64url").toString()).toBe(
+    "author-1",
+  );
 });
 
 test("deep-populates dynamic-zone components before serializing lifecycle events", async () => {
@@ -361,6 +369,92 @@ test("retains the sequence across plugin bootstrap and skips malformed events", 
   expect(calls).toHaveLength(3);
   expect(JSON.parse(String(calls[2]?.init?.body)).sequence).toBe(1);
   expect(values.size).toBe(1);
+});
+
+test("preserves morph destination UIDs in canonical plugin pushes", async () => {
+  const { decodeScopedRef } = await import("@contfu/core");
+  const calls: { init?: RequestInit }[] = [];
+  globalThis.fetch = mock((_url: string | URL, init?: RequestInit) => {
+    calls.push({ init });
+    return new Response("OK");
+  }) as typeof fetch;
+  const handlers = new Map<string, Handler>();
+  const strapi = createStrapi(handlers, new Map());
+  strapi.contentType = () => ({
+    attributes: {
+      featured: { type: "relation", relation: "morphToOne" },
+      related: { type: "relation", relation: "morphToMany" },
+      author: { type: "relation", target: "api::person.person" },
+    },
+  });
+  plugin().bootstrap({ strapi });
+  await waitForCalls(calls, 1);
+  const article = { id: 1, documentId: "same", __type: "api::article.article" };
+  const person = { id: 1, documentId: "same", __type: "api::person.person" };
+  await handlers.get("entry.update")?.({
+    uid: "api::page.page",
+    entry: {
+      id: 10,
+      createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-01-01T00:00:00Z",
+      featured: article,
+      related: [article, person],
+      author: person,
+    },
+  });
+  const payload = JSON.parse(String(calls[1].init?.body));
+  const props = payload.properties;
+  expect(decodeScopedRef(Buffer.from(props.featured, "base64url"))?.collection).toBe(
+    "api::article.article",
+  );
+  expect(
+    props.related.map(
+      (value: string) => decodeScopedRef(Buffer.from(value, "base64url"))?.collection,
+    ),
+  ).toEqual(["api::article.article", "api::person.person"]);
+  expect(props.author).toBe(Buffer.from("same").toString("base64url"));
+});
+
+test("single-target morph webhooks use bare keys with and without discriminators", async () => {
+  const calls: { init?: RequestInit }[] = [];
+  globalThis.fetch = mock((_url: string | URL, init?: RequestInit) => {
+    calls.push({ init });
+    return new Response("OK");
+  }) as typeof fetch;
+  const handlers = new Map<string, Handler>();
+  const strapi = createStrapi(handlers, new Map());
+  strapi.contentType = () => ({
+    attributes: {
+      featured: { type: "relation", relation: "morphToOne" },
+      related: { type: "relation", relation: "morphToMany" },
+    },
+  });
+  strapi.contentTypes = {
+    "api::article.article": {
+      attributes: {
+        featuredPages: { target: "api::page.page", morphBy: "featured" },
+        relatedPages: { target: "api::page.page", morphBy: "related" },
+      },
+    },
+  };
+  plugin().bootstrap({ strapi });
+  await waitForCalls(calls, 1);
+  for (const discriminator of [undefined, "api::article.article"]) {
+    const relation = { id: 1, documentId: "same", __type: discriminator };
+    const entry = {
+      id: 10,
+      documentId: "page",
+      createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-01-01T00:00:00Z",
+      featured: relation,
+      related: [relation],
+    };
+    await handlers.get("entry.update")?.({ uid: "api::page.page", entry });
+    const payload = JSON.parse(String(calls.at(-1)?.init?.body));
+    const expectedRef = Buffer.from("same").toString("base64url");
+    expect(payload.properties.featured).toBe(expectedRef);
+    expect(payload.properties.related).toEqual([expectedRef]);
+  }
 });
 
 function createStrapi(handlers: Map<string, Handler>, values: Map<string, unknown>): Strapi {

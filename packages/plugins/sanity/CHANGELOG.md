@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.2.3] - 2026-10-21
+
+### Added
+
+- Resolve cross-connection references through matching integrations.
+- Support polymorphic relation fields across collection targets.
+- Resolve cross-scope relations with a shared reference codec.
+
+### Fixed
+
+- Diagnose unsupported Sanity schema semantics.
+
+## [Unreleased]
+
+### Changed
+
+- Resolve named schema aliases and omit unresolved or ambiguous fields instead
+  of widening them to strings; report unsupported validation and editor input
+  behavior through plugin-side diagnostics without changing the push payload.
+- Document the supported normalization subset and field-removal implications
+  for authoritative schema pushes.
+
 ## [0.2.2] - 2026-09-11
 
 ### Changed

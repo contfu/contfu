@@ -1,4 +1,4 @@
-import { isItemIdentity, type ItemIdentity } from "@contfu/core";
+import { isExternalHref, isItemIdentity, type ItemIdentity } from "@contfu/core";
 import type { Block, Inline } from "@contfu/core";
 import { isAnchor } from "@contfu/core";
 import { PropertyType, propertyTypeBase, schemaType, type CollectionSchema } from "@contfu/core";
@@ -125,6 +125,7 @@ export function extractLinks(
       if (propType === PropertyType.REF) {
         const value = props[propName];
         if (value != null) {
+          if (isExternalHref(value)) continue;
           const itemId = tryDecodeItemId(value);
           if (!itemId) throw new TypeError(`Reference ${propName} requires [collection, id]`);
           if (itemId) {
@@ -136,8 +137,12 @@ export function extractLinks(
       } else if (propType === PropertyType.REFS) {
         const value = props[propName];
         if (Array.isArray(value) && value.length > 0) {
-          const placeholders: number[] = [];
+          const placeholders: (number | string)[] = [];
           for (const item of value) {
+            if (isExternalHref(item)) {
+              placeholders.push(item);
+              continue;
+            }
             const itemId = tryDecodeItemId(item);
             if (!itemId) throw new TypeError(`Reference ${propName} requires [collection, id]`);
             if (itemId) {

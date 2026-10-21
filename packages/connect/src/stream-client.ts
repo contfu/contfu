@@ -27,7 +27,7 @@ import {
   SECONDS,
 } from "@contfu/core";
 
-/** Terminal configuration conflict: another runtime owns this application's sync session. */
+/** Another runtime (or a stale session) owns sync. Retried when reconnection is enabled. */
 export class ConsumerAlreadyConnectedError extends Error {
   constructor() {
     super(
@@ -340,8 +340,10 @@ async function* streamEvents(
 
   let reconnectDelay = initialReconnectDelay;
   let shouldReconnect = true;
+  let cancelReconnectDelay: (() => void) | undefined;
   state.setCancelStream(() => {
     shouldReconnect = false;
+    cancelReconnectDelay?.();
   });
   let lastStreamActivityAt = 0;
   let activeTransport: StreamTransport = SYNC_TRANSPORT;
@@ -468,7 +470,7 @@ async function* streamEvents(
           };
         }
 
-        if (err instanceof ConsumerAlreadyConnectedError || !shouldReconnect || !reconnect) {
+        if (!shouldReconnect || !reconnect) {
           throw err;
         }
       }
@@ -485,7 +487,14 @@ async function* streamEvents(
       if (connectedAt !== undefined && Date.now() - connectedAt >= 30 * SECONDS) {
         reconnectDelay = initialReconnectDelay;
       }
-      await new Promise((resolve) => setTimeout(resolve, reconnectDelay));
+      await new Promise<void>((resolve) => {
+        const timer = setTimeout(resolve, reconnectDelay);
+        cancelReconnectDelay = () => {
+          clearTimeout(timer);
+          resolve();
+        };
+      });
+      cancelReconnectDelay = undefined;
       reconnectDelay = Math.min(reconnectDelay * 2, maxReconnectDelay);
     }
   } finally {

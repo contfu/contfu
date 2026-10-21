@@ -2,13 +2,13 @@
   import { error } from "@sveltejs/kit";
   import { invalidateAll } from "$app/navigation";
   import { page } from "$app/state";
-  import CopyTextButton from "$lib/components/CopyTextButton.svelte";
-  import ItemListExplorer from "$lib/components/ItemListExplorer.svelte";
-  import { parseItemQueryFromUrl } from "$lib/query/item-query";
-  import { getCollectionDetailQuery, getCollectionsQuery } from "$lib/remote/collections.remote";
-  import { Button } from "$lib/components/ui/button";
-  import { subscribeLiveEvent } from "$lib/live/event-source";
-  import * as Card from "$lib/components/ui/card";
+  import CopyTextButton from "#lib/components/CopyTextButton.svelte";
+  import ItemListExplorer from "#lib/components/ItemListExplorer.svelte";
+  import { parseItemQueryFromUrl } from "#lib/query/item-query";
+  import { getCollectionDetailQuery, getCollectionsQuery } from "#lib/remote/collections.remote";
+  import { Button } from "#lib/components/ui/button";
+  import { subscribeLiveEvent } from "#lib/live/event-source";
+  import * as Card from "#lib/components/ui/card";
   import { onMount } from "svelte";
 
   const query = $derived(parseItemQueryFromUrl(new URL(page.url.href), { lockedCollection: page.params.name }));

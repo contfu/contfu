@@ -111,7 +111,8 @@ describe("integration capabilities", () => {
     }
   });
 
-  it("distinguishes persisted identifiers from creatable integration types", () => {
+  it("distinguishes public availability from authorized backend creation and reserved identity", () => {
+    expect(IntegrationType.DIRECTUS).toBe(26);
     expect(IntegrationTypeAvailability[IntegrationType.NOTION]).toBe(
       IntegrationAvailability.IMPLEMENTED,
     );
@@ -132,6 +133,7 @@ describe("integration capabilities", () => {
     expect(isCreatableIntegrationType(IntegrationType.PRISMIC)).toBe(false);
     expect(isCreatableIntegrationType(IntegrationType.GITHUB)).toBe(true);
     expect(isCreatableIntegrationType(999)).toBe(false);
+    expect(creatableIntegrationTypes).toContain(IntegrationType.DIRECTUS);
     expect(creatableIntegrationTypes).not.toContain(IntegrationType.STORYBLOK);
     expect(creatableIntegrationTypes).not.toContain(IntegrationType.PRISMIC);
     expect(creatableIntegrationTypes).toContain(IntegrationType.GITHUB);

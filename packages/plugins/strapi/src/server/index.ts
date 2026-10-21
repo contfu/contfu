@@ -1,3 +1,4 @@
+import { encodeScopedRef, relationRef } from "@contfu/core";
 import { receiveController, receiveRoutes } from "./receive";
 import {
   CONTFU_PLUGIN_BOOTSTRAP_EVENT,
@@ -29,6 +30,8 @@ type SequenceState = { sequence: number; outbox: Record<string, OutboxRecord> };
 type StrapiAttribute = {
   type?: string;
   target?: unknown;
+  relation?: string;
+  morphBy?: string;
   component?: string;
   components?: string[];
 };
@@ -50,6 +53,7 @@ type StrapiLike = {
   store?: (options: { type: "plugin"; name: string }) => PersistentStore;
   /** Strapi's model registry, used to qualify relation destination UIDs in webhook payloads. */
   contentType?: (uid: string) => StrapiModel | null;
+  contentTypes?: Record<string, StrapiModel>;
   /** Strapi's database query API, used to re-read lifecycle entries with deep population. */
   db?: {
     query(uid: string): {
@@ -120,7 +124,6 @@ type CanonicalItem = {
 };
 
 const RESERVED_FIELDS = new Set(["id", "documentId", "createdAt", "updatedAt", "publishedAt"]);
-const STRAPI_REF_PREFIX = Buffer.from("strapi-ref:v1\0", "utf8");
 
 function normalizeStrapiWebhookEntry(value: unknown): Record<string, unknown> | null {
   const record = asRecord(value);
@@ -163,21 +166,14 @@ function strapiDocumentRef(value: Record<string, unknown>): string | null {
   return typeof ref === "string" || typeof ref === "number" ? String(ref) : null;
 }
 
-function encodeStrapiScopedRef(contentTypeUid: string, ref: Buffer): Buffer {
-  const uid = Buffer.from(contentTypeUid.trim(), "utf8");
-  if (uid.length === 0) return ref;
-  const length = Buffer.alloc(4);
-  length.writeUInt32BE(uid.length, 0);
-  return Buffer.concat([STRAPI_REF_PREFIX, length, uid, ref]);
-}
-
 function normalizeStrapiProperty(
   value: unknown,
   baseUrl: string,
-  relationTargetUid?: string,
+  attribute?: StrapiAttribute,
+  targets: string[] = typeof attribute?.target === "string" ? [attribute.target] : [],
 ): unknown {
   if (Array.isArray(value)) {
-    return value.map((entry) => normalizeStrapiProperty(entry, baseUrl, relationTargetUid));
+    return value.map((entry) => normalizeStrapiProperty(entry, baseUrl, attribute, targets));
   }
   const record = asRecord(value);
   if (!record) return value;
@@ -209,22 +205,38 @@ function normalizeStrapiProperty(
       typeof record.locale === "string" && record.locale ? `${ref}:${record.locale}` : ref,
       "utf8",
     );
-    return (relationTargetUid ? encodeStrapiScopedRef(relationTargetUid, rawRef) : rawRef).toString(
-      "base64url",
-    );
+    const collection =
+      [record.uid, record.contentTypeUid, record.contentType, record.__type]
+        .find((value): value is string => typeof value === "string" && value.trim().includes("::"))
+        ?.trim() ?? (targets.length === 1 ? targets[0] : undefined);
+    if (
+      (targets.length > 1 && !collection) ||
+      (collection && targets.length && !targets.includes(collection))
+    )
+      throw new Error(
+        "Strapi polymorphic reference requires a declared content-type discriminator",
+      );
+    return relationRef(
+      { collection, key: rawRef },
+      {
+        multipleCollections: targets.length > 1 || (!!collection && targets.length === 0),
+      },
+    ).toString("base64url");
   }
 
   return Object.fromEntries(
-    Object.entries(record).map(([key, entry]) => [
-      key,
-      normalizeStrapiProperty(entry, baseUrl, relationTargetUid),
-    ]),
+    Object.entries(record).map(([key, entry]) => [key, normalizeStrapiProperty(entry, baseUrl)]),
   );
 }
 
 function parseStrapiItemData(
   entry: unknown,
-  options: { baseUrl: string; localized: boolean; relationTargets?: Record<string, string> },
+  options: {
+    baseUrl: string;
+    localized: boolean;
+    attributes?: Record<string, StrapiAttribute>;
+    relationTargets?: Record<string, string[]>;
+  },
 ): CanonicalItem | null {
   const normalized = normalizeStrapiWebhookEntry(entry);
   if (!normalized) return null;
@@ -241,8 +253,8 @@ function parseStrapiItemData(
     const parsed = normalizeStrapiProperty(
       value,
       options.baseUrl,
-      options.relationTargets?.[key] ??
-        options.relationTargets?.[key.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`)],
+      options.attributes?.[key],
+      options.relationTargets?.[key],
     );
     props[key.replace(/[-_ ]+([a-zA-Z0-9])/g, (_, character: string) => character.toUpperCase())] =
       parsed;
@@ -258,20 +270,6 @@ function parseStrapiItemData(
   if (normalized.publishedAt)
     props.$publishedAt = new Date(String(normalized.publishedAt)).getTime();
   return { ref: Buffer.from(itemRef, "utf8"), props, content };
-}
-
-function getRelationTargets(
-  strapi: StrapiLike,
-  collection: string,
-): Record<string, string> | undefined {
-  const attributes = strapi.contentType?.(collection)?.attributes;
-  if (!attributes) return undefined;
-  const targets: Record<string, string> = {};
-  for (const [field, attribute] of Object.entries(attributes)) {
-    const target = typeof attribute.target === "string" ? attribute.target.trim() : "";
-    if (attribute.type === "relation" && target) targets[field] = target;
-  }
-  return Object.keys(targets).length > 0 ? targets : undefined;
 }
 
 /**
@@ -406,7 +404,6 @@ async function sendContfuWebhook(
   }
 
   const entryRecord = asRecord(entry) ?? {};
-  const relationTargets = getRelationTargets(strapi, collection);
   const occurredAt =
     typeof entryRecord.updatedAt === "string" ? entryRecord.updatedAt : new Date().toISOString();
   let canonicalItem: ReturnType<typeof parseStrapiItemData> | null = null;
@@ -421,9 +418,27 @@ async function sendContfuWebhook(
       canonicalItem = parseStrapiItemData(normalizedEntry as never, {
         collection: 0,
         baseUrl: strapi.config.get<string>("server.url", ""),
+        attributes: strapi.contentType?.(collection)?.attributes,
+        relationTargets: Object.fromEntries(
+          Object.entries(strapi.contentType?.(collection)?.attributes ?? {}).map(
+            ([field, attr]) => [
+              field,
+              typeof attr.target === "string"
+                ? [attr.target]
+                : attr.relation?.startsWith("morphTo")
+                  ? Object.entries(strapi.contentTypes ?? {})
+                      .filter(([, model]) =>
+                        Object.values(model.attributes ?? {}).some(
+                          (inverse) => inverse.target === collection && inverse.morphBy === field,
+                        ),
+                      )
+                      .map(([uid]) => uid)
+                  : [],
+            ],
+          ),
+        ),
         localized: typeof normalizedEntry.locale === "string" && normalizedEntry.locale.length > 0,
         includeDrafts: true,
-        relationTargets,
       });
     }
   }
@@ -467,7 +482,10 @@ async function sendContfuWebhook(
     operation: operationFor(event),
     sourceEvent: event,
     collectionRef: collection,
-    itemRef: canonicalItem?.ref.toString("utf8") ?? item,
+    itemRef: encodeScopedRef({
+      collection: collection,
+      key: canonicalItem?.ref ?? Buffer.from(item),
+    }).toString("utf8"),
     occurredAt,
     sequence,
     ...(operationFor(event) === "delete"

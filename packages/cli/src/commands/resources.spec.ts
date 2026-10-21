@@ -1314,3 +1314,49 @@ describe("dry run", () => {
     );
   });
 });
+
+describe("WordPress collection discovery note", () => {
+  for (const format of ["json", "agent", "default"]) {
+    test(`shows capped evidence in ${format} collection output`, async () => {
+      const options = {
+        wordPressSchemaDiscovery: {
+          sampleCapped: true,
+          sampleOnlyFieldCount: 2,
+          declaredFields: [],
+        },
+      };
+      mockFetch.mockResolvedValueOnce(
+        jsonResponse([
+          {
+            id: "1",
+            name: "posts",
+            displayName: "Posts",
+            integrationType: 7,
+            itemsCount: 120,
+            options,
+          },
+        ]),
+      );
+      await list("collections", format);
+      expect(logSpy.mock.calls.map((call: unknown[]) => String(call[0])).join("\n")).toContain(
+        "capped at 100 records",
+      );
+    });
+    test(`omits the note for uncapped ${format} collection output`, async () => {
+      const options = {
+        wordPressSchemaDiscovery: {
+          sampleCapped: false,
+          sampleOnlyFieldCount: 2,
+          declaredFields: [],
+        },
+      };
+      mockFetch.mockResolvedValueOnce(
+        jsonResponse([{ id: "1", name: "posts", displayName: "Posts", itemsCount: 20, options }]),
+      );
+      await list("collections", format);
+      expect(logSpy.mock.calls.map((call: unknown[]) => String(call[0])).join("\n")).not.toContain(
+        "capped at 100 records",
+      );
+    });
+  }
+});

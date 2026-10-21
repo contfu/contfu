@@ -120,6 +120,19 @@ describe("applyMappings", () => {
     expect(applyMappings(props, mappings)).toEqual({ title: "Hello", score: 5 });
   });
 
+  test("retains complete large REFS arrays and can select targets beyond the inline Notion limit", () => {
+    const refs = Array.from({ length: 31 }, (_, index) => `target-${index}`);
+    expect(applyMappings({ related: refs }, [{ source: "related", target: "links" }])).toEqual({
+      links: refs,
+    });
+    expect(
+      applyMappings({ related: refs }, [{ source: "related", target: "lastLink", arrayIndex: 30 }]),
+    ).toEqual({ lastLink: refs[30] });
+    expect(
+      applyMappingsToSchema({ related: T.REFS }, [{ source: "related", target: "links" }]),
+    ).toEqual({ links: T.REFS });
+  });
+
   test("uses source as target when target is omitted", () => {
     const props = { title: "Hello" };
     const mappings: MappingRule[] = [{ source: "title" }];

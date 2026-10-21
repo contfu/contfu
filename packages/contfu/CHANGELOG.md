@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.3.11] - 2026-10-21
+
+### Added
+
+- Resolve known service URLs as item references.
+- Support polymorphic relation fields across collection targets.
+- Scope item identity by service connection and expose $scope.
+
+### Fixed
+
+- Align Bun runtimes on 1.4.3.
+- Recover consumer streams after dropped sessions.
+
 ## [0.3.10] - 2026-09-27
 
 ### Fixed

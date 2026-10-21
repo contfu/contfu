@@ -1,5 +1,8 @@
 import { createComponent } from "solid-js";
 
+// tsconfig.spec.json selects classic JSX for this test-only SSR factory.
+// Solid's production JSX requires its compiler, not an automatic jsx-runtime.
+
 type SSRNode = { t: string };
 type Child = string | SSRNode | null | undefined | boolean;
 type AnyFn = (...a: unknown[]) => unknown;

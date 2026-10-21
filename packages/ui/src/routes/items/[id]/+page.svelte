@@ -2,11 +2,12 @@
   import { error } from "@sveltejs/kit";
   import { invalidateAll } from "$app/navigation";
   import { page } from "$app/state";
-  import { getItemFilesQuery, getItemByIdQuery } from "$lib/remote/items.remote";
-  import { Button } from "$lib/components/ui/button";
-  import * as Card from "$lib/components/ui/card";
-  import * as HoverCard from "$lib/components/ui/hover-card";
-  import { subscribeLiveEvent } from "$lib/live/event-source";
+  import { getItemFilesQuery, getItemByIdQuery } from "#lib/remote/items.remote";
+  import { Button } from "#lib/components/ui/button";
+  import * as Card from "#lib/components/ui/card";
+  import * as HoverCard from "#lib/components/ui/hover-card";
+  import * as Table from "#lib/components/ui/table";
+  import { subscribeLiveEvent } from "#lib/live/event-source";
   import { isItemIdentity, itemIdentityKey, type Inline } from "@contfu/core";
   import type { FileData, ItemData } from "@contfu/contfu";
   import { onMount } from "svelte";
@@ -513,19 +514,19 @@
                 </div>
               {:else if block[0] === "t"}
                 <div class="overflow-auto rounded border">
-                  <table class="w-full text-sm">
-                    <tbody>
+                  <Table.Root class="w-full text-sm">
+                    <Table.Body>
                       {#each block[2] as row, rowIdx}
-                        <tr class="border-b last:border-b-0">
+                        <Table.Row class="border-b last:border-b-0 hover:[&,&>svelte-css-wrapper]:[&>th,td]:bg-transparent">
                           {#each row as cell}
-                            <td class="p-2 align-top">
+                            <Table.Cell class="p-2 align-top">
                               {tableCellText(cell)}
-                            </td>
+                            </Table.Cell>
                           {/each}
-                        </tr>
+                        </Table.Row>
                       {/each}
-                    </tbody>
-                  </table>
+                    </Table.Body>
+                  </Table.Root>
                 </div>
               {:else}
                 <pre

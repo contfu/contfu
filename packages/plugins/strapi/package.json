@@ -1,6 +1,6 @@
 {
   "name": "@contfu/strapi",
-  "version": "0.2.7",
+  "version": "0.2.8",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -32,6 +32,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@contfu/core": "workspace:^0.5.3",
     "@contfu/webhook": "workspace:^0.2.0"
   },
   "strapi": {

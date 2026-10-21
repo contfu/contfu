@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.11] - 2026-10-21
+
+### Fixed
+
+- Replace deprecated Svelte components and SvelteKit aliases.
+
 ## [0.1.10] - 2026-09-20
 
 ### Fixed

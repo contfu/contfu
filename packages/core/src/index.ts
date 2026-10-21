@@ -19,5 +19,7 @@ export * from "./time";
 export * from "./storage";
 export * from "./plain-dates";
 export * from "./wire";
+export * from "./wordpress-schema-discovery";
 export * from "./url-policy";
 export * from "./item-identity";
+export * from "./scoped-ref";
