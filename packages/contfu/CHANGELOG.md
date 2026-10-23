@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.3.12] - 2026-10-23
+
+### Fixed
+
+- Reconcile absent Local Store items only after completed, explicitly scoped snapshots, including empty collections and reused collection names.
+
 ## [0.3.11] - 2026-10-21
 
 ### Added

@@ -78,9 +78,9 @@
     },
     "packages/connect": {
       "name": "@contfu/connect",
-      "version": "0.1.13",
+      "version": "0.1.14",
       "dependencies": {
-        "@contfu/core": "workspace:^0.5.3",
+        "@contfu/core": "workspace:^0.5.4",
       },
       "devDependencies": {
         "@types/bun": "^1.4.2",
@@ -95,10 +95,10 @@
     },
     "packages/contfu": {
       "name": "@contfu/contfu",
-      "version": "0.3.11",
+      "version": "0.3.12",
       "dependencies": {
-        "@contfu/connect": "workspace:^0.1.13",
-        "@contfu/core": "workspace:^0.5.3",
+        "@contfu/connect": "workspace:^0.1.14",
+        "@contfu/core": "workspace:^0.5.4",
         "drizzle-orm": "1.0.0-rc.3",
       },
       "devDependencies": {
@@ -118,7 +118,7 @@
     },
     "packages/core": {
       "name": "@contfu/core",
-      "version": "0.5.3",
+      "version": "0.5.4",
       "devDependencies": {
         "typescript": "^7.0.2",
       },

@@ -424,6 +424,25 @@ describe("stream-client", () => {
     });
   });
 
+  test("scoped snapshots preserve sparse baselines outside their collection", async () => {
+    mockFetch(
+      createMockStream([
+        createBinaryMessage([EventType.ITEM_CHANGED, [1, "authors", 1, { name: "Ada" }], 1]),
+        createBinaryMessage([EventType.SNAPSHOT_START, ["posts"]]),
+        createBinaryMessage([EventType.SNAPSHOT_END]),
+        createBinaryMessage([EventType.ITEM_CHANGED, [1, "authors", 2, { bio: "Writer" }], 2]),
+      ]),
+    );
+    const events = [];
+    for await (const event of connectToStream({ key: testKey, reconnect: false }))
+      events.push(event);
+    expect(events.at(-1)).toEqual({
+      type: EventType.ITEM_CHANGED,
+      item: { id: 1, collection: "authors", changedAt: 2, props: { name: "Ada", bio: "Writer" } },
+      index: 2,
+    });
+  });
+
   describe("connection lifecycle events", () => {
     test("yields stream lifecycle events", async () => {
       mockFetch(

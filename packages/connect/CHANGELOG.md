@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.14] - 2026-10-23
+
+### Fixed
+
+- Accept collection-scoped snapshot boundaries from the current sync service.
+
 ## [0.1.13] - 2026-10-21
 
 ### Fixed

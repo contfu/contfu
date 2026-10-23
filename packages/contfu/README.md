@@ -17,6 +17,16 @@ for await (const event of connect()) {
 }
 ```
 
+Completed snapshots reconcile Local Store membership within the collection names
+declared by `SNAPSHOT_START`. Existing items absent from that snapshot are
+tombstoned and their local file associations are removed at `SNAPSHOT_END`;
+collections outside its scope are untouched. Interrupted or superseded snapshots
+never prune items. Legacy snapshot markers without an explicit collection scope
+continue to apply received changes but do not prune absent items.
+Full target-state resync fences the active cloud stream owner so its reconnect
+delivers a new authoritative snapshot rather than relying only on replayed
+upserts. Item refresh commands do not claim snapshot completion.
+
 ## Entry points
 
 | Import                  | Runtime                                                                                                                         |

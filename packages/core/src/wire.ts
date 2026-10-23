@@ -112,7 +112,7 @@ export type WireEvent =
   | WireSchemaEvent
   | WireCollectionRenamedEvent
   | WireCollectionRemovedEvent
-  | [typeof EventType.SNAPSHOT_START]
+  | [typeof EventType.SNAPSHOT_START, collections?: string[]]
   | [typeof EventType.SNAPSHOT_END]
   | WireCommandResult;
 
