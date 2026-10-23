@@ -5,7 +5,7 @@ import {
   type StreamEvent,
 } from "@contfu/connect";
 import { CommandResult, EventType } from "@contfu/core";
-import { sql } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { createOrUpdateItem } from "./features/items/createOrUpdateItem";
 import { deleteItem } from "./features/items/deleteItem";
 import { deleteOutgoingItemLinks } from "./features/items/deleteOutgoingItemLinks";
@@ -24,7 +24,7 @@ import { removeCollectionByName } from "./features/collections/removeCollectionB
 import { getCollectionSchemaByName } from "./features/collections/getCollectionSchemaByName";
 import { createMediaRepairCoordinator } from "./features/sync/mediaRepairCoordinator";
 import { db } from "./infra/db/db";
-import { externalLinkTable, internalLinkTable } from "./infra/db/schema";
+import { externalLinkTable, internalLinkTable, itemsTable } from "./infra/db/schema";
 import type {
   MediaConvertOpts,
   MediaMasterConfig,
@@ -117,39 +117,7 @@ export async function* connect<CMap = unknown>(opts?: {
     ...(applicationKey ? { key: applicationKey } : {}),
   };
 
-  if (opts?.connectionEvents) {
-    const stream = connectToStream({ ...baseOpts, connectionEvents: true });
-    activeStream = {
-      resolveFileLease: (...args) => stream.resolveFileLease!(...args),
-    };
-    for await (const event of stream) {
-      if (event.type === EventType.STREAM_CONNECTED) mediaRepair.connected(stream);
-      if (event.type === EventType.STREAM_DISCONNECTED) mediaRepair.disconnected();
-      if (event.type === CommandResult.REFRESH || event.type === CommandResult.REFRESH_ALL) {
-        yield event;
-        continue;
-      }
-      if (
-        event.type === EventType.STREAM_CONNECTED ||
-        event.type === EventType.STREAM_DISCONNECTED ||
-        event.type === EventType.SNAPSHOT_START ||
-        event.type === EventType.SNAPSHOT_END
-      ) {
-        yield event;
-        continue;
-      }
-      persistSyncEvent(
-        event,
-        resolvedFileStore,
-        mediaOptimizer,
-        transformMedia,
-        mediaVariants,
-        localFiles,
-      );
-      yield event;
-    }
-    return;
-  }
+  let snapshotCandidates: Map<string, Set<number>> | undefined;
 
   const stream = connectToStream({ ...baseOpts, connectionEvents: true });
   activeStream = {
@@ -157,14 +125,55 @@ export async function* connect<CMap = unknown>(opts?: {
   };
   for await (const event of stream) {
     if (event.type === EventType.STREAM_CONNECTED) {
+      snapshotCandidates = undefined;
       mediaRepair.connected(stream);
+      if (opts?.connectionEvents) yield event;
       continue;
     }
     if (event.type === EventType.STREAM_DISCONNECTED) {
+      snapshotCandidates = undefined;
       mediaRepair.disconnected();
+      if (opts?.connectionEvents) yield event;
       continue;
     }
-    if (event.type === EventType.SNAPSHOT_START || event.type === EventType.SNAPSHOT_END) continue;
+    if (event.type === EventType.SNAPSHOT_START) {
+      // Legacy markers do not declare an authoritative scope. Never infer it
+      // from item events: an empty collection would otherwise be ambiguous.
+      snapshotCandidates =
+        event.collections === undefined
+          ? undefined
+          : new Map(
+              event.collections.map((collection) => [
+                collection,
+                new Set(
+                  db
+                    .select({ id: itemsTable.id })
+                    .from(itemsTable)
+                    .where(and(eq(itemsTable.collection, collection), isNull(itemsTable.deletedAt)))
+                    .all()
+                    .map(({ id }) => id),
+                ),
+              ]),
+            );
+      if (opts?.connectionEvents) yield event;
+      continue;
+    }
+    if (event.type === EventType.SNAPSHOT_END) {
+      const completed = snapshotCandidates;
+      snapshotCandidates = undefined;
+      if (completed) {
+        db.transaction((tx) => {
+          for (const [collection, ids] of completed) {
+            for (const id of ids) {
+              if (localFiles) deleteFilesByItem([collection, id], tx);
+              deleteItem([collection, id], tx);
+            }
+          }
+        });
+      }
+      if (opts?.connectionEvents) yield event;
+      continue;
+    }
     if (event.type === CommandResult.REFRESH || event.type === CommandResult.REFRESH_ALL) {
       yield event;
       continue;
@@ -177,6 +186,17 @@ export async function* connect<CMap = unknown>(opts?: {
       mediaVariants,
       localFiles,
     );
+    if (event.type === EventType.ITEM_CHANGED) {
+      snapshotCandidates?.get(event.item.collection)?.delete(event.item.id);
+    } else if (event.type === EventType.ITEM_DELETED) {
+      snapshotCandidates?.get(event.item[0])?.delete(event.item[1]);
+    } else if (
+      event.type === EventType.COLLECTION_RENAMED ||
+      event.type === EventType.COLLECTION_REMOVED
+    ) {
+      // A lifecycle transition invalidates the scope captured at START.
+      snapshotCandidates = undefined;
+    }
     yield event;
   }
 }

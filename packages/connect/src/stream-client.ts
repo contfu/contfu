@@ -110,6 +110,8 @@ export type StreamDisconnectedEvent = {
 /** Emitted when Contfu begins sending snapshot Sync Messages. */
 export type StreamSnapshotStartEvent = {
   type: typeof EventType.SNAPSHOT_START;
+  /** Authoritative collection scope; absent on legacy, non-reconciling snapshots. */
+  collections?: string[];
 };
 
 /** Emitted when Contfu finishes sending snapshot Sync Messages. */
@@ -411,7 +413,15 @@ async function* streamEvents(
             }
             const streamEvent = fromWireStreamEvent(wireEvent);
             if (streamEvent) {
-              if (streamEvent.type === EventType.SNAPSHOT_START) materializedItems.clear();
+              if (streamEvent.type === EventType.SNAPSHOT_START) {
+                if (streamEvent.collections === undefined) materializedItems.clear();
+                else {
+                  const scope = new Set(streamEvent.collections);
+                  for (const [key, item] of materializedItems) {
+                    if (scope.has(item[1])) materializedItems.delete(key);
+                  }
+                }
+              }
               if (connectionEvents) yield streamEvent;
               continue;
             }
@@ -796,10 +806,18 @@ function buildWebSocketUrl(endpoint: string, key: Buffer): string {
 function fromWireStreamEvent(
   wireEvent: WireEvent,
 ): StreamSnapshotStartEvent | StreamSnapshotEndEvent | null {
-  if (wireEvent.length !== 1) return null;
   const type = wireEvent[0];
-  if (type === EventType.SNAPSHOT_START) return { type: EventType.SNAPSHOT_START };
-  if (type === EventType.SNAPSHOT_END) return { type: EventType.SNAPSHOT_END };
+  if (type === EventType.SNAPSHOT_START) {
+    const collections = wireEvent[1];
+    if (
+      wireEvent.length > 2 ||
+      (collections !== undefined &&
+        (!Array.isArray(collections) || !collections.every((name) => typeof name === "string")))
+    )
+      return null;
+    return { type, ...(collections !== undefined ? { collections } : {}) };
+  }
+  if (type === EventType.SNAPSHOT_END && wireEvent.length === 1) return { type };
   return null;
 }
 
