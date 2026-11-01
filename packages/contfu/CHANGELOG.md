@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.3.13] - 2026-11-01
+
+### Changed
+
+- Align scoped snapshot release metadata and update dependencies.
+
+### Fixed
+
+- Correct collection-scoped snapshot compatibility and embedded membership reconciliation.
+- Recover initial schema publication on reconnect and declare locales for localized collections without configured locales.
+
 ## [0.3.12] - 2026-10-23
 
 ### Fixed

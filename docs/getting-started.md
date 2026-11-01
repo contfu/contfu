@@ -99,7 +99,7 @@ contfu integrations scan <integration-id>
 Import the ones you want so they get stable Contfu IDs:
 
 ```bash
-contfu integrations add <integration-id> --refs <comma-separated-refs>
+contfu integrations add <integration-id> --refs '<ref>' [--refs '<ref>' ...]
 contfu integrations add <integration-id> --all       # everything
 contfu integrations add <integration-id> --select    # interactive picker
 ```

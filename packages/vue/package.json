@@ -39,9 +39,9 @@
     "@contfu/core": "workspace:^0.5.0"
   },
   "devDependencies": {
-    "@vue/server-renderer": "^3.5.41",
+    "@vue/server-renderer": "^3.5.44",
     "typescript": "^7.0.2",
-    "vue": "^3.5.41"
+    "vue": "^3.5.44"
   },
   "peerDependencies": {
     "vue": ">=3"

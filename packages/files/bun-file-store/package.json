@@ -29,11 +29,11 @@
     "clean": "rm -rf dist .tmp"
   },
   "dependencies": {
-    "sharp": "^0.35.3"
+    "sharp": "^0.35.5"
   },
   "devDependencies": {
     "@contfu/contfu": "workspace:^0.3.0",
-    "@types/bun": "^1.4.2"
+    "@types/bun": "^1.4.3"
   },
   "peerDependencies": {
     "typescript": "^7.0.2"

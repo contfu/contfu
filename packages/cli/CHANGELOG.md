@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.1.16] - 2026-11-01
+
+### Changed
+
+- Update dependencies.
+
+### Fixed
+
+- Preserve opaque collection references and structured Contentful credentials.
+- Restore consent redirects and recoverable rate errors.
+
 ## [0.1.15] - 2026-10-21
 
 ### Added

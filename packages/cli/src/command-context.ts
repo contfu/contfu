@@ -1,7 +1,7 @@
 import type { OutputFormat } from "./output";
 
 /** Raw `parseArgs` values. */
-export type ParsedValues = Record<string, string | boolean | undefined>;
+export type ParsedValues = Record<string, string | string[] | boolean | undefined>;
 
 /**
  * Everything a command handler needs, derived once in `main` so individual

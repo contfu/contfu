@@ -93,8 +93,9 @@ contfu integrations add <integration-id> --select
 contfu integrations add <integration-id> --all
 ```
 
-Use `--select` rather than copying a scanned GitHub ref into `--refs`: GitHub repository refs are
-opaque JSON values that contain commas, while the CLI treats commas as separators between refs.
+Scanned refs are opaque values, including GitHub and WordPress JSON refs. Pass each exact ref
+as one quoted `--refs '<ref>'` argument; repeat `--refs` to select multiple collections. Commas
+are preserved, not separators. Use `--select` for an interactive picker.
 Scanning exposes each repository authorized for the GitHub App installation as a source
 collection rooted at the repository root. The repository's default branch is selected initially.
 For an imported collection, **Branch or ref scope** is the Contfu **Scope**; **Repository
@@ -390,7 +391,17 @@ soft-deleted source state until WordPress stops returning it or it is restored.
 For Contentful and Sanity source webhooks, store the signing secret on the integration with
 `--webhook-secret` or the equivalent UI field. These routes verify the raw webhook body before
 parsing when a secret is configured. Their supported schemes include Contentful's
-`x-contentful-signature` plus `x-contentful-timestamp` and Sanity webhook signatures.
+`x-contentful-signature`, `x-contentful-timestamp` and `x-contentful-signed-headers`,
+covering the method, normalized request path, declared headers and exact body. Contentful
+requests must arrive within 30 seconds of signing (with at most 30 seconds of future clock
+skew). Sanity uses its own webhook signature protocol.
+
+In Contentful, Settings → Webhooks → Enable request verification generates a 64-character
+signing secret. Copy it privately and configure that same value through Contfu's
+`--webhook-secret` option or the integration API's `webhookSecret` field. Create a native
+webhook with the Contfu callback URL and desired topics/environment filters. This native
+setup does not send a verification-token POST or automatically enroll the generated secret;
+a synthetic token POST is not evidence of native webhook delivery.
 Notion instead uses deployment-global enrollment and signing credentials, as described below.
 
 Details for the first-party item-push senders, including `@contfu/strapi`, are in the
@@ -454,6 +465,12 @@ the [integration sync strategy](./private/specs/integration-sync-strategy.md) fo
 Contfu-controlled senders, including `@contfu/strapi`, WordPress Push, and Web
 apps, use `/webhooks/contfu/{uid}` with the canonical JSON item-push contract,
 `X-Contfu-Signature`, and the integration push secret.
+For Strapi, signed plugin create/update bodies are change notifications, not authoritative
+document snapshots. Contfu re-reads only the changed document using the imported collection's
+population, localization, draft policy, and structured-field metadata. This keeps nested
+components consistent with full pulls even when an older plugin sends incomplete block tuples.
+The read credential therefore needs Content API read access; deletes and unpublish signals
+continue to use their existing deletion handling.
 
 Webhook payloads remain Service-owned dirty signals. Contfu stores service metadata such as
 event names, scopes, Contentful revisions/versions, and Sanity transaction, document, dataset,
@@ -485,10 +502,20 @@ Content-Type Builder, setup offers two supported paths:
    openapi: { "content-api": { access: "public" } }
    ```
 
-   Contfu probes `GET /api/openapi.json` with the read credential. Collections are offered only
+   Contfu probes public `GET /api/openapi.json` without sending content credentials. Collections are offered only
    when the document explicitly identifies their UID and localization behavior; unsupported or
    ambiguous fields are skipped rather than inferred from content. Explicit route mappings and
    sampled-content schema inference are not supported.
+
+   Embedded component schemas, including repeatable components, are preserved as JSON
+   objects rather than entity references. Entity relations and media keep their distinct
+   reference/file types. Concrete dynamic-zone components are populated recursively when
+   their definitions are available in `components.schemas` (`...Entry` in native OpenAPI
+   or `...Component` in documentation-plugin schemas). Native documents that omit those
+   definitions retain shallow wildcard population; publish the missing component schemas
+   or provide schema access when nested component content is required. After correcting
+   discovery metadata, run **Full refresh** on the source collections to replace previously
+   incomplete items.
 
 Sanity scans are conservative:
 Sanity system and asset document types are omitted by default unless an explicit type allowlist
@@ -497,7 +524,7 @@ includes them. For Strapi, Contfu stores the REST route name from the content-ty
 Service's real route. Import the ones you want so they get stable Contfu IDs:
 
 ```bash
-contfu integrations add <integration-id> --refs <comma-separated-refs>
+contfu integrations add <integration-id> --refs '<ref>' [--refs '<ref>' ...]
 contfu integrations add <integration-id> --all       # import everything
 contfu integrations add <integration-id> --select    # interactive picker
 ```
@@ -611,7 +638,10 @@ Both timestamps are ISO 8601 UTC strings with millisecond precision:
   configured, `contfu-webhook-timestamp` contains this same value.
 
 Removal deliveries use the same payload shape with `deleted: true` and omit `props`/`content`.
-They use the deletion state timestamp captured when the removal job is enqueued.
+They use the persisted deletion state timestamp, not the time a delivery job is created.
+Source replay, retries, and newly connected targets reuse that timestamp until the item is
+restored; a later deletion starts a new deletion state. For legacy hard deletions without a
+stored timestamp, the first subsequent deletion observation establishes it once.
 
 #### Signing
 

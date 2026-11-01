@@ -75,7 +75,7 @@ A Service may offer scheduling in its editor without exposing the planned time t
 
 Sanity models publishing structurally rather than with a timestamp, so it has no `$publishedAt`. WordPress has no creation timestamp separate from its publish date, so it has no `$createdAt`. In both cases the missing property is simply absent — Contfu does not synthesize a value, because the source is the system of record.
 
-Services that expose their own raw timestamp fields (for example WordPress `dateGmt` and `modifiedGmt`) still deliver those as ordinary content properties. Prefer the normalized `$`-properties for portable application code, and reach for the raw fields only when you need the exact Service representation.
+Services that expose their own raw timestamp fields still deliver those as ordinary content properties. WordPress `date`, `dateGmt`, `modified`, and `modifiedGmt` are optional strings in generated consumer types, matching pulls and native plugin pushes. Local WordPress dates have no timezone offset; Contfu preserves the original text rather than interpreting it in the server's timezone. Null or absent REST fields are omitted from pulled items. Existing WordPress collections need a schema refresh and regenerated consumer types to replace the former numeric declarations; stored content needs no conversion. Prefer the normalized `$`-properties for portable application code, and reach for the raw fields only when you need the exact Service representation.
 
 Web provides no adapter-generated creation, publication, or scheduled timestamp: `$createdAt`,
 `$publishedAt`, and `$scheduledAt` remain absent. HTTP `Last-Modified` supplies `changedAt`

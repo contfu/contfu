@@ -1,13 +1,8 @@
-import { rm } from "node:fs/promises";
-import { describe, expect, test } from "bun:test";
-import { EventType, PropertyType } from "@contfu/core";
-import {
-  collectionsTable,
-  createDatabaseClient,
-  getSyncIndex,
-  itemTable as itemsTable,
-  withDatabase,
-} from "@contfu/contfu";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, describe, expect, test } from "bun:test";
+import { collectionsTable, createDatabaseClient, itemTable as itemsTable } from "@contfu/contfu";
 import { createServeOptions } from "./server";
 
 type RouteRequest = Request & { params: Record<string, string> };
@@ -17,91 +12,54 @@ function route(routes: ServeRoutes, path: string) {
   return routes[path] as (request: RouteRequest) => Response | Promise<Response>;
 }
 
-async function waitFor(check: () => boolean, timeout = 1_000) {
-  const deadline = Date.now() + timeout;
-  while (!check()) {
-    if (Date.now() >= deadline) throw new Error("Timed out waiting for sync event");
-    await Bun.sleep(5);
-  }
-}
+// Sync consumers are hot and process-scoped; keep their globals and workers out
+// of this runner and terminate the owning process before removing its databases.
 
 describe("configured Server databases", () => {
+  let syncChild: Bun.Subprocess<"ignore", "pipe", "pipe"> | undefined;
+  let syncDirectory: string | undefined;
+
+  afterEach(async () => {
+    if (syncChild) {
+      if (syncChild.exitCode === null) syncChild.kill();
+      await syncChild.exited;
+      syncChild = undefined;
+    }
+    if (syncDirectory) {
+      await rm(syncDirectory, { recursive: true, force: true });
+      syncDirectory = undefined;
+    }
+  });
+
   test("runs background sync writes in the configured database", async () => {
-    const databasePath = `/tmp/contfu-server-sync-${crypto.randomUUID()}.sqlite`;
-    const originalKey = process.env.CONTFU_KEY;
-    const originalWebSocket = globalThis.WebSocket;
-    class MockSyncWebSocket {
-      static readonly OPEN = 1;
-      static current: MockSyncWebSocket | undefined;
-      readyState = MockSyncWebSocket.OPEN;
-      onopen: (() => void) | null = null;
-      onerror: (() => void) | null = null;
-      onclose: ((event: { code: number; reason: string }) => void) | null = null;
-      private messageHandler: ((event: { data: string }) => void) | null = null;
-
-      constructor() {
-        MockSyncWebSocket.current = this;
-        queueMicrotask(() => this.onopen?.());
-      }
-
-      set onmessage(handler: ((event: { data: string }) => void) | null) {
-        this.messageHandler = handler;
-        if (handler)
-          queueMicrotask(() => {
-            handler({
-              data: JSON.stringify([
-                EventType.COLLECTION_SCHEMA,
-                "articles",
-                "Articles",
-                { author: PropertyType.REF, related: PropertyType.REFS },
-                null,
-                "articles-schema",
-                987_653,
-                { author: ["authors"], related: ["articles", "authors"] },
-              ]),
-            });
-            handler({ data: JSON.stringify([EventType.ITEM_DELETED, ["articles", 1], 987_654]) });
-          });
-      }
-
-      get onmessage() {
-        return this.messageHandler;
-      }
-
-      send() {}
-      close(code = 1000, reason = "") {
-        this.readyState = 3;
-        this.onclose?.({ code, reason });
-      }
-    }
-
-    try {
-      process.env.CONTFU_KEY = Buffer.alloc(32).toString("base64url");
-      globalThis.WebSocket = MockSyncWebSocket as unknown as typeof WebSocket;
-      const options = createServeOptions({ db: databasePath });
-
-      await waitFor(() => MockSyncWebSocket.current?.onmessage !== null);
-      const configured = await createDatabaseClient(databasePath);
-      await waitFor(() => withDatabase(configured, () => getSyncIndex()) === 987_654);
-      expect(getSyncIndex()).not.toBe(987_654);
-      const response = await route(
-        options.routes!,
-        "/api/types",
-      )(Object.assign(new Request("http://localhost/api/types"), { params: {} }));
-      expect(response.status).toBe(200);
-      const types = await response.text();
-      expect(types).toContain("author: [collection: string, id: number] | string;");
-      expect(types).toContain(
-        'related: (ContfuCollections["articles"] | [collection: string, id: number] | string)[];',
-      );
-    } finally {
-      if (originalKey === undefined) delete process.env.CONTFU_KEY;
-      else process.env.CONTFU_KEY = originalKey;
-      globalThis.WebSocket = originalWebSocket;
-      await Promise.all(
-        ["", "-wal", "-shm"].map((suffix) => rm(`${databasePath}${suffix}`, { force: true })),
-      );
-    }
+    const directory = await mkdtemp(join(tmpdir(), "contfu-server-sync-"));
+    syncDirectory = directory;
+    const child = Bun.spawn(
+      [
+        process.execPath,
+        join(import.meta.dir, "server-db.fixture.ts"),
+        join(directory, "configured.sqlite"),
+      ],
+      {
+        env: {
+          ...process.env,
+          CONTFU_KEY: Buffer.alloc(32).toString("base64url"),
+          CONTFU_DB: join(directory, "default.sqlite"),
+          DATABASE_URL: join(directory, "default.sqlite"),
+          INTERNAL_SYNC_TRANSPORT: "websocket",
+        },
+        stdin: "ignore",
+        stdout: "pipe",
+        stderr: "pipe",
+      },
+    );
+    syncChild = child;
+    const [exitCode, stdout, stderr] = await Promise.all([
+      child.exited,
+      new Response(child.stdout).text(),
+      new Response(child.stderr).text(),
+    ]);
+    expect(exitCode, stderr || stdout).toBe(0);
   });
 
   test("isolates two configured Contfu runtime databases", async () => {

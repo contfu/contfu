@@ -150,7 +150,7 @@ contfu integrations delete <id-or-name>
 contfu integrations types                       # list valid Service types
 contfu integrations scan <id-or-name> [--format default|agent|json] [--full]
 contfu integrations scan <id-or-name> --select  # discover and choose collections interactively
-contfu integrations add  <id-or-name> [--refs <a,b> | --all | --select] \
+contfu integrations add  <id-or-name> [--refs <ref> ... | --all | --select] \
   [--format default|agent|json] [--full]
 contfu integrations regenerate-key <id-or-name> # rotate an app integration's API key
 ```
@@ -183,7 +183,9 @@ locales. See [Localization and i18n](./i18n.md).
 
 `scan` returns `[{ ref, displayName, scope?, alreadyAdded, icon? }]`. Use `-a`
 for compact TOON output, and add `--full` for all fields. `scan --select` and `add --select`
-open the same interactive picker; `add --refs` and `add --all` are better for scripts. `add`
+open the same interactive picker. Each `--refs '<ref>'` preserves one exact scanned ref, including
+commas and whitespace; repeat the flag for multiple selections (the former comma-separated
+syntax is no longer supported). `add --refs` and `add --all` are better for scripts. `add`
 imports source collections so they get numeric IDs usable as `--source-id`
 in flows. See [Integrations](./integrations.md).
 

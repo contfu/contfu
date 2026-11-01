@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from "bun:test";
+import { parseCliArgs } from "../cli-args";
+import { runResourceCommand } from "../dispatch/resources";
 import {
   addIntegrationCollections,
   parseAddRefs,
@@ -32,8 +34,9 @@ afterEach(() => {
 });
 
 describe("parseAddRefs", () => {
-  test("parses comma-separated refs", () => {
-    expect(parseAddRefs("articles, authors ,,tags")).toEqual(["articles", "authors", "tags"]);
+  test("preserves opaque refs", () => {
+    expect(parseAddRefs(" articles, authors ,,tags ")).toEqual([" articles, authors ,,tags "]);
+    expect(parseAddRefs(undefined)).toBeUndefined();
   });
 });
 
@@ -135,6 +138,42 @@ describe("scanIntegrationCollections", () => {
 });
 
 describe("addIntegrationCollections", () => {
+  for (const multiple of [false, true]) {
+    test(`forwards ${multiple ? "multiple refs" : "only Posts"} from argv to HTTP`, async () => {
+      const posts = JSON.stringify({
+        kind: "postType",
+        slug: "post",
+        restBase: "posts",
+        displayName: "Posts",
+        relations: { author: "users" },
+        collectionEndpoint: "/wp/v2/posts",
+      });
+      const refs = multiple ? [posts, " opaque,second ref "] : [posts];
+      const { values, positionals } = parseCliArgs([
+        "integrations",
+        "add",
+        "WordPress",
+        ...refs.flatMap((ref) => ["--refs", ref]),
+        "-j",
+      ]);
+      mockFetch.mockResolvedValueOnce(jsonResponse([{ id: "42", name: "WordPress" }]));
+      mockFetch.mockResolvedValueOnce(
+        jsonResponse({ added: [], alreadyAdded: [], scanned: 3 }, 201),
+      );
+      await runResourceCommand("integrations", {
+        values,
+        positionals,
+        outputFormat: "json",
+        full: false,
+        dryRun: false,
+      });
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      const [url, options] = mockFetch.mock.calls[1] as [string, RequestInit];
+      expect(url).toContain("/api/v1/integrations/42/add");
+      expect(JSON.parse(options.body as string)).toEqual({ refs });
+    });
+  }
+
   test("posts refs to the add endpoint", async () => {
     const summary = {
       added: [{ ref: "db-1", id: "5", displayName: "Blog Posts" }],
@@ -171,7 +210,7 @@ describe("addIntegrationCollections", () => {
     // oxlint-disable-next-line typescript-eslint/await-thenable -- bun:test .rejects returns a Promise at runtime but types lack Thenable
     await expect(addIntegrationCollections("42", { format: "default" })).rejects.toThrow("exit");
     expect(errorSpy).toHaveBeenCalledWith(
-      "Usage: contfu integrations add <integration-id-or-name> (--refs <comma-separated> | --all | --select)",
+      "Usage: contfu integrations add <integration-id-or-name> (--refs <ref> [--refs <ref> ...] | --all | --select)",
     );
 
     exitSpy.mockRestore();
@@ -205,7 +244,7 @@ describe("addIntegrationCollections", () => {
       addIntegrationCollections("42", { format: "default", refs: ["db-1"], select: true }),
     ).rejects.toThrow("exit");
     expect(errorSpy).toHaveBeenCalledWith(
-      "Usage: contfu integrations add <integration-id-or-name> (--refs <comma-separated> | --all | --select)",
+      "Usage: contfu integrations add <integration-id-or-name> (--refs <ref> [--refs <ref> ...] | --all | --select)",
     );
 
     exitSpy.mockRestore();

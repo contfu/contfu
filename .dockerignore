@@ -2,6 +2,8 @@
 !packages
 !tests
 !scripts
+!patches
+!patches/**
 !package.json
 !Dockerfile
 !tsconfig.json

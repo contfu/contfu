@@ -81,7 +81,7 @@ export async function apiFetch(path: string, options?: RequestInit): Promise<Res
       process.exit(1);
     }
     if (res.status === 429) {
-      console.error("Rate limit exceeded. Please slow down and try again.");
+      console.error("Rate limit exceeded. Wait 60 seconds without retrying, then try again.");
       process.exit(1);
     }
     console.error(`Error ${res.status}: ${errorMessage ?? text}`);
@@ -127,7 +127,7 @@ export function handleApiError(err: unknown): never {
       process.exit(1);
     }
     if (err.status === 429) {
-      console.error("Rate limit exceeded. Please slow down and try again.");
+      console.error("Rate limit exceeded. Wait 60 seconds without retrying, then try again.");
       process.exit(1);
     }
     console.error(`Error ${err.status}: ${err.message}`);

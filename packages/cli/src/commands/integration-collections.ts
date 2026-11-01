@@ -126,15 +126,7 @@ export function printAddSummary(summary: AddScannedCollectionsResult) {
 }
 
 const ADD_USAGE =
-  "Usage: contfu integrations add <integration-id-or-name> (--refs <comma-separated> | --all | --select)";
-
-function parseRefs(refs: string | undefined): string[] | undefined {
-  const parsed = refs
-    ?.split(",")
-    .map((ref) => ref.trim())
-    .filter(Boolean);
-  return parsed && parsed.length > 0 ? parsed : undefined;
-}
+  "Usage: contfu integrations add <integration-id-or-name> (--refs <ref> [--refs <ref> ...] | --all | --select)";
 
 export async function scanIntegrationCollections(
   integrationId: string,
@@ -238,6 +230,10 @@ async function selectScannedCollectionRefs(scanned: ScannedCollection[]): Promis
   );
 }
 
-export function parseAddRefs(rawRefs: string | undefined): string[] | undefined {
-  return parseRefs(rawRefs);
+/** Each flag is one opaque provider ref; never split or normalize its contents. */
+export function parseAddRefs(
+  rawRefs: string | string[] | boolean | undefined,
+): string[] | undefined {
+  if (typeof rawRefs === "string") return [rawRefs];
+  return Array.isArray(rawRefs) ? rawRefs : undefined;
 }

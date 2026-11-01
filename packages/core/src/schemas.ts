@@ -458,9 +458,15 @@ function appendTypeGenerationPreamble(lines: string[], collections: TypeGenerati
   if (components.length > 0) lines.push("");
 
   const locales = collectLocales(collections);
-  if (locales.length > 0) {
+  const hasUnknownLocales = collections.some(
+    (collection) => collection.i18n?.localized && collection.i18n.locales.length === 0,
+  );
+  if (locales.length > 0 || hasUnknownLocales) {
+    if (hasUnknownLocales) {
+      lines.push("// Effective locales are not configured for every localized collection.");
+    }
     lines.push(
-      `export type Locale = ${locales.map((locale) => JSON.stringify(locale)).join(" | ")};`,
+      `export type Locale = ${hasUnknownLocales ? "string" : locales.map((locale) => JSON.stringify(locale)).join(" | ")};`,
     );
     lines.push("");
   }
