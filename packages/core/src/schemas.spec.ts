@@ -512,6 +512,48 @@ describe("generateApplicationIntegrationTypes", () => {
 });
 
 describe("generated types compile-time checks", () => {
+  for (const generate of [generateTypeScript, generateApplicationIntegrationTypes]) {
+    for (const variant of ["empty", "configured", "mixed", "nonlocalized", "inflow"] as const) {
+      it(`${generate.name} compiles ${variant} localization`, async () => {
+        const localized = variant !== "nonlocalized";
+        const collections: import("./schemas").TypeGenerationInput[] = [
+          {
+            name: "article",
+            displayName: "Article",
+            schema: { title: PropertyType.STRING },
+            i18n: { localized, locales: variant === "configured" ? ["en-US", "de"] : [] },
+            ...(variant === "inflow"
+              ? { inflowSchemas: [{ title: PropertyType.STRING }, { body: PropertyType.STRING }] }
+              : {}),
+          },
+        ];
+        if (variant === "mixed") {
+          collections.push({
+            name: "tag",
+            displayName: "Tag",
+            schema: { title: PropertyType.STRING },
+            i18n: { localized: true, locales: ["en-US", "de"] },
+          });
+        }
+        const generated = generate(collections);
+        if (!localized) {
+          expect(generated).not.toContain("Locale");
+          await assertCompiles(generated);
+        } else if (variant === "configured") {
+          expect(generated).toContain('export type Locale = "de" | "en-US";');
+          await assertCompiles(
+            `${generated}\nconst locale: Locale = "de";\n// @ts-expect-error unconfigured locale\nconst invalid: Locale = "fr";`,
+          );
+        } else {
+          expect(generated).toContain("export type Locale = string;");
+          expect(generated).toContain("// Effective locales are not configured");
+          expect(generated).toContain("$locale: Locale;");
+          await assertCompiles(`${generated}\nconst locale: Locale = "fr";`);
+        }
+      });
+    }
+  }
+
   it("keeps standalone output self-contained and resolves only emitted relation names", async () => {
     const article = {
       name: "article",

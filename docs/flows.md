@@ -55,6 +55,13 @@ it carries the source schema through unchanged.
 > omitted default preserves a null source; an explicit `"default": null` preserves null as the
 > configured fallback.
 
+Localized CMS targets require an explicit `{ "source": "$locale" }` mapping; forwarding
+`$locale` to a non-localized target is rejected. Source schema refreshes use the same
+target-aware mapping validation as flow creation and editing, so compatible refreshes
+keep explicit locale forwarding active. If a flow previously froze and missed native
+updates or deletions, re-saving its mappings alone does not guarantee catch-up; run an
+explicit target Full resync to repair existing target content.
+
 ## Filters
 
 A **filter** decides whether an item passes through a flow. Filters affect _which_ items

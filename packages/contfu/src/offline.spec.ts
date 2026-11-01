@@ -33,4 +33,5 @@ test("offline runtime queries a read-only replica without connecting or migratin
     else process.env.CONTFU_KEY = oldKey;
     await rm(dir, { recursive: true, force: true });
   }
-});
+  // File-backed replica setup and cleanup share CI resources with the other package suites.
+}, 30_000);

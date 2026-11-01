@@ -49,7 +49,9 @@ describe("apiFetch", () => {
       expect((error as Error).message).toBe("exit");
     }
 
-    expect(errorSpy).toHaveBeenCalledWith("Rate limit exceeded. Please slow down and try again.");
+    expect(errorSpy).toHaveBeenCalledWith(
+      "Rate limit exceeded. Wait 60 seconds without retrying, then try again.",
+    );
   });
 
   test("exits with error message on 500 plain text", async () => {

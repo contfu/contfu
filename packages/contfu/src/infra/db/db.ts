@@ -1,6 +1,7 @@
 import { detectRuntime } from "../../util/runtime";
 export type { DbCtx } from "./db-bun";
 
+// oxlint-disable-next-line no-eval -- indirect eval keeps the runtime-specific import out of the bundler's static graph
 const hiddenImport = (path: string) => (0, eval)(`import("${path}")`) as Promise<any>;
 const nodeCompiledModule = ["./db", "node.js"].join("-");
 const nodeSourceModule = ["./db", "node"].join("-");

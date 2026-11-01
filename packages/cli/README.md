@@ -67,7 +67,7 @@ Use `contfu integrations update <id-or-name> --token <token>`, `--webhook-secret
 
 Use `contfu integrations scan <integration-id>` to inspect source collections available from a source integration. The default output is a table; pass `-a` for compact agent-oriented output or `-j` for JSON consumers. Agent output is TOON-encoded; add `--full` to include service metadata such as schemas, locales, and options.
 
-Use `contfu integrations add <integration-id> --refs <comma-separated-refs>` to add selected scanned collections to Contfu, or `--all` to add every scanned collection that is not already added. Pass `-a` for a compact TOON-encoded summary, or `-a --full` when all fields are needed; `-j` is also supported.
+Use `contfu integrations add <integration-id> --refs '<ref>' [--refs '<ref>' ...]` to add selected scanned collections to Contfu, or `--all` to add every scanned collection that is not already added. Pass `-a` for a compact TOON-encoded summary, or `-a --full` when all fields are needed; `-j` is also supported.
 
 In interactive terminals, `contfu integrations scan <integration-id> --select` or `contfu integrations add <integration-id> --select` lets you pick multiple scanned collections and immediately add them.
 

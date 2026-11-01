@@ -1,3 +1,34 @@
+# CMS recovery failure diagnostics
+
+Acknowledged CMS target deliveries now retire obsolete failed-delivery diagnostics
+for the same workspace, target collection, and item. Recovery of temporarily
+unavailable source payloads clears failures even when the source revision is
+unchanged. Older successes cannot clear newer failures; equal-revision successes
+only clear failures for the same operation. Webhook delivery behavior is unchanged.
+
+This affects shared CMS receive bookkeeping, not provider write semantics. No
+database migration is required. Deploy/restart the backend and sync workers to
+activate the fix; existing diagnostics retire on the next successful delivery,
+not through a retrospective sweep.
+
+# Replay-safe target delivery accounting
+
+Automatic source replay now reuses funded delivery work across app replicas,
+replacement pods, and publication retries. Explicit operator requests remain
+chargeable; durable repair-job retries reuse their request cycle.
+
+Quota debits and admission metadata commit in PostgreSQL before the existing
+delivery worker publishes executable NATS obligations. Business transaction
+rollback and broker publication failure cannot expose unfunded work. Funded
+publication IDs fence stale outbox replay and preserve ACK/recovery semantics.
+Unexpected funding-write errors leave repair jobs failed and release their
+worker lease instead of failing again while recording binary SQL diagnostics.
+
+Deploy the admission-table migration with the updated service. No application
+SDK or client wire-protocol change is required. Existing quota usage and reset
+dates are not modified; retrospective billing adjustments still require
+verifiable evidence and owner approval.
+
 # Connection-scoped item identity (breaking change)
 
 Managed item IDs change for **all integrations**. Identity now includes the integration type,
@@ -39,3 +70,15 @@ payload updates even during a conditional full pull. Rebuild affected cached sou
 and downstream application stores through the supported full source and application resync
 workflow, rather than relying on an ordinary unchanged refresh to remove the field.
 Regenerate application types as needed. See [Web migration](./system-properties.md#web-migration).
+
+## Incremental pull continuity
+
+Incremental and best-effort pull version tracking now merges only observed items into
+the transaction-current collection state. An overlapping Full pull can no longer
+have its inventory erased by an incremental pull that captured an older empty
+baseline; unobserved items removed by a concurrent Full are not resurrected either.
+Authoritative Full omissions and explicit upstream deletions remain destructive.
+
+Restart the backend/sync services after deployment. Existing missing projections
+require a supported source Full recovery; this is explicit recovery, not proof of
+automatic continuity or of Asset PUSH file-refresh success.

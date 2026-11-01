@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.15] - 2026-11-01
+
+### Changed
+
+- Align scoped snapshot release metadata and update dependencies.
+
+### Fixed
+
+- Correct collection-scoped snapshot compatibility and embedded membership reconciliation.
+
 ## [0.1.14] - 2026-10-23
 
 ### Fixed

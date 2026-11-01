@@ -52,12 +52,12 @@ const integrationActions: Record<string, ActionHandler> = {
   ),
 
   add: withId(
-    "Usage: contfu integrations add <integration-id-or-name> (--refs <comma-separated> | --all | --select)",
+    "Usage: contfu integrations add <integration-id-or-name> (--refs <ref> [--refs <ref> ...] | --all | --select)",
     (ctx) =>
       addIntegrationCollections(ctx.positionals[2], {
         format: ctx.outputFormat,
         full: ctx.full,
-        refs: parseAddRefs(str(ctx.values, "refs")),
+        refs: parseAddRefs(ctx.values.refs),
         all: bool(ctx.values, "all"),
         select: bool(ctx.values, "select"),
         dryRun: ctx.dryRun,

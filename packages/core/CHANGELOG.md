@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.5.5] - 2026-11-01
+
+### Changed
+
+- Align scoped snapshot release metadata.
+
+### Fixed
+
+- Reconcile embedded membership after collection-name reuse.
+- Declare locales for localized collections without configured locales.
+
 ## [0.5.4] - 2026-10-23
 
 ### Fixed

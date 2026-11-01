@@ -92,9 +92,16 @@ const SHORT_FLAGS: Record<string, string> = {
 };
 
 function optionSpec() {
-  const options: Record<string, { type: "string" | "boolean"; short?: string }> = {};
+  const options: Record<
+    string,
+    { type: "string" | "boolean"; short?: string; multiple?: boolean }
+  > = {};
   for (const name of STRING_OPTIONS) {
-    options[name] = { type: "string", ...(SHORT_FLAGS[name] ? { short: SHORT_FLAGS[name] } : {}) };
+    options[name] = {
+      type: "string",
+      ...(name === "refs" ? { multiple: true } : {}),
+      ...(SHORT_FLAGS[name] ? { short: SHORT_FLAGS[name] } : {}),
+    };
   }
   for (const name of BOOLEAN_OPTIONS) {
     options[name] = { type: "boolean", ...(SHORT_FLAGS[name] ? { short: SHORT_FLAGS[name] } : {}) };

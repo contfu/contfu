@@ -85,6 +85,11 @@ async function exchangeCode(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ code, state, code_verifier: verifier }),
   });
+  if (res.status === 429) {
+    throw new Error(
+      "Authentication rate limit exceeded. Wait 60 seconds without retrying, then start a new login.",
+    );
+  }
   if (!res.ok) {
     throw new Error(`Invalid or expired authorization (${res.status})`);
   }

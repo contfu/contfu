@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.17] - 2026-11-01
+
+### Changed
+
+- Update dependencies.
+
+### Fixed
+
+- Preserve embedded Strapi components and nested population.
+
 ## [0.1.16] - 2026-10-21
 
 ### Added

@@ -18,7 +18,7 @@ Commands:
                                     Delete item by ID or name
   integrations scan <id-or-name> [--format default|agent|json] [--full]
                                     Scan source collections for an integration
-  integrations add <id-or-name> [--refs <refs> | --all | --select]
+  integrations add <id-or-name> [--refs <ref> ... | --all | --select]
   [--format default|agent|json] [--full] [--dry-run]
                                     Add scanned source collections to Contfu
   integrations components <id-or-name> [--format default|agent|json] [--full]
@@ -146,7 +146,7 @@ integrations options:
       --i18n-active-locales <mode>  Active locales: inherit or custom:<locales>
       --i18n-locale-map <map>       Locale map entries raw=locale, comma-separated
       --reset-i18n                  Reset the user i18n layer; keeps detected i18n
-      --refs <refs>                 Comma-separated scanned source collection refs to add
+      --refs <ref>                  Exact scanned ref to add; repeat for multiple refs (no comma splitting)
       --all                         Add all available scanned source collections
   -s, --select                      Interactively choose scanned source collections to add
   -d, --data <json>                 Raw JSON body (alternative to above flags)
